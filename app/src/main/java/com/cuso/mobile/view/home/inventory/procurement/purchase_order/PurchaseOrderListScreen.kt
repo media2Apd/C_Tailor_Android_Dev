@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.inventory.PurchaseOrder
 import com.cuso.mobile.model.inventory.PurchaseRequisition
@@ -23,6 +25,8 @@ import com.cuso.mobile.model.inventory.WarehouseRef
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.viewmodel.InventoryViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun POListScreen(
@@ -33,15 +37,71 @@ fun POListScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val requisitions by viewModel.requisitionsList.collectAsState()
-    val orders by viewModel.purchaseOrdersList.collectAsState()
-    val isLoadingRequisitions by viewModel.isLoadingRequisitions.collectAsState()
-    val isLoadingPO by viewModel.isLoadingPurchaseOrders.collectAsState()
+    // Observe lists and primary loading states
+    val requisitions by viewModel.requisitionsList.collectAsStateWithLifecycle()
+    val orders by viewModel.purchaseOrdersList.collectAsStateWithLifecycle()
+    val isLoadingRequisitions by viewModel.isLoadingRequisitions.collectAsStateWithLifecycle()
+    val isLoadingPO by viewModel.isLoadingPurchaseOrders.collectAsStateWithLifecycle()
     val isLoading = isLoadingRequisitions || isLoadingPO
 
-    var searchQuery by remember { mutableStateOf("") }
+    // Observe pagination states for both types
+    val isLoadingMoreRequisitions by viewModel.isLoadingMoreRequisitions.collectAsStateWithLifecycle()
+    val isLoadingMorePO by viewModel.isLoadingMorePurchaseOrders.collectAsStateWithLifecycle()
+    val canLoadMoreRequisitions by viewModel.canLoadMoreRequisitions.collectAsStateWithLifecycle()
+    val canLoadMorePO by viewModel.canLoadMorePurchaseOrders.collectAsStateWithLifecycle()
 
+    // Determine which dataset is actively being rendered
+    val isShowingRequisitions = requisitions.isNotEmpty()
+    val isLoadingMore = if (isShowingRequisitions) isLoadingMoreRequisitions else isLoadingMorePO
+    val canLoadMore = if (isShowingRequisitions) canLoadMoreRequisitions else canLoadMorePO
+
+    var searchQuery by remember { mutableStateOf("") }
     val filterDrawerState = rememberFilterDrawerState()
+
+    // Scroll state tracker for LazyColumn
+    val listState = rememberLazyListState()
+
+    // Consolidated initial fetch and debounced search (prevents duplicate requests at startup)
+    var isInitialized by remember { mutableStateOf(false) }
+    LaunchedEffect(searchQuery) {
+        if (!isInitialized) {
+            isInitialized = true
+            viewModel.fetchAllRequisitions()
+            viewModel.fetchAllPurchaseOrders()
+        } else {
+            delay(400)
+            val query = searchQuery.trim().ifBlank { null }
+            viewModel.fetchAllRequisitions(search = query)
+            viewModel.fetchAllPurchaseOrders(search = query)
+        }
+    }
+
+    // Scroll listener: triggers next page fetch only when crossing the bottom threshold
+    LaunchedEffect(listState, canLoadMore, searchQuery, isShowingRequisitions) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+
+            // Trigger when reaching within 2 items of the list end
+            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
+        }
+            .distinctUntilChanged()
+            .collect { isNearBottom ->
+                if (isNearBottom &&
+                    canLoadMore &&
+                    !isLoadingMore &&
+                    !isLoading &&
+                    searchQuery.isBlank()
+                ) {
+                    if (isShowingRequisitions) {
+                        viewModel.loadMoreRequisitions()
+                    } else {
+                        viewModel.loadMorePurchaseOrders()
+                    }
+                }
+            }
+    }
 
     val initialFilterSections = remember {
         listOf(
@@ -89,12 +149,6 @@ fun POListScreen(
 
     var filterSections by remember { mutableStateOf(initialFilterSections) }
 
-    // Fetch live requisitions and purchase orders on load
-    LaunchedEffect(Unit) {
-        viewModel.fetchAllRequisitions()
-        viewModel.fetchAllPurchaseOrders()
-    }
-
     FabScaffold(
         modifier = Modifier
             .fillMaxSize()
@@ -115,11 +169,7 @@ fun POListScreen(
 
             SearchFilterBar(
                 query = searchQuery,
-                onQueryChange = {
-                    searchQuery = it
-                    viewModel.fetchAllRequisitions(search = it.takeIf { s -> s.isNotBlank() })
-                    viewModel.fetchAllPurchaseOrders(search = it.takeIf { s -> s.isNotBlank() })
-                },
+                onQueryChange = { searchQuery = it },
                 placeholder = "Search Purchase Orders...",
                 showFilterIcon = true,
                 onFilterClick = {
@@ -138,6 +188,7 @@ fun POListScreen(
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = tokens.screenPadding),
@@ -147,8 +198,11 @@ fun POListScreen(
                         bottom = tokens.buttonHeight + 80.dp
                     )
                 ) {
-                    if (requisitions.isNotEmpty()) {
-                        items(requisitions) { req ->
+                    if (isShowingRequisitions) {
+                        items(
+                            items = requisitions,
+                            key = { it.id?.ifBlank { it.prNumber ?: it.hashCode().toString() } ?: "" }
+                        ) { req ->
                             RequisitionCard(
                                 requisition = req,
                                 onViewDetails = {
@@ -168,10 +222,24 @@ fun POListScreen(
                             )
                         }
                     } else {
-                        items(orders) { order ->
+                        items(
+                            items = orders,
+                            key = { it.id?.ifBlank { it.poNumber ?: it.hashCode().toString() } ?: "" }
+                        ) { order ->
                             PurchaseOrderCard(
                                 order = order,
                                 onViewDetails = { onNavigateToDetail(order) }
+                            )
+                        }
+                    }
+
+                    // Three-dot loader displayed only while a next page request is actively in-flight
+                    if (isLoadingMore) {
+                        item(key = "pagination_threedot_loader") {
+                            ThreeDotLoading(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp)
                             )
                         }
                     }
@@ -185,15 +253,15 @@ fun POListScreen(
             sections = filterSections,
             onApply = { appliedSections ->
                 filterSections = appliedSections
-                viewModel.fetchAllRequisitions(
-                    search = searchQuery.takeIf { it.isNotBlank() }
-                )
+                val query = searchQuery.takeIf { it.isNotBlank() }
+                viewModel.fetchAllRequisitions(search = query)
+                viewModel.fetchAllPurchaseOrders(search = query)
             },
             onClearAll = {
                 filterSections = initialFilterSections
-                viewModel.fetchAllRequisitions(
-                    search = searchQuery.takeIf { it.isNotBlank() }
-                )
+                val query = searchQuery.takeIf { it.isNotBlank() }
+                viewModel.fetchAllRequisitions(search = query)
+                viewModel.fetchAllPurchaseOrders(search = query)
             }
         )
     }

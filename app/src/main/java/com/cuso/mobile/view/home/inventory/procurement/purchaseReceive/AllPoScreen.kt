@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,8 +27,11 @@ import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.AppCheckbox
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.ThreeDotLoading
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.InventoryViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun AllOrdersScreen(
@@ -40,13 +44,49 @@ fun AllOrdersScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
+    // Observe receive list and pagination states from ViewModel
     val receives by viewModel.allReceives.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingReceives.collectAsStateWithLifecycle()
+    val isLoadingMore by viewModel.isLoadingMoreReceives.collectAsStateWithLifecycle()
+    val canLoadMore by viewModel.canLoadMoreReceives.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
-    // Fetch live receives on screen load
-    LaunchedEffect(Unit) {
-        viewModel.fetchAllReceives()
+    // Scroll state tracker for LazyColumn
+    val listState = rememberLazyListState()
+
+    // Consolidated initial fetch and debounced search (avoids duplicate call at startup)
+    var isInitialized by remember { mutableStateOf(false) }
+    LaunchedEffect(searchQuery) {
+        if (!isInitialized) {
+            isInitialized = true
+            viewModel.fetchAllReceives()
+        } else {
+            delay(400)
+            viewModel.fetchAllReceives(search = searchQuery.trim().ifBlank { null })
+        }
+    }
+
+    // Scroll listener: triggers next page fetch only when crossing the bottom threshold
+    LaunchedEffect(listState, canLoadMore, searchQuery) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+
+            // Trigger when reaching within 2 items of the list end
+            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
+        }
+            .distinctUntilChanged()
+            .collect { isNearBottom ->
+                if (isNearBottom &&
+                    canLoadMore &&
+                    !isLoadingMore &&
+                    !isLoading &&
+                    searchQuery.isBlank()
+                ) {
+                    viewModel.loadMoreReceives()
+                }
+            }
     }
 
     Scaffold(
@@ -87,10 +127,7 @@ fun AllOrdersScreen(
         ) {
             SearchFilterBar(
                 query = searchQuery,
-                onQueryChange = {
-                    searchQuery = it
-                    viewModel.fetchAllReceives(search = it)
-                },
+                onQueryChange = { searchQuery = it },
                 placeholder = "Search Customers or PO...",
                 showFilterIcon = true,
                 onFilterClick = onFilterClick,
@@ -107,16 +144,31 @@ fun AllOrdersScreen(
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 90.dp),
                     verticalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
-                    items(receives, key = { it.id }) { receiveItem ->
+                    items(
+                        items = receives,
+                        key = { it.id.ifBlank { it.hashCode().toString() } }
+                    ) { receiveItem ->
                         val poId = receiveItem.poId?.id.orEmpty()
                         ReceiveOrderCard(
                             item = receiveItem,
                             onClick = { onOrderClick(poId, receiveItem.id) }
                         )
+                    }
+
+                    // Three-dot loader displayed only while a next page request is actively in-flight
+                    if (isLoadingMore) {
+                        item(key = "pagination_threedot_loader") {
+                            ThreeDotLoading(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp)
+                            )
+                        }
                     }
                 }
             }

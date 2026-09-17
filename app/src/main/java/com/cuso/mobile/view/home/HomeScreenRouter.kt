@@ -2,6 +2,7 @@
 
 package com.cuso.mobile.view.home
 
+import android.annotation.SuppressLint
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -9,11 +10,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.cuso.mobile.model.inventory.LowStockItemDto
 import com.cuso.mobile.model.inventory.PurchaseOrder
+import com.cuso.mobile.model.inventory.StockLocationItemDto
 import com.cuso.mobile.model.sales.CustomerItem
 import com.cuso.mobile.model.settings.SegmentItem
 import com.cuso.mobile.view.home.branch.BranchSettingsScreen
@@ -62,7 +63,7 @@ import com.cuso.mobile.view.home.inventory.procurement.barcode.AllBarcodesScreen
 import com.cuso.mobile.view.home.inventory.procurement.barcode.BarcodeGeneratorScreen
 import com.cuso.mobile.view.home.inventory.procurement.billslist.AllPayableInvoicesScreen
 import com.cuso.mobile.view.home.inventory.procurement.billslist.PayableInvoicePdfPreviewScreen
-import com.cuso.mobile.view.home.inventory.procurement.billslist.PurchaseDetailScreen
+import com.cuso.mobile.view.home.inventory.procurement.billslist.PurchaseDetailScreen as PayablePurchaseDetailScreen
 import com.cuso.mobile.view.home.inventory.procurement.credits.AllCreditsScreen
 import com.cuso.mobile.view.home.inventory.procurement.location_management.AllStockLocationScreen
 import com.cuso.mobile.view.home.inventory.procurement.location_management.StockLocationDetailsScreen
@@ -72,6 +73,7 @@ import com.cuso.mobile.view.home.inventory.procurement.orders.LowStockAlertsScre
 import com.cuso.mobile.view.home.inventory.procurement.purchaseReceive.AllOrdersScreen
 import com.cuso.mobile.view.home.inventory.procurement.purchaseReceive.NewBillScreen
 import com.cuso.mobile.view.home.inventory.procurement.purchaseReceive.PreviewPdfScreen
+import com.cuso.mobile.view.home.inventory.procurement.purchaseReceive.PurchaseDetailScreen as ReceivePurchaseDetailScreen
 import com.cuso.mobile.view.home.inventory.procurement.purchase_order.POCreateScreen
 import com.cuso.mobile.view.home.inventory.procurement.purchase_order.PODetailScreen
 import com.cuso.mobile.view.home.inventory.procurement.purchase_order.POListScreen
@@ -96,7 +98,6 @@ import com.cuso.mobile.view.home.profile_settings.setup_pages.SettingsScreen
 import com.cuso.mobile.view.home.reports.finance.FinanceReportPage
 import com.cuso.mobile.view.home.reports.finance.ProfitAndLossReportScreen
 import com.cuso.mobile.view.home.reports.inventory.*
-import com.cuso.mobile.view.home.inventory.procurement.purchaseReceive.PurchaseDetailScreen
 import com.cuso.mobile.view.home.reports.sales.SalesOrderReportsScreen
 import com.cuso.mobile.view.home.role.RoleSettingsScreen
 import com.cuso.mobile.view.home.sales.customer.*
@@ -131,6 +132,7 @@ import com.cuso.mobile.view.home.subscriptions.SubscriptionFlowContainer
 import com.cuso.mobile.view.home.warehouse.WarehouseSettingsScreen
 import com.cuso.mobile.viewmodel.*
 
+@SuppressLint("FlowOperatorInvokedInComposition")
 @Composable
 fun HomeScreenRouter(
     screen: String,
@@ -145,6 +147,7 @@ fun HomeScreenRouter(
     customerViewModel: CustomerViewModel,
     settingsViewModel: SettingsViewModel,
     authViewModel: Authenticate,
+    inventoryViewModel: InventoryViewModel,
     onNavigate: (String) -> Unit,
     onSafeNavigate: (String) -> Unit,
     onGoBack: () -> Unit,
@@ -202,8 +205,7 @@ fun HomeScreenRouter(
     var selectedPurchaseOrderForEdit by remember { mutableStateOf<PurchaseOrder?>(null) }
     var selectedAdjustmentType by remember { mutableStateOf(AdjustmentType.TransferStock) }
     var selectedReceivePoId by remember { mutableStateOf<String?>(null) }
-
-    // ── Dedicated Requisition Selection State ──
+    var selectedStockLocationItem by remember { mutableStateOf<StockLocationItemDto?>(null) }
 
     when (screen) {
         // ─────────────────────────────────────────────────────────────
@@ -222,40 +224,48 @@ fun HomeScreenRouter(
                 }
             }
         )
+
         "settings", "home_organization_profile" -> SettingsScreen(
             navController = navController,
             onMenuClick = onOpenDrawer,
             onBack = onGoBack
         )
+
         "home_branch_management" -> BranchSettingsScreen(
             navController = navController,
             onMenuClick = onOpenDrawer,
             onBack = onGoBack
         )
+
         "home_department_teams" -> DepartmentSettingsScreen(
             navController = navController,
             onMenuClick = onOpenDrawer,
             onBack = onGoBack
         )
+
         "home_designation" -> DesignationScreen(
             navController = navController,
             onMenuClick = onOpenDrawer,
             onBack = onGoBack
         )
+
         "home_role_management" -> RoleSettingsScreen(
             navController = navController,
             onMenuClick = onOpenDrawer,
             onBack = onGoBack
         )
+
         "home_opening_balance" -> OpeningBalancesScreen(
             navController = navController,
             onBack = onGoBack
         )
+
         "home_warehouse_management" -> WarehouseSettingsScreen(
             navController = navController,
             onMenuClick = onOpenDrawer,
             onBack = onGoBack
         )
+
         "profile-settings" -> ProfileSettingsScreen(
             onClose = onGoBack,
             onOrganizationSetup = { onSafeNavigate("settings_overview") },
@@ -285,16 +295,19 @@ fun HomeScreenRouter(
                 }
             }
         )
+
         "settings_overview" -> SettingsOverviewScreen(
             onClose = onGoBack,
             onNavigateToOrganizationSettings = { onSafeNavigate("organization_settings") },
             onNavigateToModuleSettings = { onSafeNavigate("module_settings") },
             onNavigateToSubscriptionSettings = { onSafeNavigate("manage_subscription") }
         )
+
         "manage_subscription" -> SubscriptionFlowContainer(
             onClose = onGoBack,
             onStartUpgrade = {}
         )
+
         "module_settings" -> ModuleSettingsScreen(
             onClose = onGoBack,
             onNavigateToModule = { route -> onSafeNavigate(route) },
@@ -353,14 +366,17 @@ fun HomeScreenRouter(
             onClose = onGoBack,
             onAddNewClick = { onNavigate("inventory_create_allocation") }
         )
+
         "inventory_create_allocation" -> CreateAllocationScreen(
             onClose = onGoBack,
             onSaveRule = onGoBack
         )
+
         "inventory_pdf_templates" -> PdfTemplatesScreen(
             onClose = onGoBack,
             onCreateNewTemplate = { onShowComingSoon("Create Template Coming Soon") }
         )
+
         "inventory_location_structure" -> LocationStructureScreen(
             onClose = onGoBack,
             onAddLocation = { onNavigate("inventory_add_floor") },
@@ -496,15 +512,18 @@ fun HomeScreenRouter(
             },
             onBreadCrumbClick = { onOpenModulesPanel("Sales") }
         )
+
         "create_lead" -> LeadFormScreen(
             mode = LeadFormMode.CREATE,
             onBack = onGoBack
         )
+
         "view_lead" -> LeadFormScreen(
             mode = LeadFormMode.VIEW,
             onBack = onGoBack,
             onEditRequested = { onNavigate("edit_lead") }
         )
+
         "edit_lead" -> LeadFormScreen(
             mode = LeadFormMode.EDIT,
             onBack = onGoBack,
@@ -514,6 +533,7 @@ fun HomeScreenRouter(
                 onNavigate("create_order")
             }
         )
+
         "sales_customers" -> CustomerScreen(
             navController = navController,
             onClose = onGoBack,
@@ -529,6 +549,7 @@ fun HomeScreenRouter(
             onDelete = { customer -> customerViewModel.deleteCustomer(customer.id) },
             onBreadCrumbClick = { onOpenModulesPanel("Sales") }
         )
+
         "view_customer", "edit_customer" -> {
             if (selectedCustomer != null && selectedCustomer.id.isNotBlank()) {
                 CustomerDetailScreen(
@@ -546,6 +567,7 @@ fun HomeScreenRouter(
                 onGoBack()
             }
         }
+
         "view_customer_recent" -> {
             if (!selectedRecentCustomerId.isNullOrBlank()) {
                 CustomerDetailScreen(
@@ -567,12 +589,14 @@ fun HomeScreenRouter(
                 onGoBack()
             }
         }
+
         "sales_measurements" -> MeasurementsScreen(
             navController = navController,
             onBack = onGoBack,
             onCreateOrder = { onNavigate("create_order") },
             onBreadCrumbClick = { onOpenModulesPanel("Sales") }
         )
+
         "sales_sales_orders" -> SalesOrderScreen(
             navController = navController,
             onMenuClick = onOpenDrawer,
@@ -588,6 +612,7 @@ fun HomeScreenRouter(
             onEditOrder = { orderId -> onEditOrderIdChange(orderId) },
             onBreadCrumbClick = { onOpenModulesPanel("Sales") }
         )
+
         "create_order" -> CreateOrderScreen(
             initialData = pendingOrderReviewData,
             onBack = {
@@ -603,6 +628,7 @@ fun HomeScreenRouter(
                 onNavigate("measurement_entry")
             }
         )
+
         "measurement_entry" -> {
             pendingOrderReviewData?.let { data ->
                 MeasurementEntryScreen(
@@ -616,6 +642,7 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
+
         "order_preview" -> {
             pendingOrderReviewData?.let { data ->
                 OrderPreviewScreen(
@@ -631,6 +658,7 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
+
         "create_order_review" -> {
             pendingOrderReviewData?.let { data ->
                 CreateOrderNextStep(
@@ -646,6 +674,7 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
+
         "order_overview" -> {
             selectedOrderId?.let { id ->
                 OrderOverviewScreen(
@@ -662,6 +691,7 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
+
         "sales_pricing_overview" -> PricingScreen(
             onClose = {
                 onSalesSettingsModeChange(false)
@@ -677,6 +707,7 @@ fun HomeScreenRouter(
             },
             onBreadCrumbClick = { onOpenModulesPanel("Sales") }
         )
+
         "garment_pricing_list" -> GarmentPricingListScreen(
             onBack = onGoBack,
             onAddNewPricing = {
@@ -684,6 +715,7 @@ fun HomeScreenRouter(
                 onNavigate("create_garment_pricing")
             }
         )
+
         "create_garment_pricing" -> AddGarmentPricingScreen(
             pricingId = editingPricingId,
             onClose = {
@@ -695,6 +727,7 @@ fun HomeScreenRouter(
                 onGoBack()
             }
         )
+
         "sales_pricing_quotation" -> QuotationScreen(
             onClose = {
                 onSalesSettingsModeChange(false)
@@ -717,6 +750,7 @@ fun HomeScreenRouter(
             },
             onBreadCrumbClick = { onOpenModulesPanel("Sales") }
         )
+
         "create_quotation" -> CreateQuotationScreen(
             quotationId = editingPricingId,
             mode = quotationScreenMode,
@@ -724,6 +758,7 @@ fun HomeScreenRouter(
             onSave = onGoBack,
             token = token
         )
+
         "sales_payment_and_billing" -> PaymentListingScreen(
             navController = navController,
             widthSizeClass = widthSizeClass,
@@ -734,6 +769,7 @@ fun HomeScreenRouter(
             onBreadCrumbClick = { onOpenModulesPanel("Sales") },
             onPaymentClick = { onNavigate("payment_detail") }
         )
+
         "payment_detail" -> PaymentInformationScreen(onClose = onGoBack)
 
         "sales_settings" -> SalesSettingsScreen(
@@ -757,7 +793,7 @@ fun HomeScreenRouter(
             viewModel = settingsViewModel
         )
 
-        "sales_garment_category_detail", "sales_category_detail" -> {
+        "sales_category_detail" -> {
             val segmentId by settingsViewModel.selectedSegmentIdForStyle.collectAsStateWithLifecycle()
             val garmentId by settingsViewModel.selectedGarmentIdForStyle.collectAsStateWithLifecycle()
             val title by settingsViewModel.selectedGarmentTitleForStyle.collectAsStateWithLifecycle()
@@ -771,6 +807,7 @@ fun HomeScreenRouter(
                 viewModel = settingsViewModel
             )
         }
+
         "sales_add_segment" -> AddSegmentScreen(
             segmentToEdit = selectedSegmentForEdit,
             viewModel = settingsViewModel,
@@ -809,6 +846,7 @@ fun HomeScreenRouter(
                 onNavigate("sales_category_detail")
             }
         )
+
         "sales_garment_profile" -> GarmentProfileConfigScreen(
             profileTitle = "Men's Shirt Profile",
             isActive = isGarmentActive,
@@ -818,6 +856,7 @@ fun HomeScreenRouter(
             onPreviewClick = { onNavigate("sales_configuration_preview") },
             onToggleActiveState = { isGarmentActive = it }
         )
+
         "sales_configuration_preview" -> ConfigurationPreviewScreen(
             garmentTitle = "Men's Shirt",
             onClose = onGoBack,
@@ -827,26 +866,31 @@ fun HomeScreenRouter(
                 onGoBack()
             }
         )
+
         "sales_add_existing_field" -> AddExistingFieldScreen(
             onClose = onGoBack,
             onAddSelected = { onGoBack() },
             viewModel = settingsViewModel
         )
+
         "sales_create_measurement_field" -> CreateMeasurementFieldScreen(
             onClose = onGoBack,
             onSave = { onGoBack() },
             viewModel = settingsViewModel
         )
+
         "sales_add_garment" -> AddNewGarmentScreen(
             viewModel = settingsViewModel,
             onClose = onGoBack,
             onGarmentCreated = onGoBack
         )
+
         "sales_add_garment_category" -> AddNewGarmentCategoryScreen(
             onClose = onGoBack,
             onGarmentCategoryCreated = onGoBack,
             viewModel = settingsViewModel
         )
+
         "sales_garment_pricing_setup" -> PricingSetupScreen(
             onClose = onGoBack,
             onAddGarmentPricing = {
@@ -867,6 +911,7 @@ fun HomeScreenRouter(
                 onNavigate("sales_add_work_pricing")
             }
         )
+
         "sales_add_garment_pricing" -> AddNewGarmentPricingScreen(
             garmentId = editingPricingId,
             onClose = {
@@ -878,10 +923,12 @@ fun HomeScreenRouter(
                 onGoBack()
             }
         )
+
         "sales_add_fabric_pricing" -> AddFabricPriceScreen(
             onClose = onGoBack,
             onSaveSuccess = onGoBack
         )
+
         "sales_add_work_pricing" -> AddWorkPricingScreen(
             workId = editingPricingId,
             onClose = {
@@ -893,6 +940,7 @@ fun HomeScreenRouter(
                 onGoBack()
             }
         )
+
         "sales_measurement_list" -> {
             MeasurementListScreen(
                 onClose = onGoBack,
@@ -912,6 +960,7 @@ fun HomeScreenRouter(
             },
             onBreadCrumbClick = { onOpenModulesPanel("Finance") }
         )
+
         "finance_invoice_detail" -> {
             selectedInvoiceId?.let { id ->
                 InvoiceDetailScreen(
@@ -924,6 +973,7 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
+
         "finance_purchase_invoices" -> PurchaseInvoiceScreen(
             onClose = onGoBack,
             onInvoiceClick = { invoice ->
@@ -932,6 +982,7 @@ fun HomeScreenRouter(
             },
             onBreadCrumbClick = { onOpenModulesPanel("Finance") }
         )
+
         "finance_purchase_invoice_detail" -> {
             selectedPurchaseInvoice?.let { invoice ->
                 PurchaseInvoiceDetailScreen(
@@ -940,6 +991,7 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
+
         "finance_customers" -> FinanceCustomerScreen(
             onClose = onGoBack,
             onCustomerEdit = { customerId ->
@@ -952,6 +1004,7 @@ fun HomeScreenRouter(
             },
             onBreadCrumbClick = { onOpenModulesPanel("Finance") }
         )
+
         "finance_customer_detail" -> {
             selectedRecentCustomerId?.let { id ->
                 CustomerDetailViewScreen(
@@ -964,8 +1017,7 @@ fun HomeScreenRouter(
             } ?: run { onGoBack() }
         }
 
-        // ── Suppliers View All & View One ──
-        "finance_suppliers", "inventory_suppliers" -> AllSuppliersScreen(
+        "finance_suppliers" -> AllSuppliersScreen(
             onClose = onGoBack,
             onSupplierClick = { supplier ->
                 onSupplierSelected(supplier.id)
@@ -973,7 +1025,8 @@ fun HomeScreenRouter(
             },
             onBreadCrumbClick = { onOpenModulesPanel("Finance") }
         )
-        "finance_supplier_detail", "inventory_supplier_detail" -> {
+
+        "finance_supplier_detail" -> {
             selectedSupplierId?.let { id ->
                 SupplierDetailScreen(
                     supplierId = id,
@@ -991,11 +1044,14 @@ fun HomeScreenRouter(
             onClose = onGoBack,
             onBreadCrumbClick = { onOpenModulesPanel("Finance") }
         )
+
         "finance_chart_of_accounts" -> ChartOfAccountScreen(
             onClose = onGoBack,
             onBreadcrumbClick = { onOpenModulesPanel("Finance") }
         )
+
         "finance_journal_screen" -> ManualJournalEntryScreen(onClose = onGoBack)
+
         "finance_trial_balance" -> TrialBalanceScreen(
             onClose = onGoBack,
             onAccountClick = { accountId, accountName ->
@@ -1004,6 +1060,7 @@ fun HomeScreenRouter(
             },
             onBreadcrumbClick = { onOpenModulesPanel("Finance") }
         )
+
         "finance_ledger" -> {
             selectedLedgerAccountId?.let { id ->
                 LedgerScreen(
@@ -1017,11 +1074,14 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
+
         "finance_payments_received" -> AllPaymentScreen(
             onViewPayment = { onNavigate("payment_detail_screen") },
             onBreadCrumbClick = { onOpenModulesPanel("Finance") }
         )
+
         "payment_detail_screen" -> PaymentDetailScreenAR(onClose = onGoBack)
+
         "finance_payments_mode" -> AllPaymentListScreen(
             onClose = onGoBack,
             onPaymentClick = { paymentId ->
@@ -1029,21 +1089,25 @@ fun HomeScreenRouter(
                 onNavigate("payment_mode_detail")
             }
         )
+
         "payment_mode_detail" -> PaymentDetailScreenAP(
             onClose = {
                 onPaymentModeSelected(null)
                 onGoBack()
             }
         )
+
         "finance_gst_settings" -> GstSettingsOverviewScreen(
             onClose = onGoBack,
             onAddGst = { onNavigate("finance_add_gst") },
             onEditGst = { onNavigate("finance_add_gst") }
         )
+
         "finance_add_gst" -> AddGstSettingsScreen(
             onClose = onGoBack,
             onSave = onGoBack
         )
+
         "finance_tax_rates" -> TaxRatesScreen(
             taxRates = emptyList(),
             stats = emptyList(),
@@ -1053,6 +1117,7 @@ fun HomeScreenRouter(
             onEditRate = { },
             onDeleteRate = { }
         )
+
         "finance_add_tax_group" -> AddTaxGroupScreen(
             onClose = onGoBack,
             onCreateGroup = { onGoBack() }
@@ -1071,19 +1136,20 @@ fun HomeScreenRouter(
             onEditItem = { onNavigate("inventory_create_item") },
             onBreadCrumbClick = { onOpenModulesPanel("Inventory") }
         )
+
         "inventory_create_item" -> CreateItemScreen(
             onDismiss = onGoBack,
             onItemCreated = onGoBack
         )
+
         "inventory_item_detail" -> {
             selectedInventoryItemId?.let { id ->
-                val itemDetailViewModel: InventoryViewModel = hiltViewModel()
-                val selectedItem by itemDetailViewModel.selectedItem.collectAsStateWithLifecycle()
-                val isLoadingDetail by itemDetailViewModel.isLoadingItemDetail.collectAsStateWithLifecycle()
-                val detailError by itemDetailViewModel.itemDetailError.collectAsStateWithLifecycle()
+                val selectedItem by inventoryViewModel.selectedItem.collectAsStateWithLifecycle()
+                val isLoadingDetail by inventoryViewModel.isLoadingItemDetail.collectAsStateWithLifecycle()
+                val detailError by inventoryViewModel.itemDetailError.collectAsStateWithLifecycle()
 
                 LaunchedEffect(id) {
-                    itemDetailViewModel.fetchInventoryItemDetail(id)
+                    inventoryViewModel.fetchInventoryItemDetail(id)
                 }
 
                 InventoryViewOne(
@@ -1111,8 +1177,8 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
+
         "inventory_low_stock_alerts" -> {
-            val inventoryViewModel: InventoryViewModel = hiltViewModel()
             LowStockAlertsScreen(
                 onClose = onGoBack,
                 onReorderClick = { item ->
@@ -1169,8 +1235,7 @@ fun HomeScreenRouter(
                         onItemGroupIdSelected(null)
                         onGoBack()
                     },
-                    onEdit = { groupId ->
-                        onItemGroupIdSelected(groupId)
+                    onEdit = {
                         onNavigate("inventory_create_item_group")
                     },
                     onAdjustStock = { },
@@ -1179,7 +1244,7 @@ fun HomeScreenRouter(
             } ?: run { onGoBack() }
         }
 
-        "inventory_adjustment", "inventory_adjustments" -> AllOrdersStockListScreen(
+        "inventory_adjustments" -> AllOrdersStockListScreen(
             preselectedItemId = selectedInventoryItemId,
             initialAdjustmentType = selectedAdjustmentType,
             onClose = onGoBack
@@ -1196,7 +1261,7 @@ fun HomeScreenRouter(
             }
         )
 
-        "inventory_transfer_stock", "inventory_items_transfer_stock" -> TransferOrdersStockListScreen(
+        "inventory_transfer_stock" -> TransferOrdersStockListScreen(
             preselectedItemId = selectedInventoryItemId,
             onClose = {
                 onInventoryItemIdSelected(null)
@@ -1205,7 +1270,7 @@ fun HomeScreenRouter(
         )
 
         // ── Bulk Inventory Routes ──
-        "inventory_bulk", "inventory_all_bulk" -> BulkListScreen(
+        "inventory_bulk" -> BulkListScreen(
             onClose = onGoBack,
             onItemClick = { itemId ->
                 if (itemId.isNotBlank()) {
@@ -1226,10 +1291,9 @@ fun HomeScreenRouter(
         )
 
         "inventory_bulk_detail" -> {
-            val currentId = selectedBulkItemId
-            if (!currentId.isNullOrBlank()) {
+            selectedBulkItemId?.takeIf { it.isNotBlank() }?.let { itemId ->
                 BulkDetailsScreen(
-                    itemId = currentId,
+                    itemId = itemId,
                     onClose = onGoBack,
                     onEdit = { editId ->
                         onBulkItemIdSelected(editId)
@@ -1237,10 +1301,9 @@ fun HomeScreenRouter(
                     },
                     onAdjustStock = { onNavigate("inventory_adjustments") }
                 )
-            } else {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
+
         "inventory_add_bulk" -> {
             AddBulkItemScreen(
                 editItemId = selectedBulkItemId,
@@ -1256,10 +1319,10 @@ fun HomeScreenRouter(
         }
 
         // ── Sales Pricing Lists ──
-        "sales_all_pricing", "inventory_pricing_list" -> AllPricingScreen(
+        "inventory_pricing_list" -> AllPricingScreen(
             onClose = onGoBack,
             onAddNew = { onNavigate("sales_create_price_list") },
-            onItemClick = { /* Detail navigation if needed */ },
+            onItemClick = { },
             onEditItem = { onNavigate("sales_create_price_list") },
             onDeleteItem = { }
         )
@@ -1270,13 +1333,13 @@ fun HomeScreenRouter(
         )
 
         // ── Inventory Procurement: Returns & Credits ──
-        "inventory_credits", "inventory_procurement_credits", "inventory_payables_credits" -> AllCreditsScreen(
+        "inventory_credits" -> AllCreditsScreen(
             onClose = onGoBack,
-            onCreditClick = { /* Handle credit detail if needed */ },
+            onCreditClick = { },
             onOptionsClick = { }
         )
 
-        "inventory_returns", "inventory_procurement_returns", "logistics_returns" -> AllReturnsScreen(
+        "inventory_returns" -> AllReturnsScreen(
             onClose = onGoBack,
             onEditRma = { },
             onPdfExport = { },
@@ -1284,12 +1347,12 @@ fun HomeScreenRouter(
         )
 
         // ── Inventory Procurement: Requisitions ──
-        "inventory_requisitions", "inventory_procurement_requisitions" -> AllRequisitionsScreen(
+        "inventory_requisitions" -> AllRequisitionsScreen(
             onClose = onGoBack,
             onCreateRequisition = { onNavigate("inventory_create_requisition") },
             onRequisitionClick = { requisition ->
                 val id = requisition.id ?: return@AllRequisitionsScreen
-                onRequisitionIdForDetailSelected(id)   // ← was: selectedRequisitionIdForDetail = id
+                onRequisitionIdForDetailSelected(id)
                 onNavigate("inventory_requisition_detail")
             }
         )
@@ -1298,7 +1361,7 @@ fun HomeScreenRouter(
             RequisitionDetailScreen(
                 requisitionId = selectedRequisitionIdForDetail,
                 onClose = {
-                    onRequisitionIdForDetailSelected(null)   // ← was: selectedRequisitionIdForDetail = null
+                    onRequisitionIdForDetailSelected(null)
                     onGoBack()
                 },
                 onEdit = { onNavigate("inventory_create_requisition") },
@@ -1314,7 +1377,7 @@ fun HomeScreenRouter(
         )
 
         // ── Inventory Procurement: Barcodes ──
-        "inventory_barcode", "inventory_procurement_barcode", "inventory_all_barcodes" -> AllBarcodesScreen(
+        "inventory_barcode" -> AllBarcodesScreen(
             onClose = onGoBack,
             onCreateBarcode = { onNavigate("inventory_create_barcode") },
             onBarcodeClick = { _ ->
@@ -1322,7 +1385,7 @@ fun HomeScreenRouter(
             }
         )
 
-        "inventory_create_barcode", "inventory_barcode_generator" -> BarcodeGeneratorScreen(
+        "inventory_create_barcode" -> BarcodeGeneratorScreen(
             onClose = onGoBack,
             onBarcodeGeneratedSuccessfully = {
                 onGoBack()
@@ -1330,40 +1393,65 @@ fun HomeScreenRouter(
         )
 
         // ── Inventory Procurement: Stock Location / Location Management ──
-        "inventory_stock_location", "inventory_location_management", "inventory_procurement_location_management" -> AllStockLocationScreen(
-            onClose = onGoBack,
-            onItemClick = { _ -> onNavigate("inventory_stock_location_details") },
-            onLocationClick = { _ -> onNavigate("inventory_stock_location_details") },
-            onOptionsClick = { }
-        )
+        "inventory_stock_location" -> {
+            AllStockLocationScreen(
+                inventoryViewModel = inventoryViewModel,
+                onClose = onGoBack,
+                onItemClick = { item ->
+                    selectedStockLocationItem = item
+                    inventoryViewModel.setSelectedStockLocationItem(item)
+                    onNavigate("inventory_stock_location_details")
+                },
+                onLocationClick = { item ->
+                    selectedStockLocationItem = item
+                    inventoryViewModel.setSelectedStockLocationItem(item)
+                    onNavigate("inventory_stock_location_form")
+                },
+                onOptionsClick = { _ -> }
+            )
+        }
 
-        "inventory_stock_location_details" -> StockLocationDetailsScreen(
-            onClose = onGoBack,
-            onNavigateToLocationForm = { onNavigate("inventory_stock_location_form") }
-        )
+        "inventory_stock_location_details" -> {
+            StockLocationDetailsScreen(
+                itemId = selectedStockLocationItem?.id, // <-- Passes the selected item ID here
+                inventoryViewModel = inventoryViewModel,
+                onClose = onGoBack
+            )
+        }
 
-        "inventory_stock_location_form" -> StockLocationFormScreen(
-            onClose = onGoBack,
-            onSave = { onGoBack() }
-        )
+        "inventory_stock_location_form" -> {
+            StockLocationFormScreen(
+                item = selectedStockLocationItem,
+                onClose = {
+                    selectedStockLocationItem = null
+                    onGoBack()
+                },
+                onSave = {
+                    inventoryViewModel.fetchStockLocationItems()
+                    selectedStockLocationItem = null
+                    onGoBack()
+                }
+            )
+        }
+
         // ── Inventory Procurement: Purchase Receive Flow ──
         "inventory_purchase_receive" -> AllOrdersScreen(
             onClose = onGoBack,
             onCreateOrderClick = { onNavigate("inventory_create_purchase_order") },
-            onOrderClick = { poId, receiveId ->
-                selectedReceivePoId = poId // PO ID-ஐ சேமித்து Detail-க்கு அனுப்புகிறோம்
+            onOrderClick = { poId, _ ->
+                selectedReceivePoId = poId
                 onNavigate("inventory_purchase_receive_detail")
             }
         )
 
-        "inventory_purchase_receive_detail" -> PurchaseDetailScreen(
+        "inventory_purchase_receive_detail" -> ReceivePurchaseDetailScreen(
             poId = selectedReceivePoId ?: "",
             onClose = {
                 selectedReceivePoId = null
                 onGoBack()
             },
-            onEditClick = { /* Handle Edit */ },
-            onPreviewPdfClick = { onNavigate("inventory_purchase_preview_pdf") },
+            onEditClick = { },
+            onPreviewPdfClick = { onNavigate("inventory_purchase_receive_preview_pdf") },
             onConvertToBillSuccess = { onNavigate("inventory_purchase_new_bill") }
         )
 
@@ -1374,51 +1462,36 @@ fun HomeScreenRouter(
             onSave = onGoBack
         )
 
-        "inventory_purchase_preview_pdf" -> PreviewPdfScreen(
+        "inventory_purchase_receive_preview_pdf" -> PreviewPdfScreen(
             onClose = onGoBack,
             onEditClick = { onNavigate("inventory_purchase_receive_detail") },
             onConvertToBillClick = { onNavigate("inventory_purchase_new_bill") }
         )
 
         // ── Inventory Payables: Invoices & Purchase Details ──
-        "inventory_payable_invoices", "inventory_payables_invoices", "inventory_invoices", "inventory_bills_list", "inventory_procurement_bills_list" -> AllPayableInvoicesScreen(
+        "inventory_payable_invoices" -> AllPayableInvoicesScreen(
             onClose = onGoBack,
             onCreateOrder = { onNavigate("inventory_create_purchase_order") },
             onInvoiceClick = { _ -> onNavigate("inventory_payable_purchase_detail") },
             onOptionsClick = { }
         )
 
-        "inventory_purchase_preview_pdf" -> PreviewPdfScreen(
-            onClose = onGoBack,
-            onEditClick = { onNavigate("inventory_purchase_detail") },
-            onConvertToBillClick = { onNavigate("inventory_purchase_new_bill") }
-        )
-
-        // ── Inventory Payables: Invoices & Purchase Details ──
-        "inventory_payable_invoices", "inventory_payables_invoices", "inventory_invoices", "inventory_bills_list", "inventory_procurement_bills_list" -> AllPayableInvoicesScreen(
-            onClose = onGoBack,
-            onCreateOrder = { onNavigate("inventory_create_purchase_order") },
-            onInvoiceClick = { _ -> onNavigate("inventory_purchase_detail") },
-            onOptionsClick = { }
-        )
-
-        "inventory_purchase_detail", "inventory_payable_purchase_detail" -> PurchaseDetailScreen(
+        "inventory_payable_purchase_detail" -> PayablePurchaseDetailScreen(
             onClose = onGoBack,
             onPreviewPdf = { onNavigate("inventory_payable_preview_pdf") },
             onDownloadPdf = { },
             onRecordPayment = { }
         )
 
-        "inventory_payable_preview_pdf", "inventory_payable_invoice_preview" -> PayableInvoicePdfPreviewScreen(
+        "inventory_payable_preview_pdf" -> PayableInvoicePdfPreviewScreen(
             onClose = onGoBack,
             onEdit = { },
             onConvertToBill = { onGoBack() },
             onDownloadPdf = { }
         )
 
-        // (A) ALL ORDERS LIST SCREEN
-        "inventory_purchase_orders", "inventory_procurement_purchase_orders", "inventory_procurement_orders" -> {
-            val inventoryViewModel: InventoryViewModel = hiltViewModel()
+        // ── Inventory Procurement: Purchase Orders Lifecycle ──
+        "inventory_purchase_orders" -> {
             POListScreen(
                 viewModel = inventoryViewModel,
                 onNavigateToCreate = {
@@ -1433,9 +1506,7 @@ fun HomeScreenRouter(
             )
         }
 
-        // (B) PURCHASE ORDER DETAIL SCREEN
         "inventory_purchase_order_detail_flow" -> {
-            val inventoryViewModel: InventoryViewModel = hiltViewModel()
             selectedPurchaseOrderForDetail?.let { po ->
                 PODetailScreen(
                     order = po,
@@ -1452,9 +1523,7 @@ fun HomeScreenRouter(
             } ?: run { onGoBack() }
         }
 
-        // (C) CREATE / EDIT PURCHASE ORDER SCREEN
         "inventory_create_purchase_order_flow" -> {
-            val inventoryViewModel: InventoryViewModel = hiltViewModel()
             POCreateScreen(
                 viewModel = inventoryViewModel,
                 existingPo = selectedPurchaseOrderForEdit,
@@ -1489,6 +1558,7 @@ fun HomeScreenRouter(
             hrViewModel = hrViewModel,
             onBreadCrumbClick = { onOpenModulesPanel("HR") }
         )
+
         "hr_employee_onboarding" -> EmployeeOnboardingScreen(
             mode = employeeScreenMode,
             memberIdToLoad = selectedEmployeeId,
@@ -1506,6 +1576,7 @@ fun HomeScreenRouter(
             },
             hrViewModel = hrViewModel
         )
+
         "hr_attendance" -> AttendanceScreen(
             onClose = onGoBack,
             onBreadCrumbClick = { onOpenModulesPanel("HR") },
@@ -1514,6 +1585,7 @@ fun HomeScreenRouter(
                 onNavigate("hr_attendance_detail")
             }
         )
+
         "hr_attendance_detail" -> AttendanceDetailScreen(
             onClose = {
                 onAttendanceIdSelected(null)
@@ -1531,7 +1603,9 @@ fun HomeScreenRouter(
             onView = { onNavigate("delivery_detail") },
             onBreadCrumbClick = { onOpenModulesPanel("Logistics") }
         )
+
         "delivery_detail" -> DeliveryDetailScreen(onDismiss = onGoBack)
+
         "logistics_order_tracking" -> OrderTrackingScreen(
             onClose = onGoBack,
             onViewOrder = { order ->
@@ -1540,6 +1614,7 @@ fun HomeScreenRouter(
             },
             onBreadCrumbClick = { onOpenModulesPanel("Logistics") }
         )
+
         "tracking_overview" -> TrackingOverviewScreen(onClose = onGoBack)
 
         // ─────────────────────────────────────────────────────────────
@@ -1555,6 +1630,7 @@ fun HomeScreenRouter(
             },
             onBreadCrumbClick = { onOpenModulesPanel("Services") }
         )
+
         "service_status_detail", "order_management_overview" -> {
             selectedManagementOrderId?.let { id ->
                 ServiceStatusDetailScreen(
@@ -1567,6 +1643,7 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
+
         "services_delay_rework" -> DelayReworkTrackingScreen(
             onClose = onGoBack,
             onLogNewDelay = { },
@@ -1575,6 +1652,7 @@ fun HomeScreenRouter(
             onViewLog = { },
             onGenerateReport = { }
         )
+
         "services_service_delivery" -> ServiceDeliveryStatusScreen(
             onClose = onGoBack,
             onContactCustomer = { },
@@ -1583,7 +1661,8 @@ fun HomeScreenRouter(
             onMarkDelivered = { },
             onViewUrgentOrder = { }
         )
-        "services_service_order", "services_service_orders" -> ServiceOrderScreen(
+
+        "services_service_order" -> ServiceOrderScreen(
             navController = navController,
             onMenuClick = onOpenDrawer,
             onBack = onGoBack,
@@ -1598,6 +1677,7 @@ fun HomeScreenRouter(
             onEditOrder = { orderId -> onEditOrderIdChange(orderId) },
             onBreadCrumbClick = { onOpenModulesPanel("Services") }
         )
+
         "service_order_overview" -> {
             selectedOrderId?.let { id ->
                 ServiceOrderOverviewScreen(
@@ -1614,13 +1694,16 @@ fun HomeScreenRouter(
                 )
             } ?: run { onGoBack() }
         }
+
         "services_service_request" -> ServiceRequestScreen(
             onClose = { },
             onBreadcrumbClick = { },
             onCreateNewRequest = { onNavigate("create_request") },
             onViewClick = { onNavigate("review_services") }
         )
+
         "create_request" -> CreateServiceRequest()
+
         "review_services" -> ServiceRequetDetailsScreen(
             service = ServiceDetails(
                 serviceRef = "SR-1045",
@@ -1649,13 +1732,16 @@ fun HomeScreenRouter(
             onBack = onGoBack,
             onViewFullOrderHistory = { onNavigate("order_history") }
         )
+
         "services_alteration_management" -> AlterationManagementScreen(
             onClose = onGoBack,
             onCreateNewAlteration = { onNavigate("create_alteration") },
             onBreadcrumbClick = { onOpenModulesPanel("Services") },
             onViewClick = { }
         )
+
         "create_alteration" -> CreateAlterationManagementScreen(onClose = onGoBack)
+
         "services_customer_feedback" -> CustomerFeedbackScreen(
             onDismiss = onGoBack,
             onView = { feedbackId ->
@@ -1666,6 +1752,7 @@ fun HomeScreenRouter(
             onDelete = { },
             onBreadCrumbClick = { onOpenModulesPanel("Services") }
         )
+
         "feedback_detail" -> FeedbackDetailScreen(
             onDismiss = {
                 onFeedbackIdSelected(null)
@@ -1694,6 +1781,7 @@ fun HomeScreenRouter(
             onClose = onGoBack,
             onBreadCrumbClick = { onOpenModulesPanel("Reports") }
         )
+
         "reports_inventory" -> InventoryReportPage(
             onClose = onGoBack,
             onBreadCrumbClick = { onOpenModulesPanel("Reports") },
@@ -1706,11 +1794,13 @@ fun HomeScreenRouter(
                 if (route in implemented) onNavigate(route) else onShowComingSoon("Coming Soon, Stay tuned !")
             }
         )
+
         "reports_inventory_stock_summary" -> StockSummaryScreen(onClose = onGoBack)
         "reports_inventory_low_stock" -> LowStockScreen(onClose = onGoBack)
         "reports_inventory_warehouse_report" -> WarehouseReportScreen(onClose = onGoBack)
         "reports_inventory_purchase_report" -> PurchaseReportScreen(onClose = onGoBack)
         "reports_inventory_dead_stock" -> DeadStockReportScreen(onClose = onGoBack)
+
         "reports_finance" -> FinanceReportPage(
             onClose = onGoBack,
             onBreadCrumbClick = { onOpenModulesPanel("Reports") },
@@ -1719,6 +1809,7 @@ fun HomeScreenRouter(
                 else onShowComingSoon("Coming Soon, Stay tuned !")
             }
         )
+
         "reports_finance_profit_and_loss_report" -> ProfitAndLossReportScreen(onClose = onGoBack)
 
         else -> {}

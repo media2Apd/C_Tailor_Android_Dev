@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +33,7 @@ import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun AllRequisitionsScreen(
@@ -42,20 +44,53 @@ fun AllRequisitionsScreen(
 ) {
     val tokens = LocalAppTokens.current
 
+    // Observe requisition list and pagination states from ViewModel
     val requisitionsList by viewModel.requisitionsList.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoadingRequisitions.collectAsStateWithLifecycle()
+    val isLoadingMore by viewModel.isLoadingMoreRequisitions.collectAsStateWithLifecycle()
+    val canLoadMore by viewModel.canLoadMoreRequisitions.collectAsStateWithLifecycle()
     val successMessage by viewModel.requisitionSuccessMessage.collectAsStateWithLifecycle()
     val errorMessage by viewModel.requisitionErrorMessage.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedItemIds by remember { mutableStateOf(setOf<String>()) }
 
+    // Scroll state tracker for LazyColumn
+    val listState = rememberLazyListState()
 
-
-    // Search query with debounce
+    // Unified initial fetch and debounced search (avoids duplicate call at startup)
+    var isInitialized by remember { mutableStateOf(false) }
     LaunchedEffect(searchQuery) {
-        delay(400)
-        viewModel.fetchAllRequisitions(search = searchQuery.trim().ifBlank { null })
+        if (!isInitialized) {
+            isInitialized = true
+            viewModel.fetchAllRequisitions()
+        } else {
+            delay(400)
+            viewModel.fetchAllRequisitions(search = searchQuery.trim().ifBlank { null })
+        }
+    }
+
+    // Scroll listener: triggers next page fetch only when crossing the bottom threshold
+    LaunchedEffect(listState, canLoadMore, searchQuery) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+
+            // Trigger when reaching within 2 items of the list end
+            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
+        }
+            .distinctUntilChanged()
+            .collect { isNearBottom ->
+                if (isNearBottom &&
+                    canLoadMore &&
+                    !viewModel.isLoadingMoreRequisitions.value &&
+                    !viewModel.isLoadingRequisitions.value &&
+                    searchQuery.isBlank()
+                ) {
+                    viewModel.loadMoreRequisitions()
+                }
+            }
     }
 
     Box(
@@ -158,6 +193,7 @@ fun AllRequisitionsScreen(
 
                     else -> {
                         LazyColumn(
+                            state = listState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(
                                 top = tokens.extraPadding * 0.6f,
@@ -198,6 +234,17 @@ fun AllRequisitionsScreen(
                                         }
                                     }
                                 )
+                            }
+
+                            // Three-dot loader displayed only while a next page request is actively in-flight
+                            if (isLoadingMore) {
+                                item(key = "pagination_threedot_loader") {
+                                    ThreeDotLoading(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp)
+                                    )
+                                }
                             }
                         }
                     }

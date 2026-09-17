@@ -3,14 +3,49 @@ package com.cuso.mobile.view.home.inventory.procurement.purchaseReceive
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,9 +56,21 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.model.inventory.PoHistoryHeaderDto
 import com.cuso.mobile.model.inventory.PoItemOverviewDto
 import com.cuso.mobile.model.inventory.PoReceiveSummaryDto
-import com.cuso.mobile.ui.theme.*
+import com.cuso.mobile.model.inventory.ReceiveHistoryByPoResponse
+import com.cuso.mobile.ui.theme.Primary
+import com.cuso.mobile.ui.theme.TextPrimary
+import com.cuso.mobile.ui.theme.TextSecondary
+import com.cuso.mobile.ui.theme.darkGreenBg
+import com.cuso.mobile.ui.theme.dividerColor
+import com.cuso.mobile.ui.theme.greenBg
+import com.cuso.mobile.ui.theme.grey_border
+import com.cuso.mobile.ui.theme.iconMuted
+import com.cuso.mobile.ui.theme.mutedText
+import com.cuso.mobile.ui.theme.title_color
+import com.cuso.mobile.ui.theme.whiteBg
 import com.cuso.mobile.view.composable.DynamicIslandError
 import com.cuso.mobile.view.composable.DynamicIslandSuccess
 import com.cuso.mobile.view.composable.TitleBar
@@ -31,7 +78,7 @@ import com.cuso.mobile.viewmodel.InventoryViewModel
 
 @Composable
 fun PurchaseDetailScreen(
-    poId: String = "6a8e9577d6326a46b6364822",
+    poId: String,
     viewModel: InventoryViewModel = hiltViewModel(),
     onClose: () -> Unit = {},
     onEditClick: () -> Unit = {},
@@ -40,9 +87,9 @@ fun PurchaseDetailScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val historyData by viewModel.poHistory.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val historyData: ReceiveHistoryByPoResponse? by viewModel.poHistory.collectAsStateWithLifecycle()
+    val isLoading: Boolean by viewModel.isLoading.collectAsStateWithLifecycle()
+    val errorMessage: String? by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     var selectedReceiveId by remember { mutableStateOf("") }
     var successMsg by remember { mutableStateOf<String?>(null) }
@@ -54,14 +101,16 @@ fun PurchaseDetailScreen(
     }
 
     LaunchedEffect(historyData) {
-        historyData?.receives?.firstOrNull()?.let {
-            selectedReceiveId = it.id
+        if (selectedReceiveId.isBlank()) {
+            historyData?.receives?.firstOrNull()?.let { firstReceive ->
+                selectedReceiveId = firstReceive.id
+            }
         }
     }
 
-    val poHeader = historyData?.po
-    val itemsOverview = historyData?.itemsOverview ?: emptyList()
-    val receives = historyData?.receives ?: emptyList()
+    val poHeader: PoHistoryHeaderDto? = historyData?.po
+    val itemsOverview: List<PoItemOverviewDto> = historyData?.itemsOverview ?: emptyList()
+    val receives: List<PoReceiveSummaryDto> = historyData?.receives ?: emptyList()
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -73,7 +122,12 @@ fun PurchaseDetailScreen(
         }
     ) { padding ->
         if (isLoading && historyData == null) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
                 CircularProgressIndicator(color = Primary)
             }
         } else {
@@ -83,7 +137,7 @@ fun PurchaseDetailScreen(
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
             ) {
-                // ── PO Header Section ──
+                // ── PO Header Summary Card ──
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -97,8 +151,8 @@ fun PurchaseDetailScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = poHeader?.poNumber ?: "PO Detail",
-                                fontSize = 20.sp,
+                                text = poHeader?.poNumber?.takeIf { it.isNotBlank() } ?: "PO Details",
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = title_color
                             )
@@ -113,20 +167,24 @@ fun PurchaseDetailScreen(
                                     color = Color(0xFF00B074),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
                         }
 
                         IconButton(onClick = { }, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = Color(0xFF94A3B8))
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Options",
+                                tint = Color(0xFF94A3B8)
+                            )
                         }
                     }
 
                     Spacer(Modifier.height(4.dp))
 
                     Text(
-                        text = "Purchase Orders / ${poHeader?.poNumber.orEmpty()}",
+                        text = "Supplier: ${poHeader?.supplierName.orEmpty()}",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Normal,
                         color = Color(0xFF94A3B8)
@@ -134,7 +192,7 @@ fun PurchaseDetailScreen(
 
                     Spacer(Modifier.height(16.dp))
 
-                    // ── Action Buttons Row ──
+                    // ── Action Buttons ──
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -144,37 +202,42 @@ fun PurchaseDetailScreen(
                             onClick = onEditClick,
                             shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg, contentColor = title_color),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = whiteBg,
+                                contentColor = title_color
+                            ),
                             contentPadding = PaddingValues(horizontal = 12.dp),
                             modifier = Modifier.height(38.dp)
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(15.dp), tint = title_color)
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp),
+                                tint = title_color
+                            )
                             Spacer(Modifier.width(6.dp))
-                            Text("Edit", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = title_color)
+                            Text("Edit", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                         }
 
                         OutlinedButton(
                             onClick = onPreviewPdfClick,
                             shape = RoundedCornerShape(8.dp),
                             border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg, contentColor = title_color),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = whiteBg,
+                                contentColor = title_color
+                            ),
                             contentPadding = PaddingValues(horizontal = 12.dp),
                             modifier = Modifier.height(38.dp)
                         ) {
-                            Text("Preview PDF", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = title_color)
+                            Text("Preview PDF", fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             Spacer(Modifier.width(6.dp))
-                            Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(15.dp), tint = title_color)
-                        }
-
-                        OutlinedButton(
-                            onClick = { /* Download */ },
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg, contentColor = title_color),
-                            contentPadding = PaddingValues(0.dp),
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Icon(Icons.Default.FileDownload, contentDescription = null, tint = title_color, modifier = Modifier.size(17.dp))
+                            Icon(
+                                imageVector = Icons.Default.Visibility,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp),
+                                tint = title_color
+                            )
                         }
 
                         Button(
@@ -188,33 +251,86 @@ fun PurchaseDetailScreen(
                             },
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                            enabled = selectedReceiveId.isNotBlank(),
                             contentPadding = PaddingValues(horizontal = 12.dp),
-                            modifier = Modifier.height(38.dp).weight(1f)
+                            modifier = Modifier
+                                .height(38.dp)
+                                .weight(1f)
                         ) {
-                            Text("Convert to Bill", fontSize = 13.sp, color = whiteBg, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            Text(
+                                text = "Convert to Bill",
+                                fontSize = 13.sp,
+                                color = whiteBg,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
+                            )
                         }
                     }
                 }
 
                 HorizontalDivider(color = dividerColor, thickness = 1.dp)
 
-                // ── PURCHASE DETAILS Section ──
+                // ── Detailed Metadata Grid ──
                 Column(modifier = Modifier.padding(tokens.screenPadding)) {
-                    Text("PURCHASE DETAILS", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(
+                        text = "PURCHASE DETAILS",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
                     Spacer(Modifier.height(10.dp))
 
                     Row(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Receive Date", fontSize = 11.sp, color = mutedText)
-                            Text(poHeader?.poDate?.take(10) ?: "—", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+                            Text(
+                                text = poHeader?.poDate?.take(10) ?: "—",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = TextPrimary
+                            )
                         }
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Warehouse", fontSize = 11.sp, color = mutedText)
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.LocationOn, contentDescription = null, tint = Primary, modifier = Modifier.size(14.dp))
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = Primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
                                 Spacer(Modifier.width(2.dp))
-                                Text(poHeader?.warehouse ?: "Main Warehouse", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+                                Text(
+                                    text = poHeader?.warehouse?.takeIf { it.isNotBlank() } ?: "—",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextPrimary
+                                )
+                            }
+                        }
+                    }
+
+                    if (!poHeader?.transportName.isNullOrBlank() || !poHeader?.vehicleNumber.isNullOrBlank()) {
+                        Spacer(Modifier.height(12.dp))
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Transport", fontSize = 11.sp, color = mutedText)
+                                Text(
+                                    text = poHeader?.transportName ?: "—",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextPrimary
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Vehicle No.", fontSize = 11.sp, color = mutedText)
+                                Text(
+                                    text = poHeader?.vehicleNumber ?: "—",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextPrimary
+                                )
                             }
                         }
                     }
@@ -222,15 +338,24 @@ fun PurchaseDetailScreen(
 
                 HorizontalDivider(color = dividerColor, thickness = 1.dp)
 
-                // ── Items Overview Section ──
+                // ── Line Items Fulfillment Overview ──
                 Column(modifier = Modifier.padding(tokens.screenPadding)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Items Overview", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        Text("${itemsOverview.size} Products", fontSize = 11.sp, color = mutedText)
+                        Text(
+                            text = "Items Overview",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "${itemsOverview.size} Products",
+                            fontSize = 11.sp,
+                            color = mutedText
+                        )
                     }
 
                     Spacer(Modifier.height(12.dp))
@@ -243,7 +368,7 @@ fun PurchaseDetailScreen(
 
                 HorizontalDivider(color = dividerColor, thickness = 1.dp)
 
-                // ── Receive History Section ──
+                // ── Associated Shipment / Receive Logs ──
                 Column(modifier = Modifier.padding(tokens.screenPadding)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -251,11 +376,25 @@ fun PurchaseDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.History, contentDescription = null, tint = Primary, modifier = Modifier.size(16.dp))
+                            Icon(
+                                imageVector = Icons.Default.History,
+                                contentDescription = null,
+                                tint = Primary,
+                                modifier = Modifier.size(16.dp)
+                            )
                             Spacer(Modifier.width(6.dp))
-                            Text("Receive History", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Text(
+                                text = "Receive History",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
                         }
-                        Text("${receives.size} Shipments recorded", fontSize = 11.sp, color = mutedText)
+                        Text(
+                            text = "${receives.size} Shipments recorded",
+                            fontSize = 11.sp,
+                            color = mutedText
+                        )
                     }
 
                     Spacer(Modifier.height(14.dp))
@@ -291,43 +430,92 @@ fun ItemProgressCard(item: PoItemOverviewDto) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
-                    modifier = Modifier.size(36.dp).background(Color(0xFFEFF6FF), RoundedCornerShape(6.dp)),
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(Color(0xFFEFF6FF), RoundedCornerShape(6.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Inventory2, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
+                    Icon(
+                        imageVector = Icons.Default.Inventory2,
+                        contentDescription = null,
+                        tint = Primary,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
 
                 Spacer(Modifier.width(10.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(item.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                    Text("SKU: ${item.sku}", fontSize = 11.sp, color = iconMuted)
+                    Text(
+                        text = item.name,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = "SKU: ${item.sku}",
+                        fontSize = 11.sp,
+                        color = iconMuted
+                    )
                 }
 
-                Text("₹${item.rate}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Text(
+                    text = "₹${item.rate}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
             }
 
             Spacer(Modifier.height(10.dp))
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("${item.totalReceivedQty} / ${item.orderedQty} Received", fontSize = 11.sp, color = Primary, fontWeight = FontWeight.Medium)
-                Text("${item.percent.toInt()}%", fontSize = 11.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "${item.totalReceivedQty.toInt()} / ${item.orderedQty.toInt()} Received",
+                    fontSize = 11.sp,
+                    color = Primary,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "${item.percent.toInt()}%",
+                    fontSize = 11.sp,
+                    color = TextSecondary,
+                    fontWeight = FontWeight.Medium
+                )
             }
 
             Spacer(Modifier.height(4.dp))
 
             LinearProgressIndicator(
-                progress = { (item.percent / 100f).coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                progress = { (item.percent / 100f).toFloat().coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
                 color = Primary,
                 trackColor = grey_border
             )
 
             Spacer(Modifier.height(8.dp))
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Status", fontSize = 11.sp, color = mutedText)
-                Text(item.receiveStatus, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = darkGreenBg)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Status",
+                    fontSize = 11.sp,
+                    color = mutedText
+                )
+                Text(
+                    text = item.receiveStatus,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = darkGreenBg
+                )
             }
         }
     }
@@ -342,7 +530,11 @@ fun ShipmentHistoryRow(
     val isBilled = item.billingStatus.equals("Billed", ignoreCase = true)
 
     Row(
-        modifier = Modifier.fillMaxWidth().clickable { onSelect() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { onSelect() }
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.Top
     ) {
         RadioButton(
@@ -355,8 +547,17 @@ fun ShipmentHistoryRow(
         Spacer(Modifier.width(10.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(item.receiveNumber, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Primary)
-            Text(item.receiveDate.take(10), fontSize = 11.sp, color = mutedText)
+            Text(
+                text = item.receiveNumber,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Primary
+            )
+            Text(
+                text = item.receiveDate.take(10),
+                fontSize = 11.sp,
+                color = mutedText
+            )
             Spacer(Modifier.height(4.dp))
             Surface(
                 shape = RoundedCornerShape(4.dp),
@@ -373,8 +574,17 @@ fun ShipmentHistoryRow(
         }
 
         Column(horizontalAlignment = Alignment.End) {
-            Text("₹${item.grandTotal}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-            Text("${item.totalQty} Units", fontSize = 11.sp, color = mutedText)
+            Text(
+                text = "₹${item.grandTotal}",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+            Text(
+                text = "${item.totalQty.toInt()} Units",
+                fontSize = 11.sp,
+                color = mutedText
+            )
         }
     }
 }

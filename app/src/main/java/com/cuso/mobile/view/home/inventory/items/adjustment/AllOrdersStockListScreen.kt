@@ -19,12 +19,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.WarningAmber
@@ -40,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -87,6 +89,7 @@ import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
 import com.cuso.mobile.view.composable.StatusBadge
+import com.cuso.mobile.view.composable.ThreeDotLoading
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.InventoryViewModel
 import com.cuso.mobile.viewmodel.SettingsViewModel
@@ -105,8 +108,12 @@ fun AllOrdersStockListScreen(
 ) {
     val tokens = LocalAppTokens.current
 
+    // State flows from ViewModels
     val stockSummaryList by viewModel.stockSummaryList.collectAsState()
     val isLoadingSummary by viewModel.isLoadingStockSummary.collectAsState()
+    val isLoadingMoreSummary by viewModel.isLoadingMoreStockSummary.collectAsState()
+    val canLoadMoreSummary by viewModel.canLoadMoreStockSummary.collectAsState()
+
     val warehouseDropdown by viewModel.warehouseDropdown.collectAsState()
     val validReasons by viewModel.validAdjustmentReasons.collectAsState()
 
@@ -120,6 +127,10 @@ fun AllOrdersStockListScreen(
     var selectedStockItem by remember { mutableStateOf<StockSummaryItemDto?>(null) }
     var activeAdjustmentType by remember { mutableStateOf(initialAdjustmentType) }
 
+    // Scroll state for LazyColumn to support infinite scrolling
+    val listState = rememberLazyListState()
+
+    // Initial API calls on first composition
     LaunchedEffect(Unit) {
         viewModel.clearAdjustmentAlerts()
         viewModel.clearStockSummaryAlerts()
@@ -127,6 +138,22 @@ fun AllOrdersStockListScreen(
         viewModel.loadWarehouseDropdown()
         viewModel.fetchValidAdjustmentReasons()
         settingsViewModel.fetchBins(isRefresh = true)
+    }
+
+    // Automatically trigger pagination when the user scrolls near the end
+    val shouldLoadMore = remember {
+        derivedStateOf {
+            val totalItems = listState.layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            // Trigger 2 items before reaching the bottom
+            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore.value, canLoadMoreSummary, isLoadingMoreSummary, isLoadingSummary) {
+        if (shouldLoadMore.value && canLoadMoreSummary && !isLoadingMoreSummary && !isLoadingSummary && searchQuery.isBlank()) {
+            viewModel.loadMoreStockSummaryList()
+        }
     }
 
     // Auto-open Bottom Sheet when preselectedItemId matches
@@ -141,6 +168,7 @@ fun AllOrdersStockListScreen(
         }
     }
 
+    // Close bottom sheet and refresh list on successful adjustment
     LaunchedEffect(adjustmentSuccessMessage) {
         if (!adjustmentSuccessMessage.isNullOrBlank()) {
             sheetState = SheetValue.Hidden
@@ -148,6 +176,7 @@ fun AllOrdersStockListScreen(
         }
     }
 
+    // Filter items based on the search query
     val filteredList = remember(stockSummaryList, searchQuery) {
         if (searchQuery.isBlank()) stockSummaryList
         else {
@@ -203,12 +232,21 @@ fun AllOrdersStockListScreen(
                         )
                     }
                 } else {
-                    Column(
+                    // LazyColumn for efficient list rendering and infinite scroll detection
+                    LazyColumn(
+                        state = listState,
                         modifier = Modifier
                             .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
+                            .weight(1f),
+                        contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
-                        filteredList.forEach { item ->
+                        items(
+                            items = filteredList,
+                            key = { item ->
+                                val keyPrefix = item.itemId.ifBlank { item.hashCode().toString() }
+                                "${keyPrefix}_${item.warehouseId}_${item.variant.orEmpty()}"
+                            }
+                        ) { item ->
                             StockAdjustmentCardItem(
                                 stockItem = item,
                                 tokens = tokens,
@@ -218,6 +256,21 @@ fun AllOrdersStockListScreen(
                                     sheetState = SheetValue.Expanded
                                 }
                             )
+                        }
+
+                        // Bottom loader displayed while fetching the next page
+                        if (isLoadingMoreSummary) {
+                            item(key = "pagination_threedot_loader") {
+                                ThreeDotLoading(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 14.dp)
+                                )
+                            }
+                        }
+
+                        item {
+                            Spacer(Modifier.height(40.dp))
                         }
                     }
                 }

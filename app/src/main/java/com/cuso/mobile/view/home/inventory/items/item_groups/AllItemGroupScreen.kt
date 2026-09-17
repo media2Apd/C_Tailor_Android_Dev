@@ -11,8 +11,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -27,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -52,8 +56,10 @@ import com.cuso.mobile.view.composable.FabScaffold
 import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.MenuAction
 import com.cuso.mobile.view.composable.SearchFilterBar
+import com.cuso.mobile.view.composable.ThreeDotLoading
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.InventoryViewModel
+import kotlinx.coroutines.flow.distinctUntilChanged
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -74,14 +80,40 @@ fun AllItemGroupScreen(
     var itemGroupToDelete by remember { mutableStateOf<ItemGroupDto?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
+    // Scroll state for LazyColumn to support infinite scroll
+    val listState = rememberLazyListState()
+
     // Sync error state
     LaunchedEffect(uiState.errorMessage) {
         displayedErrorMessage = uiState.errorMessage
     }
 
-    // Refresh list on load
+    // Initial fetch on screen entry
     LaunchedEffect(Unit) {
         viewModel.refreshItemGroups()
+    }
+
+    // Scroll listener: triggers next page fetch only when crossing the bottom threshold
+    LaunchedEffect(listState, uiState.canLoadMore, uiState.searchQuery) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+
+            // Trigger when 2 items away from bottom
+            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
+        }
+            .distinctUntilChanged()
+            .collect { isNearBottom ->
+                if (isNearBottom &&
+                    uiState.canLoadMore &&
+                    !uiState.isLoadingMore &&
+                    !uiState.isLoading &&
+                    uiState.searchQuery.isBlank()
+                ) {
+                    viewModel.loadMoreItemGroups()
+                }
+            }
     }
 
     FabScaffold(
@@ -136,6 +168,8 @@ fun AllItemGroupScreen(
                         else -> {
                             ItemGroupListView(
                                 itemGroups = uiState.filteredList,
+                                listState = listState,
+                                isLoadingMore = uiState.isLoadingMore,
                                 tokens = tokens,
                                 onView = onView,
                                 onEdit = { id ->
@@ -187,16 +221,22 @@ fun AllItemGroupScreen(
 @Composable
 private fun ItemGroupListView(
     itemGroups: List<ItemGroupDto>,
+    listState: LazyListState,
+    isLoadingMore: Boolean,
     tokens: AppDesignTokens,
     onView: (String) -> Unit,
     onEdit: (String) -> Unit,
     onDelete: (group: ItemGroupDto) -> Unit
 ) {
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = tokens.extraPadding)
     ) {
-        items(items = itemGroups, key = { it.id }) { group ->
+        items(
+            items = itemGroups,
+            key = { it.id.ifBlank { it.hashCode().toString() } }
+        ) { group ->
             val attributesSummary = group.variantAttributes
                 .joinToString(", ") { it.name }
                 .ifBlank { "No attributes" }
@@ -248,6 +288,21 @@ private fun ItemGroupListView(
             )
 
             Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
+        }
+
+        // Three-dot loading indicator: shown only while a next page request is in-flight
+        if (isLoadingMore) {
+            item(key = "pagination_threedot_loader") {
+                ThreeDotLoading(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp)
+                )
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }

@@ -1,20 +1,21 @@
 package com.cuso.mobile.network.inventory
 
-//import com.cuso.mobile.model.inventory.AddCommentRequest
+import com.cuso.mobile.model.inventory.AddRequisitionCommentRequest
 import com.cuso.mobile.model.inventory.AdjustBulkStockRequest
-import com.cuso.mobile.model.inventory.AdjustStockQuantityRequest
 import com.cuso.mobile.model.inventory.AdjustStockRequest
 import com.cuso.mobile.model.inventory.AdjustmentReasonsResponse
 import com.cuso.mobile.model.inventory.AllReceivesResponse
+import com.cuso.mobile.model.inventory.AssignStockLocationRequest
+import com.cuso.mobile.model.inventory.AssignStockLocationResponse
 import com.cuso.mobile.model.inventory.BarcodeDetailResponse
 import com.cuso.mobile.model.inventory.BarcodeListResponse
 import com.cuso.mobile.model.inventory.BaseBulkResponse
+import com.cuso.mobile.model.inventory.BinDropdownResponse
 import com.cuso.mobile.model.inventory.BuildBulkItemRequest
 import com.cuso.mobile.model.inventory.BulkItemDetailResponse
 import com.cuso.mobile.model.inventory.BulkItemListResponse
 import com.cuso.mobile.model.inventory.ConvertToBillResponse
 import com.cuso.mobile.model.inventory.CreateInventoryItemResponse
-import com.cuso.mobile.model.inventory.CreateItemGroupRequest
 import com.cuso.mobile.model.inventory.CreateItemGroupResponse
 import com.cuso.mobile.model.inventory.CreatePurchaseOrderRequest
 import com.cuso.mobile.model.inventory.CreatePurchaseOrderResponse
@@ -25,6 +26,7 @@ import com.cuso.mobile.model.inventory.DecreaseStockRequest
 import com.cuso.mobile.model.inventory.DeleteBarcodeResponse
 import com.cuso.mobile.model.inventory.DeleteInventoryItemResponse
 import com.cuso.mobile.model.inventory.DeleteItemGroupResponse
+import com.cuso.mobile.model.inventory.FloorDropdownResponse
 import com.cuso.mobile.model.inventory.GenerateBarcodeRequest
 import com.cuso.mobile.model.inventory.IncreaseStockRequest
 import com.cuso.mobile.model.inventory.InventoryItemDetailResponse
@@ -37,16 +39,21 @@ import com.cuso.mobile.model.inventory.POBillConvertResponse
 import com.cuso.mobile.model.inventory.PurchaseOrder
 import com.cuso.mobile.model.inventory.PurchaseOrderListResponse
 import com.cuso.mobile.model.inventory.PurchaseOrderSingleResponse
+import com.cuso.mobile.model.inventory.PurchaseOrderSummaryResponse
 import com.cuso.mobile.model.inventory.PurchaseReceiveResponse
+import com.cuso.mobile.model.inventory.RackDropdownResponse
 import com.cuso.mobile.model.inventory.ReceiveHistoryByPoResponse
 import com.cuso.mobile.model.inventory.ReceivePurchaseOrderRequest
 import com.cuso.mobile.model.inventory.RequisitionApprovalActionRequest
 import com.cuso.mobile.model.inventory.RequisitionListResponse
 import com.cuso.mobile.model.inventory.RequisitionSingleResponse
 import com.cuso.mobile.model.inventory.ReverseAdjustmentRequest
+import com.cuso.mobile.model.inventory.SectionDropdownResponse
 import com.cuso.mobile.model.inventory.SingleReceiveResponse
 import com.cuso.mobile.model.inventory.StockAdjustmentDetailResponse
 import com.cuso.mobile.model.inventory.StockAdjustmentListResponse
+import com.cuso.mobile.model.inventory.StockLocationItemListResponse
+import com.cuso.mobile.model.inventory.StockLocationViewOneResponse
 import com.cuso.mobile.model.inventory.StockSummaryListResponse
 import com.cuso.mobile.model.inventory.SupplierActionResponse
 import com.cuso.mobile.model.inventory.SupplierDropdownResponse
@@ -140,7 +147,7 @@ interface InventoryApiService {
     ): Response<CreateInventoryItemResponse>
 
     /**
-     * Update a existing inventory item with multipart form data.
+     * Update an existing inventory item with multipart form data.
      */
     @Multipart
     @PUT("/api/inventory/item/update-one/{id}")
@@ -343,7 +350,7 @@ interface InventoryApiService {
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Query("page") page: Int = 1,
-        @Query("limit") limit: Int = 20,
+        @Query("limit") limit: Int = 10,
         @Query("search") search: String? = null
     ): Response<StockSummaryListResponse>
 
@@ -497,7 +504,10 @@ interface InventoryApiService {
     @GET("/api/inventory/bulk-item/view-all")
     suspend fun getBulkItems(
         @Header("Authorization") token: String,
-        @Header("X-CSRF-Token") csrfToken: String
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null
     ): Response<BulkItemListResponse>
 
     @GET("/api/inventory/bulk-item/view-one/{id}")
@@ -647,6 +657,17 @@ interface InventoryApiService {
 //    ): Response<RequisitionSingleResponse>
 
     /**
+     * Add comment to a purchase requisition.
+     */
+    @POST("/api/inventory/requisition/{id}/comment")
+    suspend fun addRequisitionComment(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") requisitionId: String,
+        @Body request: AddRequisitionCommentRequest
+    ): Response<RequisitionSingleResponse>
+
+    /**
      * Create a new purchase requisition.
      */
     @POST("/api/inventory/requisition/create")
@@ -666,6 +687,8 @@ interface InventoryApiService {
         @Path("id") id: String,
         @Body request: RequisitionApprovalActionRequest
     ): Response<RequisitionSingleResponse>
+
+
 
     // =============================================================================
     // BARCODE ENDPOINTS
@@ -716,16 +739,16 @@ interface InventoryApiService {
         @Header("Authorization") token: String,
         @Header("x-csrf-token") csrfToken: String,
         @Query("page") page: Int = 1,
-        @Query("limit") limit: Int = 20,
+        @Query("limit") limit: Int = 10,
         @Query("search") search: String? = null
     ): Response<AllReceivesResponse>
 
-    @GET("/api/inventory/purchase-receive/history/{poId}")
-    suspend fun getReceiveHistoryByPo(
-        @Header("Authorization") token: String,
-        @Header("x-csrf-token") csrfToken: String,
-        @Path("poId") poId: String
-    ): Response<ReceiveHistoryByPoResponse>
+//    @GET("/api/inventory/purchase-receive/history/{poId}")
+//    suspend fun getReceiveHistoryByPo(
+//        @Header("Authorization") token: String,
+//        @Header("x-csrf-token") csrfToken: String,
+//        @Path("poId") poId: String
+//    ): Response<ReceiveHistoryByPoResponse>
 
     @GET("/api/inventory/purchase-receive/view-one/{id}")
     suspend fun getSingleReceive(
@@ -740,4 +763,85 @@ interface InventoryApiService {
         @Header("x-csrf-token") csrfToken: String,
         @Path("id") receiveId: String
     ): Response<ConvertToBillResponse>
+
+    /**
+     * Fetches detailed receive history and item progress for a specific Purchase Order.
+     */
+    @GET("inventory/purchase-receive/history/{poId}")
+    suspend fun getReceiveHistoryByPo(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("poId") poId: String
+    ): Response<ReceiveHistoryByPoResponse>
+
+    /**
+     * Fetches paginated summary of purchase orders and their aggregate receive status.
+     */
+    @GET("inventory/purchase-receive/po-summary")
+    suspend fun getPurchaseOrderSummary(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null
+    ): Response<PurchaseOrderSummaryResponse>
+
+    // =============================================================================
+    // LOCATION MANAGEMENT
+    // =============================================================================
+
+    @GET("/api/inventory/bin-stock/stock-location")
+    suspend fun getStockLocationItems(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<StockLocationItemListResponse>
+
+    @GET("/api/inventory/bin-stock/stock-location/{id}")
+    suspend fun getStockLocationViewOne(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<StockLocationViewOneResponse>
+
+    @GET("/api/inventory/settings/floor/warehouse/{warehouseId}")
+    suspend fun getFloorDropdown(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("warehouseId") warehouseId: String
+    ): Response<FloorDropdownResponse>
+
+    @GET("/api/inventory/settings/section/floor/{floorId}")
+    suspend fun getSectionDropdown(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("floorId") floorId: String
+    ): Response<SectionDropdownResponse>
+
+    @GET("/api/inventory/settings/rack/section/{sectionId}")
+    suspend fun getRackDropdown(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("sectionId") sectionId: String
+    ): Response<RackDropdownResponse>
+
+    @GET("/api/inventory/settings/bin/rack/{rackId}")
+    suspend fun getBinDropdown(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("rackId") rackId: String
+    ): Response<BinDropdownResponse>
+
+    /**
+     * Assign inventory item stock to a specific bin location.
+     */
+    @POST("/api/inventory/bin-stock/create")
+    suspend fun assignStockLocation(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Body request: AssignStockLocationRequest
+    ): Response<AssignStockLocationResponse>
 }

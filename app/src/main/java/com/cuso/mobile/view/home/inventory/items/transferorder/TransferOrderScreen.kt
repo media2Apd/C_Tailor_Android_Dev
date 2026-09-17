@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -47,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,9 +86,11 @@ import com.cuso.mobile.view.composable.ListSkeleton
 import com.cuso.mobile.view.composable.SearchFilterBar
 import com.cuso.mobile.view.composable.SheetValue
 import com.cuso.mobile.view.composable.SmoothBottomSheet
+import com.cuso.mobile.view.composable.ThreeDotLoading
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.InventoryViewModel
 import com.cuso.mobile.viewmodel.SettingsViewModel
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 enum class AdjustmentType {
     Increase, Decrease, TransferStock
@@ -105,6 +109,9 @@ fun TransferOrdersStockListScreen(
     // API States from InventoryViewModel
     val adjustmentsList by viewModel.stockAdjustmentsList.collectAsState()
     val isLoadingAdjustments by viewModel.isLoadingAdjustments.collectAsState()
+    val isLoadingMoreAdjustments by viewModel.isLoadingMoreAdjustments.collectAsState()
+    val canLoadMoreAdjustments by viewModel.canLoadMoreAdjustments.collectAsState()
+
     val warehouseDropdown by viewModel.warehouseDropdown.collectAsState()
     val validReasons by viewModel.validAdjustmentReasons.collectAsState()
 
@@ -116,20 +123,45 @@ fun TransferOrdersStockListScreen(
     var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var selectedAdjustment by remember { mutableStateOf<StockAdjustmentData?>(null) }
 
+    // Scroll state for LazyColumn to support infinite scroll
+    val listState = rememberLazyListState()
+
     // Fetch API Data on screen launch
     LaunchedEffect(Unit) {
         viewModel.clearAdjustmentAlerts()
-        // Calls: /api/inventory/stock-adjustment/view-all?page=1&limit=10&adjustmentType=transfer
         viewModel.fetchStockAdjustments(reset = true, adjustmentType = "transfer")
         viewModel.loadWarehouseDropdown()
         viewModel.fetchValidAdjustmentReasons()
         settingsViewModel.fetchBins(isRefresh = true)
     }
 
+    // Scroll listener: triggers next page fetch only when crossing the bottom threshold
+    LaunchedEffect(listState, canLoadMoreAdjustments, searchQuery) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+
+            // Trigger when 2 items away from bottom
+            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
+        }
+            .distinctUntilChanged()
+            .collect { isNearBottom ->
+                if (isNearBottom &&
+                    canLoadMoreAdjustments &&
+                    !isLoadingMoreAdjustments &&
+                    !isLoadingAdjustments &&
+                    searchQuery.isBlank()
+                ) {
+                    viewModel.loadMoreStockAdjustments()
+                }
+            }
+    }
+
     LaunchedEffect(adjustmentSuccessMessage) {
         if (!adjustmentSuccessMessage.isNullOrBlank()) {
             sheetState = SheetValue.Hidden
-            viewModel.fetchStockAdjustments(reset = true)
+            viewModel.fetchStockAdjustments(reset = true, adjustmentType = "transfer")
         }
     }
 
@@ -157,19 +189,6 @@ fun TransferOrdersStockListScreen(
                     TitleBar("Transfer Stock", onClose)
                 }
             }
-//            floatingActionButton = {
-//                FloatingActionButton(
-//                    onClick = {
-//                        selectedAdjustment = null
-//                        sheetState = SheetValue.Expanded
-//                    },
-//                    containerColor = Primary,
-//                    contentColor = whiteBg,
-//                    shape = CircleShape
-//                ) {
-//                    Icon(Icons.Default.Add, contentDescription = "New Adjustment")
-//                }
-//            }
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -204,11 +223,15 @@ fun TransferOrdersStockListScreen(
                     }
                 } else {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier
                             .fillMaxSize()
                             .weight(1f)
                     ) {
-                        items(filteredList, key = { it.id }) { adjustment ->
+                        items(
+                            items = filteredList,
+                            key = { it.id.ifBlank { it.hashCode().toString() } }
+                        ) { adjustment ->
                             AllOrdersItemCard(
                                 adjustment = adjustment,
                                 tokens = tokens,
@@ -218,43 +241,25 @@ fun TransferOrdersStockListScreen(
                                 }
                             )
                         }
+
+                        // Three-dot loader is shown only while the next page request is in-flight
+                        if (isLoadingMoreAdjustments) {
+                            item(key = "pagination_threedot_loader") {
+                                ThreeDotLoading(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 16.dp)
+                                )
+                            }
+                        }
+
+                        item {
+                            Spacer(Modifier.height(80.dp))
+                        }
                     }
                 }
             }
         }
-
-//        SmoothBottomSheet(
-//            state = sheetState,
-//            onStateChange = { sheetState = it },
-//            title = if (selectedAdjustment != null) "Adjustment Details" else "New Stock Adjustment",
-//            subtitle = "Code: ${selectedAdjustment?.adjustmentCode ?: "NEW-ADJ"}",
-//            expandedFraction = 0.95f,
-//            collapsedFraction = 0.65f,
-//            maxBlurRadius = 16.dp,
-//            maxScrimAlpha = 0.45f,
-//            scrollableContent = true,
-//            collapsedCornerRadius = tokens.cardCornerRadius,
-//            sheetBackgroundColor = whiteBg,
-//            onDismissRequest = {
-//                viewModel.clearAdjustmentAlerts()
-//                sheetState = SheetValue.Hidden
-//            }
-//        ) {
-//            AdjustStockModalContent(
-//                selectedAdjustment = selectedAdjustment,
-//                warehouseList = warehouseDropdown,
-//                reasonList = validReasons,
-//                isSubmitting = isSubmittingAdjustment,
-//                tokens = tokens,
-//                onDismiss = {
-//                    viewModel.clearAdjustmentAlerts()
-//                    sheetState = SheetValue.Hidden
-//                },
-//                onIncreaseStock = { req -> viewModel.submitIncreaseStock(req) },
-//                onDecreaseStock = { req -> viewModel.submitDecreaseStock(req) },
-//                onTransferStock = { req -> viewModel.submitStockTransfer(req) }
-//            )
-//        }
 
         DynamicIslandSuccess(
             message = adjustmentSuccessMessage,
@@ -337,20 +342,6 @@ private fun AllOrdersItemCard(
                             fontWeight = FontWeight.Medium
                         )
                     }
-
-//                    // Adjustment Type Pill
-//                    Box(
-//                        modifier = Modifier
-//                            .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
-//                            .padding(horizontal = 8.dp, vertical = 4.dp)
-//                    ) {
-//                        Text(
-//                            text = adjustment.type.uppercase(),
-//                            color = title_color,
-//                            fontSize = 11.sp,
-//                            fontWeight = FontWeight.Bold
-//                        )
-//                    }
                 }
 
                 IconButton(
@@ -375,15 +366,6 @@ private fun AllOrdersItemCard(
                 fontWeight = FontWeight.SemiBold,
                 color = title_color
             )
-
-//            if (adjustment.itemSku.isNotBlank()) {
-//                Spacer(Modifier.height(2.dp))
-//                Text(
-//                    text = "SKU: ${adjustment.itemSku} • ${adjustment.itemVariant}",
-//                    fontSize = 12.sp,
-//                    color = mutedText
-//                )
-//            }
 
             Spacer(Modifier.height(10.dp))
 

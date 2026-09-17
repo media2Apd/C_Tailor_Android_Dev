@@ -52,7 +52,8 @@ crashlytics = "3.0.7"
 uiText = "1.11.4"
 volley = "1.2.1"
 uiUnit = "1.12.0"
-foundationVersion = "1.12.1"   # check latest version below
+foundationVersion = "1.12.1"
+foundationLayoutVersion = "1.12.1"   # check latest version below
 
 
 [libraries]
@@ -119,6 +120,7 @@ androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", ve
 volley = { group = "com.android.volley", name = "volley", version.ref = "volley" }
 androidx-compose-ui-unit = { group = "androidx.compose.ui", name = "ui-unit", version.ref = "uiUnit" }
 androidx-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundationVersion" }
+androidx-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayoutVersion" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

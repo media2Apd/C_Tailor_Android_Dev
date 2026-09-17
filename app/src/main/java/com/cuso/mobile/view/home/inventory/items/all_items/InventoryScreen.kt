@@ -2,11 +2,6 @@
 
 package com.cuso.mobile.view.home.inventory.items.all_items
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -64,6 +59,7 @@ import com.cuso.mobile.view.composable.ThreeDotLoading
 import com.cuso.mobile.view.composable.TitleBar
 import com.cuso.mobile.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * Returns badge foreground and background color based on stock status.
@@ -94,6 +90,7 @@ fun InventoryScreen(
     inventoryViewModel: InventoryViewModel = hiltViewModel(),
     onBreadCrumbClick: () -> Unit = {}
 ) {
+    // Observe state from ViewModel
     val rawItems by inventoryViewModel.inventoryItems.collectAsStateWithLifecycle()
     val isLoading by inventoryViewModel.isLoadingInventoryItems.collectAsStateWithLifecycle()
     val isLoadingMore by inventoryViewModel.isLoadingMoreInventoryItems.collectAsStateWithLifecycle()
@@ -106,38 +103,43 @@ fun InventoryScreen(
     var successToastMessage by remember { mutableStateOf<String?>(null) }
     var errorToastMessage by remember { mutableStateOf<String?>(null) }
 
-    // Guaranteed non-null list fallback
     val items: List<InventoryItem> = rawItems
-
     var searchQuery by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    // Initial fetch
-    LaunchedEffect(Unit) {
-        inventoryViewModel.fetchInventoryItems()
-    }
-
-    // Debounced search
+    // Single unified initial fetch & debounced search (prevents double initialization)
+    var isInitialized by remember { mutableStateOf(false) }
     LaunchedEffect(searchQuery) {
-        delay(400)
-        inventoryViewModel.fetchInventoryItems(search = searchQuery.trim().ifBlank { null })
+        if (!isInitialized) {
+            isInitialized = true
+            inventoryViewModel.fetchInventoryItems()
+        } else {
+            delay(400)
+            inventoryViewModel.fetchInventoryItems(search = searchQuery.trim().ifBlank { null })
+        }
     }
 
-    // Load more detector
-    val shouldLoadMore = remember {
-        derivedStateOf {
+    // Scroll listener using snapshotFlow: only fires when the user crosses the bottom threshold
+    LaunchedEffect(listState, canLoadMore, searchQuery) {
+        snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val totalItemsNumber = layoutInfo.totalItemsCount
             val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
 
-            totalItemsNumber > 0 && lastVisibleItemIndex >= totalItemsNumber - 2
+            // Trigger when 2 items away from bottom
+            totalItemsNumber > 0 && lastVisibleItemIndex >= (totalItemsNumber - 2)
         }
-    }
-
-    LaunchedEffect(shouldLoadMore.value) {
-        if (shouldLoadMore.value && canLoadMore && !isLoadingMore && !isLoading) {
-            inventoryViewModel.loadMoreInventoryItems()
-        }
+            .distinctUntilChanged()
+            .collect { isNearBottom ->
+                if (isNearBottom &&
+                    canLoadMore &&
+                    !inventoryViewModel.isLoadingMoreInventoryItems.value &&
+                    !inventoryViewModel.isLoadingInventoryItems.value &&
+                    searchQuery.isBlank()
+                ) {
+                    inventoryViewModel.loadMoreInventoryItems()
+                }
+            }
     }
 
     // Prefill form for editing
@@ -157,7 +159,7 @@ fun InventoryScreen(
             message = "Are you sure you want to delete \"$itemName\"? It can be restored within 7 days, after which it is permanently removed.",
             onDismiss = { itemToDelete = null },
             onDelete = {
-                val itemId = item._id.orEmpty()
+                val itemId = item._id
                 if (itemId.isNotBlank()) {
                     inventoryViewModel.deleteInventoryItem(
                         itemId = itemId,
@@ -304,10 +306,10 @@ fun InventoryScreen(
                                 val itemType = item.type.orEmpty().replaceFirstChar {
                                     if (it.isLowerCase()) it.titlecase() else it.toString()
                                 }.ifBlank { "N/A" }
-                                val price = item.sellingPrice ?: 0.0
-                                val skuText = item.sku.ifBlank { "—" } ?: "—"
+                                val price = item.sellingPrice
+                                val skuText = item.sku.ifBlank { "—" }
                                 val nameText = item.name.orEmpty().ifBlank { "Unnamed Item" }
-                                val itemId = item._id.orEmpty()
+                                val itemId = item._id
 
                                 DataCard(
                                     item = item,
@@ -353,15 +355,14 @@ fun InventoryScreen(
                                 )
                             }
 
-                            item {
-                                Column(Modifier.fillMaxWidth()) {
-                                    AnimatedVisibility(
-                                        visible = isLoadingMore,
-                                        enter = fadeIn() + slideInVertically { it / 2 },
-                                        exit = fadeOut() + slideOutVertically { it / 2 }
-                                    ) {
-                                        ThreeDotLoading()
-                                    }
+                            // Render ThreeDotLoading ONLY when next page is actively loading
+                            if (isLoadingMore) {
+                                item(key = "pagination_threedot_loader") {
+                                    ThreeDotLoading(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp)
+                                    )
                                 }
                             }
 

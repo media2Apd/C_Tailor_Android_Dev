@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -25,6 +26,7 @@ import com.cuso.mobile.model.inventory.LowStockItemDto
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.viewmodel.InventoryViewModel
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 // ─────────────────────────────────────────────
 // LowStockAlertCard
@@ -133,12 +135,41 @@ fun LowStockAlertsScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
+    // Observe list and pagination states
     val lowStockItems by viewModel.lowStockItems.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoadingLowStock.collectAsStateWithLifecycle()
+    val isLoadingMore by viewModel.isLoadingMoreLowStock.collectAsStateWithLifecycle()
+    val canLoadMore by viewModel.canLoadMoreLowStock.collectAsStateWithLifecycle()
     val errorMessage by viewModel.lowStockError.collectAsStateWithLifecycle()
 
+    // Scroll state tracker for LazyColumn
+    val listState = rememberLazyListState()
+
+    // Initial fetch on screen launch
     LaunchedEffect(Unit) {
         viewModel.fetchLowStockAlerts()
+    }
+
+    // Scroll listener: triggers pagination when scrolling 2 items before the bottom
+    LaunchedEffect(listState, canLoadMore, searchQuery) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+
+            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
+        }
+            .distinctUntilChanged()
+            .collect { isNearBottom ->
+                if (isNearBottom &&
+                    canLoadMore &&
+                    !viewModel.isLoadingMoreLowStock.value &&
+                    !viewModel.isLoadingLowStock.value &&
+                    searchQuery.isBlank()
+                ) {
+                    viewModel.loadMoreLowStockAlerts()
+                }
+            }
     }
 
     val filteredItems = remember(lowStockItems, searchQuery) {
@@ -189,10 +220,10 @@ fun LowStockAlertsScreen(
 
                 when {
                     isLoading && lowStockItems.isEmpty() -> {
-                       ListSkeleton()
+                        ListSkeleton()
                     }
 
-                    errorMessage != null -> {
+                    errorMessage != null && lowStockItems.isEmpty() -> {
                         AppErrorState(
                             title = "Unable to load stock alerts",
                             message = errorMessage ?: "Failed to connect to the server.",
@@ -215,16 +246,30 @@ fun LowStockAlertsScreen(
 
                     else -> {
                         LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize(),
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             contentPadding = PaddingValues(top = 10.dp, bottom = 90.dp)
                         ) {
-                            items(filteredItems, key = { it.itemId }) { item ->
+                            items(
+                                items = filteredItems,
+                                key = { it.itemId.ifBlank { it.hashCode().toString() } }
+                            ) { item ->
                                 LowStockAlertCard(
                                     item = item,
                                     onReorderClick = { onReorderClick(item) }
                                 )
+                            }
+
+                            // Three-dot loader is shown only while the next page request is in-flight
+                            if (isLoadingMore) {
+                                item(key = "pagination_threedot_loader") {
+                                    ThreeDotLoading(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp)
+                                    )
+                                }
                             }
                         }
                     }

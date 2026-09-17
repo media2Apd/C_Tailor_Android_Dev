@@ -21,6 +21,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -61,14 +63,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.mobile.R
@@ -80,7 +79,6 @@ import com.cuso.mobile.model.inventory.VariantAttributeDto
 import com.cuso.mobile.ui.theme.BorderGray
 import com.cuso.mobile.ui.theme.PanelBg
 import com.cuso.mobile.ui.theme.Primary
-import com.cuso.mobile.ui.theme.Primary_background
 import com.cuso.mobile.ui.theme.TextPrimary
 import com.cuso.mobile.ui.theme.TextSecondary
 import com.cuso.mobile.ui.theme.background_light_purple
@@ -150,7 +148,7 @@ fun CreateItemGroupScreen(
 
     val isEditMode = editDetail != null
 
-    // Form Field States
+    // Form field states
     var itemGroupName by remember { mutableStateOf("") }
     var unit by remember { mutableStateOf("Select Piece") }
     var unitExpanded by remember { mutableStateOf(false) }
@@ -187,61 +185,7 @@ fun CreateItemGroupScreen(
         }
     }
 
-    // Prefill data for Edit Mode
-    LaunchedEffect(editDetail) {
-        editDetail?.let { detail ->
-            itemGroupName = detail.name
-            unit = detail.unit ?: "Pieces"
-            brand = detail.brand ?: "Select Brand"
-            description = detail.longDescription ?: detail.shortDescription.orEmpty()
-            status = detail.status.equals("active", ignoreCase = true)
-            selectedCategoryId = detail.categoryId
-
-            costPrice = (detail.pricingTax?.costPrice ?: detail.pricing?.costPrice)?.takeIf { it > 0 }?.toString() ?: ""
-            sellingPrice = (detail.pricingTax?.sellingPrice ?: detail.pricing?.sellingPrice)?.takeIf { it > 0 }?.toString() ?: ""
-
-            attributesList.clear()
-            confirmedAttributes.clear()
-            selectedMatrixValues.clear()
-
-            detail.variantAttributes.forEach { attr ->
-                val entry = AttributeEntry(
-                    attributeType = attr.name,
-                    values = attr.values
-                )
-                attributesList.add(entry)
-                confirmedAttributes.add(entry)
-                selectedMatrixValues[attr.name] = attr.values.toMutableList()
-            }
-
-            variants.clear()
-            detail.variants.forEach { v ->
-                variants.add(
-                    VariantEntry(
-                        id = v.id,
-                        label = v.variantLabel ?: v.name,
-                        sku = v.sku,
-                        cost = if (v.costPrice > 0) v.costPrice.toString() else "0",
-                        price = if (v.sellingPrice > 0) v.sellingPrice.toString() else "0",
-                        reOrderPoint = v.reorderLevel.toString(),
-                        isActive = v.status.equals("active", ignoreCase = true),
-                        isExpanded = false
-                    )
-                )
-            }
-        }
-    }
-
-    // Match category display name
-    LaunchedEffect(selectedCategoryId, productCategories) {
-        selectedCategoryId?.let { catId ->
-            val match = productCategories.find { it.id == catId }
-            if (match != null) {
-                selectedCategoryName = match.name
-            }
-        }
-    }
-
+    // Calculates all variant permutations based on selected matrix values
     fun recalculateVariants() {
         val activeAttributes = confirmedAttributes.filter {
             it.attributeType.isNotBlank() && (selectedMatrixValues[it.attributeType]?.isNotEmpty() == true)
@@ -298,6 +242,76 @@ fun CreateItemGroupScreen(
         variants.addAll(newVariants)
     }
 
+    // Prefill form states when editDetail changes
+    LaunchedEffect(editDetail) {
+        editDetail?.let { detail ->
+            itemGroupName = detail.name.orEmpty()
+            unit = detail.unit?.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } ?: "Pieces"
+            brand = detail.brand ?: "Select Brand"
+            description = detail.longDescription ?: detail.shortDescription.orEmpty()
+            status = detail.status.equals("active", ignoreCase = true)
+            selectedCategoryId = detail.categoryId
+
+            costPrice = (detail.pricingTax?.costPrice ?: detail.pricing?.costPrice)?.takeIf { it > 0 }?.toString() ?: ""
+            sellingPrice = (detail.pricingTax?.sellingPrice ?: detail.pricing?.sellingPrice)?.takeIf { it > 0 }?.toString() ?: ""
+
+            // Populate images from API response
+            val remoteImages = detail.media?.images?.mapNotNull { img ->
+                img.fileUrl?.takeIf { it.isNotBlank() }?.let { Uri.parse(it) }
+            } ?: emptyList()
+            itemGroupImages = remoteImages
+
+            // Populate variant attributes
+            attributesList.clear()
+            confirmedAttributes.clear()
+            selectedMatrixValues.clear()
+
+            detail.variantAttributes.orEmpty().forEach { attr ->
+                val entry = AttributeEntry(
+                    attributeType = attr.name,
+                    values = attr.values.orEmpty()
+                )
+                attributesList.add(entry)
+                confirmedAttributes.add(entry)
+                selectedMatrixValues[attr.name] = attr.values.orEmpty().toMutableList()
+            }
+
+            // Populate existing variants
+            variants.clear()
+            if (!detail.variants.isNullOrEmpty()) {
+                detail.variants.forEach { v ->
+                    variants.add(
+                        VariantEntry(
+                            id = v.id,
+                            label = v.variantLabel ?: v.name,
+                            sku = v.sku,
+                            cost = if (v.costPrice > 0) v.costPrice.toString() else costPrice.ifBlank { "0" },
+                            price = if (v.sellingPrice > 0) v.sellingPrice.toString() else sellingPrice.ifBlank { "0" },
+                            reOrderPoint = v.reorderLevel.toString(),
+                            isActive = v.status.equals("active", ignoreCase = true),
+                            isExpanded = false
+                        )
+                    )
+                }
+            }
+
+            // Automatically generate variants if API returned empty variants list
+            if (variants.isEmpty() && confirmedAttributes.isNotEmpty()) {
+                recalculateVariants()
+            }
+        }
+    }
+
+    // Resolve matching category title
+    LaunchedEffect(selectedCategoryId, productCategories) {
+        selectedCategoryId?.let { catId ->
+            val match = productCategories.find { it.id == catId }
+            if (match != null) {
+                selectedCategoryName = match.name
+            }
+        }
+    }
+
     val onConfirmAttributes = {
         val validEntries = attributesList.filter {
             it.attributeType.isNotBlank() && it.values.isNotEmpty()
@@ -315,7 +329,6 @@ fun CreateItemGroupScreen(
                 selectedMatrixValues[entry.attributeType] = mergedValues
             }
 
-            // Remove unconfirmed attributes from matrix
             val validTypes = validEntries.map { it.attributeType }.toSet()
             selectedMatrixValues.keys.retainAll(validTypes)
 
@@ -390,21 +403,19 @@ fun CreateItemGroupScreen(
             .background(Color.Transparent)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header Bar
             TitleBar(
                 title = if (isEditMode) "Edit Item Group" else "Create Item Group",
                 onClose = handleDismiss
             )
             HorizontalDivider(color = title_border, thickness = 1.dp)
 
-            // Scrollable Sections
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
                     .padding(bottom = tokens.buttonHeight * 2.5f)
             ) {
-                // ── 1. Item Group Information ──
+                // Section 1: Item Group Information
                 AccordionSection(
                     iconPainter = painterResource(R.drawable.ic_info),
                     title = "Item Group Information",
@@ -439,6 +450,7 @@ fun CreateItemGroupScreen(
                     )
                 }
 
+                // Section 2: Classification
                 // ── 2. Classification ──
                 AccordionSection(
                     iconPainter = painterResource(R.drawable.box),
@@ -477,15 +489,15 @@ fun CreateItemGroupScreen(
                     Spacer(Modifier.height(8.dp))
 
                     ImageUploadSection(
-                        isImage = false,
+                        isImage = true,
                         selectedImages = itemGroupImages,
-                        browseText = "Browse Files",
-                        onBrowseClick = { imagePickerLauncher.launch("*/*") },
+                        browseText = "Browse Images",
+                        onBrowseClick = { imagePickerLauncher.launch("image/*") },
                         onCameraClick = null,
                         onRemoveImage = { removedImage ->
                             itemGroupImages = itemGroupImages.filter { it != removedImage }
                         },
-                        previewHeaderTitle = "ATTACHED FILES"
+                        previewHeaderTitle = "ATTACHED IMAGES"
                     )
 
                     Spacer(Modifier.height(tokens.extraPadding))
@@ -511,7 +523,7 @@ fun CreateItemGroupScreen(
                     }
                 }
 
-                // ── 3. Attributes (Variants) ──
+                // Section 3: Attributes (Variants)
                 AccordionSection(
                     icon = Icons.Filled.Sell,
                     title = "Attributes (Variants)",
@@ -600,7 +612,7 @@ fun CreateItemGroupScreen(
                     }
                 }
 
-                // ── 4. Pricing & Tax ──
+                // Section 4: Pricing & Tax
                 AccordionSection(
                     icon = Icons.Filled.LocalOffer,
                     title = "Pricing & Tax",
@@ -635,7 +647,8 @@ fun CreateItemGroupScreen(
                     Text("Default selling price for all generated variants", fontSize = tokens.label, color = TextSecondary, modifier = Modifier.padding(top = 4.dp))
                 }
 
-                // ── 5. Variant Matrix ──
+                // Section 5: Variant Matrix
+                @OptIn(ExperimentalLayoutApi::class)
                 AccordionSection(
                     icon = Icons.Filled.CreditCard,
                     title = "Variant Matrix",
@@ -651,7 +664,11 @@ fun CreateItemGroupScreen(
                                 .padding(vertical = tokens.extraPadding),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Please add and confirm attributes above to configure matrix.", fontSize = tokens.bodySmall, color = TextSecondary)
+                            Text(
+                                text = "Please add and confirm attributes above to configure matrix.",
+                                fontSize = tokens.bodySmall,
+                                color = TextSecondary
+                            )
                         }
                     } else {
                         Row(
@@ -665,7 +682,10 @@ fun CreateItemGroupScreen(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .background(if (isSelected) background_light_purple else Color.Transparent, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                                        .background(
+                                            if (isSelected) background_light_purple else Color.Transparent,
+                                            RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                                        )
                                         .clickable {
                                             matrixMode = option
                                             if (option == "Auto All") {
@@ -678,7 +698,12 @@ fun CreateItemGroupScreen(
                                         .padding(vertical = 9.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(option, color = if (isSelected) Primary else TextSecondary, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium, fontSize = tokens.bodySmall)
+                                    Text(
+                                        text = option,
+                                        color = if (isSelected) Primary else TextSecondary,
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                        fontSize = tokens.bodySmall
+                                    )
                                 }
                             }
                         }
@@ -692,25 +717,50 @@ fun CreateItemGroupScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(attribute.attributeType, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                                Text(
+                                    text = attribute.attributeType,
+                                    fontSize = tokens.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextPrimary
+                                )
                                 Row {
-                                    Text("Select All", fontSize = tokens.caption, color = Primary, fontWeight = FontWeight.Medium, modifier = Modifier.clickable {
-                                        selectedMatrixValues[attribute.attributeType] = attribute.values.toMutableList()
-                                        recalculateVariants()
-                                    })
+                                    Text(
+                                        text = "Select All",
+                                        fontSize = tokens.caption,
+                                        color = Primary,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.clickable {
+                                            selectedMatrixValues[attribute.attributeType] = attribute.values.toMutableList()
+                                            recalculateVariants()
+                                        }
+                                    )
                                     Spacer(Modifier.width(12.dp))
-                                    Text("Clear All", fontSize = tokens.caption, color = TextSecondary, fontWeight = FontWeight.Medium, modifier = Modifier.clickable {
-                                        selectedMatrixValues[attribute.attributeType] = mutableListOf()
-                                        recalculateVariants()
-                                    })
+                                    Text(
+                                        text = "Clear All",
+                                        fontSize = tokens.caption,
+                                        color = TextSecondary,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.clickable {
+                                            selectedMatrixValues[attribute.attributeType] = mutableListOf()
+                                            recalculateVariants()
+                                        }
+                                    )
                                 }
                             }
 
                             Spacer(Modifier.height(8.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                                 attribute.values.forEach { value ->
                                     val isChecked = currentSelected.contains(value)
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(vertical = 2.dp)
+                                    ) {
                                         AppCheckbox(
                                             checked = isChecked,
                                             onCheckedChange = { checked ->
@@ -725,7 +775,11 @@ fun CreateItemGroupScreen(
                                             }
                                         )
                                         Spacer(Modifier.width(6.dp))
-                                        Text(value, fontSize = tokens.bodySmall, color = TextPrimary)
+                                        Text(
+                                            text = value,
+                                            fontSize = tokens.bodySmall,
+                                            color = TextPrimary
+                                        )
                                     }
                                 }
                             }
@@ -733,7 +787,7 @@ fun CreateItemGroupScreen(
                     }
                 }
 
-                // ── 6. Generated Variants ──
+                // Section 6: Generated Variants
                 AccordionSection(
                     title = "Generated Variants (${variants.size})",
                     expanded = expandedSection == "Generated Variants",
@@ -943,7 +997,6 @@ fun CreateItemGroupScreen(
             }
         }
 
-        // Floating Action Buttons (Save vs Update)
         StepNavigationFab(
             showBack = true,
             onBack = handleDismiss,
@@ -973,10 +1026,7 @@ fun CreateItemGroupScreen(
     }
 }
 
-// =============================================================================
-// ATTRIBUTE VALUES CHIP INPUT (WRAPS CONTENT TIGHTLY)
-// =============================================================================
-
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AttributeValuesInput(
     values: List<String>,
@@ -998,8 +1048,8 @@ private fun AttributeValuesInput(
     ) {
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalSpacing = 6.dp,
-            verticalSpacing = 6.dp
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             values.forEach { value ->
                 Box(
@@ -1079,69 +1129,6 @@ private fun AttributeValuesInput(
                         }
                     )
                 )
-            }
-        }
-    }
-}
-
-// =============================================================================
-// FLOW ROW HELPER
-// =============================================================================
-
-@Composable
-fun FlowRow(
-    modifier: Modifier = Modifier,
-    horizontalSpacing: Dp = 0.dp,
-    verticalSpacing: Dp = 0.dp,
-    content: @Composable () -> Unit
-) {
-    Layout(
-        modifier = modifier,
-        content = content
-    ) { measurables, constraints ->
-        val hSpacing = horizontalSpacing.roundToPx()
-        val vSpacing = verticalSpacing.roundToPx()
-
-        val childConstraints = constraints.copy(minWidth = 0, minHeight = 0)
-        val placeables = measurables.map { it.measure(childConstraints) }
-
-        val rows = mutableListOf<List<Placeable>>()
-        val rowHeights = mutableListOf<Int>()
-        var currentRow = mutableListOf<Placeable>()
-        var currentX = 0
-        var currentY = 0
-        var rowMaxHeight = 0
-
-        placeables.forEach { placeable ->
-            if (currentX + placeable.width > constraints.maxWidth && currentRow.isNotEmpty()) {
-                rows.add(currentRow)
-                rowHeights.add(rowMaxHeight)
-                currentY += rowMaxHeight + vSpacing
-                currentX = 0
-                rowMaxHeight = 0
-                currentRow = mutableListOf()
-            }
-            currentRow.add(placeable)
-            currentX += placeable.width + hSpacing
-            if (placeable.height > rowMaxHeight) rowMaxHeight = placeable.height
-        }
-
-        if (currentRow.isNotEmpty()) {
-            rows.add(currentRow)
-            rowHeights.add(rowMaxHeight)
-        }
-
-        val totalHeight = currentY + (rowHeights.lastOrNull() ?: 0)
-
-        layout(constraints.maxWidth, totalHeight) {
-            var y = 0
-            rows.forEachIndexed { index, row ->
-                var x = 0
-                row.forEach { placeable ->
-                    placeable.placeRelative(x, y)
-                    x += placeable.width + hSpacing
-                }
-                y += rowHeights[index] + vSpacing
             }
         }
     }

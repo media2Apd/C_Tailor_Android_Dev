@@ -4,18 +4,16 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.webkit.MimeTypeMap
 import com.cuso.mobile.database.dao.TokensDao
-//import com.cuso.mobile.model.inventory.AddCommentRequest
+import com.cuso.mobile.model.inventory.AddRequisitionCommentRequest
 import com.cuso.mobile.model.inventory.AdjustBulkStockRequest
-import com.cuso.mobile.model.inventory.AdjustStockQuantityRequest
 import com.cuso.mobile.model.inventory.AdjustStockRequest
+import com.cuso.mobile.model.inventory.AssignStockLocationRequest
 import com.cuso.mobile.model.inventory.BarcodeItemDoc
 import com.cuso.mobile.model.inventory.BillCreatedData
 import com.cuso.mobile.model.inventory.BuildBulkItemRequest
 import com.cuso.mobile.model.inventory.BulkItemDoc
 import com.cuso.mobile.model.inventory.CreateInventoryItemResponse
-import com.cuso.mobile.model.inventory.CreateItemGroupRequest
 import com.cuso.mobile.model.inventory.CreatePurchaseOrderRequest
 import com.cuso.mobile.model.inventory.CreateRequisitionRequest
 import com.cuso.mobile.model.inventory.CreateSupplierRequest
@@ -23,6 +21,7 @@ import com.cuso.mobile.model.inventory.CreateWarehouseRequest
 import com.cuso.mobile.model.inventory.DecreaseStockRequest
 import com.cuso.mobile.model.inventory.DeleteInventoryItemResponse
 import com.cuso.mobile.model.inventory.GenerateBarcodeRequest
+import com.cuso.mobile.model.inventory.HierarchyDropdownItem
 import com.cuso.mobile.model.inventory.IncreaseStockRequest
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.InventoryItemListResponse
@@ -34,15 +33,18 @@ import com.cuso.mobile.model.inventory.LowStockItemDto
 import com.cuso.mobile.model.inventory.POBillConvertData
 import com.cuso.mobile.model.inventory.PurchaseOrder
 import com.cuso.mobile.model.inventory.PurchaseOrderData
+import com.cuso.mobile.model.inventory.PurchaseOrderSummaryResponse
 import com.cuso.mobile.model.inventory.PurchaseReceiveItem
 import com.cuso.mobile.model.inventory.PurchaseRequisition
 import com.cuso.mobile.model.inventory.ReceiveHistoryByPoResponse
 import com.cuso.mobile.model.inventory.ReceivePurchaseOrderRequest
 import com.cuso.mobile.model.inventory.RequisitionApprovalActionRequest
-import com.cuso.mobile.model.inventory.RequisitionSingleResponse
 import com.cuso.mobile.model.inventory.ReverseAdjustmentRequest
 import com.cuso.mobile.model.inventory.StockAdjustmentData
 import com.cuso.mobile.model.inventory.StockAdjustmentListResponse
+import com.cuso.mobile.model.inventory.StockLocationAssignmentData
+import com.cuso.mobile.model.inventory.StockLocationItemListResponse
+import com.cuso.mobile.model.inventory.StockLocationViewOneData
 import com.cuso.mobile.model.inventory.StockSummaryListResponse
 import com.cuso.mobile.model.inventory.SupplierDropdownItem
 import com.cuso.mobile.model.inventory.SupplierDto
@@ -74,17 +76,10 @@ class InventoryRepository @Inject constructor(
     private val tokensDao: TokensDao
 ) {
 
-    // =========================================================================
-    // CONSTANTS & MESSAGES
-    // =========================================================================
     companion object {
         private const val DEFAULT_PAGE = 1
         private const val DEFAULT_PAGE_SIZE = 10
         private const val DEFAULT_ITEM_GROUP_PAGE_SIZE = 20
-        private const val DEFAULT_MIME_TYPE = "image/jpeg"
-        private const val MULTIPART_IMAGE_FIELD = "images"
-        private const val TEMP_FILE_PREFIX = "item_upload"
-        private const val TEMP_FILE_SUFFIX = ".tmp"
 
         private const val ERROR_NO_TOKENS = "No tokens found, please login again"
         private const val ERROR_FETCH_ITEMS = "Failed to fetch inventory items"
@@ -102,10 +97,6 @@ class InventoryRepository @Inject constructor(
         private const val ERROR_DELETE_WAREHOUSE = "Failed to delete warehouse"
         private const val ERROR_RESTORE_WAREHOUSE = "Failed to restore warehouse"
     }
-
-    // =========================================================================
-    // AUTHENTICATION HEADERS
-    // =========================================================================
 
     private suspend fun getAuthHeaders(): Pair<String, String> {
         val tokens = tokensDao.getTokens() ?: throw Exception(ERROR_NO_TOKENS)
@@ -485,7 +476,6 @@ class InventoryRepository @Inject constructor(
     // HELPER FUNCTIONS
     // =========================================================================
 
-
     suspend fun prepareImagePart(
         context: Context,
         uri: Uri?,
@@ -556,6 +546,7 @@ class InventoryRepository @Inject constructor(
         if (uris.isEmpty()) return@withContext emptyList()
         uris.mapNotNull { uri -> prepareImagePart(context, uri, fieldName) }
     }
+
     // =========================================================================
     // STOCK ADJUSTMENTS & TRANSFERS
     // =========================================================================
@@ -651,9 +642,6 @@ class InventoryRepository @Inject constructor(
         }
     }
 
-    /**
-     * Fetches paginated stock adjustments list from /inventory/stock-adjustment/view-all
-     */
     suspend fun getStockAdjustments(
         page: Int = 1,
         limit: Int = 10,
@@ -960,13 +948,19 @@ class InventoryRepository @Inject constructor(
             ?: response.message().takeIf { it.isNotBlank() }
             ?: "$fallbackMessage (Code: ${response.code()})"
     }
+
     // =========================================================================
     // BULK ITEMS
     // =========================================================================
-    suspend fun getBulkItems(): Result<List<BulkItemDoc>> {
+
+    suspend fun getBulkItems(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null
+    ): Result<List<BulkItemDoc>> {
         return try {
             val (token, csrf) = getAuthHeaders()
-            val response = inventoryApi.getBulkItems(token, csrf)
+            val response = inventoryApi.getBulkItems(token, csrf, page, limit, search)
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()?.data ?: emptyList())
             } else {
@@ -1127,7 +1121,8 @@ class InventoryRepository @Inject constructor(
     suspend fun buildBulkItem(id: String, qty: Int, warehouseId: String?, remarks: String?): Result<BulkItemDoc> {
         return try {
             val (token, csrf) = getAuthHeaders()
-            val response = inventoryApi.buildBulkItem(token, csrf, id,
+            val response = inventoryApi.buildBulkItem(
+                token, csrf, id,
                 BuildBulkItemRequest(qty, warehouseId, remarks)
             )
             if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
@@ -1143,7 +1138,8 @@ class InventoryRepository @Inject constructor(
     suspend fun adjustStock(id: String, qty: Int, warehouseId: String?, remarks: String?): Result<BulkItemDoc> {
         return try {
             val (token, csrf) = getAuthHeaders()
-            val response = inventoryApi.adjustBulkItemStock(token, csrf, id,
+            val response = inventoryApi.adjustBulkItemStock(
+                token, csrf, id,
                 AdjustBulkStockRequest(qty, warehouseId, remarks)
             )
             if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
@@ -1281,7 +1277,6 @@ class InventoryRepository @Inject constructor(
     // PURCHASE REQUISITIONS
     // =========================================================================
 
-
     suspend fun getAllRequisitions(
         page: Int? = null,
         limit: Int? = null,
@@ -1301,7 +1296,7 @@ class InventoryRepository @Inject constructor(
             val body = response.body()
 
             if (response.isSuccessful && body?.success == true) {
-                Result.success(body.data) // CORRECTED: It should return the list from body.data
+                Result.success(body.data)
             } else {
                 Result.failure(Exception(extractErrorMessage(response, "Failed to load requisitions")))
             }
@@ -1325,13 +1320,6 @@ class InventoryRepository @Inject constructor(
             Result.failure(e)
         }
     }
-
-//    suspend fun addRequisitionComment(requisitionId: String, commentText: String): Response<RequisitionSingleResponse> {
-//        val payload = AddCommentRequest(text = commentText)
-//        val (accessToken, csrfToken) = getAuthHeaders()
-//
-//        return inventoryApi.addComment(accessToken, csrfToken, requisitionId, payload)
-//    }
 
     suspend fun createRequisition(request: CreateRequisitionRequest): Result<PurchaseRequisition> =
         withContext(Dispatchers.IO) {
@@ -1369,13 +1357,41 @@ class InventoryRepository @Inject constructor(
         }
     }
 
+    suspend fun addRequisitionComment(
+        requisitionId: String,
+        commentText: String
+    ): Result<PurchaseRequisition> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val request = AddRequisitionCommentRequest(
+                comment = commentText,
+                message = commentText
+            )
+            val response = inventoryApi.addRequisitionComment(
+                token = accessToken,
+                csrfToken = csrfToken,
+                requisitionId = requisitionId,
+                request = request
+            )
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                val errorMsg = response.errorBody()?.string()
+                    ?: body?.message
+                    ?: "Failed to post comment"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // =========================================================================
     // BARCODE API REPOSITORY METHODS
     // =========================================================================
 
-    /**
-     * Generate a new barcode for an inventory item.
-     */
     suspend fun generateBarcode(request: GenerateBarcodeRequest): Result<BarcodeItemDoc> =
         withContext(Dispatchers.IO) {
             try {
@@ -1393,9 +1409,6 @@ class InventoryRepository @Inject constructor(
             }
         }
 
-    /**
-     * Fetch all generated barcodes list with optional search and status filter.
-     */
     suspend fun getAllBarcodes(search: String? = null, status: String? = null): Result<List<BarcodeItemDoc>> =
         withContext(Dispatchers.IO) {
             try {
@@ -1413,9 +1426,6 @@ class InventoryRepository @Inject constructor(
             }
         }
 
-    /**
-     * Fetch detailed information and print logs for a single barcode.
-     */
     suspend fun getBarcodeViewOne(id: String): Result<BarcodeItemDoc> =
         withContext(Dispatchers.IO) {
             try {
@@ -1433,9 +1443,6 @@ class InventoryRepository @Inject constructor(
             }
         }
 
-    /**
-     * Toggle status between Active and Inactive for a given barcode.
-     */
     suspend fun toggleBarcodeStatus(id: String): Result<BarcodeItemDoc> =
         withContext(Dispatchers.IO) {
             try {
@@ -1453,9 +1460,6 @@ class InventoryRepository @Inject constructor(
             }
         }
 
-    /**
-     * Delete a barcode item.
-     */
     suspend fun deleteBarcode(id: String): Result<String> =
         withContext(Dispatchers.IO) {
             try {
@@ -1489,15 +1493,46 @@ class InventoryRepository @Inject constructor(
         }
     }
 
-    suspend fun getReceiveHistoryByPo(poId: String): Result<ReceiveHistoryByPoResponse> {
-        return runCatching {
-            val (token, csrf) = getAuthHeaders()
-            val response = inventoryApi.getReceiveHistoryByPo(token, csrf, poId)
-            if (response.isSuccessful && response.body()?.success == true) {
-                response.body()!!
-            } else {
-                throw Exception(response.errorBody()?.string() ?: "Failed to fetch PO receive history")
+    suspend fun getReceiveHistoryByPo(poId: String): Result<ReceiveHistoryByPoResponse> =
+        withContext(Dispatchers.IO) {
+            try {
+                val (accessToken, csrfToken) = getAuthHeaders()
+                val response = inventoryApi.getReceiveHistoryByPo(accessToken, csrfToken, poId)
+                val body = response.body()
+
+                if (response.isSuccessful && body?.success == true) {
+                    Result.success(body)
+                } else {
+                    Result.failure(Exception(extractErrorMessage(response, "Failed to fetch PO receive history")))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
             }
+        }
+
+    suspend fun getPurchaseOrderSummary(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null
+    ): Result<PurchaseOrderSummaryResponse> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getPurchaseOrderSummary(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search
+            )
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to fetch purchase order summary")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -1522,6 +1557,136 @@ class InventoryRepository @Inject constructor(
             } else {
                 throw Exception(response.errorBody()?.string() ?: "Failed to convert receive to bill")
             }
+        }
+    }
+
+    // =============================================================================
+    // LOCATION MANAGEMENT
+    // =============================================================================
+
+    suspend fun getStockLocationItems(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ): Result<StockLocationItemListResponse> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getStockLocationItems(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search,
+                status = status
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to fetch stock locations")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getStockLocationViewOne(id: String): Result<StockLocationViewOneData> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getStockLocationViewOne(accessToken, csrfToken, id)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to fetch stock location details"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getFloorDropdown(warehouseId: String): Result<List<HierarchyDropdownItem>> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getFloorDropdown(accessToken, csrfToken, warehouseId)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to load floor dropdown")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSectionDropdown(floorId: String): Result<List<HierarchyDropdownItem>> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getSectionDropdown(accessToken, csrfToken, floorId)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to load section dropdown")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getRackDropdown(sectionId: String): Result<List<HierarchyDropdownItem>> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getRackDropdown(accessToken, csrfToken, sectionId)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to load rack dropdown")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getBinDropdown(rackId: String): Result<List<HierarchyDropdownItem>> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getBinDropdown(accessToken, csrfToken, rackId)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to load bin dropdown")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun assignStockLocation(
+        request: AssignStockLocationRequest
+    ): Result<StockLocationAssignmentData> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.assignStockLocation(accessToken, csrfToken, request)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to assign stock location")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }

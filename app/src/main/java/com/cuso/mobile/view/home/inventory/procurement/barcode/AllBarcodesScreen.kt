@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +33,7 @@ import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun AllBarcodesScreen(
@@ -42,23 +44,53 @@ fun AllBarcodesScreen(
 ) {
     val tokens = LocalAppTokens.current
 
+    // Observe barcode list and pagination states
     val barcodeList by viewModel.barcodesList.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoadingBarcodes.collectAsStateWithLifecycle()
+    val isLoadingMore by viewModel.isLoadingMoreBarcodes.collectAsStateWithLifecycle()
+    val canLoadMore by viewModel.canLoadMoreBarcodes.collectAsStateWithLifecycle()
     val successMessage by viewModel.barcodeSuccessMessage.collectAsStateWithLifecycle()
     val errorMessage by viewModel.barcodeErrorMessage.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     var itemToDelete by remember { mutableStateOf<BarcodeItemDoc?>(null) }
 
-    // Initial fetch
-    LaunchedEffect(Unit) {
-        viewModel.fetchAllBarcodes()
+    // Scroll state tracker for LazyColumn
+    val listState = rememberLazyListState()
+
+    // Unified initial fetch and debounced search (prevents duplicate API call on startup)
+    var isInitialized by remember { mutableStateOf(false) }
+    LaunchedEffect(searchQuery) {
+        if (!isInitialized) {
+            isInitialized = true
+            viewModel.fetchAllBarcodes()
+        } else {
+            delay(400)
+            viewModel.fetchAllBarcodes(search = searchQuery.trim().ifBlank { null })
+        }
     }
 
-    // Debounced search
-    LaunchedEffect(searchQuery) {
-        delay(400)
-        viewModel.fetchAllBarcodes(search = searchQuery.trim().ifBlank { null })
+    // Scroll listener: triggers next page fetch only when crossing the bottom threshold
+    LaunchedEffect(listState, canLoadMore, searchQuery) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+
+            // Trigger when 2 items away from bottom
+            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
+        }
+            .distinctUntilChanged()
+            .collect { isNearBottom ->
+                if (isNearBottom &&
+                    canLoadMore &&
+                    !viewModel.isLoadingMoreBarcodes.value &&
+                    !viewModel.isLoadingBarcodes.value &&
+                    searchQuery.isBlank()
+                ) {
+                    viewModel.loadMoreBarcodes()
+                }
+            }
     }
 
     // Delete Confirmation Dialog
@@ -179,6 +211,7 @@ fun AllBarcodesScreen(
 
                     else -> {
                         LazyColumn(
+                            state = listState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(
                                 top = tokens.extraPadding * 0.6f,
@@ -186,7 +219,10 @@ fun AllBarcodesScreen(
                             ),
                             verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
                         ) {
-                            itemsIndexed(barcodeList, key = { _, item -> item.id }) { _, item ->
+                            itemsIndexed(
+                                items = barcodeList,
+                                key = { index, item -> item.id.ifBlank { "barcode_$index" } }
+                            ) { _, item ->
                                 BarcodeCardItem(
                                     item = item,
                                     tokens = tokens,
@@ -194,6 +230,17 @@ fun AllBarcodesScreen(
                                     onToggleStatus = { viewModel.toggleBarcodeStatus(item.id) },
                                     onDeleteClick = { itemToDelete = item }
                                 )
+                            }
+
+                            // Three-dot loader is displayed only while next page is actively loading
+                            if (isLoadingMore) {
+                                item(key = "pagination_threedot_loader") {
+                                    ThreeDotLoading(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -266,7 +313,7 @@ private fun BarcodeCardItem(
                 .fillMaxWidth()
                 .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 1.2f)
         ) {
-            // Row 1: Barcode Number, Status Badge, Reusable Action Dropdown Menu
+            // Row 1: Barcode Number, Status Badge, Action Menu
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -313,7 +360,6 @@ private fun BarcodeCardItem(
 
                 Spacer(Modifier.weight(1f))
 
-                // Reusable Action Dropdown Menu Integration
                 ActionDropdownMenu(
                     actions = menuActions,
                     icon = Icons.Default.MoreVert

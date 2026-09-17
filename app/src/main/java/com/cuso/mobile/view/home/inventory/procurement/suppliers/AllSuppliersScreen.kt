@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -21,12 +22,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
 import com.cuso.mobile.model.inventory.SupplierDto
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.viewmodel.InventoryViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun AllSuppliersScreen(
@@ -37,16 +41,53 @@ fun AllSuppliersScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val suppliers by viewModel.suppliers.collectAsState()
-    val isLoading by viewModel.isLoadingSuppliers.collectAsState()
-    val errorMsg by viewModel.suppliersError.collectAsState()
-    val successMsg by viewModel.successMessage.collectAsState()
+    // Observe suppliers list and pagination states from ViewModel
+    val suppliers by viewModel.suppliers.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingSuppliers.collectAsStateWithLifecycle()
+    val isLoadingMore by viewModel.isLoadingMoreSuppliers.collectAsStateWithLifecycle()
+    val canLoadMore by viewModel.canLoadMoreSuppliers.collectAsStateWithLifecycle()
+    val errorMsg by viewModel.suppliersError.collectAsStateWithLifecycle()
+    val successMsg by viewModel.successMessage.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedSupplierToDelete by remember { mutableStateOf<SupplierDto?>(null) }
 
-    LaunchedEffect(Unit) {
-        viewModel.fetchSuppliers()
+    // Scroll state tracker for LazyColumn
+    val listState = rememberLazyListState()
+
+    // Consolidated initial fetch and debounced search (avoids duplicate call at startup)
+    var isInitialized by remember { mutableStateOf(false) }
+    LaunchedEffect(searchQuery) {
+        if (!isInitialized) {
+            isInitialized = true
+            viewModel.fetchSuppliers()
+        } else {
+            delay(400)
+            viewModel.fetchSuppliers(search = searchQuery.trim().ifBlank { null })
+        }
+    }
+
+    // Scroll listener: triggers next page fetch only when crossing the bottom threshold
+    LaunchedEffect(listState, canLoadMore, searchQuery) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+
+            // Trigger when reaching within 2 items of the list end
+            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
+        }
+            .distinctUntilChanged()
+            .collect { isNearBottom ->
+                if (isNearBottom &&
+                    canLoadMore &&
+                    !viewModel.isLoadingMoreSuppliers.value &&
+                    !viewModel.isLoadingSuppliers.value &&
+                    searchQuery.isBlank()
+                ) {
+                    viewModel.loadMoreSuppliers()
+                }
+            }
     }
 
     val filteredList = remember(suppliers, searchQuery) {
@@ -89,35 +130,59 @@ fun AllSuppliersScreen(
 
                 HorizontalDivider(color = grey_border)
 
-                if (isLoading && suppliers.isEmpty()) {
-                    ListSkeleton()
-                } else if (filteredList.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No suppliers found",
-                            fontSize = tokens.bodyMedium,
-                            color = mutedText
-                        )
+                when {
+                    isLoading && suppliers.isEmpty() -> {
+                        ListSkeleton()
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = tokens.extraPadding),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(filteredList, key = { it.id }) { supplier ->
-                            SupplierCardItem(
-                                supplier = supplier,
-                                tokens = tokens,
-                                onClick = { onSupplierClick(supplier) },
-                                onDeleteClick = { selectedSupplierToDelete = supplier }
+
+                    filteredList.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (searchQuery.isBlank()) "No suppliers found" else "No matching suppliers found",
+                                fontSize = tokens.bodyMedium,
+                                color = mutedText
                             )
+                        }
+                    }
+
+                    else -> {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = tokens.extraPadding),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(
+                                items = filteredList,
+                                key = { it.id.ifBlank { it.hashCode().toString() } }
+                            ) { supplier ->
+                                SupplierCardItem(
+                                    supplier = supplier,
+                                    tokens = tokens,
+                                    onClick = { onSupplierClick(supplier) },
+                                    onDeleteClick = { selectedSupplierToDelete = supplier }
+                                )
+                            }
+
+                            // Three-dot loader displayed only while a next page request is actively in-flight
+                            if (isLoadingMore) {
+                                item(key = "pagination_threedot_loader") {
+                                    ThreeDotLoading(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp)
+                                    )
+                                }
+                            }
+
+                            item {
+                                Spacer(Modifier.height(80.dp))
+                            }
                         }
                     }
                 }

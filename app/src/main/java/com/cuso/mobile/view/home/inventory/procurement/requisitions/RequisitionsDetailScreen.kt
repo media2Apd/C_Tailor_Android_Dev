@@ -8,27 +8,35 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.SubcomposeAsyncImage
 import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.model.inventory.RequisitionComment
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.viewmodel.InventoryViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
 @Composable
 fun RequisitionDetailScreen(
@@ -43,16 +51,15 @@ fun RequisitionDetailScreen(
 
     val requisition by viewModel.selectedRequisition.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoadingRequisitions.collectAsStateWithLifecycle()
+    val isSubmittingComment by viewModel.isSubmittingComment.collectAsStateWithLifecycle()
     val successMessage by viewModel.requisitionSuccessMessage.collectAsStateWithLifecycle()
     val errorMessage by viewModel.requisitionErrorMessage.collectAsStateWithLifecycle()
 
-    // ── ALWAYS fetch when requisitionId changes or screen loads ──
+    var commentInput by remember { mutableStateOf("") }
+
     LaunchedEffect(requisitionId) {
-        android.util.Log.d("REQ_DETAIL_SCREEN", "Fetching detail for ID: $requisitionId")
         if (!requisitionId.isNullOrBlank()) {
             viewModel.fetchRequisitionById(requisitionId)
-        } else {
-            android.util.Log.e("REQ_DETAIL_SCREEN", "Warning: requisitionId is null or blank!")
         }
     }
 
@@ -62,9 +69,8 @@ fun RequisitionDetailScreen(
         }
     }
 
-    // ── Fallback / Safe Data Mapping ──
-    val prNumber = requisition?.prNumber ?: "PR-XXXXX"
-    val status = requisition?.approvalStatus ?: "Draft"
+    val prNumber = requisition?.prNumber ?: "PR Number Not Found"
+    val status = requisition?.approvalStatus ?: "-"
     val isApproved = status.equals("Approved", ignoreCase = true)
     val department = requisition?.department ?: "Production"
     val creationDate = requisition?.createdAt?.take(10) ?: "—"
@@ -78,14 +84,15 @@ fun RequisitionDetailScreen(
         else -> "Staff"
     }
 
-    val priority = requisition?.priority ?: "Normal"
+    val priority = requisition?.priority ?: "-"
     val requiredByDate = requisition?.requiredByDate?.take(10) ?: "—"
     val budgetCode = requisition?.budgetCode ?: "N/A"
     val internalRef = requisition?.internalReference ?: "—"
-    val warehouseName = requisition?.warehouseDisplayName ?: "Main Warehouse"
+    val warehouseName = requisition?.warehouseDisplayName ?: "-"
     val justificationText = requisition?.justification ?: "No justification provided."
     val items = requisition?.items ?: emptyList()
     val approvalTrail = requisition?.approvalTrail ?: emptyList()
+    val comments = requisition?.comments ?: emptyList()
 
     Box(
         modifier = Modifier
@@ -107,21 +114,20 @@ fun RequisitionDetailScreen(
             }
         ) { paddingValues ->
             if (isLoading && requisition == null) {
-                // Show Skeleton Loader while the initial API call is in flight
                 ListSkeleton()
             } else {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
-                    contentPadding = PaddingValues(bottom = tokens.screenPadding * 1.5f),
+                    contentPadding = PaddingValues(bottom = tokens.screenPadding * 2f),
                     verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
                 ) {
                     item {
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(tokens.extraPadding * 0.8f))
                     }
 
-                    // ── 1. Header & Actions ──
+                    // 1. Header & Actions
                     item {
                         Column(
                             modifier = Modifier
@@ -168,7 +174,7 @@ fun RequisitionDetailScreen(
                                 }
                             }
 
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.4f))
                             Text(
                                 text = "Raised on $creationDate   |   Department: $department",
                                 fontSize = tokens.caption,
@@ -197,10 +203,11 @@ fun RequisitionDetailScreen(
                                 Button(
                                     onClick = onConvertToPO,
                                     colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
+                                    modifier = Modifier.height(tokens.buttonHeight * 0.85f),
                                     contentPadding = PaddingValues(
                                         horizontal = tokens.screenPadding * 0.85f,
-                                        vertical = tokens.extraPadding * 0.8f
+                                        vertical = 0.dp
                                     )
                                 ) {
                                     Text(
@@ -214,7 +221,7 @@ fun RequisitionDetailScreen(
                         }
                     }
 
-                    // ── 2. Total Estimated Amount Card ──
+                    // 2. Total Estimated Amount Card
                     item {
                         Box(modifier = Modifier.padding(horizontal = tokens.screenPadding)) {
                             Card(
@@ -229,7 +236,7 @@ fun RequisitionDetailScreen(
                                         color = iconMuted,
                                         fontWeight = FontWeight.SemiBold
                                     )
-                                    Spacer(Modifier.height(4.dp))
+                                    Spacer(Modifier.height(tokens.extraPadding * 0.4f))
                                     Text(
                                         text = "₹${"%.2f".format(totalEst)}",
                                         fontSize = tokens.h1,
@@ -273,9 +280,9 @@ fun RequisitionDetailScreen(
                                         Text("Approval Status", fontSize = tokens.bodySmall, color = light_grey)
                                         Box(
                                             modifier = Modifier
-                                                .clip(RoundedCornerShape(4.dp))
+                                                .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.3f))
                                                 .background(darkGreenBg.copy(alpha = 0.3f))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                .padding(horizontal = tokens.extraPadding * 0.6f, vertical = tokens.extraPadding * 0.2f)
                                         ) {
                                             Text(
                                                 text = status.uppercase(),
@@ -321,10 +328,9 @@ fun RequisitionDetailScreen(
                                             Text(
                                                 text = "INTERNAL REFERENCE",
                                                 fontSize = tokens.label,
-                                                color = iconMuted,
-                                                letterSpacing = 0.5.sp
+                                                color = iconMuted
                                             )
-                                            Spacer(Modifier.height(2.dp))
+                                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                                             Text(
                                                 text = internalRef,
                                                 fontSize = tokens.caption,
@@ -338,7 +344,7 @@ fun RequisitionDetailScreen(
                         }
                     }
 
-                    // ── 3. Request Summary ──
+                    // 3. Request Summary
                     item {
                         DetailCardContainer(
                             tokens = tokens,
@@ -369,12 +375,12 @@ fun RequisitionDetailScreen(
                             Row(modifier = Modifier.fillMaxWidth()) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("Priority", fontSize = tokens.label, color = mutedText)
-                                    Spacer(Modifier.height(2.dp))
+                                    Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                                     Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
+                                            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.3f))
                                             .background(if (priority.equals("High", true)) redBg else yellowBg)
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            .padding(horizontal = tokens.extraPadding * 0.6f, vertical = tokens.extraPadding * 0.2f)
                                     ) {
                                         Text(
                                             text = priority.uppercase(),
@@ -396,12 +402,12 @@ fun RequisitionDetailScreen(
                             }
                             Spacer(Modifier.height(tokens.extraPadding * 1.2f))
                             Text("Budget Code", fontSize = tokens.label, color = mutedText)
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
+                                    .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.3f))
                                     .background(activity_purple_bg)
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    .padding(horizontal = tokens.extraPadding * 0.8f, vertical = tokens.extraPadding * 0.3f)
                             ) {
                                 Text(
                                     text = budgetCode,
@@ -413,7 +419,7 @@ fun RequisitionDetailScreen(
                         }
                     }
 
-                    // ── 4. Delivery Details ──
+                    // 4. Delivery Details
                     item {
                         DetailCardContainer(
                             tokens = tokens,
@@ -433,7 +439,7 @@ fun RequisitionDetailScreen(
                                         color = mutedText,
                                         fontWeight = FontWeight.SemiBold
                                     )
-                                    Spacer(Modifier.height(2.dp))
+                                    Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                                     Text(
                                         text = warehouseName,
                                         fontSize = tokens.bodySmall,
@@ -445,7 +451,7 @@ fun RequisitionDetailScreen(
                         }
                     }
 
-                    // ── 5. Justification ──
+                    // 5. Justification
                     item {
                         DetailCardContainer(
                             tokens = tokens,
@@ -461,7 +467,7 @@ fun RequisitionDetailScreen(
                         }
                     }
 
-                    // ── 6. Requested Items List ──
+                    // 6. Requested Items List
                     item {
                         Column(
                             modifier = Modifier
@@ -512,7 +518,7 @@ fun RequisitionDetailScreen(
                                             .background(greenBg)
                                             .padding(
                                                 horizontal = tokens.extraPadding * 0.8f,
-                                                vertical = 2.dp
+                                                vertical = tokens.extraPadding * 0.2f
                                             )
                                     ) {
                                         Text(
@@ -560,11 +566,40 @@ fun RequisitionDetailScreen(
                         }
                         Spacer(Modifier.height(tokens.extraPadding * 0.6f))
                     }
+
+                    // 7. Activity & Comments
+                    item {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = tokens.screenPadding),
+                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.55f),
+                            colors = CardDefaults.cardColors(containerColor = whiteBg),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
+                        ) {
+                            ActivityAndCommentsSection(
+                                tokens = tokens,
+                                comments = comments,
+                                commentText = commentInput,
+                                isSubmitting = isSubmittingComment,
+                                onCommentChange = { commentInput = it },
+                                onSendClick = {
+                                    if (!requisitionId.isNullOrBlank() && commentInput.isNotBlank()) {
+                                        viewModel.addRequisitionComment(
+                                            requisitionId,
+                                            commentInput
+                                        ) {
+                                            commentInput = ""
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
 
-        // Notification Alerts
         DynamicIslandSuccess(
             message = successMessage,
             onDismiss = { viewModel.clearRequisitionAlerts() }
@@ -574,6 +609,275 @@ fun RequisitionDetailScreen(
             message = errorMessage,
             onDismiss = { viewModel.clearRequisitionAlerts() }
         )
+    }
+}
+
+@Composable
+private fun ActivityAndCommentsSection(
+    tokens: AppDesignTokens,
+    comments: List<RequisitionComment>,
+    commentText: String,
+    isSubmitting: Boolean,
+    onCommentChange: (String) -> Unit,
+    onSendClick: () -> Unit
+) {
+    val inputShape = RoundedCornerShape(tokens.cardCornerRadius * 2f)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(tokens.screenPadding) // Provides inner spacing from the Card edges
+    ) {
+        // Title Row
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = tokens.extraPadding * 1.2f)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_message),
+                contentDescription = null,
+                tint = Primary,
+                modifier = Modifier.size(tokens.iconSize)
+            )
+            Spacer(Modifier.width(tokens.extraPadding))
+            Text(
+                text = "Activity & Comments",
+                fontSize = tokens.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = TitleColor
+            )
+        }
+
+        // Comments List
+        if (comments.isEmpty()) {
+            Text(
+                text = "No comments yet.",
+                fontSize = tokens.bodySmall,
+                color = iconMuted,
+                modifier = Modifier.padding(vertical = tokens.extraPadding)
+            )
+        } else {
+            comments.forEachIndexed { index, comment ->
+                CommentCardItem(tokens = tokens, comment = comment, index = index)
+                // Gap between each comment card
+                Spacer(Modifier.height(tokens.extraPadding * 1.5f))
+            }
+        }
+
+        // Gap below the last comment and above the input box
+        Spacer(Modifier.height(tokens.extraPadding * 0.8f))
+
+        // Comment Input Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(tokens.fieldHeight)
+                    .clip(inputShape)
+                    .background(badgeGrey)
+                    .border(1.dp, light_blue_border, inputShape)
+                    .padding(horizontal = tokens.screenPadding),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (commentText.isEmpty()) {
+                    Text(
+                        text = "Write a comment...",
+                        fontSize = tokens.bodyMedium,
+                        color = iconMuted
+                    )
+                }
+                BasicTextField(
+                    value = commentText,
+                    onValueChange = onCommentChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        fontSize = tokens.bodyMedium,
+                        color = title_color
+                    ),
+                    cursorBrush = SolidColor(Primary)
+                )
+            }
+
+            Spacer(Modifier.width(tokens.extraPadding))
+
+            Box(
+                modifier = Modifier
+                    .size(tokens.fieldHeight)
+                    .clip(CircleShape)
+                    .background(
+                        if (commentText.isNotBlank() && !isSubmitting) Primary else disabled
+                    )
+                    .clickable(
+                        enabled = commentText.isNotBlank() && !isSubmitting,
+                        onClick = onSendClick
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(tokens.iconSize),
+                        color = whiteBg,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_send),
+                        contentDescription = "Send",
+                        tint = whiteBg,
+                        modifier = Modifier.size(tokens.iconSize * 0.8f)
+                    )
+                }
+            }
+        }
+
+        // Gap below the input box inside the card
+        Spacer(Modifier.height(tokens.extraPadding * 0.4f))
+    }
+}
+
+@Composable
+private fun CommentCardItem(
+    tokens: AppDesignTokens,
+    comment: RequisitionComment,
+    index: Int
+) {
+    val avatarBackground = when (index % 2) {
+        0 -> sectionBorder
+        else -> yellowBg
+    }
+
+    val avatarTextColor = when (index % 2) {
+        0 -> textSubdued
+        else -> yellowText
+    }
+
+    val bubbleShape = RoundedCornerShape(
+        topStart = 0.dp,
+        topEnd = tokens.cardCornerRadius,
+        bottomEnd = 0.dp,
+        bottomStart = tokens.cardCornerRadius
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        // User Profile Picture or Initials Fallback
+        Box(
+            modifier = Modifier
+                .size(tokens.fieldHeight * 0.95f)
+                .clip(CircleShape)
+                .background(avatarBackground),
+            contentAlignment = Alignment.Center
+        ) {
+            val photoUrl = comment.profilePictureUrl
+            if (!photoUrl.isNullOrBlank()) {
+                SubcomposeAsyncImage(
+                    model = photoUrl,
+                    contentDescription = comment.authorName,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                    error = {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = comment.authorInitial,
+                                fontSize = tokens.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = avatarTextColor
+                            )
+                        }
+                    },
+                    loading = {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = comment.authorInitial,
+                                fontSize = tokens.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = avatarTextColor
+                            )
+                        }
+                    }
+                )
+            } else {
+                Text(
+                    text = comment.authorInitial,
+                    fontSize = tokens.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = avatarTextColor
+                )
+            }
+        }
+
+        Spacer(Modifier.width(tokens.extraPadding * 1.2f))
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(bubbleShape)
+                .background(light_blue)
+                .border(1.dp, light_blue_border, bubbleShape)
+                .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 1.3f)
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = comment.authorName,
+                        fontSize = tokens.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = title_color
+                    )
+                    Text(
+                        text = formatCommentTimestamp(comment.createdAt),
+                        fontSize = tokens.caption,
+                        color = iconMuted
+                    )
+                }
+                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
+                Text(
+                    text = comment.content,
+                    fontSize = tokens.bodySmall,
+                    color = TextSecondary,
+                    lineHeight = tokens.bodyLarge
+                )
+            }
+        }
+    }
+}
+
+private fun formatCommentTimestamp(timestamp: String?): String {
+    if (timestamp.isNullOrBlank()) return ""
+    return try {
+        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        val date = parser.parse(timestamp) ?: return timestamp.take(10)
+        val formatter = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
+        formatter.format(date)
+    } catch (_: Exception) {
+        try {
+            val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+            val date = parser.parse(timestamp) ?: return timestamp.take(10)
+            val formatter = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
+            formatter.format(date)
+        } catch (_: Exception) {
+            timestamp.take(10)
+        }
     }
 }
 
@@ -599,7 +903,7 @@ private fun WorkflowStepItem(
         ) {
             Box(
                 modifier = Modifier
-                    .size(22.dp)
+                    .size(tokens.iconSize * 1.2f)
                     .clip(CircleShape)
                     .background(stepColor),
                 contentAlignment = Alignment.Center
@@ -608,7 +912,7 @@ private fun WorkflowStepItem(
                     painter = painterResource(R.drawable.ic_tick_2),
                     contentDescription = null,
                     tint = whiteBg,
-                    modifier = Modifier.size(13.dp)
+                    modifier = Modifier.size(tokens.iconSize * 0.7f)
                 )
             }
 
@@ -617,18 +921,18 @@ private fun WorkflowStepItem(
                     modifier = Modifier
                         .width(2.5.dp)
                         .weight(1f)
-                        .padding(vertical = 5.dp)
-                        .background(stepColor, RoundedCornerShape(30.dp))
+                        .padding(vertical = tokens.extraPadding * 0.4f)
+                        .background(stepColor, RoundedCornerShape(tokens.cardCornerRadius * 2f))
                 )
             }
         }
 
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(tokens.extraPadding * 1.2f))
 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = if (isLast) 0.dp else 16.dp)
+                .padding(bottom = if (isLast) 0.dp else tokens.screenPadding)
         ) {
             Text(
                 text = title,
@@ -636,7 +940,7 @@ private fun WorkflowStepItem(
                 fontWeight = FontWeight.SemiBold,
                 color = whiteBg
             )
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
             Text(
                 text = time,
                 fontSize = tokens.caption,
@@ -692,13 +996,15 @@ private fun OutlinedActionButton(
     icon: ImageVector? = null,
     onClick: () -> Unit
 ) {
+    val boxShape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f)
+
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.4f))
+            .clip(boxShape)
             .border(
                 width = 1.dp,
                 color = sectionBorder,
-                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f)
+                shape = boxShape
             )
             .clickable { onClick() }
             .padding(

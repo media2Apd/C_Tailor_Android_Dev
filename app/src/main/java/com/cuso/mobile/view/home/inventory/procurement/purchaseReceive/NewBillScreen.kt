@@ -56,7 +56,7 @@ fun NewBillScreen(
     }
 
     Scaffold(
-        containerColor = whiteBg,
+        containerColor = Color.Transparent,
         topBar = {
             TitleBar(
                 title = "New Bill",

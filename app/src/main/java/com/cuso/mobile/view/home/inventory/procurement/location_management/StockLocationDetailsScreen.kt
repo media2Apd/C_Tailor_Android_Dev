@@ -1,7 +1,7 @@
 package com.cuso.mobile.view.home.inventory.procurement.location_management
 
+import android.util.Log
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,117 +14,199 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.computeHorizontalBounds
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.cuso.mobile.R
 import com.cuso.mobile.adaptive_screen.AppDesignTokens
 import com.cuso.mobile.adaptive_screen.LocalAppTokens
+import com.cuso.mobile.model.inventory.LocationStockDto
+import com.cuso.mobile.model.inventory.StockLocationOverviewDto
+import com.cuso.mobile.model.inventory.StockLocationVariantDto
+import com.cuso.mobile.model.inventory.VariantBreakdownDto
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
-import com.cuso.mobile.R
+import com.cuso.mobile.viewmodel.InventoryViewModel
 
 @Composable
 fun StockLocationDetailsScreen(
-    onClose: () -> Unit,
-    onNavigateToLocationForm: () -> Unit = {}
+    itemId: String? = null,
+    inventoryViewModel: InventoryViewModel = hiltViewModel(),
+    onClose: () -> Unit
 ) {
     val tokens = LocalAppTokens.current
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabTitles = listOf("Overview", "Location", "Variants")
 
+    val selectedLocationItem by inventoryViewModel.selectedStockLocationItem.collectAsState()
+    val detailData by inventoryViewModel.selectedStockLocationDetail.collectAsState()
+    val isLoading by inventoryViewModel.isLoadingStockLocationDetail.collectAsState()
+    val errorMessage by inventoryViewModel.stockLocationDetailError.collectAsState()
+
+    // Resolve target itemId from parameter or ViewModel selected item
+    val targetItemId = itemId ?: selectedLocationItem?.id
+
+    LaunchedEffect(targetItemId) {
+        Log.d("STOCK_LOC_DETAIL", "--------------------------------------------------")
+        Log.d("STOCK_LOC_DETAIL", "StockLocationDetailsScreen LaunchedEffect triggered")
+        Log.d("STOCK_LOC_DETAIL", "Passed parameter itemId: '$itemId'")
+        Log.d("STOCK_LOC_DETAIL", "ViewModel selectedLocationItem.id: '${selectedLocationItem?.id}'")
+        Log.d("STOCK_LOC_DETAIL", "Resolved targetItemId: '$targetItemId'")
+
+        if (targetItemId.isNullOrBlank()) {
+            Log.e("STOCK_LOC_DETAIL", "ERROR: targetItemId is NULL or BLANK. API call was NOT triggered.")
+        } else {
+            Log.i("STOCK_LOC_DETAIL", "SUCCESS: Triggering fetchStockLocationViewOne with ID: $targetItemId")
+            inventoryViewModel.fetchStockLocationViewOne(targetItemId)
+        }
+        Log.d("STOCK_LOC_DETAIL", "--------------------------------------------------")
+    }
+
+    val overview = detailData?.overview
+    val locationStockList = detailData?.locationStock.orEmpty()
+    val variantsList = detailData?.variants.orEmpty()
+
+    val productName = overview?.name ?: selectedLocationItem?.name ?: "Stock Item"
+    val productSubtitle = listOfNotNull(
+        overview?.brand ?: selectedLocationItem?.brand,
+        overview?.category ?: selectedLocationItem?.category,
+        overview?.itemType
+    ).filter { it.isNotBlank() }.joinToString(" - ").ifBlank { "General Apparel" }
+
     Scaffold(
-        containerColor = Color.Transparent,
+        containerColor = Primary_background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Column(modifier = Modifier.fillMaxWidth().background(whiteBg)) {
-                TitleBar("Stock Location  Details", onClose)
+                TitleBar("Stock Location Details", onClose = {
+                    inventoryViewModel.clearSelectedStockLocationDetail()
+                    onClose()
+                })
                 HorizontalDivider(color = title_border)
             }
         }
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Spacer(Modifier.height(10.dp))
-
-            // Header Product Info Card
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(tokens.screenPadding),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            if (isLoading && detailData == null) {
                 Box(
-                    modifier = Modifier
-                        .size(tokens.iconSize * 2.5f)
-                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                        .background(primary_light),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_horiz_3_lines),
-                        contentDescription = null,
-                        tint = Primary,
-                        modifier = Modifier.size(tokens.iconSize * 1.3f)
-                    )
+                    CircularProgressIndicator(color = Primary, strokeWidth = 2.5.dp)
                 }
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Spacer(Modifier.height(10.dp))
 
-                Spacer(Modifier.width(tokens.extraPadding * 1.2f))
+                    // Header Product Info Card
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(whiteBg)
+                            .padding(tokens.screenPadding),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(tokens.iconSize * 2.5f)
+                                .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                                .background(primary_light),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_horiz_3_lines),
+                                contentDescription = null,
+                                tint = Primary,
+                                modifier = Modifier.size(tokens.iconSize * 1.3f)
+                            )
+                        }
 
-                Column {
-                    Text(
-                        text = "Men Formal Shirt",
-                        fontSize = tokens.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = title_color
+                        Spacer(Modifier.width(tokens.extraPadding * 1.2f))
+
+                        Column {
+                            Text(
+                                text = productName,
+                                fontSize = tokens.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = title_color
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = productSubtitle,
+                                fontSize = tokens.caption,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    // Navigation Tabs
+                    AppUnderlineTabRow(
+                        tabs = tabTitles,
+                        selectedIndex = selectedTab,
+                        onTabSelected = { selectedTab = it }
                     )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "ABC Fashion - Apparel - Shirt - Formal",
-                        fontSize = tokens.caption,
-                        color = TextSecondary
-                    )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    // Dynamic Tab Content
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = tokens.screenPadding * 1.5f),
+                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
+                    ) {
+                        when (selectedTab) {
+                            0 -> {
+                                item {
+                                    OverviewLocationTabContent(
+                                        overview = overview,
+                                        sourceType = detailData?.sourceType,
+                                        tokens = tokens
+                                    )
+                                }
+                            }
+                            1 -> {
+                                item {
+                                    LocationBreakdownTabContent(
+                                        locations = locationStockList,
+                                        tokens = tokens
+                                    )
+                                }
+                            }
+                            2 -> {
+                                item {
+                                    VariantsLocationTabContent(
+                                        variants = variantsList,
+                                        tokens = tokens
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            Spacer(Modifier.height(10.dp))
 
-            // Tab Row
-            AppUnderlineTabRow(
-                tabs = tabTitles,
-                selectedIndex = selectedTab,
-                onTabSelected = { selectedTab = it }
+            DynamicIslandError(
+                message = errorMessage,
+                onDismiss = { inventoryViewModel.clearSelectedStockLocationDetail() }
             )
-            Spacer(Modifier.height(10.dp))
-
-            //  Tab Content
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
-            ) {
-                when (selectedTab) {
-                    0 -> {
-                        item { OverviewLocationTabContent(tokens) }
-                    }
-                    1 -> {
-                        item { LocationBreakdownTabContent(tokens, onNavigateToLocationForm) }
-                    }
-                    2 -> {
-                        item { VariantsLocationTabContent(tokens) }
-                    }
-                }
-            }
         }
     }
 }
 
 // ── Tab 1: Overview ──
 @Composable
-private fun OverviewLocationTabContent(tokens: AppDesignTokens) {
+private fun OverviewLocationTabContent(
+    overview: StockLocationOverviewDto?,
+    sourceType: String?,
+    tokens: AppDesignTokens
+) {
     Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.4f)) {
         // Item Information Section
         Card(
@@ -146,7 +228,12 @@ private fun OverviewLocationTabContent(tokens: AppDesignTokens) {
                             .background(light_grey)
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
-                        Text("GENERAL", fontSize = tokens.label, fontWeight = FontWeight.Bold, color = TextSecondary)
+                        Text(
+                            text = sourceType?.uppercase() ?: "GENERAL",
+                            fontSize = tokens.label,
+                            fontWeight = FontWeight.Bold,
+                            color = TextSecondary
+                        )
                     }
                 }
 
@@ -155,25 +242,45 @@ private fun OverviewLocationTabContent(tokens: AppDesignTokens) {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("ITEM TYPE", fontSize = tokens.label, color = mutedText)
-                        Text("Finished Goods", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
+                        Text(
+                            text = overview?.itemType ?: "Finished Goods",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = title_color
+                        )
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text("PRIMARY UOM", fontSize = tokens.label, color = mutedText)
-                        Text("Piece", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
+                        Text(
+                            text = overview?.unit ?: "Piece",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = title_color
+                        )
                     }
                 }
 
                 Spacer(Modifier.height(tokens.extraPadding * 1.2f))
 
                 Text("CATEGORY", fontSize = tokens.label, color = mutedText)
-                Text("ABC Fashion - Apparel - Shirt - Formal", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
+                Text(
+                    text = overview?.category ?: "Not Assigned",
+                    fontSize = tokens.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = title_color
+                )
 
                 Spacer(Modifier.height(tokens.extraPadding * 1.2f))
 
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("BRAND", fontSize = tokens.label, color = mutedText)
-                        Text("ABC Fashion", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
+                        Text(
+                            text = overview?.brand?.takeIf { it.isNotBlank() } ?: "N/A",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = title_color
+                        )
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text("REORDER LEVEL", fontSize = tokens.label, color = mutedText)
@@ -184,7 +291,12 @@ private fun OverviewLocationTabContent(tokens: AppDesignTokens) {
                                 .background(yellowBg)
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
-                            Text("50 piece", fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = yellowText)
+                            Text(
+                                text = "${overview?.reorderLevel?.toInt() ?: 0} piece",
+                                fontSize = tokens.caption,
+                                fontWeight = FontWeight.SemiBold,
+                                color = yellowText
+                            )
                         }
                     }
                 }
@@ -226,7 +338,12 @@ private fun OverviewLocationTabContent(tokens: AppDesignTokens) {
                     ) {
                         Column {
                             Text("GST RATE", fontSize = tokens.label, color = mutedText)
-                            Text("12%", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = title_color)
+                            Text(
+                                text = overview?.gstRate?.takeIf { it.isNotBlank() } ?: "N/A",
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = title_color
+                            )
                         }
                     }
 
@@ -238,7 +355,12 @@ private fun OverviewLocationTabContent(tokens: AppDesignTokens) {
                     ) {
                         Column {
                             Text("HSN CODE", fontSize = tokens.label, color = mutedText)
-                            Text("6205", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = title_color)
+                            Text(
+                                text = overview?.hsnCode?.takeIf { it.isNotBlank() } ?: "N/A",
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = title_color
+                            )
                         }
                     }
                 }
@@ -250,43 +372,43 @@ private fun OverviewLocationTabContent(tokens: AppDesignTokens) {
 // ── Tab 2: Location ──
 @Composable
 private fun LocationBreakdownTabContent(
-    tokens: AppDesignTokens,
-    onNavigateToLocationForm: () -> Unit
+    locations: List<LocationStockDto>,
+    tokens: AppDesignTokens
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.4f)) {
-        // Warehouse Card 1
-        WarehouseLocationCard(
-            tokens = tokens,
-            name = "Chennai - Central Warehouse",
-            address = "Central WH - Ground - Apparel - R12 - b04",
-            isCentral = true,
-            totalQty = "140 Piece",
-            available = "133 Piece",
-            reserved = "7 Piece",
-            variants = listOf(
-                "M - white - Regular" to "45",
-                "L - white - Regular" to "40",
-                "M - Bule - Regular" to "28",
-                "XL - Bule - Slim" to "20"
-            ),
-            onClick = onNavigateToLocationForm
-        )
+    if (locations.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(tokens.screenPadding * 2),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "No stock locations found for this item",
+                fontSize = tokens.bodyMedium,
+                color = mutedText
+            )
+        }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.4f)) {
+            locations.forEach { location ->
+                val conditionText = location.stockCondition?.replaceFirstChar { it.uppercase() } ?: "Good"
+                val rotationText = location.rotationMethod?.uppercase() ?: "FIFO"
+                val isCentral = location.warehouseName?.contains("Central", ignoreCase = true) ?: false
 
-        // Warehouse Card 2
-        WarehouseLocationCard(
-            tokens = tokens,
-            name = "Chennai - T Nagar Showroom",
-            address = "Showroom Store - Display - R12 - b04",
-            isCentral = false,
-            totalQty = "18 Piece",
-            available = "17 Piece",
-            reserved = "1 Piece",
-            variants = listOf(
-                "M - white - Regular" to "9",
-                "L - white - Regular" to "8"
-            ),
-            onClick = onNavigateToLocationForm
-        )
+                WarehouseLocationCard(
+                    tokens = tokens,
+                    name = location.warehouseName ?: "Warehouse",
+                    address = "Stock Condition: $conditionText",
+                    isCentral = isCentral,
+                    totalQty = "${location.totalQuantity.toInt()} Piece",
+                    available = "${location.available.toInt()} Piece",
+                    reserved = "${location.totalReserved.toInt()} Piece",
+                    stockCondition = conditionText,
+                    rotationMethod = rotationText,
+                    variantBreakdown = location.variantBreakdown
+                )
+            }
+        }
     }
 }
 
@@ -299,19 +421,17 @@ private fun WarehouseLocationCard(
     totalQty: String,
     available: String,
     reserved: String,
-    variants: List<Pair<String, String>>,
-    onClick: () -> Unit
+    stockCondition: String,
+    rotationMethod: String,
+    variantBreakdown: List<VariantBreakdownDto>
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
         colors = CardDefaults.cardColors(containerColor = whiteBg),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
     ) {
         Column(modifier = Modifier.padding(tokens.screenPadding)) {
-            // Header: Icon + Name + Tags
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
@@ -331,16 +451,14 @@ private fun WarehouseLocationCard(
                 Spacer(Modifier.width(tokens.extraPadding))
 
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(name, fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = title_color)
-                    }
+                    Text(name, fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = title_color)
                     Spacer(Modifier.height(2.dp))
                     Text(address, fontSize = tokens.label, color = mutedText)
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    TagPill(text = "Good", tokens = tokens)
-                    TagPill(text = "FIFO", tokens = tokens)
+                    TagPill(text = stockCondition, tokens = tokens)
+                    TagPill(text = rotationMethod, tokens = tokens)
                 }
             }
 
@@ -348,7 +466,6 @@ private fun WarehouseLocationCard(
             HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 0.8.dp)
             Spacer(Modifier.height(tokens.extraPadding * 1.2f))
 
-            // Metrics Row
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
                     Text("Total Quantity", fontSize = tokens.label, color = mutedText)
@@ -364,24 +481,33 @@ private fun WarehouseLocationCard(
                 }
             }
 
-            Spacer(Modifier.height(tokens.extraPadding * 1.2f))
+            if (variantBreakdown.isNotEmpty()) {
+                Spacer(Modifier.height(tokens.extraPadding * 1.2f))
+                Text("Variant Breakdown", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = title_color)
+                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
-            // Variant Breakdown List
-            Text("Variant Breakdown", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = title_color)
-            Spacer(Modifier.height(tokens.extraPadding * 0.8f))
-
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                variants.forEach { (variantName, count) ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(badgeGrey, RoundedCornerShape(tokens.cardCornerRadius * 0.4f))
-                            .padding(horizontal = tokens.extraPadding * 1.2f, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(variantName, fontSize = tokens.caption, color = TextSecondary)
-                        Text(count, fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = title_color)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    variantBreakdown.forEach { item ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(badgeGrey, RoundedCornerShape(tokens.cardCornerRadius * 0.4f))
+                                .padding(horizontal = tokens.extraPadding * 1.2f, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = item.label ?: "Default",
+                                fontSize = tokens.caption,
+                                color = TextSecondary
+                            )
+                            Text(
+                                text = "${item.qty.toInt()} Pcs",
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = title_color
+                            )
+                        }
                     }
                 }
             }
@@ -391,72 +517,124 @@ private fun WarehouseLocationCard(
 
 // ── Tab 3: Variants ──
 @Composable
-private fun VariantsLocationTabContent(tokens: AppDesignTokens) {
-    Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)) {
-        Row(
-            modifier = Modifier.fillMaxWidth()
-                .padding(horizontal = tokens.extraPadding),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+private fun VariantsLocationTabContent(
+    variants: List<StockLocationVariantDto>,
+    tokens: AppDesignTokens
+) {
+    if (variants.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(tokens.screenPadding * 2),
+            contentAlignment = Alignment.Center
         ) {
-            Text("VARIANT ITEMS (2)", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = mutedText)
-            Text("Total: 108 Pieces", fontSize = tokens.caption, color = mutedText)
+            Text(
+                text = "No variants found for this item",
+                fontSize = tokens.bodyMedium,
+                color = mutedText
+            )
         }
+    } else {
+        val totalVariantStock = variants.sumOf { it.totalStock.toLong() }
 
-        listOf(
-            Triple("M - white - Regular", "Size: Medium • Color: White", "SHIRT - MFS - WHT - M - R"),
-            Triple("L - white - Regular", "Size: Large • Color: White", "SHIRT - MFS - WHT - L - R")
-        ).forEach { (name, desc, sku) ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(0.dp),
-                colors = CardDefaults.cardColors(containerColor = whiteBg),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
+        Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = tokens.extraPadding),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.padding(tokens.screenPadding)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(light_grey)
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                Text(
+                    text = "VARIANT ITEMS (${variants.size})",
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Bold,
+                    color = mutedText
+                )
+                Text(
+                    text = "Total: $totalVariantStock Pieces",
+                    fontSize = tokens.caption,
+                    color = mutedText
+                )
+            }
+
+            variants.forEach { variant ->
+                val isActive = variant.status.equals("active", ignoreCase = true)
+                val statusText = variant.status.replaceFirstChar { it.uppercase() }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(0.dp),
+                    colors = CardDefaults.cardColors(containerColor = whiteBg),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
+                ) {
+                    Column(modifier = Modifier.padding(tokens.screenPadding)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(name, fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = title_color)
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(light_grey)
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = variant.variantLabel?.takeIf { it.isNotBlank() } ?: variant.sku ?: "Variant",
+                                    fontSize = tokens.caption,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = title_color
+                                )
+                            }
+
+                            Spacer(Modifier.weight(1f))
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(tokens.cardCornerRadius * 2f))
+                                    .background(if (isActive) greenBg else light_grey)
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = statusText,
+                                    fontSize = tokens.label,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isActive) darkGreenBg else mutedText
+                                )
+                            }
+
+                            Spacer(Modifier.width(4.dp))
+                            IconButton(onClick = { }, modifier = Modifier.size(tokens.iconSize * 1.2f)) {
+                                Icon(Icons.Default.MoreVert, contentDescription = null, tint = mutedText, modifier = Modifier.size(tokens.iconSize))
+                            }
                         }
 
-                        Spacer(Modifier.weight(1f))
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(tokens.cardCornerRadius * 2f))
-                                .background(greenBg)
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            Text("Active", fontSize = tokens.label, fontWeight = FontWeight.Medium, color = darkGreenBg)
+                        if (variant.isCurrentItem) {
+                            Spacer(Modifier.height(4.dp))
+                            Text("Current Selected Item", fontSize = tokens.label, color = Primary)
                         }
 
-                        Spacer(Modifier.width(4.dp))
-                        IconButton(onClick = { }, modifier = Modifier.size(tokens.iconSize * 1.2f)) {
-                            Icon(Icons.Default.MoreVert, contentDescription = null, tint = mutedText, modifier = Modifier.size(tokens.iconSize))
-                        }
-                    }
+                        Spacer(Modifier.height(tokens.extraPadding * 1.2f))
 
-                    Spacer(Modifier.height(4.dp))
-                    Text(desc, fontSize = tokens.label, color = mutedText)
-
-                    Spacer(Modifier.height(tokens.extraPadding * 1.2f))
-
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column {
-                            Text("SKU", fontSize = tokens.label, color = mutedText)
-                            Text(sku, fontSize = tokens.caption, fontWeight = FontWeight.Medium, color = title_color)
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text("TOTAL STOCK", fontSize = tokens.label, color = mutedText)
-                            Text("54 Piece", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = title_color)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column {
+                                Text("SKU", fontSize = tokens.label, color = mutedText)
+                                Text(
+                                    text = variant.sku ?: "-",
+                                    fontSize = tokens.caption,
+                                    fontWeight = FontWeight.Medium,
+                                    color = title_color
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("TOTAL STOCK", fontSize = tokens.label, color = mutedText)
+                                Text(
+                                    text = "${variant.totalStock.toInt()} Piece",
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = title_color
+                                )
+                            }
                         }
                     }
                 }

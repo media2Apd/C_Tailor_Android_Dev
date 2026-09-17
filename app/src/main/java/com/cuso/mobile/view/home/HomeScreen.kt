@@ -898,6 +898,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             pendingOrderReviewData = pendingOrderReviewData,
                             onPendingOrderReviewDataChange = { pendingOrderReviewData = it },
                             onOrderFlowOriginChange = { orderFlowOrigin = it },
+                            inventoryViewModel = hiltViewModel(),
                             onOrderSavedSuccessfully = { savedOrderId ->
                                 screenStack.removeAll {
                                     it in setOf(

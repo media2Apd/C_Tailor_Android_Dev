@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,6 +36,7 @@ import com.cuso.mobile.model.inventory.BulkItemDoc
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.viewmodel.InventoryViewModel
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun BulkListScreen(
@@ -47,13 +49,37 @@ fun BulkListScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
+    // Observe list and pagination states from ViewModel
     val bulkList by viewModel.bulkItems.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isLoadingMore by viewModel.isLoadingMoreBulk.collectAsStateWithLifecycle()
+    val canLoadMore by viewModel.canLoadMoreBulk.collectAsStateWithLifecycle()
 
+    // Scroll state tracker for LazyColumn
+    val listState = rememberLazyListState()
+
+    // Initial fetch on screen entry
     LaunchedEffect(Unit) {
         viewModel.fetchBulkItems()
     }
 
+    // Trigger next page fetch only when crossing the threshold (avoids infinite re-trigger loop)
+    LaunchedEffect(listState, canLoadMore, searchQuery) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
+        }
+            .distinctUntilChanged()
+            .collect { isNearBottom ->
+                if (isNearBottom && canLoadMore && !viewModel.isLoadingMoreBulk.value && !viewModel.isLoading.value && searchQuery.isBlank()) {
+                    viewModel.loadMoreBulkItems()
+                }
+            }
+    }
+
+    // In-memory search filter
     val filteredList = remember(bulkList, searchQuery) {
         if (searchQuery.isBlank()) bulkList
         else bulkList.filter {
@@ -81,7 +107,7 @@ fun BulkListScreen(
                             query = searchQuery,
                             onQueryChange = { searchQuery = it },
                             placeholder = "Search Customers...",
-                            onFilterClick = { /* Filter trigger */ }
+                            onFilterClick = { /* Optional filter trigger */ }
                         )
                         HorizontalDivider(color = title_border)
                     }
@@ -104,12 +130,16 @@ fun BulkListScreen(
                     }
                 } else {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(paddingValues),
                         contentPadding = PaddingValues(vertical = 10.dp)
                     ) {
-                        items(filteredList, key = { it.id }) { item ->
+                        items(
+                            items = filteredList,
+                            key = { it.id.ifBlank { it.hashCode().toString() } }
+                        ) { item ->
                             BulkListItemCard(
                                 item = item,
                                 onClick = {
@@ -128,6 +158,18 @@ fun BulkListScreen(
                             )
                             Spacer(Modifier.height(10.dp))
                         }
+
+                        // Three-dot loader is displayed only when a next page request is actively in progress
+                        if (isLoadingMore) {
+                            item(key = "pagination_threedot_loader") {
+                                ThreeDotLoading(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 16.dp)
+                                )
+                            }
+                        }
+
                         item {
                             Spacer(Modifier.height(80.dp))
                         }
@@ -185,7 +227,7 @@ fun BulkListItemCard(
                     }
                 }
 
-                // 3-Dot Action Menu
+                // Action Menu
                 Box {
                     IconButton(
                         onClick = { menuExpanded = true },

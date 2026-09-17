@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,11 +25,15 @@ import com.cuso.mobile.model.inventory.PriceListSummary
 import com.cuso.mobile.ui.theme.*
 import com.cuso.mobile.view.composable.*
 import com.cuso.mobile.view.home.inventory.bulk_items.MetaCol
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun AllPricingScreen(
     priceLists: List<PriceListSummary> = samplePriceLists(),
     isLoading: Boolean = false,
+    isLoadingMore: Boolean = false,
+    canLoadMore: Boolean = false,
+    onLoadMore: () -> Unit = {},
     onClose: () -> Unit = {},
     onAddNew: () -> Unit = {},
     onItemClick: (PriceListSummary) -> Unit = {},
@@ -38,6 +43,27 @@ fun AllPricingScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
     val checkedIds = remember { mutableStateMapOf<String, Boolean>() }
+
+    // Scroll state tracker for LazyColumn
+    val listState = rememberLazyListState()
+
+    // Trigger next page fetch only when crossing the bottom scroll threshold
+    LaunchedEffect(listState, canLoadMore, searchQuery) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+
+            // Trigger when reaching 2 items before the end of the list
+            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
+        }
+            .distinctUntilChanged()
+            .collect { isNearBottom ->
+                if (isNearBottom && canLoadMore && !isLoadingMore && !isLoading && searchQuery.isBlank()) {
+                    onLoadMore()
+                }
+            }
+    }
 
     val filteredList = remember(priceLists, searchQuery) {
         if (searchQuery.isBlank()) priceLists
@@ -92,10 +118,14 @@ fun AllPricingScreen(
                     }
                 } else {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize().padding(paddingValues),
                         contentPadding = PaddingValues(horizontal = tokens.screenPadding, vertical = 10.dp)
                     ) {
-                        items(filteredList, key = { it.id }) { item ->
+                        items(
+                            items = filteredList,
+                            key = { it.id.ifBlank { it.hashCode().toString() } }
+                        ) { item ->
                             PriceListCard(
                                 item = item,
                                 isChecked = checkedIds[item.id] == true,
@@ -106,6 +136,18 @@ fun AllPricingScreen(
                             )
                             Spacer(Modifier.height(10.dp))
                         }
+
+                        // Bottom indicator: shown only while a next page request is actively in-flight
+                        if (isLoadingMore) {
+                            item(key = "pagination_threedot_loader") {
+                                ThreeDotLoading(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 16.dp)
+                                )
+                            }
+                        }
+
                         item { Spacer(Modifier.height(80.dp)) }
                     }
                 }

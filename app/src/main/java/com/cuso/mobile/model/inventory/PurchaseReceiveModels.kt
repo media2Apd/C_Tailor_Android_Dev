@@ -2,7 +2,10 @@ package com.cuso.mobile.model.inventory
 
 import com.google.gson.annotations.SerializedName
 
-// ── 1. GET ALL RECEIVES MODELS ──
+// =============================================================================
+// PURCHASE RECEIVE LIST & ITEM MODELS
+// =============================================================================
+
 data class AllReceivesResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("pagination") val pagination: ReceivePaginationDto?,
@@ -72,50 +75,15 @@ data class ReceiveItemSummaryDto(
     @SerializedName("sku") val sku: String
 )
 
-// ── 2. GET RECEIVE HISTORY BY PO MODELS ──
-data class ReceiveHistoryByPoResponse(
-    @SerializedName("success") val success: Boolean,
-    @SerializedName("po") val po: PoHeaderDto? = null,
-    @SerializedName("totalReceives") val totalReceives: Int = 0,
-    @SerializedName("itemsOverview") val itemsOverview: List<PoItemOverviewDto> = emptyList(),
-    @SerializedName("receives") val receives: List<PoReceiveSummaryDto> = emptyList()
-)
-
-data class PoHeaderDto(
-    @SerializedName("poId") val poId: String,
-    @SerializedName("poNumber") val poNumber: String,
-    @SerializedName("poDate") val poDate: String,
-    @SerializedName("warehouse") val warehouse: String
-)
-
-data class PoItemOverviewDto(
-    @SerializedName("itemId") val itemId: String,
-    @SerializedName("name") val name: String,
-    @SerializedName("sku") val sku: String,
-    @SerializedName("orderedQty") val orderedQty: Int,
-    @SerializedName("totalReceivedQty") val totalReceivedQty: Int,
-    @SerializedName("rate") val rate: Double,
-    @SerializedName("receiveStatus") val receiveStatus: String,
-    @SerializedName("percent") val percent: Float
-)
-
-data class PoReceiveSummaryDto(
-    @SerializedName("_id") val id: String,
-    @SerializedName("receiveNumber") val receiveNumber: String,
-    @SerializedName("receiveDate") val receiveDate: String,
-    @SerializedName("totalQty") val totalQty: Int,
-    @SerializedName("grandTotal") val grandTotal: Double,
-    @SerializedName("billingStatus") val billingStatus: String,
-    @SerializedName("receivedBy") val receivedBy: String? = null
-)
-
-// ── 3. SINGLE RECEIVE RESPONSE MODEL ──
 data class SingleReceiveResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("data") val data: PurchaseReceiveItem? = null
 )
 
-// ── 4. CONVERT TO BILL RESPONSE MODELS ──
+// =============================================================================
+// CONVERT RECEIVE TO BILL MODELS
+// =============================================================================
+
 data class ConvertToBillResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("data") val data: BillCreatedData? = null
@@ -144,4 +112,75 @@ data class BillItemDetail(
     @SerializedName("rate") val rate: Double = 0.0,
     @SerializedName("taxPercent") val taxPercent: Double = 0.0,
     @SerializedName("total") val total: Double = 0.0
+)
+
+// =============================================================================
+// PURCHASE RECEIVE HISTORY BY PO MODELS
+// =============================================================================
+
+data class ReceiveHistoryByPoResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("po") val po: PoHistoryHeaderDto? = null,
+    @SerializedName("totalReceives") val totalReceives: Int = 0,
+    @SerializedName("itemsOverview") val itemsOverview: List<PoItemOverviewDto> = emptyList(),
+    @SerializedName("receives") val receives: List<PoReceiveSummaryDto> = emptyList()
+)
+
+data class PoHistoryHeaderDto(
+    @SerializedName("poId") val poId: String = "",
+    @SerializedName("poNumber") val poNumber: String = "",
+    @SerializedName("poDate") val poDate: String = "",
+    @SerializedName("supplierName") val supplierName: String = "",
+    @SerializedName("supplierGST") val supplierGST: String? = null,
+    @SerializedName("warehouse") val warehouse: String = "",
+    @SerializedName("shippingMethod") val shippingMethod: String? = null,
+    @SerializedName("transportName") val transportName: String? = null,
+    @SerializedName("vehicleNumber") val vehicleNumber: String? = null,
+    @SerializedName("trackingNumber") val trackingNumber: String? = null,
+    @SerializedName("freightTerms") val freightTerms: String? = null
+)
+
+data class PoItemOverviewDto(
+    @SerializedName("itemId") val itemId: String = "",
+    @SerializedName("name") val name: String = "",
+    @SerializedName("sku") val sku: String = "",
+    @SerializedName("orderedQty") val orderedQty: Double = 0.0,
+    @SerializedName("totalReceivedQty") val totalReceivedQty: Double = 0.0,
+    @SerializedName("rate") val rate: Double = 0.0,
+    @SerializedName("receiveStatus") val receiveStatus: String = "",
+    @SerializedName("percent") val percent: Double = 0.0
+)
+
+data class PoReceiveSummaryDto(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("receiveNumber") val receiveNumber: String = "",
+    @SerializedName("receiveDate") val receiveDate: String = "",
+    @SerializedName("totalQty") val totalQty: Double = 0.0,
+    @SerializedName("grandTotal") val grandTotal: Double = 0.0,
+    @SerializedName("billingStatus") val billingStatus: String = "Not Billed",
+    @SerializedName("receivedBy") val receivedBy: String? = null
+)
+
+// =============================================================================
+// PURCHASE ORDER RECEIVE SUMMARY MODELS
+// =============================================================================
+
+data class PurchaseOrderSummaryResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("pagination") val pagination: InventoryPagination? = null,
+    @SerializedName("data") val data: List<PurchaseOrderSummaryDto> = emptyList()
+)
+
+data class PurchaseOrderSummaryDto(
+    @SerializedName("receiveCount") val receiveCount: Int = 0,
+    @SerializedName("totalReceivedAmount") val totalReceivedAmount: Double = 0.0,
+    @SerializedName("lastReceiveDate") val lastReceiveDate: String? = null,
+    @SerializedName("poId") val poId: String = "",
+    @SerializedName("poNumber") val poNumber: String = "",
+    @SerializedName("poDate") val poDate: String = "",
+    @SerializedName("warehouse") val warehouse: String = "",
+    @SerializedName("receiveStatus") val receiveStatus: String = "",
+    @SerializedName("poGrandTotal") val poGrandTotal: Double = 0.0,
+    @SerializedName("supplierName") val supplierName: String = "",
+    @SerializedName("supplierGST") val supplierGST: String? = null
 )

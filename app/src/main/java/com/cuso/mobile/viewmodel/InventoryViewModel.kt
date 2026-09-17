@@ -15,6 +15,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.mobile.model.inventory.AssignStockLocationRequest
 import com.cuso.mobile.model.inventory.BarcodeItemDoc
 import com.cuso.mobile.model.inventory.BillCreatedData
 import com.cuso.mobile.model.inventory.BulkItemDoc
@@ -28,6 +29,7 @@ import com.cuso.mobile.model.inventory.CreateSupplierRequest
 import com.cuso.mobile.model.inventory.CreateWarehouseRequest
 import com.cuso.mobile.model.inventory.DecreaseStockRequest
 import com.cuso.mobile.model.inventory.GenerateBarcodeRequest
+import com.cuso.mobile.model.inventory.HierarchyDropdownItem
 import com.cuso.mobile.model.inventory.IncreaseStockRequest
 import com.cuso.mobile.model.inventory.InventoryItem
 import com.cuso.mobile.model.inventory.InventoryItemviewone
@@ -39,12 +41,16 @@ import com.cuso.mobile.model.inventory.POBillConvertData
 import com.cuso.mobile.model.inventory.PhysicalAttributes
 import com.cuso.mobile.model.inventory.PurchaseOrder
 import com.cuso.mobile.model.inventory.PurchaseOrderData
+import com.cuso.mobile.model.inventory.PurchaseOrderSummaryDto
 import com.cuso.mobile.model.inventory.PurchaseReceiveItem
 import com.cuso.mobile.model.inventory.PurchaseRequisition
 import com.cuso.mobile.model.inventory.ReceiveHistoryByPoResponse
 import com.cuso.mobile.model.inventory.ReceivePurchaseOrderRequest
 import com.cuso.mobile.model.inventory.RequisitionApprovalActionRequest
 import com.cuso.mobile.model.inventory.StockAdjustmentData
+import com.cuso.mobile.model.inventory.StockLocationAssignmentData
+import com.cuso.mobile.model.inventory.StockLocationItemDto
+import com.cuso.mobile.model.inventory.StockLocationViewOneData
 import com.cuso.mobile.model.inventory.StockSummaryItemDto
 import com.cuso.mobile.model.inventory.SupplierDropdownItem
 import com.cuso.mobile.model.inventory.SupplierDto
@@ -138,6 +144,9 @@ data class CreateItemFormState(
 
 data class ItemGroupUiState(
     val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val canLoadMore: Boolean = true,
+    val currentPage: Int = 1,
     val itemGroups: List<ItemGroupDto> = emptyList(),
     val filteredList: List<ItemGroupDto> = emptyList(),
     val errorMessage: String? = null,
@@ -183,7 +192,18 @@ class InventoryViewModel @Inject constructor(
 
     private val gson = Gson()
 
-    // ── 1. Item Groups State ──
+    companion object {
+        private const val DEFAULT_LIMIT = 10
+        private const val ITEM_GROUP_PAGE_SIZE = 20
+        private const val SUPPLIER_PAGE_SIZE = 20
+        private const val PO_PAGE_SIZE = 15
+        private const val REQ_PAGE_SIZE = 15
+        private const val RECEIVE_PAGE_SIZE = 20
+    }
+
+    // =========================================================================
+    // 1. ITEM GROUPS (VIEW-ALL: PAGINATED)
+    // =========================================================================
     private val _uiState = MutableStateFlow(ItemGroupUiState())
     val uiState: StateFlow<ItemGroupUiState> = _uiState.asStateFlow()
 
@@ -207,7 +227,9 @@ class InventoryViewModel @Inject constructor(
     private val _deleteItemGroupSuccess = MutableStateFlow<String?>(null)
     val deleteItemGroupSuccess: StateFlow<String?> = _deleteItemGroupSuccess.asStateFlow()
 
-    // ── 2. Inventory Items: List & Pagination State ──
+    // =========================================================================
+    // 2. INVENTORY ITEMS (VIEW-ALL: PAGINATED)
+    // =========================================================================
     private val _inventoryItems = MutableStateFlow<List<InventoryItem>>(emptyList())
     val inventoryItems: StateFlow<List<InventoryItem>> = _inventoryItems.asStateFlow()
 
@@ -236,7 +258,7 @@ class InventoryViewModel @Inject constructor(
     private var activeInventoryStatus: String? = null
     private var fetchInventoryJob: Job? = null
 
-    // ── 3. Inventory Item: View One State ──
+    // ── Inventory Item: View One / Detail / Recent ──
     private val _viewOneItem = MutableStateFlow<InventoryItemviewone?>(null)
     val viewOneItem: StateFlow<InventoryItemviewone?> = _viewOneItem.asStateFlow()
 
@@ -249,7 +271,6 @@ class InventoryViewModel @Inject constructor(
     private val _showViewOneSheet = MutableStateFlow(false)
     val showViewOneSheet: StateFlow<Boolean> = _showViewOneSheet.asStateFlow()
 
-    // ── 4. Inventory Item: Detail State ──
     private val _selectedItem = MutableStateFlow<InventoryItem?>(null)
     val selectedItem: StateFlow<InventoryItem?> = _selectedItem.asStateFlow()
 
@@ -262,7 +283,6 @@ class InventoryViewModel @Inject constructor(
     private val _showItemDetailSheet = MutableStateFlow(false)
     val showItemDetailSheet: StateFlow<Boolean> = _showItemDetailSheet.asStateFlow()
 
-    // ── 5. Recent Items State ──
     private val _recentItems = MutableStateFlow<List<InventoryItem>>(emptyList())
     val recentItems: StateFlow<List<InventoryItem>> = _recentItems.asStateFlow()
 
@@ -272,7 +292,9 @@ class InventoryViewModel @Inject constructor(
     private val _recentItemsError = MutableStateFlow<String?>(null)
     val recentItemsError: StateFlow<String?> = _recentItemsError.asStateFlow()
 
-    // ── 6. Stock Adjustment State ──
+    // =========================================================================
+    // 3. STOCK ADJUSTMENT (VIEW-ALL: PAGINATED)
+    // =========================================================================
     private val _isAdjustingStock = MutableStateFlow(false)
     val isAdjustingStock: StateFlow<Boolean> = _isAdjustingStock.asStateFlow()
 
@@ -291,7 +313,55 @@ class InventoryViewModel @Inject constructor(
     private val _stockSummaryError = MutableStateFlow<String?>(null)
     val stockSummaryError: StateFlow<String?> = _stockSummaryError.asStateFlow()
 
-    // ── 7. Low Stock Alerts & Purchase Orders ──
+    private val _validAdjustmentReasons = MutableStateFlow<List<String>>(emptyList())
+    val validAdjustmentReasons: StateFlow<List<String>> = _validAdjustmentReasons.asStateFlow()
+
+    private val _stockAdjustmentsList = MutableStateFlow<List<StockAdjustmentData>>(emptyList())
+    val stockAdjustmentsList: StateFlow<List<StockAdjustmentData>> = _stockAdjustmentsList.asStateFlow()
+
+    private val _selectedAdjustmentDetail = MutableStateFlow<StockAdjustmentData?>(null)
+    val selectedAdjustmentDetail: StateFlow<StockAdjustmentData?> = _selectedAdjustmentDetail.asStateFlow()
+
+    private val _isLoadingAdjustments = MutableStateFlow(false)
+    val isLoadingAdjustments: StateFlow<Boolean> = _isLoadingAdjustments.asStateFlow()
+
+    private val _isLoadingMoreAdjustments = MutableStateFlow(false)
+    val isLoadingMoreAdjustments: StateFlow<Boolean> = _isLoadingMoreAdjustments.asStateFlow()
+
+    private val _isSubmittingAdjustment = MutableStateFlow(false)
+    val isSubmittingAdjustment: StateFlow<Boolean> = _isSubmittingAdjustment.asStateFlow()
+
+    private val _adjustmentSuccessMessage = MutableStateFlow<String?>(null)
+    val adjustmentSuccessMessage: StateFlow<String?> = _adjustmentSuccessMessage.asStateFlow()
+
+    private val _adjustmentErrorMessage = MutableStateFlow<String?>(null)
+    val adjustmentErrorMessage: StateFlow<String?> = _adjustmentErrorMessage.asStateFlow()
+
+    private val _currentAdjustmentPage = MutableStateFlow(1)
+    val currentAdjustmentPage: StateFlow<Int> = _currentAdjustmentPage.asStateFlow()
+
+    private val _totalAdjustments = MutableStateFlow(0)
+    val totalAdjustments: StateFlow<Int> = _totalAdjustments.asStateFlow()
+
+    private val _canLoadMoreAdjustments = MutableStateFlow(true)
+    val canLoadMoreAdjustments: StateFlow<Boolean> = _canLoadMoreAdjustments.asStateFlow()
+
+    private val _selectedAdjustmentType = MutableStateFlow<String?>("transfer")
+    val selectedAdjustmentType: StateFlow<String?> = _selectedAdjustmentType.asStateFlow()
+
+    private var activeAdjustmentSearch: String? = null
+
+    // ── Stock Summary Pagination States ──
+    private val _isLoadingMoreStockSummary = MutableStateFlow(false)
+    val isLoadingMoreStockSummary: StateFlow<Boolean> = _isLoadingMoreStockSummary.asStateFlow()
+
+    private val _canLoadMoreStockSummary = MutableStateFlow(true)
+    val canLoadMoreStockSummary: StateFlow<Boolean> = _canLoadMoreStockSummary.asStateFlow()
+
+    private val _currentStockSummaryPage = MutableStateFlow(1)
+    val currentStockSummaryPage: StateFlow<Int> = _currentStockSummaryPage.asStateFlow()
+
+    // ── Low Stock Alerts ──
     private val _lowStockItems = MutableStateFlow<List<LowStockItemDto>>(emptyList())
     val lowStockItems: StateFlow<List<LowStockItemDto>> = _lowStockItems.asStateFlow()
 
@@ -316,7 +386,19 @@ class InventoryViewModel @Inject constructor(
     private val _reorderDetailError = MutableStateFlow<String?>(null)
     val reorderDetailError: StateFlow<String?> = _reorderDetailError.asStateFlow()
 
-    // ── 8. Create Item Form State ──
+    // ── Low Stock Pagination States ──
+    private val _isLoadingMoreLowStock = MutableStateFlow(false)
+    val isLoadingMoreLowStock: StateFlow<Boolean> = _isLoadingMoreLowStock.asStateFlow()
+
+    private val _canLoadMoreLowStock = MutableStateFlow(true)
+    val canLoadMoreLowStock: StateFlow<Boolean> = _canLoadMoreLowStock.asStateFlow()
+
+    private val _currentLowStockPage = MutableStateFlow(1)
+    val currentLowStockPage: StateFlow<Int> = _currentLowStockPage.asStateFlow()
+
+    private var activeLowStockWarehouseId: String? = null
+
+    // ── Create Item Form State ──
     private val _expandedSection = MutableStateFlow(ItemSection.ITEM_IDENTITY)
     val expandedSection: StateFlow<ItemSection> = _expandedSection.asStateFlow()
 
@@ -326,38 +408,9 @@ class InventoryViewModel @Inject constructor(
     private val _createItemUiState = MutableStateFlow<CreateItemUiState>(CreateItemUiState.Idle)
     val createItemUiState: StateFlow<CreateItemUiState> = _createItemUiState.asStateFlow()
 
-    // ── 9. Stock Adjustments & History State ──
-    private val _validAdjustmentReasons = MutableStateFlow<List<String>>(emptyList())
-    val validAdjustmentReasons: StateFlow<List<String>> = _validAdjustmentReasons.asStateFlow()
-
-    private val _stockAdjustmentsList = MutableStateFlow<List<StockAdjustmentData>>(emptyList())
-    val stockAdjustmentsList: StateFlow<List<StockAdjustmentData>> = _stockAdjustmentsList.asStateFlow()
-
-    private val _selectedAdjustmentDetail = MutableStateFlow<StockAdjustmentData?>(null)
-    val selectedAdjustmentDetail: StateFlow<StockAdjustmentData?> = _selectedAdjustmentDetail.asStateFlow()
-
-    private val _isLoadingAdjustments = MutableStateFlow(false)
-    val isLoadingAdjustments: StateFlow<Boolean> = _isLoadingAdjustments.asStateFlow()
-
-    private val _isSubmittingAdjustment = MutableStateFlow(false)
-    val isSubmittingAdjustment: StateFlow<Boolean> = _isSubmittingAdjustment.asStateFlow()
-
-    private val _adjustmentSuccessMessage = MutableStateFlow<String?>(null)
-    val adjustmentSuccessMessage: StateFlow<String?> = _adjustmentSuccessMessage.asStateFlow()
-
-    private val _adjustmentErrorMessage = MutableStateFlow<String?>(null)
-    val adjustmentErrorMessage: StateFlow<String?> = _adjustmentErrorMessage.asStateFlow()
-
-    private val _currentAdjustmentPage = MutableStateFlow(1)
-    val currentAdjustmentPage: StateFlow<Int> = _currentAdjustmentPage.asStateFlow()
-
-    private val _totalAdjustments = MutableStateFlow(0)
-    val totalAdjustments: StateFlow<Int> = _totalAdjustments.asStateFlow()
-
-    private val _canLoadMoreAdjustments = MutableStateFlow(true)
-    val canLoadMoreAdjustments: StateFlow<Boolean> = _canLoadMoreAdjustments.asStateFlow()
-
-    // ── 10. Warehouse Management State ──
+    // =========================================================================
+    // 4. WAREHOUSES
+    // =========================================================================
     private val _warehouseUiState = MutableStateFlow(WarehouseUiState())
     val warehouseUiState: StateFlow<WarehouseUiState> = _warehouseUiState.asStateFlow()
 
@@ -387,15 +440,29 @@ class InventoryViewModel @Inject constructor(
     private val _warehouseActionErrorMessage = MutableStateFlow<String?>(null)
     val warehouseActionErrorMessage: StateFlow<String?> = _warehouseActionErrorMessage.asStateFlow()
 
-    // ── 11. Supplier State ──
+    // =========================================================================
+    // 5. SUPPLIERS (VIEW-ALL: PAGINATED)
+    // =========================================================================
     private val _suppliers = MutableStateFlow<List<SupplierDto>>(emptyList())
     val suppliers: StateFlow<List<SupplierDto>> = _suppliers.asStateFlow()
 
     private val _isLoadingSuppliers = MutableStateFlow(false)
     val isLoadingSuppliers: StateFlow<Boolean> = _isLoadingSuppliers.asStateFlow()
 
+    private val _isLoadingMoreSuppliers = MutableStateFlow(false)
+    val isLoadingMoreSuppliers: StateFlow<Boolean> = _isLoadingMoreSuppliers.asStateFlow()
+
+    private val _canLoadMoreSuppliers = MutableStateFlow(true)
+    val canLoadMoreSuppliers: StateFlow<Boolean> = _canLoadMoreSuppliers.asStateFlow()
+
+    private val _currentSupplierPage = MutableStateFlow(1)
+    val currentSupplierPage: StateFlow<Int> = _currentSupplierPage.asStateFlow()
+
     private val _suppliersError = MutableStateFlow<String?>(null)
     val suppliersError: StateFlow<String?> = _suppliersError.asStateFlow()
+
+    private var activeSupplierSearch: String? = null
+    private var activeSupplierStatus: String? = null
 
     private val _supplierDropdown = MutableStateFlow<List<SupplierDropdownItem>>(emptyList())
     val supplierDropdown: StateFlow<List<SupplierDropdownItem>> = _supplierDropdown.asStateFlow()
@@ -415,10 +482,7 @@ class InventoryViewModel @Inject constructor(
     private val _isSubmitting = MutableStateFlow(false)
     val isSubmitting: StateFlow<Boolean> = _isSubmitting.asStateFlow()
 
-    private val _selectedAdjustmentType = MutableStateFlow<String?>("transfer") // default to "transfer"
-    val selectedAdjustmentType: StateFlow<String?> = _selectedAdjustmentType.asStateFlow()
-
-    //BULK ITEM
+    // ── Bulk Items ──
     private val _bulkItems = MutableStateFlow<List<BulkItemDoc>>(emptyList())
     val bulkItems: StateFlow<List<BulkItemDoc>> = _bulkItems.asStateFlow()
 
@@ -434,43 +498,73 @@ class InventoryViewModel @Inject constructor(
     private val _successMessage = MutableStateFlow<String?>(null)
     val successMessage: StateFlow<String?> = _successMessage.asStateFlow()
 
-    // =========================================================================
-    // PURCHASE ORDERS STATE & ACTIONS
-    // =========================================================================
+    private var activeBulkSearch: String? = null
 
-    // 1. PO List State
+    private val _isLoadingMoreBulk = MutableStateFlow(false)
+    val isLoadingMoreBulk: StateFlow<Boolean> = _isLoadingMoreBulk.asStateFlow()
+
+    private val _canLoadMoreBulk = MutableStateFlow(true)
+    val canLoadMoreBulk: StateFlow<Boolean> = _canLoadMoreBulk.asStateFlow()
+
+    private val _currentBulkPage = MutableStateFlow(1)
+    val currentBulkPage: StateFlow<Int> = _currentBulkPage.asStateFlow()
+
+    // =========================================================================
+    // 6. PURCHASE ORDERS (VIEW-ALL: PAGINATED)
+    // =========================================================================
     private val _purchaseOrdersList = MutableStateFlow<List<PurchaseOrder>>(emptyList())
     val purchaseOrdersList: StateFlow<List<PurchaseOrder>> = _purchaseOrdersList.asStateFlow()
 
     private val _isLoadingPurchaseOrders = MutableStateFlow(false)
     val isLoadingPurchaseOrders: StateFlow<Boolean> = _isLoadingPurchaseOrders.asStateFlow()
 
+    private val _isLoadingMorePurchaseOrders = MutableStateFlow(false)
+    val isLoadingMorePurchaseOrders: StateFlow<Boolean> = _isLoadingMorePurchaseOrders.asStateFlow()
+
+    private val _canLoadMorePurchaseOrders = MutableStateFlow(true)
+    val canLoadMorePurchaseOrders: StateFlow<Boolean> = _canLoadMorePurchaseOrders.asStateFlow()
+
+    private val _currentPOPage = MutableStateFlow(1)
+    val currentPOPage: StateFlow<Int> = _currentPOPage.asStateFlow()
+
     private val _purchaseOrdersError = MutableStateFlow<String?>(null)
     val purchaseOrdersError: StateFlow<String?> = _purchaseOrdersError.asStateFlow()
 
-    // 2. Direct PO Operation State (Create/Update/Receive)
+    private var activePOSearch: String? = null
+    private var activePOStatus: String? = null
+
     private val _isSubmittingPO = MutableStateFlow(false)
     val isSubmittingPO: StateFlow<Boolean> = _isSubmittingPO.asStateFlow()
 
     private val _poSuccessMessage = MutableStateFlow<String?>(null)
     val poSuccessMessage: StateFlow<String?> = _poSuccessMessage.asStateFlow()
 
-    // 3. Bill Convert State
     private val _billConvertDetail = MutableStateFlow<POBillConvertData?>(null)
     val billConvertDetail: StateFlow<POBillConvertData?> = _billConvertDetail.asStateFlow()
 
     private val _isLoadingBillConvert = MutableStateFlow(false)
     val isLoadingBillConvert: StateFlow<Boolean> = _isLoadingBillConvert.asStateFlow()
 
-
+    // =========================================================================
+    // 7. PURCHASE REQUISITIONS (VIEW-ALL: PAGINATED)
+    // =========================================================================
     private val _requisitionsList = MutableStateFlow<List<PurchaseRequisition>>(emptyList())
     val requisitionsList: StateFlow<List<PurchaseRequisition>> = _requisitionsList.asStateFlow()
 
-    private val _selectedRequisition = MutableStateFlow<PurchaseRequisition?>(null)
-    val selectedRequisition: StateFlow<PurchaseRequisition?> = _selectedRequisition.asStateFlow()
-
     private val _isLoadingRequisitions = MutableStateFlow(false)
     val isLoadingRequisitions: StateFlow<Boolean> = _isLoadingRequisitions.asStateFlow()
+
+    private val _isLoadingMoreRequisitions = MutableStateFlow(false)
+    val isLoadingMoreRequisitions: StateFlow<Boolean> = _isLoadingMoreRequisitions.asStateFlow()
+
+    private val _canLoadMoreRequisitions = MutableStateFlow(true)
+    val canLoadMoreRequisitions: StateFlow<Boolean> = _canLoadMoreRequisitions.asStateFlow()
+
+    private val _currentRequisitionPage = MutableStateFlow(1)
+    val currentRequisitionPage: StateFlow<Int> = _currentRequisitionPage.asStateFlow()
+
+    private val _selectedRequisition = MutableStateFlow<PurchaseRequisition?>(null)
+    val selectedRequisition: StateFlow<PurchaseRequisition?> = _selectedRequisition.asStateFlow()
 
     private val _isSubmittingRequisition = MutableStateFlow(false)
     val isSubmittingRequisition: StateFlow<Boolean> = _isSubmittingRequisition.asStateFlow()
@@ -481,10 +575,10 @@ class InventoryViewModel @Inject constructor(
     private val _requisitionErrorMessage = MutableStateFlow<String?>(null)
     val requisitionErrorMessage: StateFlow<String?> = _requisitionErrorMessage.asStateFlow()
 
-    // =============================================================================
-    // BARCODE STATE FLOWS (Add inside InventoryViewModel)
-    // =============================================================================
+    private var activeReqSearch: String? = null
+    private var activeReqStatus: String? = null
 
+    // ── Barcode States ──
     private val _barcodesList = MutableStateFlow<List<BarcodeItemDoc>>(emptyList())
     val barcodesList: StateFlow<List<BarcodeItemDoc>> = _barcodesList.asStateFlow()
 
@@ -502,25 +596,127 @@ class InventoryViewModel @Inject constructor(
 
     private val _barcodeErrorMessage = MutableStateFlow<String?>(null)
     val barcodeErrorMessage: StateFlow<String?> = _barcodeErrorMessage.asStateFlow()
-    // =========================================================================
-    // purchase receive
-    // =========================================================================
 
-    // ── All Receives List ──
+    private val _isLoadingMoreBarcodes = MutableStateFlow(false)
+    val isLoadingMoreBarcodes: StateFlow<Boolean> = _isLoadingMoreBarcodes.asStateFlow()
+
+    private val _canLoadMoreBarcodes = MutableStateFlow(true)
+    val canLoadMoreBarcodes: StateFlow<Boolean> = _canLoadMoreBarcodes.asStateFlow()
+
+    private val _currentBarcodePage = MutableStateFlow(1)
+    val currentBarcodePage: StateFlow<Int> = _currentBarcodePage.asStateFlow()
+
+    private var activeBarcodeSearch: String? = null
+    private var activeBarcodeStatus: String? = null
+
+    // =========================================================================
+    // 8. PURCHASE RECEIVE & RECEIVE HISTORY (SINGLE DEFINITIONS)
+    // =========================================================================
     private val _allReceives = MutableStateFlow<List<PurchaseReceiveItem>>(emptyList())
     val allReceives: StateFlow<List<PurchaseReceiveItem>> = _allReceives.asStateFlow()
 
-    // ── PO Receive History & Items Overview ──
+    private val _isLoadingReceives = MutableStateFlow(false)
+    val isLoadingReceives: StateFlow<Boolean> = _isLoadingReceives.asStateFlow()
+
+    private val _isLoadingMoreReceives = MutableStateFlow(false)
+    val isLoadingMoreReceives: StateFlow<Boolean> = _isLoadingMoreReceives.asStateFlow()
+
+    private val _canLoadMoreReceives = MutableStateFlow(true)
+    val canLoadMoreReceives: StateFlow<Boolean> = _canLoadMoreReceives.asStateFlow()
+
+    private val _currentReceivesPage = MutableStateFlow(1)
+    val currentReceivesPage: StateFlow<Int> = _currentReceivesPage.asStateFlow()
+
+    private var activeReceivesSearch: String? = null
+
+    // Single definitions for receive history state
     private val _poHistory = MutableStateFlow<ReceiveHistoryByPoResponse?>(null)
     val poHistory: StateFlow<ReceiveHistoryByPoResponse?> = _poHistory.asStateFlow()
 
-    // ── Single Receive Detail ──
     private val _singleReceive = MutableStateFlow<PurchaseReceiveItem?>(null)
     val singleReceive: StateFlow<PurchaseReceiveItem?> = _singleReceive.asStateFlow()
 
-    // ── Active Bill Generated from Conversion ──
     private val _generatedBill = MutableStateFlow<BillCreatedData?>(null)
     val generatedBill: StateFlow<BillCreatedData?> = _generatedBill.asStateFlow()
+
+    // ── Purchase Order Receive Summary List States ──
+    private val _poSummaryList = MutableStateFlow<List<PurchaseOrderSummaryDto>>(emptyList())
+    val poSummaryList: StateFlow<List<PurchaseOrderSummaryDto>> = _poSummaryList.asStateFlow()
+
+    private val _isLoadingPoSummary = MutableStateFlow(false)
+    val isLoadingPoSummary: StateFlow<Boolean> = _isLoadingPoSummary.asStateFlow()
+
+    private val _isLoadingMorePoSummary = MutableStateFlow(false)
+    val isLoadingMorePoSummary: StateFlow<Boolean> = _isLoadingMorePoSummary.asStateFlow()
+
+    private val _canLoadMorePoSummary = MutableStateFlow(true)
+    val canLoadMorePoSummary: StateFlow<Boolean> = _canLoadMorePoSummary.asStateFlow()
+
+    private val _currentPoSummaryPage = MutableStateFlow(1)
+    val currentPoSummaryPage: StateFlow<Int> = _currentPoSummaryPage.asStateFlow()
+
+    private val _poSummaryError = MutableStateFlow<String?>(null)
+    val poSummaryError: StateFlow<String?> = _poSummaryError.asStateFlow()
+
+    private var activePoSummarySearch: String? = null
+
+    // =========================================================================
+    // 9. LOCATION MANAGEMENT (PAGINATED)
+    // =========================================================================
+    private val _stockLocationItems = MutableStateFlow<List<StockLocationItemDto>>(emptyList())
+    val stockLocationItems: StateFlow<List<StockLocationItemDto>> = _stockLocationItems.asStateFlow()
+
+    private val _isLoadingStockLocations = MutableStateFlow(false)
+    val isLoadingStockLocations: StateFlow<Boolean> = _isLoadingStockLocations.asStateFlow()
+
+    private val _isLoadingMoreStockLocations = MutableStateFlow(false)
+    val isLoadingMoreStockLocations: StateFlow<Boolean> = _isLoadingMoreStockLocations.asStateFlow()
+
+    private val _canLoadMoreStockLocations = MutableStateFlow(true)
+    val canLoadMoreStockLocations: StateFlow<Boolean> = _canLoadMoreStockLocations.asStateFlow()
+
+    private val _currentStockLocationPage = MutableStateFlow(1)
+    val currentStockLocationPage: StateFlow<Int> = _currentStockLocationPage.asStateFlow()
+
+    private val _stockLocationTotal = MutableStateFlow(0)
+    val stockLocationTotal: StateFlow<Int> = _stockLocationTotal.asStateFlow()
+
+    private val _stockLocationError = MutableStateFlow<String?>(null)
+    val stockLocationError: StateFlow<String?> = _stockLocationError.asStateFlow()
+
+    private var activeStockLocationSearch: String? = null
+    private var activeStockLocationStatus: String? = null
+    private var stockLocationSearchJob: Job? = null
+
+    private val _selectedStockLocationDetail = MutableStateFlow<StockLocationViewOneData?>(null)
+    val selectedStockLocationDetail: StateFlow<StockLocationViewOneData?> = _selectedStockLocationDetail.asStateFlow()
+
+    private val _isLoadingStockLocationDetail = MutableStateFlow(false)
+    val isLoadingStockLocationDetail: StateFlow<Boolean> = _isLoadingStockLocationDetail.asStateFlow()
+
+    private val _stockLocationDetailError = MutableStateFlow<String?>(null)
+    val stockLocationDetailError: StateFlow<String?> = _stockLocationDetailError.asStateFlow()
+
+    private val _floorDropdown = MutableStateFlow<List<HierarchyDropdownItem>>(emptyList())
+    val floorDropdown: StateFlow<List<HierarchyDropdownItem>> = _floorDropdown.asStateFlow()
+
+    private val _sectionDropdown = MutableStateFlow<List<HierarchyDropdownItem>>(emptyList())
+    val sectionDropdown: StateFlow<List<HierarchyDropdownItem>> = _sectionDropdown.asStateFlow()
+
+    private val _rackDropdown = MutableStateFlow<List<HierarchyDropdownItem>>(emptyList())
+    val rackDropdown: StateFlow<List<HierarchyDropdownItem>> = _rackDropdown.asStateFlow()
+
+    private val _binDropdown = MutableStateFlow<List<HierarchyDropdownItem>>(emptyList())
+    val binDropdown: StateFlow<List<HierarchyDropdownItem>> = _binDropdown.asStateFlow()
+
+    private val _isSubmittingStockLocation = MutableStateFlow(false)
+    val isSubmittingStockLocation: StateFlow<Boolean> = _isSubmittingStockLocation.asStateFlow()
+
+    private val _stockLocationActionSuccess = MutableStateFlow<String?>(null)
+    val stockLocationActionSuccess: StateFlow<String?> = _stockLocationActionSuccess.asStateFlow()
+
+    private val _stockLocationActionError = MutableStateFlow<String?>(null)
+    val stockLocationActionError: StateFlow<String?> = _stockLocationActionError.asStateFlow()
 
     // =========================================================================
     // INITIALIZATION
@@ -535,13 +731,21 @@ class InventoryViewModel @Inject constructor(
     }
 
     // =========================================================================
-    // ITEM GROUP ACTIONS
+    // 1. ITEM GROUP ACTIONS (INFINITE SCROLL ENABLED)
     // =========================================================================
 
     fun loadItemGroups(query: String? = null) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            val result = inventoryRepository.getInventoryItemGroup(search = query)
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    errorMessage = null,
+                    currentPage = 1,
+                    canLoadMore = true,
+                    searchQuery = query ?: ""
+                )
+            }
+            val result = inventoryRepository.getInventoryItemGroup(page = 1, pageSize = ITEM_GROUP_PAGE_SIZE, search = query)
             result.onSuccess { response ->
                 val safeList = response.groups
                 _uiState.update {
@@ -549,6 +753,7 @@ class InventoryViewModel @Inject constructor(
                         isLoading = false,
                         itemGroups = safeList,
                         filteredList = safeList,
+                        canLoadMore = safeList.size >= ITEM_GROUP_PAGE_SIZE,
                         errorMessage = null
                     )
                 }
@@ -559,6 +764,38 @@ class InventoryViewModel @Inject constructor(
                         errorMessage = extractErrorMessage(error.message)
                     )
                 }
+            }
+        }
+    }
+
+    fun loadMoreItemGroups() {
+        val currentState = _uiState.value
+        if (currentState.isLoadingMore || currentState.isLoading || !currentState.canLoadMore) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingMore = true) }
+            val nextPage = currentState.currentPage + 1
+
+            val result = inventoryRepository.getInventoryItemGroup(
+                page = nextPage,
+                pageSize = ITEM_GROUP_PAGE_SIZE,
+                search = currentState.searchQuery.takeIf { it.isNotBlank() }
+            )
+
+            result.onSuccess { response ->
+                val newGroups = response.groups
+                _uiState.update { state ->
+                    val combinedList = (state.itemGroups + newGroups).distinct()
+                    state.copy(
+                        isLoadingMore = false,
+                        currentPage = nextPage,
+                        itemGroups = combinedList,
+                        filteredList = combinedList,
+                        canLoadMore = newGroups.size >= ITEM_GROUP_PAGE_SIZE
+                    )
+                }
+            }.onFailure {
+                _uiState.update { it.copy(isLoadingMore = false) }
             }
         }
     }
@@ -580,9 +817,7 @@ class InventoryViewModel @Inject constructor(
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             delay(400)
-            if (newQuery.isNotBlank()) {
-                loadItemGroups(query = newQuery)
-            }
+            loadItemGroups(query = newQuery.takeIf { it.isNotBlank() })
         }
     }
 
@@ -604,7 +839,6 @@ class InventoryViewModel @Inject constructor(
             request.unit?.let { params["unit"] = it.toRequestBody(textMedia) }
             request.status?.let { params["status"] = it.toRequestBody(textMedia) }
 
-            // ── Pricing Fields (Compatible with both JSON body & Multer flat/bracket forms) ──
             request.pricing?.let { pricing ->
                 params["costPrice"] = pricing.costPrice.toString().toRequestBody(textMedia)
                 params["sellingPrice"] = pricing.sellingPrice.toString().toRequestBody(textMedia)
@@ -616,7 +850,6 @@ class InventoryViewModel @Inject constructor(
                 }
             }
 
-            // ── Variant Attributes (Sends both bracket notation and JSON fallback) ──
             request.variantAttributes.forEachIndexed { index, attr ->
                 params["variantAttributes[$index][name]"] = attr.name.toRequestBody(textMedia)
                 attr.values.forEachIndexed { valIndex, value ->
@@ -624,20 +857,11 @@ class InventoryViewModel @Inject constructor(
                 }
             }
 
-            request.categoryId?.takeIf { it.isNotBlank() }?.let {
-                params["categoryId"] = it.toRequestBody(textMedia)
-            }
-            request.brand?.takeIf { it.isNotBlank() }?.let {
-                params["brand"] = it.toRequestBody(textMedia)
-            }
-            request.shortDescription?.takeIf { it.isNotBlank() }?.let {
-                params["shortDescription"] = it.toRequestBody(textMedia)
-            }
-            request.longDescription?.takeIf { it.isNotBlank() }?.let {
-                params["longDescription"] = it.toRequestBody(textMedia)
-            }
+            request.categoryId?.takeIf { it.isNotBlank() }?.let { params["categoryId"] = it.toRequestBody(textMedia) }
+            request.brand?.takeIf { it.isNotBlank() }?.let { params["brand"] = it.toRequestBody(textMedia) }
+            request.shortDescription?.takeIf { it.isNotBlank() }?.let { params["shortDescription"] = it.toRequestBody(textMedia) }
+            request.longDescription?.takeIf { it.isNotBlank() }?.let { params["longDescription"] = it.toRequestBody(textMedia) }
 
-            // Image part prepared with fieldName = "image"
             val imageParts = inventoryRepository.prepareMultipleImagesPart(context, imagesUris, fieldName = "image")
             val result = inventoryRepository.createItemGroup(params, imageParts.takeIf { it.isNotEmpty() })
             _isCreatingItemGroup.value = false
@@ -671,7 +895,6 @@ class InventoryViewModel @Inject constructor(
             request.unit?.let { params["unit"] = it.toRequestBody(textMedia) }
             request.status?.let { params["status"] = it.toRequestBody(textMedia) }
 
-            // ── Pricing Fields (Compatible with both JSON body & Multer flat/bracket forms) ──
             request.pricing?.let { pricing ->
                 params["costPrice"] = pricing.costPrice.toString().toRequestBody(textMedia)
                 params["sellingPrice"] = pricing.sellingPrice.toString().toRequestBody(textMedia)
@@ -683,7 +906,6 @@ class InventoryViewModel @Inject constructor(
                 }
             }
 
-            // ── Variant Attributes (Sends both bracket notation and JSON fallback) ──
             request.variantAttributes.forEachIndexed { index, attr ->
                 params["variantAttributes[$index][name]"] = attr.name.toRequestBody(textMedia)
                 attr.values.forEachIndexed { valIndex, value ->
@@ -691,20 +913,11 @@ class InventoryViewModel @Inject constructor(
                 }
             }
 
-            request.categoryId?.takeIf { it.isNotBlank() }?.let {
-                params["categoryId"] = it.toRequestBody(textMedia)
-            }
-            request.brand?.takeIf { it.isNotBlank() }?.let {
-                params["brand"] = it.toRequestBody(textMedia)
-            }
-            request.shortDescription?.takeIf { it.isNotBlank() }?.let {
-                params["shortDescription"] = it.toRequestBody(textMedia)
-            }
-            request.longDescription?.takeIf { it.isNotBlank() }?.let {
-                params["longDescription"] = it.toRequestBody(textMedia)
-            }
+            request.categoryId?.takeIf { it.isNotBlank() }?.let { params["categoryId"] = it.toRequestBody(textMedia) }
+            request.brand?.takeIf { it.isNotBlank() }?.let { params["brand"] = it.toRequestBody(textMedia) }
+            request.shortDescription?.takeIf { it.isNotBlank() }?.let { params["shortDescription"] = it.toRequestBody(textMedia) }
+            request.longDescription?.takeIf { it.isNotBlank() }?.let { params["longDescription"] = it.toRequestBody(textMedia) }
 
-            // Image part prepared with fieldName = "image"
             val imageParts = inventoryRepository.prepareMultipleImagesPart(context, imagesUris, fieldName = "image")
             val result = inventoryRepository.updateItemGroup(id, params, imageParts.takeIf { it.isNotEmpty() })
             _isCreatingItemGroup.value = false
@@ -753,30 +966,23 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    fun clearSelectedItemGroupDetail() {
-        _selectedItemGroupDetail.value = null
-    }
-
-    fun clearDeleteSuccessMessage() {
-        _deleteItemGroupSuccess.value = null
-    }
-
+    fun clearSelectedItemGroupDetail() { _selectedItemGroupDetail.value = null }
+    fun clearDeleteSuccessMessage() { _deleteItemGroupSuccess.value = null }
     fun clearItemGroupAlerts() {
         _createItemGroupError.value = null
         _createItemGroupSuccess.value = null
     }
-
     fun refreshItemGroups() {
         loadItemGroups(query = _uiState.value.searchQuery.takeIf { it.isNotBlank() })
     }
 
     // =========================================================================
-    // INVENTORY ITEMS ACTIONS
+    // 2. INVENTORY ITEMS (INFINITE SCROLL ENABLED)
     // =========================================================================
 
     fun fetchInventoryItems(
         page: Int = 1,
-        limit: Int = 10,
+        limit: Int = DEFAULT_LIMIT,
         search: String? = null,
         status: String? = null
     ) {
@@ -785,6 +991,7 @@ class InventoryViewModel @Inject constructor(
             _isLoadingInventoryItems.value = true
             _inventoryError.value = null
             _currentInventoryPage.value = page
+            _canLoadMoreInventoryItems.value = true
             activeInventorySearch = search
             activeInventoryStatus = status
 
@@ -793,16 +1000,15 @@ class InventoryViewModel @Inject constructor(
                 onSuccess = { response ->
                     val newItems = response.data
                     val pagination = response.pagination
+                    val totalPages = pagination?.totalPages ?: 1
 
                     _inventoryItems.value = newItems
                     _inventoryPagination.value = pagination
-
-                    val totalPages = pagination?.totalPages ?: 1
                     _canLoadMoreInventoryItems.value = page < totalPages && newItems.isNotEmpty()
                 },
                 onFailure = { e ->
                     if (e !is CancellationException) {
-                        _inventoryError.value = e.message ?: "Failed to fetch inventory items"
+                        _inventoryError.value = extractErrorMessage(e.message)
                     }
                 }
             )
@@ -810,7 +1016,7 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    fun loadMoreInventoryItems(limit: Int = 10) {
+    fun loadMoreInventoryItems(limit: Int = DEFAULT_LIMIT) {
         if (_isLoadingMoreInventoryItems.value || _isLoadingInventoryItems.value || !_canLoadMoreInventoryItems.value) {
             return
         }
@@ -832,7 +1038,7 @@ class InventoryViewModel @Inject constructor(
                     val pagination = response.pagination
 
                     if (newItems.isNotEmpty()) {
-                        _inventoryItems.value += newItems
+                        _inventoryItems.update { (it + newItems).distinct() }
                         _currentInventoryPage.value = nextPage
                         _inventoryPagination.value = pagination
 
@@ -842,7 +1048,9 @@ class InventoryViewModel @Inject constructor(
                         _canLoadMoreInventoryItems.value = false
                     }
                 },
-                onFailure = { }
+                onFailure = { e ->
+                    _inventoryError.value = extractErrorMessage(e.message)
+                }
             )
             _isLoadingMoreInventoryItems.value = false
         }
@@ -852,13 +1060,7 @@ class InventoryViewModel @Inject constructor(
         fetchInventoryItems(page = 1, search = activeInventorySearch, status = activeInventoryStatus)
     }
 
-    fun clearInventoryError() {
-        _inventoryError.value = null
-    }
-
-    // =========================================================================
-    // INVENTORY VIEW ONE & ITEM DETAILS
-    // =========================================================================
+    fun clearInventoryError() { _inventoryError.value = null }
 
     fun onViewOneClicked(itemId: String) {
         _showViewOneSheet.value = true
@@ -869,11 +1071,10 @@ class InventoryViewModel @Inject constructor(
         launchBusy {
             _isLoadingViewOne.value = true
             _viewOneError.value = null
-
             val result = inventoryRepository.getInventoryViewOne(id)
             result.fold(
                 onSuccess = { item -> _viewOneItem.value = item },
-                onFailure = { e -> _viewOneError.value = e.message ?: "Failed to fetch item details" }
+                onFailure = { e -> _viewOneError.value = extractErrorMessage(e.message) }
             )
             _isLoadingViewOne.value = false
         }
@@ -899,11 +1100,10 @@ class InventoryViewModel @Inject constructor(
         launchBusy {
             _isLoadingItemDetail.value = true
             _itemDetailError.value = null
-
             val result = inventoryRepository.getInventoryItemById(id)
             result.fold(
                 onSuccess = { item -> _selectedItem.value = item },
-                onFailure = { e -> _itemDetailError.value = e.message ?: "Failed to fetch item details" }
+                onFailure = { e -> _itemDetailError.value = extractErrorMessage(e.message) }
             )
             _isLoadingItemDetail.value = false
         }
@@ -919,18 +1119,17 @@ class InventoryViewModel @Inject constructor(
         launchBusy {
             _isLoadingRecentItems.value = true
             _recentItemsError.value = null
-
             val result = inventoryRepository.getRecentInventoryItems(limit)
             result.fold(
                 onSuccess = { response -> _recentItems.value = response.data },
-                onFailure = { e -> _recentItemsError.value = e.message ?: "Failed to fetch recent items" }
+                onFailure = { e -> _recentItemsError.value = extractErrorMessage(e.message) }
             )
             _isLoadingRecentItems.value = false
         }
     }
 
     // =========================================================================
-    // STOCK ADJUSTMENT & TRANSFER ACTIONS
+    // 3. STOCK ADJUSTMENT ACTIONS (INFINITE SCROLL ENABLED)
     // =========================================================================
 
     fun fetchValidAdjustmentReasons() {
@@ -943,59 +1142,71 @@ class InventoryViewModel @Inject constructor(
 
     fun fetchStockAdjustments(
         reset: Boolean = true,
-        adjustmentType: String? = "transfer",
+        adjustmentType: String? = _selectedAdjustmentType.value,
         search: String? = null
     ) {
-        if (_isLoadingAdjustments.value) return
-
         viewModelScope.launch {
             _isLoadingAdjustments.value = true
             _adjustmentErrorMessage.value = null
             _selectedAdjustmentType.value = adjustmentType
+            activeAdjustmentSearch = search
 
-            if (reset) {
-                _currentAdjustmentPage.value = 1
-                _canLoadMoreAdjustments.value = true
-            }
+            val targetPage = 1
+            _currentAdjustmentPage.value = targetPage
+            _canLoadMoreAdjustments.value = true
 
             inventoryRepository.getStockAdjustments(
-                page = _currentAdjustmentPage.value,
-                limit = 10,
+                page = targetPage,
+                limit = DEFAULT_LIMIT,
                 adjustmentType = adjustmentType,
                 search = search
             ).fold(
                 onSuccess = { response ->
-                    _stockAdjustmentsList.value = if (reset) response.data else _stockAdjustmentsList.value + response.data
+                    _stockAdjustmentsList.value = response.data
                     _totalAdjustments.value = response.totalCount
-                    _canLoadMoreAdjustments.value = _currentAdjustmentPage.value < response.totalPagesCount
+                    _canLoadMoreAdjustments.value = targetPage < response.totalPagesCount
+                },
+                onFailure = { error ->
+                    _adjustmentErrorMessage.value = extractErrorMessage(error.message)
+                }
+            )
+            _isLoadingAdjustments.value = false
+        }
+    }
 
-                    if (_canLoadMoreAdjustments.value) {
-                        _currentAdjustmentPage.value += 1
+    fun loadMoreStockAdjustments() {
+        if (_isLoadingMoreAdjustments.value || _isLoadingAdjustments.value || !_canLoadMoreAdjustments.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreAdjustments.value = true
+            val nextPage = _currentAdjustmentPage.value + 1
+
+            inventoryRepository.getStockAdjustments(
+                page = nextPage,
+                limit = DEFAULT_LIMIT,
+                adjustmentType = _selectedAdjustmentType.value,
+                search = activeAdjustmentSearch
+            ).fold(
+                onSuccess = { response ->
+                    val newItems = response.data
+                    if (newItems.isNotEmpty()) {
+                        _stockAdjustmentsList.update { (it + newItems).distinct() }
+                        _currentAdjustmentPage.value = nextPage
+                        _totalAdjustments.value = response.totalCount
+                        _canLoadMoreAdjustments.value = nextPage < response.totalPagesCount
+                    } else {
+                        _canLoadMoreAdjustments.value = false
                     }
                 },
                 onFailure = { error ->
                     _adjustmentErrorMessage.value = extractErrorMessage(error.message)
                 }
             )
-
-            _isLoadingAdjustments.value = false
+            _isLoadingMoreAdjustments.value = false
         }
     }
 
-    fun loadMoreStockAdjustments(search: String? = null) {
-        if (_canLoadMoreAdjustments.value && !_isLoadingAdjustments.value) {
-            fetchStockAdjustments(
-                reset = false,
-                adjustmentType = _selectedAdjustmentType.value,
-                search = search
-            )
-        }
-    }
-
-    fun submitIncreaseStock(
-        request: IncreaseStockRequest,
-        onSuccess: (StockAdjustmentData) -> Unit = {}
-    ) {
+    fun submitIncreaseStock(request: IncreaseStockRequest, onSuccess: (StockAdjustmentData) -> Unit = {}) {
         viewModelScope.launch {
             _isSubmittingAdjustment.value = true
             _adjustmentErrorMessage.value = null
@@ -1015,10 +1226,7 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    fun submitDecreaseStock(
-        request: DecreaseStockRequest,
-        onSuccess: (StockAdjustmentData) -> Unit = {}
-    ) {
+    fun submitDecreaseStock(request: DecreaseStockRequest, onSuccess: (StockAdjustmentData) -> Unit = {}) {
         viewModelScope.launch {
             _isSubmittingAdjustment.value = true
             _adjustmentErrorMessage.value = null
@@ -1038,10 +1246,7 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    fun submitStockTransfer(
-        request: TransferStockRequest,
-        onSuccess: (StockAdjustmentData) -> Unit = {}
-    ) {
+    fun submitStockTransfer(request: TransferStockRequest, onSuccess: (StockAdjustmentData) -> Unit = {}) {
         viewModelScope.launch {
             _isSubmittingAdjustment.value = true
             _adjustmentErrorMessage.value = null
@@ -1091,7 +1296,6 @@ class InventoryViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoadingStockSummary.value = true
             _stockSummaryError.value = null
-
             val result = inventoryRepository.getStockSummaryList(page, limit, search)
             _isLoadingStockSummary.value = false
 
@@ -1103,9 +1307,31 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    fun clearStockSummaryAlerts() {
-        _stockSummaryError.value = null
+    fun loadMoreStockSummaryList(limit: Int = 20, search: String? = null) {
+        if (_isLoadingMoreStockSummary.value || _isLoadingStockSummary.value || !_canLoadMoreStockSummary.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreStockSummary.value = true
+            val nextPage = _currentStockSummaryPage.value + 1
+
+            val result = inventoryRepository.getStockSummaryList(page = nextPage, limit = limit, search = search)
+            result.onSuccess { response ->
+                val newItems = response.data
+                if (newItems.isNotEmpty()) {
+                    _stockSummaryList.update { (it + newItems).distinct() }
+                    _currentStockSummaryPage.value = nextPage
+                    _canLoadMoreStockSummary.value = newItems.size >= limit
+                } else {
+                    _canLoadMoreStockSummary.value = false
+                }
+            }.onFailure {
+                _isLoadingMoreStockSummary.value = false
+            }
+            _isLoadingMoreStockSummary.value = false
+        }
     }
+
+    fun clearStockSummaryAlerts() { _stockSummaryError.value = null }
 
     fun fetchStockAdjustmentById(id: String) {
         viewModelScope.launch {
@@ -1127,20 +1353,54 @@ class InventoryViewModel @Inject constructor(
     }
 
     // =========================================================================
-    // LOW STOCK ALERTS & PURCHASE ORDER ACTIONS
+    // 4. LOW STOCK ALERTS & PURCHASE ORDER ACTIONS
     // =========================================================================
 
-    fun fetchLowStockAlerts(warehouseId: String? = null) {
+    fun fetchLowStockAlerts(warehouseId: String? = null, limit: Int = 10) {
         launchBusy {
             _isLoadingLowStock.value = true
             _lowStockError.value = null
+            _currentLowStockPage.value = 1
+            _canLoadMoreLowStock.value = true
+            activeLowStockWarehouseId = warehouseId
+
             val result = inventoryRepository.getLowStockAlerts(warehouseId)
             _isLoadingLowStock.value = false
+
             result.onSuccess { list ->
                 _lowStockItems.value = list
+                _canLoadMoreLowStock.value = list.size >= limit
             }.onFailure { error ->
-                _lowStockError.value = error.message ?: "Failed to load low stock alerts"
+                _lowStockError.value = extractErrorMessage(error.message)
             }
+        }
+    }
+
+    fun loadMoreLowStockAlerts(limit: Int = 10) {
+        if (_isLoadingMoreLowStock.value || _isLoadingLowStock.value || !_canLoadMoreLowStock.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreLowStock.value = true
+            val nextPage = _currentLowStockPage.value + 1
+
+            val result = inventoryRepository.getLowStockAlerts(activeLowStockWarehouseId)
+            result.onSuccess { newItems ->
+                val currentList = _lowStockItems.value
+                val existingIds = currentList.map { it.itemId }.toSet()
+                val distinctNewItems = newItems.filter { it.itemId !in existingIds }
+
+                if (distinctNewItems.isNotEmpty()) {
+                    _lowStockItems.value = currentList + distinctNewItems
+                    _currentLowStockPage.value = nextPage
+                    _canLoadMoreLowStock.value = newItems.size >= limit
+                } else {
+                    _canLoadMoreLowStock.value = false
+                }
+            }.onFailure {
+                _canLoadMoreLowStock.value = false
+            }
+
+            _isLoadingMoreLowStock.value = false
         }
     }
 
@@ -1159,13 +1419,7 @@ class InventoryViewModel @Inject constructor(
             _isCreatingPO.value = true
             _createPOError.value = null
 
-            val poItem = CreatePoItemRequest(
-                itemId = itemId,
-                qty = qty,
-                rate = rate,
-                taxPercent = 18.0
-            )
-
+            val poItem = CreatePoItemRequest(itemId = itemId, qty = qty, rate = rate, taxPercent = 18.0)
             val request = CreatePurchaseOrderRequest(
                 supplierId = supplierId,
                 warehouseId = warehouseId,
@@ -1197,35 +1451,24 @@ class InventoryViewModel @Inject constructor(
             result.onSuccess { item ->
                 _reorderItemDetail.value = item
             }.onFailure { error ->
-                _reorderDetailError.value = error.message ?: "Failed to fetch reorder item"
+                _reorderDetailError.value = extractErrorMessage(error.message)
             }
         }
     }
 
-    fun setReorderItemDirectly(item: LowStockItemDto?) {
-        _reorderItemDetail.value = item
-    }
-
+    fun setReorderItemDirectly(item: LowStockItemDto?) { _reorderItemDetail.value = item }
     fun clearReorderItemDetail() {
         _reorderItemDetail.value = null
         _reorderDetailError.value = null
     }
 
     // =========================================================================
-    // CREATE / EDIT ITEM FORM ACTIONS
+    // 5. CREATE / EDIT ITEM FORM ACTIONS
     // =========================================================================
 
-    fun toggleSection(section: ItemSection) {
-        _expandedSection.value = section
-    }
-
-    fun updateCreateItemForm(transform: (CreateItemFormState) -> CreateItemFormState) {
-        _createItemForm.update(transform)
-    }
-
-    fun onImageSelected(uri: Uri) {
-        _createItemForm.update { it.copy(imageUri = uri) }
-    }
+    fun toggleSection(section: ItemSection) { _expandedSection.value = section }
+    fun updateCreateItemForm(transform: (CreateItemFormState) -> CreateItemFormState) { _createItemForm.update(transform) }
+    fun onImageSelected(uri: Uri) { _createItemForm.update { it.copy(imageUri = uri) } }
 
     fun resetCreateItemForm() {
         _createItemForm.value = CreateItemFormState()
@@ -1284,10 +1527,8 @@ class InventoryViewModel @Inject constructor(
 
     fun createInventoryItem(context: Context) {
         val form = _createItemForm.value
-
         viewModelScope.launch {
             _createItemUiState.value = CreateItemUiState.Loading
-
             val textMedia = "text/plain".toMediaTypeOrNull()
 
             val physicalAttributesJson = gson.toJson(
@@ -1300,10 +1541,9 @@ class InventoryViewModel @Inject constructor(
                     dimensionUnit = "cm"
                 )
             )
-
             val variantSelectionsJson = gson.toJson(form.variantSelections)
 
-            val params = mutableMapOf<String, RequestBody>(
+            val params = mutableMapOf(
                 "name" to form.name.toRequestBody(textMedia),
                 "sku" to form.sku.toRequestBody(textMedia),
                 "barcode" to form.barcode.toRequestBody(textMedia),
@@ -1323,15 +1563,9 @@ class InventoryViewModel @Inject constructor(
                 "variantSelections" to variantSelectionsJson.toRequestBody(textMedia)
             )
 
-            form.parentGroupId?.takeIf { it.isNotBlank() }?.let {
-                params["parentGroupId"] = it.toRequestBody(textMedia)
-            }
+            form.parentGroupId?.takeIf { it.isNotBlank() }?.let { params["parentGroupId"] = it.toRequestBody(textMedia) }
+            form.category.takeIf { it.isNotBlank() }?.let { params["categoryId"] = it.toRequestBody(textMedia) }
 
-            form.category.takeIf { it.isNotBlank() }?.let {
-                params["categoryId"] = it.toRequestBody(textMedia)
-            }
-
-            // Image part prepared with valid extension (.jpg, .png, etc.)
             val imagePart = inventoryRepository.prepareImagePart(context, form.imageUri)
             val result = inventoryRepository.createItem(params, imagePart)
 
@@ -1340,7 +1574,7 @@ class InventoryViewModel @Inject constructor(
                     _createItemUiState.value = CreateItemUiState.Success(response)
                 },
                 onFailure = { error ->
-                    _createItemUiState.value = CreateItemUiState.Error(error.localizedMessage ?: "Failed to create item")
+                    _createItemUiState.value = CreateItemUiState.Error(extractErrorMessage(error.message))
                 }
             )
         }
@@ -1365,7 +1599,7 @@ class InventoryViewModel @Inject constructor(
                 )
             )
 
-            val params = mutableMapOf<String, RequestBody>(
+            val params = mutableMapOf(
                 "name" to form.name.toRequestBody(textMedia),
                 "sku" to form.sku.toRequestBody(textMedia),
                 "barcode" to form.barcode.toRequestBody(textMedia),
@@ -1384,9 +1618,7 @@ class InventoryViewModel @Inject constructor(
                 "physicalAttributes" to physicalAttributesJson.toRequestBody(textMedia)
             )
 
-            form.category.takeIf { it.isNotBlank() }?.let {
-                params["categoryId"] = it.toRequestBody(textMedia)
-            }
+            form.category.takeIf { it.isNotBlank() }?.let { params["categoryId"] = it.toRequestBody(textMedia) }
 
             val imagePart = inventoryRepository.prepareImagePart(context, form.imageUri)
             val result = inventoryRepository.updateItem(itemId, params, imagePart)
@@ -1399,9 +1631,7 @@ class InventoryViewModel @Inject constructor(
                     refreshInventoryItems()
                 },
                 onFailure = { error ->
-                    _createItemUiState.value = CreateItemUiState.Error(
-                        error.localizedMessage ?: "Failed to update item"
-                    )
+                    _createItemUiState.value = CreateItemUiState.Error(extractErrorMessage(error.message))
                 }
             )
         }
@@ -1414,17 +1644,16 @@ class InventoryViewModel @Inject constructor(
             _isDeletingItem.value = false
 
             result.onSuccess {
-                // Remove item locally or trigger re-fetch
                 fetchInventoryItems()
                 onSuccess()
             }.onFailure { error ->
-                _inventoryError.value = error.message
+                _inventoryError.value = extractErrorMessage(error.message)
             }
         }
     }
 
     // =========================================================================
-    // WAREHOUSE MANAGEMENT ACTIONS
+    // 6. WAREHOUSE MANAGEMENT ACTIONS
     // =========================================================================
 
     fun loadWarehouses() {
@@ -1670,17 +1899,56 @@ class InventoryViewModel @Inject constructor(
     }
 
     // =========================================================================
-    // SUPPLIERS ACTIONS
+    // 7. SUPPLIERS ACTIONS (INFINITE SCROLL ENABLED)
     // =========================================================================
 
-    fun fetchSuppliers(page: Int = 1, limit: Int = 50, search: String? = null) {
+    fun fetchSuppliers(
+        page: Int = 1,
+        limit: Int = SUPPLIER_PAGE_SIZE,
+        search: String? = null,
+        status: String? = null
+    ) {
         viewModelScope.launch {
             _isLoadingSuppliers.value = true
             _suppliersError.value = null
-            inventoryRepository.getAllSuppliers(page, limit, search)
-                .onSuccess { list -> _suppliers.value = list }
-                .onFailure { error -> _suppliersError.value = extractErrorMessage(error.message) }
+            _currentSupplierPage.value = page
+            _canLoadMoreSuppliers.value = true
+            activeSupplierSearch = search
+            activeSupplierStatus = status
+
+            inventoryRepository.getAllSuppliers(page, limit, search, status)
+                .onSuccess { list ->
+                    _suppliers.value = list
+                    _canLoadMoreSuppliers.value = list.size >= limit
+                }
+                .onFailure { error ->
+                    _suppliersError.value = extractErrorMessage(error.message)
+                }
             _isLoadingSuppliers.value = false
+        }
+    }
+
+    fun loadMoreSuppliers(limit: Int = SUPPLIER_PAGE_SIZE) {
+        if (_isLoadingMoreSuppliers.value || _isLoadingSuppliers.value || !_canLoadMoreSuppliers.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreSuppliers.value = true
+            val nextPage = _currentSupplierPage.value + 1
+
+            inventoryRepository.getAllSuppliers(nextPage, limit, activeSupplierSearch, activeSupplierStatus)
+                .onSuccess { newSuppliers ->
+                    if (newSuppliers.isNotEmpty()) {
+                        _suppliers.update { (it + newSuppliers).distinct() }
+                        _currentSupplierPage.value = nextPage
+                        _canLoadMoreSuppliers.value = newSuppliers.size >= limit
+                    } else {
+                        _canLoadMoreSuppliers.value = false
+                    }
+                }
+                .onFailure { error ->
+                    _suppliersError.value = extractErrorMessage(error.message)
+                }
+            _isLoadingMoreSuppliers.value = false
         }
     }
 
@@ -1787,53 +2055,7 @@ class InventoryViewModel @Inject constructor(
     }
 
     // =========================================================================
-    // PRIVATE UTILITY FUNCTIONS
-    // =========================================================================
-
-    fun generateSkuFromName(name: String): String {
-        if (name.isBlank()) return ""
-        // Clean string: splits by spaces, hyphens, slashes and commas
-        val tokens = name.split(Regex("[\\s\\-/]+")).filter { it.isNotBlank() }
-
-        return when {
-            tokens.isEmpty() -> ""
-            // Single word: Take up to first 3-4 chars in uppercase (e.g. "Rajasthani" -> "RAJ")
-            tokens.size == 1 -> tokens[0].take(3).uppercase()
-            // Multiple words: First word 3-char prefix + subsequent words/variants (e.g., "Rajasthani Silk Shirt - Gray / XL" -> "RAJ-GRAY-XL")
-            else -> {
-                val prefix = tokens[0].take(3).uppercase()
-                val remaining = tokens.drop(1)
-                    // Filter common connecting words if any
-                    .filterNot { it.equals("and", ignoreCase = true) || it.equals("of", ignoreCase = true) }
-                    .take(3)
-                    .map { it.uppercase() }
-                (listOf(prefix) + remaining).joinToString("-")
-            }
-        }
-    }
-
-    private fun extractErrorMessage(raw: String?): String {
-        if (raw.isNullOrBlank()) return "An unexpected error occurred"
-        val trimmed = raw.trim()
-        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-            try {
-                val json = JsonParser.parseString(trimmed)
-                if (json.isJsonObject) {
-                    val obj = json.asJsonObject
-                    if (obj.has("message") && !obj.get("message").isJsonNull) {
-                        return obj.get("message").asString
-                    }
-                    if (obj.has("error") && !obj.get("error").isJsonNull) {
-                        return obj.get("error").asString
-                    }
-                }
-            } catch (_: Exception) { }
-        }
-        return trimmed
-    }
-
-    // =========================================================================
-    // BULK ITEMS
+    // 8. BULK ITEMS
     // =========================================================================
 
     fun clearMessages() {
@@ -1841,14 +2063,51 @@ class InventoryViewModel @Inject constructor(
         _successMessage.value = null
     }
 
-    fun fetchBulkItems() {
+    fun fetchBulkItems(page: Int = 1, limit: Int = 10, search: String? = null) {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
-            inventoryRepository.getBulkItems()
-                .onSuccess { _bulkItems.value = it }
-                .onFailure { _errorMessage.value = it.message ?: "Failed to load bulk items" }
+            _currentBulkPage.value = page
+            _canLoadMoreBulk.value = true
+            activeBulkSearch = search
+
+            inventoryRepository.getBulkItems(page = page, limit = limit, search = search)
+                .onSuccess { list ->
+                    _bulkItems.value = list
+                    _canLoadMoreBulk.value = list.size >= limit
+                }
+                .onFailure {
+                    _errorMessage.value = extractErrorMessage(it.message)
+                }
             _isLoading.value = false
+        }
+    }
+
+    fun loadMoreBulkItems(limit: Int = 10) {
+        if (_isLoadingMoreBulk.value || _isLoading.value || !_canLoadMoreBulk.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreBulk.value = true
+            val nextPage = _currentBulkPage.value + 1
+
+            inventoryRepository.getBulkItems(page = nextPage, limit = limit, search = activeBulkSearch)
+                .onSuccess { newItems ->
+                    val currentList = _bulkItems.value
+                    val existingIds = currentList.map { it.id }.toSet()
+                    val distinctNewItems = newItems.filter { it.id !in existingIds }
+
+                    if (distinctNewItems.isNotEmpty()) {
+                        _bulkItems.value = currentList + distinctNewItems
+                        _currentBulkPage.value = nextPage
+                        _canLoadMoreBulk.value = newItems.size >= limit
+                    } else {
+                        _canLoadMoreBulk.value = false
+                    }
+                }
+                .onFailure {
+                    _canLoadMoreBulk.value = false
+                }
+            _isLoadingMoreBulk.value = false
         }
     }
 
@@ -1858,7 +2117,7 @@ class InventoryViewModel @Inject constructor(
             _errorMessage.value = null
             inventoryRepository.getBulkItemById(id)
                 .onSuccess { _selectedBulkItem.value = it }
-                .onFailure { _errorMessage.value = it.message ?: "Failed to load details" }
+                .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
             _isLoading.value = false
         }
     }
@@ -1894,7 +2153,7 @@ class InventoryViewModel @Inject constructor(
                 fetchBulkItems()
                 onSuccess()
             }.onFailure {
-                _errorMessage.value = it.message ?: "Failed to create item"
+                _errorMessage.value = extractErrorMessage(it.message)
             }
             _isLoading.value = false
         }
@@ -1932,7 +2191,7 @@ class InventoryViewModel @Inject constructor(
                 fetchBulkItems()
                 onSuccess()
             }.onFailure {
-                _errorMessage.value = it.message ?: "Failed to update item"
+                _errorMessage.value = extractErrorMessage(it.message)
             }
             _isLoading.value = false
         }
@@ -1947,7 +2206,7 @@ class InventoryViewModel @Inject constructor(
                     fetchBulkItems()
                     onSuccess()
                 }
-                .onFailure { _errorMessage.value = it.message ?: "Failed to delete" }
+                .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
             _isLoading.value = false
         }
     }
@@ -1962,27 +2221,62 @@ class InventoryViewModel @Inject constructor(
                     fetchBulkItems()
                     onSuccess()
                 }
-                .onFailure { _errorMessage.value = it.message ?: "Failed to adjust stock" }
+                .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
             _isLoading.value = false
         }
     }
 
     // =========================================================================
-    // PURCHASE ORDER
+    // 9. PURCHASE ORDERS (INFINITE SCROLL ENABLED)
     // =========================================================================
 
-    // ── Actions ──
-
-    fun fetchAllPurchaseOrders(search: String? = null, status: String? = null) {
+    fun fetchAllPurchaseOrders(
+        search: String? = null,
+        status: String? = null
+    ) {
         viewModelScope.launch {
             _isLoadingPurchaseOrders.value = true
             _purchaseOrdersError.value = null
+            _currentPOPage.value = 1
+            _canLoadMorePurchaseOrders.value = true
+            activePOSearch = search
+            activePOStatus = status
 
-            inventoryRepository.getAllPurchaseOrders(search = search, status = status)
-                .onSuccess { list -> _purchaseOrdersList.value = list }
-                .onFailure { error -> _purchaseOrdersError.value = extractErrorMessage(error.message) }
+            inventoryRepository.getAllPurchaseOrders(page = 1, limit = PO_PAGE_SIZE, search = search, status = status)
+                .onSuccess { list ->
+                    _purchaseOrdersList.value = list
+                    _canLoadMorePurchaseOrders.value = list.size >= PO_PAGE_SIZE
+                }
+                .onFailure { error ->
+                    _purchaseOrdersError.value = extractErrorMessage(error.message)
+                }
 
             _isLoadingPurchaseOrders.value = false
+        }
+    }
+
+    fun loadMorePurchaseOrders() {
+        if (_isLoadingMorePurchaseOrders.value || _isLoadingPurchaseOrders.value || !_canLoadMorePurchaseOrders.value) return
+
+        viewModelScope.launch {
+            _isLoadingMorePurchaseOrders.value = true
+            val nextPage = _currentPOPage.value + 1
+
+            inventoryRepository.getAllPurchaseOrders(page = nextPage, limit = PO_PAGE_SIZE, search = activePOSearch, status = activePOStatus)
+                .onSuccess { newOrders ->
+                    if (newOrders.isNotEmpty()) {
+                        _purchaseOrdersList.update { (it + newOrders).distinct() }
+                        _currentPOPage.value = nextPage
+                        _canLoadMorePurchaseOrders.value = newOrders.size >= PO_PAGE_SIZE
+                    } else {
+                        _canLoadMorePurchaseOrders.value = false
+                    }
+                }
+                .onFailure { error ->
+                    _purchaseOrdersError.value = extractErrorMessage(error.message)
+                }
+
+            _isLoadingMorePurchaseOrders.value = false
         }
     }
 
@@ -2058,21 +2352,28 @@ class InventoryViewModel @Inject constructor(
         _purchaseOrdersError.value = null
     }
 
-    fun clearBillConvertDetail() {
-        _billConvertDetail.value = null
-    }
+    fun clearBillConvertDetail() { _billConvertDetail.value = null }
 
     // =========================================================================
-    // REQUISITION
+    // 10. REQUISITION ACTIONS (INFINITE SCROLL ENABLED)
     // =========================================================================
-    fun fetchAllRequisitions(search: String? = null, status: String? = null) {
+
+    fun fetchAllRequisitions(
+        search: String? = null,
+        status: String? = null
+    ) {
         viewModelScope.launch {
             _isLoadingRequisitions.value = true
             _requisitionErrorMessage.value = null
+            _currentRequisitionPage.value = 1
+            _canLoadMoreRequisitions.value = true
+            activeReqSearch = search
+            activeReqStatus = status
 
-            inventoryRepository.getAllRequisitions(search = search, status = status)
+            inventoryRepository.getAllRequisitions(page = 1, limit = REQ_PAGE_SIZE, search = search, status = status)
                 .onSuccess { list ->
                     _requisitionsList.value = list
+                    _canLoadMoreRequisitions.value = list.size >= REQ_PAGE_SIZE
                 }
                 .onFailure { error ->
                     _requisitionErrorMessage.value = extractErrorMessage(error.message)
@@ -2081,6 +2382,32 @@ class InventoryViewModel @Inject constructor(
             _isLoadingRequisitions.value = false
         }
     }
+
+    fun loadMoreRequisitions() {
+        if (_isLoadingMoreRequisitions.value || _isLoadingRequisitions.value || !_canLoadMoreRequisitions.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreRequisitions.value = true
+            val nextPage = _currentRequisitionPage.value + 1
+
+            inventoryRepository.getAllRequisitions(page = nextPage, limit = REQ_PAGE_SIZE, search = activeReqSearch, status = activeReqStatus)
+                .onSuccess { newRequisitions ->
+                    if (newRequisitions.isNotEmpty()) {
+                        _requisitionsList.update { (it + newRequisitions).distinct() }
+                        _currentRequisitionPage.value = nextPage
+                        _canLoadMoreRequisitions.value = newRequisitions.size >= REQ_PAGE_SIZE
+                    } else {
+                        _canLoadMoreRequisitions.value = false
+                    }
+                }
+                .onFailure { error ->
+                    _requisitionErrorMessage.value = extractErrorMessage(error.message)
+                }
+
+            _isLoadingMoreRequisitions.value = false
+        }
+    }
+
     fun fetchRequisitionById(id: String, onLoaded: (PurchaseRequisition) -> Unit = {}) {
         viewModelScope.launch {
             _isLoadingRequisitions.value = true
@@ -2098,37 +2425,6 @@ class InventoryViewModel @Inject constructor(
             _isLoadingRequisitions.value = false
         }
     }
-
-    // Add or replace this function in your InventoryViewModel.kt
-
-//    fun addRequisitionComment(requisitionId: String, commentText: String) {
-//        if (commentText.isBlank()) return // Do not send empty comments
-//
-//        viewModelScope.launch {
-//            try {
-//                // Call the repository function
-//                val response = inventoryRepository.addRequisitionComment(requisitionId, commentText)
-//
-//                if (response.isSuccessful && response.body()?.success == true) {
-//                    val updatedRequisition = response.body()?.data
-//                    if (updatedRequisition != null) {
-//                        // [OPTIMIZATION]
-//                        // The API returns the full updated object.
-//                        // So, we can directly update the state without making another fetch call.
-//                        _selectedRequisition.value = updatedRequisition
-//                        _requisitionSuccessMessage.value = "Comment added successfully!"
-//                    } else {
-//                        // If data is null, re-fetch as a fallback
-//                        fetchRequisitionById(requisitionId)
-//                    }
-//                } else {
-//                    _requisitionErrorMessage.value = "Failed to add comment. Please try again."
-//                }
-//            } catch (e: Exception) {
-//                _requisitionErrorMessage.value = "An error occurred: ${e.message}"
-//            }
-//        }
-//    }
 
     fun createRequisition(
         request: CreateRequisitionRequest,
@@ -2184,21 +2480,60 @@ class InventoryViewModel @Inject constructor(
         _requisitionErrorMessage.value = null
     }
 
-    // =============================================================================
-    // BARCODE ACTIONS
+    private val _isSubmittingComment = MutableStateFlow(false)
+    val isSubmittingComment: StateFlow<Boolean> = _isSubmittingComment.asStateFlow()
+
+    fun addRequisitionComment(
+        requisitionId: String,
+        commentText: String,
+        onSuccess: () -> Unit = {}
+    ) {
+        if (commentText.isBlank()) return
+
+        viewModelScope.launch {
+            _isSubmittingComment.value = true
+            _requisitionErrorMessage.value = null
+            _requisitionSuccessMessage.value = null
+
+            val result = inventoryRepository.addRequisitionComment(
+                requisitionId = requisitionId,
+                commentText = commentText.trim()
+            )
+
+            result.onSuccess { updatedRequisition ->
+                _selectedRequisition.value = updatedRequisition
+                _requisitionSuccessMessage.value = "Comment added successfully"
+                onSuccess()
+            }.onFailure { error ->
+                _requisitionErrorMessage.value = extractErrorMessage(error.message)
+            }
+
+            _isSubmittingComment.value = false
+        }
+    }
+
+    // =========================================================================
+    // 11. BARCODE ACTIONS
     // =========================================================================
 
-    /**
-     * Fetch all barcodes with optional search query and active/inactive status filter.
-     */
-    fun fetchAllBarcodes(search: String? = null, status: String? = null) {
+    fun fetchAllBarcodes(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ) {
         viewModelScope.launch {
             _isLoadingBarcodes.value = true
             _barcodeErrorMessage.value = null
+            _currentBarcodePage.value = page
+            _canLoadMoreBarcodes.value = true
+            activeBarcodeSearch = search
+            activeBarcodeStatus = status
 
             inventoryRepository.getAllBarcodes(search = search, status = status)
                 .onSuccess { list ->
                     _barcodesList.value = list
+                    _canLoadMoreBarcodes.value = list.size >= limit
                 }
                 .onFailure { error ->
                     _barcodeErrorMessage.value = extractErrorMessage(error.message)
@@ -2208,9 +2543,35 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Fetch single barcode details (View One) along with print logs.
-     */
+    fun loadMoreBarcodes(limit: Int = 10) {
+        if (_isLoadingMoreBarcodes.value || _isLoadingBarcodes.value || !_canLoadMoreBarcodes.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreBarcodes.value = true
+            val nextPage = _currentBarcodePage.value + 1
+
+            inventoryRepository.getAllBarcodes(search = activeBarcodeSearch, status = activeBarcodeStatus)
+                .onSuccess { newItems ->
+                    val currentList = _barcodesList.value
+                    val existingIds = currentList.map { it.id }.toSet()
+                    val distinctNewItems = newItems.filter { it.id !in existingIds }
+
+                    if (distinctNewItems.isNotEmpty()) {
+                        _barcodesList.value = currentList + distinctNewItems
+                        _currentBarcodePage.value = nextPage
+                        _canLoadMoreBarcodes.value = newItems.size >= limit
+                    } else {
+                        _canLoadMoreBarcodes.value = false
+                    }
+                }
+                .onFailure {
+                    _canLoadMoreBarcodes.value = false
+                }
+
+            _isLoadingMoreBarcodes.value = false
+        }
+    }
+
     fun fetchBarcodeViewOne(id: String, onLoaded: (BarcodeItemDoc) -> Unit = {}) {
         viewModelScope.launch {
             _isLoadingBarcodes.value = true
@@ -2221,17 +2582,12 @@ class InventoryViewModel @Inject constructor(
                     _selectedBarcode.value = doc
                     onLoaded(doc)
                 }
-                .onFailure { error ->
-                    _barcodeErrorMessage.value = extractErrorMessage(error.message)
-                }
+                .onFailure { error -> _barcodeErrorMessage.value = extractErrorMessage(error.message) }
 
             _isLoadingBarcodes.value = false
         }
     }
 
-    /**
-     * Generate a new barcode.
-     */
     fun generateBarcode(
         request: GenerateBarcodeRequest,
         onSuccess: (BarcodeItemDoc) -> Unit = {}
@@ -2247,17 +2603,12 @@ class InventoryViewModel @Inject constructor(
                     fetchAllBarcodes()
                     onSuccess(createdDoc)
                 }
-                .onFailure { error ->
-                    _barcodeErrorMessage.value = extractErrorMessage(error.message)
-                }
+                .onFailure { error -> _barcodeErrorMessage.value = extractErrorMessage(error.message) }
 
             _isSubmittingBarcode.value = false
         }
     }
 
-    /**
-     * Toggle Active / Inactive status of a barcode.
-     */
     fun toggleBarcodeStatus(id: String, onSuccess: (BarcodeItemDoc) -> Unit = {}) {
         viewModelScope.launch {
             _isSubmittingBarcode.value = true
@@ -2269,17 +2620,12 @@ class InventoryViewModel @Inject constructor(
                     fetchAllBarcodes()
                     onSuccess(updatedDoc)
                 }
-                .onFailure { error ->
-                    _barcodeErrorMessage.value = extractErrorMessage(error.message)
-                }
+                .onFailure { error -> _barcodeErrorMessage.value = extractErrorMessage(error.message) }
 
             _isSubmittingBarcode.value = false
         }
     }
 
-    /**
-     * Delete a barcode.
-     */
     fun deleteBarcode(id: String, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             _isSubmittingBarcode.value = true
@@ -2291,48 +2637,82 @@ class InventoryViewModel @Inject constructor(
                     fetchAllBarcodes()
                     onSuccess()
                 }
-                .onFailure { error ->
-                    _barcodeErrorMessage.value = extractErrorMessage(error.message)
-                }
+                .onFailure { error -> _barcodeErrorMessage.value = extractErrorMessage(error.message) }
 
             _isSubmittingBarcode.value = false
         }
     }
 
-    /**
-     * Clear Barcode alerts and selection.
-     */
     fun clearBarcodeAlerts() {
         _barcodeSuccessMessage.value = null
         _barcodeErrorMessage.value = null
     }
 
-    fun clearSelectedBarcode() {
-        _selectedBarcode.value = null
-    }
+    fun clearSelectedBarcode() { _selectedBarcode.value = null }
 
-    // =============================================================================
-    //  PURCHASE RECEIVE
-    // =============================================================================
+    // =========================================================================
+    // 12. PURCHASE RECEIVE ACTIONS (SINGLE DEFINITIONS)
+    // =========================================================================
 
     fun fetchAllReceives(search: String? = null) {
         viewModelScope.launch {
-            _isLoading.value = true
+            _isLoadingReceives.value = true
             _errorMessage.value = null
-            inventoryRepository.getAllReceives(search = search)
-                .onSuccess { _allReceives.value = it }
-                .onFailure { _errorMessage.value = it.localizedMessage ?: "Error loading receives" }
-            _isLoading.value = false
+            _currentReceivesPage.value = 1
+            _canLoadMoreReceives.value = true
+            activeReceivesSearch = search
+
+            inventoryRepository.getAllReceives(page = 1, limit = RECEIVE_PAGE_SIZE, search = search)
+                .onSuccess { list ->
+                    _allReceives.value = list
+                    _canLoadMoreReceives.value = list.size >= RECEIVE_PAGE_SIZE
+                }
+                .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
+
+            _isLoadingReceives.value = false
         }
     }
 
+    fun loadMoreReceives() {
+        if (_isLoadingMoreReceives.value || _isLoadingReceives.value || !_canLoadMoreReceives.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreReceives.value = true
+            val nextPage = _currentReceivesPage.value + 1
+
+            inventoryRepository.getAllReceives(page = nextPage, limit = RECEIVE_PAGE_SIZE, search = activeReceivesSearch)
+                .onSuccess { newReceives ->
+                    if (newReceives.isNotEmpty()) {
+                        _allReceives.update { (it + newReceives).distinct() }
+                        _currentReceivesPage.value = nextPage
+                        _canLoadMoreReceives.value = newReceives.size >= RECEIVE_PAGE_SIZE
+                    } else {
+                        _canLoadMoreReceives.value = false
+                    }
+                }
+                .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
+
+            _isLoadingMoreReceives.value = false
+        }
+    }
+
+    /**
+     * Loads the complete receive history and line-item fulfillment for a given Purchase Order ID.
+     */
     fun fetchReceiveHistoryByPo(poId: String) {
+        if (poId.isBlank()) return
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
+
             inventoryRepository.getReceiveHistoryByPo(poId)
-                .onSuccess { _poHistory.value = it }
-                .onFailure { _errorMessage.value = it.localizedMessage ?: "Error loading PO history" }
+                .onSuccess { historyResponse ->
+                    _poHistory.value = historyResponse
+                }
+                .onFailure { error ->
+                    _errorMessage.value = extractErrorMessage(error.message)
+                }
+
             _isLoading.value = false
         }
     }
@@ -2343,7 +2723,7 @@ class InventoryViewModel @Inject constructor(
             _errorMessage.value = null
             inventoryRepository.getSingleReceive(id)
                 .onSuccess { _singleReceive.value = it }
-                .onFailure { _errorMessage.value = it.localizedMessage ?: "Error loading receive" }
+                .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
             _isLoading.value = false
         }
     }
@@ -2357,12 +2737,294 @@ class InventoryViewModel @Inject constructor(
                     _generatedBill.value = billData
                     onSuccess(billData)
                 }
-                .onFailure { _errorMessage.value = it.localizedMessage ?: "Error converting to bill" }
+                .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
             _isLoading.value = false
         }
     }
 
-    fun clearErrors() {
-        _errorMessage.value = null
+    // ── Purchase Order Receive Summaries ──
+
+    fun fetchPurchaseOrderSummary(page: Int = 1, limit: Int = 10, search: String? = null) {
+        viewModelScope.launch {
+            _isLoadingPoSummary.value = true
+            _poSummaryError.value = null
+            _currentPoSummaryPage.value = page
+            _canLoadMorePoSummary.value = true
+            activePoSummarySearch = search
+
+            inventoryRepository.getPurchaseOrderSummary(page, limit, search)
+                .onSuccess { response ->
+                    _poSummaryList.value = response.data
+                    val totalPages = response.pagination?.totalPages ?: 1
+                    _canLoadMorePoSummary.value = page < totalPages && response.data.isNotEmpty()
+                }
+                .onFailure { error ->
+                    _poSummaryError.value = extractErrorMessage(error.message)
+                }
+
+            _isLoadingPoSummary.value = false
+        }
+    }
+
+    fun loadMorePurchaseOrderSummary(limit: Int = 10) {
+        if (_isLoadingMorePoSummary.value || _isLoadingPoSummary.value || !_canLoadMorePoSummary.value) return
+
+        viewModelScope.launch {
+            _isLoadingMorePoSummary.value = true
+            val nextPage = _currentPoSummaryPage.value + 1
+
+            inventoryRepository.getPurchaseOrderSummary(nextPage, limit, activePoSummarySearch)
+                .onSuccess { response ->
+                    val newItems = response.data
+                    if (newItems.isNotEmpty()) {
+                        _poSummaryList.update { (it + newItems).distinctBy { item -> item.poId } }
+                        _currentPoSummaryPage.value = nextPage
+                        val totalPages = response.pagination?.totalPages ?: nextPage
+                        _canLoadMorePoSummary.value = nextPage < totalPages
+                    } else {
+                        _canLoadMorePoSummary.value = false
+                    }
+                }
+                .onFailure {
+                    _canLoadMorePoSummary.value = false
+                }
+
+            _isLoadingMorePoSummary.value = false
+        }
+    }
+
+    fun clearErrors() { _errorMessage.value = null }
+
+    // =========================================================================
+    // PRIVATE UTILITY FUNCTIONS
+    // =========================================================================
+
+    fun generateSkuFromName(name: String): String {
+        if (name.isBlank()) return ""
+        val tokens = name.split(Regex("[\\s\\-/]+")).filter { it.isNotBlank() }
+
+        return when {
+            tokens.isEmpty() -> ""
+            tokens.size == 1 -> tokens[0].take(3).uppercase()
+            else -> {
+                val prefix = tokens[0].take(3).uppercase()
+                val remaining = tokens.drop(1)
+                    .filterNot { it.equals("and", ignoreCase = true) || it.equals("of", ignoreCase = true) }
+                    .take(3)
+                    .map { it.uppercase() }
+                (listOf(prefix) + remaining).joinToString("-")
+            }
+        }
+    }
+
+    private fun extractErrorMessage(raw: String?): String {
+        if (raw.isNullOrBlank()) return "An unexpected error occurred"
+        val trimmed = raw.trim()
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            try {
+                val json = JsonParser.parseString(trimmed)
+                if (json.isJsonObject) {
+                    val obj = json.asJsonObject
+                    if (obj.has("message") && !obj.get("message").isJsonNull) {
+                        return obj.get("message").asString
+                    }
+                    if (obj.has("error") && !obj.get("error").isJsonNull) {
+                        return obj.get("error").asString
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+        return trimmed
+    }
+
+    // =============================================================================
+    // LOCATION MANAGEMENT
+    // =============================================================================
+
+    private val _selectedStockLocationItem = MutableStateFlow<StockLocationItemDto?>(null)
+    val selectedStockLocationItem: StateFlow<StockLocationItemDto?> = _selectedStockLocationItem.asStateFlow()
+
+    fun setSelectedStockLocationItem(item: StockLocationItemDto?) {
+        _selectedStockLocationItem.value = item
+    }
+
+    fun fetchStockLocationItems(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingStockLocations.value = true
+            _stockLocationError.value = null
+            _currentStockLocationPage.value = page
+            _canLoadMoreStockLocations.value = true
+            activeStockLocationSearch = search
+            activeStockLocationStatus = status
+
+            val result = inventoryRepository.getStockLocationItems(
+                page = page,
+                limit = limit,
+                search = search,
+                status = status
+            )
+
+            result.onSuccess { response ->
+                _stockLocationItems.value = response.data
+                _stockLocationTotal.value = response.total
+                _canLoadMoreStockLocations.value = page < response.totalPages
+            }.onFailure { error ->
+                _stockLocationError.value = extractErrorMessage(error.message)
+            }
+
+            _isLoadingStockLocations.value = false
+        }
+    }
+
+    fun loadMoreStockLocationItems(limit: Int = 10) {
+        if (_isLoadingMoreStockLocations.value || _isLoadingStockLocations.value || !_canLoadMoreStockLocations.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreStockLocations.value = true
+            val nextPage = _currentStockLocationPage.value + 1
+
+            val result = inventoryRepository.getStockLocationItems(
+                page = nextPage,
+                limit = limit,
+                search = activeStockLocationSearch,
+                status = activeStockLocationStatus
+            )
+
+            result.onSuccess { response ->
+                val newItems = response.data
+                if (newItems.isNotEmpty()) {
+                    _stockLocationItems.update { (it + newItems).distinctBy { item -> item.id } }
+                    _currentStockLocationPage.value = nextPage
+                    _canLoadMoreStockLocations.value = nextPage < response.totalPages
+                } else {
+                    _canLoadMoreStockLocations.value = false
+                }
+            }.onFailure {
+                _canLoadMoreStockLocations.value = false
+            }
+
+            _isLoadingMoreStockLocations.value = false
+        }
+    }
+
+    fun onStockLocationSearchQueryChanged(newQuery: String) {
+        stockLocationSearchJob?.cancel()
+        stockLocationSearchJob = viewModelScope.launch {
+            delay(400)
+            fetchStockLocationItems(
+                page = 1,
+                search = newQuery.takeIf { it.isNotBlank() },
+                status = activeStockLocationStatus
+            )
+        }
+    }
+
+    fun fetchStockLocationViewOne(id: String) {
+        viewModelScope.launch {
+            _isLoadingStockLocationDetail.value = true
+            _stockLocationDetailError.value = null
+
+            val result = inventoryRepository.getStockLocationViewOne(id)
+            result.onSuccess { data ->
+                _selectedStockLocationDetail.value = data
+            }.onFailure { error ->
+                _stockLocationDetailError.value = extractErrorMessage(error.message)
+            }
+            _isLoadingStockLocationDetail.value = false
+        }
+    }
+
+    fun clearSelectedStockLocationDetail() {
+        _selectedStockLocationDetail.value = null
+        _stockLocationDetailError.value = null
+    }
+
+    fun loadFloorDropdown(warehouseId: String) {
+        if (warehouseId.isBlank()) return
+        viewModelScope.launch {
+            _floorDropdown.value = emptyList()
+            _sectionDropdown.value = emptyList()
+            _rackDropdown.value = emptyList()
+            _binDropdown.value = emptyList()
+
+            inventoryRepository.getFloorDropdown(warehouseId).onSuccess { list ->
+                _floorDropdown.value = list
+            }
+        }
+    }
+
+    fun loadSectionDropdown(floorId: String) {
+        if (floorId.isBlank()) return
+        viewModelScope.launch {
+            _sectionDropdown.value = emptyList()
+            _rackDropdown.value = emptyList()
+            _binDropdown.value = emptyList()
+
+            inventoryRepository.getSectionDropdown(floorId).onSuccess { list ->
+                _sectionDropdown.value = list
+            }
+        }
+    }
+
+    fun loadRackDropdown(sectionId: String) {
+        if (sectionId.isBlank()) return
+        viewModelScope.launch {
+            _rackDropdown.value = emptyList()
+            _binDropdown.value = emptyList()
+
+            inventoryRepository.getRackDropdown(sectionId).onSuccess { list ->
+                _rackDropdown.value = list
+            }
+        }
+    }
+
+    fun loadBinDropdown(rackId: String) {
+        if (rackId.isBlank()) return
+        viewModelScope.launch {
+            _binDropdown.value = emptyList()
+
+            inventoryRepository.getBinDropdown(rackId).onSuccess { list ->
+                _binDropdown.value = list
+            }
+        }
+    }
+
+    fun clearHierarchyDropdowns() {
+        _floorDropdown.value = emptyList()
+        _sectionDropdown.value = emptyList()
+        _rackDropdown.value = emptyList()
+        _binDropdown.value = emptyList()
+    }
+
+    fun assignStockLocation(
+        request: AssignStockLocationRequest,
+        onSuccess: (StockLocationAssignmentData) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingStockLocation.value = true
+            _stockLocationActionError.value = null
+            _stockLocationActionSuccess.value = null
+
+            val result = inventoryRepository.assignStockLocation(request)
+            _isSubmittingStockLocation.value = false
+
+            result.onSuccess { data ->
+                _stockLocationActionSuccess.value = "Stock assigned to location successfully"
+                fetchStockLocationItems(page = 1)
+                onSuccess(data)
+            }.onFailure { error ->
+                _stockLocationActionError.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    fun clearStockLocationActionAlerts() {
+        _stockLocationActionSuccess.value = null
+        _stockLocationActionError.value = null
     }
 }

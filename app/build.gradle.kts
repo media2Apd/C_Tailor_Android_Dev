@@ -14,7 +14,7 @@ plugins {
 }
 
 android {
-    namespace = "com.cuso.mobile"
+    namespace = "com.cuso.tailor"
 
     compileSdk = 37
 
@@ -30,9 +30,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.cuso.mobile"
+        applicationId = "com.cuso.tailor"
         minSdk = 25
-        //no inspection OldTargetApi
+        //noinspection OldTargetApi
         targetSdk = 36
 
         //VERSION
@@ -46,7 +46,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.13:5000/\""
+                "\"http://192.168.88.12:5000/\""
             )
         }
         release {

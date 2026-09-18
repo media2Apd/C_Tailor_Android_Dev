@@ -1,0 +1,491 @@
+@file:Suppress(
+    "UNUSED_PARAMETER",
+    "unused",
+    "UNCHECKED_CAST",
+    "DEPRECATION",
+    "AssignedValueIsNeverRead",
+    "GrazieInspection",
+    "SpellCheckingInspection",
+    "unusedvariable",
+    "SameParameterValue"
+)
+
+package com.cuso.tailor.view.home.services.feedback
+
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.view.composable.TitleBar
+
+// ── Design tokens (colors only — sizing now comes from AppDesignTokens) ──
+private val AccentColor = Color(0xFF4F39F6)
+private val TitleColor = Color(0xFF111827)
+private val LabelColor = Color(0xFF6B7280)
+private val MutedColor = Color(0xFF9CA3AF)
+private val BorderColor = Color(0xFFE3E4E8)
+private val SectionBg = Color(0xFFF7F7FA)
+private val StarColor = Color(0xFFF59E0B)
+private val LinkColor = Color(0xFF4F39F6)
+private val SuccessColor = Color(0xFF16A34A)
+private val CommentBg = Color(0xFFF7F7FA)
+
+// ── Static data model (matches screenshot fields) ──
+private data class FeedbackTimelineEntryStatic(
+    val title: String,
+    val description: String,
+    val timestamp: String,
+    val isCompleted: Boolean
+)
+
+@Composable
+fun FeedbackDetailScreen(
+    onDismiss: () -> Unit = {},
+    onViewFullHistory: () -> Unit = {}
+) {
+    val tokens = LocalAppTokens.current
+
+    // ── Static sample data (matches image 1) ──
+    val feedbackId = "FB-1024"
+    val orderId = "ORD-1045"
+    val customer = "Meena"
+    val garment = "Silk Saree Blouse"
+    val feedbackDate = "15 March 2026"
+
+    val fullName = "Anitha R"
+    val contactNumber = "+91 98765 43210"
+    val orderReference = "#ORD-2589"
+    val garmentType = "Silk Saree Blouse"
+    val actualDeliveryDate = "10 Mar 2026"
+    val status = "Delivered"
+
+    val categories = listOf("Product Quality", "Delivery Speed", "Fitting Accuracy", "Staff Behavior", "Fabric Quality")
+    val selectedCategory = "Product Quality"
+
+    val overallSatisfaction = 4.0
+    val customerComments = "The stitching quality was excellent and the saree blouse fit perfectly. Delivery was also on time. Very satisfied with the service."
+    val helpfulCount = 2
+
+    val timeline = listOf(
+        FeedbackTimelineEntryStatic(
+            title = "Feedback recorded in system",
+            description = "Automated processing completed.",
+            timestamp = "15 Mar 2026, 02:45 PM",
+            isCompleted = true
+        ),
+        FeedbackTimelineEntryStatic(
+            title = "Feedback submitted",
+            description = "Submitted via Customer App link.",
+            timestamp = "15 Mar 2026, 02:30 PM",
+            isCompleted = false
+        )
+    )
+
+    var categoryExpanded by remember { mutableStateOf(true) }
+    Scaffold(
+        topBar = {
+            // ── Header ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TitleBar("Feedback Details", onClose= onDismiss)
+            }
+            HorizontalDivider(color = BorderColor)
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = Color.Transparent
+    ) {innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(Color.Transparent)
+        ) {
+
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+
+                // ── Summary strip: feedbackId / orderId, customer/garment/date ──
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = tokens.screenPadding)
+                ) {
+                    Text(
+                        "$feedbackId / $orderId",
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Normal,
+                        color = TitleColor
+                    )
+                    Spacer(Modifier.height(tokens.screenPadding * 0.6f))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        SummaryColumn(label = "Customer", value = customer, modifier = Modifier.weight(1f))
+                        SummaryColumn(label = "Garment", value = garment, modifier = Modifier.weight(1f))
+                        SummaryColumn(label = "Feedback Date", value = feedbackDate, modifier = Modifier.weight(1f))
+                    }
+                }
+
+                Spacer(Modifier.height(tokens.screenPadding))
+                Row(
+                    Modifier.fillMaxWidth()
+                        .background(whiteBg)
+                        .padding(horizontal = tokens.screenPadding, vertical = tokens.cardPadding * 0.35f)
+                ) {
+
+                    // ── Customer Information ──
+                    SectionTitle("Customer Information")
+                }
+                Column(Modifier.fillMaxWidth()
+                    .padding(horizontal = tokens.screenPadding)
+                ) {
+                    InfoRow(label = "Full Name", value = fullName)
+                    InfoRow(label = "Contact Number", value = contactNumber)
+                    InfoRow(
+                        label = "Order Reference",
+                        value = orderReference,
+                        valueColor = LinkColor
+                    )
+                    InfoRow(label = "Garment Type", value = garmentType)
+                    InfoRow(label = "Actual Delivery Date", value = actualDeliveryDate)
+                    InfoRow(
+                        label = "Status",
+                        value = status,
+                        valueColor = SuccessColor,
+                        valueWeight = FontWeight.SemiBold
+                    )
+                }
+                Spacer(Modifier.height(tokens.screenPadding))
+                HorizontalDivider(color = BorderColor)
+                Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                Column(Modifier.fillMaxWidth()
+                    .padding(horizontal = tokens.screenPadding)
+                ) {
+                    // ── Feedback Category (collapsible) ──
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { categoryExpanded = !categoryExpanded },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Feedback Category",
+                            fontSize = tokens.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TitleColor
+                        )
+                        Icon(
+                            if (categoryExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = null,
+                            tint = LabelColor,
+                            modifier = Modifier.size(tokens.iconSize)
+                        )
+                    }
+
+
+                    AnimatedVisibility(visible = categoryExpanded) {
+                        Column {
+                            Spacer(Modifier.height(tokens.screenPadding * 0.6f))
+                            CategoryChipGrid(categories = categories, selected = selectedCategory)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(tokens.screenPadding))
+                HorizontalDivider(color = BorderColor)
+
+                // ── Feedback Details (satisfaction + comments) ──
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .background(whiteBg)
+                        .padding(horizontal = tokens.screenPadding, vertical = tokens.cardPadding * 0.55f),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Feedback Details", fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { /* edit note action */ }
+                    ) {
+                        Icon(Icons.Filled.Edit, contentDescription = null, tint = AccentColor, modifier = Modifier.size(tokens.iconSize * 0.75f))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Internal Note", fontSize = tokens.bodySmall, color = AccentColor, fontWeight = FontWeight.Medium)
+                    }
+                }
+
+                Spacer(Modifier.height(tokens.screenPadding * 0.7f))
+                Column(Modifier.fillMaxWidth()
+                    .padding(horizontal = tokens.screenPadding)
+                ) {
+                    Text("Overall Satisfaction", fontSize = tokens.bodySmall, color = MutedColor)
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        StarRating(rating = overallSatisfaction)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "$overallSatisfaction / 5.0",
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TitleColor
+                        )
+                    }
+
+                    Spacer(Modifier.height(tokens.screenPadding * 0.7f))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(CommentBg, RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
+                            .padding(tokens.cardPadding * 0.5f)
+                    ) {
+                        Text("Customer Comments", fontSize = tokens.caption, color = MutedColor)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "\"$customerComments\"",
+                            fontSize = tokens.bodyMedium,
+                            color = TitleColor,
+                            lineHeight = tokens.bodyMedium * 1.4f
+                        )
+                    }
+
+                    Spacer(Modifier.height(tokens.screenPadding * 0.6f))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { /* helpful toggle */ }
+                        ) {
+                            Icon(
+                                Icons.Filled.ThumbUp,
+                                contentDescription = null,
+                                tint = LabelColor,
+                                modifier = Modifier.size(tokens.iconSize * 0.8f)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Helpful ($helpfulCount)", fontSize = tokens.bodySmall, color = LabelColor)
+                        }
+                        Spacer(Modifier.width(tokens.screenPadding))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { /* share internal */ }
+                        ) {
+                            Icon(
+                                Icons.Filled.Share,
+                                contentDescription = null,
+                                tint = LabelColor,
+                                modifier = Modifier.size(tokens.iconSize * 0.8f)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Share Internal", fontSize = tokens.bodySmall, color = LabelColor)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(tokens.screenPadding))
+                HorizontalDivider(color = BorderColor)
+                Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+
+                Row(Modifier.fillMaxWidth()
+                    .background(whiteBg)
+                    .padding(horizontal = tokens.screenPadding, vertical = tokens.cardPadding * 0.35f)) {
+                    // ── Feedback Timeline ──
+                    Text(
+                        "Feedback Timeline",
+                        fontSize = tokens.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TitleColor
+                    )
+                }
+                Column(Modifier.fillMaxWidth()
+                    .padding(horizontal = tokens.screenPadding)
+                ) {
+                    Spacer(Modifier.height(tokens.screenPadding * 0.8f))
+                    timeline.forEachIndexed { index, entry ->
+                        TimelineRow(
+                            entry = entry,
+                            isLast = index == timeline.lastIndex
+                        )
+                    }
+
+
+                    Spacer(Modifier.height(tokens.screenPadding))
+
+                    // ── View Full History button ──
+                    OutlinedButton(
+                        onClick = onViewFullHistory,
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
+                        border = BorderStroke(1.dp, AccentColor),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentColor),
+                        modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight)
+                    ) {
+                        Text(
+                            "View Full History",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = tokens.bodySmall
+                        )
+                    }
+                }
+                Spacer(Modifier.height(tokens.screenPadding * 1.2f))
+            }
+        }
+    }
+
+
+}
+
+// ── Reusable pieces ──
+
+@Composable
+private fun SummaryColumn(label: String, value: String, modifier: Modifier = Modifier) {
+    val tokens = LocalAppTokens.current
+    Column(modifier = modifier) {
+        Text(label, fontSize = tokens.caption, color = MutedColor)
+        Spacer(Modifier.height(2.dp))
+        Text(value, fontSize = tokens.caption, color = TitleColor)
+    }
+}
+
+@Composable
+private fun SectionTitle(text: String) {
+    val tokens = LocalAppTokens.current
+    Text(text, fontSize = tokens.bodyLarge, color = TitleColor)
+}
+
+@Composable
+private fun InfoRow(
+    label: String,
+    value: String,
+    valueColor: Color = TitleColor,
+    valueWeight: FontWeight = FontWeight.Medium
+) {
+    val tokens = LocalAppTokens.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontSize = tokens.bodySmall, color = MutedColor)
+        Text(value, fontSize = tokens.bodySmall, color = valueColor, fontWeight = valueWeight)
+    }
+}
+
+@Composable
+private fun CategoryChipGrid(categories: List<String>, selected: String) {
+    val tokens = LocalAppTokens.current
+    // Simple 2-column wrap using rows of 2
+    categories.chunked(2).forEach { rowItems ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            rowItems.forEach { category ->
+                val isSelected = category == selected
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .border(
+                            width = 1.dp,
+                            color = if (isSelected) AccentColor else BorderColor,
+                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.55f)
+                        )
+                        .background(
+                            if (isSelected) AccentColor.copy(alpha = 0.06f) else whiteBg,
+                            RoundedCornerShape(tokens.cardCornerRadius * 0.55f)
+                        )
+                        .padding(vertical = tokens.cardPadding * 0.35f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        category,
+                        fontSize = tokens.caption,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (isSelected) AccentColor else LabelColor
+                    )
+                }
+            }
+            if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(10.dp))
+    }
+}
+
+@Composable
+private fun StarRating(rating: Double, maxStars: Int = 5) {
+    val tokens = LocalAppTokens.current
+    Row {
+        repeat(maxStars) { index ->
+            val filled = index < rating.toInt()
+            Icon(
+                imageVector = if (filled) Icons.Filled.Star else Icons.Filled.StarBorder,
+                contentDescription = null,
+                tint = StarColor,
+                modifier = Modifier.size(tokens.iconSize)
+            )
+        }
+    }
+}
+
+@Composable
+private fun TimelineRow(entry: FeedbackTimelineEntryStatic, isLast: Boolean) {
+    val tokens = LocalAppTokens.current
+    Row(modifier = Modifier.fillMaxWidth()) {
+        // ── Dot + connecting line ──
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(if (entry.isCompleted) AccentColor else Color(0xFFD1D5DB))
+            )
+            if (!isLast) {
+                Box(
+                    modifier = Modifier
+                        .width(2.dp)
+                        .height(50.dp)
+                        .background(BorderColor)
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.padding(bottom = 20.dp)) {
+            Text(entry.title, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = TitleColor)
+            Spacer(Modifier.height(2.dp))
+            Text(entry.description, fontSize = tokens.caption, color = MutedColor)
+            Spacer(Modifier.height(2.dp))
+            Text(entry.timestamp, fontSize = tokens.label, color = MutedColor)
+        }
+    }
+}

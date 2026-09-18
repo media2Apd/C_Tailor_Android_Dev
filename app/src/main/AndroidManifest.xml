@@ -9,7 +9,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
-        android:name=".MyApplication"
+        android:name="com.cuso.tailor.MyApplication"
         android:networkSecurityConfig="@xml/network_security_config"
         android:allowBackup="true"
         android:usesCleartextTraffic="true"
@@ -40,7 +40,7 @@
                 android:resource="@xml/file_paths" />
         </provider>
         <activity
-            android:name=".MainActivity"
+            android:name="com.cuso.tailor.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.CusoTailor">
             <intent-filter>
@@ -52,7 +52,6 @@
 
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"
-            android:screenOrientation="sensorPortrait"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar"
             tools:ignore="LockedOrientationActivity" />
 

@@ -1,0 +1,129 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "ASSIGNED_VALUE_IS_NEVER_READ",
+    "unused",
+    "unusedVariable",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "UnusedMaterial3ScaffoldPaddingParameter"
+)
+
+package com.cuso.tailor.view.login
+
+import android.app.Activity
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Alignment
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.view.composable.AuthScreenScaffold
+import com.cuso.tailor.view.composable.CardContentsLoginScreen
+import com.cuso.tailor.view.composable.DynamicIslandSuccess
+import com.cuso.tailor.viewmodel.Authenticate
+import com.cuso.tailor.viewmodel.UiState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
+import com.cuso.tailor.view.composable.ExitAppDialog
+
+@Suppress("UNUSED_PARAMETER", "VariableNeverRead")
+@Composable
+fun LoginScreen(
+    activity: Activity,
+    navController: NavController,
+    onloginSuccess: (String) -> Unit,
+    authViewModel: Authenticate = hiltViewModel(),
+    prefilledEmail: String = "",
+    resetSuccessMessage: String = ""
+) {
+    // Access Adaptive Tokens (still needed here for the exit dialog text)
+    val tokens = LocalAppTokens.current
+
+    val authState by authViewModel.accountState.collectAsState()
+    var isLoginMode by remember { mutableStateOf(true) }
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    val snackbarState = remember { SnackbarHostState() }
+    var showExitDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var successMessage by remember { mutableStateOf<String?>(null) }
+
+    BackHandler {
+        showExitDialog = true
+    }
+
+    ExitAppDialog(
+        show = showExitDialog,
+        onDismiss = { showExitDialog = false }
+    )
+
+    LaunchedEffect(authState) {
+        when (val state = authState) {
+            is UiState.LoginSuccess -> {
+                val orgToken = state.orgToken
+                val org = state.organization
+                val isOrgRegistered = org != null && org.orgSetupComplete
+
+                if (orgToken.isNullOrEmpty() || !isOrgRegistered) {
+                    navController.navigate("org") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                } else {
+                    onloginSuccess("${state.firstName} ${state.lastName}")
+                }
+                authViewModel.resetState()
+            }
+            is UiState.RegisterSuccess -> {
+                snackbarState.showSnackbar("Account created! Please log in.")
+                isLoginMode = true
+                username = ""
+                password = ""
+                authViewModel.resetState()
+            }
+            else -> {}
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarState) },
+            containerColor = Color(0xFFf5f5f5)
+        ) { padding ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Reusable structure: background + scroll + adaptive padding +
+                // logo + title + subtitle + width-limited bordered card
+                AuthScreenScaffold(
+                    title = "Welcome to CUSO Tailor",
+                    subtitle = "Please login using the form below"
+                ) {
+                    // Only the screen-specific form content goes here
+                    CardContentsLoginScreen(
+                        navController,
+                        activity,
+                        authViewModel,
+                        prefilledEmail = prefilledEmail
+                        // Note: Ensure CardContentsLoginScreen uses tokens for its TextField/Buttons
+                    )
+                }
+            }
+            DynamicIslandSuccess(
+                modifier = Modifier.align(Alignment.TopCenter)
+                    .padding(top = 100.dp),
+                message = successMessage,
+                onDismiss = { successMessage = null }
+            )
+        }
+
+        LaunchedEffect(resetSuccessMessage) {
+            if (resetSuccessMessage.isNotBlank()) {
+                successMessage = resetSuccessMessage
+            }
+        }
+    }
+}

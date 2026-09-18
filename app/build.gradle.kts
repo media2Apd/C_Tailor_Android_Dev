@@ -46,12 +46,24 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.12:5000/\""
+                "\"http://172.16.162.196:5000/\""
             )
         }
+
         release {
-            isMinifyEnabled = false
-            buildConfigField("String", "BASE_URL", "\"https://cuso-tailor-production.onrender.com/\"")
+            isMinifyEnabled = true
+            isShrinkResources = true
+
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+
+            buildConfigField(
+                "String",
+                "BASE_URL",
+                "\"https://cuso-tailor-production.onrender.com/\""
+            )
         }
     }
 
@@ -184,14 +196,11 @@ dependencies {
     //CRASHLYTICS
 
     // build.gradle.kts (app level)
-    implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.analytics)
 
     //PERFORMANCE
 
-    // Import the BoM for the Firebase platform
-    implementation(platform(libs.firebase.bom))
 
     // Add the dependency for the Performance Monitoring library
     // When using the BoM, you don't specify versions in Firebase library dependencies

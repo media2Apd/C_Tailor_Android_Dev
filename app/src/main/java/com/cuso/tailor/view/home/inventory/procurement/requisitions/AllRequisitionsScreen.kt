@@ -357,7 +357,7 @@ private fun RequisitionCardItem(
                     modifier = Modifier
                         .clip(RoundedCornerShape(tokens.cardCornerRadius * 2f))
                         .background(if (priority.equals("High", ignoreCase = true)) redBg else yellowBg)
-                        .padding(horizontal = tokens.extraPadding * 0.8f, vertical = 2.dp)
+                        .padding(horizontal = tokens.extraPadding * 0.8f)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
@@ -389,7 +389,7 @@ private fun RequisitionCardItem(
                                 else -> yellowBg
                             }
                         )
-                        .padding(horizontal = tokens.extraPadding * 0.8f, vertical = 2.dp)
+                        .padding(horizontal = tokens.extraPadding * 0.8f)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(

@@ -4,6 +4,7 @@ package com.cuso.tailor.view.composable
 
 import android.app.Activity
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -237,10 +238,15 @@ fun CardContentsLoginScreen(
         }
 
         LaunchedEffect(accountState) {
+            Log.d("LOGIN_STATE", "accountState = $accountState")
+            Log.d("LOGIN_STATE", "accountState type = ${accountState::class.java.name}")
+
             if (accountState is UiState.EmailVerified) {
+                Log.d("LOGIN_STATE", "EMAIL VERIFIED → showing password")
                 submittedEmail = email
                 isSubmitted = true
             } else if (accountState is UiState.EmailNotFound) {
+                Log.d("LOGIN_STATE", "EMAIL NOT FOUND")
                 showEmailNotFound = true
             }
         }

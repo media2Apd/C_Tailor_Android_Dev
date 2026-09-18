@@ -46,7 +46,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://172.16.162.196:5000/\""
+                "\"https://cuso-tailor-production.onrender.com\""
             )
         }
 
@@ -62,7 +62,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"https://cuso-tailor-production.onrender.com/\""
+                "\"https://cuso-tailor-production.onrender.com\""
             )
         }
     }

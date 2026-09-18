@@ -1243,7 +1243,7 @@ fun HomeScreenRouter(
             } ?: run { onGoBack() }
         }
 
-        "inventory_adjustments" -> AllOrdersStockListScreen(
+        "inventory_adjustment" -> AllOrdersStockListScreen(
             preselectedItemId = selectedInventoryItemId,
             initialAdjustmentType = selectedAdjustmentType,
             onClose = onGoBack
@@ -1298,7 +1298,7 @@ fun HomeScreenRouter(
                         onBulkItemIdSelected(editId)
                         onNavigate("inventory_add_bulk")
                     },
-                    onAdjustStock = { onNavigate("inventory_adjustments") }
+                    onAdjustStock = { onNavigate("inventory_adjustment") }
                 )
             } ?: run { onGoBack() }
         }

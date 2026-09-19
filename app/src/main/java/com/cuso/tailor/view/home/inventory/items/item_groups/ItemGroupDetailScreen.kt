@@ -564,7 +564,7 @@ private fun DetailRowItem(
             )
         }
         if (showDivider) {
-            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 2.dp)
         }
     }
 }

@@ -711,7 +711,7 @@ fun PreviewPdfScreen(
                             )
                             HorizontalDivider(
                                 modifier = Modifier.width(90.dp),
-                                thickness = 1.dp,
+                                thickness = 2.dp,
                                 color = borderColor
                             )
                             Spacer(modifier = Modifier.height(2.dp))

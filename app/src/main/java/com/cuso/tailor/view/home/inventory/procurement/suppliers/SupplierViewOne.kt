@@ -738,7 +738,7 @@ private fun InfoDividerRow(
 
         HorizontalDivider(
             color = Color(0xFFF1F5F9),
-            thickness = 1.dp
+            thickness = 2.dp
         )
     }
 }
@@ -851,7 +851,7 @@ private fun PurchaseActivitySection(
 
         HorizontalDivider(
             color = Color(0xFFF1F5F9),
-            thickness = 1.dp
+            thickness = 2.dp
         )
 
         Spacer(Modifier.height(12.dp))
@@ -944,7 +944,7 @@ private fun PendingItemsSection(
 
         HorizontalDivider(
             color = Color(0xFFF1F5F9),
-            thickness = 1.dp
+            thickness = 2.dp
         )
 
         if (pendingItems.isEmpty()) {

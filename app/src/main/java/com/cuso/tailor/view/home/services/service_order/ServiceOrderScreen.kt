@@ -272,7 +272,7 @@ fun ServiceOrderScreen(
                                                     }
 
                                                     Spacer(Modifier.height(10.dp))
-                                                    HorizontalDivider(color = light_grey, thickness = 1.dp)
+                                                    HorizontalDivider(color = light_grey, thickness = 2.dp)
                                                     Spacer(Modifier.height(10.dp))
 
                                                     // Bottom Split: Priority & Status (Left) | Total & Paid (Right)

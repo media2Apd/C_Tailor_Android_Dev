@@ -177,3 +177,132 @@ data class POBillConvertResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("data") val data: POBillConvertData? = null
 )
+
+data class PurchaseOrderDetailResponse(
+    @field:SerializedName("success") val success: Boolean? = null,
+    @field:SerializedName("data") val data: PurchaseOrderDetailData? = null
+)
+
+data class PurchaseOrderDetailData(
+    @field:SerializedName("_id") val id: String? = null,
+    @field:SerializedName("organizationId") val organizationId: String? = null,
+    @field:SerializedName("poNumber") val poNumber: String? = null,
+    @field:SerializedName("requisitionId") val requisitionId: String? = null,
+    @field:SerializedName("supplierId") val supplier: PODetailSupplier? = null,
+    @field:SerializedName("poDate") val poDate: String? = null,
+    @field:SerializedName("eta") val eta: String? = null,
+    @field:SerializedName("currency") val currency: String? = null,
+    @field:SerializedName("warehouseId") val warehouse: PODetailWarehouse? = null,
+    @field:SerializedName("poType") val poType: String? = null,
+    @field:SerializedName("items") val items: List<PODetailItem>? = null,
+    @field:SerializedName("subtotal") val subtotal: Double? = null,
+    @field:SerializedName("taxTotal") val taxTotal: Double? = null,
+    @field:SerializedName("discount") val discount: Double? = null,
+    @field:SerializedName("shippingCost") val shippingCost: Double? = null,
+    @field:SerializedName("grandTotal") val grandTotal: Double? = null,
+    @field:SerializedName("orderStatus") val orderStatus: String? = null,
+    @field:SerializedName("advancePaid") val advancePaid: Double? = null,
+    @field:SerializedName("availableAdvance") val availableAdvance: Double? = null,
+    @field:SerializedName("receiveStatus") val receiveStatus: String? = null,
+    @field:SerializedName("billStatus") val billStatus: String? = null,
+    @field:SerializedName("paymentStatus") val paymentStatus: String? = null,
+    @field:SerializedName("lifecycleStatus") val lifecycleStatus: String? = null,
+    @field:SerializedName("shippingMethod") val shippingMethod: String? = null,
+    @field:SerializedName("transportName") val transportName: String? = null,
+    @field:SerializedName("vehicleNumber") val vehicleNumber: String? = null,
+    @field:SerializedName("trackingNumber") val trackingNumber: String? = null,
+    @field:SerializedName("freightTerms") val freightTerms: String? = null,
+    @field:SerializedName("internalNotes") val internalNotes: String? = null,
+    @field:SerializedName("attachments") val attachments: List<String>? = null,
+    @field:SerializedName("remarks") val remarks: String? = null,
+    @field:SerializedName("createdBy") val createdBy: String? = null,
+    @field:SerializedName("isDeleted") val isDeleted: Boolean? = null,
+    @field:SerializedName("createdAt") val createdAt: String? = null,
+    @field:SerializedName("updatedAt") val updatedAt: String? = null
+)
+
+data class PODetailSupplier(
+    @field:SerializedName("_id") val id: String? = null,
+    @field:SerializedName("name") val name: String? = null,
+    @field:SerializedName("supplierCode") val supplierCode: String? = null,
+    @field:SerializedName("complianceStatus") val complianceStatus: String? = null,
+    @field:SerializedName("contact") val contact: PODetailSupplierContact? = null,
+    @field:SerializedName("address") val address: PODetailSupplierAddressContainer? = null,
+    @field:SerializedName("tax") val tax: PODetailSupplierTax? = null
+)
+
+data class PODetailSupplierContact(
+    @field:SerializedName("contactName") val contactName: String? = null,
+    @field:SerializedName("email") val email: String? = null,
+    @field:SerializedName("phone") val phone: String? = null,
+    @field:SerializedName("alternatePhone") val alternatePhone: String? = null,
+    @field:SerializedName("website") val website: String? = null
+)
+
+data class PODetailSupplierAddressContainer(
+    @field:SerializedName("billing") val billing: PODetailAddress? = null,
+    @field:SerializedName("shipping") val shipping: PODetailAddress? = null,
+    @field:SerializedName("sameAsBilling") val sameAsBilling: Boolean? = null
+)
+
+data class PODetailAddress(
+    @field:SerializedName("flatNo") val flatNo: String? = null,
+    @field:SerializedName("street") val street: String? = null,
+    @field:SerializedName("city") val city: String? = null,
+    @field:SerializedName("state") val state: String? = null,
+    @field:SerializedName("stateCode") val stateCode: String? = null,
+    @field:SerializedName("country") val country: String? = null,
+    @field:SerializedName("pincode") val pincode: String? = null
+)
+
+data class PODetailSupplierTax(
+    @field:SerializedName("gstNumber") val gstNumber: String? = null,
+    @field:SerializedName("gstType") val gstType: String? = null,
+    @field:SerializedName("pan") val pan: String? = null,
+    @field:SerializedName("defaultPurchaseTax") val defaultPurchaseTax: String? = null,
+    @field:SerializedName("reverseCharge") val reverseCharge: Boolean? = null,
+    @field:SerializedName("tdsApplicable") val tdsApplicable: Boolean? = null
+)
+
+data class PODetailWarehouse(
+    @field:SerializedName("_id") val id: String? = null,
+    @field:SerializedName("name") val name: String? = null,
+    @field:SerializedName("code") val code: String? = null,
+    @field:SerializedName("contactPerson") val contactPerson: String? = null,
+    @field:SerializedName("contactPhone") val contactPhone: String? = null,
+    @field:SerializedName("address") val address: PODetailWarehouseAddress? = null
+)
+
+data class PODetailWarehouseAddress(
+    @field:SerializedName("address") val address: String? = null,
+    @field:SerializedName("city") val city: String? = null,
+    @field:SerializedName("state") val state: String? = null,
+    @field:SerializedName("country") val country: String? = null,
+    @field:SerializedName("pincode") val pincode: String? = null
+)
+
+data class PODetailItem(
+    @field:SerializedName("_id") val id: String? = null,
+    @field:SerializedName("itemId") val itemRef: PODetailItemRef? = null,
+    @field:SerializedName("qty") val qty: Double? = null,
+    @field:SerializedName("receivedQty") val receivedQty: Double? = null,
+    @field:SerializedName("billedQty") val billedQty: Double? = null,
+    @field:SerializedName("receiveStatus") val receiveStatus: String? = null,
+    @field:SerializedName("billStatus") val billStatus: String? = null,
+    @field:SerializedName("rate") val rate: Double? = null,
+    @field:SerializedName("taxPercent") val taxPercent: Double? = null,
+    @field:SerializedName("subtotal") val subtotal: Double? = null,
+    @field:SerializedName("taxAmount") val taxAmount: Double? = null,
+    @field:SerializedName("total") val total: Double? = null
+)
+
+data class PODetailItemRef(
+    @field:SerializedName("_id") val id: String? = null,
+    @field:SerializedName("name") val name: String? = null,
+    @field:SerializedName("sku") val sku: String? = null,
+    @field:SerializedName("type") val type: String? = null,
+    @field:SerializedName("unit") val unit: String? = null,
+    @field:SerializedName("isSerialTracked") val isSerialTracked: Boolean? = null,
+    @field:SerializedName("marginPercent") val marginPercent: Double? = null,
+    @field:SerializedName("currentStockValue") val currentStockValue: Double? = null
+)

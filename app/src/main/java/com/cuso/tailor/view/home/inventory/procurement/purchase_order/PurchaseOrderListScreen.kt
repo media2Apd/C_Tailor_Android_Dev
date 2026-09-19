@@ -1,31 +1,85 @@
+@file:Suppress("SpellCheckingInspection", "unused", "AssignedValueIsNeverRead", "VariableNeverRead")
+
 package com.cuso.tailor.view.home.inventory.procurement.purchase_order
 
+import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.CurrencyRupee
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Sell
+import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.PurchaseOrder
-import com.cuso.tailor.model.inventory.PurchaseRequisition
+import com.cuso.tailor.model.inventory.SupplierBillInfo
 import com.cuso.tailor.model.inventory.WarehouseRef
-import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.ui.theme.BorderGray
+import com.cuso.tailor.ui.theme.Primary
+import com.cuso.tailor.ui.theme.Primary_background
+import com.cuso.tailor.ui.theme.TextPrimary
+import com.cuso.tailor.ui.theme.TextSecondary
+import com.cuso.tailor.ui.theme.badgeGrey
+import com.cuso.tailor.ui.theme.dividerColor
+import com.cuso.tailor.ui.theme.iconMuted
+import com.cuso.tailor.ui.theme.mutedText
+import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.view.composable.FabConfig
+import com.cuso.tailor.view.composable.FabScaffold
+import com.cuso.tailor.view.composable.FilterDrawer
+import com.cuso.tailor.view.composable.FilterOption
+import com.cuso.tailor.view.composable.FilterSection
+import com.cuso.tailor.view.composable.FilterSectionType
+import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.SearchFilterBar
+import com.cuso.tailor.view.composable.ThreeDotLoading
+import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.rememberFilterDrawerState
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+
+private const val TAG = "PO_LIST"
 
 @Composable
 fun POListScreen(
@@ -36,68 +90,49 @@ fun POListScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    // Observe lists and primary loading states
-    val requisitions by viewModel.requisitionsList.collectAsStateWithLifecycle()
     val orders by viewModel.purchaseOrdersList.collectAsStateWithLifecycle()
-    val isLoadingRequisitions by viewModel.isLoadingRequisitions.collectAsStateWithLifecycle()
     val isLoadingPO by viewModel.isLoadingPurchaseOrders.collectAsStateWithLifecycle()
-    val isLoading = isLoadingRequisitions || isLoadingPO
-
-    // Observe pagination states for both types
-    val isLoadingMoreRequisitions by viewModel.isLoadingMoreRequisitions.collectAsStateWithLifecycle()
     val isLoadingMorePO by viewModel.isLoadingMorePurchaseOrders.collectAsStateWithLifecycle()
-    val canLoadMoreRequisitions by viewModel.canLoadMoreRequisitions.collectAsStateWithLifecycle()
     val canLoadMorePO by viewModel.canLoadMorePurchaseOrders.collectAsStateWithLifecycle()
-
-    // Determine which dataset is actively being rendered
-    val isShowingRequisitions = requisitions.isNotEmpty()
-    val isLoadingMore = if (isShowingRequisitions) isLoadingMoreRequisitions else isLoadingMorePO
-    val canLoadMore = if (isShowingRequisitions) canLoadMoreRequisitions else canLoadMorePO
 
     var searchQuery by remember { mutableStateOf("") }
     val filterDrawerState = rememberFilterDrawerState()
-
-    // Scroll state tracker for LazyColumn
     val listState = rememberLazyListState()
 
-    // Consolidated initial fetch and debounced search (prevents duplicate requests at startup)
     var isInitialized by remember { mutableStateOf(false) }
+
     LaunchedEffect(searchQuery) {
         if (!isInitialized) {
             isInitialized = true
-            viewModel.fetchAllRequisitions()
             viewModel.fetchAllPurchaseOrders()
         } else {
             delay(400)
             val query = searchQuery.trim().ifBlank { null }
-            viewModel.fetchAllRequisitions(search = query)
             viewModel.fetchAllPurchaseOrders(search = query)
         }
     }
 
-    // Scroll listener: triggers next page fetch only when crossing the bottom threshold
-    LaunchedEffect(listState, canLoadMore, searchQuery, isShowingRequisitions) {
+    LaunchedEffect(orders) {
+        Log.d(TAG, "Orders count: ${orders.size}")
+    }
+
+    // Infinite scroll pagination listener
+    LaunchedEffect(listState, canLoadMorePO, searchQuery) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val totalItems = layoutInfo.totalItemsCount
             val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-
-            // Trigger when reaching within 2 items of the list end
             totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
         }
             .distinctUntilChanged()
             .collect { isNearBottom ->
                 if (isNearBottom &&
-                    canLoadMore &&
-                    !isLoadingMore &&
-                    !isLoading &&
+                    canLoadMorePO &&
+                    !isLoadingMorePO &&
+                    !isLoadingPO &&
                     searchQuery.isBlank()
                 ) {
-                    if (isShowingRequisitions) {
-                        viewModel.loadMoreRequisitions()
-                    } else {
-                        viewModel.loadMorePurchaseOrders()
-                    }
+                    viewModel.loadMorePurchaseOrders()
                 }
             }
     }
@@ -158,11 +193,9 @@ fun POListScreen(
             onClick = onNavigateToCreate
         )
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
             TitleBar(
-                title = "All orders",
+                title = "Purchase Orders",
                 onClose = onClose
             )
 
@@ -176,15 +209,8 @@ fun POListScreen(
                 }
             )
 
-            if (isLoading && requisitions.isEmpty() && orders.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = Primary)
-                }
+            if (isLoadingPO && orders.isEmpty()) {
+                ListSkeleton()
             } else {
                 LazyColumn(
                     state = listState,
@@ -197,43 +223,20 @@ fun POListScreen(
                         bottom = tokens.buttonHeight + 80.dp
                     )
                 ) {
-                    if (isShowingRequisitions) {
-                        items(
-                            items = requisitions,
-                            key = { it.id?.ifBlank { it.prNumber ?: it.hashCode().toString() } ?: "" }
-                        ) { req ->
-                            RequisitionCard(
-                                requisition = req,
-                                onViewDetails = {
-                                    val mappedPo = PurchaseOrder(
-                                        id = req.id,
-                                        poNumber = req.prNumber,
-                                        orderStatus = req.approvalStatus ?: "Draft",
-                                        poType = req.priority ?: "Standard",
-                                        poDate = req.createdAt,
-                                        eta = req.requiredByDate,
-                                        subtotal = req.estimatedSubtotal ?: 0.0,
-                                        taxTotal = req.estimatedTax ?: 0.0,
-                                        grandTotal = req.estimatedTotal ?: 0.0
-                                    )
-                                    onNavigateToDetail(mappedPo)
-                                }
-                            )
-                        }
-                    } else {
-                        items(
-                            items = orders,
-                            key = { it.id?.ifBlank { it.poNumber ?: it.hashCode().toString() } ?: "" }
-                        ) { order ->
-                            PurchaseOrderCard(
-                                order = order,
-                                onViewDetails = { onNavigateToDetail(order) }
-                            )
-                        }
+                    items(
+                        items = orders,
+                        key = { it.id?.ifBlank { it.poNumber ?: it.hashCode().toString() } ?: it.hashCode().toString() }
+                    ) { order ->
+                        PurchaseOrderCard(
+                            order = order,
+                            onViewDetails = {
+                                Log.d(TAG, "PurchaseOrder clicked -> id: '${order.id}', poNumber: '${order.poNumber}'")
+                                onNavigateToDetail(order)
+                            }
+                        )
                     }
 
-                    // Three-dot loader displayed only while a next page request is actively in-flight
-                    if (isLoadingMore) {
+                    if (isLoadingMorePO) {
                         item(key = "pagination_threedot_loader") {
                             ThreeDotLoading(
                                 modifier = Modifier
@@ -253,138 +256,14 @@ fun POListScreen(
             onApply = { appliedSections ->
                 filterSections = appliedSections
                 val query = searchQuery.takeIf { it.isNotBlank() }
-                viewModel.fetchAllRequisitions(search = query)
                 viewModel.fetchAllPurchaseOrders(search = query)
             },
             onClearAll = {
                 filterSections = initialFilterSections
                 val query = searchQuery.takeIf { it.isNotBlank() }
-                viewModel.fetchAllRequisitions(search = query)
                 viewModel.fetchAllPurchaseOrders(search = query)
             }
         )
-    }
-}
-
-@Composable
-fun RequisitionCard(
-    requisition: PurchaseRequisition,
-    onViewDetails: () -> Unit
-) {
-    val tokens = LocalAppTokens.current
-
-    Card(
-        shape = RoundedCornerShape(tokens.cardCornerRadius),
-        colors = CardDefaults.cardColors(containerColor = whiteBg),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderGray),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(tokens.cardPadding * 0.8f)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = requisition.prNumber ?: "PR-000",
-                    fontSize = tokens.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                StatusPill(status = requisition.approvalStatus ?: "Draft")
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = null,
-                    tint = iconMuted,
-                    modifier = Modifier.size(tokens.iconSize)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(text = "DEPARTMENT", fontSize = tokens.label, color = TextSecondary, fontWeight = FontWeight.Medium)
-                    Text(
-                        text = requisition.department ?: "Production",
-                        fontSize = tokens.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .background(badgeGrey, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = requisition.priority ?: "High",
-                        fontSize = tokens.label,
-                        color = TextSecondary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.weight(1.2f)) {
-                    Text(text = "WAREHOUSE", fontSize = tokens.label, color = TextSecondary)
-                    Text(
-                        text = requisition.warehouseDisplayName,
-                        fontSize = tokens.bodySmall,
-                        color = TextPrimary
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = "REQUIRED BY", fontSize = tokens.label, color = TextSecondary)
-                    Text(text = requisition.requiredByDate?.substringBefore("T") ?: "N/A", fontSize = tokens.bodySmall, color = TextPrimary)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-            HorizontalDivider(color = dividerColor, thickness = 0.8.dp)
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(text = "Estimated Total", fontSize = tokens.label, color = mutedText)
-                    Text(
-                        text = "₹${(requisition.estimatedTotal ?: 0.0).toInt()}",
-                        fontSize = tokens.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Primary
-                    )
-                }
-                Row(
-                    modifier = Modifier.clickable { onViewDetails() },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "View Details",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Primary
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = Primary,
-                        modifier = Modifier.size(tokens.iconSize)
-                    )
-                }
-            }
-        }
     }
 }
 
@@ -395,11 +274,27 @@ fun PurchaseOrderCard(
 ) {
     val tokens = LocalAppTokens.current
 
+    val warehouseDisplayName = when (val wh = order.warehouseId) {
+        is WarehouseRef -> wh.name
+        is Map<*, *> -> wh["name"]?.toString() ?: "Central Store"
+        is String -> wh.ifBlank { "Central Store" }
+        else -> "Central Store"
+    }
+
+    val supplierDisplayName = when (val sup = order.supplierId) {
+        is SupplierBillInfo -> sup.name
+        is Map<*, *> -> sup["name"]?.toString() ?: "Supplier"
+        is String -> sup.ifBlank { "Supplier" }
+        else -> "Supplier"
+    }
+
     Card(
         shape = RoundedCornerShape(tokens.cardCornerRadius),
         colors = CardDefaults.cardColors(containerColor = whiteBg),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderGray),
-        modifier = Modifier.fillMaxWidth()
+        border = BorderStroke(1.dp, BorderGray),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onViewDetails() }
     ) {
         Column(modifier = Modifier.padding(tokens.cardPadding * 0.8f)) {
             Row(
@@ -433,7 +328,7 @@ fun PurchaseOrderCard(
                 Column {
                     Text(text = "SUPPLIER", fontSize = tokens.label, color = TextSecondary, fontWeight = FontWeight.Medium)
                     Text(
-                        text = "Sri Lakshmi textiles",
+                        text = supplierDisplayName,
                         fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = TextPrimary
@@ -445,7 +340,7 @@ fun PurchaseOrderCard(
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = order.poType,
+                        text = order.poType.ifBlank { "Standard" },
                         fontSize = tokens.label,
                         color = TextSecondary
                     )
@@ -458,18 +353,18 @@ fun PurchaseOrderCard(
                 Column(modifier = Modifier.weight(1.2f)) {
                     Text(text = "WAREHOUSE", fontSize = tokens.label, color = TextSecondary)
                     Text(
-                        text = (order.warehouseId as? WarehouseRef)?.name ?: "Central Store",
+                        text = warehouseDisplayName,
                         fontSize = tokens.bodySmall,
                         color = TextPrimary
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "ORDER DATE", fontSize = tokens.label, color = TextSecondary)
-                    Text(text = order.poDate?.substringBefore("T") ?: "Jan 24, 2026", fontSize = tokens.bodySmall, color = TextPrimary)
+                    Text(text = order.poDate?.substringBefore("T") ?: "-", fontSize = tokens.bodySmall, color = TextPrimary)
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = "EXPECTED", fontSize = tokens.label, color = TextSecondary)
-                    Text(text = order.eta?.substringBefore("T") ?: "Feb 1, 2026", fontSize = tokens.bodySmall, color = TextPrimary)
+                    Text(text = order.eta?.substringBefore("T") ?: "-", fontSize = tokens.bodySmall, color = TextPrimary)
                 }
             }
 
@@ -492,7 +387,6 @@ fun PurchaseOrderCard(
                     )
                 }
                 Row(
-                    modifier = Modifier.clickable { onViewDetails() },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -516,12 +410,13 @@ fun PurchaseOrderCard(
 
 @Composable
 fun StatusPill(status: String) {
-    val tokens = LocalAppTokens.current
-    val (bg, txtColor) = when (status.lowercase()) {
-        "completed", "received", "approved", "open" -> greenBg to greentext
-        "pending", "pending approval", "not received", "unpaid", "draft" -> orangeBg to orangeText
-        "in transit" -> primary_light to BluePrimary
-        else -> greenBg to greentext
+    val cleanStatus = status.ifBlank { "Open" }
+    val (bg, txtColor) = when (cleanStatus.lowercase()) {
+        "completed", "received", "approved", "open" -> Color(0xFFDCFCE7) to Color(0xFF15803D)
+        "pending", "pending approval", "not received", "unpaid", "draft" -> Color(0xFFFEF3C7) to Color(0xFFB45309)
+        "in transit" -> Color(0xFFDBEAFE) to Color(0xFF1D4ED8)
+        "rejected", "cancelled" -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
+        else -> Color(0xFFF3F4F6) to Color(0xFF374151)
     }
 
     Row(
@@ -537,9 +432,9 @@ fun StatusPill(status: String) {
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text = status,
+            text = cleanStatus,
             color = txtColor,
-            fontSize = tokens.label,
+            fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold
         )
     }

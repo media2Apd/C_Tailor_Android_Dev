@@ -460,7 +460,7 @@ fun GarmentCategoryListView(
                                     }
 
                                     Spacer(Modifier.height(10.dp))
-                                    HorizontalDivider(color = title_border, thickness = 1.dp)
+                                    HorizontalDivider(color = title_border, thickness = 2.dp)
                                     Spacer(Modifier.height(10.dp))
 
                                     Text(
@@ -883,7 +883,7 @@ fun GarmentProfileConfigScreen(
                                             }
                                         }
                                     }
-                                    HorizontalDivider(color = dividerColor, thickness = 1.dp)
+                                    HorizontalDivider(color = dividerColor, thickness = 2.dp)
                                 }
                             }
                         }
@@ -1570,7 +1570,7 @@ private fun SectionHeader(text: String) {
         color = title_color
     )
     Spacer(Modifier.height(5.dp))
-    HorizontalDivider(color = grey_border, thickness = 1.dp)
+    HorizontalDivider(color = grey_border, thickness = 2.dp)
 }
 
 // ─────────────────────────────────────────────────────────────

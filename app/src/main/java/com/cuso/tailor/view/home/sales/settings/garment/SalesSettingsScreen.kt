@@ -228,7 +228,7 @@ fun GarmentTypeContent(
                         divider = {
                             HorizontalDivider(
                                 color = title_border,
-                                thickness = 1.dp
+                                thickness = 2.dp
                             )
                         },
                         indicator = {

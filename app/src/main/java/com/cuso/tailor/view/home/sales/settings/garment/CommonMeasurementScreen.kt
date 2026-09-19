@@ -339,7 +339,7 @@ fun CommonMeasurementsScreen(
                                                 }
                                             }
                                         }
-                                        HorizontalDivider(color = dividerColor, thickness = 1.dp)
+                                        HorizontalDivider(color = dividerColor, thickness = 2.dp)
                                     }
                                 }
                             }

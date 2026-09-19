@@ -1,9 +1,27 @@
+@file:Suppress("SpellCheckingInspection", "unused", "AssignedValueIsNeverRead", "VariableNeverRead")
+
 package com.cuso.tailor.view.home.inventory.procurement.requisitions
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -11,8 +29,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,10 +53,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.SubcomposeAsyncImage
@@ -31,8 +68,37 @@ import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.RequisitionComment
-import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.ui.theme.Primary
+import com.cuso.tailor.ui.theme.Primary_background
+import com.cuso.tailor.ui.theme.TextSecondary
+import com.cuso.tailor.ui.theme.TitleColor
+import com.cuso.tailor.ui.theme.activity_purple
+import com.cuso.tailor.ui.theme.activity_purple_bg
+import com.cuso.tailor.ui.theme.badgeGrey
+import com.cuso.tailor.ui.theme.complete_button_bg
+import com.cuso.tailor.ui.theme.darkGreenBg
+import com.cuso.tailor.ui.theme.disabled
+import com.cuso.tailor.ui.theme.greenBg
+import com.cuso.tailor.ui.theme.grey_border
+import com.cuso.tailor.ui.theme.iconMuted
+import com.cuso.tailor.ui.theme.light_blue
+import com.cuso.tailor.ui.theme.light_blue_border
+import com.cuso.tailor.ui.theme.light_grey
+import com.cuso.tailor.ui.theme.mutedText
+import com.cuso.tailor.ui.theme.redBg
+import com.cuso.tailor.ui.theme.redText
+import com.cuso.tailor.ui.theme.sectionBorder
+import com.cuso.tailor.ui.theme.textSubdued
+import com.cuso.tailor.ui.theme.title_border
+import com.cuso.tailor.ui.theme.title_color
+import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.ui.theme.yellowBg
+import com.cuso.tailor.ui.theme.yellowText
+import com.cuso.tailor.view.composable.DynamicIslandError
+import com.cuso.tailor.view.composable.DynamicIslandSuccess
+import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.home.pdfgenerator.RequisitionPdfExporter
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -48,6 +114,8 @@ fun RequisitionDetailScreen(
     viewModel: InventoryViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
+    val context = LocalContext.current
+    val pdfExporter = remember(context) { RequisitionPdfExporter(context) }
 
     val requisition by viewModel.selectedRequisition.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoadingRequisitions.collectAsStateWithLifecycle()
@@ -56,6 +124,7 @@ fun RequisitionDetailScreen(
     val errorMessage by viewModel.requisitionErrorMessage.collectAsStateWithLifecycle()
 
     var commentInput by remember { mutableStateOf("") }
+    var showApprovalRequiredDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(requisitionId) {
         if (!requisitionId.isNullOrBlank()) {
@@ -127,7 +196,7 @@ fun RequisitionDetailScreen(
                         Spacer(Modifier.height(tokens.extraPadding * 0.8f))
                     }
 
-                    // 1. Header & Actions
+                    // 1. Header & Action Buttons
                     item {
                         Column(
                             modifier = Modifier
@@ -197,11 +266,24 @@ fun RequisitionDetailScreen(
                                 OutlinedActionButton(
                                     tokens = tokens,
                                     label = "PDF",
-                                    onClick = onPdfDownload
+                                    onClick = {
+                                        val currentReq = requisition
+                                        if (currentReq != null) {
+                                            pdfExporter.downloadRequisitionPdf(currentReq)
+                                        } else {
+                                            onPdfDownload()
+                                        }
+                                    }
                                 )
                                 Spacer(Modifier.weight(1f))
                                 Button(
-                                    onClick = onConvertToPO,
+                                    onClick = {
+                                        if (isApproved) {
+                                            onConvertToPO()
+                                        } else {
+                                            showApprovalRequiredDialog = true
+                                        }
+                                    },
                                     colors = ButtonDefaults.buttonColors(containerColor = Primary),
                                     shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
                                     modifier = Modifier.height(tokens.buttonHeight * 0.85f),
@@ -221,7 +303,7 @@ fun RequisitionDetailScreen(
                         }
                     }
 
-                    // 2. Total Estimated Amount Card
+                    // 2. Estimated Amount Overview Card
                     item {
                         Box(modifier = Modifier.padding(horizontal = tokens.screenPadding)) {
                             Card(
@@ -344,7 +426,7 @@ fun RequisitionDetailScreen(
                         }
                     }
 
-                    // 3. Request Summary
+                    // 3. Request Summary Card
                     item {
                         DetailCardContainer(
                             tokens = tokens,
@@ -419,7 +501,7 @@ fun RequisitionDetailScreen(
                         }
                     }
 
-                    // 4. Delivery Details
+                    // 4. Delivery Details Card
                     item {
                         DetailCardContainer(
                             tokens = tokens,
@@ -451,7 +533,7 @@ fun RequisitionDetailScreen(
                         }
                     }
 
-                    // 5. Justification
+                    // 5. Justification Section
                     item {
                         DetailCardContainer(
                             tokens = tokens,
@@ -467,7 +549,7 @@ fun RequisitionDetailScreen(
                         }
                     }
 
-                    // 6. Requested Items List
+                    // 6. Requested Line Items Section
                     item {
                         Column(
                             modifier = Modifier
@@ -567,7 +649,7 @@ fun RequisitionDetailScreen(
                         Spacer(Modifier.height(tokens.extraPadding * 0.6f))
                     }
 
-                    // 7. Activity & Comments
+                    // 7. Activity & Comments Section
                     item {
                         Card(
                             modifier = Modifier
@@ -600,6 +682,85 @@ fun RequisitionDetailScreen(
             }
         }
 
+        // Approval Required Alert Dialog
+        if (showApprovalRequiredDialog) {
+            Dialog(
+                onDismissRequest = { showApprovalRequiredDialog = false },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = tokens.screenPadding * 1.5f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = whiteBg),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        Text(
+                            text = "Approval Required",
+                            fontSize = tokens.h2,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F2B48)
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+
+                        Text(
+                            text = "This requisition is not approved yet. The current approval status is \"$status\". Please get the requisition approved first.",
+                            fontSize = tokens.bodyMedium,
+                            color = Color(0xFF4B5563),
+                            lineHeight = 22.sp
+                        )
+
+                        Spacer(Modifier.height(24.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = { showApprovalRequiredDialog = false },
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = Color(0xFF111827)
+                                ),
+                                modifier = Modifier.height(40.dp)
+                            ) {
+                                Text(
+                                    text = "Close",
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            Spacer(Modifier.width(12.dp))
+
+                            Button(
+                                onClick = { showApprovalRequiredDialog = false },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF2F27CE)
+                                ),
+                                modifier = Modifier.height(40.dp)
+                            ) {
+                                Text(
+                                    text = "Got It",
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         DynamicIslandSuccess(
             message = successMessage,
             onDismiss = { viewModel.clearRequisitionAlerts() }
@@ -626,9 +787,8 @@ private fun ActivityAndCommentsSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(tokens.screenPadding) // Provides inner spacing from the Card edges
+            .padding(tokens.screenPadding)
     ) {
-        // Title Row
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(bottom = tokens.extraPadding * 1.2f)
@@ -648,7 +808,6 @@ private fun ActivityAndCommentsSection(
             )
         }
 
-        // Comments List
         if (comments.isEmpty()) {
             Text(
                 text = "No comments yet.",
@@ -659,15 +818,12 @@ private fun ActivityAndCommentsSection(
         } else {
             comments.forEachIndexed { index, comment ->
                 CommentCardItem(tokens = tokens, comment = comment, index = index)
-                // Gap between each comment card
                 Spacer(Modifier.height(tokens.extraPadding * 1.5f))
             }
         }
 
-        // Gap below the last comment and above the input box
         Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
-        // Comment Input Row
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -734,7 +890,6 @@ private fun ActivityAndCommentsSection(
             }
         }
 
-        // Gap below the input box inside the card
         Spacer(Modifier.height(tokens.extraPadding * 0.4f))
     }
 }
@@ -766,7 +921,6 @@ private fun CommentCardItem(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top
     ) {
-        // User Profile Picture or Initials Fallback
         Box(
             modifier = Modifier
                 .size(tokens.fieldHeight * 0.95f)
@@ -862,22 +1016,16 @@ private fun CommentCardItem(
 
 private fun formatCommentTimestamp(timestamp: String?): String {
     if (timestamp.isNullOrBlank()) return ""
+    val clean = timestamp.replace("T", " ").substringBefore(".")
     return try {
-        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
+        val parser = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
-        val date = parser.parse(timestamp) ?: return timestamp.take(10)
-        val formatter = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
+        val date = parser.parse(clean) ?: return timestamp.take(10)
+        val formatter = SimpleDateFormat("dd MMM, hh:mm a", Locale.US)
         formatter.format(date)
     } catch (_: Exception) {
-        try {
-            val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-            val date = parser.parse(timestamp) ?: return timestamp.take(10)
-            val formatter = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
-            formatter.format(date)
-        } catch (_: Exception) {
-            timestamp.take(10)
-        }
+        timestamp.take(10)
     }
 }
 

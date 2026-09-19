@@ -408,7 +408,7 @@ fun CreateItemGroupScreen(
                 title = if (isEditMode) "Edit Item Group" else "Create Item Group",
                 onClose = handleDismiss
             )
-            HorizontalDivider(color = title_border, thickness = 1.dp)
+            HorizontalDivider(color = title_border, thickness = 2.dp)
 
             Column(
                 modifier = Modifier

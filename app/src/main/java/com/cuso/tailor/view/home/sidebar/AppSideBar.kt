@@ -1130,7 +1130,7 @@ fun ModulesPanelHeader(
             )
         }
 
-        HorizontalDivider(color = title_border, thickness = 1.dp)
+        HorizontalDivider(color = title_border, thickness = 2.dp)
 
         Row(
             modifier = Modifier

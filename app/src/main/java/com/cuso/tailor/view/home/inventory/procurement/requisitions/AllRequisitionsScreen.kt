@@ -3,7 +3,19 @@ package com.cuso.tailor.view.home.inventory.procurement.requisitions
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -13,11 +25,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,8 +55,31 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.PurchaseRequisition
-import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.ui.theme.Primary
+import com.cuso.tailor.ui.theme.Primary_background
+import com.cuso.tailor.ui.theme.TextPrimary
+import com.cuso.tailor.ui.theme.background_light_purple
+import com.cuso.tailor.ui.theme.complete_button_bg
+import com.cuso.tailor.ui.theme.darkGreenBg
+import com.cuso.tailor.ui.theme.greenBg
+import com.cuso.tailor.ui.theme.grey_border
+import com.cuso.tailor.ui.theme.mutedText
+import com.cuso.tailor.ui.theme.redBg
+import com.cuso.tailor.ui.theme.redText
+import com.cuso.tailor.ui.theme.title_color
+import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.ui.theme.yellowBg
+import com.cuso.tailor.ui.theme.yellowText
+import com.cuso.tailor.view.composable.ActionDropdownMenu
+import com.cuso.tailor.view.composable.AppCheckbox
+import com.cuso.tailor.view.composable.DeleteModel
+import com.cuso.tailor.view.composable.DynamicIslandError
+import com.cuso.tailor.view.composable.DynamicIslandSuccess
+import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.SearchFilterBar
+import com.cuso.tailor.view.composable.ThreeDotLoading
+import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -39,12 +88,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun AllRequisitionsScreen(
     onClose: () -> Unit,
     onCreateRequisition: () -> Unit = {},
+    onEditRequisition: (PurchaseRequisition) -> Unit = {},
     onRequisitionClick: (PurchaseRequisition) -> Unit = {},
     viewModel: InventoryViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
 
-    // Observe requisition list and pagination states from ViewModel
     val requisitionsList by viewModel.requisitionsList.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoadingRequisitions.collectAsStateWithLifecycle()
     val isLoadingMore by viewModel.isLoadingMoreRequisitions.collectAsStateWithLifecycle()
@@ -54,11 +103,9 @@ fun AllRequisitionsScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedItemIds by remember { mutableStateOf(setOf<String>()) }
-
-    // Scroll state tracker for LazyColumn
+    var itemToDelete by remember { mutableStateOf<PurchaseRequisition?>(null) }
     val listState = rememberLazyListState()
 
-    // Unified initial fetch and debounced search (avoids duplicate call at startup)
     var isInitialized by remember { mutableStateOf(false) }
     LaunchedEffect(searchQuery) {
         if (!isInitialized) {
@@ -70,14 +117,11 @@ fun AllRequisitionsScreen(
         }
     }
 
-    // Scroll listener: triggers next page fetch only when crossing the bottom threshold
     LaunchedEffect(listState, canLoadMore, searchQuery) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val totalItems = layoutInfo.totalItemsCount
             val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-
-            // Trigger when reaching within 2 items of the list end
             totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
         }
             .distinctUntilChanged()
@@ -145,7 +189,7 @@ fun AllRequisitionsScreen(
                     height = tokens.fieldHeight * 1.1f
                 )
 
-                HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 1.dp)
+                HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 2.dp)
 
                 when {
                     isLoading && requisitionsList.isEmpty() -> {
@@ -223,6 +267,9 @@ fun AllRequisitionsScreen(
                                         Log.d("REQ_LIST", "Card clicked -> ID: ${item.id}, PR: ${item.prNumber}")
                                         onRequisitionClick(item)
                                     },
+                                    onEdit = {
+                                        onEditRequisition(item)
+                                    },
                                     onApprove = {
                                         item.id?.let { id ->
                                             viewModel.actionRequisitionApproval(id, "Approved")
@@ -232,11 +279,13 @@ fun AllRequisitionsScreen(
                                         item.id?.let { id ->
                                             viewModel.actionRequisitionApproval(id, "Rejected")
                                         }
+                                    },
+                                    onDeleteClick = {
+                                        itemToDelete = item
                                     }
                                 )
                             }
 
-                            // Three-dot loader displayed only while a next page request is actively in-flight
                             if (isLoadingMore) {
                                 item(key = "pagination_threedot_loader") {
                                     ThreeDotLoading(
@@ -250,6 +299,21 @@ fun AllRequisitionsScreen(
                     }
                 }
             }
+        }
+
+        itemToDelete?.let { requisition ->
+            DeleteModel(
+                title = "Delete Requisition",
+                message = "Are you sure you want to delete ${requisition.prNumber ?: "this requisition"}?\nIt can be restored within 7 days.",
+                onDismiss = { itemToDelete = null },
+                onDelete = {
+                    val reqId = requisition.id
+                    if (!reqId.isNullOrBlank()) {
+                        viewModel.deleteRequisition(reqId)
+                    }
+                    itemToDelete = null
+                }
+            )
         }
 
         DynamicIslandSuccess(
@@ -271,12 +335,16 @@ private fun RequisitionCardItem(
     tokens: AppDesignTokens,
     onCheckedChange: (Boolean) -> Unit,
     onClick: () -> Unit,
+    onEdit: () -> Unit,
     onApprove: () -> Unit,
-    onReject: () -> Unit
+    onReject: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     val priority = item.priority ?: "Normal"
     val status = item.approvalStatus ?: "Draft"
-    val isPending = status.equals("Pending", ignoreCase = true) || status.equals("Submitted", ignoreCase = true) || status.equals("Pending Approval", ignoreCase = true)
+    val isPending = status.equals("Pending", ignoreCase = true) ||
+            status.equals("Submitted", ignoreCase = true) ||
+            status.equals("Pending Approval", ignoreCase = true)
     val isApproved = status.equals("Approved", ignoreCase = true)
 
     val menuActions = remember(status) {
@@ -286,6 +354,12 @@ private fun RequisitionCardItem(
                 icon = Icons.Default.Visibility,
                 tint = Primary,
                 onClick = onClick
+            ),
+            MenuAction(
+                label = "Edit",
+                icon = Icons.Default.Edit,
+                tint = Primary,
+                onClick = onEdit
             ),
             MenuAction(
                 label = "Approve",
@@ -301,6 +375,13 @@ private fun RequisitionCardItem(
                 textColor = redText,
                 enabled = isPending,
                 onClick = onReject
+            ),
+            MenuAction(
+                label = "Delete",
+                icon = Icons.Default.Delete,
+                tint = redText,
+                textColor = redText,
+                onClick = onDeleteClick
             )
         )
     }
@@ -331,7 +412,6 @@ private fun RequisitionCardItem(
                 .fillMaxWidth()
                 .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 1.2f)
         ) {
-            // Row 1: Checkbox, Code, Priority Badge, Status Badge, Dropdown Menu
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -352,7 +432,6 @@ private fun RequisitionCardItem(
 
                 Spacer(Modifier.width(tokens.extraPadding))
 
-                // Priority Badge
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(tokens.cardCornerRadius * 2f))
@@ -378,7 +457,6 @@ private fun RequisitionCardItem(
 
                 Spacer(Modifier.weight(1f))
 
-                // Status Badge
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(tokens.cardCornerRadius * 2f))
@@ -420,7 +498,6 @@ private fun RequisitionCardItem(
 
                 Spacer(Modifier.width(tokens.extraPadding * 0.4f))
 
-                // Dropdown Menu
                 ActionDropdownMenu(
                     actions = menuActions,
                     icon = Icons.Default.MoreVert
@@ -429,7 +506,6 @@ private fun RequisitionCardItem(
 
             Spacer(Modifier.height(tokens.extraPadding * 1.2f))
 
-            // Row 2: Grid of details
             Row(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("REQUESTED BY", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
@@ -458,7 +534,6 @@ private fun RequisitionCardItem(
 
             Spacer(Modifier.height(tokens.extraPadding * 1.2f))
 
-            // Row 3: Required By
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

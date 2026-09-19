@@ -73,6 +73,8 @@ import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import androidx.core.graphics.scale
+import com.cuso.tailor.model.inventory.PurchaseOrderDetailData
+import com.cuso.tailor.model.inventory.SubmitForApprovalRequest
 
 @Singleton
 class InventoryRepository @Inject constructor(
@@ -1239,6 +1241,22 @@ class InventoryRepository @Inject constructor(
         }
     }
 
+    suspend fun getPurchaseOrderById(id: String): Result<PurchaseOrderDetailData> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getPurchaseOrderById(accessToken, csrfToken, id)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to load purchase order details")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun receivePurchaseOrder(request: ReceivePurchaseOrderRequest): Result<ReceivePurchaseOrderRequest> =
         withContext(Dispatchers.IO) {
             try {
@@ -1338,19 +1356,45 @@ class InventoryRepository @Inject constructor(
             }
         }
 
-    suspend fun actionRequisitionApproval(
+    suspend fun updateRequisition(
         id: String,
-        request: RequisitionApprovalActionRequest
+        request: CreateRequisitionRequest
     ): Result<PurchaseRequisition> = withContext(Dispatchers.IO) {
         try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = inventoryApi.actionRequisitionApproval(accessToken, csrfToken, id, request)
+            val response = inventoryApi.updateRequisition(accessToken, csrfToken, id, request)
             val body = response.body()
 
             if (response.isSuccessful && body?.success == true && body.data != null) {
                 Result.success(body.data)
             } else {
-                Result.failure(Exception(extractErrorMessage(response, "Failed to action requisition approval")))
+                Result.failure(Exception(extractErrorMessage(response, "Failed to update requisition")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+
+    suspend fun submitForApproval(
+        id: String,
+        remarks: String? = null
+    ): Result<PurchaseRequisition> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val request = remarks?.let { SubmitForApprovalRequest(remarks = it) }
+            val response = inventoryApi.submitForApproval(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id,
+                request = request
+            )
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to submit requisition for approval")))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -1388,6 +1432,21 @@ class InventoryRepository @Inject constructor(
         }
     }
 
+    suspend fun deleteRequisition(id: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.deleteRequisition(accessToken, csrfToken, id)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.message)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to delete requisition")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     // =========================================================================
     // BARCODE API REPOSITORY METHODS
     // =========================================================================

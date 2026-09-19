@@ -160,7 +160,7 @@ fun NewBillScreen(
             }
 
             Spacer(Modifier.height(20.dp))
-            HorizontalDivider(color = dividerColor, thickness = 1.dp)
+            HorizontalDivider(color = dividerColor, thickness = 2.dp)
             Spacer(Modifier.height(16.dp))
 
             // ── Order Summary ──

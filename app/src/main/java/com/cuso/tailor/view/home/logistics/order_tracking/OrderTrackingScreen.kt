@@ -80,7 +80,7 @@ fun OrderTrackingScreen(
                 onFilterClick = { /* open filter drawer */ }
             )
 
-            HorizontalDivider(color = grey_border, thickness = 1.dp)
+            HorizontalDivider(color = grey_border, thickness = 2.dp)
 
             // ── List of orders, built with the shared DataCard ──
             LazyColumn(modifier = Modifier.fillMaxSize()) {

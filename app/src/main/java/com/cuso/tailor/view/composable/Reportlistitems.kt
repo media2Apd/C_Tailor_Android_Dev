@@ -112,7 +112,7 @@ fun InventoryStatusListItem(
         Spacer(modifier = Modifier.height(6.dp))
         ReportUpdatedAtRow(text = "Updated ${item.updatedAt}")
     }
-    HorizontalDivider(Modifier, thickness = 1.dp, color = ReportStatusColors.DividerGray)
+    HorizontalDivider(Modifier, thickness = 2.dp, color = ReportStatusColors.DividerGray)
 }
 
 /* ---------------------------------------------------------------------- */
@@ -185,7 +185,7 @@ fun WarehouseListItem(
         Spacer(modifier = Modifier.height(tokens.screenPadding / 1.4f))
         ReportUpdatedAtRow(text = "Updated ${item.updatedAt}")
     }
-    HorizontalDivider(Modifier, thickness = 1.dp, color = ReportStatusColors.DividerGray)
+    HorizontalDivider(Modifier, thickness = 2.dp, color = ReportStatusColors.DividerGray)
 }
 
 /* ---------------------------------------------------------------------- */
@@ -259,7 +259,7 @@ fun PurchaseOrderListItem(
         Spacer(modifier = Modifier.height(tokens.screenPadding / 1.4f))
         ReportUpdatedAtRow(text = "Updated ${item.updatedAt}")
     }
-    HorizontalDivider(Modifier, thickness = 1.dp, color = ReportStatusColors.DividerGray)
+    HorizontalDivider(Modifier, thickness = 2.dp, color = ReportStatusColors.DividerGray)
 }
 
 /* ---------------------------------------------------------------------- */
@@ -329,5 +329,5 @@ fun DeadStockListItem(
         Spacer(modifier = Modifier.height(tokens.screenPadding / 1.4f))
         ReportUpdatedAtRow(text = "Updated ${item.updatedAt}")
     }
-    HorizontalDivider(Modifier, thickness = 1.dp, color = ReportStatusColors.DividerGray)
+    HorizontalDivider(Modifier, thickness = 2.dp, color = ReportStatusColors.DividerGray)
 }

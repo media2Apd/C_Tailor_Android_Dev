@@ -97,7 +97,7 @@ fun AddTaxGroupScreen(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 TitleBar(title = "Add Tax Group", onClose = onClose)
-                HorizontalDivider(color = grey_border, thickness = 1.dp)
+                HorizontalDivider(color = grey_border, thickness = 2.dp)
             }
         }
 

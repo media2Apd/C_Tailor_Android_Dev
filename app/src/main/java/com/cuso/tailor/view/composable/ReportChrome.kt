@@ -225,7 +225,7 @@ fun ReportStatGrid(
                 Spacer(modifier = Modifier.height(tokens.screenPadding / 1.2f))
                  HorizontalDivider(
                     Modifier,
-                    thickness = 1.dp,
+                    thickness = 2.dp,
                     color = ReportStatusColors.DividerGray
                 )
                 Spacer(modifier = Modifier.height(tokens.screenPadding / 1.2f))

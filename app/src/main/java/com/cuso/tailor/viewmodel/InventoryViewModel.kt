@@ -41,12 +41,12 @@ import com.cuso.tailor.model.inventory.POBillConvertData
 import com.cuso.tailor.model.inventory.PhysicalAttributes
 import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.inventory.PurchaseOrderData
+import com.cuso.tailor.model.inventory.PurchaseOrderDetailData
 import com.cuso.tailor.model.inventory.PurchaseOrderSummaryDto
 import com.cuso.tailor.model.inventory.PurchaseReceiveItem
 import com.cuso.tailor.model.inventory.PurchaseRequisition
 import com.cuso.tailor.model.inventory.ReceiveHistoryByPoResponse
 import com.cuso.tailor.model.inventory.ReceivePurchaseOrderRequest
-import com.cuso.tailor.model.inventory.RequisitionApprovalActionRequest
 import com.cuso.tailor.model.inventory.StockAdjustmentData
 import com.cuso.tailor.model.inventory.StockLocationAssignmentData
 import com.cuso.tailor.model.inventory.StockLocationItemDto
@@ -610,7 +610,7 @@ class InventoryViewModel @Inject constructor(
     private var activeBarcodeStatus: String? = null
 
     // =========================================================================
-    // 8. PURCHASE RECEIVE & RECEIVE HISTORY (SINGLE DEFINITIONS)
+    // 8. PURCHASE RECEIVE & RECEIVE HISTORY
     // =========================================================================
     private val _allReceives = MutableStateFlow<List<PurchaseReceiveItem>>(emptyList())
     val allReceives: StateFlow<List<PurchaseReceiveItem>> = _allReceives.asStateFlow()
@@ -629,7 +629,6 @@ class InventoryViewModel @Inject constructor(
 
     private var activeReceivesSearch: String? = null
 
-    // Single definitions for receive history state
     private val _poHistory = MutableStateFlow<ReceiveHistoryByPoResponse?>(null)
     val poHistory: StateFlow<ReceiveHistoryByPoResponse?> = _poHistory.asStateFlow()
 
@@ -717,6 +716,39 @@ class InventoryViewModel @Inject constructor(
 
     private val _stockLocationActionError = MutableStateFlow<String?>(null)
     val stockLocationActionError: StateFlow<String?> = _stockLocationActionError.asStateFlow()
+
+    // =========================================================================
+    // PURCHASE ORDER VIEW-ONE / DETAIL
+    // =========================================================================
+    private val _purchaseOrderDetail = MutableStateFlow<PurchaseOrderDetailData?>(null)
+    val purchaseOrderDetail: StateFlow<PurchaseOrderDetailData?> = _purchaseOrderDetail.asStateFlow()
+
+    private val _isLoadingPODetail = MutableStateFlow<Boolean>(false)
+    val isLoadingPODetail: StateFlow<Boolean> = _isLoadingPODetail.asStateFlow()
+
+    private val _poDetailError = MutableStateFlow<String?>(null)
+    val poDetailError: StateFlow<String?> = _poDetailError.asStateFlow()
+
+    fun fetchPurchaseOrderDetail(poId: String) {
+        if (poId.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingPODetail.value = true
+            _poDetailError.value = null
+            inventoryRepository.getPurchaseOrderById(poId)
+                .onSuccess { detail ->
+                    _purchaseOrderDetail.value = detail
+                }
+                .onFailure { error ->
+                    _poDetailError.value = extractErrorMessage(error.message)
+                }
+            _isLoadingPODetail.value = false
+        }
+    }
+
+    fun clearPurchaseOrderDetail() {
+        _purchaseOrderDetail.value = null
+        _poDetailError.value = null
+    }
 
     // =========================================================================
     // INITIALIZATION
@@ -2449,6 +2481,144 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Submits an existing requisition directly for approval workflow.
+     */
+    fun submitForApproval(
+        id: String,
+        remarks: String? = null,
+        onSuccess: (PurchaseRequisition) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingRequisition.value = true
+            _requisitionErrorMessage.value = null
+            _requisitionSuccessMessage.value = null
+
+            inventoryRepository.submitForApproval(id, remarks)
+                .onSuccess { updated ->
+                    _selectedRequisition.value = updated
+                    _requisitionSuccessMessage.value = "Requisition submitted for approval"
+                    fetchAllRequisitions()
+                    onSuccess(updated)
+                }
+                .onFailure { error ->
+                    _requisitionErrorMessage.value = extractErrorMessage(error.message)
+                }
+
+            _isSubmittingRequisition.value = false
+        }
+    }
+
+    /**
+     * Creates a new requisition and immediately chains a submission for approval.
+     */
+    fun createAndSubmitRequisitionForApproval(
+        request: CreateRequisitionRequest,
+        onSuccess: (PurchaseRequisition) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingRequisition.value = true
+            _requisitionErrorMessage.value = null
+            _requisitionSuccessMessage.value = null
+
+            val createResult = inventoryRepository.createRequisition(request)
+            createResult.fold(
+                onSuccess = { created ->
+                    val reqId = created.id
+                    if (!reqId.isNullOrBlank()) {
+                        val submitResult = inventoryRepository.submitForApproval(reqId, created.justification)
+                        submitResult.fold(
+                            onSuccess = { approvedOrSubmitted ->
+                                _requisitionSuccessMessage.value = "Requisition submitted for approval (${approvedOrSubmitted.prNumber ?: created.prNumber})"
+                                fetchAllRequisitions()
+                                onSuccess(approvedOrSubmitted)
+                            },
+                            onFailure = { submitError ->
+                                _requisitionSuccessMessage.value = "Requisition created (${created.prNumber}), but submission failed"
+                                _requisitionErrorMessage.value = extractErrorMessage(submitError.message)
+                                fetchAllRequisitions()
+                                onSuccess(created)
+                            }
+                        )
+                    } else {
+                        _requisitionSuccessMessage.value = "Requisition created successfully"
+                        fetchAllRequisitions()
+                        onSuccess(created)
+                    }
+                },
+                onFailure = { error ->
+                    _requisitionErrorMessage.value = extractErrorMessage(error.message)
+                }
+            )
+
+            _isSubmittingRequisition.value = false
+        }
+    }
+
+    fun updateRequisition(
+        id: String,
+        request: CreateRequisitionRequest,
+        onSuccess: (PurchaseRequisition) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingRequisition.value = true
+            _requisitionErrorMessage.value = null
+            _requisitionSuccessMessage.value = null
+
+            inventoryRepository.updateRequisition(id, request)
+                .onSuccess { updated ->
+                    _requisitionSuccessMessage.value = "Requisition updated successfully"
+                    fetchAllRequisitions()
+                    onSuccess(updated)
+                }
+                .onFailure { error ->
+                    _requisitionErrorMessage.value = extractErrorMessage(error.message)
+                }
+
+            _isSubmittingRequisition.value = false
+        }
+    }
+
+    fun updateAndSubmitRequisitionForApproval(
+        id: String,
+        request: CreateRequisitionRequest,
+        onSuccess: (PurchaseRequisition) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingRequisition.value = true
+            _requisitionErrorMessage.value = null
+            _requisitionSuccessMessage.value = null
+
+            val updateResult = inventoryRepository.updateRequisition(id, request)
+            updateResult.fold(
+                onSuccess = { updated ->
+                    val submitResult = inventoryRepository.submitForApproval(id, updated.justification)
+                    submitResult.fold(
+                        onSuccess = { approved ->
+                            _requisitionSuccessMessage.value = "Requisition updated and submitted for approval"
+                            fetchAllRequisitions()
+                            onSuccess(approved)
+                        },
+                        onFailure = { submitError ->
+                            _requisitionSuccessMessage.value = "Requisition updated, but submission failed"
+                            _requisitionErrorMessage.value = extractErrorMessage(submitError.message)
+                            fetchAllRequisitions()
+                            onSuccess(updated)
+                        }
+                    )
+                },
+                onFailure = { error ->
+                    _requisitionErrorMessage.value = extractErrorMessage(error.message)
+                }
+            )
+
+            _isSubmittingRequisition.value = false
+        }
+    }
+
+    /**
+     * Actions requisition approval (Approve / Reject).
+     */
     fun actionRequisitionApproval(
         id: String,
         status: String,
@@ -2460,12 +2630,35 @@ class InventoryViewModel @Inject constructor(
             _requisitionErrorMessage.value = null
             _requisitionSuccessMessage.value = null
 
-            val req = RequisitionApprovalActionRequest(status = status, remarks = remarks)
-            inventoryRepository.actionRequisitionApproval(id, req)
+            val remarkPayload = remarks ?: "Requisition marked as $status"
+            inventoryRepository.submitForApproval(id, remarkPayload)
                 .onSuccess { updated ->
                     _requisitionSuccessMessage.value = "Requisition marked as $status"
                     fetchAllRequisitions()
                     onSuccess(updated)
+                }
+                .onFailure { error ->
+                    _requisitionErrorMessage.value = extractErrorMessage(error.message)
+                }
+
+            _isSubmittingRequisition.value = false
+        }
+    }
+
+    /**
+     * Soft-deletes a requisition by its ID.
+     */
+    fun deleteRequisition(id: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isSubmittingRequisition.value = true
+            _requisitionErrorMessage.value = null
+            _requisitionSuccessMessage.value = null
+
+            inventoryRepository.deleteRequisition(id)
+                .onSuccess { message ->
+                    _requisitionSuccessMessage.value = message
+                    fetchAllRequisitions()
+                    onSuccess()
                 }
                 .onFailure { error ->
                     _requisitionErrorMessage.value = extractErrorMessage(error.message)
@@ -2696,9 +2889,6 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Loads the complete receive history and line-item fulfillment for a given Purchase Order ID.
-     */
     fun fetchReceiveHistoryByPo(poId: String) {
         if (poId.isBlank()) return
         viewModelScope.launch {
@@ -2741,8 +2931,6 @@ class InventoryViewModel @Inject constructor(
             _isLoading.value = false
         }
     }
-
-    // ── Purchase Order Receive Summaries ──
 
     fun fetchPurchaseOrderSummary(page: Int = 1, limit: Int = 10, search: String? = null) {
         viewModelScope.launch {

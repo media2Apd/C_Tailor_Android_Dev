@@ -213,7 +213,7 @@ fun WarehouseDetailCard(
             }
 
             Spacer(Modifier.height(14.dp))
-            HorizontalDivider(thickness = 1.dp, color = Color(0xFFF1F5F9))
+            HorizontalDivider(thickness = 2.dp, color = Color(0xFFF1F5F9))
             Spacer(Modifier.height(12.dp))
 
             if (showFourGridBoxes) {
@@ -283,7 +283,7 @@ fun WarehouseDetailCard(
             }
 
             Spacer(Modifier.height(16.dp))
-            HorizontalDivider(thickness = 1.dp, color = Color(0xFFF1F5F9))
+            HorizontalDivider(thickness = 2.dp, color = Color(0xFFF1F5F9))
             Spacer(Modifier.height(12.dp))
 
             // ── Capacity Summary Section ──

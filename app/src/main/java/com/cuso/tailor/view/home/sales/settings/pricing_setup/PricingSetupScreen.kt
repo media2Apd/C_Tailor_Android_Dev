@@ -145,7 +145,7 @@ fun PricingSetupScreen(
                         selectedTabIndex = safeSegmentIndex,
                         edgePadding = tokens.screenPadding,
                         containerColor = whiteBg,
-                        divider = { HorizontalDivider(color = title_border, thickness = 1.dp) },
+                        divider = { HorizontalDivider(color = title_border, thickness = 2.dp) },
                         indicator = { tabPositions ->
                             if (safeSegmentIndex < tabPositions.size) {
                                 TabRowDefaults.SecondaryIndicator(

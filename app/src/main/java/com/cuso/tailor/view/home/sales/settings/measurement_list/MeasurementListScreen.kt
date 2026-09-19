@@ -56,7 +56,7 @@ fun MeasurementListScreen(
                 onClose = onClose
             )
 
-            HorizontalDivider(color = dividerColor, thickness = 1.dp)
+            HorizontalDivider(color = dividerColor, thickness = 2.dp)
 
             Box(modifier = Modifier.fillMaxSize()) {
                 when {

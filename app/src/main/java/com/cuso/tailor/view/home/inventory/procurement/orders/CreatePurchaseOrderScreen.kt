@@ -166,7 +166,7 @@ fun PurchaseOrderHeaderCard(
                         .height(30.dp)
                         .padding(horizontal = 4.dp),
                     color = grey_border,
-                    thickness = 1.dp
+                    thickness = 2.dp
                 )
 
                 HeaderStatColumn(
@@ -181,7 +181,7 @@ fun PurchaseOrderHeaderCard(
                         .height(30.dp)
                         .padding(horizontal = 4.dp),
                     color = grey_border,
-                    thickness = 1.dp
+                    thickness = 2.dp
                 )
 
                 HeaderStatColumn(
@@ -196,7 +196,7 @@ fun PurchaseOrderHeaderCard(
                         .height(30.dp)
                         .padding(horizontal = 4.dp),
                     color = grey_border,
-                    thickness = 1.dp
+                    thickness = 2.dp
                 )
 
                 HeaderStatColumn(

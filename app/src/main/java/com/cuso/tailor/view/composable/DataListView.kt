@@ -465,7 +465,7 @@ fun <T> DataCard(
             // Divider separating the identity section from content body
             if (showHeaderDivider) {
                 Spacer(Modifier.height(12.dp))
-                HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+                HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 2.dp)
             }
 
             // Custom Content Slot
@@ -610,7 +610,7 @@ fun <T> DataCard(
     }
 
     if (showDivider) {
-        HorizontalDivider(color = BorderGray, thickness = 1.dp)
+        HorizontalDivider(color = BorderGray, thickness = 2.dp)
     }
 }
 

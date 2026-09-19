@@ -155,7 +155,7 @@ private fun ServiceStatusHeader(
             )
         }
     }
-    HorizontalDivider(color = BorderGray, thickness = 1.dp)
+    HorizontalDivider(color = BorderGray, thickness = 2.dp)
 }
 
 @Composable

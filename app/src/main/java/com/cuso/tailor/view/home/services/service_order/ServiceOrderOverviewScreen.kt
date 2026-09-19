@@ -644,7 +644,7 @@ private fun ServiceOverviewTab(data: OrderOverviewData) {
             )
 
             Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = light_grey, thickness = 1.dp)
+            HorizontalDivider(color = light_grey, thickness = 2.dp)
             Spacer(Modifier.height(12.dp))
 
             Text("Special Instructions", fontSize = 12.sp, color = Color(0xFF9CA3AF))
@@ -679,7 +679,7 @@ private fun OverviewFieldRow(
         Text(value, fontSize = 13.sp, fontWeight = FontWeight.Normal, color = valueColor)
     }
     if (showDivider) {
-        HorizontalDivider(color = Color(0xFFF8F9FA), thickness = 1.dp)
+        HorizontalDivider(color = Color(0xFFF8F9FA), thickness = 2.dp)
     }
 }
 
@@ -902,7 +902,7 @@ private fun ServiceGarmentCard(
             }
 
             Spacer(Modifier.height(14.dp))
-            HorizontalDivider(color = light_grey, thickness = 1.dp)
+            HorizontalDivider(color = light_grey, thickness = 2.dp)
             Spacer(Modifier.height(14.dp))
 
             // ── Bottom Section: Quantity & Trial Status ──
@@ -1150,7 +1150,7 @@ private fun ServiceAssignmentCard(
             }
 
             Spacer(Modifier.height(14.dp))
-            HorizontalDivider(color = Color(0xFFF9FAFB), thickness = 1.dp)
+            HorizontalDivider(color = Color(0xFFF9FAFB), thickness = 2.dp)
             Spacer(Modifier.height(14.dp))
 
             // ── Production Workflow Steps ──
@@ -1184,7 +1184,7 @@ private fun ServiceAssignmentCard(
             }
 
             Spacer(Modifier.height(16.dp))
-            HorizontalDivider(color = Color(0xFFF9FAFB), thickness = 1.dp)
+            HorizontalDivider(color = Color(0xFFF9FAFB), thickness = 2.dp)
             Spacer(Modifier.height(12.dp))
 
             // ── Timeline Progress ──
@@ -1759,7 +1759,7 @@ private fun AssignServiceTailorsSheet(
                         }
 
                         Spacer(Modifier.height(14.dp))
-                        HorizontalDivider(color = light_grey, thickness = 1.dp)
+                        HorizontalDivider(color = light_grey, thickness = 2.dp)
                         Spacer(Modifier.height(12.dp))
 
                         Row(
@@ -2055,7 +2055,7 @@ private fun ServicePaymentTab(
                     )
 
                     Spacer(Modifier.height(16.dp))
-                    HorizontalDivider(color = light_grey, thickness = 1.dp)
+                    HorizontalDivider(color = light_grey, thickness = 2.dp)
                     Spacer(Modifier.height(14.dp))
 
                     // Progress Bar
@@ -2190,7 +2190,7 @@ private fun ServicePaymentTab(
                         }
 
                         Spacer(Modifier.height(14.dp))
-                        HorizontalDivider(color = light_grey, thickness = 1.dp)
+                        HorizontalDivider(color = light_grey, thickness = 2.dp)
                         Spacer(Modifier.height(14.dp))
 
                         // Amount Received (₹)
@@ -2346,7 +2346,7 @@ private fun ServicePaymentTab(
 
                     if (documentsExpanded) {
                         Spacer(Modifier.height(12.dp))
-                        HorizontalDivider(color = light_grey, thickness = 1.dp)
+                        HorizontalDivider(color = light_grey, thickness = 2.dp)
 
                         // 1. Generate / View Invoice
                         DocumentActionItem(
@@ -2363,7 +2363,7 @@ private fun ServicePaymentTab(
                             }
                         )
 
-                        HorizontalDivider(color = Color(0xFFF9FAFB), thickness = 1.dp)
+                        HorizontalDivider(color = Color(0xFFF9FAFB), thickness = 2.dp)
 
                         // 2. Print Receipt
                         DocumentActionItem(
@@ -2374,7 +2374,7 @@ private fun ServicePaymentTab(
                             onClick = { pdfGenerator.printReceiptViaWebView(receiptData) }
                         )
 
-                        HorizontalDivider(color = Color(0xFFF9FAFB), thickness = 1.dp)
+                        HorizontalDivider(color = Color(0xFFF9FAFB), thickness = 2.dp)
 
                         // 3. Download PDF Ledger
                         DocumentActionItem(
@@ -2398,7 +2398,7 @@ private fun ServicePaymentTab(
                             }
                         )
 
-                        HorizontalDivider(color = Color(0xFFF9FAFB), thickness = 1.dp)
+                        HorizontalDivider(color = Color(0xFFF9FAFB), thickness = 2.dp)
 
                         // 4. Create Adjustment
                         DocumentActionItem(
@@ -2436,7 +2436,7 @@ private fun ServicePaymentTab(
                     }
 
                     Spacer(Modifier.height(12.dp))
-                    HorizontalDivider(color = light_grey, thickness = 1.dp)
+                    HorizontalDivider(color = light_grey, thickness = 2.dp)
                     Spacer(Modifier.height(12.dp))
 
                     Row(

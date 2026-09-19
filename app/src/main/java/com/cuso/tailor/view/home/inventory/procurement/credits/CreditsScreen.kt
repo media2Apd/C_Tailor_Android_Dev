@@ -101,7 +101,7 @@ fun AllCreditsScreen(
                     height = tokens.fieldHeight * 1.1f
                 )
 
-                HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 1.dp)
+                HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 2.dp)
 
                 // Credits List
                 LazyColumn(

@@ -268,7 +268,7 @@ fun PurchaseDetailScreen(
                     }
                 }
 
-                HorizontalDivider(color = dividerColor, thickness = 1.dp)
+                HorizontalDivider(color = dividerColor, thickness = 2.dp)
 
                 // ── Detailed Metadata Grid ──
                 Column(modifier = Modifier.padding(tokens.screenPadding)) {
@@ -336,7 +336,7 @@ fun PurchaseDetailScreen(
                     }
                 }
 
-                HorizontalDivider(color = dividerColor, thickness = 1.dp)
+                HorizontalDivider(color = dividerColor, thickness = 2.dp)
 
                 // ── Line Items Fulfillment Overview ──
                 Column(modifier = Modifier.padding(tokens.screenPadding)) {
@@ -366,7 +366,7 @@ fun PurchaseDetailScreen(
                     }
                 }
 
-                HorizontalDivider(color = dividerColor, thickness = 1.dp)
+                HorizontalDivider(color = dividerColor, thickness = 2.dp)
 
                 // ── Associated Shipment / Receive Logs ──
                 Column(modifier = Modifier.padding(tokens.screenPadding)) {

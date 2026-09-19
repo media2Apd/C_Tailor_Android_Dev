@@ -138,6 +138,8 @@ fun HomeScreenRouter(
     screen: String,
     navController: NavHostController,
     widthSizeClass: WindowWidthSizeClass,
+    selectedPurchaseOrderForDetail: PurchaseOrder?,
+    onPurchaseOrderForDetailSelected: (PurchaseOrder?) -> Unit,
     selectedRequisitionIdForDetail: String?,
     onRequisitionIdForDetailSelected: (String?) -> Unit,
     token: String,
@@ -201,7 +203,7 @@ fun HomeScreenRouter(
 ) {
     var isGarmentActive by remember { mutableStateOf(false) }
     var selectedSegmentForEdit by remember { mutableStateOf<SegmentItem?>(null) }
-    var selectedPurchaseOrderForDetail by remember { mutableStateOf<PurchaseOrder?>(null) }
+//    var selectedPurchaseOrderForDetail by remember { mutableStateOf<PurchaseOrder?>(null) }
     var selectedPurchaseOrderForEdit by remember { mutableStateOf<PurchaseOrder?>(null) }
     var selectedAdjustmentType by remember { mutableStateOf(AdjustmentType.TransferStock) }
     var selectedReceivePoId by remember { mutableStateOf<String?>(null) }
@@ -1348,7 +1350,14 @@ fun HomeScreenRouter(
         // ── Inventory Procurement: Requisitions ──
         "inventory_requisitions" -> AllRequisitionsScreen(
             onClose = onGoBack,
-            onCreateRequisition = { onNavigate("inventory_create_requisition") },
+            onCreateRequisition = {
+                onRequisitionIdForDetailSelected(null)
+                onNavigate("inventory_create_requisition")
+            },
+            onEditRequisition = { requisition ->
+                onRequisitionIdForDetailSelected(requisition.id)
+                onNavigate("inventory_create_requisition")
+            },
             onRequisitionClick = { requisition ->
                 val id = requisition.id ?: return@AllRequisitionsScreen
                 onRequisitionIdForDetailSelected(id)
@@ -1370,9 +1379,15 @@ fun HomeScreenRouter(
         }
 
         "inventory_create_requisition" -> CreateRequisitionScreen(
-            onClose = onGoBack,
-            onSendForApproval = { onGoBack() },
-            onSaveDraft = { onGoBack() }
+            onClose = {
+                onRequisitionIdForDetailSelected(null)
+                onGoBack()
+            },
+            editRequisitionId = selectedRequisitionIdForDetail,
+            onSuccessSubmitted = {
+                onRequisitionIdForDetailSelected(null)
+                onGoBack()
+            }
         )
 
         // ── Inventory Procurement: Barcodes ──
@@ -1498,7 +1513,8 @@ fun HomeScreenRouter(
                     onNavigate("inventory_create_purchase_order_flow")
                 },
                 onNavigateToDetail = { po ->
-                    selectedPurchaseOrderForDetail = po
+                    // Update state in parent and navigate to details
+                    onPurchaseOrderForDetailSelected(po)
                     onNavigate("inventory_purchase_order_detail_flow")
                 },
                 onClose = onGoBack
@@ -1515,7 +1531,7 @@ fun HomeScreenRouter(
                         onNavigate("inventory_create_purchase_order_flow")
                     },
                     onClose = {
-                        selectedPurchaseOrderForDetail = null
+                        onPurchaseOrderForDetailSelected(null)
                         onGoBack()
                     }
                 )

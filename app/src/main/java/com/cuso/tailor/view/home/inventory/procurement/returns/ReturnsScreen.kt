@@ -106,7 +106,7 @@ fun AllReturnsScreen(
                     height = tokens.fieldHeight * 1.1f
                 )
 
-                HorizontalDivider(color = grey_border.copy(alpha = 0.6f), thickness = 1.dp)
+                HorizontalDivider(color = grey_border.copy(alpha = 0.6f), thickness = 2.dp)
 
                 // RMA Main Group Header (RMA-1001)
                 RmaGroupHeaderSection(
@@ -120,7 +120,7 @@ fun AllReturnsScreen(
                     onMoreClick = { }
                 )
 
-                HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 1.dp)
+                HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 2.dp)
 
                 // Returns List
                 LazyColumn(

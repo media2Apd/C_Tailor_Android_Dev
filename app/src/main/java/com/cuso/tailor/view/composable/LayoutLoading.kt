@@ -465,7 +465,7 @@ private fun RecentCustomersSkeleton(tokens: AppDesignTokens, brush: Brush) {
                             start = tokens.cardPadding * 0.7f,
                             end = tokens.cardPadding * 0.7f
                         ),
-                        thickness = 1.dp,
+                        thickness = 2.dp,
                         color = modelBorder
                     )
                 }
@@ -503,7 +503,7 @@ fun ListSkeleton(
             // Divider matching DataCard showDivider
             HorizontalDivider(
                 color = BorderGray,
-                thickness = 1.dp
+                thickness = 2.dp
             )
         }
     }

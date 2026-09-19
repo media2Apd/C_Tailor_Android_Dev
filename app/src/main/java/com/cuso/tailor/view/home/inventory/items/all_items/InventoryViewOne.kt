@@ -502,7 +502,7 @@ private fun InfoRow(
 
 @Composable
 private fun DividerLine() {
-    HorizontalDivider(color = title_border, thickness = 1.dp)
+    HorizontalDivider(color = title_border, thickness = 2.dp)
 }
 
 @Composable

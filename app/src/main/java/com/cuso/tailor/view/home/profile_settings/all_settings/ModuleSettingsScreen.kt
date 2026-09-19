@@ -387,7 +387,7 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                     module.subItems.forEach { subItem ->
                         HorizontalDivider(
                             color = Color(0xFFF1F5F9),
-                            thickness = 1.dp
+                            thickness = 2.dp
                         )
 
                         Row(

@@ -26,6 +26,7 @@ import com.cuso.tailor.model.inventory.DecreaseStockRequest
 import com.cuso.tailor.model.inventory.DeleteBarcodeResponse
 import com.cuso.tailor.model.inventory.DeleteInventoryItemResponse
 import com.cuso.tailor.model.inventory.DeleteItemGroupResponse
+import com.cuso.tailor.model.inventory.DeleteRequisitionResponse
 import com.cuso.tailor.model.inventory.FloorDropdownResponse
 import com.cuso.tailor.model.inventory.GenerateBarcodeRequest
 import com.cuso.tailor.model.inventory.IncreaseStockRequest
@@ -37,6 +38,7 @@ import com.cuso.tailor.model.inventory.ItemGroupViewOneResponse
 import com.cuso.tailor.model.inventory.LowStockResponse
 import com.cuso.tailor.model.inventory.POBillConvertResponse
 import com.cuso.tailor.model.inventory.PurchaseOrder
+import com.cuso.tailor.model.inventory.PurchaseOrderDetailResponse
 import com.cuso.tailor.model.inventory.PurchaseOrderListResponse
 import com.cuso.tailor.model.inventory.PurchaseOrderSingleResponse
 import com.cuso.tailor.model.inventory.PurchaseOrderSummaryResponse
@@ -55,6 +57,8 @@ import com.cuso.tailor.model.inventory.StockAdjustmentListResponse
 import com.cuso.tailor.model.inventory.StockLocationItemListResponse
 import com.cuso.tailor.model.inventory.StockLocationViewOneResponse
 import com.cuso.tailor.model.inventory.StockSummaryListResponse
+import com.cuso.tailor.model.inventory.SubmitForApprovalRequest
+import com.cuso.tailor.model.inventory.SubmitForApprovalResponse
 import com.cuso.tailor.model.inventory.SupplierActionResponse
 import com.cuso.tailor.model.inventory.SupplierDropdownResponse
 import com.cuso.tailor.model.inventory.SupplierLedgerResponse
@@ -604,6 +608,13 @@ interface InventoryApiService {
         @Query("status") status: String? = null
     ): Response<PurchaseOrderListResponse>
 
+    @GET("/api/inventory/purchase-order/view-one/{id}")
+    suspend fun getPurchaseOrderById(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<PurchaseOrderDetailResponse>
+
     @POST("/api/inventory/purchase-order/receive/")
     suspend fun receivePurchaseOrder(
         @Header("Authorization") token: String,
@@ -646,17 +657,6 @@ interface InventoryApiService {
     ): Response<RequisitionSingleResponse>
 
     /**
-     * ADD COMMENT API
-     */
-//    @POST("requisitions/{id}/comments")
-//    suspend fun addComment(
-//        @Header("Authorization") token: String,
-//        @Header("x-csrf-token") csrfToken: String,
-//        @Path("id") requisitionId: String,
-//        @Body payload: AddCommentRequest
-//    ): Response<RequisitionSingleResponse>
-
-    /**
      * Add comment to a purchase requisition.
      */
     @POST("/api/inventory/requisition/{id}/comment")
@@ -677,16 +677,31 @@ interface InventoryApiService {
         @Body request: CreateRequisitionRequest
     ): Response<RequisitionSingleResponse>
 
-    /**
-     * Action requisition approval (Approve / Reject).
-     */
-    @POST("/api/inventory/requisition/approval-action/{id}")
-    suspend fun actionRequisitionApproval(
+    @PUT("/api/inventory/requisition/update-one/{id}")
+    suspend fun updateRequisition(
         @Header("Authorization") token: String,
         @Header("x-csrf-token") csrfToken: String,
         @Path("id") id: String,
-        @Body request: RequisitionApprovalActionRequest
+        @Body request: CreateRequisitionRequest
     ): Response<RequisitionSingleResponse>
+
+    /**
+     * Action requisition approval (Approve / Reject).
+     */
+    @POST("/api/inventory/requisition/{id}/submit-for-approval")
+    suspend fun submitForApproval(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: SubmitForApprovalRequest? = null
+    ): Response<SubmitForApprovalResponse>
+
+    @DELETE("/api/inventory/requisition/delete-one/{id}")
+    suspend fun deleteRequisition(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<DeleteRequisitionResponse>
 
 
 

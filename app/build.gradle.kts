@@ -36,8 +36,8 @@ android {
         targetSdk = 36
 
         //VERSION
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.1"
     }
 
     buildTypes {
@@ -46,7 +46,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"https://cuso-tailor-production.onrender.com\""
+                "\"http://192.168.88.10:5000/\""
             )
         }
 
@@ -62,7 +62,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"https://cuso-tailor-production.onrender.com\""
+                "\"https://cuso-tailor-production.onrender.com/\""
             )
         }
     }

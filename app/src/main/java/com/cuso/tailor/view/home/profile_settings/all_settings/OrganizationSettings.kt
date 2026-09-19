@@ -304,7 +304,7 @@ private fun SettingsAccordionCard(
                 exit = fadeOut() + shrinkVertically()
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    HorizontalDivider(color = sectionBorder, thickness = 1.dp)
+                    HorizontalDivider(color = sectionBorder, thickness = 2.dp)
                     content()
                 }
             }

@@ -581,7 +581,7 @@ fun CreateOrderScreen(
                                     Icon(
                                         imageVector = Icons.Default.KeyboardArrowDown,
                                         contentDescription = null,
-                                        tint = Color(0xFF64748B),
+                                        tint = headerGrey,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -810,15 +810,15 @@ fun CreateOrderScreen(
 
                                 Row(modifier = Modifier.fillMaxWidth()) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Stitching", fontSize = 11.sp, color = Color(0xFF64748B))
+                                        Text("Stitching", fontSize = 11.sp, color = headerGrey)
                                         Text("₹${formatIndianNumber(item.stitchingPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = title_color)
                                     }
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Fabric", fontSize = 11.sp, color = Color(0xFF64748B))
+                                        Text("Fabric", fontSize = 11.sp, color = headerGrey)
                                         Text("₹${formatIndianNumber(item.fabricPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = title_color)
                                     }
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Addl. Work", fontSize = 11.sp, color = Color(0xFF64748B))
+                                        Text("Addl. Work", fontSize = 11.sp, color = headerGrey)
                                         Text("₹${formatIndianNumber(item.addlWorkPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = title_color)
                                     }
                                 }
@@ -827,15 +827,15 @@ fun CreateOrderScreen(
 
                                 Row(modifier = Modifier.fillMaxWidth()) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Discount", fontSize = 11.sp, color = Color(0xFF64748B))
+                                        Text("Discount", fontSize = 11.sp, color = headerGrey)
                                         Text("-₹${formatIndianNumber(item.discountPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = redText)
                                     }
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Tax/GST", fontSize = 11.sp, color = Color(0xFF64748B))
+                                        Text("Tax/GST", fontSize = 11.sp, color = headerGrey)
                                         Text("₹${formatIndianNumber(item.taxPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = title_color)
                                     }
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text("Total", fontSize = 11.sp, color = Color(0xFF64748B))
+                                        Text("Total", fontSize = 11.sp, color = headerGrey)
                                         Text("₹${formatIndianNumber(item.totalItemPrice)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Primary)
                                     }
                                 }
@@ -850,11 +850,11 @@ fun CreateOrderScreen(
                     Text(
                         text = "Currency: INR (₹) • GST: Standard 5% applied",
                         fontSize = 11.sp,
-                        color = Color(0xFF64748B)
+                        color = headerGrey
                     )
 
                     Spacer(Modifier.height(14.dp))
-                    HorizontalDivider(color = Color(0xFFF1F5F9))
+                    HorizontalDivider(color = grey_border)
                     Spacer(Modifier.height(10.dp))
 
                     // Summary Breakdown Table
@@ -862,7 +862,7 @@ fun CreateOrderScreen(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Subtotal", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+                        Text("Subtotal", fontSize = tokens.bodySmall, color = headerGrey)
                         Text("₹${formatIndianNumber(subtotalAmount)}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = title_color)
                     }
 
@@ -870,7 +870,7 @@ fun CreateOrderScreen(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Total Discount", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+                        Text("Total Discount", fontSize = tokens.bodySmall, color = headerGrey)
                         Text("-₹${formatIndianNumber(totalDiscount)}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = redText)
                     }
 
@@ -878,7 +878,7 @@ fun CreateOrderScreen(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Total Tax (GST)", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+                        Text("Total Tax (GST)", fontSize = tokens.bodySmall, color = headerGrey)
                         Text("+₹${formatIndianNumber(totalTax)}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = title_color)
                     }
 
@@ -886,7 +886,7 @@ fun CreateOrderScreen(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Delivery Charges", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+                        Text("Delivery Charges", fontSize = tokens.bodySmall, color = headerGrey)
                         Text("₹0", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = title_color)
                     }
 
@@ -1022,7 +1022,7 @@ fun CreateOrderScreen(
                     Text(
                         text = "Upload reference images, fabric swatches, or measurement sheets",
                         fontSize = tokens.caption,
-                        color = Color(0xFF64748B)
+                        color = headerGrey
                     )
 
                     Spacer(Modifier.height(14.dp))

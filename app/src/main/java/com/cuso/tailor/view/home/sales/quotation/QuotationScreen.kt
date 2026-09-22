@@ -198,7 +198,7 @@ fun QuotationScreen(
 
                     quotationState is QuotationUiState.Error -> {
                         AppErrorState(
-                            title = "Failed to load dashboard",
+                            title = "Failed to load Quotation",
                             message = "Something went wrong. Please check your connection and try again.",
                             onRetry = { quotationViewModel.refresh() }
                         )

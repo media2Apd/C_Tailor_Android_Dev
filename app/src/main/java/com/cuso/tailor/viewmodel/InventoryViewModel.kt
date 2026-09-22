@@ -18,8 +18,10 @@ import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.model.inventory.AssignStockLocationRequest
 import com.cuso.tailor.model.inventory.BarcodeItemDoc
 import com.cuso.tailor.model.inventory.BillCreatedData
+import com.cuso.tailor.model.inventory.BillResponseData
 import com.cuso.tailor.model.inventory.BulkItemDoc
 import com.cuso.tailor.model.inventory.CapacitySummary
+import com.cuso.tailor.model.inventory.CreateBillRequest
 import com.cuso.tailor.model.inventory.CreateInventoryItemResponse
 import com.cuso.tailor.model.inventory.CreateItemGroupRequest
 import com.cuso.tailor.model.inventory.CreatePoItemRequest
@@ -38,6 +40,7 @@ import com.cuso.tailor.model.inventory.ItemGroupDto
 import com.cuso.tailor.model.inventory.ItemGroupViewOneData
 import com.cuso.tailor.model.inventory.LowStockItemDto
 import com.cuso.tailor.model.inventory.POBillConvertData
+import com.cuso.tailor.model.inventory.PaymentTermDto
 import com.cuso.tailor.model.inventory.PhysicalAttributes
 import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.inventory.PurchaseOrderData
@@ -47,6 +50,7 @@ import com.cuso.tailor.model.inventory.PurchaseReceiveItem
 import com.cuso.tailor.model.inventory.PurchaseRequisition
 import com.cuso.tailor.model.inventory.ReceiveHistoryByPoResponse
 import com.cuso.tailor.model.inventory.ReceivePurchaseOrderRequest
+import com.cuso.tailor.model.inventory.SafetyStockItemDto
 import com.cuso.tailor.model.inventory.StockAdjustmentData
 import com.cuso.tailor.model.inventory.StockLocationAssignmentData
 import com.cuso.tailor.model.inventory.StockLocationItemDto
@@ -55,6 +59,7 @@ import com.cuso.tailor.model.inventory.StockSummaryItemDto
 import com.cuso.tailor.model.inventory.SupplierDropdownItem
 import com.cuso.tailor.model.inventory.SupplierDto
 import com.cuso.tailor.model.inventory.SupplierLedgerContainer
+import com.cuso.tailor.model.inventory.TaxGroupDto
 import com.cuso.tailor.model.inventory.TransferStockRequest
 import com.cuso.tailor.model.inventory.UpdateWarehouseRequest
 import com.cuso.tailor.model.inventory.VariantSelection
@@ -492,6 +497,18 @@ class InventoryViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _isLoadingBulkDetail = MutableStateFlow(false)
+    val isLoadingBulkDetail: StateFlow<Boolean> = _isLoadingBulkDetail.asStateFlow()
+
+    private val _bulkDetailError = MutableStateFlow<String?>(null)
+    val bulkDetailError: StateFlow<String?> = _bulkDetailError.asStateFlow()
+
+    private val _bulkError = MutableStateFlow<String?>(null)
+    val bulkError: StateFlow<String?> = _bulkError.asStateFlow()
+
+    private val _bulkSuccessMessage = MutableStateFlow<String?>(null)
+    val bulkSuccessMessage: StateFlow<String?> = _bulkSuccessMessage.asStateFlow()
+
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
@@ -729,6 +746,56 @@ class InventoryViewModel @Inject constructor(
     private val _poDetailError = MutableStateFlow<String?>(null)
     val poDetailError: StateFlow<String?> = _poDetailError.asStateFlow()
 
+
+    // ── Create Bill States ──
+    private val _isCreatingBill = MutableStateFlow(false)
+    val isCreatingBill: StateFlow<Boolean> = _isCreatingBill.asStateFlow()
+
+    private val _createBillSuccessMessage = MutableStateFlow<String?>(null)
+    val createBillSuccessMessage: StateFlow<String?> = _createBillSuccessMessage.asStateFlow()
+
+    private val _createBillErrorMessage = MutableStateFlow<String?>(null)
+    val createBillErrorMessage: StateFlow<String?> = _createBillErrorMessage.asStateFlow()
+
+    // ─────────────────────────────────────────────────────────────
+// ── PAYMENT TERMS & TAX GROUPS STATE ──
+// ─────────────────────────────────────────────────────────────
+    private val _paymentTerms = MutableStateFlow<List<PaymentTermDto>>(emptyList())
+    val paymentTerms: StateFlow<List<PaymentTermDto>> = _paymentTerms.asStateFlow()
+
+    private val _isLoadingPaymentTerms = MutableStateFlow(false)
+    val isLoadingPaymentTerms: StateFlow<Boolean> = _isLoadingPaymentTerms.asStateFlow()
+
+    private val _taxGroups = MutableStateFlow<List<TaxGroupDto>>(emptyList())
+    val taxGroups: StateFlow<List<TaxGroupDto>> = _taxGroups.asStateFlow()
+
+    private val _isLoadingTaxGroups = MutableStateFlow(false)
+    val isLoadingTaxGroups: StateFlow<Boolean> = _isLoadingTaxGroups.asStateFlow()
+
+    private val _isSubmittingBill = MutableStateFlow(false)
+    val isSubmittingBill: StateFlow<Boolean> = _isSubmittingBill.asStateFlow()
+
+
+    //SAFETY STOCK
+
+    // Inside InventoryViewModel:
+    private val _safetyStockList = MutableStateFlow<List<SafetyStockItemDto>>(emptyList())
+    val safetyStockList = _safetyStockList.asStateFlow()
+
+    private val _isLoadingSafetyStock = MutableStateFlow(false)
+    val isLoadingSafetyStock = _isLoadingSafetyStock.asStateFlow()
+
+    private val _isLoadingMoreSafetyStock = MutableStateFlow(false)
+    val isLoadingMoreSafetyStock = _isLoadingMoreSafetyStock.asStateFlow()
+
+    private val _canLoadMoreSafetyStock = MutableStateFlow(true)
+    val canLoadMoreSafetyStock = _canLoadMoreSafetyStock.asStateFlow()
+
+    private val _safetyStockError = MutableStateFlow<String?>(null)
+    val safetyStockError = _safetyStockError.asStateFlow()
+
+    private var currentSafetyStockPage = 1
+    private var totalSafetyStockPages = 1
     fun fetchPurchaseOrderDetail(poId: String) {
         if (poId.isBlank()) return
         viewModelScope.launch {
@@ -2093,12 +2160,18 @@ class InventoryViewModel @Inject constructor(
     fun clearMessages() {
         _errorMessage.value = null
         _successMessage.value = null
+        _bulkError.value = null
+        _bulkSuccessMessage.value = null
     }
+
+    fun clearBulkError() { _bulkError.value = null }
+    fun clearBulkSuccessMessage() { _bulkSuccessMessage.value = null }
 
     fun fetchBulkItems(page: Int = 1, limit: Int = 10, search: String? = null) {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
+            _bulkError.value = null
             _currentBulkPage.value = page
             _canLoadMoreBulk.value = true
             activeBulkSearch = search
@@ -2109,7 +2182,9 @@ class InventoryViewModel @Inject constructor(
                     _canLoadMoreBulk.value = list.size >= limit
                 }
                 .onFailure {
-                    _errorMessage.value = extractErrorMessage(it.message)
+                    val msg = extractErrorMessage(it.message)
+                    _errorMessage.value = msg
+                    _bulkError.value = msg
                 }
             _isLoading.value = false
         }
@@ -2907,6 +2982,58 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
+    fun fetchPaymentTerms() {
+        launchBusy {
+            _isLoadingPaymentTerms.value = true
+            val result = inventoryRepository.getPaymentTerms()
+            result.fold(
+                onSuccess = { _paymentTerms.value = it },
+                onFailure = { /* Fail silently or handle error */ }
+            )
+            _isLoadingPaymentTerms.value = false
+        }
+    }
+
+    fun fetchTaxGroups() {
+        launchBusy {
+            _isLoadingTaxGroups.value = true
+            val result = inventoryRepository.getTaxGroups()
+            result.fold(
+                onSuccess = { _taxGroups.value = it },
+                onFailure = { /* Fail silently or handle error */ }
+            )
+            _isLoadingTaxGroups.value = false
+        }
+    }
+    /**
+     * Creates and submits a new bill for the purchase receive.
+     */
+    fun submitCreateBill(
+        request: CreateBillRequest,
+        onSuccess: (BillResponseData) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isCreatingBill.value = true
+            _createBillErrorMessage.value = null
+            _createBillSuccessMessage.value = null
+
+            val result = inventoryRepository.createBill(request)
+            _isCreatingBill.value = false
+
+            result.onSuccess { data ->
+                _createBillSuccessMessage.value = "Bill created successfully (${data.billNumber})"
+                onSuccess(data)
+            }.onFailure { error ->
+                _createBillErrorMessage.value = extractErrorMessage(error.message)
+            }
+        }
+    }
+
+    fun clearBillAlerts() {
+        _createBillSuccessMessage.value = null
+        _createBillErrorMessage.value = null
+    }
+
     fun fetchSingleReceive(id: String) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -2930,6 +3057,41 @@ class InventoryViewModel @Inject constructor(
                 .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
             _isLoading.value = false
         }
+    }
+
+    // =========================================================================
+    // VIEW MULTIPLE RECEIVES STATE & ACTIONS
+    // =========================================================================
+    private val _multipleReceivesData = MutableStateFlow<List<PurchaseReceiveItem>>(emptyList())
+    val multipleReceivesData: StateFlow<List<PurchaseReceiveItem>> = _multipleReceivesData.asStateFlow()
+
+    private val _isLoadingMultipleReceives = MutableStateFlow(false)
+    val isLoadingMultipleReceives: StateFlow<Boolean> = _isLoadingMultipleReceives.asStateFlow()
+
+    fun fetchMultipleReceives(
+        receiveIds: List<String>,
+        onSuccess: (List<PurchaseReceiveItem>) -> Unit = {}
+    ) {
+        if (receiveIds.isEmpty()) return
+        viewModelScope.launch {
+            _isLoadingMultipleReceives.value = true
+            _errorMessage.value = null
+
+            inventoryRepository.viewMultipleReceives(receiveIds)
+                .onSuccess { dataList ->
+                    _multipleReceivesData.value = dataList
+                    onSuccess(dataList)
+                }
+                .onFailure { error ->
+                    _errorMessage.value = extractErrorMessage(error.message)
+                }
+
+            _isLoadingMultipleReceives.value = false
+        }
+    }
+
+    fun clearMultipleReceivesData() {
+        _multipleReceivesData.value = emptyList()
     }
 
     fun fetchPurchaseOrderSummary(page: Int = 1, limit: Int = 10, search: String? = null) {
@@ -3214,5 +3376,65 @@ class InventoryViewModel @Inject constructor(
     fun clearStockLocationActionAlerts() {
         _stockLocationActionSuccess.value = null
         _stockLocationActionError.value = null
+    }
+
+    //SAFETY STOCK
+
+
+
+    fun fetchSafetyStock(search: String? = null, warehouseId: String? = null) {
+        viewModelScope.launch {
+            _isLoadingSafetyStock.value = true
+            _safetyStockError.value = null
+            currentSafetyStockPage = 1
+
+            val result = inventoryRepository.getSafetyStock(
+                page = currentSafetyStockPage,
+                limit = 10,
+                search = search?.ifBlank { null },
+                warehouseId = warehouseId
+            )
+
+            result.onSuccess { response ->
+                _safetyStockList.value = response.data
+                totalSafetyStockPages = response.pagination?.totalPages ?: 1
+                _canLoadMoreSafetyStock.value = currentSafetyStockPage < totalSafetyStockPages
+            }.onFailure { err ->
+                _safetyStockError.value = err.localizedMessage ?: "Failed to load safety stock"
+            }
+
+            _isLoadingSafetyStock.value = false
+        }
+    }
+
+    fun loadMoreSafetyStock(search: String? = null, warehouseId: String? = null) {
+        if (_isLoadingMoreSafetyStock.value || !_canLoadMoreSafetyStock.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreSafetyStock.value = true
+            val nextPage = currentSafetyStockPage + 1
+
+            val result = inventoryRepository.getSafetyStock(
+                page = nextPage,
+                limit = 10,
+                search = search?.ifBlank { null },
+                warehouseId = warehouseId
+            )
+
+            result.onSuccess { response ->
+                currentSafetyStockPage = nextPage
+                _safetyStockList.value = _safetyStockList.value + response.data
+                totalSafetyStockPages = response.pagination?.totalPages ?: 1
+                _canLoadMoreSafetyStock.value = currentSafetyStockPage < totalSafetyStockPages
+            }.onFailure { err ->
+                _safetyStockError.value = err.localizedMessage
+            }
+
+            _isLoadingMoreSafetyStock.value = false
+        }
+    }
+
+    fun clearSafetyStockAlerts() {
+        _safetyStockError.value = null
     }
 }

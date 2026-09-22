@@ -21,9 +21,11 @@ val whiteBg = Color.White
 val light_blue = Color(0xFFf9fbff)
 val background_light_purple = Color(0xFFEEECFC)
 val lightGray = Color(0xFFF2F2F2)
+
+val headerGrey = Color(0xFF64748B)
+val headerBg =Color(0xFFf9fbfd)
 val PanelBg = Color(0xFFF7F7FA)
 val modelBg = Color(0xfff8f9ff)
-val modelGray = Color(0xFFF1F5F9)
 val quickaccessBg = Color(0xFFDCE9FF)
 val cardBgLight = Color(0xFFFCFDFF)
 
@@ -41,7 +43,7 @@ val title_color = Color(0xFF1E293B)
 val blackTitle = Color.Black
 val mutedText = Color(0xFF9CA3AF)
 val dataCardField = Color(0xFF9CA3AF)
-val close_color = Color(0xFF64748B)
+val close_color = headerGrey
 val textSubdued = Color(0xFF334155)
 val iconMuted = Color(0xFF94A3B8)
 val transactionSheetTint = Color(0xFF93B3EC)
@@ -118,7 +120,9 @@ val Pink80 = Color(0xFFEFB8C8)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
-val grey_border = Color(0xFFEBEDF1)
+val grey_border = Color(0xFFF1F5F9)
 val dividerColor = grey_border
+val modelGray = grey_border
+
 
 val title_border = Color(0xFFF0F0F0)

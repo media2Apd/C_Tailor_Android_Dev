@@ -9,8 +9,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -28,12 +30,14 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.inventory.InventoryItem
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.sales.lead.MiniSwitch
 import com.cuso.tailor.view.home.subscriptions.WhiteCard
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
+import kotlinx.coroutines.delay
 
 data class ComponentFormItem(
     val itemId: String,
@@ -58,7 +62,7 @@ fun AddBulkItemScreen(
     val isEdit = !editItemId.isNullOrBlank()
     val selectedItem by viewModel.selectedBulkItem.collectAsStateWithLifecycle()
 
-    // ── Dynamic Dropdown States from API ──
+    // Dynamic Dropdown States from API
     val categoryList by settingsViewModel.productCategories.collectAsStateWithLifecycle()
     val warehouseList by viewModel.warehouseDropdown.collectAsStateWithLifecycle()
 
@@ -84,15 +88,14 @@ fun AddBulkItemScreen(
     var purchaseAccount by remember { mutableStateOf("Cost of Goods Sold (COGS)") }
     var purchaseAccountExpanded by remember { mutableStateOf(false) }
 
+    // Component Live Search & List States
     var componentSearchQuery by remember { mutableStateOf("") }
-    var components by remember {
-        mutableStateOf(
-            listOf(
-                ComponentFormItem("6a8c3df68b122b97dd1a7666", "Italian Linen Fabric", "RM-LINEN-002", 50, 2, 180.00),
-                ComponentFormItem("6a90381da781fc589e336266", "Zip Puller — Metal", "ZIP-M-01", 100, 4, 5.00)
-            )
-        )
-    }
+    val searchResults by viewModel.inventoryItems.collectAsStateWithLifecycle()
+    val isSearchingComponents by viewModel.isLoadingInventoryItems.collectAsStateWithLifecycle()
+    var isSearchDropdownOpen by remember { mutableStateOf(false) }
+
+    // Components list
+    var components by remember { mutableStateOf<List<ComponentFormItem>>(emptyList()) }
 
     var isInventoryTracked by remember { mutableStateOf(true) }
     var assemblyTypeIndex by remember { mutableIntStateOf(0) }
@@ -109,7 +112,19 @@ fun AddBulkItemScreen(
         components.sumOf { it.unitCost * it.requiredQty }
     }
 
-    // ── Fetch Dropdowns on Screen Load ──
+    // Debounced API search for components
+    LaunchedEffect(componentSearchQuery) {
+        val trimmed = componentSearchQuery.trim()
+        if (trimmed.isNotBlank()) {
+            isSearchDropdownOpen = true
+            delay(350)
+            viewModel.fetchInventoryItems(page = 1, limit = 20, search = trimmed)
+        } else {
+            isSearchDropdownOpen = false
+        }
+    }
+
+    // Fetch Initial Data
     LaunchedEffect(Unit) {
         settingsViewModel.fetchProductCategories()
         viewModel.loadWarehouseDropdown()
@@ -135,13 +150,11 @@ fun AddBulkItemScreen(
             isInventoryTracked = item.trackInventory
             assemblyTypeIndex = if (item.assemblyType.equals("Pre-assembled", ignoreCase = true)) 1 else 0
 
-            // Match Category from List (ProductCategoryItem: name, id)
             item.categoryName?.let { catName ->
                 selectedCategoryName = catName
                 selectedCategoryId = categoryList.firstOrNull { it.name.equals(catName, ignoreCase = true) }?.id
             }
 
-            // Match Warehouse from List (WarehouseDropdownItem: label, value)
             item.warehouseRestrictionName?.let { whName ->
                 selectedWarehouseName = whName
                 selectedWarehouseId = warehouseList.firstOrNull { it.label.equals(whName, ignoreCase = true) }?.value
@@ -160,7 +173,7 @@ fun AddBulkItemScreen(
                 name = itemName,
                 sku = sku,
                 description = description,
-                categoryId = selectedCategoryId,                      // ✅ Selected Category ID
+                categoryId = selectedCategoryId,
                 brand = brand,
                 unit = unit,
                 costPrice = computedCostPrice,
@@ -170,7 +183,7 @@ fun AddBulkItemScreen(
                 purchaseAccountId = null,
                 trackInventory = isInventoryTracked,
                 assemblyType = assemblyType,
-                warehouseRestrictionId = selectedWarehouseId,         // ✅ Selected Warehouse ID (value)
+                warehouseRestrictionId = selectedWarehouseId,
                 components = componentPairs,
                 imageUri = imageUri,
                 onSuccess = onSaved
@@ -181,7 +194,7 @@ fun AddBulkItemScreen(
                 name = itemName,
                 sku = sku,
                 description = description,
-                categoryId = selectedCategoryId,                      // ✅ Selected Category ID
+                categoryId = selectedCategoryId,
                 brand = brand,
                 unit = unit,
                 costPrice = computedCostPrice,
@@ -191,7 +204,7 @@ fun AddBulkItemScreen(
                 purchaseAccountId = null,
                 trackInventory = isInventoryTracked,
                 assemblyType = assemblyType,
-                warehouseRestrictionId = selectedWarehouseId,         // ✅ Selected Warehouse ID (value)
+                warehouseRestrictionId = selectedWarehouseId,
                 components = componentPairs,
                 imageUri = imageUri,
                 onSuccess = onSaved
@@ -241,7 +254,6 @@ fun AddBulkItemScreen(
                         FormTextField(value = sku, onValueChange = { sku = it }, placeholder = "CI-00003")
 
                         Spacer(Modifier.height(12.dp))
-                        // ── Category Dropdown Connected to API ──
                         FormDropdown(
                             label = "Category",
                             value = selectedCategoryName.ifBlank { "Select Category" },
@@ -261,13 +273,10 @@ fun AddBulkItemScreen(
                                 FormTextField(value = brand, onValueChange = { brand = it }, placeholder = "Hari essential")
                             }
                             Column(modifier = Modifier.weight(1f)) {
-                                FormDropdown(
-                                    label = "Unit",
+                                FormLabel("Unit")
+                                FormTextField(
                                     value = unit,
-                                    expanded = unitExpanded,
-                                    onExpandChange = { unitExpanded = it },
-                                    options = listOf("set", "piece", "box", "meter", "kg", "pack"),
-                                    onOptionSelected = { unit = it }
+                                    onValueChange = { unit = it }
                                 )
                             }
                         }
@@ -364,26 +373,112 @@ fun AddBulkItemScreen(
                         Spacer(Modifier.height(12.dp))
                     }
 
+                    // ── SearchFilterBar direct reuse with dropdownContent slot ──
                     SearchFilterBar(
                         query = componentSearchQuery,
                         onQueryChange = { componentSearchQuery = it },
                         placeholder = "Search to add component...",
-                        isSearchBarAlone = true
+                        isSearchBarAlone = true,
+                        height = 40.dp,
+                        isDropdownExpanded = isSearchDropdownOpen,
+                        onDismissDropdown = { isSearchDropdownOpen = false },
+                        dropdownContent = {
+                            when {
+                                isSearchingComponents -> {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(40.dp)
+                                            .padding(horizontal = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                            color = Primary
+                                        )
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(
+                                            text = "Searching...",
+                                            fontSize = 13.sp,
+                                            color = mutedText
+                                        )
+                                    }
+                                }
+
+                                searchResults.isEmpty() -> {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(40.dp)
+                                            .padding(horizontal = 12.dp),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        Text(
+                                            text = "No items found",
+                                            fontSize = 13.sp,
+                                            color = TextSecondary
+                                        )
+                                    }
+                                }
+
+                                else -> {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        searchResults.forEach { resultItem ->
+                                            ComponentSearchResultRow(
+                                                item = resultItem,
+                                                onSelect = {
+                                                    if (components.none { it.itemId == resultItem._id }) {
+                                                        components = components + ComponentFormItem(
+                                                            itemId = resultItem._id,
+                                                            name = resultItem.name,
+                                                            sku = resultItem.sku,
+                                                            stockQty = resultItem.currentStock.toInt(),
+                                                            requiredQty = 1,
+                                                            unitCost = resultItem.costPrice
+                                                        )
+                                                    }
+                                                    componentSearchQuery = ""
+                                                    isSearchDropdownOpen = false
+                                                }
+                                            )
+                                            HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 0.8.dp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     )
 
+                    // Added components list
                     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding)) {
                         Spacer(Modifier.height(10.dp))
-                        components.forEach { comp ->
-                            ComponentFormCard(
-                                comp = comp,
-                                onQuantityChanged = { newQty ->
-                                    components = components.map { if (it.itemId == comp.itemId) it.copy(requiredQty = newQty) else it }
-                                },
-                                onDelete = {
-                                    components = components.filter { it.itemId != comp.itemId }
-                                }
-                            )
-                            Spacer(Modifier.height(8.dp))
+                        if (components.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No components added yet. Use the search bar above.",
+                                    fontSize = 13.sp,
+                                    color = mutedText
+                                )
+                            }
+                        } else {
+                            components.forEach { comp ->
+                                ComponentFormCard(
+                                    comp = comp,
+                                    onQuantityChanged = { newQty ->
+                                        components = components.map { if (it.itemId == comp.itemId) it.copy(requiredQty = newQty) else it }
+                                    },
+                                    onDelete = {
+                                        components = components.filter { it.itemId != comp.itemId }
+                                    }
+                                )
+                                Spacer(Modifier.height(8.dp))
+                            }
                         }
                     }
                 }
@@ -441,7 +536,6 @@ fun AddBulkItemScreen(
                         Text("‘On Order’ items are assembled only when a sales order is created.", fontSize = tokens.label, color = mutedText)
 
                         Spacer(Modifier.height(14.dp))
-                        // ── Warehouse Restriction Dropdown Connected to API (using label & value) ──
                         FormDropdown(
                             label = "Warehouse Restriction",
                             value = selectedWarehouseName.ifBlank { "Select Warehouse" },
@@ -469,6 +563,55 @@ fun AddBulkItemScreen(
             ),
             backWidthFraction = 0.25f,
             trailingWidthFraction = 0.35f
+        )
+    }
+}
+
+@Composable
+private fun ComponentSearchResultRow(
+    item: InventoryItem,
+    onSelect: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .clickable { onSelect() }
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = item.name,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextPrimary,
+                maxLines = 1
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = "• ${item.sku}",
+                fontSize = 11.sp,
+                color = TextSecondary,
+                maxLines = 1
+            )
+        }
+        Text(
+            text = "₹${"%.2f".format(item.costPrice)}",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = Primary
+        )
+        Spacer(Modifier.width(8.dp))
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = "Add",
+            tint = Primary,
+            modifier = Modifier.size(16.dp)
         )
     }
 }

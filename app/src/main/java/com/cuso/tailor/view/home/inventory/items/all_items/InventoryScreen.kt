@@ -381,10 +381,7 @@ fun InventoryScreen(
 
         DynamicIslandError(
             message = errorToastMessage ?: errorMessage,
-            onDismiss = {
-                errorToastMessage = null
-                inventoryViewModel.clearInventoryError()
-            }
+            onDismiss = { errorToastMessage = null }
         )
     }
 }

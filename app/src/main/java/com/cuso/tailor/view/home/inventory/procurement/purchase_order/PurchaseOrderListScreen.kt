@@ -64,6 +64,7 @@ import com.cuso.tailor.ui.theme.dividerColor
 import com.cuso.tailor.ui.theme.iconMuted
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FilterDrawer
@@ -94,6 +95,7 @@ fun POListScreen(
     val isLoadingPO by viewModel.isLoadingPurchaseOrders.collectAsStateWithLifecycle()
     val isLoadingMorePO by viewModel.isLoadingMorePurchaseOrders.collectAsStateWithLifecycle()
     val canLoadMorePO by viewModel.canLoadMorePurchaseOrders.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.purchaseOrdersError.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     val filterDrawerState = rememberFilterDrawerState()
@@ -116,7 +118,6 @@ fun POListScreen(
         Log.d(TAG, "Orders count: ${orders.size}")
     }
 
-    // Infinite scroll pagination listener
     LaunchedEffect(listState, canLoadMorePO, searchQuery) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
@@ -209,40 +210,70 @@ fun POListScreen(
                 }
             )
 
-            if (isLoadingPO && orders.isEmpty()) {
-                ListSkeleton()
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = tokens.screenPadding),
-                    verticalArrangement = Arrangement.spacedBy(tokens.extraPadding),
-                    contentPadding = PaddingValues(
-                        top = 8.dp,
-                        bottom = tokens.buttonHeight + 80.dp
+            when {
+                isLoadingPO && orders.isEmpty() -> {
+                    ListSkeleton()
+                }
+
+                errorMessage != null && orders.isEmpty() -> {
+                    AppErrorState(
+                        title = "Failed to load purchase orders",
+                        message = errorMessage ?: "Something went wrong. Please check your connection.",
+                        onRetry = {
+                            val query = searchQuery.trim().ifBlank { null }
+                            viewModel.fetchAllPurchaseOrders(search = query)
+                        }
                     )
-                ) {
-                    items(
-                        items = orders,
-                        key = { it.id?.ifBlank { it.poNumber ?: it.hashCode().toString() } ?: it.hashCode().toString() }
-                    ) { order ->
-                        PurchaseOrderCard(
-                            order = order,
-                            onViewDetails = {
-                                Log.d(TAG, "PurchaseOrder clicked -> id: '${order.id}', poNumber: '${order.poNumber}'")
-                                onNavigateToDetail(order)
-                            }
+                }
+
+                orders.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (searchQuery.isBlank()) "No purchase orders found" else "No matching purchase orders found",
+                            fontSize = tokens.bodyMedium,
+                            color = mutedText
                         )
                     }
+                }
 
-                    if (isLoadingMorePO) {
-                        item(key = "pagination_threedot_loader") {
-                            ThreeDotLoading(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 16.dp)
+                else -> {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = tokens.screenPadding),
+                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding),
+                        contentPadding = PaddingValues(
+                            top = 8.dp,
+                            bottom = tokens.buttonHeight + 80.dp
+                        )
+                    ) {
+                        items(
+                            items = orders,
+                            key = { it.id?.ifBlank { it.poNumber ?: it.hashCode().toString() } ?: it.hashCode().toString() }
+                        ) { order ->
+                            PurchaseOrderCard(
+                                order = order,
+                                onViewDetails = {
+                                    Log.d(TAG, "PurchaseOrder clicked -> id: '${order.id}', poNumber: '${order.poNumber}'")
+                                    onNavigateToDetail(order)
+                                }
                             )
+                        }
+
+                        if (isLoadingMorePO) {
+                            item(key = "pagination_threedot_loader") {
+                                ThreeDotLoading(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 16.dp)
+                                )
+                            }
                         }
                     }
                 }

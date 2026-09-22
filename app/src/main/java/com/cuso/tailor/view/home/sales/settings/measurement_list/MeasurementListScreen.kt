@@ -6,7 +6,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -38,71 +37,94 @@ fun MeasurementListScreen(
     val successMsg by viewModel.dynamicSuccessMessage.collectAsStateWithLifecycle()
 
     var statusDialogTarget by remember { mutableStateOf<Pair<MeasurementFieldItem, String>?>(null) }
+    var screenError by remember { mutableStateOf<String?>(null) }
 
+    // Initial fetch
     LaunchedEffect(Unit) {
         viewModel.fetchMeasurementFields()
     }
 
-    FabScaffold(
-        fab = FabConfig(
-            label = "Add Measurement",
-            icon = Icons.Default.Add,
-            onClick = onAddMeasurement
-        )
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            TitleBar(
-                title = "Measurement List",
-                onClose = onClose
+    // Capture error from dynamicErrorMessage and keep it persistent
+    LaunchedEffect(apiError) {
+        if (!apiError.isNullOrBlank()) {
+            screenError = apiError
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        FabScaffold(
+            fab = FabConfig(
+                label = "Add Measurement",
+                icon = Icons.Default.Add,
+                onClick = onAddMeasurement
             )
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                TitleBar(
+                    title = "Measurement List",
+                    onClose = onClose
+                )
 
-            HorizontalDivider(color = dividerColor, thickness = 2.dp)
+                HorizontalDivider(color = dividerColor, thickness = 2.dp)
 
-            Box(modifier = Modifier.fillMaxSize()) {
-                when {
-                    isLoading && measurementFields.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                color = Primary,
-                                strokeWidth = 3.dp,
-                                modifier = Modifier.size(tokens.iconSize * 1.5f)
+                Box(modifier = Modifier.fillMaxSize()) {
+                    val isInitialLoading = isLoading && measurementFields.isEmpty()
+                    val hasError = !screenError.isNullOrBlank() && measurementFields.isEmpty()
+
+                    when {
+                        // 1. Initial Loading Skeleton
+                        isInitialLoading -> {
+                            ListSkeleton()
+                        }
+
+                        // 2. Persistent Error State (Shows when 401 or any API failure occurs)
+                        hasError -> {
+                            AppErrorState(
+                                title = "Failed to load measurement fields",
+                                message = screenError ?: "Something went wrong. Please check your connection.",
+                                onRetry = {
+                                    screenError = null
+                                    viewModel.clearDynamicErrorMessage()
+                                    viewModel.fetchMeasurementFields()
+                                }
                             )
                         }
-                    }
-                    measurementFields.isEmpty() -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(tokens.screenPadding),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No measurement fields found",
-                                fontSize = tokens.bodyMedium,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                top = tokens.extraPadding * 0.5f,
-                                bottom = tokens.buttonHeight * 2
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.5f)
-                        ) {
-                            items(measurementFields, key = { it.id }) { field ->
-                                MeasurementDataCard(
-                                    field = field,
-                                    onEditClick = { onEditMeasurement(field) },
-                                    onToggleStatus = { targetField, nextStatus ->
-                                        statusDialogTarget = Pair(targetField, nextStatus)
-                                    }
+
+                        // 3. Genuine Empty State (Shows ONLY when successfully loaded with 0 items)
+                        measurementFields.isEmpty() && !isLoading -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(tokens.screenPadding),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No measurement fields found",
+                                    fontSize = tokens.bodyMedium,
+                                    color = TextSecondary
                                 )
+                            }
+                        }
+
+                        // 4. Data List
+                        else -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(
+                                    top = tokens.extraPadding * 0.5f,
+                                    bottom = tokens.buttonHeight * 2
+                                ),
+                                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.5f)
+                            ) {
+                                items(measurementFields, key = { it.id }) { field ->
+                                    MeasurementDataCard(
+                                        field = field,
+                                        onEditClick = { onEditMeasurement(field) },
+                                        onToggleStatus = { targetField, nextStatus ->
+                                            statusDialogTarget = Pair(targetField, nextStatus)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -130,12 +152,18 @@ fun MeasurementListScreen(
         }
 
         DynamicIslandSuccess(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
             message = successMsg,
             onDismiss = { viewModel.clearSuccessMessage() }
         )
 
         DynamicIslandError(
-            message = apiError,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = screenError?.takeIf { measurementFields.isNotEmpty() },
             onDismiss = { viewModel.clearDynamicErrorMessage() }
         )
     }

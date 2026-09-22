@@ -47,6 +47,7 @@ import com.cuso.tailor.model.settings.UpdateBranchAddress
 import com.cuso.tailor.model.settings.UpdateBranchRequest
 import com.cuso.tailor.ui.theme.BluePrimary
 import com.cuso.tailor.ui.theme.close_color
+import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
@@ -265,7 +266,7 @@ fun BranchSettingsScreen(
                                                         }
                                                     ),
                                                     content = {
-                                                        val iconColor = Color(0xFF64748B)
+                                                        val iconColor = headerGrey
                                                         val textBodyColor = close_color
 
                                                         Column(
@@ -344,7 +345,7 @@ fun BranchSettingsScreen(
                                                                 )
                                                                 Text(
                                                                     text = buildAnnotatedString {
-                                                                        withStyle(SpanStyle(color = Color(0xFF64748B), fontWeight = FontWeight.Normal)) {
+                                                                        withStyle(SpanStyle(color = headerGrey, fontWeight = FontWeight.Normal)) {
                                                                             append("Manager: ")
                                                                         }
                                                                         withStyle(

@@ -1,6 +1,7 @@
 [versions]
 accompanistPermissions = "0.37.3"
 colorpickerCompose = "1.2.0"
+core = "3.5.4"
 espressoCore = "3.7.0"
 itextCore = "9.7.0"
 junit = "4.13.2"
@@ -59,6 +60,7 @@ foundationLayoutVersion = "1.12.1"   # check latest version below
 [libraries]
 androidx-compose-material3-window-size-class1 = { module = "androidx.compose.material3:material3-window-size-class" }
 androidx-transition = { module = "androidx.transition:transition", version.ref = "transition" }
+core = { module = "com.google.zxing:core", version.ref = "core" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 firebase-perf = { module = "com.google.firebase:firebase-perf" }

@@ -46,7 +46,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.10:5000/\""
+                "\"http://192.168.88.24:5000/\""
             )
         }
 
@@ -213,5 +213,6 @@ dependencies {
     //window app size class
     implementation (libs.androidx.compose.material3.window.size.class1)
 
-
+    //QR barcode
+    implementation(libs.core)
 }

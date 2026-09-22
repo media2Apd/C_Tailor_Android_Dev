@@ -1,3 +1,5 @@
+@file:Suppress("unused", "SpellCheckingInspection")
+
 package com.cuso.tailor.view.home.inventory.bulk_items
 
 import androidx.compose.foundation.background
@@ -13,14 +15,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,21 +43,19 @@ fun BulkListScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
-    // Observe list and pagination states from ViewModel
     val bulkList by viewModel.bulkItems.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val isLoadingMore by viewModel.isLoadingMoreBulk.collectAsStateWithLifecycle()
     val canLoadMore by viewModel.canLoadMoreBulk.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.bulkError.collectAsStateWithLifecycle()
+    val successMessage by viewModel.bulkSuccessMessage.collectAsStateWithLifecycle()
 
-    // Scroll state tracker for LazyColumn
     val listState = rememberLazyListState()
 
-    // Initial fetch on screen entry
     LaunchedEffect(Unit) {
         viewModel.fetchBulkItems()
     }
 
-    // Trigger next page fetch only when crossing the threshold (avoids infinite re-trigger loop)
     LaunchedEffect(listState, canLoadMore, searchQuery) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
@@ -78,7 +71,6 @@ fun BulkListScreen(
             }
     }
 
-    // In-memory search filter
     val filteredList = remember(bulkList, searchQuery) {
         if (searchQuery.isBlank()) bulkList
         else bulkList.filter {
@@ -86,96 +78,181 @@ fun BulkListScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Primary_background)) {
-        FabScaffold(
-            fab = FabConfig(
-                label = "Add Bulk Item",
-                icon = Icons.Default.Add,
-                onClick = onAddBulkClick,
-                bottomPadding = 40.dp
-            ),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Scaffold(
-                containerColor = Color.Transparent,
-                contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                topBar = {
-                    Column(modifier = Modifier.fillMaxWidth().background(whiteBg)) {
-                        TitleBar(title = "All Bulk", onClose = onClose)
-                        SearchFilterBar(
-                            query = searchQuery,
-                            onQueryChange = { searchQuery = it },
-                            placeholder = "Search Customers...",
-                            onFilterClick = { /* Optional filter trigger */ }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Primary_background)
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = {
+                // நிரந்தர தீர்வு: Surface -> Column-க்குள் வரிசையாக வைப்பதால் எக்காரணத்தைக் கொண்டும் ஒன்றன் மேல் ஒன்று மறையாது
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.Transparent
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        TitleBar(
+                            title = "All Bulk",
+                            onClose = onClose
                         )
-                        HorizontalDivider(color = title_border)
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = tokens.extraPadding * 0.4f)
+                        ) {
+                            SearchFilterBar(
+                                query = searchQuery,
+                                onQueryChange = { searchQuery = it },
+                                placeholder = "Search Bulk Items...",
+                                onFilterClick = { }
+                            )
+                        }
+
+                        HorizontalDivider(
+                            color = dividerColor,
+                            thickness = 1.dp
+                        )
                     }
                 }
-            ) { paddingValues ->
-                if (isLoading && bulkList.isEmpty()) {
-                    ListSkeleton()
-                } else if (filteredList.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (searchQuery.isNotBlank()) "No matching bulk items found" else "No Bulk Items Yet",
-                            fontSize = tokens.bodyMedium,
-                            color = TextSecondary
+            }
+        ) { paddingValues ->
+            FabScaffold(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                fab = FabConfig(
+                    label = "Add Bulk Item",
+                    icon = Icons.Default.Add,
+                    onClick = onAddBulkClick,
+                    endPadding = tokens.screenPadding,
+                    bottomPadding = tokens.buttonHeight * 1.5f
+                )
+            ) {
+                when {
+                    isLoading && bulkList.isEmpty() -> {
+                        ListSkeleton()
+                    }
+
+                    errorMessage != null && bulkList.isEmpty() -> {
+                        AppErrorState(
+                            title = "Failed to load bulk items",
+                            message = errorMessage ?: "Something went wrong. Please check your connection.",
+                            onRetry = { viewModel.fetchBulkItems() }
                         )
                     }
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-                        contentPadding = PaddingValues(vertical = 10.dp)
-                    ) {
-                        items(
-                            items = filteredList,
-                            key = { it.id.ifBlank { it.hashCode().toString() } }
-                        ) { item ->
-                            BulkListItemCard(
-                                item = item,
-                                onClick = {
-                                    if (item.id.isNotBlank()) {
-                                        onItemClick(item.id)
-                                    }
-                                },
-                                onEditClick = {
-                                    if (item.id.isNotBlank()) {
-                                        onEditClick(item.id)
-                                    }
-                                },
-                                onDeleteClick = {
-                                    viewModel.deleteBulkItem(item.id) {}
-                                }
+
+                    filteredList.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (searchQuery.isNotBlank()) "No matching bulk items found" else "No Bulk Items Yet",
+                                fontSize = tokens.bodyMedium,
+                                color = TextSecondary
                             )
-                            Spacer(Modifier.height(10.dp))
                         }
+                    }
 
-                        // Three-dot loader is displayed only when a next page request is actively in progress
-                        if (isLoadingMore) {
-                            item(key = "pagination_threedot_loader") {
-                                ThreeDotLoading(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 16.dp)
+                    else -> {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = tokens.extraPadding)
+                        ) {
+                            items(
+                                items = filteredList,
+                                key = { it.id.ifBlank { it.hashCode().toString() } }
+                            ) { item ->
+                                BulkListItemCard(
+                                    item = item,
+                                    onClick = {
+                                        if (item.id.isNotBlank()) {
+                                            onItemClick(item.id)
+                                        }
+                                    },
+                                    onEditClick = {
+                                        if (item.id.isNotBlank()) {
+                                            onEditClick(item.id)
+                                        }
+                                    },
+                                    onDeleteClick = {
+                                        viewModel.deleteBulkItem(item.id) {}
+                                    }
                                 )
+                                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
                             }
-                        }
 
-                        item {
-                            Spacer(Modifier.height(80.dp))
+                            if (isLoadingMore) {
+                                item(key = "pagination_threedot_loader") {
+                                    ThreeDotLoading(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = tokens.screenPadding)
+                                    )
+                                }
+                            }
+
+                            item {
+                                Spacer(Modifier.height(tokens.buttonHeight * 2f))
+                            }
                         }
                     }
                 }
             }
         }
+
+        DynamicIslandSuccess(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = successMessage,
+            onDismiss = { viewModel.clearBulkSuccessMessage() }
+        )
+
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMessage?.takeIf { bulkList.isNotEmpty() },
+            onDismiss = { viewModel.clearBulkError() }
+        )
+    }
+}
+
+private data class BulkStatusTheme(
+    val bg: Color,
+    val text: Color,
+    val dot: Color
+)
+
+private fun getBulkStatusTheme(status: String): BulkStatusTheme {
+    return when (status.lowercase().trim()) {
+        "healthy", "active", "in stock" -> BulkStatusTheme(
+            bg = greenBg,
+            text = greentext,
+            dot = greentext
+        )
+        "low soon", "warning", "reorder" -> BulkStatusTheme(
+            bg = yellowBg,
+            text = yellowText,
+            dot = yellowText
+        )
+        "out of stock", "inactive", "critical" -> BulkStatusTheme(
+            bg = redBg,
+            text = redText,
+            dot = redText
+        )
+        else -> BulkStatusTheme(
+            bg = yellowBg,
+            text = yellowText,
+            dot = yellowText
+        )
     }
 }
 
@@ -189,6 +266,7 @@ fun BulkListItemCard(
     val tokens = LocalAppTokens.current
     var isChecked by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
+    val statusTheme = remember(item.status) { getBulkStatusTheme(item.status) }
 
     Surface(
         onClick = onClick,
@@ -196,7 +274,7 @@ fun BulkListItemCard(
         shadowElevation = 0.5.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(tokens.screenPadding * 0.9f)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
@@ -206,11 +284,16 @@ fun BulkListItemCard(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    AppCheckbox(
+                    Checkbox(
                         checked = isChecked,
-                        onCheckedChange = { isChecked = it }
+                        onCheckedChange = { isChecked = it },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = Primary,
+                            uncheckedColor = dividerColor,
+                            checkmarkColor = whiteBg
+                        )
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(tokens.extraPadding * 0.8f))
                     Column {
                         Text(
                             text = item.name.ifBlank { "—" },
@@ -230,13 +313,13 @@ fun BulkListItemCard(
                 Box {
                     IconButton(
                         onClick = { menuExpanded = true },
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(tokens.fieldHeight * 0.6f)
                     ) {
                         Icon(
-                            Icons.Default.MoreVert,
+                            imageVector = Icons.Default.MoreVert,
                             contentDescription = "Actions",
                             tint = iconMuted,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(tokens.iconSize * 1.1f)
                         )
                     }
 
@@ -244,12 +327,20 @@ fun BulkListItemCard(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
                         offset = DpOffset(x = (-10).dp, y = 0.dp),
-                        modifier = Modifier.background(whiteBg, RoundedCornerShape(8.dp))
+                        modifier = Modifier.background(
+                            color = whiteBg,
+                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                        )
                     ) {
                         DropdownMenuItem(
                             text = { Text("View", fontSize = tokens.bodyMedium, color = TextPrimary) },
                             leadingIcon = {
-                                Icon(Icons.Default.Visibility, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    tint = Primary,
+                                    modifier = Modifier.size(tokens.iconSize)
+                                )
                             },
                             onClick = {
                                 menuExpanded = false
@@ -260,7 +351,12 @@ fun BulkListItemCard(
                         DropdownMenuItem(
                             text = { Text("Edit", fontSize = tokens.bodyMedium, color = TextPrimary) },
                             leadingIcon = {
-                                Icon(Icons.Default.Edit, contentDescription = null, tint = TextLog, modifier = Modifier.size(18.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = TextLog,
+                                    modifier = Modifier.size(tokens.iconSize)
+                                )
                             },
                             onClick = {
                                 menuExpanded = false
@@ -271,7 +367,12 @@ fun BulkListItemCard(
                         DropdownMenuItem(
                             text = { Text("Delete", fontSize = tokens.bodyMedium, color = redText) },
                             leadingIcon = {
-                                Icon(Icons.Default.Delete, contentDescription = null, tint = redText, modifier = Modifier.size(18.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = redText,
+                                    modifier = Modifier.size(tokens.iconSize)
+                                )
                             },
                             onClick = {
                                 menuExpanded = false
@@ -282,43 +383,77 @@ fun BulkListItemCard(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(tokens.extraPadding))
+
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = tokens.extraPadding * 0.4f),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("STOCK ON HAND", fontSize = tokens.label, color = iconMuted, fontWeight = FontWeight.Medium)
+                    Text(
+                        text = "STOCK ON HAND",
+                        fontSize = tokens.label,
+                        color = iconMuted,
+                        fontWeight = FontWeight.Medium
+                    )
                     Spacer(Modifier.height(2.dp))
-                    Text("%,.0f".format(item.stockOnHand), fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(
+                        text = "%,.0f".format(item.stockOnHand),
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
                 }
                 Column {
-                    Text("REORDER POINT", fontSize = tokens.label, color = iconMuted, fontWeight = FontWeight.Medium)
+                    Text(
+                        text = "REORDER POINT",
+                        fontSize = tokens.label,
+                        color = iconMuted,
+                        fontWeight = FontWeight.Medium
+                    )
                     Spacer(Modifier.height(2.dp))
-                    Text("%,.0f".format(item.reorderPoint), fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(
+                        text = "%,.0f".format(item.reorderPoint),
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(tokens.extraPadding))
+
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = tokens.extraPadding * 0.4f),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("Status", fontSize = tokens.bodySmall, color = TextSecondary)
                 Box(
                     modifier = Modifier
-                        .background(yellowBg, RoundedCornerShape(20.dp))
+                        .background(
+                            color = statusTheme.bg,
+                            shape = RoundedCornerShape(tokens.cardCornerRadius)
+                        )
                         .padding(horizontal = 10.dp, vertical = 2.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
                                 .size(6.dp)
-                                .background(yellowText, CircleShape)
+                                .background(statusTheme.dot, CircleShape)
                         )
                         Spacer(Modifier.width(5.dp))
-                        Text(item.status.ifBlank { "Active" }, fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = yellowText)
+                        Text(
+                            text = item.status.ifBlank { "Active" },
+                            fontSize = tokens.caption,
+                            fontWeight = FontWeight.SemiBold,
+                            color = statusTheme.text
+                        )
                     }
                 }
             }

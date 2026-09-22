@@ -306,7 +306,7 @@ private fun OrderOverviewContent(
                     .padding(vertical = 3.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Shipping Fee", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+                Text("Shipping Fee", fontSize = tokens.bodySmall, color = headerGrey)
                 Text("FREE", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFF16A34A))
             }
 
@@ -357,7 +357,7 @@ private fun OrderOverviewContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Payment Status", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+                Text("Payment Status", fontSize = tokens.bodySmall, color = headerGrey)
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
@@ -432,7 +432,7 @@ private fun OrderTimelineView() {
                     Text(
                         text = step.subtitle,
                         fontSize = 11.sp,
-                        color = Color(0xFF64748B)
+                        color = headerGrey
                     )
                 }
             }
@@ -489,7 +489,7 @@ private fun KeyValueRow(
         Text(
             text = label,
             fontSize = tokens.bodySmall,
-            color = Color(0xFF64748B),
+            color = headerGrey,
             modifier = Modifier.weight(0.4f)
         )
         Text(
@@ -513,7 +513,7 @@ private fun InnerProductRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label, fontSize = 12.sp, color = Color(0xFF64748B))
+        Text(text = label, fontSize = 12.sp, color = headerGrey)
         Text(
             text = value,
             fontSize = 12.sp,
@@ -532,7 +532,7 @@ private fun PriceSummaryRow(label: String, value: String) {
             .padding(vertical = 3.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label, fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+        Text(text = label, fontSize = tokens.bodySmall, color = headerGrey)
         Text(text = value, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
     }
 }

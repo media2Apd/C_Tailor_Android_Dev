@@ -68,6 +68,7 @@ import com.cuso.tailor.model.login_forgotPassword_resetPassword.User
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.Primary_background
 import com.cuso.tailor.ui.theme.blackTitle
+import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.quickaccessBg
 import com.cuso.tailor.ui.theme.redText
@@ -108,15 +109,43 @@ fun buildNavigationKey(menu: String, subItem: String): String {
 
     if (menu == "Inventory") {
         return when (subItem) {
-            "Purchase Orders", "Purchase Order", "Orders" -> "inventory_purchase_orders"
-            "Bulk", "All Bulk"                      -> "inventory_bulk"
-            "Pricing List"                          -> "inventory_pricing_list"
-            "Purchase Receive", "Purchase Receives", "Goods Receipt" -> "inventory_purchase_receive"
-            "Returns"                               -> "inventory_returns"
-            "Credits", "Credit"                     -> "inventory_credits"
-            "Barcode"                               -> "inventory_barcode"
-            "Location Management", "Stock Location" -> "inventory_stock_location"
-            "Invoices", "Bills", "Bills List"       -> "inventory_payable_invoices"
+            "All Items"           -> "inventory_all_items"
+            "Item Groups"          -> "inventory_item_groups"
+            "Bulk"                 -> "inventory_bulk"
+            "Adjustment"           -> "inventory_adjustment"
+            "Transfer Order"       -> "inventory_transfer_order"
+
+            // Direct Billing Item
+            "Billing", "Bills", "All Bills" -> "inventory_billing"
+
+            // Procurement sub-items
+            "Suppliers"            -> "inventory_procurement_suppliers"
+            "Purchase Request"     -> "inventory_procurement_purchase_request"
+            "Purchase Order"       -> "inventory_procurement_purchase_order"
+            "Purchase Receive"     -> "inventory_procurement_purchase_receive"
+            "Bill List"            -> "inventory_procurement_bill_list"
+            "Barcode LIST"         -> "inventory_procurement_barcode_list"
+
+            // Standalone inventory items
+            "Location Management"  -> "inventory_location_management"
+            "Low Stock Alert"      -> "inventory_low_stock_alert"
+            "Auto Reorder"         -> "inventory_auto_reorder"
+            "Safety Stock"         -> "inventory_safety_stock"
+
+            // Direct Payments Made item
+            "Payments Made"       -> "inventory_payments_made"
+
+            // Payables sub-items
+            "Invoices"             -> "inventory_payables_invoices"
+            "Payments"             -> "inventory_payables_payments"
+            "Credits"              -> "inventory_payables_credits"
+
+            // Multi-Channel sub-items
+            "Category Listing"     -> "inventory_multichannel_category_listing"
+
+            // Standalone approvals
+            "Approvals"            -> "inventory_approvals"
+
             else -> "inventory_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }
     }
@@ -190,25 +219,43 @@ object SidebarConfig {
                 )
             ),
             MenuItem(
-                R.drawable.inventory, "Inventory",
+                icon = R.drawable.inventory,
+                label = "Inventory",
                 isPanel = true,
-                categories = listOf("Items", "Bulk", "Pricing List", "Procurement", "Payables"),
+                categories = listOf(
+                    "All Items",
+                    "Item Groups",
+                    "Bulk",
+                    "Adjustment",
+                    "Transfer Order",
+                    "Procurement",
+                    "Location Management",
+                    "Low Stock Alert",
+                    "Auto Reorder",
+                    "Safety Stock",
+                    "Payments Made",
+                    "Billing",
+                    "Payables",
+                    "Multi-Channel",
+                    "Approvals"
+                ),
                 subItems = mapOf(
-                    "Items"       to listOf("All Items", "Item Groups", "Adjustment", "Transfer Stock"),
                     "Procurement" to listOf(
                         "Suppliers",
-                        "Requisitions",
-                        "Purchase Orders",
-                        "Orders",
-                        "Goods Receipt",
-                        "Returns",
+                        "Purchase Request",
+                        "Purchase Order",
                         "Purchase Receive",
-                        "Credits",
-                        "Barcode",
-                        "Location Management",
-                        "Bills List"
+                        "Bill List",
+                        "Barcode LIST"
                     ),
-                    "Payables"    to listOf("Invoices", "Payments", "Credits")
+                    "Payables" to listOf(
+                        "Invoices",
+                        "Payments",
+                        "Credits"
+                    ),
+                    "Multi-Channel" to listOf(
+                        "Category Listing"
+                    )
                 )
             ),
             MenuItem(
@@ -898,7 +945,7 @@ private val moduleAccentColors = mapOf(
     "Services"   to Color(0xFF8B5CF6),
     "HR"         to redText,
     "IT"         to Color(0xFF6366F1),
-    "Legal"      to Color(0xFF64748B),
+    "Legal"      to headerGrey,
     "Security"   to Color(0xFF14B8A6),
     "Reports"    to Color(0xFFF97316)
 )

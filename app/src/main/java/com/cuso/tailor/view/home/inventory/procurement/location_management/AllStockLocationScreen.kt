@@ -69,121 +69,139 @@ fun AllStockLocationScreen(
         stockList.sumOf { it.totalStock.toLong() }
     }
 
-    Scaffold(
-        containerColor = Primary_background,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = {
-            Column(modifier = Modifier.fillMaxWidth().background(whiteBg)) {
-                TitleBar("All Stock Location", onClose)
-                HorizontalDivider(color = title_border)
-            }
-        }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                SearchFilterBar(
-                    query = searchQuery,
-                    onQueryChange = {
-                        searchQuery = it
-                        inventoryViewModel.onStockLocationSearchQueryChanged(it)
-                    },
-                    placeholder = "Search Customers...",
-                    showFilterIcon = true,
-                    onFilterClick = { },
-                    height = tokens.fieldHeight * 1.1f
-                )
-
-                HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 2.dp)
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        AppCheckbox(
-                            checked = selectAll,
-                            onCheckedChange = { checked ->
-                                selectAll = checked
-                                selectedItemIds = if (checked) stockList.map { it.id }.toSet() else emptySet()
-                            }
-                        )
-                        Spacer(Modifier.width(tokens.extraPadding * 0.8f))
-                        Text(
-                            text = "Select All (${stockList.size} items)",
-                            fontSize = tokens.caption,
-                            fontWeight = FontWeight.Medium,
-                            color = title_color
-                        )
-                    }
-                    Text(
-                        text = "Total: $totalStockSum Pcs",
-                        fontSize = tokens.caption,
-                        color = mutedText
-                    )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = Primary_background,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = {
+                Column(modifier = Modifier.fillMaxWidth().background(whiteBg)) {
+                    TitleBar("All Stock Location", onClose)
+                    HorizontalDivider(color = title_border)
                 }
+            }
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    SearchFilterBar(
+                        query = searchQuery,
+                        onQueryChange = {
+                            searchQuery = it
+                            inventoryViewModel.onStockLocationSearchQueryChanged(it)
+                        },
+                        placeholder = "Search Customers...",
+                        showFilterIcon = true,
+                        onFilterClick = { },
+                        height = tokens.fieldHeight * 1.1f
+                    )
 
-                if (isLoading && stockList.isEmpty()) {
-                    ListSkeleton()
-                } else if (stockList.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                    HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 2.dp)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AppCheckbox(
+                                checked = selectAll,
+                                onCheckedChange = { checked ->
+                                    selectAll = checked
+                                    selectedItemIds = if (checked) stockList.map { it.id }.toSet() else emptySet()
+                                }
+                            )
+                            Spacer(Modifier.width(tokens.extraPadding * 0.8f))
+                            Text(
+                                text = "Select All (${stockList.size} items)",
+                                fontSize = tokens.caption,
+                                fontWeight = FontWeight.Medium,
+                                color = title_color
+                            )
+                        }
                         Text(
-                            text = "No stock locations found",
-                            fontSize = tokens.bodyMedium,
+                            text = "Total: $totalStockSum Pcs",
+                            fontSize = tokens.caption,
                             color = mutedText
                         )
                     }
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = tokens.screenPadding * 1.5f),
-                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
-                    ) {
-                        itemsIndexed(stockList, key = { _, item -> item.id }) { _, item ->
-                            val isChecked = selectedItemIds.contains(item.id)
-                            StockLocationCardItem(
-                                item = item,
-                                isChecked = isChecked,
-                                tokens = tokens,
-                                onCheckedChange = { checked ->
-                                    selectedItemIds = if (checked) selectedItemIds + item.id else selectedItemIds - item.id
-                                    selectAll = selectedItemIds.size == stockList.size
-                                },
-                                onClick = {
-                                    // Only allow navigation to details if locations exist
-                                    if (item.locationCount > 0) {
-                                        onItemClick(item)
-                                    }
-                                },
-                                onLocationClick = { onLocationClick(item) },
-                                onOptionsClick = { onOptionsClick(item) }
+
+                    when {
+                        isLoading && stockList.isEmpty() -> {
+                            ListSkeleton()
+                        }
+
+                        errorMessage != null && stockList.isEmpty() -> {
+                            AppErrorState(
+                                title = "Failed to load stock locations",
+                                message = errorMessage ?: "Something went wrong. Please check your connection.",
+                                onRetry = { inventoryViewModel.fetchStockLocationItems() }
                             )
                         }
 
-                        if (isLoadingMore) {
-                            item {
-                                ThreeDotLoading()
+                        stockList.isEmpty() -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No stock locations found",
+                                    fontSize = tokens.bodyMedium,
+                                    color = mutedText
+                                )
+                            }
+                        }
+
+                        else -> {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = tokens.screenPadding * 1.5f),
+                                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
+                            ) {
+                                itemsIndexed(stockList, key = { _, item -> item.id }) { _, item ->
+                                    val isChecked = selectedItemIds.contains(item.id)
+                                    StockLocationCardItem(
+                                        item = item,
+                                        isChecked = isChecked,
+                                        tokens = tokens,
+                                        onCheckedChange = { checked ->
+                                            selectedItemIds = if (checked) selectedItemIds + item.id else selectedItemIds - item.id
+                                            selectAll = selectedItemIds.size == stockList.size
+                                        },
+                                        onClick = {
+                                            if (item.locationCount > 0) {
+                                                onItemClick(item)
+                                            }
+                                        },
+                                        onLocationClick = { onLocationClick(item) },
+                                        onOptionsClick = { onOptionsClick(item) }
+                                    )
+                                }
+
+                                if (isLoadingMore) {
+                                    item {
+                                        ThreeDotLoading()
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-
-            DynamicIslandError(
-                message = errorMessage,
-                onDismiss = { }
-            )
         }
+
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMessage?.takeIf { stockList.isNotEmpty() },
+            onDismiss = { }
+        )
     }
 }
 
@@ -203,14 +221,13 @@ private fun StockLocationCardItem(
     val statusDisplay = item.status.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
 
     val hasLocations = item.locationCount > 0
-    val titleTextColor = if (hasLocations) title_color else Color(0xFF9EAEC1)
+    val titleTextColor = if (hasLocations) title_color else mutedText
     val skuTextColor = if (hasLocations) mutedText else Color(0xFFB0BDCD)
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = tokens.screenPadding)
-            // Disable click on disabled/unlocated cards
             .clickable(enabled = hasLocations) { onClick() },
         shape = RoundedCornerShape(tokens.cardCornerRadius * 0.8f),
         colors = CardDefaults.cardColors(containerColor = whiteBg),
@@ -273,7 +290,6 @@ private fun StockLocationCardItem(
 
             Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
-            // Title styling based on location availability
             Text(
                 text = item.name,
                 fontSize = tokens.bodyMedium,

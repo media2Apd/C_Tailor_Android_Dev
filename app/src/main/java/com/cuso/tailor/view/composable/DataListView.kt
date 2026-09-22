@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.BorderGray
+import com.cuso.tailor.ui.theme.grey_border
+import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
@@ -285,7 +287,7 @@ fun <T> DataCard(
                     Modifier
                 }
             ),
-        color = Color.Transparent
+        color = whiteBg
     ) {
         Column(
             modifier = Modifier
@@ -430,7 +432,7 @@ fun <T> DataCard(
                         Text(
                             text = subtitle,
                             fontSize = tokens.caption,
-                            color = Color(0xFF64748B),
+                            color = headerGrey,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -582,7 +584,7 @@ fun <T> DataCard(
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(20.dp))
-                                            .background(if (isFirstPill) Color(0xFFE0F2FE) else Color(0xFFF1F5F9))
+                                            .background(if (isFirstPill) Color(0xFFE0F2FE) else grey_border)
                                             .padding(horizontal = 10.dp, vertical = 3.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -590,7 +592,7 @@ fun <T> DataCard(
                                             text = tag,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = if (isFirstPill) Color(0xFF0284C7) else Color(0xFF64748B)
+                                            color = if (isFirstPill) Color(0xFF0284C7) else headerGrey
                                         )
                                     }
                                 }

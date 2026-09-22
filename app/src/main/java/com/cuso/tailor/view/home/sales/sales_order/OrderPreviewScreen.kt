@@ -108,7 +108,7 @@ fun OrderPreviewScreen(
                     Text(
                         text = "Please review the order details and invoice summary below for ${orderData.fullName.ifBlank { "Rajesh Mehta" }}.",
                         fontSize = tokens.caption,
-                        color = Color(0xFF64748B)
+                        color = headerGrey
                     )
                 }
 
@@ -244,7 +244,7 @@ fun OrderPreviewScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text("+ Add Custom Charges", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Primary)
-                        Text("Discount: ₹0", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+                        Text("Discount: ₹0", fontSize = tokens.bodySmall, color = headerGrey)
                     }
 
                     Spacer(Modifier.height(12.dp))
@@ -320,7 +320,7 @@ fun OrderPreviewScreen(
                         placeholder = "₹ 0",
                         keyboardType = KeyboardType.Number
                     )
-                    Text("* No payment collected right now.", fontSize = 11.sp, color = Color(0xFF64748B), modifier = Modifier.padding(top = 4.dp))
+                    Text("* No payment collected right now.", fontSize = 11.sp, color = headerGrey, modifier = Modifier.padding(top = 4.dp))
 
                     Spacer(Modifier.height(14.dp))
 
@@ -372,12 +372,12 @@ fun OrderPreviewScreen(
                     Spacer(Modifier.height(12.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Payment Mode:", fontSize = 12.sp, color = Color(0xFF64748B))
+                        Text("Payment Mode:", fontSize = 12.sp, color = headerGrey)
                         Spacer(Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0xFFF1F5F9))
+                                .background(grey_border)
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Text("UPI (GPay)", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color(0xFF334155))
@@ -389,7 +389,7 @@ fun OrderPreviewScreen(
                     Text(
                         text = "An automated invoice confirmation SMS and Email will be sent to the customer upon confirmation.",
                         fontSize = 11.sp,
-                        color = Color(0xFF64748B),
+                        color = headerGrey,
                         lineHeight = 15.sp
                     )
                 }
@@ -473,7 +473,7 @@ fun OrderPreviewScreen(
                     Surface(
                         onClick = { isShareMenuExpanded = !isShareMenuExpanded },
                         shape = CircleShape,
-                        color = if (isShareMenuExpanded) Color(0xFFF1F5F9) else whiteBg,
+                        color = if (isShareMenuExpanded) grey_border else whiteBg,
                         modifier = Modifier.size(38.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -534,7 +534,7 @@ private fun KeyValueRow(label: String, value: String, isValuePrimary: Boolean = 
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = label, fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+        Text(text = label, fontSize = tokens.bodySmall, color = headerGrey)
         Text(
             text = value,
             fontSize = tokens.bodySmall,
@@ -549,14 +549,14 @@ private fun ProfileBadge(label: String, isPrimary: Boolean) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(if (isPrimary) Color(0xFFEEF2FF) else Color(0xFFF1F5F9))
+            .background(if (isPrimary) Color(0xFFEEF2FF) else grey_border)
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Text(
             text = label,
             fontSize = 11.sp,
             fontWeight = if (isPrimary) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (isPrimary) Primary else Color(0xFF64748B)
+            color = if (isPrimary) Primary else headerGrey
         )
     }
 }
@@ -583,7 +583,7 @@ private fun MeasurementPillsGrid(measurements: List<Pair<String, String>>) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
-                            Text(text = label, fontSize = 11.sp, color = Color(0xFF64748B))
+                            Text(text = label, fontSize = 11.sp, color = headerGrey)
                             Spacer(Modifier.width(6.dp))
                             Text(text = value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = title_color)
                         }
@@ -615,7 +615,7 @@ private fun PriceSummaryLine(label: String, value: String, isRed: Boolean = fals
             .padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label, fontSize = 12.sp, color = Color(0xFF64748B))
+        Text(text = label, fontSize = 12.sp, color = headerGrey)
         Text(
             text = value,
             fontSize = 12.sp,

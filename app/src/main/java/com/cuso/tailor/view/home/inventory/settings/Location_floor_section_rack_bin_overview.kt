@@ -67,40 +67,63 @@ fun LocationStructureScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 TitleBar(title = "Location Structure", onClose = onClose)
 
-                if (isLoading && floors.isEmpty()) {
-                    ListSkeleton()
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            top = tokens.extraPadding,
-                            bottom = tokens.buttonHeight * 2
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                    ) {
-                        item {
-                            WarehouseDetailCard(
-                                icon = R.drawable.ic_hanker,
-                                title = "Central WH",
-                                subtitle = "WH-001 · Madhavaram",
-                                sequenceOrder = "1",
-                                totalSections = totalSections.toString(),
-                                totalRacks = totalRacks.toString(),
-                                totalBins = totalBins.toString(),
-                                showFourGridBoxes = true,
-                                capacityMetrics = listOf(
-                                    "Floor Area" to "5,000 sqft",
-                                    "Temperature Zone" to "Normal"
+                when {
+                    isLoading && floors.isEmpty() -> {
+                        ListSkeleton()
+                    }
+                    errorMsg != null && floors.isEmpty() -> {
+                        AppErrorState(
+                            title = "Failed to load location structure",
+                            message = errorMsg ?: "Something went wrong. Please check your connection.",
+                            onRetry = { viewModel.fetchFloors(warehouseId, isRefresh = true) }
+                        )
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(
+                                top = tokens.extraPadding,
+                                bottom = tokens.buttonHeight * 2
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                        ) {
+                            item {
+                                WarehouseDetailCard(
+                                    icon = R.drawable.ic_hanker,
+                                    title = "Central WH",
+                                    subtitle = "WH-001 · Madhavaram",
+                                    sequenceOrder = "1",
+                                    totalSections = totalSections.toString(),
+                                    totalRacks = totalRacks.toString(),
+                                    totalBins = totalBins.toString(),
+                                    showFourGridBoxes = true,
+                                    capacityMetrics = listOf(
+                                        "Floor Area" to "5,000 sqft",
+                                        "Temperature Zone" to "Normal"
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                 }
             }
         }
 
-        DynamicIslandSuccess(message = successMsg, onDismiss = { viewModel.clearSuccessMessage() })
-        DynamicIslandError(message = errorMsg, onDismiss = { viewModel.clearDynamicErrorMessage() })
+        DynamicIslandSuccess(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = successMsg,
+            onDismiss = { viewModel.clearSuccessMessage() }
+        )
+
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMsg?.takeIf { floors.isNotEmpty() },
+            onDismiss = { viewModel.clearDynamicErrorMessage() }
+        )
     }
 }
 
@@ -152,56 +175,67 @@ fun FloorOverviewScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 TitleBar(title = "Floor Overview", onClose = onClose)
 
-                if (isLoading && floors.isEmpty()) {
-                    ListSkeleton()
-                } else if (!isLoading && floors.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No floors found",
-                            fontSize = tokens.bodyMedium,
-                            color = TextSecondary
+                when {
+                    isLoading && floors.isEmpty() -> {
+                        ListSkeleton()
+                    }
+                    errorMsg != null && floors.isEmpty() -> {
+                        AppErrorState(
+                            title = "Failed to load floors",
+                            message = errorMsg ?: "Something went wrong. Please check your connection.",
+                            onRetry = { viewModel.fetchFloors(warehouseId, isRefresh = true) }
                         )
                     }
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = tokens.screenPadding),
-                        contentPadding = PaddingValues(
-                            top = tokens.extraPadding,
-                            bottom = tokens.buttonHeight * 2
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                    ) {
-                        items(items = floors, key = { it.id }) { floor ->
-                            WarehouseDetailCard(
-                                icon = R.drawable.ic_hanker,
-                                title = floor.name,
-                                status = floor.status.uppercase(),
-                                locationLabel = "Floor",
-                                locationName = floor.code.ifBlank { "N/A" },
-                                sequenceOrder = floor.sequenceOrder.toString(),
-                                totalSections = floor.sectionsCount.toString(),
-                                totalRacks = floor.racksCount.toString(),
-                                totalBins = floor.binsCount.toString(),
-                                capacityMetrics = listOf(
-                                    "Temperature" to (floor.temperatureZone?.ifBlank { "Normal" } ?: "Normal"),
-                                    "Area" to "${floor.floorAreaSqft.toInt()} sqft"
-                                ),
-                                onEditClick = { onEditFloor(floor) },
-                                onDeleteClick = {
-                                    selectedFloorToDelete = floor
-                                }
+                    floors.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No floors found",
+                                fontSize = tokens.bodyMedium,
+                                color = TextSecondary
                             )
                         }
+                    }
+                    else -> {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = tokens.screenPadding),
+                            contentPadding = PaddingValues(
+                                top = tokens.extraPadding,
+                                bottom = tokens.buttonHeight * 2
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                        ) {
+                            items(items = floors, key = { it.id }) { floor ->
+                                WarehouseDetailCard(
+                                    icon = R.drawable.ic_hanker,
+                                    title = floor.name,
+                                    status = floor.status.uppercase(),
+                                    locationLabel = "Floor",
+                                    locationName = floor.code.ifBlank { "N/A" },
+                                    sequenceOrder = floor.sequenceOrder.toString(),
+                                    totalSections = floor.sectionsCount.toString(),
+                                    totalRacks = floor.racksCount.toString(),
+                                    totalBins = floor.binsCount.toString(),
+                                    capacityMetrics = listOf(
+                                        "Temperature" to (floor.temperatureZone?.ifBlank { "Normal" } ?: "Normal"),
+                                        "Area" to "${floor.floorAreaSqft.toInt()} sqft"
+                                    ),
+                                    onEditClick = { onEditFloor(floor) },
+                                    onDeleteClick = {
+                                        selectedFloorToDelete = floor
+                                    }
+                                )
+                            }
 
-                        if (isPaginating) {
-                            item {
-                                ThreeDotLoading()
+                            if (isPaginating) {
+                                item {
+                                    ThreeDotLoading()
+                                }
                             }
                         }
                     }
@@ -227,8 +261,21 @@ fun FloorOverviewScreen(
             )
         }
 
-        DynamicIslandSuccess(message = successMsg, onDismiss = { viewModel.clearSuccessMessage() })
-        DynamicIslandError(message = errorMsg, onDismiss = { viewModel.clearDynamicErrorMessage() })
+        DynamicIslandSuccess(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = successMsg,
+            onDismiss = { viewModel.clearSuccessMessage() }
+        )
+
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMsg?.takeIf { floors.isNotEmpty() },
+            onDismiss = { viewModel.clearDynamicErrorMessage() }
+        )
     }
 }
 
@@ -423,7 +470,13 @@ fun AddFloorScreen(
             trailingWidthFraction = 0.55f
         )
 
-        DynamicIslandError(message = errorMsg, onDismiss = { viewModel.clearDynamicErrorMessage() })
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMsg,
+            onDismiss = { viewModel.clearDynamicErrorMessage() }
+        )
     }
 }
 
@@ -476,57 +529,68 @@ fun SectionOverviewScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 TitleBar(title = "Section Overview", onClose = onClose)
 
-                if (isLoading && sections.isEmpty()) {
-                    ListSkeleton()
-                } else if (!isLoading && sections.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No sections found",
-                            fontSize = tokens.bodyMedium,
-                            color = TextSecondary
+                when {
+                    isLoading && sections.isEmpty() -> {
+                        ListSkeleton()
+                    }
+                    errorMsg != null && sections.isEmpty() -> {
+                        AppErrorState(
+                            title = "Failed to load sections",
+                            message = errorMsg ?: "Something went wrong. Please check your connection.",
+                            onRetry = { viewModel.fetchSections(warehouseId, floorId, isRefresh = true) }
                         )
                     }
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = tokens.screenPadding),
-                        contentPadding = PaddingValues(
-                            top = tokens.extraPadding,
-                            bottom = tokens.buttonHeight * 2
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                    ) {
-                        items(sections, key = { it.id }) { section ->
-                            WarehouseDetailCard(
-                                icon = R.drawable.ic_hanker,
-                                title = section.name,
-                                subtitle = section.floorName.ifBlank { null },
-                                status = section.status.uppercase(),
-                                locationLabel = "Section Code",
-                                locationName = section.code.ifBlank { "N/A" },
-                                sequenceOrder = section.sequenceOrder.toString(),
-                                linkedCategory = section.allowedProductCategories.firstOrNull()?.name ?: "General",
-                                totalRacks = section.racksCount.toString(),
-                                totalBins = section.binsCount.toString(),
-                                capacityMetrics = listOf(
-                                    "Storage Type" to (section.storageType ?: "shelving"),
-                                    "Climate Control" to (section.climateControl ?: "ac_standard")
-                                ),
-                                onEditClick = { onEditSection(section) },
-                                onDeleteClick = {
-                                    selectedSectionToDelete = section
-                                }
+                    sections.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No sections found",
+                                fontSize = tokens.bodyMedium,
+                                color = TextSecondary
                             )
                         }
+                    }
+                    else -> {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = tokens.screenPadding),
+                            contentPadding = PaddingValues(
+                                top = tokens.extraPadding,
+                                bottom = tokens.buttonHeight * 2
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                        ) {
+                            items(sections, key = { it.id }) { section ->
+                                WarehouseDetailCard(
+                                    icon = R.drawable.ic_hanker,
+                                    title = section.name,
+                                    subtitle = section.floorName.ifBlank { null },
+                                    status = section.status.uppercase(),
+                                    locationLabel = "Section Code",
+                                    locationName = section.code.ifBlank { "N/A" },
+                                    sequenceOrder = section.sequenceOrder.toString(),
+                                    linkedCategory = section.allowedProductCategories.firstOrNull()?.name ?: "General",
+                                    totalRacks = section.racksCount.toString(),
+                                    totalBins = section.binsCount.toString(),
+                                    capacityMetrics = listOf(
+                                        "Storage Type" to (section.storageType ?: "shelving"),
+                                        "Climate Control" to (section.climateControl ?: "ac_standard")
+                                    ),
+                                    onEditClick = { onEditSection(section) },
+                                    onDeleteClick = {
+                                        selectedSectionToDelete = section
+                                    }
+                                )
+                            }
 
-                        if (isPaginating) {
-                            item {
-                                ThreeDotLoading()
+                            if (isPaginating) {
+                                item {
+                                    ThreeDotLoading()
+                                }
                             }
                         }
                     }
@@ -553,8 +617,21 @@ fun SectionOverviewScreen(
             )
         }
 
-        DynamicIslandSuccess(message = successMsg, onDismiss = { viewModel.clearSuccessMessage() })
-        DynamicIslandError(message = errorMsg, onDismiss = { viewModel.clearDynamicErrorMessage() })
+        DynamicIslandSuccess(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = successMsg,
+            onDismiss = { viewModel.clearSuccessMessage() }
+        )
+
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMsg?.takeIf { sections.isNotEmpty() },
+            onDismiss = { viewModel.clearDynamicErrorMessage() }
+        )
     }
 }
 
@@ -765,7 +842,13 @@ fun AddSectionScreen(
             trailingWidthFraction = 0.35f
         )
 
-        DynamicIslandError(message = errorMsg, onDismiss = { viewModel.clearDynamicErrorMessage() })
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMsg,
+            onDismiss = { viewModel.clearDynamicErrorMessage() }
+        )
     }
 }
 
@@ -819,57 +902,68 @@ fun RackOverviewScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 TitleBar(title = "Rack Overview", onClose = onClose)
 
-                if (isLoading && racks.isEmpty()) {
-                    ListSkeleton()
-                } else if (!isLoading && racks.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No racks found",
-                            fontSize = tokens.bodyMedium,
-                            color = TextSecondary
+                when {
+                    isLoading && racks.isEmpty() -> {
+                        ListSkeleton()
+                    }
+                    errorMsg != null && racks.isEmpty() -> {
+                        AppErrorState(
+                            title = "Failed to load racks",
+                            message = errorMsg ?: "Something went wrong. Please check your connection.",
+                            onRetry = { viewModel.fetchRacks(warehouseId, floorId, sectionId, isRefresh = true) }
                         )
                     }
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = tokens.screenPadding),
-                        contentPadding = PaddingValues(
-                            top = tokens.extraPadding,
-                            bottom = tokens.buttonHeight * 2
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                    ) {
-                        items(racks, key = { it.id }) { rack ->
-                            WarehouseDetailCard(
-                                icon = R.drawable.ic_hanker,
-                                title = rack.name,
-                                subtitle = rack.warehouseName.ifBlank { null },
-                                status = rack.status.uppercase(),
-                                locationLabel = "Section",
-                                locationName = rack.sectionDisplayName,
-                                sequenceOrder = rack.sequenceOrder.toString(),
-                                rackType = rack.rackType?.ifBlank { "shelf" },
-                                totalRacks = "-",
-                                totalBins = rack.binsCount.toString(),
-                                capacityMetrics = listOf(
-                                    "Max Capacity" to "${rack.maxQuantityCapacity} pcs",
-                                    "Max Weight" to "${rack.maxWeightCapacityKg.toInt()} kg"
-                                ),
-                                onEditClick = { onEditRack(rack) },
-                                onDeleteClick = {
-                                    selectedRackToDelete = rack
-                                }
+                    racks.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No racks found",
+                                fontSize = tokens.bodyMedium,
+                                color = TextSecondary
                             )
                         }
+                    }
+                    else -> {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = tokens.screenPadding),
+                            contentPadding = PaddingValues(
+                                top = tokens.extraPadding,
+                                bottom = tokens.buttonHeight * 2
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                        ) {
+                            items(racks, key = { it.id }) { rack ->
+                                WarehouseDetailCard(
+                                    icon = R.drawable.ic_hanker,
+                                    title = rack.name,
+                                    subtitle = rack.warehouseName.ifBlank { null },
+                                    status = rack.status.uppercase(),
+                                    locationLabel = "Section",
+                                    locationName = rack.sectionDisplayName,
+                                    sequenceOrder = rack.sequenceOrder.toString(),
+                                    rackType = rack.rackType?.ifBlank { "shelf" },
+                                    totalRacks = "-",
+                                    totalBins = rack.binsCount.toString(),
+                                    capacityMetrics = listOf(
+                                        "Max Capacity" to "${rack.maxQuantityCapacity} pcs",
+                                        "Max Weight" to "${rack.maxWeightCapacityKg.toInt()} kg"
+                                    ),
+                                    onEditClick = { onEditRack(rack) },
+                                    onDeleteClick = {
+                                        selectedRackToDelete = rack
+                                    }
+                                )
+                            }
 
-                        if (isPaginating) {
-                            item {
-                                ThreeDotLoading()
+                            if (isPaginating) {
+                                item {
+                                    ThreeDotLoading()
+                                }
                             }
                         }
                     }
@@ -892,8 +986,21 @@ fun RackOverviewScreen(
             )
         }
 
-        DynamicIslandSuccess(message = successMsg, onDismiss = { viewModel.clearSuccessMessage() })
-        DynamicIslandError(message = errorMsg, onDismiss = { viewModel.clearDynamicErrorMessage() })
+        DynamicIslandSuccess(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = successMsg,
+            onDismiss = { viewModel.clearSuccessMessage() }
+        )
+
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMsg?.takeIf { racks.isNotEmpty() },
+            onDismiss = { viewModel.clearDynamicErrorMessage() }
+        )
     }
 }
 
@@ -1094,7 +1201,13 @@ fun AddRackScreen(
             trailingWidthFraction = 0.35f
         )
 
-        DynamicIslandError(message = errorMsg, onDismiss = { viewModel.clearDynamicErrorMessage() })
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMsg,
+            onDismiss = { viewModel.clearDynamicErrorMessage() }
+        )
     }
 }
 
@@ -1153,56 +1266,73 @@ fun BinOverviewScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 TitleBar(title = "Bin Overview", onClose = onClose)
 
-                if (isLoading && bins.isEmpty()) {
-                    ListSkeleton()
-                } else if (!isLoading && bins.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No bins found",
-                            fontSize = tokens.bodyMedium,
-                            color = TextSecondary
+                when {
+                    isLoading && bins.isEmpty() -> {
+                        ListSkeleton()
+                    }
+                    errorMsg != null && bins.isEmpty() -> {
+                        AppErrorState(
+                            title = "Failed to load bins",
+                            message = errorMsg ?: "Something went wrong. Please check your connection.",
+                            onRetry = {
+                                viewModel.fetchBins(
+                                    warehouseId = warehouseId,
+                                    rackId = rackId,
+                                    isRefresh = true
+                                )
+                            }
                         )
                     }
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = tokens.screenPadding),
-                        contentPadding = PaddingValues(
-                            top = tokens.extraPadding,
-                            bottom = tokens.buttonHeight * 2
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                    ) {
-                        items(bins, key = { it.id }) { bin ->
-                            WarehouseDetailCard(
-                                icon = R.drawable.ic_hanker,
-                                title = bin.name,
-                                status = bin.status.uppercase(),
-                                locationLabel = "Rack",
-                                locationName = bin.rackDisplayName.ifBlank { bin.rackCode },
-                                sequenceOrder = bin.sequenceOrder.toString(),
-                                binType = bin.binType?.ifBlank { "regular" } ?: "regular",
-                                totalRacks = "-",
-                                totalBins = "-",
-                                capacityMetrics = listOf(
-                                    "Max Capacity" to "${bin.maxQuantity} ${bin.defaultUOM?.ifBlank { "pcs" } ?: "pcs"}",
-                                    "Max Weight" to "${bin.maxWeightKg.toInt()} kg"
-                                ),
-                                onEditClick = { onEditBin(bin) },
-                                onDeleteClick = {
-                                    selectedBinToDelete = bin
-                                }
+                    bins.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No bins found",
+                                fontSize = tokens.bodyMedium,
+                                color = TextSecondary
                             )
                         }
+                    }
+                    else -> {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = tokens.screenPadding),
+                            contentPadding = PaddingValues(
+                                top = tokens.extraPadding,
+                                bottom = tokens.buttonHeight * 2
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                        ) {
+                            items(bins, key = { it.id }) { bin ->
+                                WarehouseDetailCard(
+                                    icon = R.drawable.ic_hanker,
+                                    title = bin.name,
+                                    status = bin.status.uppercase(),
+                                    locationLabel = "Rack",
+                                    locationName = bin.rackDisplayName.ifBlank { bin.rackCode },
+                                    sequenceOrder = bin.sequenceOrder.toString(),
+                                    binType = bin.binType?.ifBlank { "regular" } ?: "regular",
+                                    totalRacks = "-",
+                                    totalBins = "-",
+                                    capacityMetrics = listOf(
+                                        "Max Capacity" to "${bin.maxQuantity} ${bin.defaultUOM?.ifBlank { "pcs" } ?: "pcs"}",
+                                        "Max Weight" to "${bin.maxWeightKg.toInt()} kg"
+                                    ),
+                                    onEditClick = { onEditBin(bin) },
+                                    onDeleteClick = {
+                                        selectedBinToDelete = bin
+                                    }
+                                )
+                            }
 
-                        if (isPaginating) {
-                            item {
-                                ThreeDotLoading()
+                            if (isPaginating) {
+                                item {
+                                    ThreeDotLoading()
+                                }
                             }
                         }
                     }
@@ -1229,8 +1359,21 @@ fun BinOverviewScreen(
             )
         }
 
-        DynamicIslandSuccess(message = successMsg, onDismiss = { viewModel.clearSuccessMessage() })
-        DynamicIslandError(message = errorMsg, onDismiss = { viewModel.clearDynamicErrorMessage() })
+        DynamicIslandSuccess(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = successMsg,
+            onDismiss = { viewModel.clearSuccessMessage() }
+        )
+
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMsg?.takeIf { bins.isNotEmpty() },
+            onDismiss = { viewModel.clearDynamicErrorMessage() }
+        )
     }
 }
 
@@ -1449,6 +1592,12 @@ fun AddBinScreen(
             trailingWidthFraction = 0.35f
         )
 
-        DynamicIslandError(message = errorMsg, onDismiss = { viewModel.clearDynamicErrorMessage() })
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMsg,
+            onDismiss = { viewModel.clearDynamicErrorMessage() }
+        )
     }
 }

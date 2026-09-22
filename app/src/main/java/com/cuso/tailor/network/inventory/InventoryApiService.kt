@@ -15,6 +15,8 @@ import com.cuso.tailor.model.inventory.BuildBulkItemRequest
 import com.cuso.tailor.model.inventory.BulkItemDetailResponse
 import com.cuso.tailor.model.inventory.BulkItemListResponse
 import com.cuso.tailor.model.inventory.ConvertToBillResponse
+import com.cuso.tailor.model.inventory.CreateBillRequest
+import com.cuso.tailor.model.inventory.CreateBillResponse
 import com.cuso.tailor.model.inventory.CreateInventoryItemResponse
 import com.cuso.tailor.model.inventory.CreateItemGroupResponse
 import com.cuso.tailor.model.inventory.CreatePurchaseOrderRequest
@@ -37,6 +39,7 @@ import com.cuso.tailor.model.inventory.ItemGroupListResponse
 import com.cuso.tailor.model.inventory.ItemGroupViewOneResponse
 import com.cuso.tailor.model.inventory.LowStockResponse
 import com.cuso.tailor.model.inventory.POBillConvertResponse
+import com.cuso.tailor.model.inventory.PaymentTermsResponse
 import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.inventory.PurchaseOrderDetailResponse
 import com.cuso.tailor.model.inventory.PurchaseOrderListResponse
@@ -50,6 +53,7 @@ import com.cuso.tailor.model.inventory.RequisitionApprovalActionRequest
 import com.cuso.tailor.model.inventory.RequisitionListResponse
 import com.cuso.tailor.model.inventory.RequisitionSingleResponse
 import com.cuso.tailor.model.inventory.ReverseAdjustmentRequest
+import com.cuso.tailor.model.inventory.SafetyStockResponse
 import com.cuso.tailor.model.inventory.SectionDropdownResponse
 import com.cuso.tailor.model.inventory.SingleReceiveResponse
 import com.cuso.tailor.model.inventory.StockAdjustmentDetailResponse
@@ -64,10 +68,13 @@ import com.cuso.tailor.model.inventory.SupplierDropdownResponse
 import com.cuso.tailor.model.inventory.SupplierLedgerResponse
 import com.cuso.tailor.model.inventory.SupplierListResponse
 import com.cuso.tailor.model.inventory.SupplierViewOneResponse
+import com.cuso.tailor.model.inventory.TaxGroupsResponse
 import com.cuso.tailor.model.inventory.TransferStockRequest
 import com.cuso.tailor.model.inventory.UpdateInventoryItemResponse
 import com.cuso.tailor.model.inventory.UpdateItemGroupResponse
 import com.cuso.tailor.model.inventory.UpdateWarehouseRequest
+import com.cuso.tailor.model.inventory.ViewMultipleReceivesRequest
+import com.cuso.tailor.model.inventory.ViewMultipleReceivesResponse
 import com.cuso.tailor.model.inventory.WarehouseDropdownResponse
 import com.cuso.tailor.model.inventory.WarehouseListResponse
 import com.cuso.tailor.model.inventory.WarehouseMessageResponse
@@ -731,7 +738,7 @@ interface InventoryApiService {
         @Path("id") id: String
     ): Response<BarcodeDetailResponse>
 
-    @PATCH("/api/inventory/barcode/{id}/toggle-status")
+    @POST("/api/inventory/barcode/{id}/toggle-status")
     suspend fun toggleBarcodeStatus(
         @Header("Authorization") token: String,
         @Header("x-csrf-token") csrfToken: String,
@@ -758,13 +765,6 @@ interface InventoryApiService {
         @Query("search") search: String? = null
     ): Response<AllReceivesResponse>
 
-//    @GET("/api/inventory/purchase-receive/history/{poId}")
-//    suspend fun getReceiveHistoryByPo(
-//        @Header("Authorization") token: String,
-//        @Header("x-csrf-token") csrfToken: String,
-//        @Path("poId") poId: String
-//    ): Response<ReceiveHistoryByPoResponse>
-
     @GET("/api/inventory/purchase-receive/view-one/{id}")
     suspend fun getSingleReceive(
         @Header("Authorization") token: String,
@@ -782,12 +782,38 @@ interface InventoryApiService {
     /**
      * Fetches detailed receive history and item progress for a specific Purchase Order.
      */
-    @GET("inventory/purchase-receive/history/{poId}")
+    @GET("/api/inventory/purchase-receive/history/{poId}")
     suspend fun getReceiveHistoryByPo(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("poId") poId: String
     ): Response<ReceiveHistoryByPoResponse>
+
+    @GET("/api/finance/settings/payment-terms/view-all")
+    suspend fun getPaymentTerms(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+    ): Response<PaymentTermsResponse>
+
+    @GET("/api/finance/settings/tax-groups/view-all")
+    suspend fun getTaxGroups(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+    ): Response<TaxGroupsResponse>
+
+    @POST("/api/finance/purchase-bills/create")
+    suspend fun createBill(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: CreateBillRequest
+    ): Response<CreateBillResponse>
+
+    @POST("/api/inventory/purchase-receive/view-multiple")
+    suspend fun viewMultipleReceives(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: ViewMultipleReceivesRequest
+    ): Response<ViewMultipleReceivesResponse>
 
     /**
      * Fetches paginated summary of purchase orders and their aggregate receive status.
@@ -859,4 +885,17 @@ interface InventoryApiService {
         @Header("x-csrf-token") csrfToken: String,
         @Body request: AssignStockLocationRequest
     ): Response<AssignStockLocationResponse>
+
+    // =============================================================================
+    // SAFETY STOCK
+    // =============================================================================
+    @GET("/api/inventory/safety-stock/view-all")
+    suspend fun getSafetyStock(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("warehouseId") warehouseId: String? = null
+    ): Response<SafetyStockResponse>
 }

@@ -73,6 +73,7 @@ import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.ui.theme.textSubdued
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.ErrorMapper
@@ -202,6 +203,14 @@ fun TransferOrdersStockListScreen(
 
                 if (isLoadingAdjustments && adjustmentsList.isEmpty()) {
                     ListSkeleton()
+                } else if (!adjustmentErrorMessage.isNullOrBlank() && adjustmentsList.isEmpty()) {
+                    AppErrorState(
+                        title = "Failed to load stock adjustments",
+                        message = adjustmentErrorMessage?.let { ErrorMapper.map(it) } ?: "Something went wrong. Please check your connection and try again.",
+                        onRetry = {
+                            viewModel.fetchStockAdjustments(reset = true, adjustmentType = "transfer")
+                        }
+                    )
                 } else if (filteredList.isEmpty()) {
                     Box(
                         modifier = Modifier
@@ -261,7 +270,7 @@ fun TransferOrdersStockListScreen(
         )
 
         DynamicIslandError(
-            message = adjustmentErrorMessage?.takeIf { it.isNotBlank() }?.let { ErrorMapper.map(it) },
+            message = adjustmentErrorMessage?.takeIf { it.isNotBlank() && adjustmentsList.isNotEmpty() }?.let { ErrorMapper.map(it) },
             onDismiss = { viewModel.clearAdjustmentAlerts() }
         )
     }

@@ -25,21 +25,24 @@ import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.whiteBg
 
 /**
- * Reusable 3-button action panel layout:
- * - Row with secondary buttons ("Cancel" & "Save Draft")
- * - Full-width primary action button ("Submit")
+ * Dynamic action button panel:
+ * - Automatically displays only the buttons whose callbacks (onCancel, onSaveDraft, onPrimaryClick) are provided.
+ * - When only Cancel and Primary are provided, displays them side-by-side in a single row.
+ * - When Save Draft is also provided, displays Cancel & Draft in the top row and Primary full-width below.
  */
 @Composable
 fun FormActionButtons(
     modifier: Modifier = Modifier,
     cancelText: String = "Cancel",
     draftText: String = "Save Draft",
-    primaryText: String = "Submit Purchase Order",
-    onCancel: () -> Unit = {},
-    onSaveDraft: () -> Unit = {},
-    onPrimaryClick: () -> Unit = {},
-    showDraftButton: Boolean = true,
-    showPrimaryButton: Boolean = true,
+    primaryText: String = "Submit",
+    onCancel: (() -> Unit)? = null,
+    onSaveDraft: (() -> Unit)? = null,
+    onPrimaryClick: (() -> Unit)? = null,
+    showCancelButton: Boolean = (onCancel != null),
+    showDraftButton: Boolean = (onSaveDraft != null),
+    showPrimaryButton: Boolean = (onPrimaryClick != null),
+    stackTwoButtons: Boolean = false,
     isLoading: Boolean = false,
     isCancelEnabled: Boolean = true,
     isDraftEnabled: Boolean = true,
@@ -57,39 +60,16 @@ fun FormActionButtons(
     Column(
         modifier = modifier.fillMaxWidth()
     ) {
-        // Top Row: Cancel and Save Draft Buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-        ) {
-            // Cancel Button
-            OutlinedButton(
-                onClick = onCancel,
-                enabled = isCancelEnabled && !isLoading,
-                shape = shape,
-                border = BorderStroke(1.2.dp, borderColor),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = whiteBg,
-                    contentColor = textColor,
-                    disabledContentColor = textColor.copy(alpha = 0.4f)
-                ),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(effectiveHeight)
+        // Layout 1: Only Cancel and Primary (2-button side-by-side layout)
+        if (showCancelButton && showPrimaryButton && !showDraftButton && !stackTwoButtons) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
             ) {
-                Text(
-                    text = cancelText,
-                    fontSize = tokens.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = textColor
-                )
-            }
-
-            // Save Draft Button (Optional visibility)
-            if (showDraftButton) {
+                // Cancel Button
                 OutlinedButton(
-                    onClick = onSaveDraft,
-                    enabled = isDraftEnabled && !isLoading,
+                    onClick = { onCancel?.invoke() },
+                    enabled = isCancelEnabled && !isLoading,
                     shape = shape,
                     border = BorderStroke(1.2.dp, borderColor),
                     colors = ButtonDefaults.outlinedButtonColors(
@@ -102,44 +82,132 @@ fun FormActionButtons(
                         .height(effectiveHeight)
                 ) {
                     Text(
-                        text = draftText,
+                        text = cancelText,
                         fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = textColor
                     )
                 }
+
+                // Primary Button
+                Button(
+                    onClick = { onPrimaryClick?.invoke() },
+                    enabled = isPrimaryEnabled && !isLoading,
+                    shape = shape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = primaryColor,
+                        disabledContainerColor = primaryColor.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(effectiveHeight)
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(tokens.iconSize),
+                            color = whiteBg,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = primaryText,
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = whiteBg
+                        )
+                    }
+                }
             }
-        }
+        } else {
+            // Layout 2: Multi-button layout (Secondary row + Primary below, or stacked)
+            val hasSecondaryRow = showCancelButton || showDraftButton
 
-        // Bottom Button: Full-Width Primary Action
-        if (showPrimaryButton) {
-            Spacer(Modifier.height(tokens.extraPadding))
+            if (hasSecondaryRow) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                ) {
+                    if (showCancelButton) {
+                        OutlinedButton(
+                            onClick = { onCancel?.invoke() },
+                            enabled = isCancelEnabled && !isLoading,
+                            shape = shape,
+                            border = BorderStroke(1.2.dp, borderColor),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = whiteBg,
+                                contentColor = textColor,
+                                disabledContentColor = textColor.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(effectiveHeight)
+                        ) {
+                            Text(
+                                text = cancelText,
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = textColor
+                            )
+                        }
+                    }
 
-            Button(
-                onClick = onPrimaryClick,
-                enabled = isPrimaryEnabled && !isLoading,
-                shape = shape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = primaryColor,
-                    disabledContainerColor = primaryColor.copy(alpha = 0.5f)
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(effectiveHeight)
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(tokens.iconSize),
-                        color = whiteBg,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        text = primaryText,
-                        fontSize = tokens.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = whiteBg
-                    )
+                    if (showDraftButton) {
+                        OutlinedButton(
+                            onClick = { onSaveDraft?.invoke() },
+                            enabled = isDraftEnabled && !isLoading,
+                            shape = shape,
+                            border = BorderStroke(1.2.dp, borderColor),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = whiteBg,
+                                contentColor = textColor,
+                                disabledContentColor = textColor.copy(alpha = 0.4f)
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(effectiveHeight)
+                        ) {
+                            Text(
+                                text = draftText,
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = textColor
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (showPrimaryButton) {
+                if (hasSecondaryRow) {
+                    Spacer(Modifier.height(tokens.extraPadding))
+                }
+
+                Button(
+                    onClick = { onPrimaryClick?.invoke() },
+                    enabled = isPrimaryEnabled && !isLoading,
+                    shape = shape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = primaryColor,
+                        disabledContainerColor = primaryColor.copy(alpha = 0.5f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(effectiveHeight)
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(tokens.iconSize),
+                            color = whiteBg,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = primaryText,
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = whiteBg
+                        )
+                    }
                 }
             }
         }

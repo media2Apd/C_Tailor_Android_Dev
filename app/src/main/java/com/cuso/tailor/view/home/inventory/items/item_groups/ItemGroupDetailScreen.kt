@@ -74,6 +74,8 @@ import com.cuso.tailor.viewmodel.SettingsViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
 import com.cuso.tailor.R
+import com.cuso.tailor.ui.theme.grey_border
+import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.title_color
 
 @Composable
@@ -169,7 +171,7 @@ fun ItemGroupDetailScreen(
                                 Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = "Edit",
-                                    tint = Color(0xFF64748B),
+                                    tint = headerGrey,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -180,7 +182,7 @@ fun ItemGroupDetailScreen(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Outlined.InsertDriveFile,
                                     contentDescription = "Export PDF",
-                                    tint = Color(0xFF64748B),
+                                    tint = headerGrey,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -234,7 +236,7 @@ fun ItemGroupDetailScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.Layers,
                                         contentDescription = null,
-                                        tint = if (selectedTab == 0) Primary else Color(0xFF64748B),
+                                        tint = if (selectedTab == 0) Primary else headerGrey,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -242,7 +244,7 @@ fun ItemGroupDetailScreen(
                                         text = "Overview",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = if (selectedTab == 0) Primary else Color(0xFF64748B)
+                                        color = if (selectedTab == 0) Primary else headerGrey
                                     )
                                 }
                             }
@@ -261,7 +263,7 @@ fun ItemGroupDetailScreen(
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
                                         contentDescription = null,
-                                        tint = if (selectedTab == 1) Primary else Color(0xFF64748B),
+                                        tint = if (selectedTab == 1) Primary else headerGrey,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -269,7 +271,7 @@ fun ItemGroupDetailScreen(
                                         text = "Transactions",
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = if (selectedTab == 1) Primary else Color(0xFF64748B)
+                                        color = if (selectedTab == 1) Primary else headerGrey
                                     )
                                 }
                             }
@@ -564,7 +566,7 @@ private fun DetailRowItem(
             )
         }
         if (showDivider) {
-            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 2.dp)
+            HorizontalDivider(color = grey_border, thickness = 2.dp)
         }
     }
 }

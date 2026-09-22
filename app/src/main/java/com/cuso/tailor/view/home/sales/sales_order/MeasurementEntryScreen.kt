@@ -209,7 +209,7 @@ fun MeasurementEntryScreen(
                             .fillMaxWidth()
                             .height(42.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFF1F5F9))
+                            .background(grey_border)
                             .padding(3.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
@@ -371,7 +371,7 @@ fun MeasurementStepperField(
         Text(
             text = label,
             fontSize = 12.sp,
-            color = Color(0xFF64748B),
+            color = headerGrey,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -384,7 +384,7 @@ fun MeasurementStepperField(
                 .fillMaxWidth()
                 .height(44.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color(0xFFF1F5F9))
+                .background(grey_border)
                 .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp)),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -526,7 +526,7 @@ private fun UnitSegmentButton(
             text = label,
             fontSize = 12.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = if (isSelected) title_color else Color(0xFF64748B)
+            color = if (isSelected) title_color else headerGrey
         )
     }
 }

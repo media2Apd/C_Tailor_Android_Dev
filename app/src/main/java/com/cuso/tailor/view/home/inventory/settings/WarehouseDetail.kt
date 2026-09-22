@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.badgeGrey
+import com.cuso.tailor.ui.theme.grey_border
+import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
@@ -34,7 +36,7 @@ fun SectionHeader(title: String) {
     Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
         Text(title, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
         Spacer(Modifier.height(6.dp))
-        HorizontalDivider(color = Color(0xFFF1F5F9))
+        HorizontalDivider(color = grey_border)
     }
 }
 
@@ -127,7 +129,7 @@ fun WarehouseDetailCard(
                             Text(
                                 text = subtitle,
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B)
+                                color = headerGrey
                             )
                         }
                         if (status != null) {
@@ -163,7 +165,7 @@ fun WarehouseDetailCard(
                         Icon(
                             Icons.Default.Edit,
                             contentDescription = null,
-                            tint = Color(0xFF64748B),
+                            tint = headerGrey,
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(Modifier.width(4.dp))
@@ -213,7 +215,7 @@ fun WarehouseDetailCard(
             }
 
             Spacer(Modifier.height(14.dp))
-            HorizontalDivider(thickness = 2.dp, color = Color(0xFFF1F5F9))
+            HorizontalDivider(thickness = 2.dp, color = grey_border)
             Spacer(Modifier.height(12.dp))
 
             if (showFourGridBoxes) {
@@ -283,7 +285,7 @@ fun WarehouseDetailCard(
             }
 
             Spacer(Modifier.height(16.dp))
-            HorizontalDivider(thickness = 2.dp, color = Color(0xFFF1F5F9))
+            HorizontalDivider(thickness = 2.dp, color = grey_border)
             Spacer(Modifier.height(12.dp))
 
             // ── Capacity Summary Section ──
@@ -291,7 +293,7 @@ fun WarehouseDetailCard(
                 text = "CAPACITY SUMMARY",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF64748B),
+                color = headerGrey,
                 letterSpacing = 0.5.sp
             )
             Spacer(Modifier.height(8.dp))
@@ -331,7 +333,7 @@ private fun MetricBox(title: String, value: String, modifier: Modifier = Modifie
             Text(
                 text = title,
                 fontSize = 11.sp,
-                color = Color(0xFF64748B),
+                color = headerGrey,
                 fontWeight = FontWeight.Medium
             )
             Text(
@@ -354,7 +356,7 @@ private fun MetricRow(label: String, value: String) {
         Text(
             text = label,
             fontSize = 13.sp,
-            color = Color(0xFF64748B)
+            color = headerGrey
         )
         Text(
             text = value,

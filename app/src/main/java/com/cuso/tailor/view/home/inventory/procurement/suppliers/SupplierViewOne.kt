@@ -196,7 +196,7 @@ private fun SupplierHeaderProfile(
                 Icon(
                     painter = painterResource(R.drawable.ic_person),
                     contentDescription = null,
-                    tint = Color(0xFF64748B),
+                    tint = headerGrey,
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -254,7 +254,7 @@ private fun SupplierHeaderProfile(
                     Icon(
                         Icons.Default.Phone,
                         contentDescription = null,
-                        tint = Color(0xFF64748B),
+                        tint = headerGrey,
                         modifier = Modifier.size(14.dp)
                     )
 
@@ -278,7 +278,7 @@ private fun SupplierHeaderProfile(
                     Icon(
                         Icons.Default.Email,
                         contentDescription = null,
-                        tint = Color(0xFF64748B),
+                        tint = headerGrey,
                         modifier = Modifier.size(14.dp)
                     )
 
@@ -300,7 +300,7 @@ private fun SupplierHeaderProfile(
                 Icon(
                     Icons.Default.DateRange,
                     contentDescription = null,
-                    tint = Color(0xFF64748B),
+                    tint = headerGrey,
                     modifier = Modifier.size(14.dp)
                 )
 
@@ -309,7 +309,7 @@ private fun SupplierHeaderProfile(
                 Text(
                     text = "Supplier since $createdYear",
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B)
+                    color = headerGrey
                 )
             }
         }
@@ -721,7 +721,7 @@ private fun InfoDividerRow(
             Text(
                 text = label,
                 fontSize = 14.sp,
-                color = Color(0xFF64748B)
+                color = headerGrey
             )
 
             Text(
@@ -737,7 +737,7 @@ private fun InfoDividerRow(
         }
 
         HorizontalDivider(
-            color = Color(0xFFF1F5F9),
+            color = grey_border,
             thickness = 2.dp
         )
     }
@@ -797,7 +797,7 @@ private fun FinancialItem(
         Text(
             text = label,
             fontSize = 13.sp,
-            color = Color(0xFF64748B)
+            color = headerGrey
         )
 
         Spacer(Modifier.height(3.dp))
@@ -850,7 +850,7 @@ private fun PurchaseActivitySection(
         Spacer(Modifier.height(16.dp))
 
         HorizontalDivider(
-            color = Color(0xFFF1F5F9),
+            color = grey_border,
             thickness = 2.dp
         )
 
@@ -864,7 +864,7 @@ private fun PurchaseActivitySection(
                     formatDateString(lastPo.poDate) ?: ""
                 }    ${formatCurrency(lastPo.grandTotal)}",
                 fontSize = 13.sp,
-                color = Color(0xFF64748B),
+                color = headerGrey,
                 fontWeight = FontWeight.Medium
             )
         } else {
@@ -899,7 +899,7 @@ private fun ActivityStatBox(
         Text(
             text = label,
             fontSize = 12.sp,
-            color = Color(0xFF64748B)
+            color = headerGrey
         )
     }
 }
@@ -943,7 +943,7 @@ private fun PendingItemsSection(
         }
 
         HorizontalDivider(
-            color = Color(0xFFF1F5F9),
+            color = grey_border,
             thickness = 2.dp
         )
 
@@ -1016,7 +1016,7 @@ private fun PendingItemRowLine(
         Spacer(Modifier.height(10.dp))
 
         HorizontalDivider(
-            color = Color(0xFFF1F5F9)
+            color = grey_border
         )
     }
 }
@@ -1162,7 +1162,7 @@ private fun SupplierTransactionCard(
             Spacer(Modifier.height(12.dp))
 
             HorizontalDivider(
-                color = Color(0xFFF1F5F9)
+                color = grey_border
             )
 
             Spacer(Modifier.height(10.dp))

@@ -2,13 +2,14 @@ package com.cuso.tailor.view.home.inventory.procurement.purchaseReceive
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,27 +17,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.Checkroom
+import androidx.compose.material.icons.outlined.DesktopWindows
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -55,26 +49,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.PoHistoryHeaderDto
 import com.cuso.tailor.model.inventory.PoItemOverviewDto
 import com.cuso.tailor.model.inventory.PoReceiveSummaryDto
+import com.cuso.tailor.model.inventory.PurchaseReceiveItem
 import com.cuso.tailor.model.inventory.ReceiveHistoryByPoResponse
 import com.cuso.tailor.ui.theme.Primary
-import com.cuso.tailor.ui.theme.TextPrimary
-import com.cuso.tailor.ui.theme.TextSecondary
-import com.cuso.tailor.ui.theme.darkGreenBg
-import com.cuso.tailor.ui.theme.dividerColor
-import com.cuso.tailor.ui.theme.greenBg
-import com.cuso.tailor.ui.theme.grey_border
-import com.cuso.tailor.ui.theme.iconMuted
-import com.cuso.tailor.ui.theme.mutedText
-import com.cuso.tailor.ui.theme.title_color
-import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.ui.theme.headerGrey
+import com.cuso.tailor.view.composable.ActionRowButtons
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.InventoryViewModel
+import java.util.Locale
 
 @Composable
 fun PurchaseDetailScreen(
@@ -85,43 +72,66 @@ fun PurchaseDetailScreen(
     onPreviewPdfClick: () -> Unit = {},
     onConvertToBillSuccess: () -> Unit = {}
 ) {
-    val tokens = LocalAppTokens.current
-
     val historyData: ReceiveHistoryByPoResponse? by viewModel.poHistory.collectAsStateWithLifecycle()
-    val isLoading: Boolean by viewModel.isLoading.collectAsStateWithLifecycle()
+    val allReceives: List<PurchaseReceiveItem> by viewModel.allReceives.collectAsStateWithLifecycle()
+    val isLoadingHistory: Boolean by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isLoadingReceives: Boolean by viewModel.isLoadingReceives.collectAsStateWithLifecycle()
+    val isLoadingMultiple: Boolean by viewModel.isLoadingMultipleReceives.collectAsStateWithLifecycle()
     val errorMessage: String? by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     var selectedReceiveId by remember { mutableStateOf("") }
     var successMsg by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(poId) {
-        if (poId.isNotBlank()) {
-            viewModel.fetchReceiveHistoryByPo(poId)
-        }
-    }
+    val effectivePoId = poId.ifBlank { historyData?.po?.poId.orEmpty() }
 
-    LaunchedEffect(historyData) {
-        if (selectedReceiveId.isBlank()) {
-            historyData?.receives?.firstOrNull()?.let { firstReceive ->
-                selectedReceiveId = firstReceive.id
-            }
+    LaunchedEffect(effectivePoId) {
+        if (effectivePoId.isNotBlank()) {
+            viewModel.fetchReceiveHistoryByPo(effectivePoId)
+            viewModel.fetchAllReceives()
         }
     }
 
     val poHeader: PoHistoryHeaderDto? = historyData?.po
-    val itemsOverview: List<PoItemOverviewDto> = historyData?.itemsOverview ?: emptyList()
-    val receives: List<PoReceiveSummaryDto> = historyData?.receives ?: emptyList()
+
+    val itemsOverview: List<PoItemOverviewDto> = remember(historyData?.itemsOverview) {
+        historyData?.itemsOverview ?: emptyList()
+    }
+
+    val receives: List<PoReceiveSummaryDto> = remember(historyData?.receives, allReceives, effectivePoId) {
+        if (!historyData?.receives.isNullOrEmpty()) {
+            historyData!!.receives
+        } else {
+            allReceives.filter { it.poId?.id == effectivePoId || it.poId?.poNumber == poHeader?.poNumber }
+                .map { rec ->
+                    PoReceiveSummaryDto(
+                        id = rec.id,
+                        receiveNumber = rec.receiveNumber.ifBlank { "REC-${rec.id.takeLast(5)}" },
+                        receiveDate = rec.receiveDate,
+                        totalQty = rec.items.sumOf { it.qtyReceived.toDouble() },
+                        grandTotal = rec.grandTotal,
+                        billingStatus = rec.billingStatus,
+                        receivedBy = null
+                    )
+                }
+        }
+    }
+
+    LaunchedEffect(receives) {
+        if (selectedReceiveId.isBlank() && receives.isNotEmpty()) {
+            selectedReceiveId = receives.first().id
+        }
+    }
+
+    val isInitialLoading = (isLoadingHistory || isLoadingReceives) && historyData == null && itemsOverview.isEmpty()
 
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TitleBar(
-                title = "Purchase Detail",
-                onClose = onClose
-            )
-        }
+            TitleBar("Purchase Detail", onClose = onClose)
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
-        if (isLoading && historyData == null) {
+        if (isInitialLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -137,12 +147,14 @@ fun PurchaseDetailScreen(
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
             ) {
-                // ── PO Header Summary Card ──
+                Spacer(modifier = Modifier.height(10.dp).background(Color.Transparent))
+
+                // PO Header Summary
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(whiteBg)
-                        .padding(horizontal = tokens.screenPadding, vertical = 14.dp)
+                        .background(Color.White)
+                        .padding(16.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -151,19 +163,19 @@ fun PurchaseDetailScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = poHeader?.poNumber?.takeIf { it.isNotBlank() } ?: "PO Details",
+                                text = poHeader?.poNumber?.takeIf { it.isNotBlank() } ?: "PO-88995",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = title_color
+                                color = Color(0xFF1E2238)
                             )
                             Spacer(Modifier.width(8.dp))
                             Surface(
-                                shape = RoundedCornerShape(16.dp),
-                                color = Color(0xFFE6F9F0),
-                                border = BorderStroke(1.dp, Color(0xFFB4F2D6))
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFE8FBF4),
+                                border = BorderStroke(1.dp, Color(0xFFA3EEDB))
                             ) {
                                 Text(
-                                    text = "ACTIVE",
+                                    text = "PAID",
                                     color = Color(0xFF00B074),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
@@ -184,162 +196,106 @@ fun PurchaseDetailScreen(
                     Spacer(Modifier.height(4.dp))
 
                     Text(
-                        text = "Supplier: ${poHeader?.supplierName.orEmpty()}",
+                        text = "Purchase Orders / ${poHeader?.poNumber?.takeIf { it.isNotBlank() }?.let { "Bill-$it" } ?: "Bill-88995"}",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Normal,
-                        color = Color(0xFF94A3B8)
+                        color = Color(0xFF8B95A5)
                     )
 
                     Spacer(Modifier.height(16.dp))
 
-                    // ── Action Buttons ──
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedButton(
-                            onClick = onEditClick,
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = whiteBg,
-                                contentColor = title_color
-                            ),
-                            contentPadding = PaddingValues(horizontal = 12.dp),
-                            modifier = Modifier.height(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = null,
-                                modifier = Modifier.size(15.dp),
-                                tint = title_color
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text("Edit", fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                        }
-
-                        OutlinedButton(
-                            onClick = onPreviewPdfClick,
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = whiteBg,
-                                contentColor = title_color
-                            ),
-                            contentPadding = PaddingValues(horizontal = 12.dp),
-                            modifier = Modifier.height(38.dp)
-                        ) {
-                            Text("Preview PDF", fontSize = 13.sp, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.width(6.dp))
-                            Icon(
-                                imageVector = Icons.Default.Visibility,
-                                contentDescription = null,
-                                modifier = Modifier.size(15.dp),
-                                tint = title_color
-                            )
-                        }
-
-                        Button(
-                            onClick = {
-                                if (selectedReceiveId.isNotBlank()) {
-                                    viewModel.convertReceiveToBill(selectedReceiveId) {
-                                        successMsg = "Converted to bill successfully"
-                                        onConvertToBillSuccess()
-                                    }
+                    // Buttons with Convert Action calling View Multiple API
+                    ActionRowButtons(
+                        editText = "Edit",
+                        previewPdfText = "Preview PDF",
+                        downloadDescription = "Download",
+                        convertToBillText = if (isLoadingMultiple) "Converting..." else "Convert to Bill",
+                        isConvertToBillEnabled = selectedReceiveId.isNotBlank() && !isLoadingMultiple,
+                        onEditClick = onEditClick,
+                        onPreviewPdfClick = onPreviewPdfClick,
+                        onDownloadClick = { },
+                        onConvertToBillClick = {
+                            if (selectedReceiveId.isNotBlank()) {
+                                viewModel.fetchMultipleReceives(listOf(selectedReceiveId)) {
+                                    onConvertToBillSuccess()
                                 }
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                            enabled = selectedReceiveId.isNotBlank(),
-                            contentPadding = PaddingValues(horizontal = 12.dp),
-                            modifier = Modifier
-                                .height(38.dp)
-                                .weight(1f)
-                        ) {
-                            Text(
-                                text = "Convert to Bill",
-                                fontSize = 13.sp,
-                                color = whiteBg,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1
-                            )
+                            }
                         }
-                    }
+                    )
                 }
 
-                HorizontalDivider(color = dividerColor, thickness = 2.dp)
+                Spacer(modifier = Modifier.height(10.dp).background(Color.Transparent))
 
-                // ── Detailed Metadata Grid ──
-                Column(modifier = Modifier.padding(tokens.screenPadding)) {
+                // Purchase Details
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(16.dp)
+                ) {
                     Text(
                         text = "PURCHASE DETAILS",
-                        fontSize = 12.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color = Color(0xFF1E2238)
                     )
-                    Spacer(Modifier.height(10.dp))
+
+                    Spacer(Modifier.height(14.dp))
+
+                    Text(text = "Vendor", fontSize = 13.sp, color = Color(0xFF8C95A6))
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = poHeader?.supplierName?.takeIf { it.isNotBlank() } ?: "—",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = Color(0xFF1E2238)
+                    )
+
+                    Spacer(Modifier.height(16.dp))
 
                     Row(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Receive Date", fontSize = 11.sp, color = mutedText)
+                            Text(text = "Receive Date", fontSize = 13.sp, color = Color(0xFF8C95A6))
+                            Spacer(Modifier.height(4.dp))
                             Text(
-                                text = poHeader?.poDate?.take(10) ?: "—",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = TextPrimary
+                                text = formatDisplayDate(poHeader?.poDate).ifBlank { "—" },
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = Color(0xFF1E2238)
                             )
                         }
 
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Warehouse", fontSize = 11.sp, color = mutedText)
+                            Text(text = "Warehouse", fontSize = 13.sp, color = Color(0xFF8C95A6))
+                            Spacer(Modifier.height(4.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Default.LocationOn,
+                                    imageVector = Icons.Outlined.LocationOn,
                                     contentDescription = null,
-                                    tint = Primary,
-                                    modifier = Modifier.size(14.dp)
+                                    tint = Color(0xFF5B4DFF),
+                                    modifier = Modifier.size(16.dp)
                                 )
-                                Spacer(Modifier.width(2.dp))
+                                Spacer(Modifier.width(4.dp))
                                 Text(
                                     text = poHeader?.warehouse?.takeIf { it.isNotBlank() } ?: "—",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = TextPrimary
-                                )
-                            }
-                        }
-                    }
-
-                    if (!poHeader?.transportName.isNullOrBlank() || !poHeader?.vehicleNumber.isNullOrBlank()) {
-                        Spacer(Modifier.height(12.dp))
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Transport", fontSize = 11.sp, color = mutedText)
-                                Text(
-                                    text = poHeader.transportName ?: "—",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = TextPrimary
-                                )
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Vehicle No.", fontSize = 11.sp, color = mutedText)
-                                Text(
-                                    text = poHeader.vehicleNumber ?: "—",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = TextPrimary
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = Color(0xFF1E2238)
                                 )
                             }
                         }
                     }
                 }
 
-                HorizontalDivider(color = dividerColor, thickness = 2.dp)
+                Spacer(modifier = Modifier.height(10.dp).background(Color.Transparent))
 
-                // ── Line Items Fulfillment Overview ──
-                Column(modifier = Modifier.padding(tokens.screenPadding)) {
+                // Items Overview
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(16.dp)
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -347,29 +303,36 @@ fun PurchaseDetailScreen(
                     ) {
                         Text(
                             text = "Items Overview",
-                            fontSize = 13.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            color = Color(0xFF1E2238)
                         )
                         Text(
                             text = "${itemsOverview.size} Products",
-                            fontSize = 11.sp,
-                            color = mutedText
+                            fontSize = 13.sp,
+                            color = Color(0xFF8C95A6)
                         )
                     }
 
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(16.dp))
 
-                    itemsOverview.forEach { item ->
-                        ItemProgressCard(item = item)
-                        Spacer(Modifier.height(10.dp))
+                    itemsOverview.forEachIndexed { index, item ->
+                        ItemProgressCard(item = item, isFirst = index == 0)
+                        if (index != itemsOverview.lastIndex) {
+                            Spacer(Modifier.height(12.dp))
+                        }
                     }
                 }
 
-                HorizontalDivider(color = dividerColor, thickness = 2.dp)
+                Spacer(modifier = Modifier.height(10.dp).background(Color.Transparent))
 
-                // ── Associated Shipment / Receive Logs ──
-                Column(modifier = Modifier.padding(tokens.screenPadding)) {
+                // Receive History
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(16.dp)
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -377,37 +340,41 @@ fun PurchaseDetailScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.History,
+                                imageVector = Icons.Outlined.AccessTime,
                                 contentDescription = null,
-                                tint = Primary,
-                                modifier = Modifier.size(16.dp)
+                                tint = Color(0xFF4338CA),
+                                modifier = Modifier.size(18.dp)
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 text = "Receive History",
-                                fontSize = 13.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = TextPrimary
+                                color = Color(0xFF1E2238)
                             )
                         }
                         Text(
                             text = "${receives.size} Shipments recorded",
-                            fontSize = 11.sp,
-                            color = mutedText
+                            fontSize = 13.sp,
+                            color = Color(0xFF8C95A6)
                         )
                     }
 
                     Spacer(Modifier.height(14.dp))
 
-                    receives.forEach { receive ->
+                    receives.forEachIndexed { index, receive ->
                         ShipmentHistoryRow(
                             item = receive,
                             isSelected = selectedReceiveId == receive.id,
                             onSelect = { selectedReceiveId = receive.id }
                         )
-                        Spacer(Modifier.height(10.dp))
+                        if (index != receives.lastIndex) {
+                            Spacer(Modifier.height(8.dp))
+                        }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp).background(Color.Transparent))
             }
         }
 
@@ -417,105 +384,114 @@ fun PurchaseDetailScreen(
 }
 
 @Composable
-fun ItemProgressCard(item: PoItemOverviewDto) {
-    Card(
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = whiteBg),
-        border = BorderStroke(1.dp, grey_border),
-        modifier = Modifier.fillMaxWidth()
+fun ItemProgressCard(item: PoItemOverviewDto, isFirst: Boolean) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(Color(0xFFEFF6FF), RoundedCornerShape(6.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Inventory2,
-                        contentDescription = null,
-                        tint = Primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(Modifier.width(10.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.name,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
-                    )
-                    Text(
-                        text = "SKU: ${item.sku}",
-                        fontSize = 11.sp,
-                        color = iconMuted
-                    )
-                }
-
-                Text(
-                    text = "₹${item.rate}",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "${item.totalReceivedQty.toInt()} / ${item.orderedQty.toInt()} Received",
-                    fontSize = 11.sp,
-                    color = Primary,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = "${item.percent.toInt()}%",
-                    fontSize = 11.sp,
-                    color = TextSecondary,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Spacer(Modifier.height(4.dp))
-
-            LinearProgressIndicator(
-                progress = { (item.percent / 100f).toFloat().coerceIn(0f, 1f) },
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp)),
-                color = Primary,
-                trackColor = grey_border
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFFEEF2F6)),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "Status",
-                    fontSize = 11.sp,
-                    color = mutedText
+                Icon(
+                    imageVector = if (isFirst) Icons.Outlined.DesktopWindows else Icons.Outlined.Checkroom,
+                    contentDescription = null,
+                    tint = Color(0xFF475569),
+                    modifier = Modifier.size(22.dp)
                 )
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = item.receiveStatus,
+                    text = item.name,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1E2238)
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "SKU: ${item.sku}",
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = darkGreenBg
+                    color = Color(0xFF94A3B8)
                 )
+            }
+
+            Text(
+                text = String.format(Locale.US, "₹%,.2f", item.rate),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF1E2238)
+            )
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFFF8FAFD))
+                .padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "${item.totalReceivedQty.toInt()} / ${item.orderedQty.toInt()} Received",
+                        fontSize = 13.sp,
+                        color = Color(0xFF4338CA),
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "${item.percent.toInt()}%",
+                        fontSize = 13.sp,
+                        color = Color(0xFF475569),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                LinearProgressIndicator(
+                    progress = { (item.percent / 100f).toFloat().coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = Color(0xFF4338CA),
+                    trackColor = Color(0xFFE2E8F0)
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "In Stock",
+                        fontSize = 13.sp,
+                        color = headerGrey
+                    )
+                    Text(
+                        text = item.receiveStatus.takeIf { it.isNotBlank() } ?: item.totalReceivedQty.toInt().toString(),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A)
+                    )
+                }
             }
         }
     }
@@ -532,59 +508,99 @@ fun ShipmentHistoryRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (isSelected) Color(0xFFF6F8FF) else Color.Transparent)
             .clickable { onSelect() }
-            .padding(vertical = 4.dp),
+            .padding(horizontal = 10.dp, vertical = 10.dp),
         verticalAlignment = Alignment.Top
     ) {
-        RadioButton(
-            selected = isSelected,
-            onClick = onSelect,
-            colors = RadioButtonDefaults.colors(selectedColor = Primary),
-            modifier = Modifier.size(20.dp)
-        )
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF4338CA)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(13.dp)
+                )
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .border(1.5.dp, Color(0xFFCBD5E1), CircleShape)
+            )
+        }
 
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.receiveNumber,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Primary
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF4338CA)
             )
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = item.receiveDate.take(10),
-                fontSize = 11.sp,
-                color = mutedText
+                fontSize = 13.sp,
+                color = Color(0xFF8C95A6)
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(6.dp))
             Surface(
                 shape = RoundedCornerShape(4.dp),
-                color = if (isBilled) greenBg else Color(0xFFEFF6FF)
+                color = if (isBilled) Color(0xFFE8FBF4) else Color(0xFFEEF0FF)
             ) {
                 Text(
                     text = item.billingStatus,
-                    color = if (isBilled) darkGreenBg else Primary,
-                    fontSize = 10.sp,
+                    color = if (isBilled) Color(0xFF00B074) else Color(0xFF4338CA),
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                 )
             }
         }
 
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = "₹${item.grandTotal}",
-                fontSize = 13.sp,
+                text = String.format(Locale.US, "₹%,.2f", item.grandTotal),
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = Color(0xFF1E2238)
             )
+            Spacer(Modifier.height(2.dp))
             Text(
-                text = "${item.totalQty.toInt()} Units",
-                fontSize = 11.sp,
-                color = mutedText
+                text = "${item.totalQty.toInt().toString().padStart(2, '0')} Units",
+                fontSize = 13.sp,
+                color = Color(0xFF8C95A6)
             )
         }
+    }
+}
+
+private fun formatDisplayDate(rawDate: String?): String {
+    if (rawDate.isNullOrBlank()) return ""
+    return try {
+        val clean = rawDate.take(10)
+        val parts = clean.split("-")
+        if (parts.size == 3) {
+            val months = listOf(
+                "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+            )
+            val monthIdx = (parts[1].toIntOrNull() ?: 1) - 1
+            val monthName = months.getOrElse(monthIdx) { "Aug" }
+            val day = parts[2].toIntOrNull() ?: parts[2]
+            "$day $monthName ${parts[0]}"
+        } else rawDate
+    } catch (_: Exception) {
+        rawDate
     }
 }

@@ -302,7 +302,7 @@ private fun CreditCardItem(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFFF1F5F9))
+                        .background(grey_border)
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(

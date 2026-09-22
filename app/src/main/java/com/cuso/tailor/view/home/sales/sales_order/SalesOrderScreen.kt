@@ -176,7 +176,7 @@ fun SalesOrderScreen(
                         }
                         orderState is OrderUiState.Error -> {
                             AppErrorState(
-                                title = "Failed to load dashboard",
+                                title = "Failed to load Orders",
                                 message = "Something went wrong. Please check your connection and try again.",
                                 onRetry = { viewModel.fetchOrders() }
                             )

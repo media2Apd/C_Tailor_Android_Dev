@@ -28,15 +28,41 @@ import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.flow.distinctUntilChanged
 
-// ─────────────────────────────────────────────
-// LowStockAlertCard
-// ─────────────────────────────────────────────
+private data class SeverityTheme(
+    val textColor: Color,
+    val bgColor: Color,
+    val progressColor: Color
+)
+
+private fun getSeverityTheme(severity: String): SeverityTheme {
+    return when (severity.trim().lowercase()) {
+        "urgent", "warning" -> SeverityTheme(
+            textColor = yellowText,
+            bgColor = yellowBg,
+            progressColor = yellowText
+        )
+        "normal", "low", "good", "healthy" -> SeverityTheme(
+            textColor = greentext,
+            bgColor = greenBg,
+            progressColor = greentext
+        )
+        // Default to Critical
+        else -> SeverityTheme(
+            textColor = redText,
+            bgColor = redBg,
+            progressColor = redText
+        )
+    }
+}
+
 @Composable
 fun LowStockAlertCard(
     item: LowStockItemDto,
     onReorderClick: () -> Unit
 ) {
     val progressRatio = (item.stockUtilizationPercent.toFloat() / 100f).coerceIn(0f, 1f)
+    val severityLabel = item.severity.ifBlank { "Critical" }
+    val theme = getSeverityTheme(severityLabel)
 
     DataCard(
         item = item,
@@ -44,10 +70,10 @@ fun LowStockAlertCard(
         topBadgeShowDot = false,
         title = item.name,
         subtitle = "SKU: ${item.sku} · Variant: ${item.variantLabel ?: "-"}",
-        topBadgeText = item.severity.ifBlank { "Critical" },
-        topBadgeTextColor = redText,
-        topBadgeBgColor = redBg,
-        topBadgeDotColor = redBg,
+        topBadgeText = severityLabel.replaceFirstChar { it.uppercase() },
+        topBadgeTextColor = theme.textColor,
+        topBadgeBgColor = theme.bgColor,
+        topBadgeDotColor = theme.bgColor,
         topBadgeInline = true,
         footerAsColumns = true,
         footerFields = listOf(
@@ -59,7 +85,7 @@ fun LowStockAlertCard(
             DataCardField(
                 label = "Available",
                 text = "${item.available.toInt()} ${item.unit ?: "pcs"}",
-                textColor = redText,
+                textColor = theme.textColor,
                 valueFontWeight = FontWeight.SemiBold
             )
         ),
@@ -69,7 +95,6 @@ fun LowStockAlertCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Progress Bar & Reorder Info
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -77,7 +102,7 @@ fun LowStockAlertCard(
                 ) {
                     DataCardProgressBar(
                         progress = progressRatio,
-                        progressColor = redText,
+                        progressColor = theme.progressColor,
                         trackColor = Color(0xFFEDEDF2)
                     )
 
@@ -98,7 +123,6 @@ fun LowStockAlertCard(
                     }
                 }
 
-                // Reorder Button
                 OutlinedButton(
                     onClick = onReorderClick,
                     shape = RoundedCornerShape(12.dp),
@@ -107,7 +131,7 @@ fun LowStockAlertCard(
                         containerColor = Color.Transparent,
                         contentColor = Primary
                     ),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                    contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
                     Text(
                         text = "Reorder →",
@@ -121,9 +145,6 @@ fun LowStockAlertCard(
     )
 }
 
-// ─────────────────────────────────────────────
-// Full Screen with Live API Wiring
-// ─────────────────────────────────────────────
 @Composable
 fun LowStockAlertsScreen(
     viewModel: InventoryViewModel = hiltViewModel(),
@@ -135,28 +156,23 @@ fun LowStockAlertsScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
-    // Observe list and pagination states
     val lowStockItems by viewModel.lowStockItems.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoadingLowStock.collectAsStateWithLifecycle()
     val isLoadingMore by viewModel.isLoadingMoreLowStock.collectAsStateWithLifecycle()
     val canLoadMore by viewModel.canLoadMoreLowStock.collectAsStateWithLifecycle()
     val errorMessage by viewModel.lowStockError.collectAsStateWithLifecycle()
 
-    // Scroll state tracker for LazyColumn
     val listState = rememberLazyListState()
 
-    // Initial fetch on screen launch
     LaunchedEffect(Unit) {
         viewModel.fetchLowStockAlerts()
     }
 
-    // Scroll listener: triggers pagination when scrolling 2 items before the bottom
     LaunchedEffect(listState, canLoadMore, searchQuery) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val totalItems = layoutInfo.totalItemsCount
             val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-
             totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
         }
             .distinctUntilChanged()
@@ -261,7 +277,6 @@ fun LowStockAlertsScreen(
                                 )
                             }
 
-                            // Three-dot loader is shown only while the next page request is in-flight
                             if (isLoadingMore) {
                                 item(key = "pagination_threedot_loader") {
                                     ThreeDotLoading(

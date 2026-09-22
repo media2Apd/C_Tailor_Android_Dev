@@ -64,11 +64,14 @@ fun PricingSetupScreen(
     val tokens = LocalAppTokens.current
 
     val segments by viewModel.segments.collectAsStateWithLifecycle()
+    val segmentsError by viewModel.segmentsError.collectAsStateWithLifecycle()
     val garmentStyles by viewModel.garmentStyles.collectAsStateWithLifecycle()
     val workPricingList by viewModel.workPricingList.collectAsStateWithLifecycle()
 
     val isLoadingStyles by viewModel.isLoadingStyles.collectAsStateWithLifecycle()
     val isLoadingWorkPricing by viewModel.isLoadingWorkPricing.collectAsStateWithLifecycle()
+    val errorMsg by viewModel.dynamicErrorMessage.collectAsStateWithLifecycle()
+    val successMsg by viewModel.dynamicSuccessMessage.collectAsStateWithLifecycle()
 
     var selectedMainTab by remember { mutableStateOf(PricingTab.GARMENT_PRICING) }
     var selectedSubTabIndex by remember { mutableIntStateOf(0) }
@@ -97,106 +100,154 @@ fun PricingSetupScreen(
         }
     }
 
-    Scaffold(
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        topBar = { TitleBar(title = "Pricing Setup", onClose = onClose) }
-    ) { padding ->
-        FabScaffold(
-            fab = fabConfig,
-            modifier = Modifier.fillMaxSize().padding(padding)
-        ) {
-            // Root Column MUST fill max size to provide finite constraints to its children
-            Column(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = { TitleBar(title = "Pricing Setup", onClose = onClose) }
+        ) { padding ->
+            FabScaffold(
+                fab = fabConfig,
+                modifier = Modifier.fillMaxSize().padding(padding)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = tokens.screenPadding, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        PricingTab.entries.forEach { tab ->
+                            val isSelected = selectedMainTab == tab
+                            val title = tab.name.replace("_", " ").lowercase().split(" ")
+                                .joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
 
-                // Main Category Tabs
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = tokens.screenPadding, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    PricingTab.entries.forEach { tab ->
-                        val isSelected = selectedMainTab == tab
-                        val title = tab.name.replace("_", " ").lowercase().split(" ")
-                            .joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } }
-
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = if (isSelected) primary_light else whiteBg,
-                            border = BorderStroke(1.dp, if (isSelected) Primary else sectionBorder),
-                            modifier = Modifier.clickable { selectedMainTab = tab }
-                        ) {
-                            Text(
-                                text = title,
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (isSelected) Primary else TextSecondary,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Segment Tabs
-                if (segments.isNotEmpty()) {
-                    ScrollableTabRow(
-                        selectedTabIndex = safeSegmentIndex,
-                        edgePadding = tokens.screenPadding,
-                        containerColor = whiteBg,
-                        divider = { HorizontalDivider(color = title_border, thickness = 2.dp) },
-                        indicator = { tabPositions ->
-                            if (safeSegmentIndex < tabPositions.size) {
-                                TabRowDefaults.SecondaryIndicator(
-                                    Modifier.tabIndicatorOffset(tabPositions[safeSegmentIndex]),
-                                    color = Primary,
-                                    height = 2.5.dp
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = if (isSelected) primary_light else whiteBg,
+                                border = BorderStroke(1.dp, if (isSelected) Primary else sectionBorder),
+                                modifier = Modifier.clickable { selectedMainTab = tab }
+                            ) {
+                                Text(
+                                    text = title,
+                                    fontSize = 13.sp,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                    color = if (isSelected) Primary else TextSecondary,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                 )
                             }
                         }
-                    ) {
-                        segments.forEachIndexed { index, segment ->
-                            Tab(
-                                selected = safeSegmentIndex == index,
-                                onClick = { selectedSubTabIndex = index },
-                                text = {
-                                    Text(
-                                        text = segment.name,
-                                        fontSize = 13.sp,
-                                        fontWeight = if (safeSegmentIndex == index) FontWeight.SemiBold else FontWeight.Normal,
-                                        color = if (safeSegmentIndex == index) Primary else TextSecondary
+                    }
+
+                    if (segments.isNotEmpty()) {
+                        ScrollableTabRow(
+                            selectedTabIndex = safeSegmentIndex,
+                            edgePadding = tokens.screenPadding,
+                            containerColor = whiteBg,
+                            divider = { HorizontalDivider(color = title_border, thickness = 2.dp) },
+                            indicator = { tabPositions ->
+                                if (safeSegmentIndex < tabPositions.size) {
+                                    TabRowDefaults.SecondaryIndicator(
+                                        Modifier.tabIndicatorOffset(tabPositions[safeSegmentIndex]),
+                                        color = Primary,
+                                        height = 2.5.dp
                                     )
                                 }
-                            )
+                            }
+                        ) {
+                            segments.forEachIndexed { index, segment ->
+                                Tab(
+                                    selected = safeSegmentIndex == index,
+                                    onClick = { selectedSubTabIndex = index },
+                                    text = {
+                                        Text(
+                                            text = segment.name,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (safeSegmentIndex == index) FontWeight.SemiBold else FontWeight.Normal,
+                                            color = if (safeSegmentIndex == index) Primary else TextSecondary
+                                        )
+                                    }
+                                )
+                            }
                         }
                     }
-                }
 
-                // The weight(1f) here is critical. It tells the Box to take up ONLY
-                // the remaining space, providing a finite height to the LazyColumn inside.
-                Box(modifier = Modifier.weight(1f)) {
-                    when (selectedMainTab) {
-                        PricingTab.GARMENT_PRICING -> {
-                            GarmentPricingListContent(
-                                styles = garmentStyles,
-                                isLoading = isLoadingStyles,
-                                onEdit = onEditGarmentPricing
-                            )
-                        }
-                        PricingTab.FABRIC_PRICING -> FabricPricingListContent()
-                        PricingTab.WORK_PRICING -> {
-                            WorkPricingListContent(
-                                items = workPricingList,
-                                isLoading = isLoadingWorkPricing,
-                                onEdit = onEditWorkPricing,
-                                onToggleStatus = { item -> viewModel.changeWorkPricingStatus(item) }
-                            )
+                    Box(modifier = Modifier.weight(1f)) {
+                        when {
+                            segmentsError != null && segments.isEmpty() -> {
+                                AppErrorState(
+                                    title = "Failed to load pricing setups",
+                                    message = segmentsError ?: "Something went wrong. Please check your connection.",
+                                    onRetry = { viewModel.fetchSegments() }
+                                )
+                            }
+                            selectedMainTab == PricingTab.GARMENT_PRICING && errorMsg != null && garmentStyles.isEmpty() -> {
+                                AppErrorState(
+                                    title = "Failed to load garment pricing",
+                                    message = errorMsg ?: "Something went wrong. Please check your connection.",
+                                    onRetry = {
+                                        if (segments.isNotEmpty()) {
+                                            viewModel.fetchGarmentStyles(segmentId = segments[safeSegmentIndex].id, garmentId = null)
+                                        }
+                                    }
+                                )
+                            }
+                            selectedMainTab == PricingTab.WORK_PRICING && errorMsg != null && workPricingList.isEmpty() -> {
+                                AppErrorState(
+                                    title = "Failed to load work pricing",
+                                    message = errorMsg ?: "Something went wrong. Please check your connection.",
+                                    onRetry = {
+                                        if (segments.isNotEmpty()) {
+                                            viewModel.fetchWorkPricing(segmentId = segments[safeSegmentIndex].id, status = "Active")
+                                        }
+                                    }
+                                )
+                            }
+                            else -> {
+                                when (selectedMainTab) {
+                                    PricingTab.GARMENT_PRICING -> {
+                                        GarmentPricingListContent(
+                                            styles = garmentStyles,
+                                            isLoading = isLoadingStyles,
+                                            onEdit = onEditGarmentPricing
+                                        )
+                                    }
+                                    PricingTab.FABRIC_PRICING -> FabricPricingListContent()
+                                    PricingTab.WORK_PRICING -> {
+                                        WorkPricingListContent(
+                                            items = workPricingList,
+                                            isLoading = isLoadingWorkPricing,
+                                            onEdit = onEditWorkPricing,
+                                            onToggleStatus = { item -> viewModel.changeWorkPricingStatus(item) }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
+
+        DynamicIslandSuccess(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = successMsg,
+            onDismiss = { viewModel.clearSuccessMessage() }
+        )
+
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMsg?.takeIf {
+                (selectedMainTab == PricingTab.GARMENT_PRICING && garmentStyles.isNotEmpty()) ||
+                        (selectedMainTab == PricingTab.WORK_PRICING && workPricingList.isNotEmpty())
+            },
+            onDismiss = { viewModel.clearDynamicErrorMessage() }
+        )
     }
 }
 
@@ -212,7 +263,6 @@ private fun GarmentPricingListContent(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // --- Header Area ---
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding, vertical = 14.dp)) {
             Text(text = "Garment Pricing", fontSize = 16.sp, color = title_color, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(2.dp))
@@ -232,7 +282,6 @@ private fun GarmentPricingListContent(
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
-                // FIX: Use grouped iteration to flatten the list
                 groupedStyles.forEach { (garmentName, variants) ->
                     item(key = garmentName) {
                         Row(
@@ -294,7 +343,6 @@ private fun FabricPricingListContent() {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // --- Header Area ---
         Column(modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = 14.dp)) {
             Text(text = "Fabric Pricing", fontSize = 16.sp, color = title_color, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(2.dp))
@@ -315,12 +363,12 @@ private fun FabricPricingListContent() {
                         Text(text = item.name, fontSize = 15.sp, color = title_color)
                         Box(
                             modifier = Modifier
-                                .background(if (item.isActive) Color(0xFFE6F7ED) else Color(0xFFF1F5F9), RoundedCornerShape(4.dp))
+                                .background(if (item.isActive) Color(0xFFE6F7ED) else grey_border, RoundedCornerShape(4.dp))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = if (item.isActive) "ACTIVE" else "INACTIVE",
-                                fontSize = 9.sp, fontWeight = FontWeight.Bold, color = if (item.isActive) Color(0xFF10B981) else Color(0xFF64748B)
+                                fontSize = 9.sp, fontWeight = FontWeight.Bold, color = if (item.isActive) Color(0xFF10B981) else headerGrey
                             )
                         }
                     }
@@ -341,14 +389,12 @@ private fun WorkPricingListContent(
 ) {
     val tokens = LocalAppTokens.current
 
-    // State to manage the confirmation dialog
     var itemToToggle by remember { mutableStateOf<WorkPricingItem?>(null) }
 
-    // Dialog logic
     itemToToggle?.let { item ->
         val isActive = item.status.equals("Active", ignoreCase = true)
         ToggleSegmentStatusDialog(
-            isActivating = !isActive, // If currently active, we are deactivating (isActivating = false)
+            isActivating = !isActive,
             segmentName = item.workType,
             entityLabel = "Work Pricing",
             onDismiss = { itemToToggle = null },
@@ -387,7 +433,6 @@ private fun WorkPricingListContent(
                             Text(text = item.workType, fontSize = 15.sp, color = title_color, fontWeight = FontWeight.Medium)
 
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                // Status Badge
                                 Box(
                                     modifier = Modifier
                                         .background(
@@ -404,7 +449,6 @@ private fun WorkPricingListContent(
                                     )
                                 }
 
-                                // 3-Dot Action Menu
                                 Box {
                                     IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(24.dp)) {
                                         Icon(Icons.Default.MoreVert, null, tint = iconMuted)
@@ -423,7 +467,6 @@ private fun WorkPricingListContent(
                                             }
                                         )
 
-                                        // Inactivate / Activate Button
                                         DropdownMenuItem(
                                             text = {
                                                 Text(
@@ -434,7 +477,6 @@ private fun WorkPricingListContent(
                                             },
                                             onClick = {
                                                 menuExpanded = false
-                                                // Instead of calling API directly, show dialog first
                                                 itemToToggle = item
                                             }
                                         )

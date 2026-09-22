@@ -720,7 +720,6 @@ fun EmployeeOnboardingScreen(
                     FormLabel("Gender")
                     ErrorFieldWrapper(isError = currentErrorField == "Gender") {
                         FormDropdown(
-                            label = "Gender",
                             value = gender,
                             expanded = genderExpanded && isEditable,
                             onExpandChange = { if (isEditable) genderExpanded = it },

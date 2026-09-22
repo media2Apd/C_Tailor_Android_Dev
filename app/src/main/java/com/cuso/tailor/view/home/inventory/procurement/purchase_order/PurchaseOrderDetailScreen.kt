@@ -191,7 +191,6 @@ fun PODetailScreen(
     val lifecycleStatus = orderDetail?.lifecycleStatus?.takeIf { it.isNotBlank() } ?: "-"
     val poType = orderDetail?.poType?.takeIf { it.isNotBlank() } ?: "-"
     val currencyCode = orderDetail?.currency?.takeIf { it.isNotBlank() }
-
     val orderDate = orderDetail?.poDate?.substringBefore("T")?.takeIf { it.isNotBlank() } ?: "-"
     val expDeliveryDate = orderDetail?.eta?.substringBefore("T")?.takeIf { it.isNotBlank() } ?: "-"
 

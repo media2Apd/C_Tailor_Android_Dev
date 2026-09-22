@@ -214,6 +214,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedBulkItemId by remember { mutableStateOf<String?>(null) }
     var selectedRequisitionIdForDetail by remember { mutableStateOf<String?>(null) }
     var selectedPurchaseOrderForDetail by remember { mutableStateOf<PurchaseOrder?>(null) }
+    var selectedReceivePoId by remember { mutableStateOf<String?>(null) }
+    var selectedBarcodeIdForDetail by remember { mutableStateOf<String?>(null) }
 
 
     // HR State
@@ -431,15 +433,76 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "finance_tax_rates",
             "finance_add_tax_group",
 
-            // ── Inventory Structure & Items ──
+            // ── Inventory Core & Structure ──
             "inventory_items",
+            "inventory_all_items",
             "inventory_create_item",
             "inventory_item_detail",
-            "inventory_low_stock_alerts",
-            "inventory_create_purchase_order",
             "inventory_item_groups",
             "inventory_create_item_group",
             "inventory_item_group_detail",
+            "inventory_bulk",
+            "inventory_all_bulk",
+            "inventory_add_bulk",
+            "inventory_bulk_detail",
+            "inventory_adjustment",
+            "inventory_adjustments",
+            "inventory_transfer_order",
+            "inventory_transfer_stock",
+            "inventory_items_transfer_stock",
+
+            // ── Inventory Billing & Bills ──
+            "inventory_billing",
+            "inventory_all_bills",
+            "inventory_bill_preview",
+            "inventory_create_bill",
+
+            // ── Inventory Procurement Flow ──
+            "inventory_suppliers",
+            "inventory_procurement_suppliers",
+            "inventory_supplier_detail",
+            "inventory_procurement_purchase_request",
+            "inventory_requisitions",
+            "inventory_procurement_requisitions",
+            "inventory_requisition_detail",
+            "inventory_create_requisition",
+            "inventory_purchase_orders",
+            "inventory_procurement_purchase_order",
+            "inventory_procurement_purchase_orders",
+            "inventory_procurement_orders",
+            "inventory_purchase_order_detail_flow",
+            "inventory_create_purchase_order_flow",
+            "inventory_purchase_receive",
+            "inventory_procurement_purchase_receive",
+            "inventory_purchase_detail",
+            "inventory_purchase_new_bill",
+            "inventory_purchase_preview_pdf",
+            "inventory_procurement_bill_list",
+            "inventory_bills_list",
+            "inventory_procurement_bills_list",
+            "inventory_payable_invoices",
+            "inventory_payable_purchase_detail",
+            "inventory_payable_preview_pdf",
+            "inventory_payable_invoice_preview",
+            "inventory_barcode",
+            "inventory_procurement_barcode",
+            "inventory_procurement_barcode_list",
+            "inventory_all_barcodes",
+            "inventory_create_barcode",
+            "inventory_barcode_generator",
+
+            // ── Stock Management, Alerts & Settings ──
+            "inventory_stock_location",
+            "inventory_location_management",
+            "inventory_procurement_location_management",
+            "inventory_stock_location_details",
+            "inventory_stock_location_form",
+            "inventory_low_stock_alert",
+            "inventory_low_stock_alerts",
+            "inventory_create_purchase_order",
+            "inventory_auto_reorder",
+            "inventory_safety_stock",
+            "inventory_safety_stock",
             "inventory_allocation_rules",
             "inventory_create_allocation",
             "inventory_pdf_templates",
@@ -452,64 +515,22 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_add_rack",
             "inventory_bin_overview",
             "inventory_add_bin",
-            "inventory_adjustment",
-            "inventory_adjustments",
-            "inventory_suppliers",
-            "inventory_supplier_detail",
-            "inventory_transfer_stock",
-            "inventory_items_transfer_stock",
-            "inventory_bulk",
-            "inventory_all_bulk",
-            "inventory_add_bulk",
-            "inventory_bulk_detail",
-            "sales_all_pricing",
-            "inventory_pricing_list",
-            "sales_create_price_list",
 
-            // ── Inventory Procurement ──
-            "inventory_returns",
-            "inventory_procurement_returns",
-            "logistics_returns",
-            "inventory_credits",
-            "inventory_procurement_credits",
-            "inventory_payables_credits",
-            "inventory_requisitions",
-            "inventory_procurement_requisitions",
-            "inventory_requisition_detail",
-            "inventory_create_requisition",
-            "inventory_barcode",
-            "inventory_procurement_barcode",
-            "inventory_all_barcodes",
-            "inventory_create_barcode",
-            "inventory_barcode_generator",
-            "inventory_stock_location",
-            "inventory_location_management",
-            "inventory_procurement_location_management",
-            "inventory_stock_location_details",
-            "inventory_stock_location_form",
-
-            // ── Inventory: Purchase Receive Flow ──
-            "inventory_purchase_receive",
-            "inventory_purchase_detail",
-            "inventory_purchase_new_bill",
-            "inventory_purchase_preview_pdf",
-
-            // ── Inventory: Payables & Invoices ──
-            "inventory_payable_invoices",
+            // ── Payables, Multi-Channel & Approvals ──
             "inventory_payables_invoices",
             "inventory_invoices",
-            "inventory_bills_list",
-            "inventory_procurement_bills_list",
-            "inventory_payable_purchase_detail",
-            "inventory_payable_preview_pdf",
-            "inventory_payable_invoice_preview",
+            "inventory_payables_payments",
+            "inventory_payables_credits",
+            "inventory_credits",
+            "inventory_procurement_credits",
+            "inventory_returns",
+            "inventory_procurement_returns",
+            "inventory_multichannel_category_listing",
+            "inventory_category_listing",
+            "inventory_approvals",
 
-            // ── Inventory: Purchase Orders Flow ──
-            "inventory_purchase_orders",
-            "inventory_procurement_purchase_orders",
-            "inventory_procurement_orders",
-            "inventory_purchase_order_detail_flow",
-            "inventory_create_purchase_order_flow",
+            "inventory_payments_made",
+            "inventory_payment_overview_detail",
 
             // ── HR ──
             "hr_all_employees",
@@ -833,7 +854,14 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+                            selectedReceivePoId = selectedReceivePoId,
+                            onReceivePoIdSelected = { selectedReceivePoId = it },
+                            selectedBarcodeIdForDetail = selectedBarcodeIdForDetail,
+                            onBarcodeIdForDetailSelected = { selectedBarcodeIdForDetail = it },
+
                             navController = navController,
+                            selectedSupplier = selectedSupplier,
+                            onFinanceSupplierSelected = { selectedSupplier = it },
                             widthSizeClass = widthSizeClass,
                             selectedRequisitionIdForDetail = selectedRequisitionIdForDetail,
                             onRequisitionIdForDetailSelected = { selectedRequisitionIdForDetail = it },
@@ -2105,12 +2133,44 @@ fun normalizeRoute(rawKey: String): String {
         "finance_journal_entries" -> "finance_journal_screen"
         "finance_trial_balance" -> "finance_trial_balance"
 
+        // Inventory Item & Transfer mappings
         "inventory_all_items" -> "inventory_items"
         "inventory_item_groups" -> "inventory_item_groups"
-        "inventory_orders",
-        "inventory_procurement_orders",
+        "inventory_transfer_order", "inventory_items_transfer_stock" -> "inventory_transfer_stock"
+
+        "inventory_billing", "inventory_bills", "inventory_all_bills" -> "inventory_billing"
+        "inventory_procurement_bill_list", "inventory_procurement_bills_list" -> "inventory_billing"
+
+        // Procurement mappings
+        "inventory_procurement_suppliers" -> "inventory_suppliers"
+        "inventory_payments_made", "inventory_payables_payments" -> "inventory_payments_made"
+        "inventory_procurement_purchase_request" -> "inventory_requisitions"
+        "inventory_procurement_purchase_order", "inventory_procurement_orders" -> "inventory_purchase_orders"
+        "inventory_procurement_purchase_receive" -> "inventory_purchase_receive"
+        "inventory_procurement_bill_list", "inventory_procurement_bills_list", "inventory_bills_list" -> "inventory_payable_invoices"
+        "inventory_procurement_barcode_list", "inventory_procurement_barcode", "inventory_all_barcodes" -> "inventory_barcode"
+        "inventory_location_management", "inventory_procurement_location_management" -> "inventory_stock_location"
+
+        // Alerts & Reorder
+        "inventory_low_stock_alert",
         "inventory_low_stock_alerts",
         "inventory_alerts_&_reorder" -> "inventory_low_stock_alerts"
+        "inventory_safety_stock" -> "inventory_safety_stock"
+
+        // Payables mappings
+        "inventory_payables_invoices", "inventory_invoices" -> "inventory_payable_invoices"
+        "inventory_payables_payments" -> "finance_payments_mode"
+        "inventory_payables_credits", "inventory_procurement_credits" -> "inventory_credits"
+
+        // Multi-Channel mapping
+        "inventory_multichannel_category_listing" -> "inventory_category_listing"
+
+//        "inventory_all_items" -> "inventory_items"
+//        "inventory_item_groups" -> "inventory_item_groups"
+//        "inventory_orders",
+//        "inventory_procurement_orders",
+//        "inventory_low_stock_alerts",
+//        "inventory_alerts_&_reorder" -> "inventory_low_stock_alerts"
 
         "logistics_delivery" -> "logistics_delivery"
         "logistics_order_tracking" -> "logistics_order_tracking"

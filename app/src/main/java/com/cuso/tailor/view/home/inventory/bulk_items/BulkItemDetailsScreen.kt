@@ -72,7 +72,12 @@ fun BulkDetailsScreen(
         }
     ) { paddingValues ->
         if (isLoading && selectedItem == null) {
-            ListSkeleton()
+            Column(
+                Modifier.fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                ListSkeleton()
+            }
         } else if (selectedItem == null) {
             Box(
                 modifier = Modifier

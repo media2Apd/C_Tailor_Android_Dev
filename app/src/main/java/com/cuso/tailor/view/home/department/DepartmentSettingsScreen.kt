@@ -42,6 +42,8 @@ import com.cuso.tailor.model.settings.DepartmentItem
 import com.cuso.tailor.ui.theme.BluePrimary
 import com.cuso.tailor.ui.theme.BorderGray
 import com.cuso.tailor.ui.theme.TextSecondary
+import com.cuso.tailor.ui.theme.grey_border
+import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
@@ -297,7 +299,7 @@ fun DepartmentSettingsScreen(
                                                                     subtitle = "not found",
                                                                     topBadgeText = if (department.status) "Active" else "Inactive",
                                                                     topBadgeTextColor = if (department.status) Color(0xFF16A34A) else Color(0xFF6B7280),
-                                                                    topBadgeBgColor = if (department.status) Color(0xFFDCFCE7) else Color(0xFFF1F5F9),
+                                                                    topBadgeBgColor = if (department.status) Color(0xFFDCFCE7) else grey_border,
                                                                     topBadgeShowDot = false,
                                                                     topBadgeInline = true,
                                                                     showHeaderDivider = true,
@@ -315,7 +317,7 @@ fun DepartmentSettingsScreen(
                                                                         ) { }
                                                                     ),
                                                                     content = {
-                                                                        val iconColor = Color(0xFF64748B)
+                                                                        val iconColor = headerGrey
                                                                         val textBodyColor = Color(0xFF334155)
 
                                                                         Column(
@@ -337,7 +339,7 @@ fun DepartmentSettingsScreen(
                                                                                     text = buildAnnotatedString {
                                                                                         withStyle(
                                                                                             SpanStyle(
-                                                                                                color = Color(0xFF64748B),
+                                                                                                color = headerGrey,
                                                                                                 fontWeight = FontWeight.Normal
                                                                                             )
                                                                                         ) {

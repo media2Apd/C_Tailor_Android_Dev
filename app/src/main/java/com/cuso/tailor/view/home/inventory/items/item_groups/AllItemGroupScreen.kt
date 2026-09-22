@@ -46,6 +46,7 @@ import com.cuso.tailor.ui.theme.background_light_purple
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_border
+import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardField
 import com.cuso.tailor.view.composable.DeleteModel
@@ -83,11 +84,12 @@ fun AllItemGroupScreen(
     // Scroll state for LazyColumn to support infinite scroll
     val listState = rememberLazyListState()
 
-    // Sync error state
+    // Sync error state (show toast only if data is already present)
     LaunchedEffect(uiState.errorMessage) {
-        displayedErrorMessage = uiState.errorMessage
+        if (uiState.filteredList.isNotEmpty()) {
+            displayedErrorMessage = uiState.errorMessage
+        }
     }
-
     // Initial fetch on screen entry
     LaunchedEffect(Unit) {
         viewModel.refreshItemGroups()
@@ -161,6 +163,13 @@ fun AllItemGroupScreen(
                     when {
                         uiState.isLoading && uiState.filteredList.isEmpty() -> {
                             ListSkeleton()
+                        }
+                        uiState.errorMessage != null && uiState.filteredList.isEmpty() -> {
+                            AppErrorState(
+                                title = "Failed to load item groups",
+                                message = uiState.errorMessage ?: "Something went wrong. Please check your connection and try again.",
+                                onRetry = { viewModel.refreshItemGroups() }
+                            )
                         }
                         uiState.filteredList.isEmpty() -> {
                             EmptyStateView(tokens = tokens)

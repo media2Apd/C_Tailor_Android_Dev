@@ -820,10 +820,10 @@ fun GarmentProfileConfigScreen(
                                                 } else {
                                                     Box(
                                                         modifier = Modifier
-                                                            .background(Color(0xFFF1F5F9), RoundedCornerShape(4.dp))
+                                                            .background(grey_border, RoundedCornerShape(4.dp))
                                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                                     ) {
-                                                        Text("OPTIONAL", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF64748B))
+                                                        Text("OPTIONAL", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = headerGrey)
                                                     }
                                                 }
                                             }
@@ -1213,7 +1213,7 @@ fun AddExistingFieldScreen(
                                                 text = "ADDED",
                                                 fontSize = 10.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF64748B)
+                                                color = headerGrey
                                             )
                                         }
                                     }

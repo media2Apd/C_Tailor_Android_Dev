@@ -653,9 +653,8 @@ fun RequisitionDetailScreen(
                     item {
                         Card(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = tokens.screenPadding),
-                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.55f),
+                                .fillMaxWidth(),
+                            shape = RoundedCornerShape(0.dp),
                             colors = CardDefaults.cardColors(containerColor = whiteBg),
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
                         ) {
@@ -1107,9 +1106,8 @@ private fun DetailCardContainer(
 ) {
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = tokens.screenPadding),
-        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(0.dp),
         colors = CardDefaults.cardColors(containerColor = whiteBg),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
     ) {

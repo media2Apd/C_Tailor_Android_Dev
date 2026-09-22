@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -20,24 +19,24 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.hr.MemberItem
 import com.cuso.tailor.model.hr.displayName
 import com.cuso.tailor.model.hr.displayRole
 import com.cuso.tailor.model.hr.displayStatus
 import com.cuso.tailor.ui.theme.Primary_background
-import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardField
+import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FilterDrawer
@@ -77,6 +76,8 @@ fun AllEmployeesScreen(
     designationViewModel: DesignationViewModel = hiltViewModel(),
     onBreadCrumbClick: () -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
+
     val members by hrViewModel.members.collectAsStateWithLifecycle()
     val isLoading by hrViewModel.isLoadingMembers.collectAsStateWithLifecycle()
     val isLoadingMore by hrViewModel.isLoadingMoreMembers.collectAsStateWithLifecycle()
@@ -144,183 +145,175 @@ fun AllEmployeesScreen(
         }
     }
 
-    FabScaffold(
-        modifier = Modifier.fillMaxSize(),
-        fab = FabConfig(
-            label = "Employee",
-            icon = Icons.Default.Add,
-            onClick = onAddEmployee
-        )
-    ) {
-        FilterDrawer(
-            state = filterDrawerState,
-            title = "Filter Employees",
-            sections = filterSections,
-            onApply = { filterSections = it },
-            onClearAll = {
-                filterSections = filterSections.map { s ->
-                    s.copy(options = s.options.map { it.copy(isSelected = false) })
-                }
-            }
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Transparent)
+    Box(modifier = Modifier.fillMaxSize()) {
+        FabScaffold(
+            modifier = Modifier.fillMaxSize(),
+            fab = FabConfig(
+                label = "Employee",
+                icon = Icons.Default.Add,
+                onClick = onAddEmployee
+            )
         ) {
-            // ── Header ──
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            FilterDrawer(
+                state = filterDrawerState,
+                title = "Filter Employees",
+                sections = filterSections,
+                onApply = { filterSections = it },
+                onClearAll = {
+                    filterSections = filterSections.map { s ->
+                        s.copy(options = s.options.map { it.copy(isSelected = false) })
+                    }
+                }
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
             ) {
-                TitleBar("All Employees", onClose = onDismiss)
-            }
-
-            Column {
-
-                // ── Search & Filter bar ──
-                SearchFilterBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    placeholder = "Search Employees...",
-                    accentColor = AccentColor,
-                    borderColor = BorderColor,
-                    textSecondaryColor = MutedColor,
-                    onFilterClick = { filterDrawerState.open() }
-                )
-            }
-
-            HorizontalDivider(color = BorderColor)
-
-            when {
-                // Initial loading skeleton
-                isLoading && members.isEmpty() -> {
-                    ListSkeleton()
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TitleBar("All Employees", onClose = onDismiss)
                 }
 
-                // Error state
-                error != null && members.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = InactiveText,
-                                modifier = Modifier.size(44.dp)
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Text(error ?: "Something went wrong", color = InactiveText, fontSize = 13.sp)
-                            Spacer(Modifier.height(12.dp))
-                            Button(
-                                onClick = { hrViewModel.fetchMembers(search = searchQuery.trim().ifBlank { null }, status = selectedStatus) },
-                                colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Retry", color = whiteBg, fontSize = 14.sp)
+                Column {
+                    SearchFilterBar(
+                        query = searchQuery,
+                        onQueryChange = { searchQuery = it },
+                        placeholder = "Search Employees...",
+                        accentColor = AccentColor,
+                        borderColor = BorderColor,
+                        textSecondaryColor = MutedColor,
+                        onFilterClick = { filterDrawerState.open() }
+                    )
+                }
+
+                HorizontalDivider(color = BorderColor)
+
+                when {
+                    // Initial loading skeleton
+                    isLoading && members.isEmpty() -> {
+                        ListSkeleton()
+                    }
+
+                    // Persistent error state
+                    error != null && members.isEmpty() -> {
+                        AppErrorState(
+                            title = "Failed to load employees",
+                            message = error ?: "Something went wrong. Please check your connection.",
+                            onRetry = {
+                                hrViewModel.fetchMembers(
+                                    search = searchQuery.trim().ifBlank { null },
+                                    status = selectedStatus
+                                )
                             }
+                        )
+                    }
+
+                    // Empty state
+                    members.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No employees found", color = MutedColor, fontSize = tokens.bodyMedium)
                         }
                     }
-                }
 
-                // Empty state
-                members.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("No employees found", color = MutedColor, fontSize = 14.sp)
-                    }
-                }
-
-                // Paginated employee list
-                else -> {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .weight(1f)
-                            .background(Primary_background)
-                    ) {
-                        items(members, key = { it._id }) { member ->
-                            val isActive = member.status.equals("active", ignoreCase = true)
-                            DataCard(
-                                item = member,
-                                modifier = Modifier.animateItem(), // Placement and addition animations
-                                title = member.memberId ?: member._id,
-                                subtitle = "${member.displayName()} • ${member.displayRole()}",
-                                topBadgeText = member.displayStatus(),
-                                topBadgeTextColor = if (isActive) ActiveText else InactiveText,
-                                topBadgeBgColor = if (isActive) ActiveBg else InactiveBg,
-                                topBadgeInline = false,
-                                footerAsRows = true,
-                                footerFields = listOf(
-                                    DataCardField(
-                                        label = "Department",
-                                        text = member.departmentId?.name ?: "—",
-                                        labelColor = MutedColor,
-                                        textColor = TitleColor
-                                    ),
-                                    DataCardField(
-                                        label = "Contact",
-                                        text = member.userId?.mobile ?: "—",
-                                        labelColor = MutedColor,
-                                        textColor = TitleColor
-                                    ),
-                                    DataCardField(
-                                        label = "Branch",
-                                        text = member.branchId?.name ?: "—",
-                                        labelColor = MutedColor,
-                                        textColor = TitleColor
-                                    )
-                                ),
-                                actions = listOf(
-                                    MenuAction("View", Icons.Filled.Visibility, onClick = { onView(member) }),
-                                    MenuAction("Edit", Icons.Filled.Edit, onClick = { onEdit(member) }),
-                                    MenuAction(
-                                        "Delete", Icons.Filled.Delete,
-                                        tint = InactiveText, textColor = InactiveText,
-                                        onClick = { onDelete(member) }
-                                    )
-                                ),
-                                onClick = { onView(it) }
-                            )
-                        }
-
-                        // Bottom animated loading spinner
-                        item {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                AnimatedVisibility(
-                                    visible = isLoadingMore,
-                                    enter = fadeIn() + slideInVertically { it / 2 },
-                                    exit = fadeOut() + slideOutVertically { it / 2 }
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            color = AccentColor,
-                                            strokeWidth = 2.5.dp
+                    // Paginated employee list
+                    else -> {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .weight(1f)
+                                .background(Primary_background)
+                        ) {
+                            items(members, key = { it._id }) { member ->
+                                val isActive = member.status.equals("active", ignoreCase = true)
+                                DataCard(
+                                    item = member,
+                                    modifier = Modifier.animateItem(),
+                                    title = member.memberId ?: member._id,
+                                    subtitle = "${member.displayName()} • ${member.displayRole()}",
+                                    topBadgeText = member.displayStatus(),
+                                    topBadgeTextColor = if (isActive) ActiveText else InactiveText,
+                                    topBadgeBgColor = if (isActive) ActiveBg else InactiveBg,
+                                    topBadgeInline = false,
+                                    footerAsRows = true,
+                                    footerFields = listOf(
+                                        DataCardField(
+                                            label = "Department",
+                                            text = member.departmentId?.name ?: "—",
+                                            labelColor = MutedColor,
+                                            textColor = TitleColor
+                                        ),
+                                        DataCardField(
+                                            label = "Contact",
+                                            text = member.userId?.mobile ?: "—",
+                                            labelColor = MutedColor,
+                                            textColor = TitleColor
+                                        ),
+                                        DataCardField(
+                                            label = "Branch",
+                                            text = member.branchId?.name ?: "—",
+                                            labelColor = MutedColor,
+                                            textColor = TitleColor
                                         )
+                                    ),
+                                    actions = listOf(
+                                        MenuAction("View", Icons.Filled.Visibility, onClick = { onView(member) }),
+                                        MenuAction("Edit", Icons.Filled.Edit, onClick = { onEdit(member) }),
+                                        MenuAction(
+                                            "Delete", Icons.Filled.Delete,
+                                            tint = InactiveText, textColor = InactiveText,
+                                            onClick = { onDelete(member) }
+                                        )
+                                    ),
+                                    onClick = { onView(it) }
+                                )
+                            }
+
+                            item {
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    AnimatedVisibility(
+                                        visible = isLoadingMore,
+                                        enter = fadeIn() + slideInVertically { it / 2 },
+                                        exit = fadeOut() + slideOutVertically { it / 2 }
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                color = AccentColor,
+                                                strokeWidth = 2.5.dp
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        item { Spacer(Modifier.height(80.dp)) }
+                            item { Spacer(Modifier.height(80.dp)) }
+                        }
                     }
                 }
             }
         }
+
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = error?.takeIf { members.isNotEmpty() },
+            onDismiss = { }
+        )
     }
 }

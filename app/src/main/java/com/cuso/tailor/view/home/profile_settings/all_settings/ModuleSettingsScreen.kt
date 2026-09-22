@@ -359,7 +359,7 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                     Icon(
                         imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = Color(0xFF64748B),
+                        tint = headerGrey,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -386,7 +386,7 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                 ) {
                     module.subItems.forEach { subItem ->
                         HorizontalDivider(
-                            color = Color(0xFFF1F5F9),
+                            color = grey_border,
                             thickness = 2.dp
                         )
 

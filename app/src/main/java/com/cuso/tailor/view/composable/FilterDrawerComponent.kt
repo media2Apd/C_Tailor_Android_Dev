@@ -20,6 +20,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -44,13 +45,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import com.cuso.tailor.ui.theme.Primary
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.ui.unit.Dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.Primary_background
 import com.cuso.tailor.ui.theme.blackTitle
 import com.cuso.tailor.ui.theme.grey_border
@@ -137,10 +137,10 @@ fun FilterDrawer(
     var currentSections by remember { mutableStateOf(sections) }
     var searchQuery by remember { mutableStateOf("") }
 
-    //  Blur state for background
+    // Blur state for background
     var filterDrawerBlur by remember { mutableStateOf(0.dp) }
 
-    //  Sheet state for SmoothBottomSheet
+    // Sheet state for SmoothBottomSheet
     var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
 
     val expandedMap = remember { mutableStateMapOf<String, Boolean>() }
@@ -158,7 +158,7 @@ fun FilterDrawer(
 
     val scope = rememberCoroutineScope()
 
-    //  Handle sheet open/close based on state
+    // Handle sheet open/close based on state
     LaunchedEffect(state.isOpen) {
         if (state.isOpen) {
             sheetState = SheetValue.Collapsed
@@ -170,7 +170,7 @@ fun FilterDrawer(
 
     BackHandler(enabled = state.isOpen) { state.close() }
 
-    // ── Scrim — fade (kept for compatibility, but SmoothBottomSheet handles its own scrim) ──
+    // Scrim — fade
     AnimatedVisibility(
         visible = state.isOpen && sheetState == SheetValue.Hidden,
         enter = fadeIn(animationSpec = tween(300, easing = FastOutSlowInEasing)),
@@ -188,7 +188,7 @@ fun FilterDrawer(
         )
     }
 
-    // ── SmoothBottomSheet instead of custom slide animation ──
+    // SmoothBottomSheet container
     SmoothBottomSheet(
         state = sheetState,
         onStateChange = { newState ->
@@ -208,11 +208,8 @@ fun FilterDrawer(
             onBackgroundBlurChange(blur)
         }
     ) {
-        // ── Sheet Content ──
         Column(modifier = Modifier.fillMaxSize()) {
-
-
-            // ── Header: back/close + title + Reset ──
+            // Header: back/close + title + Reset
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -262,10 +259,8 @@ fun FilterDrawer(
             HorizontalDivider(color = title_border)
 
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -355,11 +350,12 @@ fun FilterDrawer(
 
                     item { Spacer(Modifier.height(80.dp)) }
                 }
+
                 StepNavigationFab(
                     showBack = true,
                     backLabel = "Cancel",
                     onBack = { state.close() },
-                    showBackArrow = false, // Optional: usually Cancel doesn't need an arrow
+                    showBackArrow = false,
                     trailingAction = TrailingFabAction.Update(
                         label = "Apply ",
                         onClick = {
@@ -367,39 +363,10 @@ fun FilterDrawer(
                             state.close()
                         }
                     ),
-                    // Adjusting fractions to give them equal space
                     backWidthFraction = 0.25f,
                     trailingWidthFraction = 0.25f
                 )
             }
-
-//            HorizontalDivider(color = title_border)
-//            Row(
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .background(whiteBg)
-//                    .padding(horizontal = 16.dp, vertical = 12.dp),
-//                horizontalArrangement = Arrangement.spacedBy(10.dp)
-//            ) {
-//                OutlinedButton(
-//                    onClick = { state.close() },
-//                    modifier = Modifier.weight(1f),
-//                    shape = RoundedCornerShape(10.dp)
-//                ) {
-//                    Text("Cancel", color = Color(0xFF374151))
-//                }
-//                Button(
-//                    onClick = {
-//                        onApply(currentSections)
-//                        state.close()
-//                    },
-//                    modifier = Modifier.weight(1f),
-//                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
-//                    shape = RoundedCornerShape(10.dp)
-//                ) {
-//                    Icon(Icons.Default.Check, null)
-//                }
-//            }
         }
     }
 }
@@ -415,7 +382,6 @@ private fun FilterSectionCard(
     onMaxAmountChange: (String) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        // ── Header row ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -515,8 +481,7 @@ private fun CheckboxListBody(section: FilterSection, onOptionToggle: (String) ->
                         uncheckedColor = Color(0xFFCBD5E1),
                         checkmarkColor = whiteBg
                     ),
-                    modifier = Modifier
-                        .size(10.dp)
+                    modifier = Modifier.size(10.dp)
                 )
                 Text(
                     option.label,
@@ -587,7 +552,7 @@ private fun ChipRowBody(section: FilterSection, onOptionToggle: (String) -> Unit
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = Primary,
-                modifier = Modifier.clickable {  }
+                modifier = Modifier.clickable { }
             )
         }
     }
@@ -656,7 +621,7 @@ private fun DropdownBody(section: FilterSection) {
             .height(46.dp)
             .background(whiteBg, RoundedCornerShape(10.dp))
             .border(1.dp, grey_border, RoundedCornerShape(10.dp))
-            .clickable {  }
+            .clickable { }
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -707,8 +672,6 @@ private fun PriorityDotsBody(section: FilterSection, onOptionToggle: (String) ->
 }
 
 @Suppress("UNUSED_PARAMETER")
-
-// ── Filter Chip (kept for backward-compat where referenced elsewhere) ──
 @Composable
 fun FilterChip(
     option: FilterOption,
@@ -717,7 +680,7 @@ fun FilterChip(
     Surface(
         modifier = Modifier.clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
-        color = if (option.isSelected) Color(0xFF3B82F6) else Color(0xFFF1F5F9),
+        color = if (option.isSelected) Color(0xFF3B82F6) else grey_border,
         border = if (option.isSelected) null else BorderStroke(1.dp, Color(0xFFE2E8F0))
     ) {
         Text(
@@ -734,19 +697,21 @@ private val DefaultBorderGray = Color(0xFFE8E8ED)
 private val DefaultTextSecondary = Color(0xFF9A9AA8)
 
 /**
- * Reusable Search + Filter bar.
- * Use anywhere: pass searchQuery + onQueryChange, optionally show filter icon.
+ * Reusable Search + Filter bar with flush, unified dropdown menu support.
  *
- * @param isSearchBarAlone When true, shows ONLY the search input field without the filter button or trailing spacer.
- * @param showFilterIcon Controls whether the filter button is visible (ignored if isSearchBarAlone is true).
- *
- * Example:
- * SearchFilterBar(
- *     query = searchQuery,
- *     onQueryChange = { searchQuery = it },
- *     placeholder = "Search Customers...",
- *     isSearchBarAlone = true
- * )
+ * @param query Current text query in the search bar.
+ * @param onQueryChange Callback invoked when search text changes.
+ * @param placeholder Placeholder string when empty.
+ * @param isSearchBarAlone When true, shows only the search input field without filter button.
+ * @param showFilterIcon Controls whether the filter button is visible.
+ * @param onFilterClick Callback when filter icon button is clicked.
+ * @param accentColor Active/focus color.
+ * @param borderColor Border color of the input container.
+ * @param textSecondaryColor Icon & hint color.
+ * @param height Height of the search field (default 40.dp).
+ * @param isDropdownExpanded Controls visibility of the dropdown attached under the search bar.
+ * @param onDismissDropdown Invoked when user taps outside the dropdown.
+ * @param dropdownContent Composable slot rendering the rows inside the dropdown menu.
  */
 @Composable
 fun SearchFilterBar(
@@ -759,10 +724,14 @@ fun SearchFilterBar(
     accentColor: Color = MaterialTheme.colorScheme.primary,
     borderColor: Color = DefaultBorderGray,
     textSecondaryColor: Color = DefaultTextSecondary,
-    height: Dp = 44.dp
+    height: Dp = 40.dp,
+    isDropdownExpanded: Boolean = false,
+    onDismissDropdown: () -> Unit = {},
+    dropdownContent: @Composable (ColumnScope.() -> Unit)? = null
 ) {
     val tokens = LocalAppTokens.current
     val shouldShowFilter = !isSearchBarAlone && showFilterIcon
+
 
     Row(
         Modifier
@@ -772,79 +741,111 @@ fun SearchFilterBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 10.dp, top = 10.dp),
+                .padding(vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                singleLine = true,
-                textStyle = TextStyle(
-                    fontSize = 14.sp,
-                    color = Color(0xFF111827)
-                ),
+            // Anchor container for search field and dropdown menu
+            Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(height),
-                decorationBox = { innerTextField ->
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(whiteBg, RoundedCornerShape(12.dp))
+                        .border(
+                            1.dp,
+                            if (isDropdownExpanded) accentColor else borderColor,
+                            RoundedCornerShape(12.dp)
+                        )
+                ) {
+                    // Search Bar Input Field Row (Exact 40.dp height)
                     Row(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                whiteBg,
-                                RoundedCornerShape(12.dp)
-                            )
-                            .border(
-                                1.dp,
-                                borderColor,
-                                RoundedCornerShape(12.dp)
-                            )
-                            .padding(horizontal = 14.dp),
+                            .fillMaxWidth()
+                            .height(height)
+                            .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Default.Search,
+                            imageVector = Icons.Default.Search,
                             contentDescription = null,
                             tint = textSecondaryColor,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
 
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
 
-                        Box(
-                            modifier = Modifier.weight(1f),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (query.isEmpty()) {
-                                Text(
-                                    text = placeholder,
-                                    fontSize = 14.sp,
-                                    color = textSecondaryColor
-                                )
+                        BasicTextField(
+                            value = query,
+                            onValueChange = onQueryChange,
+                            singleLine = true,
+                            textStyle = TextStyle(
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp,
+                                color = Color(0xFF111827)
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            decorationBox = { innerTextField ->
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    if (query.isEmpty()) {
+                                        Text(
+                                            text = placeholder,
+                                            fontSize = 13.sp,
+                                            lineHeight = 18.sp,
+                                            color = textSecondaryColor
+                                        )
+                                    }
+                                    innerTextField()
+                                }
                             }
-                            innerTextField()
-                        }
+                        )
 
                         if (query.isNotEmpty()) {
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
 
                             Icon(
-                                Icons.Default.Close,
+                                imageVector = Icons.Default.Close,
                                 contentDescription = "Clear",
                                 tint = textSecondaryColor,
                                 modifier = Modifier
-                                    .size(18.dp)
+                                    .size(16.dp)
                                     .clickable {
                                         onQueryChange("")
                                     }
                             )
                         }
                     }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    // Connected Dropdown: Attached directly below with rounded bottom corners
+                    if (isDropdownExpanded && dropdownContent != null) {
+                        HorizontalDivider(
+                            color = borderColor.copy(alpha = 0.8f),
+                            thickness = 1.dp
+                        )
+
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp),
+                            color = whiteBg
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                dropdownContent()
+                            }
+                        }
+                    }
                 }
-            )
+            }
 
             if (shouldShowFilter) {
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(8.dp))
 
                 Box(
                     modifier = Modifier
@@ -865,7 +866,7 @@ fun SearchFilterBar(
                         Icons.Default.FilterList,
                         contentDescription = "Filter",
                         tint = Color(0xFF111827),
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }

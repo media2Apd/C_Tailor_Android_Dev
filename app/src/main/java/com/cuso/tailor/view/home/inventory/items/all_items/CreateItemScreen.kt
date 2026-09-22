@@ -12,6 +12,7 @@
 package com.cuso.tailor.view.home.inventory.items.all_items
 
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -66,6 +67,7 @@ import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.view.home.sales.lead.MiniSwitch
 import com.cuso.tailor.viewmodel.CreateItemUiState
+import com.cuso.tailor.viewmodel.FinanceViewModel
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import com.cuso.tailor.viewmodel.ItemSection
 import com.cuso.tailor.viewmodel.ProfileUiState
@@ -76,12 +78,15 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateItemScreen(
+    itemId: String? = null,
     onDismiss: () -> Unit,
     onItemCreated: () -> Unit,
     isViewOnly: Boolean = false,
     viewModel: InventoryViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel(),
-    settingsViewModel: SettingsViewModel = hiltViewModel()
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
+    salesFinanceViewModel: FinanceViewModel = hiltViewModel(key = "sales_finance_vm"),
+    expenseFinanceViewModel: FinanceViewModel = hiltViewModel(key = "expense_finance_vm")
 ) {
     val tokens = LocalAppTokens.current
     val fieldShape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f)
@@ -98,27 +103,85 @@ fun CreateItemScreen(
     val expandedSection by viewModel.expandedSection.collectAsState()
     val uiState by viewModel.createItemUiState.collectAsState()
 
+    // Observe item detail from both viewOne and selectedItem
+    val selectedItemDetail by viewModel.selectedItem.collectAsState()
+    val viewOneItem by viewModel.viewOneItem.collectAsState()
+
+    // ── 1. Category Options (Settings: name, id) ──
     val productCategories by settingsViewModel.productCategories.collectAsState()
     val categoryOptions = remember(productCategories) {
         productCategories.mapNotNull { it.name.takeIf { name -> name.isNotBlank() } }
     }
-
     val selectedCategoryDisplayName = remember(formState.category, productCategories) {
         productCategories.find { it.id == formState.category }?.name
             ?: formState.category.ifBlank { "Select Category" }
     }
 
+    // ── 2. Item Group Options (Inventory: name, id) ──
+    val itemGroupState by viewModel.uiState.collectAsState()
+    val itemGroupOptions = remember(itemGroupState.itemGroups) {
+        itemGroupState.itemGroups.mapNotNull { it.name.takeIf { name -> name.isNotBlank() } }
+    }
+    val selectedItemGroupDisplayName = remember(formState.parentGroupId, itemGroupState.itemGroups) {
+        itemGroupState.itemGroups.find { it.id == formState.parentGroupId }?.name
+            ?: "Select Item Group (Optional)"
+    }
+
+    // ── 3. Tax Group Options (Inventory: name, id) ──
+    val taxGroups by viewModel.taxGroups.collectAsState()
+    val taxGroupOptions = remember(taxGroups) {
+        taxGroups.mapNotNull { it.name.takeIf { name -> name.isNotBlank() } }
+    }
+    val selectedTaxGroupDisplayName = remember(formState.taxCategory, taxGroups) {
+        taxGroups.find { it.id == formState.taxCategory || it.name.equals(formState.taxCategory, ignoreCase = true) }?.name
+            ?: formState.taxCategory.ifBlank { "Select Tax Group" }
+    }
+
+    // ── 4. Sales Account Options (AccountDropdownItem: accountName, id) ──
+    val salesAccounts by salesFinanceViewModel.accountDropdownList.collectAsState()
+    val salesAccountOptions = remember(salesAccounts) {
+        salesAccounts.mapNotNull { it.accountName.takeIf { name -> name.isNotBlank() } }
+    }
+    val selectedSalesAccountDisplayName = remember(formState.salesAccount, salesAccounts) {
+        salesAccounts.find { it.id == formState.salesAccount }?.accountName
+            ?: formState.salesAccount.ifBlank { "Select Sales Account" }
+    }
+
+    // ── 5. Purchase Account Options (AccountDropdownItem: accountName, id) ──
+    val purchaseAccounts by expenseFinanceViewModel.accountDropdownList.collectAsState()
+    val purchaseAccountOptions = remember(purchaseAccounts) {
+        purchaseAccounts.mapNotNull { it.accountName.takeIf { name -> name.isNotBlank() } }
+    }
+    val selectedPurchaseAccountDisplayName = remember(formState.purchaseAccount, purchaseAccounts) {
+        purchaseAccounts.find { it.id == formState.purchaseAccount }?.accountName
+            ?: formState.purchaseAccount.ifBlank { "Select Purchase Account" }
+    }
+
+    // ── 6. Preferred Supplier Options (SupplierDropdownItem: label, value) ──
+    val supplierDropdown by viewModel.supplierDropdown.collectAsState()
+    val supplierOptions = remember(supplierDropdown) {
+        supplierDropdown.mapNotNull { it.label.takeIf { label -> label.isNotBlank() } }
+    }
+    val selectedSupplierDisplayName = remember(formState.preferredVendor, supplierDropdown) {
+        supplierDropdown.find { it.value == formState.preferredVendor }?.label
+            ?: formState.preferredVendor.ifBlank { "Select Preferred Vendor" }
+    }
+
+    // ── Dropdown Expansion States ──
     var unitExpanded by remember { mutableStateOf(false) }
     var categoryExpanded by remember { mutableStateOf(false) }
+    var itemGroupExpanded by remember { mutableStateOf(false) }
     var statusExpanded by remember { mutableStateOf(false) }
+    var taxGroupExpanded by remember { mutableStateOf(false) }
     var salesAccountExpanded by remember { mutableStateOf(false) }
     var purchaseAccountExpanded by remember { mutableStateOf(false) }
+    var supplierExpanded by remember { mutableStateOf(false) }
 
     var currentErrorField by remember { mutableStateOf<String?>(null) }
     var currentError by remember { mutableStateOf<String?>(null) }
     var successToastMessage by remember { mutableStateOf<String?>(null) }
 
-    val isEditMode = formState.itemId != null
+    val isEditMode = formState.itemId != null || !itemId.isNullOrBlank()
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -126,11 +189,100 @@ fun CreateItemScreen(
         uri?.let { viewModel.onImageSelected(it) }
     }
 
+    // Load dropdown catalogs on screen launch
     LaunchedEffect(Unit) {
         settingsViewModel.fetchProductCategories()
+        viewModel.loadItemGroups()
+        viewModel.fetchTaxGroups()
+        viewModel.fetchSupplierDropdown()
+        salesFinanceViewModel.fetchChartOfAccountsDropdown(context = "sales_line")
+        expenseFinanceViewModel.fetchChartOfAccountsDropdown(context = "expense_line")
     }
 
-    // Handles success and error state from ViewModel
+    // Fetch existing item details if an ID is passed in edit mode
+    LaunchedEffect(itemId) {
+        Log.d("CreateItemScreen", ">> Initializing CreateItemScreen with itemId: '$itemId'")
+        if (!itemId.isNullOrBlank()) {
+            viewModel.updateCreateItemForm { it.copy(itemId = itemId) }
+            viewModel.fetchInventoryViewOne(itemId)
+            viewModel.fetchInventoryItemDetail(itemId)
+        } else {
+            Log.d("CreateItemScreen", ">> itemId is null, resetting form for create mode")
+            viewModel.resetCreateItemForm()
+        }
+    }
+
+    // Prefill form completely when item details arrive from either API call
+    LaunchedEffect(viewOneItem, selectedItemDetail) {
+        val currentItem: Any? = viewOneItem ?: selectedItemDetail
+        if (!itemId.isNullOrBlank() && currentItem != null && formState.name.isBlank()) {
+            Log.d("CreateItemScreen", ">> Prefilling all form fields for item ID: '$itemId'")
+
+            // Invoke ViewModel prefill logic if viewOne is available
+            viewOneItem?.let { viewModel.populateFormForEdit(it) }
+
+            // Extract all fields dynamically from the API response
+            val rawName = extractProperty(currentItem, "name")
+            val rawSku = extractProperty(currentItem, "sku")
+            val rawBarcode = extractProperty(currentItem, "barcode")
+            val rawCategory = extractProperty(currentItem, "categoryId", "category")
+            val rawUnit = extractProperty(currentItem, "unit")
+            val rawType = extractProperty(currentItem, "type", "itemType")
+            val rawStatus = extractProperty(currentItem, "status")
+            val rawCostPrice = extractProperty(currentItem, "costPrice")
+            val rawSellingPrice = extractProperty(currentItem, "sellingPrice")
+            val rawManufacturer = extractProperty(currentItem, "manufacturer")
+            val rawBrand = extractProperty(currentItem, "brand")
+            val rawHsnCode = extractProperty(currentItem, "hsnCode")
+            val rawTaxGroup = extractProperty(currentItem, "taxGroupId", "taxCategory")
+            val rawSalesAccount = extractProperty(currentItem, "salesAccountId", "salesAccount")
+            val rawPurchaseAccount = extractProperty(currentItem, "purchaseAccountId", "purchaseAccount")
+            val rawPreferredVendor = extractProperty(currentItem, "preferredVendorId", "preferredVendor")
+            val rawReturnable = extractProperty(currentItem, "returnable").toBoolean()
+            val rawReorderLevel = extractProperty(currentItem, "reorderLevel")
+            val rawSafetyStock = extractProperty(currentItem, "safetyStock")
+            val rawParentGroupId = extractProperty(currentItem, "parentGroupId").takeIf { it.isNotBlank() }
+
+            viewModel.updateCreateItemForm { current ->
+                current.copy(
+                    itemId = itemId,
+                    name = current.name.ifBlank { rawName },
+                    sku = current.sku.ifBlank { rawSku },
+                    barcode = current.barcode.ifBlank { rawBarcode.ifBlank { "000000000024" } },
+                    category = current.category.ifBlank { rawCategory },
+                    unit = current.unit.ifBlank { rawUnit.ifBlank { "Meters" } },
+                    itemType = if (rawType.equals("service", ignoreCase = true)) ItemType.SERVICE else ItemType.GOODS,
+                    status = current.status.ifBlank { rawStatus.ifBlank { "active" } },
+                    costPrice = current.costPrice.ifBlank { rawCostPrice },
+                    sellingPrice = current.sellingPrice.ifBlank { rawSellingPrice },
+                    manufacturer = current.manufacturer.ifBlank { rawManufacturer },
+                    brand = current.brand.ifBlank { rawBrand },
+                    hsnCode = current.hsnCode.ifBlank { rawHsnCode },
+                    taxCategory = current.taxCategory.ifBlank { rawTaxGroup },
+                    salesAccount = current.salesAccount.ifBlank { rawSalesAccount },
+                    purchaseAccount = current.purchaseAccount.ifBlank { rawPurchaseAccount },
+                    preferredVendor = current.preferredVendor.ifBlank { rawPreferredVendor },
+                    returnable = rawReturnable,
+                    reorderLevel = current.reorderLevel.ifBlank { rawReorderLevel },
+                    safetyStock = current.safetyStock.ifBlank { rawSafetyStock },
+                    parentGroupId = current.parentGroupId ?: rawParentGroupId,
+                    autoGenerateSku = false
+                )
+            }
+        }
+    }
+
+    // Auto-populate tax rate percentage when tax group is selected or prefilled
+    LaunchedEffect(formState.taxCategory, taxGroups) {
+        val matchingGroup = taxGroups.find {
+            it.id == formState.taxCategory || it.name.equals(formState.taxCategory, ignoreCase = true)
+        }
+        if (matchingGroup != null && formState.taxPercentage.isBlank()) {
+            viewModel.updateCreateItemForm { it.copy(taxPercentage = matchingGroup.totalRate.toString()) }
+        }
+    }
+
+    // Handle submit states and notifications
     LaunchedEffect(uiState) {
         when (uiState) {
             is CreateItemUiState.Success -> {
@@ -273,7 +425,7 @@ fun CreateItemScreen(
                         value = formState.unit.ifBlank { "Select Unit" },
                         expanded = if (isEditable) unitExpanded else false,
                         onExpandChange = { if (isEditable) unitExpanded = it },
-                        options = listOf("Meter", "Piece", "Kg"),
+                        options = listOf("Meter", "Meters", "Piece", "Pieces", "Kg"),
                         onOptionSelected = { selectedUnit ->
                             viewModel.updateCreateItemForm { it.copy(unit = selectedUnit) }
                         },
@@ -301,17 +453,32 @@ fun CreateItemScreen(
                         onExpandChange = { if (isEditable) categoryExpanded = it },
                         options = categoryOptions.ifEmpty { listOf("No Categories Available") },
                         onOptionSelected = { selectedCategoryName ->
-                            if (selectedCategoryName != "No Categories Available") {
-                                val selectedCategoryId = productCategories
-                                    .find { it.name.equals(selectedCategoryName, ignoreCase = true) }
-                                    ?.id
-                                    .orEmpty()
-                                viewModel.updateCreateItemForm { it.copy(category = selectedCategoryId) }
-                            }
+                            val selectedCategoryId = productCategories
+                                .find { it.name.equals(selectedCategoryName, ignoreCase = true) }
+                                ?.id
+                                .orEmpty()
+                            viewModel.updateCreateItemForm { it.copy(category = selectedCategoryId) }
                         },
                         isRequired = true,
                         isError = currentErrorField == "category",
                         errorMessage = if (currentErrorField == "category") "Category is required" else null
+                    )
+
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Item Group (Optional)")
+                    FormDropdown(
+                        value = selectedItemGroupDisplayName,
+                        expanded = if (isEditable) itemGroupExpanded else false,
+                        onExpandChange = { if (isEditable) itemGroupExpanded = it },
+                        options = listOf("None") + itemGroupOptions,
+                        onOptionSelected = { selectedGroupName ->
+                            val selectedGroupId = if (selectedGroupName == "None") {
+                                null
+                            } else {
+                                itemGroupState.itemGroups.find { it.name.equals(selectedGroupName, ignoreCase = true) }?.id
+                            }
+                            viewModel.updateCreateItemForm { it.copy(parentGroupId = selectedGroupId) }
+                        }
                     )
 
                     Spacer(Modifier.height(tokens.extraPadding))
@@ -446,6 +613,27 @@ fun CreateItemScreen(
                             keyboardType = KeyboardType.Number
                         )
                         Spacer(Modifier.height(tokens.extraPadding))
+
+                        FormLabel("Tax Group")
+                        FormDropdown(
+                            value = selectedTaxGroupDisplayName,
+                            expanded = if (isEditable) taxGroupExpanded else false,
+                            onExpandChange = { if (isEditable) taxGroupExpanded = it },
+                            options = taxGroupOptions.ifEmpty { listOf("No Tax Groups Available") },
+                            onOptionSelected = { chosenGroupName ->
+                                val selectedGroup = taxGroups.find { it.name == chosenGroupName }
+                                if (selectedGroup != null) {
+                                    viewModel.updateCreateItemForm {
+                                        it.copy(
+                                            taxCategory = selectedGroup.id,
+                                            taxPercentage = selectedGroup.totalRate.toString()
+                                        )
+                                    }
+                                }
+                            }
+                        )
+
+                        Spacer(Modifier.height(tokens.extraPadding))
                         FormLabel("Tax Percentage (%)")
                         FormTextField(
                             value = formState.taxPercentage,
@@ -454,6 +642,7 @@ fun CreateItemScreen(
                             enabled = isEditable,
                             keyboardType = KeyboardType.Number
                         )
+
                         Spacer(Modifier.height(tokens.extraPadding))
                         ToggleRow(
                             title = "Price is Tax Inclusive",
@@ -482,15 +671,21 @@ fun CreateItemScreen(
                         isError = currentErrorField == "sellingPrice",
                         errorMessage = if (currentErrorField == "sellingPrice") "Selling price is required" else null
                     )
+
                     Spacer(Modifier.height(tokens.extraPadding))
                     FormLabel("Sales Account")
                     FormDropdown(
-                        value = formState.salesAccount.ifBlank { "Select Sales Account" },
+                        value = selectedSalesAccountDisplayName,
                         expanded = if (isEditable) salesAccountExpanded else false,
                         onExpandChange = { if (isEditable) salesAccountExpanded = it },
-                        options = listOf("General Revenue"),
-                        onOptionSelected = { v -> viewModel.updateCreateItemForm { it.copy(salesAccount = v) } }
+                        options = salesAccountOptions.ifEmpty { listOf("No Sales Accounts Available") },
+                        onOptionSelected = { chosenAccountName ->
+                            val chosenAccountId = salesAccounts.find { it.accountName == chosenAccountName }?.id
+                                ?: chosenAccountName
+                            viewModel.updateCreateItemForm { it.copy(salesAccount = chosenAccountId) }
+                        }
                     )
+
                     Spacer(Modifier.height(tokens.extraPadding))
                     FormLabel("Sales Description")
                     FormTextArea(
@@ -517,23 +712,35 @@ fun CreateItemScreen(
                         isError = currentErrorField == "costPrice",
                         errorMessage = if (currentErrorField == "costPrice") "Cost price is required" else null
                     )
+
                     Spacer(Modifier.height(tokens.extraPadding))
                     FormLabel("Purchase Account")
                     FormDropdown(
-                        value = formState.purchaseAccount.ifBlank { "Select Purchase Account" },
+                        value = selectedPurchaseAccountDisplayName,
                         expanded = if (isEditable) purchaseAccountExpanded else false,
                         onExpandChange = { if (isEditable) purchaseAccountExpanded = it },
-                        options = listOf("Cost of Goods Sold"),
-                        onOptionSelected = { v -> viewModel.updateCreateItemForm { it.copy(purchaseAccount = v) } }
+                        options = purchaseAccountOptions.ifEmpty { listOf("No Purchase Accounts Available") },
+                        onOptionSelected = { chosenAccountName ->
+                            val chosenAccountId = purchaseAccounts.find { it.accountName == chosenAccountName }?.id
+                                ?: chosenAccountName
+                            viewModel.updateCreateItemForm { it.copy(purchaseAccount = chosenAccountId) }
+                        }
                     )
+
                     Spacer(Modifier.height(tokens.extraPadding))
                     FormLabel("Preferred Vendor")
-                    FormTextField(
-                        value = formState.preferredVendor,
-                        onValueChange = { v -> viewModel.updateCreateItemForm { it.copy(preferredVendor = v) } },
-                        placeholder = "Enter Preferred Vendor",
-                        enabled = isEditable
+                    FormDropdown(
+                        value = selectedSupplierDisplayName,
+                        expanded = if (isEditable) supplierExpanded else false,
+                        onExpandChange = { if (isEditable) supplierExpanded = it },
+                        options = supplierOptions.ifEmpty { listOf("No Suppliers Available") },
+                        onOptionSelected = { chosenSupplierLabel ->
+                            val chosenSupplierValue = supplierDropdown.find { it.label == chosenSupplierLabel }?.value
+                                ?: chosenSupplierLabel
+                            viewModel.updateCreateItemForm { it.copy(preferredVendor = chosenSupplierValue) }
+                        }
                     )
+
                     Spacer(Modifier.height(tokens.extraPadding))
                     FormLabel("Purchase Description")
                     FormTextArea(
@@ -545,7 +752,7 @@ fun CreateItemScreen(
             }
         }
 
-        // ── Notifications ──
+        // ── Floating Notifications ──
         DynamicIslandError(
             message = currentError,
             onDismiss = { currentError = null }
@@ -582,6 +789,34 @@ fun CreateItemScreen(
             }
         )
     }
+}
+
+// =============================================================================
+// PROPERTY REFLECTION HELPER
+// =============================================================================
+
+/**
+ * Extracts string values from target models safely via getter methods or declared fields.
+ */
+private fun extractProperty(target: Any?, vararg candidateNames: String): String {
+    if (target == null) return ""
+    for (name in candidateNames) {
+        try {
+            val getterName = "get" + name.replaceFirstChar { it.uppercase() }
+            val method = target.javaClass.methods.firstOrNull {
+                it.name.equals(getterName, ignoreCase = true) || it.name.equals(name, ignoreCase = true)
+            }
+            val result = method?.invoke(target)?.toString()
+            if (!result.isNullOrBlank()) return result
+        } catch (_: Exception) {}
+        try {
+            val field = target.javaClass.declaredFields.firstOrNull { it.name.equals(name, ignoreCase = true) }
+            field?.isAccessible = true
+            val result = field?.get(target)?.toString()
+            if (!result.isNullOrBlank()) return result
+        } catch (_: Exception) {}
+    }
+    return ""
 }
 
 // =============================================================================

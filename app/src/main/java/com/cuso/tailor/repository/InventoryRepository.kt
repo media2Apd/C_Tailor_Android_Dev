@@ -41,7 +41,6 @@ import com.cuso.tailor.model.inventory.PurchaseReceiveItem
 import com.cuso.tailor.model.inventory.PurchaseRequisition
 import com.cuso.tailor.model.inventory.ReceiveHistoryByPoResponse
 import com.cuso.tailor.model.inventory.ReceivePurchaseOrderRequest
-import com.cuso.tailor.model.inventory.RequisitionApprovalActionRequest
 import com.cuso.tailor.model.inventory.ReverseAdjustmentRequest
 import com.cuso.tailor.model.inventory.StockAdjustmentData
 import com.cuso.tailor.model.inventory.StockAdjustmentListResponse
@@ -73,8 +72,14 @@ import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import androidx.core.graphics.scale
+import com.cuso.tailor.model.inventory.BillResponseData
+import com.cuso.tailor.model.inventory.CreateBillRequest
+import com.cuso.tailor.model.inventory.PaymentTermDto
 import com.cuso.tailor.model.inventory.PurchaseOrderDetailData
+import com.cuso.tailor.model.inventory.SafetyStockResponse
 import com.cuso.tailor.model.inventory.SubmitForApprovalRequest
+import com.cuso.tailor.model.inventory.TaxGroupDto
+import com.cuso.tailor.model.inventory.ViewMultipleReceivesRequest
 
 @Singleton
 class InventoryRepository @Inject constructor(
@@ -1009,7 +1014,7 @@ class InventoryRepository @Inject constructor(
         return try {
             val (token, csrf) = getAuthHeaders()
 
-            val params = mutableMapOf<String, RequestBody>(
+            val params = mutableMapOf(
                 "name" to createPartFromString(name),
                 "sku" to createPartFromString(sku),
                 "unit" to createPartFromString(unit),
@@ -1069,7 +1074,7 @@ class InventoryRepository @Inject constructor(
         return try {
             val (token, csrf) = getAuthHeaders()
 
-            val params = mutableMapOf<String, RequestBody>(
+            val params = mutableMapOf(
                 "name" to createPartFromString(name),
                 "sku" to createPartFromString(sku),
                 "unit" to createPartFromString(unit),
@@ -1569,6 +1574,67 @@ class InventoryRepository @Inject constructor(
             }
         }
 
+    suspend fun getPaymentTerms(): Result<List<PaymentTermDto>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getPaymentTerms(accessToken, csrfToken)
+            if (response.isSuccessful && response.body()?.data != null) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch payment terms"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getTaxGroups(): Result<List<TaxGroupDto>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getTaxGroups(accessToken, csrfToken)
+            if (response.isSuccessful && response.body()?.data != null) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch tax groups"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createBill(request: CreateBillRequest): Result<BillResponseData> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.createBill(accessToken, csrfToken, request)
+            if (response.isSuccessful && response.body()?.data != null) {
+                Result.success(response.body()!!.data)
+            } else {
+                val rawError = response.errorBody()?.string()
+                Result.failure(Exception(rawError ?: "Failed to create bill (${response.code()})"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun viewMultipleReceives(receiveIds: List<String>): Result<List<PurchaseReceiveItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.viewMultipleReceives(
+                accessToken,
+                csrfToken,
+                ViewMultipleReceivesRequest(receiveIds)
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.data ?: emptyList())
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch multiple receives"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getPurchaseOrderSummary(
         page: Int = 1,
         limit: Int = 10,
@@ -1743,6 +1809,35 @@ class InventoryRepository @Inject constructor(
                 Result.success(body.data)
             } else {
                 Result.failure(Exception(extractErrorMessage(response, "Failed to assign stock location")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    //SAFETY STOCK
+
+    suspend fun getSafetyStock(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        warehouseId: String? = null
+    ): Result<SafetyStockResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getSafetyStock(
+                page = page,
+                limit = limit,
+                search = search,
+                warehouseId = warehouseId,
+                token = accessToken,
+                csrfToken = csrfToken
+            )
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to fetch safety stock"
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(e)

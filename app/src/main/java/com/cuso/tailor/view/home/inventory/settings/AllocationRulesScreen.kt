@@ -118,7 +118,7 @@ fun AllocationRulesScreen(
             ) {
                 items(rules) { item ->
                     AllocationRuleCard(item = item)
-                    HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 2.dp)
+                    HorizontalDivider(color = grey_border, thickness = 2.dp)
                 }
             }
         }
@@ -172,7 +172,7 @@ fun AllocationRuleCard(item: AllocationRuleItem) {
 
             val (statusBg, statusColor) = when (item.status) {
                 "ACTIVE" -> Color(0xFFDCFCE7) to Color(0xFF16A34A)
-                "DRAFT" -> Color(0xFFF1F5F9) to Color(0xFF64748B)
+                "DRAFT" -> grey_border to headerGrey
                 "AT RISK" -> Color(0xFFFEE2E2) to Color(0xFFDC2626)
                 else -> Color(0xFFFEF3C7) to Color(0xFFD97706)
             }
@@ -299,7 +299,7 @@ fun CreateAllocationScreen(
                                     text = type,
                                     fontSize = tokens.bodySmall,
                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                    color = if (isSelected) Primary else Color(0xFF64748B)
+                                    color = if (isSelected) Primary else headerGrey
                                 )
                             }
                         }

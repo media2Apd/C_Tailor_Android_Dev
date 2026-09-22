@@ -45,7 +45,7 @@ private val dummySuppliers = List(6) {
 }
 
 @Composable
- fun AllSuppliersScreen(
+ fun FinanceSuppliersScreen(
     onClose: () -> Unit = {},
     onBreadCrumbClick: () -> Unit = {},
     onSupplierClick: (SupplierRow) -> Unit = {}

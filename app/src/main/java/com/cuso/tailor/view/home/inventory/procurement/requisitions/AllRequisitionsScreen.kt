@@ -72,9 +72,11 @@ import com.cuso.tailor.ui.theme.yellowBg
 import com.cuso.tailor.ui.theme.yellowText
 import com.cuso.tailor.view.composable.ActionDropdownMenu
 import com.cuso.tailor.view.composable.AppCheckbox
+import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DeleteModel
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
+import com.cuso.tailor.view.composable.ErrorMapper
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
@@ -194,6 +196,14 @@ fun AllRequisitionsScreen(
                 when {
                     isLoading && requisitionsList.isEmpty() -> {
                         ListSkeleton()
+                    }
+
+                    errorMessage != null && requisitionsList.isEmpty() -> {
+                        AppErrorState(
+                            title = "Failed to load requisitions",
+                            message = errorMessage?.let { ErrorMapper.map(it) } ?: "Something went wrong. Please check your connection.",
+                            onRetry = { viewModel.fetchAllRequisitions(search = searchQuery.trim().ifBlank { null }) }
+                        )
                     }
 
                     requisitionsList.isEmpty() -> {
@@ -317,12 +327,18 @@ fun AllRequisitionsScreen(
         }
 
         DynamicIslandSuccess(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
             message = successMessage,
             onDismiss = { viewModel.clearRequisitionAlerts() }
         )
 
         DynamicIslandError(
-            message = errorMessage,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMessage?.takeIf { requisitionsList.isNotEmpty() }?.let { ErrorMapper.map(it) },
             onDismiss = { viewModel.clearRequisitionAlerts() }
         )
     }

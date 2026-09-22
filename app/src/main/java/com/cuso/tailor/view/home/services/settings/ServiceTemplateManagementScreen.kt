@@ -205,7 +205,7 @@ fun ServiceTemplateListScreen(
                     Text(
                         text = "Create and manage reusable service workflows for garments.",
                         fontSize = tokens.bodySmall,
-                        color = Color(0xFF64748B)
+                        color = headerGrey
                     )
                 }
 
@@ -280,7 +280,7 @@ fun ServiceTemplateListScreen(
                                             tint = Color(0xFF94A3B8),
                                             modifier = Modifier.size(15.dp)
                                         )
-                                        Text("Garment: ", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+                                        Text("Garment: ", fontSize = tokens.bodySmall, color = headerGrey)
                                         Text("${item.garmentCount}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
                                     }
 
@@ -295,7 +295,7 @@ fun ServiceTemplateListScreen(
                                             tint = Color(0xFF94A3B8),
                                             modifier = Modifier.size(15.dp)
                                         )
-                                        Text("${item.stepCount} Steps", fontSize = tokens.bodySmall, color = Color(0xFF64748B))
+                                        Text("${item.stepCount} Steps", fontSize = tokens.bodySmall, color = headerGrey)
                                     }
 
                                     Row(
@@ -492,7 +492,7 @@ fun CreateServiceTemplateWizardScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFF1F5F9))
+                            .background(grey_border)
                             .padding(horizontal = tokens.screenPadding, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -801,7 +801,7 @@ private fun StepTwoGarmentAndMeasurement(
             ) {
                 Text(
                     text = "Single Garment",
-                    color = if (!applyToGroup) Color(0xFF3730A3) else Color(0xFF64748B),
+                    color = if (!applyToGroup) Color(0xFF3730A3) else headerGrey,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -818,7 +818,7 @@ private fun StepTwoGarmentAndMeasurement(
             ) {
                 Text(
                     text = "Garment Group",
-                    color = if (applyToGroup) Color(0xFF3730A3) else Color(0xFF64748B),
+                    color = if (applyToGroup) Color(0xFF3730A3) else headerGrey,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -831,7 +831,7 @@ private fun StepTwoGarmentAndMeasurement(
             onTabSelected = onCategoryTabSelect
         )
 
-        HorizontalDivider(color = Color(0xFFF1F5F9))
+        HorizontalDivider(color = grey_border)
 
         if (!applyToGroup) {
             FormLabel("Garment")
@@ -854,15 +854,15 @@ private fun StepTwoGarmentAndMeasurement(
                 ) {
                     Text("Selected Garment Config", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Garment:", fontSize = 13.sp, color = Color(0xFF64748B))
+                        Text("Garment:", fontSize = 13.sp, color = headerGrey)
                         Text(selectedGarment.ifBlank { "Formal Shirt" }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Configuration:", fontSize = 13.sp, color = Color(0xFF64748B))
+                        Text("Configuration:", fontSize = 13.sp, color = headerGrey)
                         Text("${selectedGarment.ifBlank { "Formal Shirt" }} Standard", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Active Fields:", fontSize = 13.sp, color = Color(0xFF64748B))
+                        Text("Active Fields:", fontSize = 13.sp, color = headerGrey)
                         Text("12 Measurement Fields", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
                     }
                 }
@@ -899,7 +899,7 @@ private fun StepTwoGarmentAndMeasurement(
                         }
                     }
 
-                    HorizontalDivider(color = Color(0xFFF1F5F9), modifier = Modifier.padding(vertical = 12.dp))
+                    HorizontalDivider(color = grey_border, modifier = Modifier.padding(vertical = 12.dp))
 
                     Row(
                         modifier = Modifier
@@ -937,7 +937,7 @@ private fun StepTwoGarmentAndMeasurement(
                         ) {
                             Column {
                                 Text(item, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                                Text("$item Standard", fontSize = 12.sp, color = Color(0xFF64748B))
+                                Text("$item Standard", fontSize = 12.sp, color = headerGrey)
                             }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -977,7 +977,7 @@ private fun StepTwoGarmentAndMeasurement(
                     Text("Standard Pattern", fontSize = 12.sp, color = Color(0xFF4338CA), fontWeight = FontWeight.Medium)
                 }
 
-                HorizontalDivider(color = Color(0xFFF1F5F9))
+                HorizontalDivider(color = grey_border)
 
                 MeasurementGroup("BODY", listOf("Chest Round", "Waist Round", "Seat / Hip Round"))
                 MeasurementGroup("SHOULDER & BACK", listOf("Shoulder Width", "Back Width"))
@@ -1006,7 +1006,7 @@ private fun StepThreeWorkflow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Service Workflow", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                Text("Define the sequence of work.", fontSize = 12.sp, color = Color(0xFF64748B))
+                Text("Define the sequence of work.", fontSize = 12.sp, color = headerGrey)
             }
             Button(
                 onClick = onAddStepClick,
@@ -1037,7 +1037,7 @@ private fun StepThreeWorkflow(
                         Spacer(Modifier.width(10.dp))
                         Text(
                             text = "%02d".format(item.sequence),
-                            color = Color(0xFF64748B),
+                            color = headerGrey,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -1061,7 +1061,7 @@ private fun StepThreeWorkflow(
                         Icon(Icons.Default.MoreVert, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
                     }
                     if (index < workflowSteps.lastIndex) {
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = grey_border)
                     }
                 }
             }
@@ -1086,7 +1086,7 @@ private fun StepFourOptionalWork(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Optional Work", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                Text("Define the sequence of work.", fontSize = 12.sp, color = Color(0xFF64748B))
+                Text("Define the sequence of work.", fontSize = 12.sp, color = headerGrey)
             }
             Button(
                 onClick = onAddOptionalWorkClick,
@@ -1115,7 +1115,7 @@ private fun StepFourOptionalWork(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(item.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
-                            Text("Optional", fontSize = 12.sp, color = Color(0xFF64748B))
+                            Text("Optional", fontSize = 12.sp, color = headerGrey)
                         }
                         Box(
                             modifier = Modifier
@@ -1129,7 +1129,7 @@ private fun StepFourOptionalWork(
                         Icon(Icons.Default.MoreVert, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
                     }
                     if (index < optionalWorks.lastIndex) {
-                        HorizontalDivider(color = Color(0xFFF1F5F9))
+                        HorizontalDivider(color = grey_border)
                     }
                 }
             }
@@ -1296,7 +1296,7 @@ private fun StepFiveReviewAndActivate(
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Column {
             Text("Review & Activate", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-            Text("Verify the service template configuration details before activating.", fontSize = 12.sp, color = Color(0xFF64748B))
+            Text("Verify the service template configuration details before activating.", fontSize = 12.sp, color = headerGrey)
         }
 
         Row(
@@ -1350,7 +1350,7 @@ private fun StepFiveReviewAndActivate(
                         Spacer(Modifier.width(8.dp))
                         Icon(Icons.Default.MoreVert, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
                     }
-                    if (index < workflowSteps.lastIndex) HorizontalDivider(color = Color(0xFFF1F5F9))
+                    if (index < workflowSteps.lastIndex) HorizontalDivider(color = grey_border)
                 }
             }
         }
@@ -1388,7 +1388,7 @@ private fun StepFiveReviewAndActivate(
                         Spacer(Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(work.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
-                            Text("Optional", fontSize = 11.sp, color = Color(0xFF64748B))
+                            Text("Optional", fontSize = 11.sp, color = headerGrey)
                         }
                         Box(
                             modifier = Modifier
@@ -1401,7 +1401,7 @@ private fun StepFiveReviewAndActivate(
                         Spacer(Modifier.width(8.dp))
                         Icon(Icons.Default.MoreVert, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
                     }
-                    if (index < optionalWorks.lastIndex) HorizontalDivider(color = Color(0xFFF1F5F9))
+                    if (index < optionalWorks.lastIndex) HorizontalDivider(color = grey_border)
                 }
             }
         }
@@ -1637,7 +1637,7 @@ fun AddGarmentSheetContent(
             Text(
                 text = "Create a new garment under the selected category and garment group.",
                 fontSize = 12.sp,
-                color = Color(0xFF64748B)
+                color = headerGrey
             )
         }
 
@@ -1800,7 +1800,7 @@ fun ActivateTemplateConfirmDialog(
                 Text(
                     text = "Once activated, this template will be available for service order creation.",
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B),
+                    color = headerGrey,
                     modifier = Modifier.padding(horizontal = 8.dp),
                     textAlign = TextAlign.Center
                 )
@@ -1934,7 +1934,7 @@ fun ServiceTemplateDetailViewScreen(
                                 Text(stepName, fontSize = 13.sp, color = Color(0xFF0F172A), modifier = Modifier.weight(1f))
                                 Icon(Icons.Default.MoreVert, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
                             }
-                            if (index < workflowSteps.lastIndex) HorizontalDivider(color = Color(0xFFF1F5F9))
+                            if (index < workflowSteps.lastIndex) HorizontalDivider(color = grey_border)
                         }
                     }
                 }
@@ -1957,11 +1957,11 @@ fun ServiceTemplateDetailViewScreen(
                                 Spacer(Modifier.width(8.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(workName, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
-                                    Text("Optional", fontSize = 11.sp, color = Color(0xFF64748B))
+                                    Text("Optional", fontSize = 11.sp, color = headerGrey)
                                 }
                                 Icon(Icons.Default.MoreVert, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
                             }
-                            if (index < optionalWorks.lastIndex) HorizontalDivider(color = Color(0xFFF1F5F9))
+                            if (index < optionalWorks.lastIndex) HorizontalDivider(color = grey_border)
                         }
                     }
                 }
@@ -2037,7 +2037,7 @@ private fun MeasurementGroup(
     fields: List<String>
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(title, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF64748B))
+        Text(title, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = headerGrey)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)

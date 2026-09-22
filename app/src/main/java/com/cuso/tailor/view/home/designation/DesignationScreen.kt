@@ -42,6 +42,8 @@ import com.cuso.tailor.model.settings.DesignationItem
 import com.cuso.tailor.ui.theme.BluePrimary
 import com.cuso.tailor.ui.theme.BorderGray
 import com.cuso.tailor.ui.theme.TextSecondary
+import com.cuso.tailor.ui.theme.grey_border
+import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
@@ -224,7 +226,7 @@ fun DesignationScreen(
                                                     subtitle = item.code,
                                                     topBadgeText = badgeText,
                                                     topBadgeTextColor = badgeColor,
-                                                    topBadgeBgColor = if (item.status) Color(0xFFDCFCE7) else Color(0xFFF1F5F9),
+                                                    topBadgeBgColor = if (item.status) Color(0xFFDCFCE7) else grey_border,
                                                     topBadgeShowDot = false,
                                                     topBadgeInline = true,
                                                     showHeaderDivider = true,
@@ -238,7 +240,7 @@ fun DesignationScreen(
                                                         }
                                                     ),
                                                     content = {
-                                                        val iconColor = Color(0xFF64748B)
+                                                        val iconColor = headerGrey
                                                         val textBodyColor = Color(0xFF334155)
 
                                                         Column(
@@ -258,7 +260,7 @@ fun DesignationScreen(
                                                                 )
                                                                 Text(
                                                                     text = buildAnnotatedString {
-                                                                        withStyle(SpanStyle(color = Color(0xFF64748B), fontWeight = FontWeight.Normal)) {
+                                                                        withStyle(SpanStyle(color = headerGrey, fontWeight = FontWeight.Normal)) {
                                                                             append("Dept: ")
                                                                         }
                                                                         withStyle(SpanStyle(color = Color(0xFF0F172A), fontWeight = FontWeight.SemiBold)) {

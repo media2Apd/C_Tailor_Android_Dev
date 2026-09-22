@@ -992,13 +992,16 @@ class SettingsViewModel @Inject constructor(
         launchBusy {
             _isLoadingMeasurementFields.value = true
             _errorMessage.value = null
+            _dynamicErrorMessage.value = null
             val result = settingsRepository.getMeasurementFields()
             _isLoadingMeasurementFields.value = false
 
             result.onSuccess { list ->
                 _measurementFields.value = list
             }.onFailure { error ->
-                _errorMessage.value = error.message ?: "Failed to load measurement fields"
+                val clean = extractErrorMessage(error.message)
+                _errorMessage.value = clean
+                _dynamicErrorMessage.value = clean
             }
         }
     }

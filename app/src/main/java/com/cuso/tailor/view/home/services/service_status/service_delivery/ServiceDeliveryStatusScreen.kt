@@ -55,7 +55,7 @@ private val PillBlueText = Color(0xFF2563EB)
 private val PillRedBg = Color(0xFFFFEBEE)
 private val PillRedText = Color(0xFFDC2626)
 private val MapRoadColor = Color(0xFFE2E8F0)
-private val MapLandColor = Color(0xFFF1F5F9)
+private val MapLandColor = grey_border
 private val MapBuildingColor = Color(0xFFE2E8F0).copy(alpha = 0.6f)
 private val MapPinBlue = Color(0xFF0288D1)
 

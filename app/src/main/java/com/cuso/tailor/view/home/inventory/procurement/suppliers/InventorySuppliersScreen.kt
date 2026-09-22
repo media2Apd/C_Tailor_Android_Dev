@@ -33,7 +33,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
-fun AllSuppliersScreen(
+fun InventorySuppliersScreen(
     onClose: () -> Unit,
     onSupplierClick: (SupplierDto) -> Unit,
     onBreadCrumbClick: () -> Unit = {},
@@ -41,7 +41,6 @@ fun AllSuppliersScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    // Observe suppliers list and pagination states from ViewModel
     val suppliers by viewModel.suppliers.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoadingSuppliers.collectAsStateWithLifecycle()
     val isLoadingMore by viewModel.isLoadingMoreSuppliers.collectAsStateWithLifecycle()
@@ -52,10 +51,8 @@ fun AllSuppliersScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedSupplierToDelete by remember { mutableStateOf<SupplierDto?>(null) }
 
-    // Scroll state tracker for LazyColumn
     val listState = rememberLazyListState()
 
-    // Consolidated initial fetch and debounced search (avoids duplicate call at startup)
     var isInitialized by remember { mutableStateOf(false) }
     LaunchedEffect(searchQuery) {
         if (!isInitialized) {
@@ -67,14 +64,11 @@ fun AllSuppliersScreen(
         }
     }
 
-    // Scroll listener: triggers next page fetch only when crossing the bottom threshold
     LaunchedEffect(listState, canLoadMore, searchQuery) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val totalItems = layoutInfo.totalItemsCount
             val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-
-            // Trigger when reaching within 2 items of the list end
             totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
         }
             .distinctUntilChanged()
@@ -135,6 +129,14 @@ fun AllSuppliersScreen(
                         ListSkeleton()
                     }
 
+                    errorMsg != null && suppliers.isEmpty() -> {
+                        AppErrorState(
+                            title = "Failed to load suppliers",
+                            message = errorMsg?.let { ErrorMapper.map(it) } ?: "Something went wrong. Please check your connection.",
+                            onRetry = { viewModel.fetchSuppliers(search = searchQuery.trim().ifBlank { null }) }
+                        )
+                    }
+
                     filteredList.isEmpty() -> {
                         Box(
                             modifier = Modifier
@@ -169,7 +171,6 @@ fun AllSuppliersScreen(
                                 )
                             }
 
-                            // Three-dot loader displayed only while a next page request is actively in-flight
                             if (isLoadingMore) {
                                 item(key = "pagination_threedot_loader") {
                                     ThreeDotLoading(
@@ -202,8 +203,21 @@ fun AllSuppliersScreen(
             )
         }
 
-        DynamicIslandSuccess(message = successMsg, onDismiss = { viewModel.clearAlerts() })
-        DynamicIslandError(message = errorMsg?.let { ErrorMapper.map(it) }, onDismiss = { viewModel.clearAlerts() })
+        DynamicIslandSuccess(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = successMsg,
+            onDismiss = { viewModel.clearAlerts() }
+        )
+
+        DynamicIslandError(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = errorMsg?.takeIf { suppliers.isNotEmpty() }?.let { ErrorMapper.map(it) },
+            onDismiss = { viewModel.clearAlerts() }
+        )
     }
 }
 
@@ -239,7 +253,6 @@ private fun SupplierCardItem(
                 .fillMaxWidth()
                 .padding(14.dp)
         ) {
-            // Top Row: Checkbox, Tags, Code, Menu
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -291,7 +304,6 @@ private fun SupplierCardItem(
 
             Spacer(Modifier.height(8.dp))
 
-            // Name & Location Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -331,7 +343,6 @@ private fun SupplierCardItem(
             HorizontalDivider(color = grey_border.copy(alpha = 0.5f))
             Spacer(Modifier.height(10.dp))
 
-            // Bottom Badges & View Details
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,

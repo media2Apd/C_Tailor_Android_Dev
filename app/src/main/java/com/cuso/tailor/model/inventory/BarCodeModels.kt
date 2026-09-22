@@ -39,7 +39,7 @@ data class DeleteBarcodeResponse(
 )
 
 // =============================================================================
-// CORE BARCODE ENTITY (Handles String ID vs Populated Object)
+// CORE BARCODE ENTITY
 // =============================================================================
 
 data class BarcodeItemDoc(
@@ -47,7 +47,7 @@ data class BarcodeItemDoc(
     @SerializedName("organizationId") val organizationId: String = "",
     @SerializedName("branchId") val branchId: String? = null,
     @SerializedName("sku") val sku: String = "",
-    @SerializedName("barcodeType") val barcodeType: String = "EAN13",
+    @SerializedName("barcodeType") val barcodeType: String = "",
     @SerializedName("barcodeNumber") val barcodeNumber: String = "",
     @SerializedName("price") val price: Double = 0.0,
     @SerializedName("labelSize") val labelSize: String = "",
@@ -59,7 +59,6 @@ data class BarcodeItemDoc(
     @SerializedName("createdAt") val createdAt: String = "",
     @SerializedName("updatedAt") val updatedAt: String = "",
 
-    // Raw Json Elements to support both String ID & Populated Object
     @SerializedName("itemId") private val _rawItem: JsonElement? = null,
     @SerializedName("warehouseId") private val _rawWarehouse: JsonElement? = null
 ) {
@@ -91,6 +90,7 @@ data class BarcodeItemRef(
     @SerializedName("name") val name: String = "",
     @SerializedName("sku") val sku: String = "",
     @SerializedName("barcode") val barcode: String? = null,
+    @SerializedName("category") val category: String? = null,
     @SerializedName("categoryId") val categoryId: String? = null,
     @SerializedName("variantLabel") val variantLabel: String? = null,
     @SerializedName("marginPercent") val marginPercent: Double = 0.0,

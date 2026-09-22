@@ -1,4 +1,4 @@
-@file:Suppress("UNUSED_PARAMETER", "unused", "unusedVariable","AssignedValueIsNeverRead")
+@file:Suppress("UNUSED_PARAMETER", "unused", "unusedVariable", "AssignedValueIsNeverRead")
 
 package com.cuso.tailor.view.home.sales.settings.garment
 
@@ -38,12 +38,14 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.settings.GarmentItem
 import com.cuso.tailor.model.settings.SegmentItem
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DeleteModel
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.ErrorMapper
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
+import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.dashedBorder
@@ -105,34 +107,20 @@ fun GarmentTypeContent(
     var segmentToDelete by remember { mutableStateOf<SegmentItem?>(null) }
     var garmentToDelete by remember { mutableStateOf<GarmentItem?>(null) }
 
-    // ── Edit & Add Garment States ──
     var garmentToEdit by remember { mutableStateOf<GarmentItem?>(null) }
     var isAddGarmentOpen by remember { mutableStateOf(false) }
 
-    // ── Common Measurements Navigation State ──
     var garmentForCommonMeasurements by remember { mutableStateOf<GarmentItem?>(null) }
 
     var segmentToToggleStatus by remember { mutableStateOf<SegmentItem?>(null) }
     var garmentToToggleStatus by remember { mutableStateOf<GarmentItem?>(null) }
 
     var successMessage by remember { mutableStateOf<String?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var transientErrorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.fetchSegments()
         viewModel.fetchGarments()
-    }
-
-    LaunchedEffect(segmentsError) {
-        if (!segmentsError.isNullOrBlank()) {
-            errorMessage = segmentsError
-        }
-    }
-
-    LaunchedEffect(garmentsError) {
-        if (!garmentsError.isNullOrBlank()) {
-            errorMessage = garmentsError
-        }
     }
 
     val selectedSegment = if (segments.isNotEmpty()) {
@@ -153,7 +141,6 @@ fun GarmentTypeContent(
         }
     }
 
-    // ── Show Common Measurements Screen when selected ──
     if (garmentForCommonMeasurements != null) {
         CommonMeasurementsScreen(
             garmentItem = garmentForCommonMeasurements,
@@ -166,7 +153,6 @@ fun GarmentTypeContent(
         return
     }
 
-    // ── Show AddNewGarmentScreen in Add or Edit Mode ──
     if (isAddGarmentOpen || garmentToEdit != null) {
         AddNewGarmentScreen(
             garmentToEdit = garmentToEdit,
@@ -177,7 +163,7 @@ fun GarmentTypeContent(
             onGarmentCreated = {
                 isAddGarmentOpen = false
                 garmentToEdit = null
-                viewModel.fetchGarments() // Refresh garments list
+                viewModel.fetchGarments()
             },
             viewModel = viewModel
         )
@@ -218,250 +204,265 @@ fun GarmentTypeContent(
                     onFilterClick = { }
                 )
 
-                if (segments.isNotEmpty()) {
-                    val safeIndex = selectedSegmentIndex.coerceIn(0, segments.size - 1)
+                when {
+                    isLoadingSegments && segments.isEmpty() -> {
+                        ListSkeleton()
+                    }
 
-                    PrimaryScrollableTabRow(
-                        selectedTabIndex = safeIndex,
-                        edgePadding = tokens.screenPadding,
-                        containerColor = whiteBg,
-                        divider = {
-                            HorizontalDivider(
-                                color = title_border,
-                                thickness = 2.dp
-                            )
-                        },
-                        indicator = {
-                            PrimaryIndicator(
-                                modifier = Modifier.tabIndicatorOffset(safeIndex),
-                                color = Primary,
-                                height = 2.5.dp
-                            )
-                        }
-                    ) {
-                        segments.forEachIndexed { index, segmentItem ->
-                            val isSelected = safeIndex == index
+                    segmentsError != null && segments.isEmpty() -> {
+                        AppErrorState(
+                            title = "Failed to load garments settings",
+                            message = segmentsError ?: "Something went wrong. Please check your connection.",
+                            onRetry = {
+                                viewModel.fetchSegments()
+                                viewModel.fetchGarments()
+                            }
+                        )
+                    }
 
-                            Tab(
-                                selected = isSelected,
-                                onClick = {
-                                    selectedSegmentIndex = index
+                    else -> {
+                        if (segments.isNotEmpty()) {
+                            val safeIndex = selectedSegmentIndex.coerceIn(0, segments.size - 1)
+
+                            PrimaryScrollableTabRow(
+                                selectedTabIndex = safeIndex,
+                                edgePadding = tokens.screenPadding,
+                                containerColor = whiteBg,
+                                divider = {
+                                    HorizontalDivider(
+                                        color = title_border,
+                                        thickness = 2.dp
+                                    )
                                 },
-                                text = {
+                                indicator = {
+                                    PrimaryIndicator(
+                                        modifier = Modifier.tabIndicatorOffset(safeIndex),
+                                        color = Primary,
+                                        height = 2.5.dp
+                                    )
+                                }
+                            ) {
+                                segments.forEachIndexed { index, segmentItem ->
+                                    val isSelected = safeIndex == index
+
+                                    Tab(
+                                        selected = isSelected,
+                                        onClick = {
+                                            selectedSegmentIndex = index
+                                        },
+                                        text = {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Text(
+                                                    text = segmentItem.name,
+                                                    fontSize = tokens.bodyMedium,
+                                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                                    color = if (isSelected) Primary else TextSecondary
+                                                )
+
+                                                if (isSelected) {
+                                                    Spacer(Modifier.width(4.dp))
+
+                                                    Box {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(24.dp)
+                                                                .clickable(
+                                                                    indication = null,
+                                                                    interactionSource = remember { MutableInteractionSource() }
+                                                                ) {
+                                                                    menuExpandedSegmentId = segmentItem.id
+                                                                },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.MoreVert,
+                                                                contentDescription = "Segment Options",
+                                                                tint = Primary,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        }
+
+                                                        DropdownMenu(
+                                                            expanded = menuExpandedSegmentId == segmentItem.id,
+                                                            onDismissRequest = { menuExpandedSegmentId = null },
+                                                            containerColor = whiteBg
+                                                        ) {
+                                                            DropdownMenuItem(
+                                                                text = {
+                                                                    Text(
+                                                                        text = "Edit",
+                                                                        fontSize = tokens.bodyMedium,
+                                                                        color = title_color
+                                                                    )
+                                                                },
+                                                                onClick = {
+                                                                    menuExpandedSegmentId = null
+                                                                    onEditSegmentClick(segmentItem)
+                                                                }
+                                                            )
+
+                                                            DropdownMenuItem(
+                                                                text = {
+                                                                    Text(
+                                                                        text = "Delete",
+                                                                        fontSize = tokens.bodyMedium,
+                                                                        color = redText
+                                                                    )
+                                                                },
+                                                                onClick = {
+                                                                    menuExpandedSegmentId = null
+                                                                    segmentToDelete = segmentItem
+                                                                }
+                                                            )
+
+                                                            val statusActionText =
+                                                                when (segmentItem.status.lowercase()) {
+                                                                    "active" -> "Inactive"
+                                                                    "draft", "inactive" -> "Active"
+                                                                    else -> "Active"
+                                                                }
+
+                                                            DropdownMenuItem(
+                                                                text = {
+                                                                    Text(
+                                                                        text = statusActionText,
+                                                                        fontSize = tokens.bodyMedium,
+                                                                        color = title_color
+                                                                    )
+                                                                },
+                                                                onClick = {
+                                                                    menuExpandedSegmentId = null
+                                                                    segmentToToggleStatus = segmentItem
+                                                                }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(14.dp))
+
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = tokens.screenPadding),
+                            contentPadding = PaddingValues(bottom = 90.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(tokens.buttonHeight)
+                                        .dashedBorder(
+                                            color = Primary,
+                                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                                            strokeWidth = 1.2.dp,
+                                            cornerRadius = tokens.cardCornerRadius * 0.5f
+                                        )
+                                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                                        .clickable { onAddSegmentClick() },
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.Center
                                     ) {
-                                        Text(
-                                            text = segmentItem.name,
-                                            fontSize = tokens.bodyMedium,
-                                            fontWeight = if (isSelected) {
-                                                FontWeight.SemiBold
-                                            } else {
-                                                FontWeight.Normal
-                                            },
-                                            color = if (isSelected) {
-                                                Primary
-                                            } else {
-                                                TextSecondary
-                                            }
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = null,
+                                            tint = Primary,
+                                            modifier = Modifier.size(tokens.iconSize)
                                         )
-
-                                        if (isSelected) {
-                                            Spacer(Modifier.width(4.dp))
-
-                                            Box {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(24.dp)
-                                                        .clickable(
-                                                            indication = null,
-                                                            interactionSource = remember {
-                                                                MutableInteractionSource()
-                                                            }
-                                                        ) {
-                                                            menuExpandedSegmentId = segmentItem.id
-                                                        },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.MoreVert,
-                                                        contentDescription = "Segment Options",
-                                                        tint = Primary,
-                                                        modifier = Modifier.size(16.dp)
-                                                    )
-                                                }
-
-                                                DropdownMenu(
-                                                    expanded = menuExpandedSegmentId == segmentItem.id,
-                                                    onDismissRequest = {
-                                                        menuExpandedSegmentId = null
-                                                    },
-                                                    containerColor = whiteBg
-                                                ) {
-                                                    DropdownMenuItem(
-                                                        text = {
-                                                            Text(
-                                                                text = "Edit",
-                                                                fontSize = tokens.bodyMedium,
-                                                                color = title_color
-                                                            )
-                                                        },
-                                                        onClick = {
-                                                            menuExpandedSegmentId = null
-                                                            onEditSegmentClick(segmentItem)
-                                                        }
-                                                    )
-
-                                                    DropdownMenuItem(
-                                                        text = {
-                                                            Text(
-                                                                text = "Delete",
-                                                                fontSize = tokens.bodyMedium,
-                                                                color = redText
-                                                            )
-                                                        },
-                                                        onClick = {
-                                                            menuExpandedSegmentId = null
-                                                            segmentToDelete = segmentItem
-                                                        }
-                                                    )
-
-                                                    val statusActionText =
-                                                        when (segmentItem.status.lowercase()) {
-                                                            "active" -> "Inactive"
-                                                            "draft", "inactive" -> "Active"
-                                                            else -> "Active"
-                                                        }
-
-                                                    DropdownMenuItem(
-                                                        text = {
-                                                            Text(
-                                                                text = statusActionText,
-                                                                fontSize = tokens.bodyMedium,
-                                                                color = title_color
-                                                            )
-                                                        },
-                                                        onClick = {
-                                                            menuExpandedSegmentId = null
-                                                            segmentToToggleStatus = segmentItem
-                                                        }
-                                                    )
-                                                }
-                                            }
-                                        }
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = "Add Segment",
+                                            color = Primary,
+                                            fontSize = tokens.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
                                     }
                                 }
-                            )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(14.dp))
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = tokens.screenPadding),
-                    contentPadding = PaddingValues(bottom = 90.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(tokens.buttonHeight)
-                                .dashedBorder(
-                                    color = Primary,
-                                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                                    strokeWidth = 1.2.dp,
-                                    cornerRadius = tokens.cardCornerRadius * 0.5f
-                                )
-                                .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                                .clickable { onAddSegmentClick() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = null,
-                                    tint = Primary,
-                                    modifier = Modifier.size(tokens.iconSize)
-                                )
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    text = "Add Segment",
-                                    color = Primary,
-                                    fontSize = tokens.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
                             }
-                        }
-                    }
 
-                    if (filteredGarments.isEmpty() && !isLoadingGarments) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "No garments found in this segment",
-                                    fontSize = tokens.bodyMedium,
-                                    color = TextSecondary
-                                )
-                            }
-                        }
-                    } else {
-                        itemsIndexed(
-                            items = filteredGarments,
-                            key = { _, item -> item.id }
-                        ) { _, item ->
-                            val fieldsCount = item.measurementFields.size
-                            val measurementsCount = item.measurementFields.count { it.isRequired }
-                            val subtitleText = "$fieldsCount Fields · $measurementsCount Measurements"
-
-                            GarmentCategoryCard(
-                                title = item.displayName ?: item.name,
-                                subtitle = subtitleText,
-                                iconRes = R.drawable.ic_shirts,
-                                garmentStatus = item.status,
-                                onConfigureClick = {
-                                    val segId = selectedSegment?.id ?: ""
-                                    val garmId = item.id
-                                    val title = "${selectedSegment?.name.orEmpty()} ${item.displayName ?: item.name}".trim()
-
-                                    Log.d("NAV_PARAM", "Clicked segmentId: $segId, garmentId: $garmId")
-                                    onConfigureGarmentClick(segId, garmId, title)
-                                },
-                                onCommonMeasurementsClick = {
-                                    // ── Open Common Measurements Screen ──
-                                    garmentForCommonMeasurements = item
-                                    onCommonMeasurementsClick(item)
-                                },
-                                onEditGarmentClick = {
-                                    garmentToEdit = item
-                                    onEditGarmentClick(item)
-                                },
-                                onRemoveGarmentClick = {
-                                    garmentToDelete = item
-                                },
-                                onToggleGarmentStatusClick = {
-                                    garmentToToggleStatus = item
+                            if (isLoadingGarments && garments.isEmpty()) {
+                                item { ListSkeleton() }
+                            } else if (garmentsError != null && garments.isEmpty()) {
+                                item {
+                                    AppErrorState(
+                                        title = "Failed to load garments",
+                                        message = garmentsError ?: "Something went wrong. Please check your connection.",
+                                        onRetry = { viewModel.fetchGarments() }
+                                    )
                                 }
-                            )
+                            } else if (filteredGarments.isEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "No garments found in this segment",
+                                            fontSize = tokens.bodyMedium,
+                                            color = TextSecondary
+                                        )
+                                    }
+                                }
+                            } else {
+                                itemsIndexed(
+                                    items = filteredGarments,
+                                    key = { _, item -> item.id }
+                                ) { _, item ->
+                                    val fieldsCount = item.measurementFields.size
+                                    val measurementsCount = item.measurementFields.count { it.isRequired }
+                                    val subtitleText = "$fieldsCount Fields · $measurementsCount Measurements"
+
+                                    GarmentCategoryCard(
+                                        title = item.displayName ?: item.name,
+                                        subtitle = subtitleText,
+                                        iconRes = R.drawable.ic_shirts,
+                                        garmentStatus = item.status,
+                                        onConfigureClick = {
+                                            val segId = selectedSegment?.id ?: ""
+                                            val garmId = item.id
+                                            val title = "${selectedSegment?.name.orEmpty()} ${item.displayName ?: item.name}".trim()
+
+                                            Log.d("NAV_PARAM", "Clicked segmentId: $segId, garmentId: $garmId")
+                                            onConfigureGarmentClick(segId, garmId, title)
+                                        },
+                                        onCommonMeasurementsClick = {
+                                            garmentForCommonMeasurements = item
+                                            onCommonMeasurementsClick(item)
+                                        },
+                                        onEditGarmentClick = {
+                                            garmentToEdit = item
+                                            onEditGarmentClick(item)
+                                        },
+                                        onRemoveGarmentClick = {
+                                            garmentToDelete = item
+                                        },
+                                        onToggleGarmentStatusClick = {
+                                            garmentToToggleStatus = item
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
         }
 
-        // ── Reusable Delete Model for Garment Deletion ──
         garmentToDelete?.let { garment ->
             DeleteModel(
                 title = "You are about to delete a garment",
@@ -476,14 +477,13 @@ fun GarmentTypeContent(
                             successMessage = msg
                         },
                         onError = { err ->
-                            errorMessage = ErrorMapper.map(err)
+                            transientErrorMessage = ErrorMapper.map(err)
                         }
                     )
                 }
             )
         }
 
-        // ── Delete Segment Confirmation Dialog ──
         segmentToDelete?.let { segment ->
             DeleteModel(
                 title = "You are about to delete a segment",
@@ -499,7 +499,7 @@ fun GarmentTypeContent(
                             successMessage = msg
                         },
                         onError = { err ->
-                            errorMessage = ErrorMapper.map(err)
+                            transientErrorMessage = ErrorMapper.map(err)
                         }
                     )
                 }
@@ -525,7 +525,7 @@ fun GarmentTypeContent(
                             onToggleSegmentStatusClick(segment, newStatus)
                         },
                         onError = { err ->
-                            errorMessage = ErrorMapper.map(err)
+                            transientErrorMessage = ErrorMapper.map(err)
                         }
                     )
                 }
@@ -550,7 +550,7 @@ fun GarmentTypeContent(
                             successMessage = msg
                         },
                         onError = { err ->
-                            errorMessage = ErrorMapper.map(err)
+                            transientErrorMessage = ErrorMapper.map(err)
                         }
                     )
                 }
@@ -558,20 +558,23 @@ fun GarmentTypeContent(
         }
 
         DynamicIslandSuccess(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
             message = successMessage,
             onDismiss = { successMessage = null }
         )
 
         DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = transientErrorMessage,
+            onDismiss = { transientErrorMessage = null }
         )
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Toggle Segment Status Confirmation Dialog
-// ─────────────────────────────────────────────────────────────
 @Composable
 fun ToggleSegmentStatusDialog(
     isActivating: Boolean,
@@ -715,9 +718,6 @@ fun ToggleSegmentStatusDialog(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-//  GarmentCategoryCard
-// ─────────────────────────────────────────────────────────────
 @Composable
 fun GarmentCategoryCard(
     title: String,

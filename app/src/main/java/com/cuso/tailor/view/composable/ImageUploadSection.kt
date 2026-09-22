@@ -70,6 +70,7 @@ import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.badgeGrey
+import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_color
 
@@ -421,7 +422,7 @@ fun <T> VoiceUploadSection(
                 Text(
                     text = if (isRecording) "Recording in progress..." else "Tap to record voice instructions",
                     fontSize = 12.sp,
-                    color = if (isRecording) redText else Color(0xFF64748B),
+                    color = if (isRecording) redText else headerGrey,
                     fontWeight = FontWeight.Medium
                 )
             }

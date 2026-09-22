@@ -79,6 +79,7 @@ import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.ui.theme.textSubdued
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
@@ -108,7 +109,6 @@ fun AllOrdersStockListScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    // State flows from ViewModels
     val stockSummaryList by viewModel.stockSummaryList.collectAsState()
     val isLoadingSummary by viewModel.isLoadingStockSummary.collectAsState()
     val isLoadingMoreSummary by viewModel.isLoadingMoreStockSummary.collectAsState()
@@ -127,10 +127,8 @@ fun AllOrdersStockListScreen(
     var selectedStockItem by remember { mutableStateOf<StockSummaryItemDto?>(null) }
     var activeAdjustmentType by remember { mutableStateOf(initialAdjustmentType) }
 
-    // Scroll state for LazyColumn to support infinite scrolling
     val listState = rememberLazyListState()
 
-    // Initial API calls on first composition
     LaunchedEffect(Unit) {
         viewModel.clearAdjustmentAlerts()
         viewModel.clearStockSummaryAlerts()
@@ -140,12 +138,10 @@ fun AllOrdersStockListScreen(
         settingsViewModel.fetchBins(isRefresh = true)
     }
 
-    // Automatically trigger pagination when the user scrolls near the end
     val shouldLoadMore = remember {
         derivedStateOf {
             val totalItems = listState.layoutInfo.totalItemsCount
             val lastVisibleItemIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            // Trigger 2 items before reaching the bottom
             totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
         }
     }
@@ -156,7 +152,6 @@ fun AllOrdersStockListScreen(
         }
     }
 
-    // Auto-open Bottom Sheet when preselectedItemId matches
     LaunchedEffect(stockSummaryList, preselectedItemId, initialAdjustmentType) {
         if (!preselectedItemId.isNullOrBlank() && stockSummaryList.isNotEmpty()) {
             val matchedItem = stockSummaryList.find { it.itemId == preselectedItemId }
@@ -168,7 +163,6 @@ fun AllOrdersStockListScreen(
         }
     }
 
-    // Close bottom sheet and refresh list on successful adjustment
     LaunchedEffect(adjustmentSuccessMessage) {
         if (!adjustmentSuccessMessage.isNullOrBlank()) {
             sheetState = SheetValue.Hidden
@@ -176,7 +170,6 @@ fun AllOrdersStockListScreen(
         }
     }
 
-    // Filter items based on the search query
     val filteredList = remember(stockSummaryList, searchQuery) {
         if (searchQuery.isBlank()) stockSummaryList
         else {
@@ -216,61 +209,73 @@ fun AllOrdersStockListScreen(
 
                 HorizontalDivider(color = grey_border)
 
-                if (isLoadingSummary && stockSummaryList.isEmpty()) {
-                    ListSkeleton()
-                } else if (filteredList.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No stock items found",
-                            fontSize = tokens.bodyMedium,
-                            color = mutedText
+                when {
+                    isLoadingSummary && stockSummaryList.isEmpty() -> {
+                        ListSkeleton()
+                    }
+
+                    stockSummaryError != null && stockSummaryList.isEmpty() -> {
+                        AppErrorState(
+                            title = "Failed to load stock adjustments",
+                            message = stockSummaryError?.let { ErrorMapper.map(it) } ?: "Something went wrong. Please check your connection.",
+                            onRetry = { viewModel.fetchStockSummaryList() }
                         )
                     }
-                } else {
-                    // LazyColumn for efficient list rendering and infinite scroll detection
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                        contentPadding = PaddingValues(vertical = 8.dp)
-                    ) {
-                        items(
-                            items = filteredList,
-                            key = { item ->
-                                val keyPrefix = item.itemId.ifBlank { item.hashCode().toString() }
-                                "${keyPrefix}_${item.warehouseId}_${item.variant.orEmpty()}"
-                            }
-                        ) { item ->
-                            StockAdjustmentCardItem(
-                                stockItem = item,
-                                tokens = tokens,
-                                onAdjustClick = {
-                                    selectedStockItem = item
-                                    activeAdjustmentType = AdjustmentType.TransferStock
-                                    sheetState = SheetValue.Expanded
-                                }
+
+                    filteredList.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No stock items found",
+                                fontSize = tokens.bodyMedium,
+                                color = mutedText
                             )
                         }
+                    }
 
-                        // Bottom loader displayed while fetching the next page
-                        if (isLoadingMoreSummary) {
-                            item(key = "pagination_threedot_loader") {
-                                ThreeDotLoading(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 14.dp)
+                    else -> {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            items(
+                                items = filteredList,
+                                key = { item ->
+                                    val keyPrefix = item.itemId.ifBlank { item.hashCode().toString() }
+                                    "${keyPrefix}_${item.warehouseId}_${item.variant.orEmpty()}"
+                                }
+                            ) { item ->
+                                StockAdjustmentCardItem(
+                                    stockItem = item,
+                                    tokens = tokens,
+                                    onAdjustClick = {
+                                        selectedStockItem = item
+                                        activeAdjustmentType = AdjustmentType.TransferStock
+                                        sheetState = SheetValue.Expanded
+                                    }
                                 )
                             }
-                        }
 
-                        item {
-                            Spacer(Modifier.height(40.dp))
+                            if (isLoadingMoreSummary) {
+                                item(key = "pagination_threedot_loader") {
+                                    ThreeDotLoading(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 14.dp)
+                                    )
+                                }
+                            }
+
+                            item {
+                                Spacer(Modifier.height(40.dp))
+                            }
                         }
                     }
                 }
@@ -315,12 +320,19 @@ fun AllOrdersStockListScreen(
         }
 
         DynamicIslandSuccess(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
             message = adjustmentSuccessMessage,
             onDismiss = { viewModel.clearAdjustmentAlerts() }
         )
 
         DynamicIslandError(
-            message = (adjustmentErrorMessage ?: stockSummaryError)?.takeIf { it.isNotBlank() }?.let { ErrorMapper.map(it) },
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = tokens.fieldHeight * 1.5f),
+            message = adjustmentErrorMessage?.takeIf { it.isNotBlank() }?.let { ErrorMapper.map(it) }
+                ?: stockSummaryError?.takeIf { it.isNotBlank() && stockSummaryList.isNotEmpty() }?.let { ErrorMapper.map(it) },
             onDismiss = {
                 viewModel.clearAdjustmentAlerts()
                 viewModel.clearStockSummaryAlerts()
@@ -585,7 +597,6 @@ fun AdjustStockModalContent(
     ) {
         Spacer(Modifier.height(8.dp))
 
-        // Product Snapshot Card
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -647,7 +658,6 @@ fun AdjustStockModalContent(
 
         Spacer(Modifier.height(14.dp))
 
-        // Triple Stat Metrics Row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -689,7 +699,6 @@ fun AdjustStockModalContent(
 
         Spacer(Modifier.height(12.dp))
 
-        // Adjustment Type Segmented Tabs
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -818,7 +827,6 @@ fun AdjustStockModalContent(
 
         Spacer(Modifier.height(14.dp))
 
-        // Quantity Input Row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)

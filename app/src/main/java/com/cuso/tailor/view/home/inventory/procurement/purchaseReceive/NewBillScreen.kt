@@ -22,13 +22,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -41,7 +37,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -49,10 +44,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.model.inventory.BillLineRequest
 import com.cuso.tailor.model.inventory.CreateBillRequest
+import com.cuso.tailor.model.inventory.ExtraBillLineRequest
 import com.cuso.tailor.model.inventory.PurchaseReceiveItem
 import com.cuso.tailor.model.inventory.ReceiveItemDetail
+import com.cuso.tailor.model.inventory.SelectedReceiveItemRequest
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.Primary_background
 import com.cuso.tailor.ui.theme.TextPrimary
@@ -63,17 +59,21 @@ import com.cuso.tailor.ui.theme.iconMuted
 import com.cuso.tailor.ui.theme.modelGray
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.view.composable.AppCheckbox
 import com.cuso.tailor.view.composable.DatePickerField
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FormActionButtons
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
+import com.cuso.tailor.view.composable.FormTextArea
 import com.cuso.tailor.view.composable.FormTextField
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.FinanceViewModel
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
@@ -95,11 +95,11 @@ fun NewBillScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    // Observe inventory data
+    // Observe inventory state
     val multipleReceives: List<PurchaseReceiveItem> by inventoryViewModel.multipleReceivesData.collectAsStateWithLifecycle()
     val billData by inventoryViewModel.generatedBill.collectAsStateWithLifecycle()
 
-    // Observe finance dropdowns & submission state
+    // Observe dropdowns & submission state
     val accountDropdownList by financeViewModel.accountDropdownList.collectAsStateWithLifecycle()
     val paymentTerms by inventoryViewModel.paymentTerms.collectAsStateWithLifecycle()
     val taxGroups by inventoryViewModel.taxGroups.collectAsStateWithLifecycle()
@@ -107,31 +107,30 @@ fun NewBillScreen(
     val successMessage by inventoryViewModel.createBillSuccessMessage.collectAsStateWithLifecycle()
     val errorMessage by inventoryViewModel.createBillErrorMessage.collectAsStateWithLifecycle()
 
-    // Fetch dynamic dropdowns on initial screen load
+    // Fetch dynamic options on launch
     LaunchedEffect(Unit) {
         financeViewModel.fetchChartOfAccountsDropdown(context = "expense_line")
         inventoryViewModel.fetchPaymentTerms()
         inventoryViewModel.fetchTaxGroups()
     }
 
-    // Form states
+    // Dynamic Form States
     var supplierName by remember { mutableStateOf("-") }
     var orderNumber by remember { mutableStateOf("-") }
     var supplierBillReference by remember { mutableStateOf("") }
-    var billDate by remember { mutableStateOf("-") }
+    var billDate by remember {
+        mutableStateOf(SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date()))
+    }
 
-    // Payment Term selection
+    // Dynamic Dropdown Selections
     var paymentTermExpanded by remember { mutableStateOf(false) }
     var selectedPaymentTermId by remember { mutableStateOf("") }
 
-    // Due Date
     var dueDate by remember { mutableStateOf("-") }
 
-    // Expense / Asset Account selection
     var expenseAccountExpanded by remember { mutableStateOf(false) }
     var selectedExpenseAccountId by remember { mutableStateOf("") }
 
-    // Tax Group selection
     var taxGroupExpanded by remember { mutableStateOf(false) }
     var selectedTaxGroupId by remember { mutableStateOf("") }
 
@@ -141,7 +140,7 @@ fun NewBillScreen(
 
     val serviceItems = remember { mutableStateListOf<ServiceItemState>() }
 
-    // Auto-select initial defaults when lists load
+    // Dynamic pre-selections
     LaunchedEffect(paymentTerms) {
         if (selectedPaymentTermId.isBlank() && paymentTerms.isNotEmpty()) {
             selectedPaymentTermId = paymentTerms.firstOrNull { it.isDefault }?.id ?: paymentTerms.first().id
@@ -160,26 +159,26 @@ fun NewBillScreen(
         }
     }
 
-    // Prefill form from received goods
+    // Populate data from received PO items
     LaunchedEffect(multipleReceives, billData) {
         if (multipleReceives.isNotEmpty()) {
             val firstReceive = multipleReceives.first()
-            supplierName = firstReceive.poId?.supplierId?.name ?: supplierName
-            orderNumber = firstReceive.poId?.poNumber ?: orderNumber
-            billDate = firstReceive.receiveDate.take(10)
+            supplierName = firstReceive.poId?.supplierId?.name ?: "-"
+            orderNumber = firstReceive.poId?.poNumber ?: "-"
+            billDate = formatToDisplayDate(firstReceive.receiveDate)
         } else if (billData != null) {
             val bill = billData!!
-            supplierName = bill.supplierId?.name ?: supplierName
-            orderNumber = bill.poId?.poNumber ?: orderNumber
-            billDate = bill.billDate.take(10)
-            dueDate = bill.dueDate.take(10)
+            supplierName = bill.supplierId?.name ?: "-"
+            orderNumber = bill.poId?.poNumber ?: "-"
+            billDate = formatToDisplayDate(bill.billDate)
+            dueDate = formatToDisplayDate(bill.dueDate)
         }
     }
 
-    // Navigate back on successful save
+    // Navigation on save success
     LaunchedEffect(successMessage) {
         if (!successMessage.isNullOrBlank()) {
-            delay(1200)
+            delay(1000)
             inventoryViewModel.clearBillAlerts()
             onSave()
             onClose()
@@ -198,7 +197,7 @@ fun NewBillScreen(
     // Financial calculations
     val productSubtotal = remember(multipleReceives, billData) {
         if (multipleReceives.isNotEmpty()) multipleReceives.sumOf { it.subtotal }
-        else billData?.subtotal ?: 25000.0
+        else billData?.subtotal ?: 0.0
     }
 
     val serviceSubtotal = serviceItems.sumOf { item ->
@@ -208,7 +207,7 @@ fun NewBillScreen(
     }
 
     val subtotal = productSubtotal + serviceSubtotal
-    val taxPercentage = selectedTaxGroupObj?.totalRate ?: 18.0
+    val taxPercentage = selectedTaxGroupObj?.totalRate ?: 0.0
     val taxTotal = subtotal * (taxPercentage / 100.0)
 
     val grandTotal = remember(subtotal, taxTotal, discountInput) {
@@ -277,7 +276,7 @@ fun NewBillScreen(
                         FormTextField(
                             value = supplierBillReference,
                             onValueChange = { supplierBillReference = it },
-                            placeholder = "Supplier's own invoice/bill number"
+                            placeholder = "Supplier invoice/bill number"
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
@@ -311,7 +310,8 @@ fun NewBillScreen(
                         FormLabel("Due Date (estimated)")
                         DatePickerField(
                             value = dueDate,
-                            onDateSelected = { dueDate = it }
+                            onDateSelected = { dueDate = it },
+                            enabled = false
                         )
                     }
                 }
@@ -354,10 +354,9 @@ fun NewBillScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable { rateIncludesTax = !rateIncludesTax }
                 ) {
-                    Checkbox(
+                    AppCheckbox(
                         checked = rateIncludesTax,
-                        onCheckedChange = { rateIncludesTax = it },
-                        colors = CheckboxDefaults.colors(checkedColor = Primary)
+                        onCheckedChange = { rateIncludesTax = it }
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
@@ -412,21 +411,13 @@ fun NewBillScreen(
                         )
                         Spacer(Modifier.height(tokens.extraPadding * 1.4f))
                     }
-                } else {
-                    BillItemRow(
-                        title = "Classic Cotton Shirt",
-                        quantity = "100",
-                        rate = "₹250.00",
-                        amount = "₹29,500",
-                        tokens = tokens
-                    )
                 }
 
                 Spacer(Modifier.height(tokens.screenPadding * 1.2f))
                 HorizontalDivider(color = dividerColor, thickness = 1.dp)
                 Spacer(Modifier.height(tokens.screenPadding * 1.2f))
 
-                // ── Section 3: Service Items ──
+                // ── Section 3: Extra Service Items ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -527,20 +518,10 @@ fun NewBillScreen(
 
                 // ── Section 4: Notes ──
                 FormLabel("Notes")
-                OutlinedTextField(
+                FormTextArea(
                     value = notes,
                     onValueChange = { notes = it },
-                    placeholder = { Text("Enter notes", color = mutedText, fontSize = tokens.bodySmall) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
-                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = whiteBg,
-                        unfocusedContainerColor = whiteBg,
-                        focusedBorderColor = Primary,
-                        unfocusedBorderColor = Color(0xFFCBD5E1)
-                    )
+                    placeholder = "Add notes or remarks"
                 )
 
                 Spacer(Modifier.height(tokens.screenPadding * 1.25f))
@@ -572,7 +553,9 @@ fun NewBillScreen(
                 FormLabel("Discount")
                 FormTextField(
                     value = discountInput,
-                    onValueChange = { discountInput = it }
+                    onValueChange = { discountInput = it },
+                    placeholder = "Enter discount amount",
+                    keyboardType = KeyboardType.Decimal
                 )
 
                 Spacer(Modifier.height(tokens.extraPadding * 1.4f))
@@ -598,7 +581,7 @@ fun NewBillScreen(
 
                 Spacer(Modifier.height(tokens.screenPadding * 1.75f))
 
-                // ── Section 6: Action Buttons ──
+                // ── Section 6: Action Buttons with Dynamic Payload ──
                 FormActionButtons(
                     cancelText = "Cancel",
                     primaryText = "Save Bill",
@@ -607,69 +590,60 @@ fun NewBillScreen(
                     onPrimaryClick = {
                         val firstReceive = multipleReceives.firstOrNull()
 
-                        val productLines = if (multipleReceives.isNotEmpty()) {
-                            multipleReceives.flatMap { receive ->
-                                receive.items.map { itm ->
-                                    BillLineRequest(
-                                        lineType = "Product",
-                                        itemId = itm.itemId?.id,
-                                        purchaseReceiveId = receive.id,
-                                        purchaseReceiveItemId = itm.id,
-                                        itemDescription = itm.itemId?.name ?: "Product",
-                                        quantity = itm.qtyReceived.toDouble(),
-                                        rate = itm.rate,
-                                        discountPercent = 0.0,
-                                        taxGroupId = selectedTaxGroupId.takeIf { it.isNotBlank() },
-                                        expenseAccountId = selectedExpenseAccountId.takeIf { it.isNotBlank() }
+                        // 1. Dynamic receive IDs list from multipleReceives
+                        val resolvedReceiveIds: List<String> = multipleReceives
+                            .mapNotNull { it.id.ifBlank { null } }
+                            .distinct()
+
+                        // 2. Dynamic selected receive items
+                        val resolvedSelectedItems: List<SelectedReceiveItemRequest> = multipleReceives.flatMap { receive ->
+                            receive.items.mapNotNull { itm ->
+                                if (receive.id.isNotBlank() && itm.id.isNotBlank()) {
+                                    SelectedReceiveItemRequest(
+                                        receiveId = receive.id,
+                                        receiveItemId = itm.id
                                     )
-                                }
+                                } else null
                             }
-                        } else {
-                            billData?.items?.map { itm ->
-                                BillLineRequest(
-                                    lineType = "Product",
-                                    itemId = itm.itemId?.id,
-                                    itemDescription = itm.itemId?.name ?: "Product",
-                                    quantity = itm.qty.toDouble(),
-                                    rate = itm.rate,
-                                    taxGroupId = selectedTaxGroupId.takeIf { it.isNotBlank() },
-                                    expenseAccountId = selectedExpenseAccountId.takeIf { it.isNotBlank() }
-                                )
-                            } ?: emptyList()
                         }
 
-                        val serviceLines = serviceItems.map { service ->
-                            BillLineRequest(
+                        // 3. Dynamic extra lines mapped from user-entered service items
+                        val dynamicExtraLines: List<ExtraBillLineRequest> = serviceItems.map { service ->
+                            ExtraBillLineRequest(
                                 lineType = "Service",
-                                itemId = null,
-                                purchaseReceiveId = null,
-                                purchaseReceiveItemId = null,
-                                itemDescription = service.description.ifBlank { "Service charge" },
+                                itemDescription = service.description.ifBlank { "Service" },
                                 quantity = service.quantity.toDoubleOrNull() ?: 1.0,
                                 rate = service.rate.toDoubleOrNull() ?: 0.0,
                                 discountPercent = 0.0,
-                                taxGroupId = selectedTaxGroupId.takeIf { it.isNotBlank() },
-                                expenseAccountId = selectedExpenseAccountId.takeIf { it.isNotBlank() }
+                                expenseAccountId = selectedExpenseAccountId,
+                                taxGroupId = selectedTaxGroupId
                             )
                         }
 
-                        val request = CreateBillRequest(
-                            warehouseId = firstReceive?.warehouseId,
-                            supplierId = firstReceive?.poId?.supplierId?.id ?: billData?.supplierId?.id,
-                            purchaseOrderId = firstReceive?.poId?.id ?: billData?.poId?.id,
-//                            billNumber = supplierBillReference.ifBlank { "BILL-2026-0005" },
-                            supplierBillReference = supplierBillReference.ifBlank { "" },
-                            billDate = formatToIsoDate(billDate),
-                            dueDate = formatToIsoDate(dueDate),
-                            paymentTermId = selectedPaymentTermId.takeIf { it.isNotBlank() },
-                            currency = "INR",
+                        // 4. Dynamic supplier and warehouse IDs
+                        val resolvedSupplierId = firstReceive?.poId?.supplierId?.id
+                            ?: billData?.supplierId?.id
+                            ?: ""
+
+                        val resolvedWarehouseId = firstReceive?.warehouseId ?: ""
+
+                        // 5. Construct payload strictly with requested dynamic fields
+                        val requestPayload = CreateBillRequest(
+                            billDate = formatToYyyyMmDd(billDate),
+                            defaultExpenseAccountId = selectedExpenseAccountId,
+                            defaultTaxGroupId = selectedTaxGroupId,
+                            extraLines = dynamicExtraLines,
+                            notes = notes.ifBlank { null },
+                            paymentTermId = selectedPaymentTermId,
                             priceIncludesTax = rateIncludesTax,
-                            lines = productLines + serviceLines,
-                            totalDiscount = discountInput.toDoubleOrNull() ?: 0.0,
-                            notes = notes.ifBlank { null }
+                            receiveIds = resolvedReceiveIds,
+                            selectedReceiveItems = resolvedSelectedItems,
+                            supplierBillReference = supplierBillReference.trim(),
+                            supplierId = resolvedSupplierId,
+                            warehouseId = resolvedWarehouseId
                         )
 
-                        inventoryViewModel.submitCreateBill(request = request)
+                        inventoryViewModel.submitCreateBill(request = requestPayload)
                     }
                 )
 
@@ -690,24 +664,44 @@ fun NewBillScreen(
 }
 
 /**
- * Formats a given date string into ISO-8601 UTC representation (yyyy-MM-ddTHH:mm:ss.sssZ).
+ * Converts formatted dates to "YYYY-MM-DD" format required by the API.
  */
-private fun formatToIsoDate(dateStr: String): String {
-    if (dateStr.isBlank()) return "2026-09-21T00:00:00.000Z"
+private fun formatToYyyyMmDd(dateStr: String): String {
+    if (dateStr.isBlank()) return SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
     return try {
-        if (dateStr.contains("-") && dateStr.length == 10) {
-            val parts = dateStr.split("-")
-            if (parts[0].length == 2 && parts[2].length == 4) {
-                // Converts dd-MM-yyyy to yyyy-MM-dd
-                "${parts[2]}-${parts[1]}-${parts[0]}T00:00:00.000Z"
+        val clean = dateStr.substringBefore("T").trim()
+        val parts = clean.split("-")
+        if (parts.size == 3) {
+            if (parts[0].length == 4) {
+                clean
+            } else if (parts[2].length == 4) {
+                "${parts[2]}-${parts[1]}-${parts[0]}"
             } else {
-                "${dateStr}T00:00:00.000Z"
+                clean
             }
         } else {
-            "${dateStr}T00:00:00.000Z"
+            clean
         }
     } catch (_: Exception) {
-        "${dateStr}T00:00:00.000Z"
+        dateStr
+    }
+}
+
+/**
+ * Converts ISO/UTC date into displayable dd-MM-yyyy format.
+ */
+private fun formatToDisplayDate(isoDate: String?): String {
+    if (isoDate.isNullOrBlank()) return SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date())
+    return try {
+        val clean = isoDate.substringBefore("T")
+        val parts = clean.split("-")
+        if (parts.size == 3 && parts[0].length == 4) {
+            "${parts[2]}-${parts[1]}-${parts[0]}"
+        } else {
+            clean
+        }
+    } catch (_: Exception) {
+        SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date())
     }
 }
 

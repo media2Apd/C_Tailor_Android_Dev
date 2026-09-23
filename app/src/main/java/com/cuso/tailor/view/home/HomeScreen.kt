@@ -484,6 +484,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_payable_purchase_detail",
             "inventory_payable_preview_pdf",
             "inventory_payable_invoice_preview",
+            "inventory_record_bill_payment",
             "inventory_barcode",
             "inventory_procurement_barcode",
             "inventory_procurement_barcode_list",
@@ -681,7 +682,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onClearStateForScreen = { scr ->
             when (scr) {
                 "create_order_review", "create_order" -> pendingOrderReviewData = null
-                "finance_invoice_detail" -> selectedInvoiceId = null
+                "finance_invoice_detail", "inventory_payable_purchase_detail" -> selectedInvoiceId = null
                 "finance_ledger" -> selectedLedgerAccountId = null
                 "finance_supplier_detail" -> selectedSupplier = null
                 "inventory_item_detail" -> selectedInventoryItemId = null
@@ -696,7 +697,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 "order_management_overview" -> selectedManagementOrderId = null
                 "payment_mode_detail" -> selectedPaymentModeId = null
                 "inventory_purchase_order_detail_flow" -> selectedPurchaseOrderForDetail = null
-
             }
         },
         onGoBack = { goBack() }
@@ -2133,13 +2133,20 @@ fun normalizeRoute(rawKey: String): String {
         "finance_journal_entries" -> "finance_journal_screen"
         "finance_trial_balance" -> "finance_trial_balance"
 
-        // Inventory Item & Transfer mappings
+        // Inventory item and transfer mappings
         "inventory_all_items" -> "inventory_items"
         "inventory_item_groups" -> "inventory_item_groups"
         "inventory_transfer_order", "inventory_items_transfer_stock" -> "inventory_transfer_stock"
 
-        "inventory_billing", "inventory_bills", "inventory_all_bills" -> "inventory_billing"
-        "inventory_procurement_bill_list", "inventory_procurement_bills_list" -> "inventory_billing"
+        // Vendor invoice creation flow
+        "inventory_billing", "inventory_bills" -> "inventory_billing"
+
+        // Procurement bill list mappings routed to AllBillListScreen
+        "inventory_all_bills",
+        "inventory_procurement_bill_list",
+        "inventory_procurement_bills_list",
+        "inventory_bills_list",
+        "inventory_bill_list" -> "inventory_all_bills"
 
         // Procurement mappings
         "inventory_procurement_suppliers" -> "inventory_suppliers"
@@ -2147,11 +2154,10 @@ fun normalizeRoute(rawKey: String): String {
         "inventory_procurement_purchase_request" -> "inventory_requisitions"
         "inventory_procurement_purchase_order", "inventory_procurement_orders" -> "inventory_purchase_orders"
         "inventory_procurement_purchase_receive" -> "inventory_purchase_receive"
-        "inventory_procurement_bill_list", "inventory_procurement_bills_list", "inventory_bills_list" -> "inventory_payable_invoices"
         "inventory_procurement_barcode_list", "inventory_procurement_barcode", "inventory_all_barcodes" -> "inventory_barcode"
         "inventory_location_management", "inventory_procurement_location_management" -> "inventory_stock_location"
 
-        // Alerts & Reorder
+        // Alerts & safety stock
         "inventory_low_stock_alert",
         "inventory_low_stock_alerts",
         "inventory_alerts_&_reorder" -> "inventory_low_stock_alerts"
@@ -2159,18 +2165,10 @@ fun normalizeRoute(rawKey: String): String {
 
         // Payables mappings
         "inventory_payables_invoices", "inventory_invoices" -> "inventory_payable_invoices"
-        "inventory_payables_payments" -> "finance_payments_mode"
         "inventory_payables_credits", "inventory_procurement_credits" -> "inventory_credits"
 
         // Multi-Channel mapping
         "inventory_multichannel_category_listing" -> "inventory_category_listing"
-
-//        "inventory_all_items" -> "inventory_items"
-//        "inventory_item_groups" -> "inventory_item_groups"
-//        "inventory_orders",
-//        "inventory_procurement_orders",
-//        "inventory_low_stock_alerts",
-//        "inventory_alerts_&_reorder" -> "inventory_low_stock_alerts"
 
         "logistics_delivery" -> "logistics_delivery"
         "logistics_order_tracking" -> "logistics_order_tracking"

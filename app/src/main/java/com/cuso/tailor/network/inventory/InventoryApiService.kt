@@ -40,6 +40,7 @@ import com.cuso.tailor.model.inventory.ItemGroupViewOneResponse
 import com.cuso.tailor.model.inventory.LowStockResponse
 import com.cuso.tailor.model.inventory.POBillConvertResponse
 import com.cuso.tailor.model.inventory.PaymentTermsResponse
+import com.cuso.tailor.model.inventory.ProcurementBillListResponse
 import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.inventory.PurchaseOrderDetailResponse
 import com.cuso.tailor.model.inventory.PurchaseOrderListResponse
@@ -49,6 +50,8 @@ import com.cuso.tailor.model.inventory.PurchaseReceiveResponse
 import com.cuso.tailor.model.inventory.RackDropdownResponse
 import com.cuso.tailor.model.inventory.ReceiveHistoryByPoResponse
 import com.cuso.tailor.model.inventory.ReceivePurchaseOrderRequest
+import com.cuso.tailor.model.inventory.RecordPaymentRequest
+import com.cuso.tailor.model.inventory.RecordPaymentResponse
 import com.cuso.tailor.model.inventory.RequisitionApprovalActionRequest
 import com.cuso.tailor.model.inventory.RequisitionListResponse
 import com.cuso.tailor.model.inventory.RequisitionSingleResponse
@@ -711,7 +714,6 @@ interface InventoryApiService {
     ): Response<DeleteRequisitionResponse>
 
 
-
     // =============================================================================
     // BARCODE ENDPOINTS
     // =============================================================================
@@ -898,4 +900,46 @@ interface InventoryApiService {
         @Query("search") search: String? = null,
         @Query("warehouseId") warehouseId: String? = null
     ): Response<SafetyStockResponse>
+
+    // =============================================================================
+    // Bill list
+    // =============================================================================
+    @GET("/api/finance/purchase-bills/view-all")
+    suspend fun getAllBills(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<ProcurementBillListResponse>
+
+    @GET("/api/finance/purchase-bills/view-one/{id}")
+    suspend fun getBillById(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<com.cuso.tailor.model.inventory.ProcurementBillDetailResponse>
+
+    @POST("/api/finance/purchase-bills/send/{id}")
+    suspend fun sendBill(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<com.cuso.tailor.model.inventory.SendBillResponse>
+
+    @POST("/api/finance/purchase-bills/void/{id}")
+    suspend fun voidBill(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: com.cuso.tailor.model.inventory.VoidBillRequest
+    ): Response<com.cuso.tailor.model.inventory.VoidBillResponse>
+
+    @POST("/api/finance/purchase-payments/create")
+    suspend fun recordBillPayment(
+        @Header("Authorization") token: String,
+        @Header("x-csrf-token") csrfToken: String,
+        @Body request: RecordPaymentRequest
+    ): Response<RecordPaymentResponse>
 }

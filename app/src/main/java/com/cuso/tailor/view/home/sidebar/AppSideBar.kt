@@ -110,41 +110,41 @@ fun buildNavigationKey(menu: String, subItem: String): String {
     if (menu == "Inventory") {
         return when (subItem) {
             "All Items"           -> "inventory_all_items"
-            "Item Groups"          -> "inventory_item_groups"
-            "Bulk"                 -> "inventory_bulk"
-            "Adjustment"           -> "inventory_adjustment"
-            "Transfer Order"       -> "inventory_transfer_order"
+            "Item Groups"         -> "inventory_item_groups"
+            "Bulk"                -> "inventory_bulk"
+            "Adjustment"          -> "inventory_adjustment"
+            "Transfer Order"      -> "inventory_transfer_order"
 
-            // Direct Billing Item
-            "Billing", "Bills", "All Bills" -> "inventory_billing"
+            // Direct Billing
+            "Billing", "Bills"    -> "inventory_billing"
 
-            // Procurement sub-items
-            "Suppliers"            -> "inventory_procurement_suppliers"
-            "Purchase Request"     -> "inventory_procurement_purchase_request"
-            "Purchase Order"       -> "inventory_procurement_purchase_order"
-            "Purchase Receive"     -> "inventory_procurement_purchase_receive"
-            "Bill List"            -> "inventory_procurement_bill_list"
-            "Barcode LIST"         -> "inventory_procurement_barcode_list"
+            // Procurement sub-items: route Bill List to AllBillListScreen
+            "Suppliers"           -> "inventory_procurement_suppliers"
+            "Purchase Request"    -> "inventory_procurement_purchase_request"
+            "Purchase Order"      -> "inventory_procurement_purchase_order"
+            "Purchase Receive"    -> "inventory_procurement_purchase_receive"
+            "Bill List", "Bills List" -> "inventory_all_bills"
+            "Barcode LIST"        -> "inventory_procurement_barcode_list"
 
             // Standalone inventory items
-            "Location Management"  -> "inventory_location_management"
-            "Low Stock Alert"      -> "inventory_low_stock_alert"
-            "Auto Reorder"         -> "inventory_auto_reorder"
-            "Safety Stock"         -> "inventory_safety_stock"
+            "Location Management" -> "inventory_location_management"
+            "Low Stock Alert"     -> "inventory_low_stock_alert"
+            "Auto Reorder"        -> "inventory_auto_reorder"
+            "Safety Stock"        -> "inventory_safety_stock"
 
-            // Direct Payments Made item
+            // Direct Payments Made
             "Payments Made"       -> "inventory_payments_made"
 
             // Payables sub-items
-            "Invoices"             -> "inventory_payables_invoices"
-            "Payments"             -> "inventory_payables_payments"
-            "Credits"              -> "inventory_payables_credits"
+            "Invoices"            -> "inventory_payables_invoices"
+            "Payments"            -> "inventory_payables_payments"
+            "Credits"             -> "inventory_payables_credits"
 
             // Multi-Channel sub-items
-            "Category Listing"     -> "inventory_multichannel_category_listing"
+            "Category Listing"    -> "inventory_multichannel_category_listing"
 
             // Standalone approvals
-            "Approvals"            -> "inventory_approvals"
+            "Approvals"           -> "inventory_approvals"
 
             else -> "inventory_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }
@@ -167,7 +167,6 @@ fun buildNavigationKey(menu: String, subItem: String): String {
     val subItemKey = subItem.lowercase().replace(" ", "_").replace("&", "and")
     return "${menuKey}_${subItemKey}"
 }
-
 // ─────────────────────────────────────────────────────────────
 // Sidebar Configuration
 // ─────────────────────────────────────────────────────────────

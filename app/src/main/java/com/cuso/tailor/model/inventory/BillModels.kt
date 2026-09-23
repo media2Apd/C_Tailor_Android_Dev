@@ -4,22 +4,45 @@ import com.google.gson.annotations.SerializedName
 
 /**
  * Request payload for creating a new purchase bill.
+ * Contains both the new dynamic payload fields and legacy fields with defaults.
  */
 data class CreateBillRequest(
-    @SerializedName("warehouseId") val warehouseId: String? = null,
+    @SerializedName("billDate") val billDate: String? = null,
+    @SerializedName("defaultExpenseAccountId") val defaultExpenseAccountId: String? = null,
+    @SerializedName("defaultTaxGroupId") val defaultTaxGroupId: String? = null,
+    @SerializedName("extraLines") val extraLines: List<ExtraBillLineRequest> = emptyList(),
+    @SerializedName("notes") val notes: String? = null,
+    @SerializedName("paymentTermId") val paymentTermId: String? = null,
+    @SerializedName("priceIncludesTax") val priceIncludesTax: Boolean = false,
+    @SerializedName("receiveIds") val receiveIds: List<String> = emptyList(),
+    @SerializedName("selectedReceiveItems") val selectedReceiveItems: List<SelectedReceiveItemRequest> = emptyList(),
+    @SerializedName("supplierBillReference") val supplierBillReference: String? = null,
     @SerializedName("supplierId") val supplierId: String? = null,
+    @SerializedName("warehouseId") val warehouseId: String? = null,
+
+    // Legacy fields with defaults to ensure full backward compatibility
     @SerializedName("purchaseOrderId") val purchaseOrderId: String? = null,
     @SerializedName("billNumber") val billNumber: String? = null,
-    @SerializedName("supplierBillReference") val supplierBillReference: String? = null,
-    @SerializedName("billDate") val billDate: String? = null,
     @SerializedName("dueDate") val dueDate: String? = null,
-    @SerializedName("paymentTermId") val paymentTermId: String? = null,
     @SerializedName("currency") val currency: String = "INR",
     @SerializedName("exchangeRate") val exchangeRate: Double = 1.0,
-    @SerializedName("priceIncludesTax") val priceIncludesTax: Boolean = false,
     @SerializedName("lines") val lines: List<BillLineRequest> = emptyList(),
-    @SerializedName("totalDiscount") val totalDiscount: Double = 0.0,
-    @SerializedName("notes") val notes: String? = null
+    @SerializedName("totalDiscount") val totalDiscount: Double = 0.0
+)
+
+data class SelectedReceiveItemRequest(
+    @SerializedName("receiveId") val receiveId: String,
+    @SerializedName("receiveItemId") val receiveItemId: String
+)
+
+data class ExtraBillLineRequest(
+    @SerializedName("lineType") val lineType: String = "Service",
+    @SerializedName("itemDescription") val itemDescription: String,
+    @SerializedName("quantity") val quantity: Double,
+    @SerializedName("rate") val rate: Double,
+    @SerializedName("discountPercent") val discountPercent: Double = 0.0,
+    @SerializedName("expenseAccountId") val expenseAccountId: String,
+    @SerializedName("taxGroupId") val taxGroupId: String
 )
 
 data class BillLineRequest(
@@ -28,8 +51,8 @@ data class BillLineRequest(
     @SerializedName("purchaseReceiveId") val purchaseReceiveId: String? = null,
     @SerializedName("purchaseReceiveItemId") val purchaseReceiveItemId: String? = null,
     @SerializedName("itemDescription") val itemDescription: String? = null,
-    @SerializedName("quantity") val quantity: Double,
-    @SerializedName("rate") val rate: Double,
+    @SerializedName("quantity") val quantity: Double = 0.0,
+    @SerializedName("rate") val rate: Double = 0.0,
     @SerializedName("discountPercent") val discountPercent: Double = 0.0,
     @SerializedName("taxGroupId") val taxGroupId: String? = null,
     @SerializedName("expenseAccountId") val expenseAccountId: String? = null
@@ -85,7 +108,6 @@ data class BillLineResponse(
     @SerializedName("totalTax") val totalTax: Double = 0.0,
     @SerializedName("lineTotal") val lineTotal: Double = 0.0
 )
-
 
 /**
  * Payment Terms API response and DTOs.

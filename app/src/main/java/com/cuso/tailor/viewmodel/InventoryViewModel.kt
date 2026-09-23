@@ -50,6 +50,7 @@ import com.cuso.tailor.model.inventory.PurchaseReceiveItem
 import com.cuso.tailor.model.inventory.PurchaseRequisition
 import com.cuso.tailor.model.inventory.ReceiveHistoryByPoResponse
 import com.cuso.tailor.model.inventory.ReceivePurchaseOrderRequest
+import com.cuso.tailor.model.inventory.RecordPaymentRequest
 import com.cuso.tailor.model.inventory.SafetyStockItemDto
 import com.cuso.tailor.model.inventory.StockAdjustmentData
 import com.cuso.tailor.model.inventory.StockLocationAssignmentData
@@ -796,6 +797,66 @@ class InventoryViewModel @Inject constructor(
 
     private var currentSafetyStockPage = 1
     private var totalSafetyStockPages = 1
+
+    // =============================================================================
+    // Bill list
+    // =============================================================================
+    private val _billsList = MutableStateFlow<List<com.cuso.tailor.model.inventory.ProcurementBillItem>>(emptyList())
+    val billsList: StateFlow<List<com.cuso.tailor.model.inventory.ProcurementBillItem>> = _billsList.asStateFlow()
+
+    private val _isLoadingBills = MutableStateFlow(false)
+    val isLoadingBills: StateFlow<Boolean> = _isLoadingBills.asStateFlow()
+
+    private val _isLoadingMoreBills = MutableStateFlow(false)
+    val isLoadingMoreBills: StateFlow<Boolean> = _isLoadingMoreBills.asStateFlow()
+
+    private val _canLoadMoreBills = MutableStateFlow(true)
+    val canLoadMoreBills: StateFlow<Boolean> = _canLoadMoreBills.asStateFlow()
+
+    private val _currentBillsPage = MutableStateFlow(1)
+    val currentBillsPage: StateFlow<Int> = _currentBillsPage.asStateFlow()
+
+    private val _billsError = MutableStateFlow<String?>(null)
+    val billsError: StateFlow<String?> = _billsError.asStateFlow()
+
+    private var activeBillsSearch: String? = null
+    private var activeBillsStatus: String? = null
+    private var billsSearchJob: Job? = null
+
+    //sent and void
+
+    private val _isBillActionInProgress = MutableStateFlow(false)
+    val isBillActionInProgress: StateFlow<Boolean> = _isBillActionInProgress.asStateFlow()
+
+    private val _billActionSuccessMessage = MutableStateFlow<String?>(null)
+    val billActionSuccessMessage: StateFlow<String?> = _billActionSuccessMessage.asStateFlow()
+
+    private val _billActionErrorMessage = MutableStateFlow<String?>(null)
+    val billActionErrorMessage: StateFlow<String?> = _billActionErrorMessage.asStateFlow()
+
+
+    // =========================================================================
+    // PROCUREMENT BILL DETAIL STATE & ACTIONS
+    // =========================================================================
+    private val _selectedBillDetail = MutableStateFlow<com.cuso.tailor.model.inventory.ProcurementBillDetailData?>(null)
+    val selectedBillDetail: StateFlow<com.cuso.tailor.model.inventory.ProcurementBillDetailData?> = _selectedBillDetail.asStateFlow()
+
+    private val _isLoadingBillDetail = MutableStateFlow(false)
+    val isLoadingBillDetail: StateFlow<Boolean> = _isLoadingBillDetail.asStateFlow()
+
+    private val _billDetailError = MutableStateFlow<String?>(null)
+    val billDetailError: StateFlow<String?> = _billDetailError.asStateFlow()
+
+    //record payment
+
+    private val _isRecordingPayment = MutableStateFlow(false)
+    val isRecordingPayment: StateFlow<Boolean> = _isRecordingPayment.asStateFlow()
+
+    private val _recordPaymentErrorMessage = MutableStateFlow<String?>(null)
+    val recordPaymentErrorMessage: StateFlow<String?> = _recordPaymentErrorMessage.asStateFlow()
+
+
+
     fun fetchPurchaseOrderDetail(poId: String) {
         if (poId.isBlank()) return
         viewModelScope.launch {
@@ -3436,5 +3497,179 @@ class InventoryViewModel @Inject constructor(
 
     fun clearSafetyStockAlerts() {
         _safetyStockError.value = null
+    }
+
+    // =========================================================================
+    // PROCUREMENT BILLS (VIEW-ALL: PAGINATED)
+    // =========================================================================
+
+
+    fun fetchAllBills(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingBills.value = true
+            _billsError.value = null
+            _currentBillsPage.value = page
+            _canLoadMoreBills.value = true
+            activeBillsSearch = search
+            activeBillsStatus = status
+
+            inventoryRepository.getAllBills(page = page, limit = limit, search = search, status = status)
+                .onSuccess { response ->
+                    _billsList.value = response.data
+                    val totalPages = response.pagination?.totalPages ?: 1
+                    _canLoadMoreBills.value = page < totalPages && response.data.isNotEmpty()
+                }
+                .onFailure { error ->
+                    _billsError.value = extractErrorMessage(error.message)
+                }
+
+            _isLoadingBills.value = false
+        }
+    }
+
+    fun loadMoreBills(limit: Int = 10) {
+        if (_isLoadingMoreBills.value || _isLoadingBills.value || !_canLoadMoreBills.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreBills.value = true
+            val nextPage = _currentBillsPage.value + 1
+
+            inventoryRepository.getAllBills(
+                page = nextPage,
+                limit = limit,
+                search = activeBillsSearch,
+                status = activeBillsStatus
+            ).onSuccess { response ->
+                val newBills = response.data
+                if (newBills.isNotEmpty()) {
+                    _billsList.update { (it + newBills).distinctBy { item -> item.id } }
+                    _currentBillsPage.value = nextPage
+                    val totalPages = response.pagination?.totalPages ?: nextPage
+                    _canLoadMoreBills.value = nextPage < totalPages
+                } else {
+                    _canLoadMoreBills.value = false
+                }
+            }.onFailure {
+                _canLoadMoreBills.value = false
+            }
+
+            _isLoadingMoreBills.value = false
+        }
+    }
+
+    fun onBillsSearchQueryChanged(newQuery: String) {
+        billsSearchJob?.cancel()
+        billsSearchJob = viewModelScope.launch {
+            delay(400)
+            fetchAllBills(page = 1, search = newQuery.takeIf { it.isNotBlank() }, status = activeBillsStatus)
+        }
+    }
+
+    fun clearBillsError() {
+        _billsError.value = null
+    }
+
+    //bill list view one
+    fun fetchBillDetail(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingBillDetail.value = true
+            _billDetailError.value = null
+            inventoryRepository.getBillById(id)
+                .onSuccess { detail ->
+                    _selectedBillDetail.value = detail
+                }
+                .onFailure { error ->
+                    _billDetailError.value = extractErrorMessage(error.message)
+                }
+            _isLoadingBillDetail.value = false
+        }
+    }
+
+    fun clearBillDetail() {
+        _selectedBillDetail.value = null
+        _billDetailError.value = null
+    }
+
+
+    fun sendBill(id: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isBillActionInProgress.value = true
+            _billActionErrorMessage.value = null
+            _billActionSuccessMessage.value = null
+
+            inventoryRepository.sendBill(id)
+                .onSuccess { updatedBill ->
+                    _selectedBillDetail.value = updatedBill
+                    _billActionSuccessMessage.value = "Bill sent successfully"
+                    fetchAllBills(page = 1)
+                    onSuccess()
+                }
+                .onFailure { error ->
+                    _billActionErrorMessage.value = extractErrorMessage(error.message)
+                }
+
+            _isBillActionInProgress.value = false
+        }
+    }
+
+    fun voidBill(id: String, reason: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isBillActionInProgress.value = true
+            _billActionErrorMessage.value = null
+            _billActionSuccessMessage.value = null
+
+            inventoryRepository.voidBill(id, reason)
+                .onSuccess { updatedBill ->
+                    _selectedBillDetail.value = updatedBill
+                    _billActionSuccessMessage.value = "Bill voided."
+                    fetchAllBills(page = 1)
+                    onSuccess()
+                }
+                .onFailure { error ->
+                    _billActionErrorMessage.value = extractErrorMessage(error.message)
+                }
+
+            _isBillActionInProgress.value = false
+        }
+    }
+
+    fun clearBillActionAlerts() {
+        _billActionSuccessMessage.value = null
+        _billActionErrorMessage.value = null
+    }
+
+
+    fun recordPayment(
+        billId: String,
+        request: RecordPaymentRequest,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isRecordingPayment.value = true
+            _recordPaymentErrorMessage.value = null
+
+            inventoryRepository.recordBillPayment( request)
+                .onSuccess {
+                    // Refresh both the individual bill and the list
+                    fetchBillDetail(billId)
+                    fetchAllBills(page = 1)
+                    _isRecordingPayment.value = false
+                    onSuccess()
+                }
+                .onFailure { error ->
+                    _recordPaymentErrorMessage.value = extractErrorMessage(error.message)
+                    _isRecordingPayment.value = false
+                }
+        }
+    }
+
+    fun clearRecordPaymentError() {
+        _recordPaymentErrorMessage.value = null
     }
 }

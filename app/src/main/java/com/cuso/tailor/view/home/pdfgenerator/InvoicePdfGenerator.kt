@@ -2,22 +2,16 @@ package com.cuso.tailor.view.home.pdfgenerator
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.Context
-import android.graphics.Canvas
-import android.graphics.pdf.PdfDocument
-import android.net.Uri
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import java.io.File
-import java.io.FileOutputStream
-import java.util.Locale
-import androidx.core.graphics.createBitmap
 import android.content.ContentValues
+import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.pdf.PdfDocument
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.os.Handler
@@ -29,16 +23,21 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.createBitmap
 import com.cuso.tailor.R
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.util.Locale
 
 @Suppress("unused_parameter")
 class InvoicePdfGenerator(private val context: Context) {
 
-    // Strong reference so WebView isn't garbage-collected mid-render
+    // Strong reference to prevent WebView garbage collection mid-render
     private var activeWebView: WebView? = null
-    private var activePrintWebView: WebView? = null
 
     data class InvoiceItemData(
         val description: String,
@@ -74,14 +73,13 @@ class InvoicePdfGenerator(private val context: Context) {
         val bankName: String = "",
         val accountNo: String = "",
         val ifscSwift: String = "",
-        val termsAndConditions: String = "Payment due within 30 days of invoice date. Late fees may apply.",
-        // dynamic company identity — comes from the API's organization object
+        val termsAndConditions: String = "Payment due within 30 days of invoice date. Late fees may apply, Goods remain property of Apex Global Solutions until paid in full.",
         val companyName: String = "",
         val companyAddress: String = "",
         val companyEmail: String = "",
         val companyPhone: String = "",
         val companyGst: String = "",
-        val logoUrl: String? = null   // base64 data URI or remote URL; falls back to initial-letter circle if empty
+        val logoUrl: String? = null
     )
 
     data class SavedPdf(
@@ -94,7 +92,7 @@ class InvoicePdfGenerator(private val context: Context) {
         fun length(): Long = file?.length() ?: sizeBytes
     }
 
-    // A4 size in points (72 dpi)
+    // A4 dimensions in points (72 DPI)
     private val pageWidthPt = 595
     private val pageHeightPt = 842
 
@@ -127,10 +125,6 @@ class InvoicePdfGenerator(private val context: Context) {
         }
     }
 
-    // ────────────────────────────────────────────────────────────
-    // MAIN ENTRY: renders the SAME HTML used for preview into a WebView,
-    // captures bitmap(s), writes into PdfDocument.
-    // ────────────────────────────────────────────────────────────
     @SuppressLint("SetJavaScriptEnabled")
     fun generatePdfFromHtml(
         data: InvoiceData,
@@ -166,7 +160,6 @@ class InvoicePdfGenerator(private val context: Context) {
         mainHandler.postDelayed({
             if (!finished) {
                 try {
-                    Log.d("InvoicePdfGenerator", "onPageFinished never fired — using 8s timeout fallback")
                     val result = renderWebViewToPdf(webView, renderWidthPx, density, fileName, saveToDownloads)
                     finish(result)
                 } catch (e: Exception) {
@@ -218,14 +211,10 @@ class InvoicePdfGenerator(private val context: Context) {
         val contentHeightPx = (webView.contentHeight * density).toInt().coerceAtLeast(webView.measuredHeight)
 
         if (contentHeightPx <= 0) {
-            Log.e(
-                "InvoicePdfGenerator",
-                "contentHeightPx=$contentHeightPx (contentHeight=${webView.contentHeight}, measuredHeight=${webView.measuredHeight}) — aborting, WebView likely not attached/laid out"
-            )
+            Log.e("InvoicePdfGenerator", "contentHeightPx <= 0 — aborting render")
             return null
         }
 
-        Log.d("InvoicePdfGenerator", "Rendering PDF: widthPx=$renderWidthPx heightPx=$contentHeightPx")
         webView.layout(0, 0, renderWidthPx, contentHeightPx)
 
         val fullBitmap = createBitmap(renderWidthPx, contentHeightPx)
@@ -305,7 +294,6 @@ class InvoicePdfGenerator(private val context: Context) {
         }
     }
 
-    // ── Download PDF (public Downloads folder, exact preview match) ──
     fun downloadInvoicePdf(data: InvoiceData, onComplete: (SavedPdf?) -> Unit) {
         val fileName = "invoice_${data.invoiceNumber}_${System.currentTimeMillis()}.pdf"
         generatePdfFromHtml(
@@ -322,7 +310,6 @@ class InvoicePdfGenerator(private val context: Context) {
         )
     }
 
-    // ── Converts a drawable resource (footer/brand logo) into a Base64 data URI ──
     private fun drawableToBase64(resId: Int): String {
         return try {
             val drawable = ContextCompat.getDrawable(context, resId) ?: return ""
@@ -342,415 +329,620 @@ class InvoicePdfGenerator(private val context: Context) {
             val bytes = outputStream.toByteArray()
             "data:image/png;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
         } catch (e: Exception) {
-            Log.e("InvoicePdfGenerator", "drawableToBase64 failed for resId=$resId", e)
+            Log.e("InvoicePdfGenerator", "drawableToBase64 failed", e)
             ""
         }
     }
 
-    // ── HTML for WebView (SAME HTML used for preview, download, print) ──
-    // Design: exact match of the "RELDA" wide-layout invoice (logo-row, gst-bar,
-    // parties-box, QR code, script signature, footer-brand) — every value below
-    // comes from `data`, which is populated from the API response.
     fun buildInvoiceHtml(data: InvoiceData): String {
-
         fun money(v: Double) = "₹" + String.format(Locale.US, "%,.2f", v)
 
-        val companyInitial = data.companyName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "C"
-        val logoBlockHtml = if (!data.logoUrl.isNullOrEmpty()) {
-            """<img src="${data.logoUrl}" class="logo-icon-img" />"""
-        } else {
-            """<div class="logo-icon">$companyInitial</div>"""
-        }
-        val footerLogoBase64 = drawableToBase64(R.drawable.cuso_technologies_logo)   // 🔁 replace R.drawable.logo with your actual drawable name
-        val footerLogoTag = if (footerLogoBase64.isNotEmpty()) {
-            """<img src="$footerLogoBase64" class="footer-logo"/>"""
-        } else ""
+        // Strip branch suffix (e.g., "- Main Branch") to show only the main organization name
+        val cleanCompanyName = data.companyName
+            .substringBefore(" - ")
+            .substringBefore(" – ")
+            .trim()
+            .ifEmpty { "RELDA" }
 
-        val itemsHtml = data.items.joinToString("") { item ->
+        val logoBlockHtml = if (!data.logoUrl.isNullOrEmpty()) {
+            """<img src="${data.logoUrl}" class="brand-logo" alt="Logo"/>"""
+        } else {
             """
-        <tr>
-            <td class="desc">${item.description}</td>
-            <td>${item.hsnSku}</td>
-            <td class="center">${item.quantity}</td>
-            <td class="num">${money(item.unitPrice)}</td>
-            <td class="num">${item.discount}</td>
-            <td class="num">${String.format(Locale.US, "%.0f", item.tax)}%</td>
-            <td class="num total-cell">${money(item.total)}</td>
-        </tr>
-        """.trimIndent()
+            <div class="brand-badge-row">
+              <div class="brand-icon">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="#DC2626"/>
+                  <path d="M6 12C9 9 15 9 18 12C15 15 9 15 6 12Z" fill="#FFFFFF"/>
+                </svg>
+              </div>
+              <span class="brand-name">$cleanCompanyName</span>
+            </div>
+            """.trimIndent()
         }
+
+        val footerLogoBase64 = drawableToBase64(R.drawable.cuso_technologies_logo)
+        val footerLogoTag = if (footerLogoBase64.isNotEmpty()) {
+            """<img src="$footerLogoBase64" class="footer-logo" alt="cuso"/>"""
+        } else {
+            """<span class="footer-dot-icon"></span>"""
+        }
+
+        val itemsHtml = data.items.mapIndexed { index, item ->
+            val isEvenRow = (index % 2 == 1)
+            val rowClass = if (isEvenRow) "even-row" else "odd-row"
+            """
+            <tr class="$rowClass">
+                <td class="desc">${item.description.ifEmpty { "-" }}</td>
+                <td>${item.hsnSku.ifEmpty { "-" }}</td>
+                <td class="center">${item.quantity}</td>
+                <td class="num">${money(item.unitPrice)}</td>
+                <td class="num">${item.discount.ifEmpty { "-" }}</td>
+                <td class="num">${String.format(Locale.US, "%.0f", item.tax)}%</td>
+                <td class="num bold">${money(item.total)}</td>
+            </tr>
+            """.trimIndent()
+        }.joinToString("\n")
 
         val taxLabel = if (data.taxPercent > 0) {
             "Tax Breakdown (VAT ${String.format(Locale.US, "%.0f", data.taxPercent)}%):"
         } else {
-            "Tax Breakdown:"
+            "Tax Breakdown (VAT 10%):"
         }
 
-        val bankBoxHtml = if (data.bankName.isNotEmpty() || data.accountNo.isNotEmpty() || data.ifscSwift.isNotEmpty()) {
+        val gstBarHtml = if (data.companyGst.isNotEmpty()) {
             """
-      <div class="bank-box">
-        <div class="bank-details-text">
-          <div class="bank-title">Bank Details:</div>
-          <span class="label">Bank Name:</span> ${data.bankName.ifEmpty { "-" }}<br>
-          <span class="label">Account No:</span> ${data.accountNo.ifEmpty { "-" }}<br>
-          <span class="label">IFSC/SWIFT:</span> ${data.ifscSwift.ifEmpty { "-" }}
-        </div>
-        <div class="qr-wrap">
-          <div class="qr-code" id="qrCode"></div>
-          <div class="qr-caption">UPI QR /<br>Payment QR<br>Code</div>
-        </div>
-      </div>
-      """
+            <div class="gst-container">
+              <span class="gst-badge">GST/VAT/ABN/EIN:${data.companyGst}</span>
+            </div>
+            """.trimIndent()
         } else ""
 
         return """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-    <meta charset="UTF-8">
-    <title>Invoice</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=420, initial-scale=1.0">
+        <title>Invoice</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
 
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        background: #f3f4f6;
-        padding: 32px;
-      }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: #111827;
+            padding: 12px;
+            display: flex;
+            justify-content: center;
+          }
 
-      .container {
-        max-width: 880px;
-        margin: 0 auto;
-        background: #ffffff;
-        padding: 32px 40px 40px;
-      }
+          .container {
+            width: 100%;
+            max-width: 420px;
+            background: #ffffff;
+            padding: 4px;
+          }
 
-      .inv-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 24px;
-        margin-bottom: 20px;
-      }
-      
+          /* ── TOP SECTION ── */
+          .inv-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 6px;
+          }
 
-      .inv-top-col { display: flex; flex-direction: column; }
-      .inv-top-col.left { flex: 1; min-width: 0; }
-      .inv-top-col.right { align-items: flex-end; text-align: right; flex-shrink: 0; }
+          .inv-top-left {
+            flex: 1;
+            padding-right: 12px;
+          }
 
-      .logo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+          .inv-top-right {
+            text-align: right;
+            flex-shrink: 0;
+          }
 
-      .logo-icon {
-        width: 90px;
-        height: 90px;
-        border-radius: 50%;
-        background: #4F46E5;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #ffffff;
-        font-size: 50px;
-        font-weight: 700;
-        font-family: Georgia, serif;
-        flex-shrink: 0;
-      }
+          .brand-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 4px;
+          }
 
-      .logo-icon-img {
-        width: 100px;
-        height: 100px;
-        object-fit: contain;
-        border-radius: 8px;
-        flex-shrink: 0;
-      }
+          .brand-logo {
+            max-height: 26px;
+            max-width: 130px;
+            object-fit: contain;
+            margin-bottom: 4px;
+          }
 
-     
-      .invoice-title { font-size: 34px; font-weight: 800; color: #111827; letter-spacing: 0.5px; margin-bottom: 12px; }
+          .brand-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
 
-      .company-meta { font-size: 13px; color: #6b7280; line-height: 1.85; }
-      .company-meta strong { color: #111827; font-weight: 700; }
+          .brand-name {
+            font-size: 13.5px;
+            font-weight: 800;
+            color: #DC2626;
+            letter-spacing: 0.3px;
+            font-family: serif;
+          }
 
-      .invoice-meta { text-align: right; font-size: 13px; line-height: 1.85; }
-      .invoice-meta .k { color: #111827; font-weight: 700; }
-      .invoice-meta .v { color: #374151; }
+          .company-meta {
+            font-size: 5.23px;
+            color: #111827;
+            line-height: 1.5;
+          }
+          .company-meta span.bold {
+            font-weight: 700;
+          }
 
-      .gst-bar {
-        background: #F3F4F6;
-        width: 100%;
-        padding: 12px 16px;
-        font-size: 13px;
-        color: #374151;
-        margin-bottom: 20px;
-        white-space: nowrap;
-      }
+          /* Invoice Title: 15.29px bold black */
+          .invoice-title {
+            font-size: 15.29px;
+            font-weight: 800;
+            color: #000000;
+            letter-spacing: 0.5px;
+            line-height: 1.1;
+            margin-bottom: 5px;
+          }
 
-      .parties-box { background: #F8F9FA; display: flex; margin-bottom: 20px; }
+          /* Invoice meta: 5.23px semi bold */
+          .invoice-meta {
+            font-size: 5.23px;
+            font-weight: 600;
+            color: #111827;
+            line-height: 1.5;
+            text-align: right;
+          }
+          .invoice-meta .k {
+            font-weight: 700;
+            color: #000000;
+          }
 
-      .party-col { flex: 1; padding: 20px 24px; text-align: left; }
-      .party-col.divider { border-left: 1px solid #E5E7EB; }
+          /* GSTIN badge: background #EFF3F7 hugging text only */
+          .gst-container {
+            margin-top: 5px;
+            margin-bottom: 8px;
+            text-align: left;
+          }
+          .gst-badge {
+            display: inline-block;
+            background-color: #EFF3F7;
+            padding: 3.5px 8px;
+            font-size: 5.23px;
+            font-weight: 600;
+            color: #111827;
+            border-radius: 2.5px;
+          }
 
-      .party-label { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 6px; }
-      .party-name { font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 4px; }
-      .party-detail { font-size: 12.5px; color: #6b7280; line-height: 1.7; }
+          /* ── BILL TO / SHIP TO BOX ── */
+          .parties-box {
+            border: 0.75px solid #E5E7EB;
+            border-radius: 3px;
+            display: flex;
+            margin-bottom: 8px;
+            background: #ffffff;
+          }
 
-      .ref-block { margin-top: 10px; font-size: 12.5px; color: #6b7280; }
-      .ref-block .ref-label { font-weight: 700; color: #111827; margin-bottom: 2px; }
+          .party-col {
+            flex: 1;
+            padding: 6px 9px;
+            font-size: 5.23px;
+            line-height: 1.45;
+            color: #111827;
+          }
 
-      table.items { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          .party-col.divider {
+            border-left: 0.75px solid #E5E7EB;
+          }
 
-      table.items thead th {
-        background: #F3F4F6;
-        font-size: 12px;
-        font-weight: 700;
-        color: #374151;
-        text-align: left;
-        padding: 10px 12px;
-      }
-      table.items thead th.num { text-align: right; }
-      table.items thead th.center { text-align: center; }
+          .party-title {
+            font-size: 5.23px;
+            font-weight: 700;
+            color: #000000;
+            margin-bottom: 2px;
+          }
 
-      table.items tbody tr:nth-child(even) td { background: #FAFAFA; }
-      table.items tbody td { font-size: 13px; color: #1f2937; padding: 12px; }
-      table.items tbody td.num { text-align: right; }
-      table.items tbody td.center { text-align: center; }
-      table.items tbody td.desc { font-weight: 500; }
-      table.items tbody td.total-cell { font-weight: 700; }
+          .party-name {
+            font-size: 5.23px;
+            font-weight: 600;
+            color: #111827;
+          }
 
-      .bottom-row {
-        display: flex;
-        justify-content: space-between;
-        gap: 32px;
-        margin-bottom: 24px;
-      }
+          .ref-row {
+            margin-top: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
 
-      .payment-col { flex: 1.3; }
+          /* ── ITEMS TABLE ── */
+          table.items {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 9px;
+          }
 
-      .payment-row { font-size: 13px; margin-bottom: 14px; }
-      .payment-row .lbl { font-weight: 700; color: #111827; }
-      .payment-row .val { color: #374151; margin-left: 4px; }
+          /* Table title bar: background #EFF3F7 */
+          table.items thead th {
+            background-color: #EFF3F7;
+            font-size: 5.23px;
+            font-weight: 700;
+            color: #000000;
+            text-align: left;
+            padding: 6px 6px;
+            border: none;
+          }
 
-      .bank-box {
-        background: #F8F9FA;
-        padding: 16px 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 16px;
-      }
+          table.items thead th.num { text-align: right; }
+          table.items thead th.center { text-align: center; }
 
-      .bank-details-text { font-size: 12.5px; color: #374151; line-height: 1.9; }
+          /* Table data color: #767676, size: 5.23px with increased vertical padding */
+          table.items tbody td {
+            font-size: 5.23px;
+            color: #767676;
+            padding: 6px 6px;
+            border: none;
+            vertical-align: middle;
+          }
 
-      .bank-details-text .bank-title {
-        font-size: 13px;
-        font-weight: 700;
-        color: #111827;
-        margin-bottom: 6px;
-      }
+          /* Alternating rows background: #EFF3F7 */
+          table.items tbody tr.even-row td {
+            background-color: #EFF3F7;
+          }
 
-      .bank-details-text .label { font-weight: 700; color: #111827; }
+          table.items tbody td.num { text-align: right; }
+          table.items tbody td.center { text-align: center; }
+          table.items tbody td.bold { font-weight: 700; }
 
-      .qr-wrap { text-align: center; flex-shrink: 0; }
+          /* ── BOTTOM SECTION: PAYMENT & TOTALS ── */
+          .bottom-section {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 9px;
+          }
 
-      .qr-code {
-        width: 76px;
-        height: 76px;
-        background: #ffffff;
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        grid-template-rows: repeat(7, 1fr);
-        padding: 3px;
-        border: 1px solid #E5E7EB;
-      }
-      .qr-code div { background: #111827; }
-      .qr-code div.off { background: transparent; }
+          .payment-col {
+            flex: 1.15;
+          }
 
-      .qr-caption { font-size: 10.5px; color: #9ca3af; margin-top: 6px; line-height: 1.4; }
+          /* Payment details enclosed in a single border box */
+          .payment-box {
+            border: 0.75px solid #E5E7EB;
+            border-radius: 3px;
+            padding: 6px 8px;
+            background: #ffffff;
+          }
 
-      .totals-col { flex: 1; }
+          .payment-method-header {
+            font-size: 5.23px;
+            color: #000000;
+            margin-bottom: 6px;
+          }
+          .payment-method-header .lbl-bold {
+            font-weight: 700;
+          }
 
-      .totals-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 6px 0;
-        font-size: 13px;
-        color: #6b7280;
-      }
-      .totals-row .amt { color: #111827; font-weight: 500; }
+          .bank-content-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
 
-      .grand-total-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: #EEF0FF;
-        padding: 14px 16px;
-        margin-top: 8px;
-      }
-      .grand-total-row .label { font-size: 15px; font-weight: 700; color: #111827; }
-      .grand-total-row .amt { font-size: 18px; font-weight: 800; color: #111827; }
+          .bank-details-text {
+            font-size: 5.23px;
+            line-height: 1.5;
+            color: #111827;
+          }
+          .bank-details-text .bank-title {
+            font-size: 5.23px;
+            font-weight: 700;
+            color: #000000;
+            margin-bottom: 2px;
+          }
+          .lbl-bold { font-weight: 700; }
 
-      .terms { margin-bottom: 32px; }
-      .terms .title { font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 6px; }
-      .terms .body { font-size: 12.5px; color: #6b7280; line-height: 1.7; max-width: 640px; }
+          .qr-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-left: 6px;
+          }
 
-      .signature-block { display: flex; justify-content: flex-end; margin-bottom: 40px; }
-      .signature-inner { text-align: center; }
+          .qr-code {
+            width: 34px;
+            height: 34px;
+            background: #ffffff;
+            border: 0.75px solid #000000;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            grid-template-rows: repeat(6, 1fr);
+            padding: 1.5px;
+            gap: 0.5px;
+          }
+          .qr-code div { background: #000000; }
+          .qr-code div.off { background: transparent; }
 
-      .signature-script {
-        font-family: 'Brush Script MT', 'Segoe Script', cursive;
-        font-size: 32px;
-        color: #111827;
-        line-height: 1;
-      }
+          .qr-caption {
+            font-size: 4px;
+            color: #111827;
+            text-align: center;
+            line-height: 1.1;
+            margin-top: 2px;
+          }
 
-      .signature-line { width: 160px; border-top: 1px solid #D1D5DB; margin-top: 8px; }
-      .signature-caption { font-size: 12px; color: #9ca3af; margin-top: 6px; }
+          .totals-col {
+            flex: 0.95;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+          }
 
-      .footer-brand {
-        text-align: center;
-        font-size: 14px;
-        color: #9ca3af;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 2px;
-      }
-      
-      .footer-logo {
-        height: 26px;                 
-        width: auto;                  
-        object-fit: contain;
-      }
-      .footer-icon {
-        width: 30px;
-        height: 30px;
-        display: inline-grid;
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: 1fr 1fr;
-        gap: 1px;
-      }
-      .footer-icon span:nth-child(1) { background: #EF4444; }
-      .footer-icon span:nth-child(2) { background: #22C55E; }
-      .footer-icon span:nth-child(3) { background: #3B82F6; }
-      .footer-icon span:nth-child(4) { background: #F59E0B; }
-    </style>
-    </head>
-    <body>
+          .totals-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3.5px 6px;
+            font-size: 5.23px;
+            color: #111827;
+          }
 
-    <div class="container">
+          /* Tax breakdown row: background #EFF3F7 */
+          .totals-row.tax-highlight {
+            background-color: #EFF3F7;
+            border-radius: 2px;
+            padding: 4.5px 6px;
+            font-weight: 500;
+            margin: 1.5px 0;
+          }
 
-      <div class="inv-top">
-        <div class="inv-top-col left">
-          <div class="logo-row">
-            $logoBlockHtml
+          /* Grand total row: background #EFF3F7 */
+          .totals-row.grand-total {
+            background-color: #EFF3F7;
+            border-radius: 2px;
+            font-size: 5.8px;
+            font-weight: 800;
+            color: #000000;
+            padding: 5.5px 6px;
+            margin-top: 2.5px;
+          }
+
+          /* ── TERMS & CONDITIONS ── */
+          .terms-block {
+            margin-top: 6px;
+            margin-bottom: 9px;
+          }
+
+          .terms-header {
+            font-size: 5.23px;
+            font-weight: 700;
+            color: #5F5F5F;
+            margin-bottom: 2px;
+          }
+
+          .terms-body {
+            font-size: 5.23px;
+            color: #767676;
+            line-height: 1.5;
+          }
+
+          /* ── SIGNATURE ── */
+          .signature-wrapper {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 6px;
+            margin-bottom: 12px;
+          }
+
+          .signature-box {
+            text-align: center;
+            width: 80px;
+          }
+
+          .signature-script {
+            font-family: 'Brush Script MT', 'Dancing Script', 'Segoe Script', cursive;
+            font-size: 16px;
+            color: #111827;
+            line-height: 1;
+            margin-bottom: 2px;
+          }
+
+          .signature-line {
+            width: 100%;
+            border-top: 0.75px solid #D1D5DB;
+            margin-bottom: 2px;
+          }
+
+          .signature-caption {
+            font-size: 4.2px;
+            color: #6B7280;
+          }
+
+          /* ── FOOTER ── */
+          .footer-brand {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            font-size: 4.5px;
+            color: #6B7280;
+            margin-top: 6px;
+          }
+
+          .footer-logo {
+            height: 9px;
+            width: auto;
+            object-fit: contain;
+          }
+
+          .footer-dot-icon {
+            width: 5px;
+            height: 5px;
+            background: #3B82F6;
+            display: inline-block;
+            border-radius: 1px;
+          }
+        </style>
+        </head>
+        <body>
+
+        <div class="container">
+
+          <!-- TOP IDENTITY & INVOICE META -->
+          <div class="inv-top">
+            <div class="inv-top-left">
+              $logoBlockHtml
+              <div class="company-meta">
+                ${data.companyAddress.ifEmpty { "-" }}<br>
+                ${if (data.companyEmail.isNotEmpty()) """<span class="bold">Email:</span> ${data.companyEmail}<br>""" else ""}
+                ${if (data.companyPhone.isNotEmpty()) """<span class="bold">Phone:</span> ${data.companyPhone}""" else ""}
+              </div>
+            </div>
+            <div class="inv-top-right">
+              <div class="invoice-title">INVOICE</div>
+              <div class="invoice-meta">
+                <div><span class="k">Invoice No:</span> ${data.invoiceNumber.ifEmpty { "-" }}</div>
+                <div><span class="k">Invoice Date:</span> ${data.invoiceDate.ifEmpty { "-" }}</div>
+                <div><span class="k">Due Date:</span> ${data.dueDate.ifEmpty { "-" }}</div>
+              </div>
+            </div>
           </div>
-          <div class="company-meta">
-            ${data.companyAddress}<br>
-            ${if (data.companyEmail.isNotEmpty()) "<strong>Email:</strong> ${data.companyEmail}<br>" else ""}
-            ${if (data.companyPhone.isNotEmpty()) "<strong>Phone:</strong> ${data.companyPhone}" else ""}
+
+          <!-- GSTIN / TAX IDENTIFIER BADGE -->
+          $gstBarHtml
+
+          <!-- BILL TO / SHIP TO BOX -->
+          <div class="parties-box">
+            <div class="party-col">
+              <div class="party-title">Bill To:</div>
+              <div class="party-name">${data.customerName.ifEmpty { "-" }}</div>
+              <div>${data.billToAddress.ifEmpty { "-" }}</div>
+              ${if (data.billToPhone.isNotEmpty()) "<div>Phone: ${data.billToPhone}</div>" else ""}
+              ${if (data.billToEmail.isNotEmpty()) "<div>Email: ${data.billToEmail}</div>" else ""}
+            </div>
+            <div class="party-col divider">
+              <div class="party-title">Ship To:</div>
+              <div class="party-name">${data.customerName.ifEmpty { "-" }}</div>
+              <div>${data.shipToAddress.ifEmpty { "-" }}</div>
+              <div class="party-title" style="margin-top: 3px;">Reference:</div>
+              <div class="ref-row">
+                <span>Order ID: ${data.orderReference.ifEmpty { "-" }}</span>
+                <span>${if (data.orderReference.isNotEmpty()) data.orderReference else "-"}</span>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="inv-top-col right">
-          <div class="invoice-title">INVOICE</div>
-          <div class="invoice-meta">
-            <div><span class="k">Invoice No:</span> <span class="v">${data.invoiceNumber}</span></div>
-            <div><span class="k">Invoice Date:</span> <span class="v">${data.invoiceDate}</span></div>
-            <div><span class="k">Due Date:</span> <span class="v">${data.dueDate}</span></div>
+
+          <!-- ITEMS TABLE -->
+          <table class="items">
+            <thead>
+              <tr>
+                <th>Item/Description</th>
+                <th>HSN/SKU</th>
+                <th class="center">Quantity</th>
+                <th class="num">Unit Price</th>
+                <th class="num">Discount</th>
+                <th class="num">Tax %</th>
+                <th class="num">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              $itemsHtml
+            </tbody>
+          </table>
+
+          <!-- BOTTOM SECTION: PAYMENT & TOTALS -->
+          <div class="bottom-section">
+            <div class="payment-col">
+              <div class="payment-box">
+                <div class="payment-method-header">
+                  <span class="lbl-bold">Payment Method:</span> ${data.paymentMethod.ifEmpty { "-" }}
+                </div>
+                <div class="bank-content-row">
+                  <div class="bank-details-text">
+                    <div class="bank-title">Bank Details:</div>
+                    <div><span class="lbl-bold">Bank Name:</span> ${data.bankName.ifEmpty { "-" }}</div>
+                    <div><span class="lbl-bold">Acc0unt No:</span> ${data.accountNo.ifEmpty { "-" }}</div>
+                    <div><span class="lbl-bold">IFSC/SWIFT:</span> ${data.ifscSwift.ifEmpty { "-" }}</div>
+                  </div>
+                  <div class="qr-wrap">
+                    <div class="qr-code" id="qrCode"></div>
+                    <div class="qr-caption">UPIQR /<br>Payment QR<br>Code</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="totals-col">
+              <div class="totals-row">
+                <span>Subtotal:</span>
+                <span>${money(data.subtotal)}</span>
+              </div>
+              <div class="totals-row">
+                <span>Discount:</span>
+                <span>-${money(data.discountAmount)}</span>
+              </div>
+              <div class="totals-row tax-highlight">
+                <span>$taxLabel</span>
+                <span>${money(data.taxAmount)}</span>
+              </div>
+              <div class="totals-row">
+                <span>Shipping/Handling:</span>
+                <span>${money(data.shippingAmount)}</span>
+              </div>
+              <div class="totals-row grand-total">
+                <span>Grand Total:</span>
+                <span>${money(data.totalAmount)}</span>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      ${if (data.companyGst.isNotEmpty()) """<div class="gst-bar">GST/VAT/ABN/EIN:&nbsp;${data.companyGst}</div>""" else ""}
-
-      <div class="parties-box">
-        <div class="party-col">
-          <div class="party-label">Bill To:</div>
-          <div class="party-name">${data.customerName}</div>
-          <div class="party-detail">
-            ${data.billToAddress}<br>
-            ${if (data.billToPhone.isNotEmpty()) "Phone: ${data.billToPhone}<br>" else ""}
-            ${if (data.billToEmail.isNotEmpty()) "Email:&nbsp;${data.billToEmail}" else ""}
+          <!-- TERMS & CONDITIONS -->
+          <div class="terms-block">
+            <div class="terms-header">Terms & Conditions:</div>
+            <div class="terms-body">${data.termsAndConditions}</div>
           </div>
-        </div>
-        <div class="party-col divider">
-          <div class="party-label">Ship To:</div>
-          <div class="party-name">${data.customerName}</div>
-          <div class="party-detail">${data.shipToAddress}</div>
-          <div class="ref-block">
-            <div class="ref-label">Reference:</div>
-            Order ID:  "N/A" }
+
+          <!-- SIGNATURE BLOCK -->
+          <div class="signature-wrapper">
+            <div class="signature-box">
+              <div class="signature-script">Signature</div>
+              <div class="signature-line"></div>
+              <div class="signature-caption">Authorized Signature</div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <table class="items">
-        <thead>
-          <tr>
-            <th>Item/Description</th>
-            <th>HSN/SKU</th>
-            <th class="center">Quantity</th>
-            <th class="num">Unit Price</th>
-            <th class="num">Discount</th>
-            <th class="num">Tax %</th>
-            <th class="num">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          $itemsHtml
-        </tbody>
-      </table>
-
-      <div class="bottom-row">
-        <div class="payment-col">
-          <div class="payment-row">
-            <span class="lbl">Payment Method:</span><span class="val">${data.paymentMethod}</span>
+          <!-- FOOTER -->
+          <div class="footer-brand">
+            <span>Created with cuso invoice</span>
+            $footerLogoTag
           </div>
-          $bankBoxHtml
+
         </div>
 
-        <div class="totals-col">
-          <div class="totals-row"><span>Subtotal:</span><span class="amt">${money(data.subtotal)}</span></div>
-          <div class="totals-row"><span>Discount:</span><span class="amt">-${money(data.discountAmount)}</span></div>
-          <div class="totals-row"><span>$taxLabel</span><span class="amt">${money(data.taxAmount)}</span></div>
-          <div class="totals-row"><span>Shipping/Handling:</span><span class="amt">${money(data.shippingAmount)}</span></div>
-          <div class="grand-total-row">
-            <span class="label">Grand Total:</span>
-            <span class="amt">${money(data.totalAmount)}</span>
-          </div>
-        </div>
-      </div>
+        <script>
+          const qr = document.getElementById('qrCode');
+          if (qr) {
+            const pattern = [
+              1,1,1,0,1,1,
+              1,0,1,1,0,1,
+              1,1,0,0,1,1,
+              0,1,1,0,1,0,
+              1,0,1,1,0,1,
+              1,1,0,1,1,1
+            ];
+            pattern.forEach(bit => {
+              const cell = document.createElement('div');
+              if (!bit) cell.className = 'off';
+              qr.appendChild(cell);
+            });
+          }
+        </script>
 
-      <div class="terms">
-        <div class="title">Terms & Conditions:</div>
-        <div class="body">${data.termsAndConditions}</div>
-      </div>
-
-      <div class="signature-block">
-        <div class="signature-inner">
-          <div class="signature-script">Signature</div>
-          <div class="signature-line"></div>
-          <div class="signature-caption">Authorized Signature</div>
-        </div>
-      </div>
-
-      <div class="footer-brand">
-        Created with cuso invoice $footerLogoTag
-      </div>
-
-    </div>
-
-    <script>
-      const qr = document.getElementById('qrCode');
-      if (qr) {
-        const pattern = [1,1,1,0,1,0,1, 1,0,1,1,0,1,1, 1,1,0,1,1,1,0, 0,1,1,0,1,0,1, 1,0,1,1,1,0,1, 1,1,0,0,1,1,0, 0,1,1,1,0,1,1];
-        pattern.forEach(bit => {
-          const cell = document.createElement('div');
-          if (!bit) cell.className = 'off';
-          qr.appendChild(cell);
-        });
-      }
-    </script>
-
-    </body>
-    </html>
-    """.trimIndent()
+        </body>
+        </html>
+        """.trimIndent()
     }
 }

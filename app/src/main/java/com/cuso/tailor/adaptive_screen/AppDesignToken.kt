@@ -10,6 +10,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
+ * QUICK USAGE GUIDE:
+ * 1. tokens.h1              -> Main Page Title
+ * 2. tokens.h2               -> Customer Name / section header
+ * 3. tokens.bodyLarge        -> Pricing/Total Amounts
+ * 4. tokens.bodyMedium       -> Field placeholders, standard content
+ * 5. tokens.bodySmall        -> Field typed text, Order ID, muted info
+ * 6. tokens.caption          -> Breadcrumbs, helper text
+ * 7. tokens.label            -> Tiny tags/errors
+ * 8. tokens.fieldHeight      -> CusoTextField / BasicTextField height
+ * 9. tokens.buttonHeight     -> Primary/secondary buttons
+ * 10. tokens.cardCornerRadius -> Card / Box corner radius
+ * 11. tokens.cardPadding     -> Inner padding of auth cards
+ * 12. tokens.iconSize        -> Leading/trailing icons in fields
+ * 13. tokens.otpBoxSize      -> Each OTP digit box size
+ * 14. tokens.otpBoxSpacing   -> Spacing between OTP digit boxes
+ */
+/**
  * AppDesignTokens defines the UI skeleton and typography hierarchy.
  * Using names like h1, body, and caption (instead of raw sizes)
  * ensures consistency across all screens, similar to Zoho/Salesforce apps.
@@ -83,7 +100,6 @@ fun getAdaptiveTokens(widthSize: WindowWidthSizeClass): AppDesignTokens {
         // MEDIUM: Foldable phones (Galaxy Fold) and small tablets (iPad Mini)
         WindowWidthSizeClass.Medium -> AppDesignTokens(
             extraPadding = 18.dp,
-
             screenPadding = 24.dp,
             gridColumns = 3,
             isTablet = true,
@@ -107,7 +123,6 @@ fun getAdaptiveTokens(widthSize: WindowWidthSizeClass): AppDesignTokens {
         // EXPANDED: Large tablets (iPad Pro) and Desktop/Web views
         WindowWidthSizeClass.Expanded -> AppDesignTokens(
             extraPadding = 24.dp,
-
             screenPadding = 32.dp,
             gridColumns = 4,
             isTablet = true,
@@ -131,7 +146,6 @@ fun getAdaptiveTokens(widthSize: WindowWidthSizeClass): AppDesignTokens {
         // Default fallback (uses Compact-like values)
         else -> AppDesignTokens(
             extraPadding = 10.dp,
-
             screenPadding = 16.dp,
             gridColumns = 2,
             isTablet = false,
@@ -153,21 +167,3 @@ fun getAdaptiveTokens(widthSize: WindowWidthSizeClass): AppDesignTokens {
         )
     }
 }
-
-/**
- * QUICK USAGE GUIDE:
- * 1. tokens.h1              -> Main Page Title
- * 2. tokens.h2               -> Customer Name / section header
- * 3. tokens.bodyLarge        -> Pricing/Total Amounts
- * 4. tokens.bodyMedium       -> Field placeholders, standard content
- * 5. tokens.bodySmall        -> Field typed text, Order ID, muted info
- * 6. tokens.caption          -> Breadcrumbs, helper text
- * 7. tokens.label            -> Tiny tags/errors
- * 8. tokens.fieldHeight      -> CusoTextField / BasicTextField height
- * 9. tokens.buttonHeight     -> Primary/secondary buttons
- * 10. tokens.cardCornerRadius -> Card / Box corner radius
- * 11. tokens.cardPadding     -> Inner padding of auth cards
- * 12. tokens.iconSize        -> Leading/trailing icons in fields
- * 13. tokens.otpBoxSize      -> Each OTP digit box size
- * 14. tokens.otpBoxSpacing   -> Spacing between OTP digit boxes
- */

@@ -61,7 +61,6 @@ import com.cuso.tailor.view.home.inventory.pricing_list.AllPricingScreen
 import com.cuso.tailor.view.home.inventory.pricing_list.NewPriceListScreen
 import com.cuso.tailor.view.home.inventory.procurement.barcode.AllBarcodesScreen
 import com.cuso.tailor.view.home.inventory.procurement.barcode.BarcodeGeneratorScreen
-import com.cuso.tailor.view.home.inventory.procurement.billslist.AllPayableInvoicesScreen
 import com.cuso.tailor.view.home.inventory.procurement.billslist.PayableInvoicePdfPreviewScreen
 import com.cuso.tailor.view.home.inventory.procurement.billslist.PurchaseDetailScreen as PayablePurchaseDetailScreen
 import com.cuso.tailor.view.home.inventory.procurement.credits.AllCreditsScreen
@@ -138,6 +137,8 @@ import com.cuso.tailor.view.home.inventory.billing.BillPdfPreviewScreen
 import com.cuso.tailor.view.home.inventory.billing.NewVendorInvoiceScreen
 import com.cuso.tailor.view.home.inventory.payments_made.AllInventoryPaymentScreen
 import com.cuso.tailor.view.home.inventory.payments_made.PaymentOverviewDetailScreen
+import com.cuso.tailor.view.home.inventory.procurement.billslist.AllBillListScreen
+import com.cuso.tailor.view.home.inventory.procurement.billslist.RecordBillPaymentScreen
 import com.cuso.tailor.view.home.inventory.safety_stock.SafetyStockScreen
 import com.cuso.tailor.viewmodel.*
 
@@ -1466,25 +1467,54 @@ fun HomeScreenRouter(
         )
 
         // ── 9. Procurement: Bill List / Payable Invoices ──
-        "inventory_payable_invoices", "inventory_procurement_bill_list", "inventory_procurement_bills_list", "inventory_bills_list", "inventory_payables_invoices", "inventory_invoices" -> AllPayableInvoicesScreen(
+        "inventory_all_bills",
+        "inventory_procurement_bill_list",
+        "inventory_procurement_bills_list",
+        "inventory_bills_list",
+        "inventory_bill_list" -> AllBillListScreen(
             onClose = onGoBack,
             onCreateOrder = { onNavigate("inventory_create_purchase_order") },
-            onInvoiceClick = { _ -> onNavigate("inventory_payable_purchase_detail") },
+            onInvoiceClick = { billItem ->
+                android.util.Log.d("BillNavigation", "Clicked Bill Item: id='${billItem.id}', billNo='${billItem.billNo}'")
+                if (billItem.id.isNotBlank()) {
+                    onInvoiceSelected(billItem.id)
+                    onNavigate("inventory_payable_purchase_detail")
+                } else {
+                    android.util.Log.e("BillNavigation", "Clicked bill has empty ID! Cannot navigate.")
+                }
+            },
             onOptionsClick = { }
         )
 
-        "inventory_payable_purchase_detail" -> PayablePurchaseDetailScreen(
-            onClose = onGoBack,
-            onPreviewPdf = { onNavigate("inventory_payable_preview_pdf") },
-            onDownloadPdf = { },
-            onRecordPayment = { }
-        )
+        "inventory_payable_purchase_detail" -> {
+            selectedInvoiceId?.let { id ->
+                PayablePurchaseDetailScreen(
+                    billId = id,
+                    onClose = {
+                        onInvoiceSelected(null)
+                        onGoBack()
+                    },
+                    onPreviewPdf = { onNavigate("inventory_payable_preview_pdf") },
+                    onDownloadPdf = { },
+                    onRecordPayment = { onNavigate("inventory_record_bill_payment") }
+                )
+            } ?: run { onGoBack() }
+        }
+
+        "inventory_record_bill_payment" -> {
+            selectedInvoiceId?.let { id ->
+                RecordBillPaymentScreen(
+                    billId = id,
+                    onClose = onGoBack,
+                    onPaymentSuccess = onGoBack
+                )
+            } ?: run { onGoBack() }
+        }
 
         "inventory_payable_preview_pdf" -> PayableInvoicePdfPreviewScreen(
             onClose = onGoBack,
-            onEdit = { },
-            onConvertToBill = { onGoBack() },
-            onDownloadPdf = { }
+            onDownloadPdf = { },
+            viewModel = inventoryViewModel
         )
 
         // ── 10. Procurement: Barcode / Barcode LIST ──
@@ -1681,7 +1711,7 @@ fun HomeScreenRouter(
         )
 
         // ── 9. Inventory Billing Flow ──
-        "inventory_billing", "inventory_all_bills" -> AllBillsScreen(
+        "inventory_billing" -> AllBillsScreen(
             onClose = onGoBack,
             onCreateBillClick = { onNavigate("inventory_create_bill") },
             onBillDetailsClick = { _ -> onNavigate("inventory_bill_preview") },

@@ -72,10 +72,12 @@ import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import androidx.core.graphics.scale
+import com.cuso.tailor.model.inventory.BillPaymentData
 import com.cuso.tailor.model.inventory.BillResponseData
 import com.cuso.tailor.model.inventory.CreateBillRequest
 import com.cuso.tailor.model.inventory.PaymentTermDto
 import com.cuso.tailor.model.inventory.PurchaseOrderDetailData
+import com.cuso.tailor.model.inventory.RecordPaymentRequest
 import com.cuso.tailor.model.inventory.SafetyStockResponse
 import com.cuso.tailor.model.inventory.SubmitForApprovalRequest
 import com.cuso.tailor.model.inventory.TaxGroupDto
@@ -1838,6 +1840,149 @@ class InventoryRepository @Inject constructor(
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "Failed to fetch safety stock"
                 Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // =============================================================================
+    // Bill list
+    // =============================================================================
+
+    suspend fun getAllBills(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ): Result<com.cuso.tailor.model.inventory.ProcurementBillListResponse> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getAllBills(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search,
+                status = status
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to fetch procurement bills")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // PROCUREMENT BILL DETAIL (VIEW ONE)
+
+
+    suspend fun getBillById(id: String): Result<com.cuso.tailor.model.inventory.ProcurementBillDetailData> =
+        withContext(Dispatchers.IO) {
+            try {
+                val (accessToken, csrfToken) = getAuthHeaders()
+                val response = inventoryApi.getBillById(
+                    token = accessToken,
+                    csrfToken = csrfToken,
+                    id = id
+                )
+
+                if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                    Result.success(response.body()!!.data!!)
+                } else {
+                    Result.failure(Exception(extractErrorMessage(response, "Failed to fetch bill details")))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun sendBill(id: String): Result<com.cuso.tailor.model.inventory.ProcurementBillDetailData> =
+        withContext(Dispatchers.IO) {
+            try {
+                val (accessToken, csrfToken) = getAuthHeaders()
+
+                val response = inventoryApi.sendBill(
+                    token = accessToken,
+                    csrfToken = csrfToken,
+                    id = id
+                )
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val detailResponse = inventoryApi.getBillById(
+                        token = accessToken,
+                        csrfToken = csrfToken,
+                        id = id
+                    )
+
+                    if (detailResponse.isSuccessful && detailResponse.body()?.data != null) {
+                        Result.success(detailResponse.body()!!.data!!)
+                    } else {
+                        Result.failure(Exception("Bill sent, but failed to load updated details"))
+                    }
+                } else {
+                    Result.failure(Exception(extractErrorMessage(response, "Failed to send bill")))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun voidBill(
+        id: String,
+        reason: String
+    ): Result<com.cuso.tailor.model.inventory.ProcurementBillDetailData> =
+        withContext(Dispatchers.IO) {
+            try {
+                val (accessToken, csrfToken) = getAuthHeaders()
+                val request = com.cuso.tailor.model.inventory.VoidBillRequest(reason = reason)
+
+                val response = inventoryApi.voidBill(
+                    token = accessToken,
+                    csrfToken = csrfToken,
+                    id = id,
+                    request = request
+                )
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val detailResponse = inventoryApi.getBillById(
+                        token = accessToken,
+                        csrfToken = csrfToken,
+                        id = id
+                    )
+
+                    if (detailResponse.isSuccessful && detailResponse.body()?.data != null) {
+                        Result.success(detailResponse.body()!!.data!!)
+                    } else {
+                        Result.failure(Exception("Bill voided, but failed to load updated details"))
+                    }
+                } else {
+                    Result.failure(Exception(extractErrorMessage(response, "Failed to void bill")))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    //record payment
+    suspend fun recordBillPayment(
+        request: RecordPaymentRequest
+    ): Result<BillPaymentData> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.recordBillPayment(
+                token = accessToken,
+                csrfToken = csrfToken,
+                request = request
+            )
+
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to record payment")))
             }
         } catch (e: Exception) {
             Result.failure(e)

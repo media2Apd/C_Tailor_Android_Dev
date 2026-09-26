@@ -22,6 +22,7 @@ import com.cuso.tailor.network.organization.OrganizationApiService
 import com.cuso.tailor.network.sales.SalesCustomerApiService
 import com.cuso.tailor.network.sales.SalesLeadApiService
 import com.cuso.tailor.network.sales.SalesMeasurementsApiService
+import com.cuso.tailor.network.sales.SalesOppertunitiesApiService
 import com.cuso.tailor.network.sales.SalesOrderApiService
 import com.cuso.tailor.network.sales.SalesPricingApiService
 import com.cuso.tailor.network.sales.settings.SalesSettingsApiService
@@ -131,6 +132,11 @@ object NetworkModule {
     @Singleton
     fun provideSalesMeasurementsApiService(retrofit: Retrofit): SalesMeasurementsApiService =
         retrofit.create(SalesMeasurementsApiService::class.java)
+
+    @Provides
+    @Singleton
+    fun provideSalesOppertunitiesApiService(retrofit: Retrofit): SalesOppertunitiesApiService =
+        retrofit.create(SalesOppertunitiesApiService::class.java)
 
     @Provides
     @Singleton

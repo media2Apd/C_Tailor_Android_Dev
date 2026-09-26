@@ -1,8 +1,10 @@
 package com.cuso.tailor.network.sales
 
 import com.cuso.tailor.model.sales.CustomerMeasurementResponse
+import com.cuso.tailor.model.sales.DeleteMeasurementResponse
 import com.cuso.tailor.model.sales.MeasurementsResponse
 import retrofit2.Response
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Path
@@ -29,4 +31,14 @@ interface SalesMeasurementsApiService {
         @Query("page") page: Int = 1,
         @Query("limit") limit: Int = 10
     ): Response<CustomerMeasurementResponse>
+
+    /**
+     * delete measurement.
+     */
+    @DELETE("/api/sales/customers/measurements/delete/{id}")
+    suspend fun deleteMeasurement(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") measurementId: String
+    ): Response<DeleteMeasurementResponse>
 }

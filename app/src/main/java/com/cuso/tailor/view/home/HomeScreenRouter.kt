@@ -115,6 +115,10 @@ import com.cuso.tailor.view.home.sales.measurements.MeasurementFieldsConfigScree
 import com.cuso.tailor.view.home.sales.measurements.MeasurementManagementScreen
 import com.cuso.tailor.view.home.sales.measurements.MeasurementsAvailableDialog
 import com.cuso.tailor.view.home.sales.measurements.MeasurementsScreen
+import com.cuso.tailor.view.home.sales.oppertunity.oppertunities.CreateOpportunityScreen
+import com.cuso.tailor.view.home.sales.oppertunity.oppertunities.OpportunitiesListScreen
+import com.cuso.tailor.view.home.sales.oppertunity.oppertunities.OpportunityDetailScreen
+import com.cuso.tailor.view.home.sales.oppertunity.oppertunity_pipeline.OpportunityPipelineScreen
 import com.cuso.tailor.view.home.sales.payment_listing.*
 import com.cuso.tailor.view.home.sales.pricing.*
 import com.cuso.tailor.view.home.sales.quotation.*
@@ -148,6 +152,8 @@ import com.cuso.tailor.viewmodel.*
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedOpportunityId: String? = null,
+    onOpportunityIdSelected: (String?) -> Unit = {},
     selectedMeasurementItem: MeasurementItem? = null,
     onMeasurementItemSelected: (MeasurementItem?) -> Unit = {},
     selectedBarcodeIdForDetail: String? = null,
@@ -255,7 +261,8 @@ fun HomeScreenRouter(
             )
         }
 
-        "sales_lead", "create_lead", "view_lead", "edit_lead", "sales_customers",
+        // In HomeScreenRouter: Add opportunity routes to SalesRouter block
+        "sales_lead", "create_lead", "view_lead", "edit_lead", "convert_lead_to_opportunity", "sales_customers",
         "create_customer", "view_customer", "edit_customer", "view_customer_recent",
         "sales_measurements", "measurements_available_view", "measurement_management_view",
         "measurement_fields_config", "sales_sales_orders", "create_order",
@@ -266,9 +273,12 @@ fun HomeScreenRouter(
         "sales_garment_type", "sales_garment_profile", "sales_configuration_preview",
         "sales_add_existing_field", "sales_create_measurement_field", "sales_add_garment",
         "sales_add_garment_category", "sales_garment_pricing_setup", "sales_add_garment_pricing",
-        "sales_add_fabric_pricing", "sales_add_work_pricing", "sales_measurement_list" -> {
+        "sales_add_fabric_pricing", "sales_add_work_pricing", "sales_measurement_list",
+        "sales_opportunity_pipeline", "sales_opportunities", "create_opportunity", "opportunity_detail" -> {
             SalesRouter(
                 screen = screen,
+                selectedOpportunityId = selectedOpportunityId,
+                onOpportunityIdSelected = onOpportunityIdSelected,
                 navController = navController,
                 widthSizeClass = widthSizeClass,
                 selectedMeasurementItem = selectedMeasurementItem,
@@ -787,6 +797,8 @@ private fun InventoryStructureRouter(
 @Composable
 private fun SalesRouter(
     screen: String,
+    selectedOpportunityId: String?,
+    onOpportunityIdSelected: (String?) -> Unit,
     selectedMeasurementItem: MeasurementItem?,
     onMeasurementItemSelected: (MeasurementItem?) -> Unit,
     navController: NavHostController,
@@ -839,8 +851,14 @@ private fun SalesRouter(
         "view_lead" -> LeadFormScreen(
             mode = LeadFormMode.VIEW,
             onBack = onGoBack,
-            onEditRequested = { onNavigate("edit_lead") }
+            onEditRequested = { onNavigate("edit_lead") },
+            onConvertToOpportunity = { onNavigate("convert_lead_to_opportunity") }
         )
+
+//        "convert_lead_to_opportunity" -> ConvertLeadToOpportunityScreen(
+//            onClose = onGoBack,
+//            onConversionSuccess = onGoBack
+//        )
 
         "edit_lead" -> LeadFormScreen(
             mode = LeadFormMode.EDIT,
@@ -850,6 +868,68 @@ private fun SalesRouter(
                 onOrderFlowOriginChange("lead")
                 onNavigate("create_order")
             }
+        )
+
+        // 1. Opportunity Pipeline Screen
+        "sales_opportunity_pipeline" -> OpportunityPipelineScreen(
+            onClose = onGoBack,
+            onCreateLead = { onNavigate("create_lead") },
+            onAddDeal = {
+                onOpportunityIdSelected(null)
+                onNavigate("create_opportunity")
+            },
+            onClearAll = { }
+        )
+
+        // 2. Convert Lead to Opportunity Screen (Standalone Page)
+        "convert_lead_to_opportunity" -> ConvertLeadToOpportunityScreen(
+            onClose = onGoBack,
+            onConversionSuccess = {
+                onGoBack()
+            }
+        )
+
+        // 3. Opportunities List Screen
+        "sales_opportunities" -> OpportunitiesListScreen(
+            onClose = onGoBack,
+            onAddDeal = {
+                onOpportunityIdSelected(null)
+                onNavigate("create_opportunity")
+            },
+            onViewOpportunity = { item ->
+                onOpportunityIdSelected(item.id)
+                onNavigate("opportunity_detail")
+            },
+            onEditOpportunity = { item ->
+                onOpportunityIdSelected(item.id)
+                onNavigate("create_opportunity")
+            }
+        )
+
+        // 4. Create Opportunity Screen
+        "create_opportunity" -> CreateOpportunityScreen(
+            opportunityId = selectedOpportunityId,
+            onClose = {
+                onOpportunityIdSelected(null)
+                onGoBack()
+            },
+            onSubmit = {
+                onOpportunityIdSelected(null)
+                onGoBack()
+            }
+        )
+
+        // 5. Opportunity Detail Screen
+        "opportunity_detail" -> OpportunityDetailScreen(
+            opportunityId = selectedOpportunityId.orEmpty(),
+            onClose = {
+                onOpportunityIdSelected(null)
+                onGoBack()
+            },
+            onEdit = {
+                onNavigate("create_opportunity")
+            },
+            onConvertToOrder = { onNavigate("create_order") }
         )
 
         "sales_customers" -> CustomerScreen(

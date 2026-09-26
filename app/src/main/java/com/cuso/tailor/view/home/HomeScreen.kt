@@ -237,6 +237,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var editingPricingId by remember { mutableStateOf<String?>(null) }
     var quotationScreenMode by remember { mutableStateOf("create") }
     var selectedMeasurementItem by remember { mutableStateOf<MeasurementItem?>(null) }
+    var selectedOpportunityId by remember { mutableStateOf<String?>(null) }
 
 
     // Panels and Feedback State
@@ -417,6 +418,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "measurements_available_view",
             "measurement_management_view",
             "measurement_fields_config",
+            "sales_opportunity_pipeline",
+            "sales_opportunities",
+            "create_opportunity",
+            "opportunity_detail",
+            "convert_lead_to_opportunity",
 
             // ── Finance ──
             "finance_sales_invoices",
@@ -687,6 +693,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
+                "create_opportunity", "opportunity_detail" -> selectedOpportunityId = null
                 "create_order_review", "create_order" -> pendingOrderReviewData = null
                 "finance_invoice_detail", "inventory_payable_purchase_detail" -> selectedInvoiceId = null
                 "measurements_available_view", "measurement_management_view" -> selectedMeasurementItem = null
@@ -861,6 +868,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+                            selectedOpportunityId = selectedOpportunityId,
+                            onOpportunityIdSelected = { selectedOpportunityId = it },
                             selectedReceivePoId = selectedReceivePoId,
                             onReceivePoIdSelected = { selectedReceivePoId = it },
                             selectedBarcodeIdForDetail = selectedBarcodeIdForDetail,
@@ -964,14 +973,21 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             isOpen = showModulesPanel,
             onClose = { showModulesPanel = false },
             initialExpandedModule = modulesPanelInitialExpanded,
-            onModuleCategoryClick = { menu, category ->
+            onModuleCategoryClick = { menu, clickedItem ->
                 val menuItem = SidebarConfig.getFullMenuItems().find { it.label == menu }
-                val firstSubItem = menuItem?.subItems?.get(category)?.firstOrNull()
-                val rawNavKey = if (firstSubItem != null) {
+
+                // Check if the clicked item is a child sub-item
+                val isSubItem = menuItem?.subItems?.values?.any { list -> list.contains(clickedItem) } == true
+
+                val rawNavKey = if (!isSubItem && menuItem?.subItems?.containsKey(clickedItem) == true) {
+                    // Only resolve to first child if the clicked item was a parent category header
+                    val firstSubItem = menuItem.subItems[clickedItem]?.firstOrNull() ?: clickedItem
                     buildNavigationKey(menu, firstSubItem)
                 } else {
-                    buildNavigationKey(menu, category)
+                    // Direct navigation for sub-items ("Opportunities" or "Opportunity Pipeline")
+                    buildNavigationKey(menu, clickedItem)
                 }
+
                 showModulesPanel = false
                 safeNavigate(rawNavKey)
             }
@@ -2131,6 +2147,9 @@ fun normalizeRoute(rawKey: String): String {
         "sales_order_management" -> "sales_orders"
         "sales_pricing_overview" -> "sales_pricing_overview"
         "sales_quotation" -> "sales_pricing_quotation"
+        "sales_opportunity_pipeline" -> "sales_opportunity_pipeline"
+        "sales_opportunities" -> "sales_opportunities"
+        "sales_opportunity" -> "sales_opportunities"
 
         "finance_sales_invoices" -> "finance_sales_invoices"
         "finance_customers" -> "finance_customers"
@@ -2215,7 +2234,10 @@ fun menuForScreen(screen: String): String = when {
         "order_management_overview",
         "measurements_available_view",
         "measurement_management_view",
-        "measurement_fields_config"
+        "measurement_fields_config",
+        "create_opportunity",
+        "opportunity_detail",
+        "convert_lead_to_opportunity"
     ) -> "Sales"
     screen.startsWith("services_") || screen in setOf(
         "service_status_detail",

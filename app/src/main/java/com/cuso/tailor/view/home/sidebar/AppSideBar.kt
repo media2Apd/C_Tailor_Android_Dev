@@ -97,6 +97,22 @@ data class MenuItem(
 // ─────────────────────────────────────────────────────────────
 
 fun buildNavigationKey(menu: String, subItem: String): String {
+    // Explicit Sales route mapping
+    if (menu == "Sales") {
+        return when (subItem) {
+            "Opportunity Pipeline" -> "sales_opportunity_pipeline"
+            "Opportunities"        -> "sales_opportunities"
+            "Opportunity"          -> "sales_opportunities"
+            "Lead Management"      -> "sales_lead"
+            "Customer"             -> "sales_customers"
+            "Measurements"         -> "sales_measurements"
+            "Sales & Orders"       -> "sales_sales_orders"
+            "Pricing Overview"     -> "sales_pricing_overview"
+            "Quotation"            -> "sales_pricing_quotation"
+            "Payment & Billing"    -> "sales_payment_and_billing"
+            else -> "sales_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
+        }
+    }
     if (menu == "Home") {
         return when (subItem) {
             "Organization Profile" -> "home_organization_profile"
@@ -182,13 +198,20 @@ object SidebarConfig {
                 subItems = emptyMap()
             ),
             MenuItem(
-                R.drawable.sales, "Sales",
+                icon = R.drawable.sales,
+                label = "Sales",
                 isPanel = true,
                 categories = listOf(
-                    "Lead Management", "Customer", "Measurements",
-                    "Sales & Orders", "Pricing & Quotes", "Payment & Billing"
+                    "Lead Management",
+                    "Customer",
+                    "Opportunity",
+                    "Measurements",
+                    "Sales & Orders",
+                    "Pricing & Quotes",
+                    "Payment & Billing"
                 ),
                 subItems = mapOf(
+                    "Opportunity" to listOf("Opportunity Pipeline", "Opportunities"),
                     "Pricing & Quotes" to listOf("Pricing Overview", "Quotation")
                 )
             ),

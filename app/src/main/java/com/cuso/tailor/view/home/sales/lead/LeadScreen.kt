@@ -14,6 +14,7 @@ import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,15 +26,16 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -46,13 +48,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.database.entities.SelectedGarment
 import com.cuso.tailor.model.sales.CreateLeadFormRequest
+import com.cuso.tailor.model.sales.GarmentCategoryDto
 import com.cuso.tailor.model.sales.LeadTableItem
 import com.cuso.tailor.model.sales.toLeadEntity
 import com.cuso.tailor.model.settings.GarmentItem
@@ -62,6 +63,7 @@ import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.view.home.formatLeadDate
 import com.cuso.tailor.view.home.sales.sales_order.OrderReviewData
 import com.cuso.tailor.view.home.toIsoDate
+import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.SaleState
 import com.cuso.tailor.viewmodel.SalesViewModel
@@ -70,27 +72,29 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.collections.filter
 
-
 enum class LeadFormMode {
     CREATE, VIEW, EDIT
 }
+
 data class LeadGarmentItemRow(
     val templateId: String = "",
     val templateName: String = "",
     val categoryId: String = "",
     val categoryName: String = "",
     val quantity: String = "1",
-    val availableCategories: List<com.cuso.tailor.model.sales.GarmentCategoryDto> = emptyList(),
+    val availableCategories: List<GarmentCategoryDto> = emptyList(),
     val isLoadingCategories: Boolean = false
 )
+
 @Composable
 fun LeadFormTopBar(
     title: String,
     badgeText: String,
     badgeColor: Color = Primary,
     onClose: () -> Unit,
-    isConverted: Boolean = true,
-    onConvertToOrder: () -> Unit = {}
+    isConverted: Boolean = false,
+    isViewMode: Boolean = false,
+    onConvertToOpportunity: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
     Row(
@@ -106,51 +110,67 @@ fun LeadFormTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
         ) {
-            if (isConverted) {
-                if (badgeText.isNotBlank()) {
-                    Box(
+            // Conversion pill or button is displayed strictly in VIEW mode only
+            if (isViewMode) {
+                if (isConverted) {
+                    // Display green status pill when lead is already converted
+                    Surface(
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 1.5f),
+                        color = greenBg,
+                        border = BorderStroke(1.dp, darkGreenBg.copy(alpha = 0.3f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(
+                                horizontal = tokens.screenPadding * 0.75f,
+                                vertical = tokens.screenPadding * 0.375f
+                            ),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = darkGreenBg,
+                                modifier = Modifier.size(tokens.iconSize * 0.75f)
+                            )
+                            Text(
+                                text = "Converted to Opportunity",
+                                fontSize = tokens.caption,
+                                fontWeight = FontWeight.SemiBold,
+                                color = darkGreenBg
+                            )
+                        }
+                    }
+                } else {
+                    // Display clickable convert button when not yet converted
+                    Row(
                         modifier = Modifier
-                            .background(badgeColor.copy(alpha = 0.12f), RoundedCornerShape(tokens.cardCornerRadius * 1.5f))
+                            .clip(RoundedCornerShape(tokens.cardCornerRadius * 1.5f))
+                            .background(Color(0xFF3730A3))
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { onConvertToOpportunity() }
                             .padding(
                                 horizontal = tokens.screenPadding * 0.75f,
                                 vertical = tokens.screenPadding * 0.375f
-                            )
+                            ),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                            contentDescription = null,
+                            tint = whiteBg,
+                            modifier = Modifier.size(tokens.iconSize * 0.8f)
+                        )
                         Text(
-                            text = badgeText,
+                            text = "Convert to Opportunity",
                             fontSize = tokens.caption,
                             fontWeight = FontWeight.SemiBold,
-                            color = badgeColor
+                            color = whiteBg
                         )
                     }
-                }
-            } else {
-                Row(
-                    modifier = Modifier
-                        .background(Primary, RoundedCornerShape(tokens.cardCornerRadius * 1.5f))
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) { onConvertToOrder() }
-                        .padding(
-                            horizontal = tokens.screenPadding * 0.75f,
-                            vertical = tokens.screenPadding * 0.375f
-                        ),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        Icons.Default.SwapHoriz,
-                        contentDescription = null,
-                        tint = whiteBg,
-                        modifier = Modifier.size(tokens.iconSize * 0.8f)
-                    )
-                    Text(
-                        text = "Convert to Order",
-                        fontSize = tokens.caption,
-                        fontWeight = FontWeight.SemiBold,
-                        color = whiteBg
-                    )
                 }
             }
 
@@ -165,60 +185,6 @@ fun LeadFormTopBar(
                         interactionSource = remember { MutableInteractionSource() }
                     ) { onClose() }
             )
-        }
-    }
-}
-
-@Composable
-fun ConvertToOrderDialog(
-    leadName: String,
-    isLoading: Boolean = false,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    val tokens = LocalAppTokens.current
-    Dialog(onDismissRequest = { if (!isLoading) onDismiss() }) {
-        Surface(
-            shape = RoundedCornerShape(tokens.cardCornerRadius),
-            color = whiteBg,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(tokens.screenPadding)) {
-                Text(
-                    text = "Convert Lead to Order",
-                    fontSize = tokens.h2,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = leadName,
-                    fontSize = tokens.bodyMedium,
-                    color = headerGrey
-                )
-                Spacer(Modifier.height(20.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss, enabled = !isLoading) {
-                        Text("Cancel", fontSize = tokens.bodyMedium, color = headerGrey)
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = onConfirm,
-                        enabled = !isLoading,
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                    ) {
-                        if (isLoading) {
-                            CirculerProgressIndicatorSmall()
-                        } else {
-                            Text("Convert", fontSize = tokens.bodyMedium, color = whiteBg)
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -263,112 +229,6 @@ fun LeadInfoBanner(text: String) {
     }
 }
 
-private fun validateLeadFields(
-    leadSource: String,
-    enquiryDate: String,
-    leadOwner: String,
-    leadStatus: String,
-    customerType: String,
-    fullName: String,
-    phone: String,
-    email: String,
-    gender: String,
-    dob: String,
-    preferredContact: String,
-    enquiryType: String,
-    estimatedQuantity: String,
-    garmentCategory: String,
-    requiredDate: String,
-    appointmentRequired: Boolean,
-    appointmentDate: String,
-    appointmentTime: String?,
-    assignedStaff: String?,
-    followUpDate: String,
-    priority: String?
-): String? {
-    val missing = mutableListOf<String>()
-
-    if (leadSource.isBlank()) missing += "Lead Source"
-    if (enquiryDate.isBlank()) missing += "Enquiry Date"
-    if (leadOwner.isBlank()) missing += "Lead Owner"
-    if (leadStatus.isBlank()) missing += "Lead Status"
-    if (fullName.isBlank()) missing += "Full Name"
-    if (phone.isBlank()) missing += "Mobile Number"
-    if (email.isBlank()) missing += "Email"
-    if (preferredContact.isBlank()) missing += "Preferred Contact Method"
-    if (enquiryType.isBlank()) missing += "Enquiry Type"
-    if (estimatedQuantity.isBlank()) missing += "Estimated Quantity"
-    if (garmentCategory.isBlank()) missing += "Garment Category"
-    if (requiredDate.isBlank()) missing += "Required Date"
-
-    if (appointmentRequired) {
-        if (appointmentDate.isBlank()) missing += "Appointment Date"
-        if (appointmentTime.isNullOrBlank()) missing += "Appointment Time"
-        if (assignedStaff.isNullOrBlank()) missing += "Assigned Staff"
-        if (followUpDate.isBlank()) missing += "Follow-up Date"
-        if (priority.isNullOrBlank()) missing += "Priority"
-    }
-
-    if (missing.isEmpty()) return null
-    return "Missing: ${missing.first()}" + if (missing.size > 1) " (+${missing.size - 1} more)" else ""
-}
-
-private fun buildOrderReviewDataFromLead(
-    leadId: String,
-    fullName: String,
-    phone: String,
-    gender: String,
-    address: String,
-    leadSource: String,
-    requiredDate: String,
-    appointmentDate: String,
-    priority: String?,
-    appointmentRequired: Boolean,
-    selectedGarmentCategories: List<String>,
-    garmentIdMap: Map<String, String>
-): OrderReviewData {
-    val garments = selectedGarmentCategories.map { categoryName ->
-        val categoryId = garmentIdMap[categoryName] ?: ""
-        SelectedGarment(
-            category = categoryId,
-            categoryName = categoryName,
-            categoryId = categoryId,
-            quantity = 1,
-            price = 0.0,
-            priority = priority.orEmpty(),
-            trialRequired = appointmentRequired,
-            fabricSource = "In-House",
-            fabricType = "",
-            colorTone = "",
-            pattern = "Solid",
-            models = emptyList()
-        )
-    }
-
-    return OrderReviewData(
-        leadId = leadId,
-        orderId = null,
-        customerId = "",
-        branchId = "",
-        fullName = fullName,
-        countryCode = "+91",
-        phone = phone,
-        gender = gender.ifBlank { "Male" },
-        dressFor = "",
-        address = address,
-        garments = garments,
-        orderDate = "",
-        source = leadSource,
-        trialDate = appointmentDate,
-        deliveryDate = requiredDate,
-        discount = 0.0,
-        paidSoFar = 0.0,
-        designImages = emptyList(),
-        existingImageUrls = emptyList(),
-        voiceNoteUri = null
-    )
-}
-
 @SuppressLint("AutoboxingStateCreation")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -376,21 +236,20 @@ fun LeadFormScreen(
     mode: LeadFormMode,
     onBack: () -> Unit,
     onEditRequested: () -> Unit = {},
-    onConvertToOrder: (OrderReviewData) -> Unit = {}
+    onConvertToOrder: (OrderReviewData) -> Unit = {},
+    onConvertToOpportunity: () -> Unit = {},
+    salesViewModel: SalesViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
+    branchViewModel: BranchViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
-    val salesViewModel: SalesViewModel = hiltViewModel()
-    val settingsViewModel: SettingsViewModel = hiltViewModel()
-    val branchViewModel: BranchViewModel = hiltViewModel()
 
     val isCreate = mode == LeadFormMode.CREATE
     val isView = mode == LeadFormMode.VIEW
     val isEdit = mode == LeadFormMode.EDIT
-    val isEditable = !isView // VIEW mode-ல் false ஆக இருக்கும்
+    val isEditable = !isView
 
     val selectedLead by salesViewModel.selectedLead.collectAsStateWithLifecycle()
-    val isLoadingLead by salesViewModel.isLoadingLeadDetails.collectAsStateWithLifecycle()
-    val leadDetailsError by salesViewModel.leadDetailsError.collectAsStateWithLifecycle()
     val l = if (isCreate) null else selectedLead
 
     val leadState by salesViewModel.leadState.collectAsStateWithLifecycle()
@@ -400,8 +259,8 @@ fun LeadFormScreen(
     val salesStatuses by salesViewModel.salesStatuses.collectAsStateWithLifecycle()
     val allGarments by settingsViewModel.garments.collectAsStateWithLifecycle()
     val garmentCategories by salesViewModel.garmentCategories.collectAsStateWithLifecycle()
+    val branchState by branchViewModel.uiState.collectAsStateWithLifecycle()
 
-    // Dynamic dropdown flows from API
     val apiLeadSources by salesViewModel.leadSources.collectAsStateWithLifecycle()
     val apiGenderOptions by salesViewModel.genderOptions.collectAsStateWithLifecycle()
     val apiContactOptions by salesViewModel.preferredContactOptions.collectAsStateWithLifecycle()
@@ -417,22 +276,19 @@ fun LeadFormScreen(
         salesViewModel.fetchSalesData()
     }
 
-    // Active garments resolved from Settings API
+    val branches = (branchState as? BranchUiState.Success)?.branches ?: emptyList()
+
     val activeGarments: List<GarmentItem> = remember(allGarments) {
         allGarments.filter { it.status.equals("Active", ignoreCase = true) }
     }
     val garmentTemplateOptions = remember(activeGarments) {
         activeGarments.map { it.displayName?.takeIf { n -> n.isNotBlank() } ?: it.name }
     }
-    val garmentCategoryOptions = remember(garmentCategories) {
-        garmentCategories.map { it.categoryId.categoryName }.filter { it.isNotBlank() }
-    }
 
-    // Dropdown options resolved from API
     val leadSourceOptions = remember(apiLeadSources, leadsList) {
         (apiLeadSources + leadsList.map { it.effectiveSource }.filter { it.isNotBlank() && it != "—" })
             .distinct()
-            .ifEmpty { listOf("Walk-in", "Instagram", "Facebook Ads", "Website", "WhatsApp") }
+            .ifEmpty { listOf("No Lead Source Found") }
     }
     val genderOptions = remember(apiGenderOptions) {
         apiGenderOptions.ifEmpty { listOf("Male", "Female", "Other") }
@@ -462,62 +318,54 @@ fun LeadFormScreen(
         salesStatuses.map { it.name }.ifEmpty { listOf("New", "Scheduled", "In_Progress", "Contacted", "Qualified", "Not_Qualified", "Lost", "Junk") }
     }
 
-    // Section 1: Lead Information Form State
-    var leadSource by remember { mutableStateOf(l?.source ?: "Walk-in") }
-    var enquiryDate by remember { mutableStateOf(l?.let { formatLeadDate(it.enquiryDate) } ?: "24-09-2026") }
+    // Lead information form states
+    var leadSource by remember { mutableStateOf(l?.source ?: "-") }
+    var enquiryDate by remember { mutableStateOf(l?.let { formatLeadDate(it.enquiryDate) } ?: "-") }
     var leadOwner by remember { mutableStateOf(l?.leadOwner ?: "") }
     var pipelineStatus by remember { mutableStateOf(l?.status ?: "New") }
     var lifecycleStatus by remember { mutableStateOf("Active") }
 
-    // Section 2: Customer Identity Form State
-    var customerType by remember { mutableStateOf(l?.customerType?.replaceFirstChar { c -> c.uppercase() } ?: "Individual") }
+    var customerType by remember { mutableStateOf(l?.customerType?.replaceFirstChar { c -> c.uppercase() } ?: "-") }
     var fullName by remember { mutableStateOf(l?.fullName ?: "") }
     var mobileNumber by remember { mutableStateOf(l?.phone ?: "") }
     var emailAddress by remember { mutableStateOf(l?.email ?: "") }
     var gender by remember { mutableStateOf(l?.gender ?: "") }
     var dateOfBirth by remember { mutableStateOf(l?.let { formatLeadDate(it.dob) } ?: "") }
-    var selectedIso by remember { mutableStateOf("IN") }
+    var selectedIso by remember { mutableStateOf("-") }
 
-    // Section 3: Location & Communication Form State
     var flatDoorNo by remember { mutableStateOf("") }
     var streetLandmark by remember { mutableStateOf(l?.address ?: "") }
     var areaZone by remember { mutableStateOf(l?.area ?: "") }
     var city by remember { mutableStateOf(l?.city ?: "") }
     var stateProvince by remember { mutableStateOf("") }
     var pincode by remember { mutableStateOf("") }
-    var country by remember { mutableStateOf("India") }
+    var country by remember { mutableStateOf("-") }
     var preferredContact by remember { mutableStateOf(l?.preferredContactMethod ?: "-") }
 
-    // Section 4: Enquiry Details Form State
-    var enquiryClassification by remember { mutableStateOf(l?.enquiryType ?: "New Order") }
+    var enquiryClassification by remember { mutableStateOf(l?.enquiryType ?: "-") }
     var requiredCompletionDate by remember { mutableStateOf(l?.let { formatLeadDate(it.requiredDate) } ?: "") }
     var minBudget by remember { mutableStateOf(l?.budgetMin?.toString() ?: "1500") }
     var maxBudget by remember { mutableStateOf(l?.budgetMax?.toString() ?: "50000") }
 
-    // Dynamic Garment Specifications List
     var garmentSpecs by remember {
-        mutableStateOf(listOf(LeadGarmentItemRow(quantity = l?.estimatedQuantity?.takeIf { it > 0 }?.toString() ?: "1")))
+        mutableStateOf(listOf(LeadGarmentItemRow(quantity = l?.estimatedQuantity?.takeIf { it > 0 }?.toString() ?: "-")))
     }
 
-    // Section 5: Fabric Information Form State
     var fabricProvided by remember { mutableStateOf(false) }
     var fabricSource by remember { mutableStateOf("") }
     var fabricNotes by remember { mutableStateOf("") }
 
-    // Section 6: Appointment & Staff Assignment Form State
     var appointmentRequired by remember { mutableStateOf(l?.appointmentRequired ?: false) }
     var assignedStaff by remember { mutableStateOf(l?.assignedStaff ?: "") }
-    var priorityLevel by remember { mutableStateOf(l?.priority ?: "Medium") }
+    var priorityLevel by remember { mutableStateOf(l?.priority ?: "-") }
     var nextFollowUpDate by remember { mutableStateOf(l?.let { formatLeadDate(it.followUpDate) } ?: "") }
     var appointmentDate by remember { mutableStateOf(l?.let { formatLeadDate(it.appointmentDate) } ?: "") }
-    var appointmentTime by remember { mutableStateOf(l?.appointmentTime ?: "06:02 PM") }
-    var appointmentStatus by remember { mutableStateOf("None") }
+    var appointmentTime by remember { mutableStateOf(l?.appointmentTime ?: "-") }
+    var appointmentStatus by remember { mutableStateOf("-") }
 
-    // Section 7: Notes & References Form State
     var internalNotes by remember { mutableStateOf(l?.internalNotes ?: "") }
     var customerNotes by remember { mutableStateOf(l?.customerNotes ?: "") }
 
-    // Dropdown expansion state controllers
     var leadSourceExpanded by remember { mutableStateOf(false) }
     var leadOwnerExpanded by remember { mutableStateOf(false) }
     var pipelineStatusExpanded by remember { mutableStateOf(false) }
@@ -530,13 +378,11 @@ fun LeadFormScreen(
     var priorityLevelExpanded by remember { mutableStateOf(false) }
     var appointmentStatusExpanded by remember { mutableStateOf(false) }
 
-    // Active accordion section
-    var expandedSection by remember { mutableStateOf("lead_info") }
+    var expandedSection by remember { mutableStateOf("-") }
 
     var validationError by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorField by remember { mutableStateOf<String?>(null) }
-    var showConvertDialog by remember { mutableStateOf(false) }
 
     val leadOwnerLabel = staffIdMap.entries.firstOrNull { it.value == leadOwner }?.key ?: ""
     val assignedStaffLabel = staffIdMap.entries.firstOrNull { it.value == assignedStaff }?.key ?: ""
@@ -547,6 +393,13 @@ fun LeadFormScreen(
             TabItem(label = "Corporate", icon = Icons.Default.Business)
         )
     }
+
+    // Determine conversion state by matching lead ID against leadsList
+    val matchingLeadItem = remember(l?.id, leadsList) {
+        leadsList.find { it.id == l?.id }
+    }
+    val isLeadConverted = matchingLeadItem?.isConverted == true ||
+            l?.status?.contains("Convert", ignoreCase = true) == true
 
     fun submitLeadForm() {
         if (!isEditable) return
@@ -580,13 +433,13 @@ fun LeadFormScreen(
             return if (dateStr.isNotBlank()) dateStr.toIsoDate().ifBlank { dateStr } else ""
         }
 
-        val activeBranchId = (branchViewModel.uiState.value as? com.cuso.tailor.viewmodel.BranchUiState.Success)
+        val activeBranchId = (branchViewModel.uiState.value as? BranchUiState.Success)
             ?.branches?.firstOrNull()?.id
 
         val parsedMinBudget = minBudget.toIntOrNull() ?: 0
         val parsedMaxBudget = maxBudget.toIntOrNull() ?: 0
 
-        val garmentsPayload: List<com.cuso.tailor.model.sales.LeadGarmentSpecificationPayload> = garmentSpecs.mapNotNull { row ->
+        val garmentsPayload = garmentSpecs.mapNotNull { row ->
             if (row.templateId.isNotBlank() && row.categoryId.isNotBlank()) {
                 com.cuso.tailor.model.sales.LeadGarmentSpecificationPayload(
                     garmentId = row.templateId,
@@ -602,7 +455,6 @@ fun LeadFormScreen(
             areaZone = areaZone,
             city = city,
             subdivisionName = stateProvince,
-//            country = country,
             pincode = pincode
         )
 
@@ -687,9 +539,11 @@ fun LeadFormScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 LeadFormTopBar(
                     title = if (isCreate) "Create Lead" else if (isEdit) "Edit Lead" else "View Lead",
-                    badgeText = pipelineStatus,
+                    badgeText = if (isLeadConverted) "Converted" else pipelineStatus,
                     onClose = onBack,
-                    isConverted = true
+                    isConverted = isLeadConverted,
+                    isViewMode = isView, // Controls visibility so conversion options appear only in VIEW mode
+                    onConvertToOpportunity = onConvertToOpportunity
                 )
                 HorizontalDivider(color = title_border)
 
@@ -994,7 +848,7 @@ fun LeadFormScreen(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                     colors = CardDefaults.cardColors(containerColor = whiteBg),
                                     shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderGray)
+                                    border = BorderStroke(1.dp, BorderGray)
                                 ) {
                                     Column(modifier = Modifier.padding(12.dp)) {
                                         Row(
@@ -1279,77 +1133,27 @@ fun LeadFormScreen(
                 }
             }
 
-            // Fixed bottom action bar: VIEW Mode-ல் Edit & Close மட்டும் இருக்கும்
-            Surface(
-                modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter),
-                color = whiteBg,
-                shadowElevation = 8.dp
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(tokens.screenPadding),
-                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                ) {
-                    if (isView) {
-                        OutlinedButton(
-                            onClick = onBack,
-                            modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderGray)
-                        ) {
-                            Text("Close", fontSize = tokens.bodyMedium, color = headerGrey)
-                        }
-
-                        Button(
-                            onClick = onEditRequested,
-                            modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                            colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit",
-                                tint = whiteBg,
-                                modifier = Modifier.size(tokens.iconSize * 0.8f)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = "Edit Lead",
-                                fontSize = tokens.bodyMedium,
-                                color = whiteBg,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    } else {
-                        OutlinedButton(
-                            onClick = onBack,
-                            modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderGray)
-                        ) {
-                            Text("Cancel", fontSize = tokens.bodyMedium, color = headerGrey)
-                        }
-
-                        Button(
-                            onClick = { submitLeadForm() },
-                            enabled = leadState !is SaleState.Loading && updateState !is SaleState.Loading,
-                            modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                            colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                        ) {
-                            if (leadState is SaleState.Loading || updateState is SaleState.Loading) {
-                                CirculerProgressIndicatorSmall()
-                            } else {
-                                Text(
-                                    text = if (isCreate) "Create Lead" else "Save Changes",
-                                    fontSize = tokens.bodyMedium,
-                                    color = whiteBg,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            // Fixed bottom action bar using reusable StepNavigationFab
+            StepNavigationFab(
+                showBack = true,
+                backLabel = if (isView) "Close" else "Cancel",
+                showBackArrow = false,
+                onBack = onBack,
+                trailingAction = if (isView) {
+                    TrailingFabAction.Edit(
+                        label = "Edit",
+                        onClick = onEditRequested
+                    )
+                } else {
+                    TrailingFabAction.Update(
+                        label = if (isCreate) "Create Lead" else "Save Changes",
+                        isLoading = leadState is SaleState.Loading || updateState is SaleState.Loading,
+                        onClick = { submitLeadForm() }
+                    )
+                },
+                showTrailingArrow = false,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
 
             DynamicIslandError(
                 modifier = Modifier.align(Alignment.TopCenter),
@@ -1491,7 +1295,6 @@ fun LeadScreenContent(
         }
     }
 
-    // Active filter counter for the badge on the filter icon
     val activeFilterCount by remember(filterSections) {
         derivedStateOf {
             filterSections.sumOf { section ->
@@ -1500,6 +1303,7 @@ fun LeadScreenContent(
         }
     }
 
+    // Display all leads in the table matching filters
     val filteredLeads by remember(leads, searchQuery, filterSections) {
         derivedStateOf {
             leads.filter { lead ->
@@ -1554,10 +1358,11 @@ fun LeadScreenContent(
             }
     }
 
-    fun resolveStatusBadge(statusName: String): Pair<String, Pair<Color, Color>> {
+    fun resolveStatusBadge(lead: LeadTableItem): Pair<String, Pair<Color, Color>> {
+        val statusName = lead.effectiveStatus
         return when {
-            statusName.contains("Convert", ignoreCase = true) || statusName.equals("CONVERTED", ignoreCase = true) ->
-                "Converted to Order" to (greenBg to darkGreenBg)
+            statusName.contains("Convert", ignoreCase = true) ->
+                "Converted to Opportunity" to (greenBg to darkGreenBg)
             statusName.contains("New", ignoreCase = true) || statusName.equals("NEW", ignoreCase = true) ->
                 "New Enquiry" to (primary_light to Primary)
             statusName.contains("Quot", ignoreCase = true) || statusName.equals("QUOTED", ignoreCase = true) ->
@@ -1611,13 +1416,11 @@ fun LeadScreenContent(
             modifier = Modifier.fillMaxSize()
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Fixed top TitleBar: Never covered by FilterDrawer
                 Column(modifier = Modifier.fillMaxWidth()) {
                     TitleBar("Lead Management", onClose = onClose)
                 }
                 HorizontalDivider(color = title_border)
 
-                // Container directly below TitleBar hosting both Content and Filter overlay
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         SearchFilterBar(
@@ -1696,7 +1499,7 @@ fun LeadScreenContent(
                                                 .fillMaxWidth()
                                         ) {
                                             items(filteredLeads, key = { it.id }) { lead ->
-                                                val (badgeText, badgeColors) = resolveStatusBadge(lead.effectiveStatus)
+                                                val (badgeText, badgeColors) = resolveStatusBadge(lead)
                                                 val (bgColor, textColor) = badgeColors
 
                                                 DataCard(
@@ -1707,7 +1510,7 @@ fun LeadScreenContent(
                                                     topBadgeTextColor = textColor,
                                                     topBadgeBgColor = bgColor,
                                                     title = lead.name,
-                                                    subtitle = "${formatLeadDate(lead.requiredDate?.ifEmpty { "—" })} • ${lead.garmentName} • Qty ${lead.effectiveQuantity}",
+                                                    subtitle = "${formatLeadDate(lead.requiredDate?.ifBlank { "—" })} • ${lead.garmentName} • Qty ${lead.effectiveQuantity}",
                                                     footerFields = listOf(
                                                         DataCardField(
                                                             icon = Icons.Default.AttachMoney,
@@ -1728,14 +1531,7 @@ fun LeadScreenContent(
 
                                             if (isLoadingMore) {
                                                 item {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .padding(16.dp),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        CirculerProgressIndicatorSmall()
-                                                    }
+                                                    ThreeDotLoading()
                                                 }
                                             }
                                         }
@@ -1745,7 +1541,6 @@ fun LeadScreenContent(
                         }
                     }
 
-                    // FilterDrawer overlay rendered strictly below TitleBar
                     FilterDrawer(
                         state = filterDrawerState,
                         title = "Filters",

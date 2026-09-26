@@ -13,17 +13,21 @@ import com.cuso.tailor.model.login_forgotPassword_resetPassword.AddGarmentReques
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.AddOrgGarmentResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.OrgGarmentCategory
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.RemoveOrgGarmentResponse
+import com.cuso.tailor.model.sales.AddOpportunityActivityRequest
 import com.cuso.tailor.model.sales.AppointmentRequest
 import com.cuso.tailor.model.sales.AssignStageResponse
 import com.cuso.tailor.model.sales.BudgetRangeRequest
 import com.cuso.tailor.model.sales.CategoryItem
 import com.cuso.tailor.model.sales.ContactRequest
+import com.cuso.tailor.model.sales.ConvertLeadToOpportunityRequest
+import com.cuso.tailor.model.sales.ConvertLeadToOpportunityResponse
 import com.cuso.tailor.model.sales.ConvertToInvoiceData
 import com.cuso.tailor.model.sales.ConvertToInvoiceRequest
 import com.cuso.tailor.model.sales.ConvertToOrderData
 import com.cuso.tailor.model.sales.CreateCustomerRequest
 import com.cuso.tailor.model.sales.CreateLeadFormRequest
 import com.cuso.tailor.model.sales.CreateLeadFormResponse
+import com.cuso.tailor.model.sales.CreateOpportunityRequest
 import com.cuso.tailor.model.sales.CreateOrderRequest
 import com.cuso.tailor.model.sales.CreateQuotationRequest
 import com.cuso.tailor.model.sales.CreateQuotationResponse
@@ -40,6 +44,10 @@ import com.cuso.tailor.model.sales.GarmentStageDoc
 import com.cuso.tailor.model.sales.LeadTableItem
 import com.cuso.tailor.model.sales.MeasurementsResponse
 import com.cuso.tailor.model.sales.NoteRequest
+import com.cuso.tailor.model.sales.OpportunityActivityDto
+import com.cuso.tailor.model.sales.OpportunityDto
+import com.cuso.tailor.model.sales.OpportunityListResponse
+import com.cuso.tailor.model.sales.OpportunityStagesResponse
 import com.cuso.tailor.model.sales.OrderItem
 import com.cuso.tailor.model.sales.OrderManagementResponse
 import com.cuso.tailor.model.sales.OrderOverviewData
@@ -85,6 +93,7 @@ import com.cuso.tailor.network.organization.OrganizationApiService
 import com.cuso.tailor.network.sales.SalesCustomerApiService
 import com.cuso.tailor.network.sales.SalesLeadApiService
 import com.cuso.tailor.network.sales.SalesMeasurementsApiService
+import com.cuso.tailor.network.sales.SalesOppertunitiesApiService
 import com.cuso.tailor.network.sales.SalesOrderApiService
 import com.cuso.tailor.network.sales.SalesPricingApiService
 import com.google.gson.Gson
@@ -113,6 +122,7 @@ class SalesRepository @Inject constructor(
     private val salesMeasurementsApi: SalesMeasurementsApiService,
     private val organizationApi: OrganizationApiService,
     private val hrApi: HrApiService,
+    private val salesOppertunitiesApiService: SalesOppertunitiesApiService,
     private val salesStatusDao: SalesStatusDao,
     private val salesSummaryDao: SalesSummaryDao,
     private val tokensDao: TokensDao,
@@ -361,6 +371,23 @@ class SalesRepository @Inject constructor(
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to delete: ${response.code()}")
                 )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun convertLeadToOpportunity(
+        request: ConvertLeadToOpportunityRequest
+    ): Result<ConvertLeadToOpportunityResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesLeadApi.convertLeadToOpportunity(accessToken, csrfToken, request)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to convert lead"
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -1060,6 +1087,25 @@ class SalesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Deletes a measurement record remotely by ID.
+     */
+    suspend fun deleteMeasurement(id: String): Result<String?> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesMeasurementsApi.deleteMeasurement(accessToken, csrfToken, id)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.message)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to delete measurement: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // =============================================================
     // 9. Garment Pricing & Quotations Operations
     // =============================================================
@@ -1603,6 +1649,113 @@ class SalesRepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    // =============================================================
+    // Opportunity Operations
+    // =============================================================
+
+   
+
+    suspend fun getOpportunityStages(): Result<OpportunityStagesResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesOppertunitiesApiService.getOpportunityStages(accessToken, csrfToken)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch opportunity stages: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // 1. VIEW ALL
+    /**
+     * Fetches opportunities from the API.
+     */
+    suspend fun getOpportunities(
+        page: Int = 1,
+        limit: Int = 20,
+        search: String? = null
+    ): Result<OpportunityListResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesOppertunitiesApiService.getOpportunities(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch opportunities: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // 2. VIEW ONE
+    suspend fun getOpportunityById(id: String): Result<OpportunityDto> {
+        return try {
+            val (token, csrfToken) = getAuthHeaders()
+            val response = salesOppertunitiesApiService.getOpportunityById(token, csrfToken, id)
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else Result.failure(Exception(response.errorBody()?.string() ?: "Failed to load opportunity"))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    // 3. CREATE OPPORTUNITY
+    suspend fun createOpportunity(request: CreateOpportunityRequest): Result<OpportunityDto> {
+        return try {
+            val (token, csrfToken) = getAuthHeaders()
+            val response = salesOppertunitiesApiService.createOpportunity(token, csrfToken, request)
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else Result.failure(Exception(response.errorBody()?.string() ?: "Failed to create opportunity"))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    // 4. DELETE ONE
+    suspend fun deleteOpportunity(id: String): Result<String> {
+        return try {
+            val (token, csrfToken) = getAuthHeaders()
+            val response = salesOppertunitiesApiService.deleteOpportunity(token, csrfToken, id)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.message ?: "Opportunity deleted successfully.")
+            } else Result.failure(Exception(response.errorBody()?.string() ?: "Failed to delete opportunity"))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    // 5. ADD LOG ACTIVITY
+    suspend fun addOpportunityActivity(request: AddOpportunityActivityRequest): Result<OpportunityActivityDto> {
+        return try {
+            val (token, csrfToken) = getAuthHeaders()
+            val response = salesOppertunitiesApiService.addOpportunityActivity(token, csrfToken, request)
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else Result.failure(Exception(response.errorBody()?.string() ?: "Failed to log activity"))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    // 6. LOG HISTORY
+    suspend fun getOpportunityActivityHistory(opportunityId: String): Result<List<OpportunityActivityDto>> {
+        return try {
+            val (token, csrfToken) = getAuthHeaders()
+            val response = salesOppertunitiesApiService.getOpportunityActivityHistory(token, csrfToken, opportunityId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else Result.failure(Exception(response.errorBody()?.string() ?: "Failed to load log history"))
+        } catch (e: Exception) { Result.failure(e) }
     }
 }
 

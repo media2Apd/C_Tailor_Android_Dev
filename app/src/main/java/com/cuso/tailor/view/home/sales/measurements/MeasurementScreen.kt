@@ -27,8 +27,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -64,6 +64,7 @@ import com.cuso.tailor.ui.theme.darkGreenBg
 import com.cuso.tailor.ui.theme.greenBg
 import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.mutedText
+import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.ui.theme.yellowBg
@@ -73,7 +74,9 @@ import com.cuso.tailor.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardField
 import com.cuso.tailor.view.composable.DataCardImage
-import com.cuso.tailor.view.composable.FabConfig
+import com.cuso.tailor.view.composable.DeleteModel
+import com.cuso.tailor.view.composable.DynamicIslandError
+import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FilterDrawer
 import com.cuso.tailor.view.composable.FilterOption
@@ -83,6 +86,7 @@ import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
+import com.cuso.tailor.viewmodel.MeasurementDeleteState
 import com.cuso.tailor.viewmodel.MeasurementsUiState
 import com.cuso.tailor.viewmodel.MeasurementsViewModel
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -101,6 +105,11 @@ fun MeasurementsScreen(
     val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
     val canLoadMore by viewModel.canLoadMore.collectAsStateWithLifecycle()
 
+    val deleteState by viewModel.deleteState.collectAsStateWithLifecycle()
+    var measurementPendingDelete by remember { mutableStateOf<MeasurementItem?>(null) }
+    var deleteSuccessMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     var searchQuery by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
@@ -117,6 +126,22 @@ fun MeasurementsScreen(
     }
 
     val allItems = (uiState as? MeasurementsUiState.Success)?.items ?: emptyList()
+
+    // Handle delete state transitions
+    LaunchedEffect(deleteState) {
+        when (val state = deleteState) {
+            is MeasurementDeleteState.Success -> {
+                deleteSuccessMessage = state.message ?: "Measurement deleted successfully"
+                viewModel.resetDeleteState()
+            }
+            is MeasurementDeleteState.Error -> {
+                errorMessage = state.message
+                viewModel.resetDeleteState()
+            }
+            else -> {}
+        }
+    }
+
     LaunchedEffect(allItems) {
         if (allItems.isNotEmpty()) {
             val dynamicGarments = allItems.map { it.garmentName }.filter { it.isNotBlank() && it != "—" }.distinct()
@@ -186,194 +211,206 @@ fun MeasurementsScreen(
     }
 
     FabScaffold(
-        fab = FabConfig(
-            label = "New Measurement", // <-- Updated label
-            icon = Icons.Default.Add,
-            onClick = onCreateMeasurement, // <-- Triggers navigation to measurement entry screen
-            bottomPadding = 50.dp
-        )
+//        fab = FabConfig(
+//            label = "New Measurement",
+//            icon = Icons.Default.Add,
+//            onClick = onCreateMeasurement,
+//            bottomPadding = 50.dp
+//        )
+        fab = null
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Transparent)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                TitleBar("Measurements", onClose = onBack)
-            }
-
-            HorizontalDivider(color = title_border)
-
-            Box(
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+                    .fillMaxSize()
+                    .background(Color.Transparent)
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    SearchFilterBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        placeholder = "Search Measurements...",
-                        accentColor = BluePrimary,
-                        borderColor = BorderGray,
-                        textSecondaryColor = TextSecondary,
-                        filterCount = activeFilterCount,
-                        onFilterClick = { filterDrawerState.open() }
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TitleBar("Measurements", onClose = onBack)
+                }
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                    ) {
-                        when (val state = uiState) {
-                            is MeasurementsUiState.Loading -> {
-                                ListSkeleton()
-                            }
+                HorizontalDivider(color = title_border)
 
-                            is MeasurementsUiState.Error -> {
-                                AppErrorState(
-                                    title = "Failed to load Measurements",
-                                    message = state.message,
-                                    onRetry = { viewModel.loadMeasurements() }
-                                )
-                            }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        SearchFilterBar(
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            placeholder = "Search Measurements...",
+                            accentColor = BluePrimary,
+                            borderColor = BorderGray,
+                            textSecondaryColor = TextSecondary,
+                            filterCount = activeFilterCount,
+                            onFilterClick = { filterDrawerState.open() }
+                        )
 
-                            is MeasurementsUiState.Success -> {
-                                if (filteredList.isEmpty()) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(whiteBg, RoundedCornerShape(12.dp))
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) {
+                            when (val state = uiState) {
+                                is MeasurementsUiState.Loading -> {
+                                    ListSkeleton()
+                                }
+
+                                is MeasurementsUiState.Error -> {
+                                    AppErrorState(
+                                        title = "Failed to load Measurements",
+                                        message = state.message,
+                                        onRetry = { viewModel.loadMeasurements() }
+                                    )
+                                }
+
+                                is MeasurementsUiState.Success -> {
+                                    if (filteredList.isEmpty()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(whiteBg, RoundedCornerShape(12.dp))
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
                                         ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(80.dp)
-                                                    .background(light_grey, CircleShape),
-                                                contentAlignment = Alignment.Center
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.spacedBy(12.dp)
                                             ) {
-                                                Icon(
-                                                    Icons.AutoMirrored.Filled.List,
-                                                    contentDescription = null,
-                                                    tint = Color(0xFF9CA3AF),
-                                                    modifier = Modifier.size(40.dp)
-                                                )
-                                            }
-
-                                            Text(
-                                                text = "No Measurements Found",
-                                                fontSize = 18.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF111827)
-                                            )
-
-                                            Text(
-                                                text = if (searchQuery.isNotBlank() || activeFilterCount > 0) {
-                                                    "No measurement records match your search or filter criteria."
-                                                } else {
-                                                    "No measurement records available."
-                                                },
-                                                fontSize = 14.sp,
-                                                color = Color(0xFF6B7280),
-                                                textAlign = TextAlign.Center,
-                                                modifier = Modifier.padding(horizontal = 32.dp)
-                                            )
-
-                                            if (searchQuery.isNotBlank() || activeFilterCount > 0) {
-                                                OutlinedButton(
-                                                    onClick = {
-                                                        searchQuery = ""
-                                                        filterSections = filterSections.map { section ->
-                                                            section.copy(options = section.options.map { it.copy(isSelected = false) })
-                                                        }
-                                                    },
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    border = BorderStroke(1.dp, Color(0xFF3B3BF9)),
-                                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF3B3BF9)),
-                                                    modifier = Modifier.padding(top = 8.dp)
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(80.dp)
+                                                        .background(light_grey, CircleShape),
+                                                    contentAlignment = Alignment.Center
                                                 ) {
-                                                    Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
-                                                    Spacer(Modifier.width(8.dp))
-                                                    Text("Clear Filters", fontSize = 13.sp)
+                                                    Icon(
+                                                        Icons.AutoMirrored.Filled.List,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFF9CA3AF),
+                                                        modifier = Modifier.size(40.dp)
+                                                    )
+                                                }
+
+                                                Text(
+                                                    text = "No Measurements Found",
+                                                    fontSize = 18.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color(0xFF111827)
+                                                )
+
+                                                Text(
+                                                    text = if (searchQuery.isNotBlank() || activeFilterCount > 0) {
+                                                        "No measurement records match your search or filter criteria."
+                                                    } else {
+                                                        "No measurement records available."
+                                                    },
+                                                    fontSize = 14.sp,
+                                                    color = Color(0xFF6B7280),
+                                                    textAlign = TextAlign.Center,
+                                                    modifier = Modifier.padding(horizontal = 32.dp)
+                                                )
+
+                                                if (searchQuery.isNotBlank() || activeFilterCount > 0) {
+                                                    OutlinedButton(
+                                                        onClick = {
+                                                            searchQuery = ""
+                                                            filterSections = filterSections.map { section ->
+                                                                section.copy(options = section.options.map { it.copy(isSelected = false) })
+                                                            }
+                                                        },
+                                                        shape = RoundedCornerShape(8.dp),
+                                                        border = BorderStroke(1.dp, Color(0xFF3B3BF9)),
+                                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF3B3BF9)),
+                                                        modifier = Modifier.padding(top = 8.dp)
+                                                    ) {
+                                                        Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                        Spacer(Modifier.width(8.dp))
+                                                        Text("Clear Filters", fontSize = 13.sp)
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                                } else {
-                                    LazyColumn(
-                                        state = listState,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(bottom = 90.dp)
-                                    ) {
-                                        items(filteredList, key = { it.id.ifBlank { it.customerId } }) { item ->
-                                            val isActive = item.status.equals("active", ignoreCase = true)
-                                            val badgeTextColor = if (isActive) darkGreenBg else yellowText
-                                            val badgeBgColor = if (isActive) greenBg else yellowBg
+                                    } else {
+                                        LazyColumn(
+                                            state = listState,
+                                            modifier = Modifier.fillMaxSize(),
+                                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                                            contentPadding = PaddingValues(bottom = 90.dp)
+                                        ) {
+                                            items(filteredList, key = { it.id.ifBlank { it.customerId } }) { item ->
+                                                val isActive = item.status.equals("active", ignoreCase = true)
+                                                val badgeTextColor = if (isActive) darkGreenBg else yellowText
+                                                val badgeBgColor = if (isActive) greenBg else yellowBg
 
-                                            val garmentDisplay = if (item.categoryName.isNotBlank() && item.categoryName != "—") {
-                                                "${item.garmentName} • ${item.categoryName}"
-                                            } else {
-                                                item.garmentName
+                                                val garmentDisplay = if (item.categoryName.isNotBlank() && item.categoryName != "—") {
+                                                    "${item.garmentName} • ${item.categoryName}"
+                                                } else {
+                                                    item.garmentName
+                                                }
+
+                                                val hasProfilePic = !item.profileImageUrl.isNullOrBlank()
+
+                                                DataCard(
+                                                    item = item,
+                                                    onClick = { onViewMeasurement(item) },
+                                                    eyebrowText = "Code: ${item.customerCode}",
+                                                    topBadgeText = item.status,
+                                                    topBadgeTextColor = badgeTextColor,
+                                                    topBadgeBgColor = badgeBgColor,
+                                                    topBadgeShowDot = false,
+                                                    showActionsInHeader = true,
+                                                    image = if (hasProfilePic) {
+                                                        DataCardImage(
+                                                            url = item.profileImageUrl,
+                                                            size = 36.dp,
+                                                            shape = CircleShape,
+                                                            backgroundColor = Color.Transparent
+                                                        )
+                                                    } else {
+                                                        DataCardImage(
+                                                            painter = painterResource(R.drawable.ic_person),
+                                                            size = 36.dp,
+                                                            shape = CircleShape,
+                                                            tint = blackTitle,
+                                                            backgroundColor = light_grey
+                                                        )
+                                                    },
+                                                    title = item.customerName,
+                                                    footerFields = listOf(
+                                                        DataCardField(text = "Phone: ${item.contact}", textColor = mutedText),
+                                                        DataCardField(text = "Garment: $garmentDisplay", textColor = mutedText),
+                                                        DataCardField(text = "Measured: ${item.measuredDate}", textColor = mutedText)
+                                                    ),
+                                                    actions = listOf(
+                                                        MenuAction("View", Icons.Default.Visibility) {
+                                                            onViewMeasurement(item)
+                                                        },
+                                                        MenuAction(
+                                                            label = "Delete",
+                                                            icon = Icons.Default.Delete,
+                                                            tint = redText,
+                                                            textColor = redText
+                                                        ) {
+                                                            measurementPendingDelete = item
+                                                        }
+                                                    )
+                                                )
                                             }
 
-                                            val hasProfilePic = !item.profileImageUrl.isNullOrBlank()
-
-                                            DataCard(
-                                                item = item,
-                                                onClick = { onViewMeasurement(item) },
-                                                eyebrowText = "Code: ${item.customerCode}",
-                                                topBadgeText = item.status,
-                                                topBadgeTextColor = badgeTextColor,
-                                                topBadgeBgColor = badgeBgColor,
-                                                topBadgeShowDot = false,
-                                                showActionsInHeader = true,
-                                                image = if (hasProfilePic) {
-                                                    DataCardImage(
-                                                        url = item.profileImageUrl,
-                                                        size = 36.dp,
-                                                        shape = CircleShape,
-                                                        backgroundColor = Color.Transparent
-                                                    )
-                                                } else {
-                                                    DataCardImage(
-                                                        painter = painterResource(R.drawable.ic_person),
-                                                        size = 36.dp,
-                                                        shape = CircleShape,
-                                                        tint = blackTitle,
-                                                        backgroundColor = light_grey
-                                                    )
-                                                },
-                                                title = item.customerName,
-                                                footerFields = listOf(
-                                                    DataCardField(text = "Phone: ${item.contact}", textColor = mutedText),
-                                                    DataCardField(text = "Garment: $garmentDisplay", textColor = mutedText),
-                                                    DataCardField(text = "Measured: ${item.measuredDate}", textColor = mutedText)
-                                                ),
-                                                actions = listOf(
-                                                    MenuAction("View", Icons.Default.Visibility) {
-                                                        onViewMeasurement(item)
+                                            if (isLoadingMore) {
+                                                item {
+                                                    Box(
+                                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        CirculerProgressIndicatorSmall()
                                                     }
-                                                )
-                                            )
-                                        }
-
-                                        if (isLoadingMore) {
-                                            item {
-                                                Box(
-                                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    CirculerProgressIndicatorSmall()
                                                 }
                                             }
                                         }
@@ -382,20 +419,46 @@ fun MeasurementsScreen(
                             }
                         }
                     }
-                }
 
-                FilterDrawer(
-                    state = filterDrawerState,
-                    title = "Filter Measurements",
-                    sections = filterSections,
-                    onApply = { updatedSections -> filterSections = updatedSections },
-                    onClearAll = {
-                        filterSections = filterSections.map { section ->
-                            section.copy(options = section.options.map { option -> option.copy(isSelected = false) })
+                    FilterDrawer(
+                        state = filterDrawerState,
+                        title = "Filter Measurements",
+                        sections = filterSections,
+                        onApply = { updatedSections -> filterSections = updatedSections },
+                        onClearAll = {
+                            filterSections = filterSections.map { section ->
+                                section.copy(options = section.options.map { option -> option.copy(isSelected = false) })
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
+
+            // Notification banners
+            DynamicIslandSuccess(
+                message = deleteSuccessMessage,
+                onDismiss = { deleteSuccessMessage = null },
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+
+            DynamicIslandError(
+                message = errorMessage,
+                onDismiss = { errorMessage = null },
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
+    }
+
+    // Deletion confirmation modal
+    measurementPendingDelete?.let { item ->
+        DeleteModel(
+            title = "Delete Measurement",
+            message = "Are you sure you want to delete measurement for \"${item.customerName}\"? This action cannot be undone.",
+            onDismiss = { measurementPendingDelete = null },
+            onDelete = {
+                viewModel.deleteMeasurement(item.id)
+                measurementPendingDelete = null
+            }
+        )
     }
 }

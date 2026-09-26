@@ -49,6 +49,10 @@ data class LeadTableItem(
     @SerializedName("customerNotes") val customerNotes: String? = null,
     @SerializedName("garmentSpecifications") val garmentSpecifications: List<GarmentSpecificationItem>? = null,
     @SerializedName("assignedStaffId") val assignedStaffId: Any? = null,
+    @SerializedName("isConverted") val isConverted: Boolean? = null,
+    @SerializedName("convertedCustomerId") val convertedCustomerId: String? = null,
+    @SerializedName("convertedOpportunityId") val convertedOpportunityId: String? = null,
+    @SerializedName("convertedAt") val convertedAt: String? = null,
 
     // Nested fallback support
     @SerializedName("person") val nestedPerson: PersonTableItem? = null,
@@ -200,4 +204,27 @@ data class ConvertToOrderData(
     @SerializedName("message") val message: String,
     @SerializedName("customerId") val customerId: String,
     @SerializedName("orderId") val orderId: String
+)
+
+/**
+ * Request payload for converting a lead to an opportunity
+ */
+data class ConvertLeadToOpportunityRequest(
+    @SerializedName("leadId") val leadId: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("branchId") val branchId: String,
+    @SerializedName("stageId") val stageId: String,
+    @SerializedName("salespersonId") val salespersonId: String,
+    @SerializedName("estimatedValue") val estimatedValue: Double? = null,
+    @SerializedName("expectedClosingDate") val expectedClosingDate: String? = null,
+    @SerializedName("notes") val notes: String? = null
+)
+
+/**
+ * API response for converting a lead to an opportunity
+ */
+data class ConvertLeadToOpportunityResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("message") val message: String = "",
+    @SerializedName("data") val data: OpportunityDto? = null
 )

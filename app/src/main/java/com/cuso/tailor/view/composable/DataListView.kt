@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.ui.theme.BorderGray
 import com.cuso.tailor.ui.theme.blackTitle
 import com.cuso.tailor.ui.theme.close_color
 import com.cuso.tailor.ui.theme.grey_border
@@ -129,15 +128,6 @@ fun StatusBadge(
             .padding(horizontal = 10.dp, vertical = 0.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (showDot) {
-            Box(
-                modifier = Modifier
-                    .size(dotSize)
-                    .clip(CircleShape)
-                    .background(dotColor)
-            )
-            Spacer(Modifier.width(6.dp))
-        }
         Text(
             text = text,
             fontSize = tokens.label,
@@ -284,6 +274,7 @@ fun <T> DataCard(
     Surface(
         modifier = modifier
             .fillMaxWidth()
+            .padding(bottom = 10.dp)// Adds 10.dp gap between cards
             .then(
                 if (effectiveCardClick != null) {
                     Modifier.clickable { effectiveCardClick() }
@@ -623,10 +614,6 @@ fun <T> DataCard(
                 }
             }
         }
-    }
-
-    if (showDivider) {
-        HorizontalDivider(color = BorderGray, thickness = 2.dp)
     }
 }
 

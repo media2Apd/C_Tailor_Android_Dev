@@ -161,3 +161,12 @@ fun CustomerMeasurementItem.toMeasurementItem(): MeasurementItem {
         profileImageUrl = customer?.profilePicture?.url
     )
 }
+
+
+/**
+ * Delete model
+ */
+data class DeleteMeasurementResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("message") val message: String? = null
+)

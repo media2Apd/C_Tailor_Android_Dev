@@ -60,4 +60,11 @@ interface SalesLeadApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<DeleteLeadResponse>
+
+    @POST("/api/sales/opportunities/convert-lead")
+    suspend fun convertLeadToOpportunity(
+        @Header("Authorization") accessToken: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: ConvertLeadToOpportunityRequest
+    ): Response<ConvertLeadToOpportunityResponse>
 }

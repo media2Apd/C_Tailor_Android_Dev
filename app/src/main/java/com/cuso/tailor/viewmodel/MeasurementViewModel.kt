@@ -29,6 +29,13 @@ sealed class MeasurementsUiState {
     data class Error(val message: String) : MeasurementsUiState()
 }
 
+sealed interface MeasurementDeleteState {
+    data object Idle : MeasurementDeleteState
+    data object Loading : MeasurementDeleteState
+    data class Success(val message: String?) : MeasurementDeleteState
+    data class Error(val message: String) : MeasurementDeleteState
+}
+
 @HiltViewModel
 class MeasurementsViewModel @Inject constructor(
     private val repository: SalesRepository
@@ -42,6 +49,10 @@ class MeasurementsViewModel @Inject constructor(
 
     private val _canLoadMore = MutableStateFlow(false)
     val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
+
+    // Delete operation state
+    private val _deleteState = MutableStateFlow<MeasurementDeleteState>(MeasurementDeleteState.Idle)
+    val deleteState: StateFlow<MeasurementDeleteState> = _deleteState.asStateFlow()
 
     private var currentPage = 1
     private var totalPages = 1
@@ -123,6 +134,42 @@ class MeasurementsViewModel @Inject constructor(
                 },
                 onFailure = {
                     _isLoadingMore.update { false }
+                }
+            )
+        }
+    }
+
+    /**
+     * Resets the delete operation state to Idle.
+     */
+    fun resetDeleteState() {
+        _deleteState.update { MeasurementDeleteState.Idle }
+    }
+
+    /**
+     * Calls repository to delete measurement and updates the local list on success.
+     */
+    fun deleteMeasurement(id: String) {
+        viewModelScope.launch {
+            _deleteState.update { MeasurementDeleteState.Loading }
+            val result = repository.deleteMeasurement(id)
+
+            result.fold(
+                onSuccess = { message ->
+                    loadedItems.removeAll { it.id == id }
+                    _uiState.update {
+                        MeasurementsUiState.Success(
+                            items = loadedItems.toList(),
+                            total = loadedItems.size,
+                            totalPages = totalPages
+                        )
+                    }
+                    _deleteState.update { MeasurementDeleteState.Success(message) }
+                },
+                onFailure = { error ->
+                    _deleteState.update {
+                        MeasurementDeleteState.Error(error.message ?: "Failed to delete measurement")
+                    }
                 }
             )
         }

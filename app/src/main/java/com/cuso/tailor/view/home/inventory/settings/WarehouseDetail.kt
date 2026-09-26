@@ -27,6 +27,7 @@ import com.cuso.tailor.ui.theme.badgeGrey
 import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.redText
+import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 
@@ -159,7 +160,7 @@ fun WarehouseDetailCard(
                         modifier = Modifier.height(30.dp),
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        border = BorderStroke(1.dp, sectionBorder),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF475569))
                     ) {
                         Icon(

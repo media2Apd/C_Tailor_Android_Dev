@@ -294,7 +294,7 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
         colors = CardDefaults.cardColors(containerColor = whiteBg),
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
+            .border(1.dp, sectionBorder, RoundedCornerShape(16.dp))
     ) {
         Column(
             modifier = Modifier

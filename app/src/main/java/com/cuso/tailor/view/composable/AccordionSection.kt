@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.Primary
@@ -104,7 +105,8 @@ fun AccordionSection(
             Column {
                 Text(
                     text = title,
-                    fontSize = tokens.bodyLarge,
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
                     color = title_color
                 )
                 if (!subtitle.isNullOrBlank()) {

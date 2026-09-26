@@ -10,8 +10,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -350,79 +348,81 @@ fun GarmentTypeContent(
 
                         Spacer(Modifier.height(14.dp))
 
-                        LazyColumn(
+                        /*
+                         * CRASH FIX:
+                         * Replaced nested `LazyColumn` with a standard `Column`.
+                         * When `SalesSettingsScreen` is hosted inside an already-scrollable parent container
+                         * (such as HomeScreen's LazyColumn/verticalScroll), a nested LazyColumn causes an
+                         * IllegalStateException due to infinite maximum height constraints.
+                         * Using a standard Column with spacing and padding avoids measuring conflicts completely.
+                         */
+                        Column(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = tokens.screenPadding),
-                            contentPadding = PaddingValues(bottom = 90.dp),
+                                .fillMaxWidth()
+                                .padding(horizontal = tokens.screenPadding)
+                                .padding(bottom = 90.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(tokens.buttonHeight)
-                                        .dashedBorder(
-                                            color = Primary,
-                                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                                            strokeWidth = 1.2.dp,
-                                            cornerRadius = tokens.cardCornerRadius * 0.5f
-                                        )
-                                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                                        .clickable { onAddSegmentClick() },
-                                    contentAlignment = Alignment.Center
+                            // "Add Segment" action container
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(tokens.buttonHeight)
+                                    .dashedBorder(
+                                        color = Primary,
+                                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                                        strokeWidth = 1.2.dp,
+                                        cornerRadius = tokens.cardCornerRadius * 0.5f
+                                    )
+                                    .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                                    .clickable { onAddSegmentClick() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Add,
-                                            contentDescription = null,
-                                            tint = Primary,
-                                            modifier = Modifier.size(tokens.iconSize)
-                                        )
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(
-                                            text = "Add Segment",
-                                            color = Primary,
-                                            fontSize = tokens.bodyMedium,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = null,
+                                        tint = Primary,
+                                        modifier = Modifier.size(tokens.iconSize)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = "Add Segment",
+                                        color = Primary,
+                                        fontSize = tokens.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
                                 }
                             }
 
+                            // Dynamic content handling for loading, error, empty, and populated states
                             if (isLoadingGarments && garments.isEmpty()) {
-                                item { ListSkeleton() }
+                                ListSkeleton()
                             } else if (garmentsError != null && garments.isEmpty()) {
-                                item {
-                                    AppErrorState(
-                                        title = "Failed to load garments",
-                                        message = garmentsError ?: "Something went wrong. Please check your connection.",
-                                        onRetry = { viewModel.fetchGarments() }
+                                AppErrorState(
+                                    title = "Failed to load garments",
+                                    message = garmentsError ?: "Something went wrong. Please check your connection.",
+                                    onRetry = { viewModel.fetchGarments() }
+                                )
+                            } else if (filteredGarments.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "No garments found in this segment",
+                                        fontSize = tokens.bodyMedium,
+                                        color = TextSecondary
                                     )
                                 }
-                            } else if (filteredGarments.isEmpty()) {
-                                item {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 32.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "No garments found in this segment",
-                                            fontSize = tokens.bodyMedium,
-                                            color = TextSecondary
-                                        )
-                                    }
-                                }
                             } else {
-                                itemsIndexed(
-                                    items = filteredGarments,
-                                    key = { _, item -> item.id }
-                                ) { _, item ->
+                                // Iterate through filtered items safely without unbounded height constraints
+                                filteredGarments.forEach { item ->
                                     val fieldsCount = item.measurementFields.size
                                     val measurementsCount = item.measurementFields.count { it.isRequired }
                                     val subtitleText = "$fieldsCount Fields · $measurementsCount Measurements"

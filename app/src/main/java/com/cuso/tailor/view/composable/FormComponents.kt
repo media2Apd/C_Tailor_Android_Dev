@@ -75,7 +75,6 @@ fun FormDropdown(
     maxLines: Int = 1
 ) {
     val tokens = LocalAppTokens.current
-
     val isAppBusy by AppLoadingManager.busyState.collectAsState()
     val effectiveEnabled = enabled && !isAppBusy
 

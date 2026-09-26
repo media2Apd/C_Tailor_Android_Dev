@@ -631,7 +631,7 @@ fun NewPriceListScreen(
                                     OutlinedButton(
                                         onClick = { /* TODO: Import CSV */ },
                                         shape = RoundedCornerShape(10.dp),
-                                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                        border = BorderStroke(1.dp, sectionBorder),
                                         colors = ButtonDefaults.outlinedButtonColors(
                                             containerColor = Color.White,
                                             contentColor = Color(0xFF334155)
@@ -657,7 +657,7 @@ fun NewPriceListScreen(
                                     OutlinedButton(
                                         onClick = { /* TODO: Bulk Update */ },
                                         shape = RoundedCornerShape(10.dp),
-                                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                        border = BorderStroke(1.dp, sectionBorder),
                                         colors = ButtonDefaults.outlinedButtonColors(
                                             containerColor = Color.White,
                                             contentColor = Color(0xFF334155)
@@ -708,7 +708,7 @@ fun NewPriceListScreen(
                                             .size(40.dp)
                                             .clip(RoundedCornerShape(10.dp))
                                             .background(Color.White)
-                                            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(10.dp))
+                                            .border(1.dp, sectionBorder, RoundedCornerShape(10.dp))
                                             .clickable { /* TODO: Settings */ },
                                         contentAlignment = Alignment.Center
                                     ) {

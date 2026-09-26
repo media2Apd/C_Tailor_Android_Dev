@@ -56,6 +56,7 @@ import com.cuso.tailor.model.inventory.PurchaseReceiveItem
 import com.cuso.tailor.model.inventory.ReceiveHistoryByPoResponse
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.headerGrey
+import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.view.composable.ActionRowButtons
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
@@ -471,7 +472,7 @@ fun ItemProgressCard(item: PoItemOverviewDto, isFirst: Boolean) {
                         .height(5.dp)
                         .clip(RoundedCornerShape(3.dp)),
                     color = Color(0xFF4338CA),
-                    trackColor = Color(0xFFE2E8F0)
+                    trackColor = sectionBorder
                 )
 
                 Spacer(Modifier.height(10.dp))

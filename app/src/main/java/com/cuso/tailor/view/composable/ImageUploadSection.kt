@@ -72,6 +72,7 @@ import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.badgeGrey
 import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.redText
+import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.ui.theme.title_color
 
 @Composable
@@ -234,7 +235,7 @@ fun <T> ImageUploadSection(
                             .background(badgeGrey)
                             .border(
                                 width = 1.dp,
-                                color = Color(0xFFE2E8F0),
+                                color = sectionBorder,
                                 shape = RoundedCornerShape(tokens.cardCornerRadius)
                             )
                     ) {
@@ -456,7 +457,7 @@ fun <T> VoiceUploadSection(
                             .background(badgeGrey)
                             .border(
                                 width = 1.dp,
-                                color = if (isItemPlaying) Primary else Color(0xFFE2E8F0),
+                                color = if (isItemPlaying) Primary else sectionBorder,
                                 shape = RoundedCornerShape(tokens.cardCornerRadius)
                             )
                             .padding(horizontal = 12.dp, vertical = 10.dp),

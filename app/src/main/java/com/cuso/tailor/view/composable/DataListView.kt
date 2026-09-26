@@ -47,9 +47,12 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.BorderGray
+import com.cuso.tailor.ui.theme.blackTitle
+import com.cuso.tailor.ui.theme.close_color
 import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.light_grey
+import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 
@@ -217,6 +220,7 @@ fun <T> DataCard(
     modifier: Modifier = Modifier,
     image: DataCardImage? = null,
     dateText: String? = null,
+    code: String? = null,
     dateIcon: ImageVector = Icons.Default.CalendarMonth,
     headerContent: (@Composable () -> Unit)? = null, // Custom Header Slot added
     topBadgeText: String? = null,
@@ -320,7 +324,12 @@ fun <T> DataCard(
                                     Icon(dateIcon, null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(14.dp))
                                     Spacer(Modifier.width(4.dp))
                                 }
-                                Text(dateText, fontSize = tokens.caption, color = Color(0xFF6B7280))
+                                Text(dateText, fontSize = tokens.bodyMedium, color = blackTitle)
+                                Spacer(Modifier.width(5.dp))
+
+                                if (code != null) {
+                                    Text(code ,fontSize = tokens.caption, color = close_color)
+                                }
                             }
                         } else {
                             Spacer(Modifier.width(1.dp))
@@ -364,6 +373,7 @@ fun <T> DataCard(
                         contentAlignment = Alignment.Center
                     ) {
                         when {
+                            // Profile photo from network URL fills the circle
                             !image.url.isNullOrBlank() -> {
                                 AsyncImage(
                                     model = coil.request.ImageRequest.Builder(context)
@@ -383,21 +393,23 @@ fun <T> DataCard(
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
+                            // Drawable/Painter icon sits inside the circle with proper padding
                             image.painter != null -> {
                                 Image(
                                     painter = image.painter,
                                     contentDescription = null,
-                                    contentScale = ContentScale.Crop,
+                                    contentScale = ContentScale.Fit,
                                     colorFilter = image.tint?.let { ColorFilter.tint(it) },
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier.size(avatarSize * 0.6f)
                                 )
                             }
+                            // Vector icon sits inside the circle with proper padding
                             image.vector != null -> {
                                 Icon(
                                     imageVector = image.vector,
                                     contentDescription = null,
                                     tint = image.tint ?: Color(0xFF9CA3AF),
-                                    modifier = Modifier.size(avatarSize * 0.7f)
+                                    modifier = Modifier.size(avatarSize * 0.6f)
                                 )
                             }
                         }
@@ -466,8 +478,10 @@ fun <T> DataCard(
 
             // Divider separating the identity section from content body
             if (showHeaderDivider) {
-                Spacer(Modifier.height(12.dp))
-                HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 2.dp)
+                Spacer(Modifier.height(5.dp))
+                HorizontalDivider(color = sectionBorder, thickness = 1.dp)
+                Spacer(Modifier.height(5.dp))
+
             }
 
             // Custom Content Slot

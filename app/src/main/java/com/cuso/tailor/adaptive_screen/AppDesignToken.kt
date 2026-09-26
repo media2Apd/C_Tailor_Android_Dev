@@ -49,6 +49,7 @@ data class AppDesignTokens(
 
     // --- Component Scale (NEW) ---
     val fieldHeight: Dp,        // Height of text input fields (CusoTextField)
+    val imageDp:Dp,
     val buttonHeight: Dp,       // Height of primary/secondary buttons
     val cardCornerRadius: Dp,   // Corner radius for Card/Box containers
     val cardPadding: Dp,        // Inner padding for auth cards (login/forgot/reset)
@@ -89,7 +90,8 @@ fun getAdaptiveTokens(widthSize: WindowWidthSizeClass): AppDesignTokens {
             caption = (11 * fontScale).sp,
             label = (10 * fontScale).sp,
             fieldHeight = 40.dp,
-            buttonHeight = 44.dp,
+            imageDp = 60.dp,
+            buttonHeight = 40.dp,
             cardCornerRadius = 15.dp,
             cardPadding = 20.dp,
             iconSize = 18.dp,
@@ -112,6 +114,7 @@ fun getAdaptiveTokens(widthSize: WindowWidthSizeClass): AppDesignTokens {
             caption = 12.sp,
             label = 11.sp,
             fieldHeight = 46.dp,
+            imageDp = 66.dp,
             buttonHeight = 50.dp,
             cardCornerRadius = 18.dp,
             cardPadding = 28.dp,
@@ -135,6 +138,7 @@ fun getAdaptiveTokens(widthSize: WindowWidthSizeClass): AppDesignTokens {
             caption = 14.sp,
             label = 12.sp,
             fieldHeight = 52.dp,
+            imageDp = 76.dp,
             buttonHeight = 56.dp,
             cardCornerRadius = 20.dp,
             cardPadding = 32.dp,
@@ -158,6 +162,7 @@ fun getAdaptiveTokens(widthSize: WindowWidthSizeClass): AppDesignTokens {
             caption = 11.sp,
             label = 10.sp,
             fieldHeight = 40.dp,
+            imageDp = 60.dp,
             buttonHeight = 44.dp,
             cardCornerRadius = 15.dp,
             cardPadding = 20.dp,

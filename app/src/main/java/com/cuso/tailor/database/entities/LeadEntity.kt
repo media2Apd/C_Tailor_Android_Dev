@@ -42,7 +42,6 @@ data class LeadEntity(
     val createdAt: String
 )
 
-//   Helper — works for both List<Any>? (garmentCategory / garments) items
 private fun extractGarmentIdFromAny(garment: Any?): String {
     return when (garment) {
         is String -> garment
@@ -66,50 +65,57 @@ fun CreateLeadFormResponse.toEntity(request: CreateLeadFormRequest): LeadEntity 
         }
     }
 
-    //   response.data.garmentCategory is List<GarmentCategory>? (typed) — use _id directly
-    //   fallback to request.garments which is List<Any>? now
+    // Resolve garment ID from response or from the request specifications list
     val garmentId = d.garmentCategory?.firstOrNull()?.let { extractGarmentIdFromAny(it) }
         ?.takeIf { it.isNotBlank() }
-        ?: request.garments.firstOrNull()?.let { extractGarmentIdFromAny(it) }
+        ?: request.garmentSpecifications.firstOrNull()?.garmentId
         ?: ""
 
-    val statusName = request.statusName.ifEmpty {
+    val statusName = request.leadStatus.ifEmpty {
         extractStatusName(d.status)
     }
 
-    val occasionValue = d.occasion?.takeIf { it.isNotEmpty() } ?: request.occasion
+    val occasionValue = d.occasion?.takeIf { it.isNotEmpty() } ?: ""
+
+    // Format address string from structured address
+    val formattedAddress = listOfNotNull(
+        request.address?.flatNo?.takeIf { it.isNotBlank() },
+        request.address?.street?.takeIf { it.isNotBlank() }
+    ).joinToString(", ")
+
+    val totalQuantity = request.garmentSpecifications.sumOf { it.quantity }.coerceAtLeast(1)
 
     return LeadEntity(
         id = d._id ?: "",
-        customerType = d.customerType ?: "",
+        customerType = d.customerType ?: request.customerType,
         status = statusName,
         createdAt = d.createdAt ?: "",
-        fullName = request.person.name,
-        phone = request.person.phone,
-        email = request.person.email,
-        gender = request.person.gender,
-        dob = request.person.dob,
-        address = request.contact.address,
-        area = request.contact.area,
-        city = request.contact.city,
-        preferredContactMethod = request.contact.preferredContactMethod,
+        fullName = request.fullName,
+        phone = request.mobileNumber,
+        email = request.email.orEmpty(),
+        gender = request.gender.orEmpty(),
+        dob = request.dateOfBirth.orEmpty(),
+        address = formattedAddress,
+        area = request.address?.areaZone.orEmpty(),
+        city = request.address?.city.orEmpty(),
+        preferredContactMethod = request.preferredContactMethod.orEmpty(),
         enquiryType = request.enquiryType,
-        estimatedQuantity = request.estimatedQuantity,
-        budgetMin = request.budgetRange.min,
-        budgetMax = request.budgetRange.max,
+        estimatedQuantity = totalQuantity,
+        budgetMin = request.budgetMin ?: 0,
+        budgetMax = request.budgetMax ?: 0,
         occasion = occasionValue,
         garments = garmentId,
         enquiryDate = request.enquiryDate,
         requiredDate = request.requiredDate,
-        source = request.source,
+        source = request.leadSource,
         leadOwner = request.leadOwner,
-        appointmentRequired = request.appointment.isRequired,
-        appointmentDate = request.appointment.date ?: "",
-        appointmentTime = request.appointment.time,
-        assignedStaff = request.appointment.assignedStaff,
-        priority = request.appointment.priority,
-        followUpDate = request.appointment.followUpDate ?: "",
-        internalNotes = request.notes.firstOrNull { it.type == "internal" }?.message ?: "",
-        customerNotes = request.notes.firstOrNull { it.type == "customer" }?.message ?: ""
+        appointmentRequired = request.isAppointmentRequired,
+        appointmentDate = request.appointmentDate.orEmpty(),
+        appointmentTime = request.appointmentTime,
+        assignedStaff = request.assignedStaffId,
+        priority = request.priorityLevel,
+        followUpDate = request.followUpDate.orEmpty(),
+        internalNotes = request.internalNotes.orEmpty(),
+        customerNotes = request.customerNotes.orEmpty()
     )
 }

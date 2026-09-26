@@ -7,13 +7,16 @@ import com.cuso.tailor.database.dao.TokensDao
 import com.cuso.tailor.database.entities.GarmentMeasurement
 import com.cuso.tailor.database.entities.SelectedGarment
 import com.cuso.tailor.model.inventory.ProductCategoryItem
+import com.cuso.tailor.model.sales.GarmentCategoryDto
 import com.cuso.tailor.model.settings.*
 import com.cuso.tailor.network.inventory.settings.InventorySettingsApiService
 import com.cuso.tailor.network.sales.settings.SalesSettingsApiService
 import com.cuso.tailor.utils.createPartFromString
 import com.cuso.tailor.utils.uriToMultipartPart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withContext
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.Response
@@ -27,10 +30,10 @@ class SettingsRepository @Inject constructor(
     private val tokensDao: TokensDao,
     val selectedGarmentDao: SelectedGarmentDao
 ) {
-    private suspend fun getAuthHeaders(): Pair<String, String> {
+    private suspend fun getAuthHeaders(): Pair<String, String> = withContext(Dispatchers.IO) {
         val tokens = tokensDao.getTokens()
             ?: throw Exception("No tokens found, please login again")
-        return Pair("Bearer ${tokens.accessToken}", tokens.csrfToken)
+        Pair("Bearer ${tokens.accessToken}", tokens.csrfToken)
     }
 
     // ===========================================================
@@ -152,14 +155,47 @@ class SettingsRepository @Inject constructor(
     // 3. GARMENTS (SALES)
     // ===========================================================
 
-    suspend fun getGarments(): Result<List<GarmentItem>> {
+    suspend fun getGarments(
+        paginate: Boolean = false,
+        status: String = "Active"
+    ): Result<List<GarmentItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = salesSettingsApi.getGarments(accessToken, csrfToken)
+            val response = salesSettingsApi.getGarments(
+                token = accessToken,
+                csrfToken = csrfToken,
+                paginate = paginate,
+                status = status
+            )
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()?.data ?: emptyList())
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch garments"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Fetches garment categories filtered by a specific garment template ID.
+     */
+    suspend fun getGarmentCategoriesByGarmentId(garmentId: String): Result<List<GarmentCategoryDto>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.getGarmentCategoriesByGarmentId(
+                token = accessToken,
+                csrfToken = csrfToken,
+                garmentId = garmentId,
+                paginate = false,
+                status = "Active"
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.data ?: emptyList())
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to fetch garment categories: ${response.code()}")
+                )
             }
         } catch (e: Exception) {
             Result.failure(e)

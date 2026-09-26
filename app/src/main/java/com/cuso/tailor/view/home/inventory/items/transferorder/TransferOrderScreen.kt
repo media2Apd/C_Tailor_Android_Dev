@@ -526,7 +526,7 @@ fun AdjustStockModalContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color(0xFFF6F8FF), RoundedCornerShape(16.dp))
-                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(16.dp))
+                .border(1.dp, sectionBorder, RoundedCornerShape(16.dp))
                 .padding(16.dp)
         ) {
             Row(verticalAlignment = Alignment.Top) {

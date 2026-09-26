@@ -9,6 +9,7 @@
 )
 package com.cuso.tailor.view.home.sales.customer
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -25,7 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,48 +38,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.view.composable.CirculerProgressIndicatorReuse
-import com.cuso.tailor.view.composable.DatePickerField
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
-import com.cuso.tailor.view.composable.ErrorMapper
-import com.cuso.tailor.view.composable.PhoneInputField
-import com.cuso.tailor.view.composable.FormDropdown
-import com.cuso.tailor.view.composable.StepNavigationFab
-import com.cuso.tailor.view.composable.TrailingFabAction
-import com.cuso.tailor.view.composable.dashedBorder
+import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.toIsoDate
-import com.cuso.tailor.view.organization.OrgOptions
-import com.cuso.tailor.view.organization.OrganizationDropdown
+import com.cuso.tailor.viewmodel.CustomerCreateState
 import com.cuso.tailor.viewmodel.CustomerDetailUiState
 import com.cuso.tailor.viewmodel.CustomerUpdateState
 import com.cuso.tailor.viewmodel.CustomerViewModel
-import com.cuso.tailor.R
-import com.cuso.tailor.ui.theme.PrimaryBorder
-import com.cuso.tailor.ui.theme.TextSecondary
-import com.cuso.tailor.ui.theme.blackTitle
-import com.cuso.tailor.ui.theme.greenBg
-import com.cuso.tailor.ui.theme.greentext
-import com.cuso.tailor.ui.theme.grey_border
-import com.cuso.tailor.ui.theme.lightGray
-import com.cuso.tailor.ui.theme.light_blue_border
-import com.cuso.tailor.ui.theme.light_grey
-import com.cuso.tailor.ui.theme.mutedText
-import com.cuso.tailor.ui.theme.primary_light
-import com.cuso.tailor.ui.theme.title_border
-import com.cuso.tailor.ui.theme.title_color
-import com.cuso.tailor.ui.theme.whiteBg
-import com.cuso.tailor.ui.theme.yellowBg
-import com.cuso.tailor.view.composable.AccordionSection
-import com.cuso.tailor.view.composable.AppErrorState
-import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.FormLabel
-import com.cuso.tailor.view.composable.FormTextField
 import kotlinx.coroutines.delay
 
 private val stepLabels = listOf(
@@ -92,14 +62,15 @@ private val stepLabels = listOf(
 
 private val customerSectionFieldMap = mapOf(
     "identity" to listOf("name", "gender", "dob", "type"),
-    "details" to listOf("email", "mobile", "status", "language", "contact"),
+    "details" to listOf("email", "mobile", "status", "contact"),
     "location" to listOf("address", "areaZone", "city")
 )
 
 @Composable
 fun CustomerDetailScreen(
     navController: NavController,
-    customerId: String,
+    customerId: String = "",
+    isCreateMode: Boolean = false,
     viewModel: CustomerViewModel = hiltViewModel(),
     startInEditMode: Boolean = false,
     onClose: () -> Unit = { navController.popBackStack() },
@@ -111,22 +82,23 @@ fun CustomerDetailScreen(
     val detailState by viewModel.detailState.collectAsState()
     val formState by viewModel.formState.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
+    val createState by viewModel.createState.collectAsState()
 
     var currentStep by remember { mutableIntStateOf(0) }
-    var isEditMode by remember(startInEditMode) { mutableStateOf(startInEditMode) }
+    var isEditMode by remember(startInEditMode) { mutableStateOf(startInEditMode || isCreateMode) }
 
     var apiErrorMessage by remember { mutableStateOf<String?>(null) }
     var apiSuccessMessage by remember { mutableStateOf<String?>(null) }
     var errorField by remember { mutableStateOf<String?>(null) }
     var errorSection by remember { mutableStateOf<String?>(null) }
-    var email by remember { mutableStateOf("") }
 
-    // Disable all inputs and button actions while updating or while showing success notification
-    val isInteractionDisabled = updateState is CustomerUpdateState.Loading || apiSuccessMessage != null
-    val isFieldEditable = isEditMode && !isInteractionDisabled
+    val isInteractionDisabled = updateState is CustomerUpdateState.Loading ||
+            createState is CustomerCreateState.Loading ||
+            apiSuccessMessage != null
+    val isFieldEditable = (isEditMode || isCreateMode) && !isInteractionDisabled
 
     fun validateStep(step: Int): Boolean {
-        if (!isEditMode) return true
+        if (!isFieldEditable) return true
         return when (step) {
             0 -> {
                 var valid = true
@@ -134,20 +106,11 @@ fun CustomerDetailScreen(
                     formState.name.isBlank() -> {
                         errorField = "name"; apiErrorMessage = "Full Name is required"; valid = false
                     }
-                    formState.email.isBlank() -> {
-                        errorField = "email"; apiErrorMessage = "Email address is required"; valid = false
-                    }
-                    !formState.email.matches(Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) -> {
+                    formState.email.isNotBlank() && !formState.email.matches(Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) -> {
                         errorField = "email"; apiErrorMessage = "Enter a valid email address"; valid = false
                     }
-                    formState.addressLine.isBlank() -> {
-                        errorField = "address"; apiErrorMessage = "Address is required"; valid = false
-                    }
-                    formState.area.isBlank() -> {
-                        errorField = "areaZone"; apiErrorMessage = "Area/Zone is required"; valid = false
-                    }
-                    formState.city.isBlank() -> {
-                        errorField = "city"; apiErrorMessage = "City is required"; valid = false
+                    formState.mobile.isBlank() -> {
+                        errorField = "mobile"; apiErrorMessage = "Mobile Number is required"; valid = false
                     }
                 }
                 if (!valid) {
@@ -155,6 +118,7 @@ fun CustomerDetailScreen(
                         .firstOrNull { (_, fields) -> errorField in fields }?.key
                 } else {
                     errorField = null
+                    errorSection = null
                 }
                 valid
             }
@@ -162,7 +126,13 @@ fun CustomerDetailScreen(
         }
     }
 
-    LaunchedEffect(customerId) { viewModel.loadCustomerDetail(customerId) }
+    LaunchedEffect(customerId, isCreateMode) {
+        if (!isCreateMode && customerId.isNotBlank()) {
+            viewModel.loadCustomerDetail(customerId)
+        } else if (isCreateMode) {
+            viewModel.resetFormForNewCustomer()
+        }
+    }
 
     LaunchedEffect(updateState) {
         when (val state = updateState) {
@@ -171,10 +141,7 @@ fun CustomerDetailScreen(
                 isEditMode = false
                 errorField = null
                 errorSection = null
-
-                // 1.5 seconds delay before navigating away
-                delay(1500)
-
+                delay(1200)
                 viewModel.resetUpdateState()
                 onUpdateSuccess()
             }
@@ -190,9 +157,24 @@ fun CustomerDetailScreen(
         }
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
+    LaunchedEffect(createState) {
+        when (val state = createState) {
+            is CustomerCreateState.Success -> {
+                apiSuccessMessage = "Customer created successfully"
+                delay(1200)
+                viewModel.resetCreateState()
+                onUpdateSuccess()
+            }
+            is CustomerCreateState.Error -> {
+                viewModel.resetCreateState()
+                apiErrorMessage = ErrorMapper.map(state.message)
+                currentStep = 0
+            }
+            else -> {}
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -202,7 +184,12 @@ fun CustomerDetailScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TitleBar("Create customer", onClose = { if (!isInteractionDisabled) onClose() })
+                    val title = when {
+                        isCreateMode -> "Create Customer"
+                        isEditMode -> "Edit Customer"
+                        else -> "View Customer"
+                    }
+                    TitleBar(title, onClose = { if (!isInteractionDisabled) onClose() })
                 }
             }
         ) { padding ->
@@ -241,14 +228,14 @@ fun CustomerDetailScreen(
                 ) {
                     when (currentStep) {
                         0 -> PersonalInformationStep(
+                            customerId = customerId,
+                            isCreateMode = isCreateMode,
                             detailState = detailState,
                             formState = formState,
                             viewModel = viewModel,
                             isEditMode = isFieldEditable,
                             errorField = errorField,
-                            errorSection = errorSection,
-                            email = email,
-                            onEmailChange = { email = it }
+                            errorSection = errorSection
                         )
                         1 -> MeasurementsStep(isEditMode = isFieldEditable)
                         2 -> OrderPaymentStep()
@@ -264,8 +251,9 @@ fun CustomerDetailScreen(
                 backEnabled = !isInteractionDisabled,
                 trailingAction = when {
                     isInteractionDisabled -> TrailingFabAction.Update(
+                        label = if (isCreateMode) "Create" else "Update",
                         onClick = {},
-                        isLoading = updateState is CustomerUpdateState.Loading,
+                        isLoading = updateState is CustomerUpdateState.Loading || createState is CustomerCreateState.Loading,
                         enabled = false
                     )
                     currentStep < stepLabels.lastIndex -> TrailingFabAction.Next {
@@ -273,15 +261,20 @@ fun CustomerDetailScreen(
                             currentStep++
                         }
                     }
-                    !isEditMode -> TrailingFabAction.Edit {
+                    !isEditMode && !isCreateMode -> TrailingFabAction.Edit {
                         isEditMode = true
                         currentStep = 0
                         onRequestEdit()
                     }
                     else -> TrailingFabAction.Update(
+                        label = if (isCreateMode) "Create" else "Update",
                         onClick = {
                             if (validateStep(0)) {
-                                viewModel.updateCustomer(customerId)
+                                if (isCreateMode) {
+                                    viewModel.createCustomer()
+                                } else {
+                                    viewModel.updateCustomer(customerId)
+                                }
                             }
                         },
                         isLoading = false,
@@ -295,24 +288,243 @@ fun CustomerDetailScreen(
         DynamicIslandSuccess(
             message = apiSuccessMessage,
             onDismiss = { apiSuccessMessage = null },
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .zIndex(10f)
+            modifier = Modifier.align(Alignment.TopCenter).zIndex(10f)
         )
 
         DynamicIslandError(
             message = apiErrorMessage,
             onDismiss = { apiErrorMessage = null },
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .zIndex(10f)
+            modifier = Modifier.align(Alignment.TopCenter).zIndex(10f)
         )
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// STEPPER COMPOSABLE WITH PERFECT SINGLE-LINE CENTER ALIGNMENT
-// ─────────────────────────────────────────────────────────────
+@Composable
+private fun PersonalInformationStep(
+    customerId: String,
+    isCreateMode: Boolean,
+    detailState: CustomerDetailUiState,
+    formState: com.cuso.tailor.viewmodel.CustomerFormState,
+    viewModel: CustomerViewModel,
+    isEditMode: Boolean,
+    errorField: String? = null,
+    errorSection: String? = null
+) {
+    val tokens = LocalAppTokens.current
+
+    if (!isCreateMode && detailState is CustomerDetailUiState.Loading) {
+        Box(Modifier.fillMaxWidth().padding(vertical = 60.dp), contentAlignment = Alignment.Center) {
+            CirculerProgressIndicatorReuse()
+        }
+        return
+    }
+
+    if (!isCreateMode && detailState is CustomerDetailUiState.Error) {
+        AppErrorState(
+            title = "Failed to load customer profile",
+            message = detailState.message,
+            onRetry = { viewModel.loadCustomerDetail(customerId) }
+        )
+        return
+    }
+
+    var expandedSection by remember { mutableStateOf("identity") }
+    LaunchedEffect(errorSection) {
+        if (errorSection != null) expandedSection = errorSection
+    }
+
+    var typeExpanded by remember { mutableStateOf(false) }
+    var genderExpanded by remember { mutableStateOf(false) }
+    var statusExpanded by remember { mutableStateOf(false) }
+    var contactExpanded by remember { mutableStateOf(false) }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Transparent)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = tokens.screenPadding * 0.6f)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(light_blue_border, RoundedCornerShape(tokens.cardCornerRadius * 0.8f))
+                    .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.Info,
+                    contentDescription = null,
+                    tint = BluePrimary,
+                    modifier = Modifier.size(tokens.iconSize)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = when {
+                        isCreateMode -> "Create mode — enter new customer information."
+                        isEditMode -> "Edit mode — modify customer details below."
+                        else -> "Viewing customer profile (Read-only). Tap Edit to make changes."
+                    },
+                    fontSize = tokens.bodySmall,
+                    color = BluePrimary,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        AccordionSection(
+            iconPainter = painterResource(R.drawable.ic_person),
+            title = "Customer Identity",
+            subtitle = "Basic customer information",
+            expanded = expandedSection == "identity",
+            onHeaderClick = { expandedSection = if (expandedSection == "identity") "" else "identity" }
+        ) {
+            Spacer(Modifier.height(16.dp))
+            FormLabel("Customer Type", isRequired = true)
+            FormDropdown(
+                value = formState.type.replaceFirstChar { it.uppercase() }.ifEmpty { "Select an option" },
+                expanded = typeExpanded && isEditMode,
+                onExpandChange = { if (isEditMode) typeExpanded = it },
+                options = listOf("Individual", "Corporate"),
+                onOptionSelected = { label -> viewModel.onTypeChange(label) },
+                isRequired = true,
+                enabled = isEditMode
+            )
+            Spacer(Modifier.height(12.dp))
+            FormLabel("Full Name", isRequired = true)
+            FormTextField(
+                value = formState.name,
+                onValueChange = viewModel::onNameChange,
+                placeholder = "Enter Your Name",
+                enabled = isEditMode,
+                isError = errorField == "name",
+                errorMessage = if (errorField == "name") "Please check the name" else null
+            )
+            Spacer(Modifier.height(12.dp))
+            FormLabel("Gender")
+            FormDropdown(
+                value = formState.gender.ifEmpty { "Select an option" },
+                expanded = genderExpanded && isEditMode,
+                onExpandChange = { if (isEditMode) genderExpanded = it },
+                options = listOf("Male", "Female", "Other"),
+                onOptionSelected = viewModel::onGenderChange,
+                enabled = isEditMode
+            )
+
+            Spacer(Modifier.height(12.dp))
+            FormLabel("Date of Birth")
+            val dobDisplay = formState.dob.toDisplayDate()
+            DatePickerField(
+                value = if (dobDisplay != "—") dobDisplay else "Select date",
+                onDateSelected = { selected -> if (isEditMode) viewModel.onDobChange(selected.toIsoDate()) },
+                enabled = isEditMode
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        AccordionSection(
+            iconPainter = painterResource(R.drawable.ic_date_of_birth),
+            title = "Customer Details",
+            subtitle = "Communication Preferences",
+            expanded = expandedSection == "details",
+            onHeaderClick = { expandedSection = if (expandedSection == "details") "" else "details" }
+        ) {
+            Spacer(Modifier.height(16.dp))
+
+            FormLabel("Mobile No", isRequired = true)
+            PhoneInputField(
+                phoneValue = formState.mobile,
+                onPhoneChange = viewModel::onMobileChange,
+                onCountryChange = { },
+                enabled = isEditMode,
+                isError = errorField == "mobile"
+            )
+            Spacer(Modifier.height(12.dp))
+
+            FormLabel("Email")
+            FormTextField(
+                value = formState.email,
+                onValueChange = viewModel::onEmailChange,
+                placeholder = "Enter Your email",
+                enabled = isEditMode,
+                isError = errorField == "email",
+                errorMessage = if (errorField == "email") "Please enter a valid email" else null
+            )
+            Spacer(Modifier.height(12.dp))
+            FormLabel("Status")
+            FormDropdown(
+                value = formState.status.ifEmpty { "Active" },
+                expanded = statusExpanded && isEditMode,
+                onExpandChange = { if (isEditMode) statusExpanded = it },
+                options = listOf("Active", "Inactive"),
+                onOptionSelected = viewModel::onStatusChange,
+                enabled = isEditMode
+            )
+            Spacer(Modifier.height(12.dp))
+            FormLabel("Preferred Contact")
+            FormDropdown(
+                value = formState.contactMethod.ifEmpty { "-" },
+                expanded = contactExpanded && isEditMode,
+                onExpandChange = { if (isEditMode) contactExpanded = it },
+                options = listOf("Call", "Whatsapp", "Email", "SMS"),
+                onOptionSelected = viewModel::onContactMethodChange,
+                enabled = isEditMode
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        AccordionSection(
+            iconPainter = painterResource(R.drawable.ic_location),
+            title = "Location & Communication",
+            subtitle = "Contact details",
+            expanded = expandedSection == "location",
+            onHeaderClick = { expandedSection = if (expandedSection == "location") "" else "location" }
+        ) {
+            Spacer(Modifier.height(16.dp))
+            FormLabel("Address")
+            FormTextField(
+                value = formState.addressLine,
+                onValueChange = viewModel::onAddressLineChange,
+                placeholder = "Enter Your address",
+                enabled = isEditMode
+            )
+            Spacer(Modifier.height(12.dp))
+
+            FormLabel("Area / Zone")
+            FormTextField(
+                value = formState.area,
+                onValueChange = viewModel::onAreaChange,
+                placeholder = "Enter Area/Zone",
+                enabled = isEditMode
+            )
+            Spacer(Modifier.height(12.dp))
+
+            FormLabel("City")
+            FormTextField(
+                value = formState.city,
+                onValueChange = viewModel::onCityChange,
+                placeholder = "Enter Your City",
+                enabled = isEditMode
+            )
+            Spacer(Modifier.height(12.dp))
+
+            FormLabel("Pincode")
+            FormTextField(
+                value = formState.pincode,
+                onValueChange = viewModel::onPincodeChange,
+                placeholder = "Enter Pincode",
+                enabled = isEditMode
+            )
+        }
+    }
+}
 
 @Composable
 fun OrderStatusStepper(
@@ -351,14 +563,14 @@ fun OrderStatusStepper(
                                     scaleY = haloScale
                                     alpha = haloScale
                                 }
-                                .background(Color(0xFFECEBFF), CircleShape)
+                                .background(primary_light, CircleShape)
                         )
                     }
 
                     val circleColor by animateColorAsState(
                         targetValue = when {
-                            done -> Color(0xFF22C55E)
-                            active -> Color(0xFF3F37F3)
+                            done -> darkGreenBg
+                            active -> Primary
                             else -> whiteBg
                         },
                         animationSpec = tween(durationMillis = 300),
@@ -367,9 +579,9 @@ fun OrderStatusStepper(
 
                     val borderColor by animateColorAsState(
                         targetValue = when {
-                            done -> Color(0xFF22C55E)
-                            active -> Color(0xFF3F37F3)
-                            else -> grey_border
+                            done -> darkGreenBg
+                            active -> Primary
+                            else -> BorderGray
                         },
                         animationSpec = tween(durationMillis = 300),
                         label = "borderColor"
@@ -400,7 +612,7 @@ fun OrderStatusStepper(
                             )
                             else -> Text(
                                 text = "${index + 1}",
-                                color = Color(0xFF9CA3AF),
+                                color = mutedText,
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium
                             )
@@ -410,7 +622,7 @@ fun OrderStatusStepper(
 
                 if (index < stepLabels.lastIndex) {
                     val lineColor by animateColorAsState(
-                        targetValue = if (index < currentStep) Color(0xFF22C55E) else grey_border,
+                        targetValue = if (index < currentStep) darkGreenBg else BorderGray,
                         animationSpec = tween(durationMillis = 300),
                         label = "lineColor"
                     )
@@ -425,7 +637,7 @@ fun OrderStatusStepper(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(3.5.dp)
+                                .height(3.dp)
                                 .background(lineColor, RoundedCornerShape(2.dp))
                         )
                     }
@@ -452,7 +664,7 @@ fun OrderStatusStepper(
                             fontSize = tokens.caption,
                             lineHeight = tokens.caption * 1.25f,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF3F37F3),
+                            color = Primary,
                             textAlign = TextAlign.Center,
                             maxLines = 2,
                             softWrap = true,
@@ -469,249 +681,6 @@ fun OrderStatusStepper(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// STEP 1 — Personal Information
-// ─────────────────────────────────────────────────────────────
-@Composable
-private fun PersonalInformationStep(
-    detailState: CustomerDetailUiState,
-    formState: com.cuso.tailor.viewmodel.CustomerFormState,
-    viewModel: CustomerViewModel,
-    isEditMode: Boolean,
-    errorField: String? = null,
-    errorSection: String? = null,
-    email: String,
-    onEmailChange: (String) -> Unit
-) {
-    val tokens = LocalAppTokens.current
-
-    when (detailState) {
-        is CustomerDetailUiState.Loading -> {
-            Box(Modifier.fillMaxWidth().padding(vertical = 60.dp), contentAlignment = Alignment.Center) {
-                CirculerProgressIndicatorReuse()
-            }
-        }
-        is CustomerDetailUiState.Error -> {
-            AppErrorState(
-                title = "Failed to load dashboard",
-                message = "Something went wrong. Please check your connection and try again.",
-                onRetry = { viewModel.refresh() }
-            )
-        }
-        is CustomerDetailUiState.Success -> {
-            var expandedSection by remember { mutableStateOf("identity") }
-            LaunchedEffect(errorSection) {
-                if (errorSection != null) expandedSection = errorSection
-            }
-
-            var preferredContact by remember {
-                mutableStateOf(detailState.customer.preferences?.contactMethod.orEmpty())
-            }
-            var language by remember {
-                mutableStateOf(detailState.customer.preferences?.language.orEmpty())
-            }
-
-            LaunchedEffect(detailState.customer) {
-                onEmailChange(detailState.customer.email.orEmpty())
-                preferredContact = detailState.customer.preferences?.contactMethod.orEmpty()
-                language = detailState.customer.preferences?.language.orEmpty()
-            }
-
-            var typeExpanded by remember { mutableStateOf(false) }
-            var genderExpanded by remember { mutableStateOf(false) }
-            var statusExpanded by remember { mutableStateOf(false) }
-            var contactExpanded by remember { mutableStateOf(false) }
-
-            Column(
-                Modifier.fillMaxSize()
-                    .background(Color.Transparent)
-            ) {
-                Row(modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = tokens.screenPadding * 0.6f)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(light_blue_border, RoundedCornerShape(12.dp))
-                            .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Info,
-                            null,
-                            tint = Color(0xFF3B82F6),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            if (isEditMode) "Edit mode — update the details below."
-                            else "Viewing customer details. Tap Edit to make changes.",
-                            fontSize = tokens.bodySmall,
-                            color = Color(0xFF1E40AF),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                AccordionSection(
-                    iconPainter = painterResource(R.drawable.ic_person),
-                    title = "Customer Identity",
-                    subtitle = "Basic customer information",
-                    expanded = expandedSection == "identity",
-                    onHeaderClick = { expandedSection = if (expandedSection == "identity") "" else "identity" }
-                ) {
-                    Spacer(Modifier.height(16.dp))
-                    FormLabel("Customer Type ", isRequired = true)
-                    FormDropdown(
-                        value = formState.type.replaceFirstChar { it.uppercase() }.ifEmpty { "Select an option" },
-                        expanded = typeExpanded,
-                        onExpandChange = { typeExpanded = it },
-                        options = listOf("Individual", "Business", "Regular"),
-                        onOptionSelected = { label -> viewModel.onTypeChange(label.lowercase()) },
-                        isRequired = true,
-                        enabled = isEditMode
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    FormLabel("Full Name")
-                    FormTextField(
-                        value = formState.name,
-                        onValueChange = viewModel::onNameChange,
-                        placeholder = "Enter Your Name",
-                        enabled = isEditMode,
-                        isError = errorField == "name",
-                        errorMessage = if (errorField == "name") "Please Check the name " else null
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    FormLabel("Gender")
-                    FormDropdown(
-                        value = formState.gender.ifEmpty { "Select an option" },
-                        expanded = genderExpanded,
-                        onExpandChange = { genderExpanded = it },
-                        options = listOf("Male", "Female", "Other"),
-                        onOptionSelected = viewModel::onGenderChange,
-                        enabled = isEditMode
-                    )
-
-                    Spacer(Modifier.height(12.dp))
-                    FormLabel("Date of Birth")
-                    DatePickerField(
-                        value = formState.dob.toDisplayDate().takeIf { it != "—" } ?: "Select date",
-                        onDateSelected = { selected -> viewModel.onDobChange(selected.toIsoDate()) },
-                        enabled = isEditMode
-                    )
-                }
-
-                Spacer(Modifier.height(12.dp))
-
-                AccordionSection(
-                    iconPainter = painterResource(R.drawable.ic_date_of_birth),
-                    title = "Customer Details",
-                    subtitle = "Communication Preferences",
-                    expanded = expandedSection == "details",
-                    onHeaderClick = { expandedSection = if (expandedSection == "details") "" else "details" }
-                ) {
-                    Spacer(Modifier.height(16.dp))
-
-                    FormLabel("Mobile No")
-                    PhoneInputField(
-                        phoneValue = formState.mobile,
-                        onPhoneChange = viewModel::onMobileChange,
-                        onCountryChange = { },
-                        enabled = isEditMode
-                    )
-                    Spacer(Modifier.height(12.dp))
-
-                    FormLabel("Email")
-                    FormTextField(
-                        value = formState.email,
-                        onValueChange = viewModel::onEmailChange,
-                        placeholder = "Enter Your email",
-                        enabled = isEditMode,
-                        isError = errorField == "email",
-                        errorMessage = if (errorField == "email") "Please Check the email " else null
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    FormLabel("Status")
-                    FormDropdown(
-                        value = formState.status.ifEmpty { "Select an option" },
-                        expanded = statusExpanded,
-                        onExpandChange = { statusExpanded = it },
-                        options = listOf("Active", "Inactive"),
-                        onOptionSelected = viewModel::onStatusChange,
-                        enabled = isEditMode
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    FormLabel("Prefereed Language")
-                    OrganizationDropdown(
-                        items = OrgOptions.languages,
-                        selected = language,
-                        enabled = isEditMode
-                    ) { language = it }
-                    Spacer(Modifier.height(12.dp))
-                    FormLabel("Preferred Contact")
-                    FormDropdown(
-                        value = preferredContact.ifEmpty { "Select an option" },
-                        expanded = contactExpanded,
-                        onExpandChange = { contactExpanded = it },
-                        options = listOf("Call", "WhatsApp", "Email"),
-                        onOptionSelected = { preferredContact = it },
-                        enabled = isEditMode
-                    )
-                }
-
-                Spacer(Modifier.height(12.dp))
-
-                AccordionSection(
-                    iconPainter = painterResource(R.drawable.ic_location),
-                    title = "Location & Communication",
-                    subtitle = "Contact details",
-                    expanded = expandedSection == "location",
-                    onHeaderClick = { expandedSection = if (expandedSection == "location") "" else "location" }
-                ) {
-                    Spacer(Modifier.height(16.dp))
-                    FormLabel("Address")
-                    FormTextField(
-                        value = formState.addressLine,
-                        onValueChange = viewModel::onAddressLineChange,
-                        placeholder = "Enter Your address",
-                        enabled = isEditMode,
-                        isError = errorField == "address",
-                        errorMessage = if (errorField == "address") "Please Check the address " else null
-                    )
-                    Spacer(Modifier.height(12.dp))
-
-                    FormLabel("Area / Zone")
-                    FormTextField(
-                        value = formState.area,
-                        onValueChange = viewModel::onAreaChange,
-                        placeholder = "Enter Area/Zone",
-                        enabled = isEditMode,
-                        isError = errorField == "areaZone",
-                        errorMessage = if (errorField == "areaZone") "Please Check this field " else null
-                    )
-                    Spacer(Modifier.height(12.dp))
-
-                    FormLabel("City")
-                    FormTextField(
-                        value = formState.city,
-                        onValueChange = viewModel::onCityChange,
-                        placeholder = "Enter Your City",
-                        enabled = isEditMode,
-                        isError = errorField == "city",
-                        errorMessage = if (errorField == "city") "Please Check the city " else null
-                    )
-                }
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// STEP 2 — Measurements Step
-// ─────────────────────────────────────────────────────────────
 @Composable
 private fun MeasurementsStep(isEditMode: Boolean) {
     val tokens = LocalAppTokens.current
@@ -733,10 +702,10 @@ private fun MeasurementsStep(isEditMode: Boolean) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, PrimaryBorder, RoundedCornerShape(12.dp))
+                    .border(1.dp, PrimaryBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.8f))
                     .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 10.dp)
             ) {
-                Text("LAST UPDATED", fontSize = tokens.bodySmall, color = Color(0xFF9CA3AF))
+                Text("LAST UPDATED", fontSize = tokens.bodySmall, color = mutedText)
                 Text("15/12/2026", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = blackTitle)
             }
             Spacer(Modifier.height(14.dp))
@@ -746,22 +715,21 @@ private fun MeasurementsStep(isEditMode: Boolean) {
                 listOf("Shirt", "Pant", "Suit", "Kurta").forEach { Chip(it) }
             }
 
-            Spacer(Modifier.height(14.dp))
-
-            OutlinedButton(
-                onClick = {},
-                enabled = isEditMode,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF3B3BF9))
-            ) {
-                Icon(Icons.Default.Add, null, tint = Color(0xFF3B3BF9), modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Add New Measurement", color = Color(0xFF3B3BF9), fontSize = tokens.bodyMedium)
+            if (isEditMode) {
+                Spacer(Modifier.height(14.dp))
+                OutlinedButton(
+                    onClick = {},
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.8f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Primary)
+                ) {
+                    Icon(Icons.Default.Add, null, tint = Primary, modifier = Modifier.size(tokens.iconSize))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Add New Measurement", color = Primary, fontSize = tokens.bodyMedium)
+                }
             }
 
             Spacer(Modifier.height(8.dp))
-
             OutlinedIconActionButton(
                 text = "View Measurements",
                 icon = Icons.Default.Visibility,
@@ -782,110 +750,77 @@ private fun MeasurementsStep(isEditMode: Boolean) {
             InsightRow(label = "Frequency") {
                 Box(
                     modifier = Modifier
-                        .background(Color(0xFFFEF3C7), RoundedCornerShape(20.dp))
+                        .background(yellowBg, RoundedCornerShape(20.dp))
                         .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 4.dp)
                 ) {
-                    Text("MEDIUM", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = Color(0xFFB45309))
+                    Text("MEDIUM", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = yellowText)
                 }
             }
             Spacer(Modifier.height(12.dp))
             InsightRow(label = "Rework Flag") {
                 Box(
                     modifier = Modifier
-                        .background(Color(0xFFDCFCE7), RoundedCornerShape(20.dp))
+                        .background(greenBg, RoundedCornerShape(20.dp))
                         .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 4.dp)
                 ) {
-                    Text("NO", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = Color(0xFF16A34A))
+                    Text("NO", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = darkGreenBg)
                 }
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        AccordionSection(
-            title = "Measurement Profile",
-            expanded = expandedSection == "notes",
-            onHeaderClick = { expandedSection = if (expandedSection == "notes") "" else "notes" }
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFFFEF9C3), RoundedCornerShape(12.dp))
-                    .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 12.dp)
-            ) {
-                Text("Prefers Slightly Loose Fitting", fontSize = tokens.bodyMedium, color = Color(0xFF713F12))
             }
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// STEP 3 — Order & Payment Step
-// ─────────────────────────────────────────────────────────────
 @Composable
 private fun OrderPaymentStep() {
     val tokens = LocalAppTokens.current
-    var expandedSection by remember { mutableStateOf("") }
+    var expandedSection by remember { mutableStateOf("payment") }
 
     Column {
         Column(
-            Modifier.fillMaxWidth()
+            Modifier
+                .fillMaxWidth()
                 .padding(horizontal = tokens.screenPadding),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OrderStatBox(modifier = Modifier.weight(1f), label = "Total Orders", value = "28")
-                OrderStatBox(
-                    modifier = Modifier.weight(1f),
-                    label = "First Order",
-                    value = "Mar 2022"
-                )
+                OrderStatBox(modifier = Modifier.weight(1f), label = "First Order", value = "Mar 2022")
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OrderStatBox(
-                    modifier = Modifier.weight(1f),
-                    label = "Last orders",
-                    value = "Jan 2026"
-                )
-                OrderStatBox(
-                    modifier = Modifier.weight(1f),
-                    label = "Avg. order value",
-                    value = "15.6K",
-                    highlight = true
-                )
+                OrderStatBox(modifier = Modifier.weight(1f), label = "Last orders", value = "Jan 2026")
+                OrderStatBox(modifier = Modifier.weight(1f), label = "Avg. order value", value = "₹15.6K", highlight = true)
             }
         }
         Spacer(Modifier.height(16.dp))
 
         AccordionSection(
             title = "Payment Overview",
-            subtitle = "",
             expanded = expandedSection == "payment",
             onHeaderClick = { expandedSection = if (expandedSection == "payment") "" else "payment" }
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(greenBg, RoundedCornerShape(12.dp))
+                    .background(greenBg, RoundedCornerShape(tokens.cardCornerRadius * 0.8f))
                     .padding(horizontal = tokens.screenPadding * 0.85f, vertical = 14.dp)
             ) {
                 Column {
                     Text("Total Spend", fontSize = tokens.bodySmall, color = greentext)
                     Spacer(Modifier.height(4.dp))
-                    Text("436,800", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = greentext)
+                    Text("₹4,36,800", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = greentext)
                 }
             }
             Spacer(Modifier.height(10.dp))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFEF2F2), RoundedCornerShape(12.dp))
+                    .background(redBg, RoundedCornerShape(tokens.cardCornerRadius * 0.8f))
                     .padding(horizontal = tokens.screenPadding * 0.85f, vertical = 14.dp)
             ) {
                 Column {
-                    Text("Pending Payment", fontSize = tokens.bodySmall, color = Color(0xFFDC2626))
+                    Text("Pending Payment", fontSize = tokens.bodySmall, color = redText)
                     Spacer(Modifier.height(4.dp))
-                    Text("8,500", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Color(0xFFB91C1C))
+                    Text("₹8,500", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = redText)
                 }
             }
         }
@@ -898,7 +833,7 @@ private fun OrderPaymentStep() {
             expanded = expandedSection == "history",
             onHeaderClick = { expandedSection = if (expandedSection == "history") "" else "history" }
         ) {
-            Text("Frequently Ordered Garments", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF374151))
+            Text("Frequently Ordered Garments", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = TextPrimary)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("Formal Shirt", "Trousers", "Suit").forEach { Chip(it) }
@@ -908,9 +843,9 @@ private fun OrderPaymentStep() {
 
             OrderHistoryTable(
                 orders = listOf(
-                    OrderHistoryRow("ORD-01", "Jan 6, 2026", "Wedding Sherwani", "3,500", "inactive"),
-                    OrderHistoryRow("ORD-02", "Jan 6, 2026", "Designer Blouse", "3,500", "inactive"),
-                    OrderHistoryRow("ORD-03", "Jan 6, 2026", "Custom Suit", "3,500", "inactive")
+                    OrderHistoryRow("ORD-01", "Jan 6, 2026", "Wedding Sherwani", "₹3,500", "Completed"),
+                    OrderHistoryRow("ORD-02", "Jan 6, 2026", "Designer Blouse", "₹3,500", "Pending"),
+                    OrderHistoryRow("ORD-03", "Jan 6, 2026", "Custom Suit", "₹3,500", "In Progress")
                 )
             )
         }
@@ -925,104 +860,53 @@ private data class OrderHistoryRow(
     val status: String
 )
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 private fun OrderHistoryTable(orders: List<OrderHistoryRow>) {
     val tokens = LocalAppTokens.current
     val scrollState = rememberScrollState()
 
-    val weightOrderId = 0.9f
-    val weightDate = 1.1f
-    val weightGarment = 1.6f
-    val weightAmount = 0.9f
-    val weightStatus = 1.1f
-
-    val minOrderId = 80.dp
-    val minDate = 95.dp
-    val minGarment = 110.dp
-    val minAmount = 75.dp
-    val minStatus = 85.dp
-    val minContentWidth = minOrderId + minDate + minGarment + minAmount + minStatus
-
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val tableWidth = maxOf(minContentWidth, this.maxWidth)
-        val needsScroll = this.maxWidth < minContentWidth
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(if (needsScroll) Modifier.horizontalScroll(scrollState) else Modifier)
-        ) {
-            // Header row
+        Column(modifier = Modifier.fillMaxWidth().horizontalScroll(scrollState)) {
             Row(
                 modifier = Modifier
-                    .width(tableWidth)
-                    .background(light_grey, RoundedCornerShape(12.dp))
+                    .background(light_grey, RoundedCornerShape(tokens.cardCornerRadius * 0.8f))
                     .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 14.dp)
             ) {
-                Text("Order ID", fontSize = tokens.bodyMedium, color = Color(0xFF374151),
-                    modifier = Modifier.weight(weightOrderId).widthIn(min = minOrderId))
-                Text("Date", fontSize = tokens.bodyMedium, color = Color(0xFF374151),
-                    modifier = Modifier.weight(weightDate).widthIn(min = minDate))
-                Text("Garment", fontSize = tokens.bodyMedium, color = Color(0xFF374151),
-                    modifier = Modifier.weight(weightGarment).widthIn(min = minGarment))
-                Text("Amount", fontSize = tokens.bodyMedium, color = Color(0xFF374151),
-                    modifier = Modifier.weight(weightAmount).widthIn(min = minAmount))
-                Text("Status", fontSize = tokens.bodyMedium, color = Color(0xFF374151),
-                    modifier = Modifier.weight(weightStatus).widthIn(min = minStatus))
+                Text("Order ID", fontSize = tokens.bodyMedium, color = TextSecondary, modifier = Modifier.width(90.dp))
+                Text("Date", fontSize = tokens.bodyMedium, color = TextSecondary, modifier = Modifier.width(100.dp))
+                Text("Garment", fontSize = tokens.bodyMedium, color = TextSecondary, modifier = Modifier.width(130.dp))
+                Text("Amount", fontSize = tokens.bodyMedium, color = TextSecondary, modifier = Modifier.width(90.dp))
+                Text("Status", fontSize = tokens.bodyMedium, color = TextSecondary, modifier = Modifier.width(100.dp))
             }
 
-            // Data rows
             orders.forEachIndexed { index, row ->
                 Row(
-                    modifier = Modifier
-                        .width(tableWidth)
-                        .padding(vertical = 14.dp),
+                    modifier = Modifier.padding(vertical = 12.dp, horizontal = tokens.screenPadding * 0.75f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(row.orderId, fontSize = tokens.bodyMedium, color = Color(0xFF111827),
-                        modifier = Modifier.weight(weightOrderId).widthIn(min = minOrderId))
-                    Text(row.date, fontSize = tokens.bodySmall, color = Color(0xFF111827),
-                        modifier = Modifier.weight(weightDate).widthIn(min = minDate))
-                    Text(
-                        row.garment, fontSize = tokens.bodyMedium, color = Color(0xFF111827),
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(weightGarment).widthIn(min = minGarment)
-                    )
-                    Text(row.amount, fontSize = tokens.bodyMedium, color = Color(0xFF111827),
-                        modifier = Modifier.weight(weightAmount).widthIn(min = minAmount))
-
-                    Box(
-                        modifier = Modifier
-                            .weight(weightStatus)
-                            .widthIn(min = minStatus)
-                    ) {
+                    Text(row.orderId, fontSize = tokens.bodyMedium, color = TextPrimary, modifier = Modifier.width(90.dp))
+                    Text(row.date, fontSize = tokens.bodySmall, color = TextPrimary, modifier = Modifier.width(100.dp))
+                    Text(row.garment, fontSize = tokens.bodyMedium, color = TextPrimary, modifier = Modifier.width(130.dp), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(row.amount, fontSize = tokens.bodyMedium, color = TextPrimary, modifier = Modifier.width(90.dp))
+                    Box(modifier = Modifier.width(100.dp)) {
                         Box(
                             modifier = Modifier
-                                .background(Color(0xFFFEE2E2), RoundedCornerShape(50))
-                                .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 5.dp)
+                                .background(primary_light, RoundedCornerShape(50))
+                                .padding(horizontal = tokens.screenPadding * 0.6f, vertical = 4.dp)
                         ) {
-                            Text(
-                                row.status,
-                                fontSize = tokens.caption,
-                                color = Color(0xFFDC2626),
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Text(row.status, fontSize = tokens.caption, color = Primary, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
                 if (index != orders.lastIndex) {
-                    HorizontalDivider(color = title_border, modifier = Modifier.width(tableWidth))
+                    HorizontalDivider(color = title_border)
                 }
             }
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// STEP 4 — Preferences Step
-// ─────────────────────────────────────────────────────────────
 @Composable
 private fun PreferencesStep() {
     val tokens = LocalAppTokens.current
@@ -1060,84 +944,16 @@ private fun PreferencesStep() {
                 Chip("French Cuffs")
             }
         }
-
-        Spacer(Modifier.height(16.dp))
-
-        Column(
-            Modifier.fillMaxWidth()
-                .padding(horizontal = tokens.screenPadding)
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.height(IntrinsicSize.Min)
-            ) {
-                InfoPill(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    iconPainter = painterResource(R.drawable.ic_background_purple_star),
-                    label = "VIP",
-                    sub = "Loyalty Level",
-                    labelColor = Color(0xFF9333EA),
-                    subColor = Color(0xFF6B7280),
-                    bgColor = Color(0xFFF5F0FF),
-                    borderColor = Color(0xFFE9D5FF)
-                )
-                InfoPill(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    iconPainter = painterResource(R.drawable.ic_background_white_people),
-                    label = "5",
-                    sub = "Referrals",
-                    labelColor = Color(0xFF111827),
-                    subColor = Color(0xFF6B7280),
-                    bgColor = Color(0xFFF9FAFB),
-                    borderColor = grey_border
-                )
-                InfoPill(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    iconPainter = painterResource(R.drawable.ic_background_green_check),
-                    label = "Upgrade Ready",
-                    sub = "Next tier eligible",
-                    labelColor = Color(0xFF16A34A),
-                    subColor = Color(0xFF15803D),
-                    bgColor = Color(0xFFDCFCE7),
-                    borderColor = null
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(primary_light, RoundedCornerShape(12.dp))
-                    .padding(horizontal = tokens.screenPadding * 0.85f, vertical = 14.dp)
-            ) {
-                Column {
-                    Text(
-                        "Special Privileges",
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF3B3BF9),
-                        fontSize = tokens.bodyMedium
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "Priority booking, 10% discount on all suit orders, Free home delivery.",
-                        fontSize = tokens.caption,
-                        color = Color(0xFF4B5563)
-                    )
-                }
-            }
-        }
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// STEP 5 — Notes & Tags Step
-// ─────────────────────────────────────────────────────────────
 @Composable
 private fun NotesTagsStep(isEditMode: Boolean) {
     val tokens = LocalAppTokens.current
 
     Column(
-        Modifier.fillMaxWidth()
+        Modifier
+            .fillMaxWidth()
             .padding(horizontal = tokens.screenPadding)
     ) {
         SectionHeader("Internal Notes", "Staff-only notes (not visible to customer)")
@@ -1148,8 +964,10 @@ private fun NotesTagsStep(isEditMode: Boolean) {
             borderColor = yellowBg,
             textColor = title_color
         )
-        Spacer(Modifier.height(10.dp))
-        DashedAddButton(text = "Add Internal Notes", onClick = {}, enabled = isEditMode)
+        if (isEditMode) {
+            Spacer(Modifier.height(10.dp))
+            DashedAddButton(text = "Add Internal Notes", onClick = {}, enabled = true)
+        }
 
         Spacer(Modifier.height(24.dp))
 
@@ -1158,35 +976,23 @@ private fun NotesTagsStep(isEditMode: Boolean) {
         NoteCard(
             text = "Prefers delivery on weekends only.",
             bgColor = primary_light,
-            borderColor = Color(0xFFC7D2FE),
-            textColor = Color(0xFF1F2937)
+            borderColor = light_blue_border,
+            textColor = TextPrimary
         )
-        Spacer(Modifier.height(10.dp))
-        DashedAddButton(text = "Add Customer Notes", onClick = {}, enabled = isEditMode)
-
-        Spacer(Modifier.height(24.dp))
-
-        SectionHeader("Custom Tags", "Organize customer with custom tags")
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TagChipOutlined("Wedding", Color(0xFFEC4899))
-            TagChipOutlined("Premium", Color(0xFF9333EA))
-            TagChipOutlined("Bulk Orders", Color(0xFF3B82F6))
+        if (isEditMode) {
+            Spacer(Modifier.height(10.dp))
+            DashedAddButton(text = "Add Customer Notes", onClick = {}, enabled = true)
         }
-        Spacer(Modifier.height(10.dp))
-        SolidAddButton(text = "Add Tag", onClick = {}, enabled = isEditMode)
     }
 }
-
-// ── Helpers ──
 
 @Composable
 private fun SectionHeader(title: String, subtitle: String) {
     val tokens = LocalAppTokens.current
     Column {
-        Text(title, fontWeight = FontWeight.Bold, fontSize = tokens.h2, color = Color(0xFF111827))
+        Text(title, fontWeight = FontWeight.Bold, fontSize = tokens.h2, color = TextPrimary)
         Spacer(Modifier.height(2.dp))
-        Text(subtitle, fontSize = tokens.bodySmall, color = Color(0xFF9CA3AF))
+        Text(subtitle, fontSize = tokens.bodySmall, color = mutedText)
     }
 }
 
@@ -1196,8 +1002,8 @@ private fun NoteCard(text: String, bgColor: Color, borderColor: Color, textColor
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(bgColor, RoundedCornerShape(12.dp))
-            .border(1.dp, borderColor, RoundedCornerShape(12.dp))
+            .background(bgColor, RoundedCornerShape(tokens.cardCornerRadius * 0.8f))
+            .border(1.dp, borderColor, RoundedCornerShape(tokens.cardCornerRadius * 0.8f))
             .padding(horizontal = tokens.screenPadding * 0.9f, vertical = 14.dp)
     ) {
         Text(text, fontSize = tokens.bodyMedium, color = textColor)
@@ -1212,59 +1018,15 @@ private fun DashedAddButton(text: String, onClick: () -> Unit, enabled: Boolean)
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
-            .dashedBorder(color = Color(0xFFD1D5DB), strokeWidth = 1.dp, cornerRadius = 12.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF6B7280)),
+            .dashedBorder(color = BorderGray, strokeWidth = 1.dp, cornerRadius = tokens.cardCornerRadius * 0.8f),
+        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.8f),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
         border = null,
         contentPadding = PaddingValues(horizontal = tokens.screenPadding, vertical = 14.dp)
     ) {
-        Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp), tint = Color(0xFF6B7280))
+        Icon(Icons.Default.Add, null, modifier = Modifier.size(tokens.iconSize), tint = TextSecondary)
         Spacer(Modifier.width(6.dp))
-        Text(text, fontSize = tokens.bodyMedium, color = Color(0xFF6B7280))
-    }
-}
-
-@Composable
-private fun SolidAddButton(text: String, onClick: () -> Unit, enabled: Boolean) {
-    val tokens = LocalAppTokens.current
-    OutlinedButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.wrapContentWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF111827)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD1D5DB)),
-        contentPadding = PaddingValues(horizontal = tokens.screenPadding * 0.85f, vertical = 10.dp)
-    ) {
-        Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp), tint = Color(0xFF111827))
-        Spacer(Modifier.width(6.dp))
-        Text(text, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF111827))
-    }
-}
-
-@Composable
-private fun TagChipOutlined(text: String, color: Color) {
-    val tokens = LocalAppTokens.current
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .background(color.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
-            .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-            .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 7.dp)
-    ) {
-        Icon(Icons.Outlined.LocalOffer, null, tint = color, modifier = Modifier.size(14.dp))
-        Spacer(Modifier.width(5.dp))
-        Text(text, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = color)
-    }
-}
-
-@Composable
-fun LabeledField(label: String, field: @Composable () -> Unit) {
-    val tokens = LocalAppTokens.current
-    Column(modifier = Modifier.padding(bottom = 12.dp)) {
-        Text(label, fontSize = tokens.bodySmall, color = blackTitle, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(4.dp))
-        field()
+        Text(text, fontSize = tokens.bodyMedium, color = TextSecondary)
     }
 }
 
@@ -1273,20 +1035,16 @@ private fun StatBox(
     modifier: Modifier = Modifier,
     value: String,
     label: String,
-    highlight: Boolean = false,
-    valueColor: Color = Color(0xFF111827)
+    highlight: Boolean = false
 ) {
     val tokens = LocalAppTokens.current
     Column(
         modifier = modifier
             .background(
-                if (highlight) primary_light else Color(0xFFFAFAFB),
-                RoundedCornerShape(16.dp)
+                if (highlight) primary_light else PanelBg,
+                RoundedCornerShape(tokens.cardCornerRadius)
             )
-            .then(
-                if (!highlight) Modifier.border(1.dp, Color(0xFFECECF1), RoundedCornerShape(16.dp))
-                else Modifier
-            )
+            .border(1.dp, if (highlight) Primary else BorderGray, RoundedCornerShape(tokens.cardCornerRadius))
             .padding(vertical = 18.dp, horizontal = tokens.screenPadding * 0.6f),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -1295,15 +1053,14 @@ private fun StatBox(
             value,
             fontSize = tokens.h2,
             fontWeight = FontWeight.Bold,
-            color = if (highlight) Color(0xFF3B3BF9) else Color(0xFF0F172A)
+            color = if (highlight) Primary else TextPrimary
         )
         Spacer(Modifier.height(6.dp))
         Text(
             label,
             fontSize = tokens.caption,
             fontWeight = FontWeight.SemiBold,
-            letterSpacing = 0.5.sp,
-            color = if (highlight) Color(0xFF6366F1) else Color(0xFF9CA3AF)
+            color = if (highlight) Primary else mutedText
         )
     }
 }
@@ -1320,7 +1077,7 @@ private fun OrderStatBox(
         modifier = modifier
             .background(
                 if (highlight) greenBg else lightGray,
-                RoundedCornerShape(16.dp)
+                RoundedCornerShape(tokens.cardCornerRadius)
             )
             .padding(vertical = 16.dp, horizontal = tokens.screenPadding * 0.85f)
     ) {
@@ -1340,60 +1097,10 @@ private fun Chip(text: String) {
     val tokens = LocalAppTokens.current
     Box(
         modifier = Modifier
-            .background(Color(0xFFE1E0FF), RoundedCornerShape(8.dp))
+            .background(primary_light, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
             .padding(horizontal = tokens.screenPadding * 0.9f, vertical = 8.dp)
     ) {
-        Text(text, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF07006C))
-    }
-}
-
-@Composable
-private fun TagChip(text: String, color: Color) {
-    val tokens = LocalAppTokens.current
-    Box(
-        modifier = Modifier
-            .background(color.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
-            .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 6.dp)
-    ) {
-        Text(text, fontSize = tokens.bodySmall, color = color)
-    }
-}
-
-@Composable
-private fun InfoPill(
-    modifier: Modifier = Modifier,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    iconPainter: androidx.compose.ui.graphics.painter.Painter? = null,
-    label: String,
-    sub: String,
-    labelColor: Color,
-    subColor: Color = Color(0xFF6B7280),
-    bgColor: Color,
-    borderColor: Color? = null
-) {
-    val tokens = LocalAppTokens.current
-    Column(
-        modifier = modifier
-            .background(bgColor, RoundedCornerShape(16.dp))
-            .then(
-                if (borderColor != null) Modifier.border(1.dp, borderColor, RoundedCornerShape(16.dp))
-                else Modifier
-            )
-            .padding(vertical = 16.dp, horizontal = tokens.screenPadding * 0.6f),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        when {
-            iconPainter != null -> androidx.compose.foundation.Image(
-                painter = iconPainter,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp)
-            )
-            icon != null -> Icon(imageVector = icon, contentDescription = null, tint = labelColor, modifier = Modifier.size(18.dp))
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(label, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = labelColor, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(2.dp))
-        Text(sub, fontSize = tokens.caption, color = subColor, textAlign = TextAlign.Center)
+        Text(text, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Primary)
     }
 }
 
@@ -1405,8 +1112,8 @@ private fun InsightRow(label: String, value: String) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, fontSize = tokens.bodySmall, color = Color(0xFF374151))
-        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
+        Text(label, fontSize = tokens.bodySmall, color = TextSecondary)
+        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = TextPrimary)
     }
 }
 
@@ -1418,7 +1125,7 @@ private fun InsightRow(label: String, trailing: @Composable () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, fontSize = tokens.bodySmall, color = Color(0xFF374151))
+        Text(label, fontSize = tokens.bodySmall, color = TextSecondary)
         trailing()
     }
 }
@@ -1438,11 +1145,11 @@ private fun OutlinedIconActionButton(
         modifier = modifier
             .fillMaxWidth()
             .dashedBorder(
-                color = if (enabled) Color(0xFF9CA3AF) else Color(0xFFD1D5DB),
+                color = if (enabled) Primary else mutedText,
                 strokeWidth = 1.dp,
-                cornerRadius = 12.dp
+                cornerRadius = tokens.cardCornerRadius * 0.8f
             )
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.8f))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -1456,14 +1163,14 @@ private fun OutlinedIconActionButton(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
-                tint = if (enabled) Color(0xFF3B3BF9) else Color.Gray
+                modifier = Modifier.size(tokens.iconSize),
+                tint = if (enabled) Primary else mutedText
             )
             Spacer(Modifier.width(8.dp))
             Text(
                 text = text,
                 fontSize = tokens.bodyMedium,
-                color = if (enabled) Color(0xFF374151) else Color.Gray,
+                color = if (enabled) TextPrimary else mutedText,
                 fontWeight = FontWeight.Medium
             )
         }

@@ -1988,4 +1988,37 @@ class InventoryRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+
+    // =============================================================================
+    // Payment Made
+    // =============================================================================
+
+    suspend fun getAllPaymentsMade(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ): Result<com.cuso.tailor.model.inventory.PaymentsMadeListResponse> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getAllPaymentsMade(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search,
+                status = status
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to fetch payments made")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
 }

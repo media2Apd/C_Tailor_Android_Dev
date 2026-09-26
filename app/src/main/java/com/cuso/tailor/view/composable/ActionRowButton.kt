@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.tailor.ui.theme.Primary
+import com.cuso.tailor.ui.theme.sectionBorder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,7 +38,7 @@ fun ActionRowButtons(
     isConvertToBillEnabled: Boolean = true,
     buttonHeight: Dp = 40.dp,
     primaryColor: Color = Primary,
-    borderColor: Color = Color(0xFFE2E8F0),
+    borderColor: Color = sectionBorder,
     textColor: Color = Color(0xFF1E2238)
 ) {
     // Material 3-ன் 48.dp default minimum touch target-ஐ override செய்து exact 40.dp height வரவைக்க

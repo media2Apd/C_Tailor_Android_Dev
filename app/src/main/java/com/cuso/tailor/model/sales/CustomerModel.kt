@@ -31,17 +31,24 @@ data class CustomerPreferences(
 // Customer API Response Models (v1)
 // ─────────────────────────────────────────────────────────────
 
-
 data class CustomerListResponse(
-    val success: Boolean,
+    val success: Boolean = false,
     val message: String? = null,
-    val data: CustomerListData? = null
+    val pagination: CustomerPagination? = null,
+    @SerializedName("data")
+    val data: List<CustomerItem> = emptyList()
 )
+
+// Compatibility extension property to prevent compile-time errors
+// if legacy callers access `response.data?.customers`
+val List<CustomerItem>.customers: List<CustomerItem>
+    get() = this
 
 data class CustomerListData(
     val customers: List<CustomerItem> = emptyList(),
     val pagination: CustomerPagination? = null
 )
+
 data class CustomerPagination(
     val total: Int = 0,
     val page: Int = 1,
@@ -77,10 +84,15 @@ data class CustomerItem(
     val dateOfBirth: String? = null,
     val dob: String? = null,
     val customerLevel: String? = null,
+    val preferredLanguage: String? = null,
+    val preferredContactMethod: String? = null,
+    val creditLimit: Double? = null,
+    val creditPeriodDays: Int? = null,
 
     val billingAddress: CustomerAddressDetails? = null,
     val shippingAddress: CustomerAddressDetails? = null,
     val address: CustomerAddressDetails? = null,
+    val sameAsBillingAddress: Boolean? = null,
 
     val profilePicture: ProfilePictureDto? = null,
     val status: String? = null,
@@ -125,7 +137,11 @@ data class CustomerAddressDetails(
     val city: String? = null,
     val state: String? = null,
     val pincode: String? = null,
-    val addressLine: String? = null
+    val addressLine: String? = null,
+    val subdivisionCode: String? = null,
+    val subdivisionName: String? = null,
+    val countryCode: String? = null,
+    val countryName: String? = null
 )
 
 data class ProfilePictureDto(
@@ -216,26 +232,123 @@ data class CustomerViewAddress(
     val state: String? = null,
     val pincode: String? = null
 )
-data class UpdateCustomerRequest(
-    val type: String,
-    val name: String,
-    val mobile: String,
+/**
+ * Request payload for creating and updating customer profiles.
+ */
+data class CreateCustomerRequest(
+    @SerializedName("fullName")
+    val fullName: String,
+
+    @SerializedName("mobileNumber")
+    val mobileNumber: String,
+
+    @SerializedName("email")
     val email: String? = null,
+
+    @SerializedName("customerType")
+    val customerType: String,
+
+    @SerializedName("gender")
     val gender: String? = null,
-    val dob: String? = null,
-    val status: String,
-    val address: CustomerViewAddress,
-    val preferences: CustomerPreferences? = null,
-    val referralCount: Int = 0,
-    val totalSpend: Int = 0,
-    val pendingPayment: Int = 0,
-    @SerializedName("_id")
-    val id: String,
-    val organizationId: String,
-    val createdAt: String? = null,
-    val updatedAt: String? = null,
-    @SerializedName("__v")
-    val v: Int? = null
+
+    @SerializedName("dateOfBirth")
+    val dateOfBirth: String? = null,
+
+    @SerializedName("preferredLanguage")
+    val preferredLanguage: String? = null,
+
+    @SerializedName("preferredContactMethod")
+    val preferredContactMethod: String? = null,
+
+    @SerializedName("customerLevel")
+    val customerLevel: String? = null,
+
+    @SerializedName("taxId")
+    val taxId: String? = null,
+
+    @SerializedName("taxIdType")
+    val taxIdType: String? = null,
+
+    @SerializedName("billingAddress")
+    val billingAddress: CustomerBillingAddressRequest? = null,
+
+    @SerializedName("sameAsBillingAddress")
+    val sameAsBillingAddress: Boolean = true,
+
+    @SerializedName("status")
+    val status: String? = null
+)
+
+/**
+ * Address structure required by customer billing payload.
+ */
+data class CustomerBillingAddressRequest(
+    @SerializedName("flatNo")
+    val flatNo: String? = null,
+
+    @SerializedName("street")
+    val street: String? = null,
+
+    @SerializedName("areaZone")
+    val areaZone: String? = null,
+
+    @SerializedName("city")
+    val city: String? = null,
+
+    @SerializedName("subdivisionName")
+    val subdivisionName: String? = null,
+
+    @SerializedName("countryName")
+    val countryName: String? = null,
+
+    @SerializedName("pincode")
+    val pincode: String? = null
+)
+/**
+ * Request payload for updating an existing customer profile.
+ */
+data class UpdateCustomerRequest(
+    @SerializedName("fullName")
+    val fullName: String,
+
+    @SerializedName("mobileNumber")
+    val mobileNumber: String,
+
+    @SerializedName("email")
+    val email: String? = null,
+
+    @SerializedName("customerType")
+    val customerType: String,
+
+    @SerializedName("gender")
+    val gender: String? = null,
+
+    @SerializedName("dateOfBirth")
+    val dateOfBirth: String? = null,
+
+    @SerializedName("preferredLanguage")
+    val preferredLanguage: String? = "English",
+
+    @SerializedName("preferredContactMethod")
+    val preferredContactMethod: String? = "Whatsapp",
+
+    @SerializedName("customerLevel")
+    val customerLevel: String? = "Regular",
+
+    @SerializedName("taxId")
+    val taxId: String? = null,
+
+    @SerializedName("taxIdType")
+    val taxIdType: String? = null,
+
+    @SerializedName("billingAddress")
+    val billingAddress: CustomerBillingAddressRequest? = null,
+
+    @SerializedName("sameAsBillingAddress")
+    val sameAsBillingAddress: Boolean = true,
+
+    @SerializedName("status")
+    val status: String? = "Active"
 )
 
 data class UpdateCustomerResponse(
@@ -341,7 +454,7 @@ data class CustomerItemV2(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Extension function to convert V2 to V1
+// Extension Function to Convert V2 to V1
 // ─────────────────────────────────────────────────────────────
 
 fun CustomerItemV2.toCustomerItem(): CustomerItem {
@@ -498,4 +611,64 @@ data class FinanceAddress(
     val city: String? = null,
     val area: String? = null,
     val pincode: String? = null
+)
+
+
+/**
+ * Top-level response for customer measurements list API.
+ */
+data class CustomerMeasurementResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("count") val count: Int = 0,
+    @SerializedName("data") val data: List<CustomerMeasurementRecord> = emptyList()
+)
+
+/**
+ * Individual customer measurement document matching MongoDB schema.
+ */
+data class CustomerMeasurementRecord(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("organizationId") val organizationId: String? = null,
+    @SerializedName("segmentId") val segment: MeasurementSegmentRef? = null,
+    @SerializedName("garmentCategoryId") val garmentCategory: MeasurementCategoryRef? = null,
+    @SerializedName("customerId") val customer: MeasurementCustomerRef? = null,
+    @SerializedName("garmentId") val garment: MeasurementGarmentRef? = null,
+    @SerializedName("status") val status: String? = "Active",
+    @SerializedName("measuredAt") val measuredAt: String? = null,
+    @SerializedName("createdAt") val createdAt: String? = null,
+    @SerializedName("updatedAt") val updatedAt: String? = null
+)
+
+data class MeasurementSegmentRef(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("name") val name: String = "",
+    @SerializedName("displayName") val displayName: String? = null
+)
+
+data class MeasurementCategoryRef(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("name") val name: String = "",
+    @SerializedName("displayName") val displayName: String? = null,
+    @SerializedName("image") val image: String? = null
+)
+
+data class MeasurementCustomerRef(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("customerCode") val customerCode: String? = null,
+    @SerializedName("fullName") val fullName: String? = null,
+    @SerializedName("mobileNumber") val mobileNumber: String? = null,
+    @SerializedName("profilePicture") val profilePicture: ProfilePictureRef? = null
+)
+
+data class ProfilePictureRef(
+    @SerializedName("url") val url: String? = null,
+    @SerializedName("publicId") val publicId: String? = null
+)
+
+data class MeasurementGarmentRef(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("name") val name: String = "",
+    @SerializedName("displayName") val displayName: String? = null,
+    @SerializedName("code") val code: String? = null,
+    @SerializedName("imageUrl") val imageUrl: String? = null
 )

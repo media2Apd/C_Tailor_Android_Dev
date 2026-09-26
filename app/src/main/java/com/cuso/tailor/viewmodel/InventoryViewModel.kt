@@ -3672,4 +3672,106 @@ class InventoryViewModel @Inject constructor(
     fun clearRecordPaymentError() {
         _recordPaymentErrorMessage.value = null
     }
+
+    // =========================================================================
+    // PAYMENTS MADE (VIEW-ALL: PAGINATED)
+    // =========================================================================
+    private val _paymentsMadeList = MutableStateFlow<List<com.cuso.tailor.model.inventory.PaymentsMadeItem>>(emptyList())
+    val paymentsMadeList: StateFlow<List<com.cuso.tailor.model.inventory.PaymentsMadeItem>> = _paymentsMadeList.asStateFlow()
+
+    private val _isLoadingPaymentsMade = MutableStateFlow(false)
+    val isLoadingPaymentsMade: StateFlow<Boolean> = _isLoadingPaymentsMade.asStateFlow()
+
+    private val _isLoadingMorePaymentsMade = MutableStateFlow(false)
+    val isLoadingMorePaymentsMade: StateFlow<Boolean> = _isLoadingMorePaymentsMade.asStateFlow()
+
+    private val _canLoadMorePaymentsMade = MutableStateFlow(true)
+    val canLoadMorePaymentsMade: StateFlow<Boolean> = _canLoadMorePaymentsMade.asStateFlow()
+
+    private val _currentPaymentsMadePage = MutableStateFlow(1)
+    val currentPaymentsMadePage: StateFlow<Int> = _currentPaymentsMadePage.asStateFlow()
+
+    private val _paymentsMadeError = MutableStateFlow<String?>(null)
+    val paymentsMadeError: StateFlow<String?> = _paymentsMadeError.asStateFlow()
+
+    private var activePaymentsMadeSearch: String? = null
+    private var activePaymentsMadeStatus: String? = null
+    private var paymentsMadeSearchJob: Job? = null
+
+    fun fetchAllPaymentsMade(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingPaymentsMade.value = true
+            _paymentsMadeError.value = null
+            _currentPaymentsMadePage.value = page
+            _canLoadMorePaymentsMade.value = true
+            activePaymentsMadeSearch = search
+            activePaymentsMadeStatus = status
+
+            inventoryRepository.getAllPaymentsMade(
+                page = page,
+                limit = limit,
+                search = search,
+                status = status
+            ).onSuccess { response ->
+                _paymentsMadeList.value = response.data
+                val totalPages = response.pagination?.totalPages ?: 1
+                _canLoadMorePaymentsMade.value = page < totalPages && response.data.isNotEmpty()
+            }.onFailure { error ->
+                _paymentsMadeError.value = extractErrorMessage(error.message)
+            }
+
+            _isLoadingPaymentsMade.value = false
+        }
+    }
+
+    fun loadMorePaymentsMade(limit: Int = 10) {
+        if (_isLoadingMorePaymentsMade.value || _isLoadingPaymentsMade.value || !_canLoadMorePaymentsMade.value) return
+
+        viewModelScope.launch {
+            _isLoadingMorePaymentsMade.value = true
+            val nextPage = _currentPaymentsMadePage.value + 1
+
+            inventoryRepository.getAllPaymentsMade(
+                page = nextPage,
+                limit = limit,
+                search = activePaymentsMadeSearch,
+                status = activePaymentsMadeStatus
+            ).onSuccess { response ->
+                val newItems = response.data
+                if (newItems.isNotEmpty()) {
+                    _paymentsMadeList.update { (it + newItems).distinctBy { item -> item.id } }
+                    _currentPaymentsMadePage.value = nextPage
+                    val totalPages = response.pagination?.totalPages ?: nextPage
+                    _canLoadMorePaymentsMade.value = nextPage < totalPages
+                } else {
+                    _canLoadMorePaymentsMade.value = false
+                }
+            }.onFailure {
+                _canLoadMorePaymentsMade.value = false
+            }
+
+            _isLoadingMorePaymentsMade.value = false
+        }
+    }
+
+    fun onPaymentsMadeSearchQueryChanged(newQuery: String) {
+        paymentsMadeSearchJob?.cancel()
+        paymentsMadeSearchJob = viewModelScope.launch {
+            delay(400)
+            fetchAllPaymentsMade(
+                page = 1,
+                search = newQuery.takeIf { it.isNotBlank() },
+                status = activePaymentsMadeStatus
+            )
+        }
+    }
+
+    fun clearPaymentsMadeError() {
+        _paymentsMadeError.value = null
+    }
 }

@@ -677,7 +677,7 @@ private fun StepOneBasicInfo(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Basic Information", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-        HorizontalDivider(color = Color(0xFFE2E8F0))
+        HorizontalDivider(color = sectionBorder)
 
         Column {
             FormLabel("Template Name", isRequired = true)
@@ -782,7 +782,7 @@ private fun StepTwoGarmentAndMeasurement(
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Garment & Measurement", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = title_color)
-        HorizontalDivider(color = Color(0xFFE2E8F0))
+        HorizontalDivider(color = sectionBorder)
 
         Text("Apply Template To", fontSize = 13.sp, color = Color(0xFF475569))
 
@@ -797,7 +797,7 @@ private fun StepTwoGarmentAndMeasurement(
                     containerColor = if (!applyToGroup) Color(0xFFE0E7FF) else Color.Transparent
                 ),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, if (!applyToGroup) Color(0xFF818CF8) else Color(0xFFE2E8F0))
+                border = BorderStroke(1.dp, if (!applyToGroup) Color(0xFF818CF8) else sectionBorder)
             ) {
                 Text(
                     text = "Single Garment",
@@ -814,7 +814,7 @@ private fun StepTwoGarmentAndMeasurement(
                     containerColor = if (applyToGroup) Color(0xFFE0E7FF) else Color.Transparent
                 ),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, if (applyToGroup) Color(0xFF818CF8) else Color(0xFFE2E8F0))
+                border = BorderStroke(1.dp, if (applyToGroup) Color(0xFF818CF8) else sectionBorder)
             ) {
                 Text(
                     text = "Garment Group",
@@ -845,7 +845,7 @@ private fun StepTwoGarmentAndMeasurement(
 
             Card(
                 colors = CardDefaults.cardColors(containerColor = whiteBg),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                border = BorderStroke(1.dp, sectionBorder),
                 shape = RoundedCornerShape(10.dp)
             ) {
                 Column(
@@ -880,7 +880,7 @@ private fun StepTwoGarmentAndMeasurement(
 
             Card(
                 colors = CardDefaults.cardColors(containerColor = whiteBg),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                border = BorderStroke(1.dp, sectionBorder),
                 shape = RoundedCornerShape(10.dp)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
@@ -925,7 +925,7 @@ private fun StepTwoGarmentAndMeasurement(
                 selectedGarmentsList.forEach { item ->
                     Card(
                         colors = CardDefaults.cardColors(containerColor = whiteBg),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        border = BorderStroke(1.dp, sectionBorder),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Row(
@@ -961,7 +961,7 @@ private fun StepTwoGarmentAndMeasurement(
 
         Card(
             colors = CardDefaults.cardColors(containerColor = whiteBg),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            border = BorderStroke(1.dp, sectionBorder),
             shape = RoundedCornerShape(10.dp)
         ) {
             Column(
@@ -1022,7 +1022,7 @@ private fun StepThreeWorkflow(
 
         Card(
             colors = CardDefaults.cardColors(containerColor = whiteBg),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            border = BorderStroke(1.dp, sectionBorder),
             shape = RoundedCornerShape(10.dp)
         ) {
             Column {
@@ -1102,7 +1102,7 @@ private fun StepFourOptionalWork(
 
         Card(
             colors = CardDefaults.cardColors(containerColor = whiteBg),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            border = BorderStroke(1.dp, sectionBorder),
             shape = RoundedCornerShape(10.dp)
         ) {
             Column {
@@ -1317,7 +1317,7 @@ private fun StepFiveReviewAndActivate(
 
         Card(
             colors = CardDefaults.cardColors(containerColor = whiteBg),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            border = BorderStroke(1.dp, sectionBorder),
             shape = RoundedCornerShape(10.dp)
         ) {
             Column {
@@ -1373,7 +1373,7 @@ private fun StepFiveReviewAndActivate(
 
         Card(
             colors = CardDefaults.cardColors(containerColor = whiteBg),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            border = BorderStroke(1.dp, sectionBorder),
             shape = RoundedCornerShape(10.dp)
         ) {
             Column {
@@ -1741,7 +1741,7 @@ fun AddGarmentSheetContent(
                     .weight(1f)
                     .height(46.dp),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                border = BorderStroke(1.dp, sectionBorder)
             ) {
                 Text(
                     text = "Cancel",
@@ -1910,7 +1910,7 @@ fun ServiceTemplateDetailViewScreen(
                 Text("Workflow Configuration", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
                 Card(
                     colors = CardDefaults.cardColors(containerColor = whiteBg),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    border = BorderStroke(1.dp, sectionBorder),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Column {
@@ -1942,7 +1942,7 @@ fun ServiceTemplateDetailViewScreen(
                 Text("Optional Work", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
                 Card(
                     colors = CardDefaults.cardColors(containerColor = whiteBg),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    border = BorderStroke(1.dp, sectionBorder),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Column {
@@ -1986,7 +1986,7 @@ fun ServiceTemplateDetailViewScreen(
                     onClick = onClose,
                     modifier = Modifier.weight(1f).height(46.dp),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    border = BorderStroke(1.dp, sectionBorder)
                 ) {
                     Text("Cancel", color = Color(0xFF334155))
                 }

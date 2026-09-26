@@ -185,7 +185,7 @@ fun OrderPreviewScreen(
                             .height(44.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(Color(0xFFFAFAFA))
-                            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                            .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
                             .padding(horizontal = 12.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
@@ -256,7 +256,7 @@ fun OrderPreviewScreen(
                             .height(46.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(whiteBg)
-                            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                            .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
                             .padding(horizontal = 12.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
@@ -576,7 +576,7 @@ private fun MeasurementPillsGrid(measurements: List<Pair<String, String>>) {
                             .height(38.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(badgeGrey)
-                            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp)),
+                            .border(1.dp, sectionBorder, RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(

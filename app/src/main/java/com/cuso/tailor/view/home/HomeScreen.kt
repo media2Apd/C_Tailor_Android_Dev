@@ -137,6 +137,7 @@ import com.cuso.tailor.viewmodel.OrderOverviewViewModel
 import com.cuso.tailor.viewmodel.ProfileViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
 import com.cuso.tailor.model.inventory.PurchaseOrder
+import com.cuso.tailor.model.sales.MeasurementItem
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 
@@ -235,6 +236,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var editOrderId by remember { mutableStateOf<String?>(null) }
     var editingPricingId by remember { mutableStateOf<String?>(null) }
     var quotationScreenMode by remember { mutableStateOf("create") }
+    var selectedMeasurementItem by remember { mutableStateOf<MeasurementItem?>(null) }
+
 
     // Panels and Feedback State
     var showModulesPanel by remember { mutableStateOf(false) }
@@ -411,6 +414,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "sales_add_fabric_pricing",
             "sales_add_work_pricing",
             "sales_measurement_list",
+            "measurements_available_view",
+            "measurement_management_view",
+            "measurement_fields_config",
 
             // ── Finance ──
             "finance_sales_invoices",
@@ -683,6 +689,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             when (scr) {
                 "create_order_review", "create_order" -> pendingOrderReviewData = null
                 "finance_invoice_detail", "inventory_payable_purchase_detail" -> selectedInvoiceId = null
+                "measurements_available_view", "measurement_management_view" -> selectedMeasurementItem = null
                 "finance_ledger" -> selectedLedgerAccountId = null
                 "finance_supplier_detail" -> selectedSupplier = null
                 "inventory_item_detail" -> selectedInventoryItemId = null
@@ -858,7 +865,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             onReceivePoIdSelected = { selectedReceivePoId = it },
                             selectedBarcodeIdForDetail = selectedBarcodeIdForDetail,
                             onBarcodeIdForDetailSelected = { selectedBarcodeIdForDetail = it },
-
+                            selectedMeasurementItem = selectedMeasurementItem,
+                            onMeasurementItemSelected = { selectedMeasurementItem = it },
                             navController = navController,
                             selectedSupplier = selectedSupplier,
                             onFinanceSupplierSelected = { selectedSupplier = it },
@@ -2204,7 +2212,10 @@ fun menuForScreen(screen: String): String = when {
         "create_order", "order_overview", "create_order_review",
         "view_customer", "edit_customer",
         "create_quotation", "create_garment_pricing", "garment_pricing_list",
-        "order_management_overview"
+        "order_management_overview",
+        "measurements_available_view",
+        "measurement_management_view",
+        "measurement_fields_config"
     ) -> "Sales"
     screen.startsWith("services_") || screen in setOf(
         "service_status_detail",

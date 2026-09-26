@@ -43,7 +43,7 @@ import com.cuso.tailor.database.entities.WorkingDayEntity
         LeadEntity::class,
         SelectedGarment::class
     ],
-    version = 15,
+    version = 16,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

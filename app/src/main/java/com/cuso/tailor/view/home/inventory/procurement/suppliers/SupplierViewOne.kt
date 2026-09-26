@@ -514,7 +514,7 @@ private fun SupplierOverviewTab(
                     )
                     .border(
                         1.dp,
-                        Color(0xFFE2E8F0),
+                        sectionBorder,
                         RoundedCornerShape(12.dp)
                     )
                     .padding(16.dp)

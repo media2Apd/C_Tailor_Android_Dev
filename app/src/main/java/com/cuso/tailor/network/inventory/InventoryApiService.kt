@@ -52,7 +52,6 @@ import com.cuso.tailor.model.inventory.ReceiveHistoryByPoResponse
 import com.cuso.tailor.model.inventory.ReceivePurchaseOrderRequest
 import com.cuso.tailor.model.inventory.RecordPaymentRequest
 import com.cuso.tailor.model.inventory.RecordPaymentResponse
-import com.cuso.tailor.model.inventory.RequisitionApprovalActionRequest
 import com.cuso.tailor.model.inventory.RequisitionListResponse
 import com.cuso.tailor.model.inventory.RequisitionSingleResponse
 import com.cuso.tailor.model.inventory.ReverseAdjustmentRequest
@@ -942,4 +941,19 @@ interface InventoryApiService {
         @Header("x-csrf-token") csrfToken: String,
         @Body request: RecordPaymentRequest
     ): Response<RecordPaymentResponse>
+
+    // =============================================================================
+    // Bill list
+    // =============================================================================
+
+    @GET("/api/finance/purchase-payments/view-all")
+    suspend fun getAllPaymentsMade(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<com.cuso.tailor.model.inventory.PaymentsMadeListResponse>
+
 }

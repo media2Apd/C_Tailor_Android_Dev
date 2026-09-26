@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -172,7 +171,7 @@ fun CreatePurchaseOrderScreen(
         (qty * rate) * (taxPercent / 100.0)
     }.takeIf { it > 0 } ?: 1050.0
 
-    val calculatedGrandTotal = calculatedSubtotal.takeIf { it > 0 } ?: 10000.0
+    val calculatedGrandTotal = calculatedSubtotal.takeIf { true } ?: 10000.0
 
     Scaffold(
         containerColor = Primary_background,
@@ -433,7 +432,7 @@ fun CreatePurchaseOrderScreen(
                                             modifier = Modifier
                                                 .size(46.dp)
                                                 .clip(RoundedCornerShape(10.dp))
-                                                .background(Color(0xFFE2E8F0)),
+                                                .background(sectionBorder),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(

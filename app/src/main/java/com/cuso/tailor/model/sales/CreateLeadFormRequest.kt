@@ -5,29 +5,69 @@ package com.cuso.tailor.model.sales
 
 import com.google.gson.annotations.SerializedName
 
+data class GarmentCategoryResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("data") val data: List<GarmentCategoryDto> = emptyList()
+)
 
+data class GarmentCategoryDto(
+    @SerializedName("_id") val id: String,
+    @SerializedName("categoryName") val categoryName: String?,
+    @SerializedName("name") val name: String?
+) {
+    val displayName: String
+        get() = categoryName?.ifBlank { null } ?: name ?: ""
+}
 // In CreateLeadFormRequest.kt - Add occasion field
 
 data class CreateLeadFormRequest(
-    val leadId: String? = null,
-    val customerType: String,
-    val enquiryType: String,
-    val estimatedQuantity: Int,
-    val budgetRange: BudgetRange,
-    @SerializedName("garments")
-    val garments: List<LeadGarmentRequestItem>,
-    @SerializedName("garmentCategory")   //   backend expects "garmentCategory", not "garments"
-    val enquiryDate: String,
-    val requiredDate: String,
-    val source: String,
-    val leadOwner: String = "",   //   NEW — staff ID, same convention as appointment.assignedStaff
-    val person: LeadPerson,
-    val contact: LeadContact,
-    val appointment: LeadAppointment,
-    val status: String,
-    val statusName: String,
-    val notes: List<LeadNote>,
-    val occasion: String = ""
+    @SerializedName("branchId") val branchId: String? = null,
+    @SerializedName("leadSource") val leadSource: String,
+    @SerializedName("enquiryDate") val enquiryDate: String,
+    @SerializedName("leadOwner") val leadOwner: String,
+    @SerializedName("leadStatus") val leadStatus: String,
+    @SerializedName("customerType") val customerType: String,
+    @SerializedName("fullName") val fullName: String,
+    @SerializedName("mobileNumber") val mobileNumber: String,
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("gender") val gender: String? = null,
+    @SerializedName("dateOfBirth") val dateOfBirth: String? = null,
+    @SerializedName("preferredContactMethod") val preferredContactMethod: String? = null,
+    @SerializedName("enquiryType") val enquiryType: String,
+    @SerializedName("requiredDate") val requiredDate: String,
+    @SerializedName("address") val address: LeadAddressDto? = null,
+    @SerializedName("garmentSpecifications") val garmentSpecifications: List<LeadGarmentSpecificationPayload> = emptyList(),
+    @SerializedName("budgetMin") val budgetMin: Int? = null,
+    @SerializedName("budgetMax") val budgetMax: Int? = null,
+    @SerializedName("isFabricProvided") val isFabricProvided: Boolean = false,
+    @SerializedName("fabricSource") val fabricSource: String? = null,
+    @SerializedName("fabricNotes") val fabricNotes: String? = null,
+    @SerializedName("isAppointmentRequired") val isAppointmentRequired: Boolean = false,
+    @SerializedName("appointmentDate") val appointmentDate: String? = null,
+    @SerializedName("appointmentTime") val appointmentTime: String? = null,
+    @SerializedName("appointmentStatus") val appointmentStatus: String? = null,
+    @SerializedName("assignedStaffId") val assignedStaffId: String? = null,
+    @SerializedName("followUpDate") val followUpDate: String? = null,
+    @SerializedName("priorityLevel") val priorityLevel: String? = null,
+    @SerializedName("internalNotes") val internalNotes: String? = null,
+    @SerializedName("customerNotes") val customerNotes: String? = null,
+    @SerializedName("status") val status: String = "Active"
+)
+
+data class LeadAddressDto(
+    @SerializedName("flatNo") val flatNo: String = "",
+    @SerializedName("street") val street: String = "",
+    @SerializedName("areaZone") val areaZone: String = "",
+    @SerializedName("city") val city: String = "",
+    @SerializedName("subdivisionName") val subdivisionName: String = "",
+//    @SerializedName("country") val country: String = "",
+    @SerializedName("pincode") val pincode: String = ""
+)
+
+data class LeadGarmentSpecificationPayload(
+    @SerializedName("garmentId") val garmentId: String,
+    @SerializedName("garmentCategoryId") val garmentCategoryId: String,
+    @SerializedName("quantity") val quantity: Int
 )
 // Add these data classes (e.g. in the same file as CreateLeadFormResponse, or a new GarmentCategory.kt)
 // New Data class for Garment item in Lead Request

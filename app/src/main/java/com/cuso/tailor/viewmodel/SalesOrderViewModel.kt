@@ -98,7 +98,9 @@ class SalesOrderViewModel @Inject constructor(
             if (result.isSuccess) {
                 val response = result.getOrNull()!!
                 try {
+                    // Inside fetchOrders():
                     val orders = response.data.map { it.toOrderItem() }
+
                     loadedOrders.addAll(orders)
 
                     totalPages = if (response.totalPages > 0) {

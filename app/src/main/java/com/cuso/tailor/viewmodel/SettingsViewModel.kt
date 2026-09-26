@@ -496,16 +496,17 @@ class SettingsViewModel @Inject constructor(
     // ===========================================================
 
     fun fetchGarments() {
-        launchBusy {
+        viewModelScope.launch {
             _isLoadingGarments.value = true
             _garmentsError.value = null
-            val result = settingsRepository.getGarments()
+            settingsRepository.getGarments(paginate = false, status = "Active")
+                .onSuccess { items ->
+                    _garments.value = items
+                }
+                .onFailure { error ->
+                    _garmentsError.value = error.message
+                }
             _isLoadingGarments.value = false
-            if (result.isSuccess) {
-                _garments.value = result.getOrDefault(emptyList())
-            } else {
-                _garmentsError.value = result.exceptionOrNull()?.message ?: "Failed to load garments"
-            }
         }
     }
 

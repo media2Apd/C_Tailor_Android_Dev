@@ -4,84 +4,160 @@ package com.cuso.tailor.model.sales
 
 import com.google.gson.annotations.SerializedName
 
-
-
-// ── Raw API response: GET /api/measurements (or similar) ──
+/**
+ * Top-level response for GET /api/measurements
+ */
 data class MeasurementsResponse(
-    val success: Boolean,
+    @SerializedName("success")
+    val success: Boolean = false,
+
+    @SerializedName("count")
+    val count: Int = 0,
+
     @SerializedName("data")
-    val customersLastOrders: List<CustomerLastOrder>
+    val data: List<CustomerMeasurementItem> = emptyList()
 )
 
-// ── Single customer's last order/measurement record ──
-data class CustomerLastOrder(
+/**
+ * Encapsulates customer information along with their latest measurement record.
+ */
+data class CustomerMeasurementItem(
+    @SerializedName("customer")
+    val customer: MeasurementCustomerInfo? = null,
+
+    @SerializedName("latestMeasurement")
+    val latestMeasurement: LatestMeasurementDto? = null
+)
+
+/**
+ * Basic customer details associated with the measurement record.
+ */
+data class MeasurementCustomerInfo(
     @SerializedName("_id")
-    val id: String,
-    val garments: List<String>,
-    val customerName: String,
-    val customerId: String,
-    val type: String,           // "individual" | "corporate"
-    val contact: String,
-    val lastUpdated: String,    // ISO date string
-    val pendingPayment: Int,
-    val totalSpend: Int
-)
-//
-//data class MeasurementsData(
-//    val totalAssigned: Int,
-//    val active: Int,
-//    val inactive: Int,
-//    val availableSlots: Int?,
-//    val categories: List<OrgGarmentCategory>
-//)
+    val id: String = "",
 
-// ── Garment Category ──
-data class OrgGarmentCategory(
+    @SerializedName("fullName")
+    val fullName: String? = null,
+
+    @SerializedName("mobileNumber")
+    val mobileNumber: String? = null,
+
+    @SerializedName("customerCode")
+    val customerCode: String? = null,
+
+    @SerializedName("profilePicture")
+    val profilePicture: ProfilePictureDto? = null
+)
+
+/**
+ * Details of the latest recorded measurement.
+ */
+data class LatestMeasurementDto(
     @SerializedName("_id")
-    val id: String,
-    val organizationId: String,
-    val categoryId: CategoryDetailMeasurement,
-    val isActive: Boolean,
-    val createdAt: String,
-    val updatedAt: String
+    val id: String = "",
+
+    @SerializedName("segmentId")
+    val segment: MeasurementSegmentDto? = null,
+
+    @SerializedName("garmentId")
+    val garment: MeasurementGarmentDto? = null,
+
+    @SerializedName("garmentCategoryId")
+    val garmentCategory: MeasurementGarmentCategoryDto? = null,
+
+    @SerializedName("measuredAt")
+    val measuredAt: String? = null,
+
+    @SerializedName("status")
+    val status: String? = null,
+
+    @SerializedName("createdAt")
+    val createdAt: String? = null
 )
 
-data class CategoryDetailMeasurement(
+/**
+ * Segment classification (e.g., Men, Women, Kids).
+ */
+data class MeasurementSegmentDto(
     @SerializedName("_id")
-    val id: String,
-    val categoryName: String,
-    val measurements: List<MeasurementField>,
-    val models: List<Model>
+    val id: String = "",
+
+    @SerializedName("name")
+    val name: String? = null,
+
+    @SerializedName("displayName")
+    val displayName: String? = null
 )
 
-data class MeasurementField(
-    val fieldName: String,
-    val unit: String,
-    val inputType: String,
-    val inputCount: Int,
-    val options: List<String>,
-    val isCommonField: Boolean,
-    val commonFieldId: String?,
+/**
+ * Garment definition linked to the measurement.
+ */
+data class MeasurementGarmentDto(
     @SerializedName("_id")
-    val id: String
+    val id: String = "",
+
+    @SerializedName("name")
+    val name: String? = null,
+
+    @SerializedName("displayName")
+    val displayName: String? = null,
+
+    @SerializedName("code")
+    val code: String? = null,
+
+    @SerializedName("imageUrl")
+    val imageUrl: String? = null
 )
 
-data class Model(
-    val modelName: String,
-    val pieceRate: Int,
-    val modelIcon: String,
+/**
+ * Garment sub-category (e.g., Bridal Blouse).
+ */
+data class MeasurementGarmentCategoryDto(
     @SerializedName("_id")
-    val id: String
+    val id: String = "",
+
+    @SerializedName("name")
+    val name: String? = null,
+
+    @SerializedName("displayName")
+    val displayName: String? = null
 )
 
+// ─────────────────────────────────────────────────────────────
+// UI Model & Mapping Extension
+// ─────────────────────────────────────────────────────────────
 
 data class MeasurementItem(
     val id: String,
+    val customerId: String,
     val customerName: String,
     val contact: String,
-    val type: String,       // "Individual" | "Corporate"
-    val garments: String,   // "Shirt / Pant"
-    val pending: String,    // "₹0"
-    val totalSpend: String, // "₹0"
-    val lastUpdated: String // "01-07-2026"
+    val customerCode: String,
+    val garmentName: String,
+    val categoryName: String,
+    val measuredDate: String,
+    val status: String,
+    val profileImageUrl: String?
 )
+
+/**
+ * Maps the API item into the presentation model for UI components.
+ */
+fun CustomerMeasurementItem.toMeasurementItem(): MeasurementItem {
+    return MeasurementItem(
+        id = latestMeasurement?.id.orEmpty(),
+        customerId = customer?.id.orEmpty(),
+        customerName = customer?.fullName ?: "—",
+        contact = customer?.mobileNumber ?: "—",
+        customerCode = customer?.customerCode ?: "—",
+        garmentName = latestMeasurement?.garment?.displayName
+            ?: latestMeasurement?.garment?.name
+            ?: "—",
+        categoryName = latestMeasurement?.garmentCategory?.displayName
+            ?: latestMeasurement?.garmentCategory?.name
+            ?: "—",
+        measuredDate = latestMeasurement?.measuredAt ?: "—",
+        status = latestMeasurement?.status ?: "—",
+        profileImageUrl = customer?.profilePicture?.url
+    )
+}

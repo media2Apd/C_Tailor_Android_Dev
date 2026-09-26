@@ -21,6 +21,7 @@ import com.cuso.tailor.model.sales.ContactRequest
 import com.cuso.tailor.model.sales.ConvertToInvoiceData
 import com.cuso.tailor.model.sales.ConvertToInvoiceRequest
 import com.cuso.tailor.model.sales.ConvertToOrderData
+import com.cuso.tailor.model.sales.CreateCustomerRequest
 import com.cuso.tailor.model.sales.CreateLeadFormRequest
 import com.cuso.tailor.model.sales.CreateLeadFormResponse
 import com.cuso.tailor.model.sales.CreateOrderRequest
@@ -29,6 +30,7 @@ import com.cuso.tailor.model.sales.CreateQuotationResponse
 import com.cuso.tailor.model.sales.CustomerDetailV2
 import com.cuso.tailor.model.sales.CustomerListResponse
 import com.cuso.tailor.model.sales.CustomerListResponseV2
+import com.cuso.tailor.model.sales.CustomerMeasurementResponse
 import com.cuso.tailor.model.sales.CustomerSearchResponse
 import com.cuso.tailor.model.sales.CustomerViewData
 import com.cuso.tailor.model.sales.GarmentPricingDetailDto
@@ -282,43 +284,52 @@ class SalesRepository @Inject constructor(
     suspend fun updateLead(id: String, request: CreateLeadFormRequest): Response<UpdateLeadResponse> {
         val (accessToken, csrfToken) = getAuthHeaders()
 
-        val validGarments: List<String> = request.garments
+        // Extract garment IDs from garment specifications
+        val validGarments: List<String> = request.garmentSpecifications
             .mapNotNull { it.garmentId.takeIf { id -> id.isNotBlank() } }
+
+        // Compute total quantity from specs or default to 1
+        val computedQuantity = request.garmentSpecifications.sumOf { it.quantity }.coerceAtLeast(1)
+
+        val notesList = mutableListOf<NoteRequest>()
+        request.internalNotes?.takeIf { it.isNotBlank() }?.let { notesList.add(NoteRequest(it, "internal")) }
+        request.customerNotes?.takeIf { it.isNotBlank() }?.let { notesList.add(NoteRequest(it, "customer")) }
+        request.fabricNotes?.takeIf { it.isNotBlank() }?.let { notesList.add(NoteRequest(it, "fabric")) }
 
         val updateRequest = UpdateLeadRequest(
             customerType = if (request.customerType.equals("Corporate", ignoreCase = true)) "Corporate" else "Individual",
             enquiryType = request.enquiryType,
-            estimatedQuantity = request.estimatedQuantity,
+            estimatedQuantity = computedQuantity,
             budgetRange = BudgetRangeRequest(
-                min = request.budgetRange.min,
-                max = request.budgetRange.max
+                min = request.budgetMin ?: 0,
+                max = request.budgetMax ?: 0
             ),
             enquiryDate = request.enquiryDate,
             requiredDate = request.requiredDate,
-            status = "Active",
-            leadStatus = request.statusName.ifBlank { request.status },
-            source = request.source,
+            status = request.status,
+            leadStatus = request.leadStatus,
+            source = request.leadSource,
             person = PersonRequest(
-                name = request.person.name,
-                phone = request.person.phone,
-                email = request.person.email,
-                gender = request.person.gender,
-                dob = request.person.dob
+                name = request.fullName,
+                phone = request.mobileNumber,
+                email = request.email.orEmpty(),
+                gender = request.gender.orEmpty(),
+                dob = request.dateOfBirth.orEmpty()
             ),
             appointment = AppointmentRequest(
-                isRequired = request.appointment.isRequired,
-                date = request.appointment.date,
-                time = request.appointment.time,
-                assignedStaff = request.appointment.assignedStaff,
-                priority = request.appointment.priority,
-                followUpDate = request.appointment.followUpDate
+                isRequired = request.isAppointmentRequired,
+                date = request.appointmentDate,
+                time = request.appointmentTime,
+                assignedStaff = request.assignedStaffId,
+                priority = request.priorityLevel,
+                followUpDate = request.followUpDate
             ),
-            notes = request.notes.map { NoteRequest(message = it.message, type = it.type) },
+            notes = notesList,
             contact = ContactRequest(
-                address = request.contact.address,
-                area = request.contact.area,
-                city = request.contact.city,
-                preferredContactMethod = request.contact.preferredContactMethod
+                address = listOfNotNull(request.address?.flatNo, request.address?.street).filter { it.isNotBlank() }.joinToString(", "),
+                area = request.address?.areaZone.orEmpty(),
+                city = request.address?.city.orEmpty(),
+                preferredContactMethod = request.preferredContactMethod.orEmpty()
             ),
             garmentCategory = validGarments
         )
@@ -797,7 +808,29 @@ class SalesRepository @Inject constructor(
     // =============================================================
     // 7. Customer Management Operations
     // =============================================================
-
+    /**
+     * Creates a new customer profile.
+     */
+    /**
+     * Creates a new customer profile.
+     */
+    suspend fun createCustomer(request: CreateCustomerRequest): Result<CustomerViewData> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesCustomerApi.createCustomer(accessToken, csrfToken, request)
+            if (response.isSuccessful && response.body()?.success == true) {
+                val data = response.body()?.data
+                    ?: return Result.failure(Exception("Customer data is null"))
+                Result.success(data)
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to create customer: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     /**
      * Fetches paginated customer list (V1 API).
      */
@@ -901,12 +934,15 @@ class SalesRepository @Inject constructor(
     /**
      * Updates customer information.
      */
+
     suspend fun updateCustomer(id: String, request: UpdateCustomerRequest): Result<CustomerViewData> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = salesCustomerApi.updateCustomer(accessToken, csrfToken, id, request)
             if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!.data)
+                val data = response.body()?.data
+                    ?: return Result.failure(Exception("Customer data is null"))
+                Result.success(data)
             } else {
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to update customer: ${response.code()}")
@@ -980,6 +1016,46 @@ class SalesRepository @Inject constructor(
                 )
             }
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Fetches measurement records for a specific customer or all records.
+     */
+    suspend fun fetchCustomerMeasurements(
+        customerId: String,
+        page: Int = 1,
+        limit: Int = 50
+    ): Result<CustomerMeasurementResponse> {
+        if (customerId.isBlank()) {
+            android.util.Log.e("MEASUREMENT_DEBUG", "❌ Repository: customerId is blank!")
+            return Result.failure(Exception("Customer ID is required"))
+        }
+
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            android.util.Log.d("MEASUREMENT_DEBUG", "Repository: Sending GET /api/sales/customers/measurements/view-all/$customerId")
+
+            val response = salesMeasurementsApi.getAvailableMeasurement(
+                token = accessToken,
+                csrfToken = csrfToken,
+                customerId = customerId,
+                page = page,
+                limit = limit
+            )
+
+            android.util.Log.d("MEASUREMENT_DEBUG", "Repository: Response Code = ${response.code()}, isSuccessful = ${response.isSuccessful}")
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to fetch customer measurements: ${response.code()}"
+                android.util.Log.e("MEASUREMENT_DEBUG", "Repository Error Body: $errorMsg")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MEASUREMENT_DEBUG", "Repository Exception: ${e.message}", e)
             Result.failure(e)
         }
     }

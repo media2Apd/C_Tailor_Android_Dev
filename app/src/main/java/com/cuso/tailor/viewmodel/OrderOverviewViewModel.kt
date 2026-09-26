@@ -2,11 +2,13 @@ package com.cuso.tailor.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.tailor.model.inventory.WarehouseDropdownItem
 import com.cuso.tailor.model.sales.AssignStageResponse
 import com.cuso.tailor.model.sales.ConvertToInvoiceData
 import com.cuso.tailor.model.sales.GarmentStageDoc
 import com.cuso.tailor.model.sales.OrderOverviewData
 import com.cuso.tailor.model.sales.ReceivePaymentData
+import com.cuso.tailor.repository.InventoryRepository
 import com.cuso.tailor.repository.SalesRepository
 import com.cuso.tailor.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -60,8 +62,12 @@ sealed class ReceivePaymentState {
 
 @HiltViewModel
 class OrderOverviewViewModel @Inject constructor(
-    private val repository: SalesRepository
+    private val repository: SalesRepository,
+    private val inventoryRepository: InventoryRepository
 ) : ViewModel() {
+
+    private val _warehouseList = MutableStateFlow<List<WarehouseDropdownItem>>(emptyList())
+    val warehouseList: StateFlow<List<WarehouseDropdownItem>> = _warehouseList.asStateFlow()
 
     private val _overviewState = MutableStateFlow<OrderOverviewState>(OrderOverviewState.Idle)
     val overviewState: StateFlow<OrderOverviewState> = _overviewState.asStateFlow()
@@ -83,6 +89,10 @@ class OrderOverviewViewModel @Inject constructor(
     fun fetchSalesOverview(orderId: String) {
         viewModelScope.launch {
             _overviewState.value = OrderOverviewState.Loading
+
+            // Fetch warehouse dropdown options
+            fetchWarehouseDropdown()
+
             repository.getSalesOverview(orderId)
                 .onSuccess { data ->
                     _overviewState.value = OrderOverviewState.Success(data)
@@ -90,6 +100,14 @@ class OrderOverviewViewModel @Inject constructor(
                 .onFailure { e ->
                     _overviewState.value = OrderOverviewState.Error(e.message ?: "Failed to load order overview")
                 }
+        }
+    }
+
+    fun fetchWarehouseDropdown() {
+        viewModelScope.launch {
+            inventoryRepository.getWarehouseDropdown().onSuccess { list ->
+                _warehouseList.value = list
+            }
         }
     }
 

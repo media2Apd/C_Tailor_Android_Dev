@@ -54,9 +54,9 @@ private val PillBlueBg = Color(0xFFE0E7FF)
 private val PillBlueText = Color(0xFF2563EB)
 private val PillRedBg = Color(0xFFFFEBEE)
 private val PillRedText = Color(0xFFDC2626)
-private val MapRoadColor = Color(0xFFE2E8F0)
+private val MapRoadColor = sectionBorder
 private val MapLandColor = grey_border
-private val MapBuildingColor = Color(0xFFE2E8F0).copy(alpha = 0.6f)
+private val MapBuildingColor = sectionBorder.copy(alpha = 0.6f)
 private val MapPinBlue = Color(0xFF0288D1)
 
 @Composable
@@ -930,19 +930,19 @@ private fun MapSimulationCanvas(modifier: Modifier = Modifier) {
 
         // Draw blocks
         drawRoundRect(
-            color = Color(0xFFE2E8F0),
+            color = sectionBorder,
             topLeft = Offset(width * 0.08f, height * 0.12f),
             size = Size(width * 0.22f, height * 0.32f),
             cornerRadius = CornerRadius(6.dp.toPx())
         )
         drawRoundRect(
-            color = Color(0xFFE2E8F0),
+            color = sectionBorder,
             topLeft = Offset(width * 0.36f, height * 0.12f),
             size = Size(width * 0.26f, height * 0.32f),
             cornerRadius = CornerRadius(6.dp.toPx())
         )
         drawRoundRect(
-            color = Color(0xFFE2E8F0),
+            color = sectionBorder,
             topLeft = Offset(width * 0.68f, height * 0.12f),
             size = Size(width * 0.24f, height * 0.32f),
             cornerRadius = CornerRadius(6.dp.toPx())

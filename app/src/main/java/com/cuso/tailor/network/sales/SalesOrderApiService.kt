@@ -7,7 +7,7 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface SalesOrderApiService {
-    @GET("/api/sales-orders/view-all")
+    @GET("/api/sales/orders/view-all")
     suspend fun getOrders(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -19,14 +19,14 @@ interface SalesOrderApiService {
         @Query("toDate") toDate: String? = null
     ): Response<OrderResponse>
 
-    @GET("/api/sales-leads/{orderId}")
+    @GET("/api/sales/leads/{orderId}")
     suspend fun getOrderById(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("orderId") orderId: String
     ): Response<OrderDetailResponse>
 
-    @PATCH("/api/sales-leads/{orderId}/status")
+    @PATCH("/api/sales/leads/{orderId}/status")
     suspend fun updateOrderStatus(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -35,7 +35,7 @@ interface SalesOrderApiService {
     ): Response<OrderDetailResponse>
 
     @Multipart
-    @POST("/api/sales-orders/create-direct")
+    @POST("/api/sales/orders/create-direct")
     suspend fun createOrder(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -57,7 +57,7 @@ interface SalesOrderApiService {
     ): Response<CreateOrderResponse>
 
     @Multipart
-    @PUT("/api/sales-orders/update-one/{orderId}")
+    @PUT("/api/sales/orders/update-one/{orderId}")
     suspend fun updateOrder(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -78,21 +78,21 @@ interface SalesOrderApiService {
         @Part voiceNote: MultipartBody.Part?
     ): Response<CreateOrderResponse>
 
-    @GET("/api/sales-orders/view-one/{orderId}")
+    @GET("/api/sales/orders/view-one/{orderId}")
     suspend fun getSalesOverview(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("orderId") orderId: String
     ): Response<OrderOverviewApiResponse>
 
-    @GET("/api/sales-orders/view-one/{orderId}")
+    @GET("/api/sales/orders/view-one/{orderId}")
     suspend fun getOrdersView(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("orderId") orderId: String
     ): Response<OrderViewResponse>
 
-    @PUT("/api/sales-orders/receive-payment/{orderId}")
+    @PUT("/api/sales/orders/receive-payment/{orderId}")
     suspend fun receivePayment(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -100,7 +100,7 @@ interface SalesOrderApiService {
         @Body request: ReceivePaymentRequest
     ): Response<ReceivePaymentResponse>
 
-    @POST("/api/sales-orders/convert-to-invoice/{orderId}")
+    @POST("/api/sales/orders/convert-to-invoice/{orderId}")
     suspend fun convertToInvoice(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -108,7 +108,7 @@ interface SalesOrderApiService {
         @Body request: ConvertToInvoiceRequest
     ): Response<ConvertToInvoiceResponse>
 
-    @PUT("/api/sales-orders/assign-worker-to-stage/{orderId}/{garmentItemId}/cutting")
+    @PUT("/api/sales/orders/assign-worker-to-stage/{orderId}/{garmentItemId}/cutting")
     suspend fun assignCutting(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -117,7 +117,7 @@ interface SalesOrderApiService {
         @Body request: StageAssignRequest
     ): Response<AssignStageResponse>
 
-    @PUT("/api/sales-orders/assign-worker-to-stage/{orderId}/{garmentItemId}/stitching")
+    @PUT("/api/sales/orders/assign-worker-to-stage/{orderId}/{garmentItemId}/stitching")
     suspend fun assignStitching(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -126,7 +126,7 @@ interface SalesOrderApiService {
         @Body request: StageAssignRequest
     ): Response<AssignStageResponse>
 
-    @PUT("/api/sales-orders/assign-worker-to-stage/{orderId}/{garmentItemId}/qc")
+    @PUT("/api/sales/orders/assign-worker-to-stage/{orderId}/{garmentItemId}/qc")
     suspend fun assignQc(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -135,7 +135,7 @@ interface SalesOrderApiService {
         @Body request: StageAssignRequest
     ): Response<AssignStageResponse>
 
-    @PUT("/api/sales-orders/update-stage-status/{orderId}/{garmentItemId}/{stageName}")
+    @PUT("/api/sales/orders/update-stage-status/{orderId}/{garmentItemId}/{stageName}")
     suspend fun updateStage(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -145,7 +145,7 @@ interface SalesOrderApiService {
         @Body request: UpdateStageRequest
     ): Response<UpdateStageResponse>
 
-    @GET("/api/sales-orders/confirmed-orders")
+    @GET("/api/sales/orders/confirmed-orders")
     suspend fun getOrderManagement(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,

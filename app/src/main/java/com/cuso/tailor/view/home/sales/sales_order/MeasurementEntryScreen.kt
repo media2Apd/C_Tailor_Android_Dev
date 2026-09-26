@@ -7,6 +7,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,7 +18,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -355,7 +363,7 @@ fun MeasurementEntryScreen(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// PIXEL-PERFECT STEPPER COMPONENT
+// PIXEL-PERFECT STEPPER COMPONENT WITH EDITABLE TEXT FIELD
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
 fun MeasurementStepperField(
@@ -367,6 +375,23 @@ fun MeasurementStepperField(
     step: Float = 0.5f,
     min: Float = 0f
 ) {
+    val focusManager = LocalFocusManager.current
+
+    // Helper formatting function
+    fun formatFloat(num: Float): String {
+        return if (num % 1 == 0f) "%.1f".format(num) else "%.2f".format(num).trimEnd('0')
+    }
+
+    var textValue by remember { mutableStateOf(formatFloat(value)) }
+
+    // Sync input string when value changes externally (via + or - buttons)
+    LaunchedEffect(value) {
+        val parsed = textValue.toFloatOrNull()
+        if (parsed != value) {
+            textValue = formatFloat(value)
+        }
+    }
+
     Column(modifier = modifier) {
         Text(
             text = label,
@@ -385,7 +410,7 @@ fun MeasurementStepperField(
                 .height(44.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(grey_border)
-                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp)),
+                .border(1.dp, sectionBorder, RoundedCornerShape(8.dp)),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Decrement Button [ - ]
@@ -394,7 +419,8 @@ fun MeasurementStepperField(
                     .size(44.dp)
                     .clickable {
                         if (value - step >= min) {
-                            onValueChange((value - step).coerceAtLeast(min))
+                            val newVal = (value - step).coerceAtLeast(min)
+                            onValueChange(newVal)
                         }
                     },
                 contentAlignment = Alignment.Center
@@ -407,28 +433,59 @@ fun MeasurementStepperField(
                 )
             }
 
-            // Central Value & Unit Display (Centered)
-            Row(
+            // Central Editable Text Field + Unit Label
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
                     .background(whiteBg),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = if (value % 1 == 0f) "%.1f".format(value) else "%.2f".format(value).trimEnd('0'),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = title_color
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = unit,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF94A3B8)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                ) {
+                    BasicTextField(
+                        value = textValue,
+                        onValueChange = { input ->
+                            // Allow numbers and only one decimal point
+                            if (input.isEmpty() || input.matches(Regex("""^\d*\.?\d{0,2}$"""))) {
+                                textValue = input
+                                val parsed = input.toFloatOrNull()
+                                if (parsed != null && parsed >= min) {
+                                    onValueChange(parsed)
+                                }
+                            }
+                        },
+                        textStyle = TextStyle(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = title_color,
+                            textAlign = TextAlign.Center
+                        ),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { focusManager.clearFocus() }
+                        ),
+                        singleLine = true,
+                        modifier = Modifier
+                            .width(IntrinsicSize.Min)
+                            .widthIn(min = 28.dp, max = 56.dp)
+                    )
+
+                    Spacer(Modifier.width(4.dp))
+
+                    Text(
+                        text = unit,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF94A3B8)
+                    )
+                }
             }
 
             // Increment Button [ + ]
@@ -436,7 +493,8 @@ fun MeasurementStepperField(
                 modifier = Modifier
                     .size(44.dp)
                     .clickable {
-                        onValueChange(value + step)
+                        val newVal = value + step
+                        onValueChange(newVal)
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -490,7 +548,7 @@ private fun SectionCategoryHeader(text: String) {
     Text(
         text = text,
         fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.Medium,
         color = title_color,
         letterSpacing = 0.5.sp,
         modifier = Modifier.padding(top = 8.dp, bottom = 10.dp)
@@ -542,7 +600,7 @@ private fun StaticDisplayField(value: String) {
             .height(44.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(Color(0xFFFAFAFA))
-            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+            .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp),
         contentAlignment = Alignment.CenterStart
     ) {

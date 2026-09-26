@@ -15,12 +15,14 @@ import com.cuso.tailor.model.sales.CategoryItem
 import com.cuso.tailor.model.sales.ConvertToOrderData
 import com.cuso.tailor.model.sales.CreateLeadFormRequest
 import com.cuso.tailor.model.sales.CustomerSearchResponse
+import com.cuso.tailor.model.sales.GarmentCategoryDto
 import com.cuso.tailor.model.sales.LeadData
 import com.cuso.tailor.model.sales.LeadTableItem
 import com.cuso.tailor.model.sales.OrderItem
 import com.cuso.tailor.model.sales.StaffDto
 import com.cuso.tailor.model.sales.ViewOneLeadData
 import com.cuso.tailor.repository.SalesRepository
+import com.cuso.tailor.repository.SettingsRepository
 import com.cuso.tailor.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -44,6 +46,7 @@ private const val TAG = "SalesViewModel"
 @Suppress("unused")
 class SalesViewModel @Inject constructor(
     private val repository: SalesRepository,
+    private val settingsRepository: SettingsRepository,
     private val selectedGarmentDao: SelectedGarmentDao
 ) : ViewModel() {
 
@@ -651,6 +654,29 @@ class SalesViewModel @Inject constructor(
             repository.fetchGarmentCategories()
                 .onSuccess { _garmentCategories.value = it }
                 .onFailure { Log.e(TAG, "Error: ${it.message}") }
+        }
+    }
+
+    /**
+     * Fetches garment categories filtered by a specific garment template ID.
+     */
+    fun fetchGarmentCategoriesByGarmentId(
+        garmentId: String,
+        onResult: (List<GarmentCategoryDto>) -> Unit = {}
+    ) {
+        if (garmentId.isBlank()) {
+            onResult(emptyList())
+            return
+        }
+        viewModelScope.launch {
+            settingsRepository.getGarmentCategoriesByGarmentId(garmentId)
+                .onSuccess { categories ->
+                    onResult(categories)
+                }
+                .onFailure { error ->
+                    Log.e(TAG, "Error fetching garment categories for $garmentId: ${error.message}")
+                    onResult(emptyList())
+                }
         }
     }
 

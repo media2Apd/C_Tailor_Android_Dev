@@ -12,10 +12,13 @@
 package com.cuso.tailor.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.cuso.tailor.model.sales.CreateCustomerRequest
+import com.cuso.tailor.model.sales.CustomerBillingAddressRequest
 import com.cuso.tailor.model.sales.CustomerItem
-import com.cuso.tailor.model.sales.CustomerViewAddress
 import com.cuso.tailor.model.sales.CustomerViewData
 import com.cuso.tailor.model.sales.UpdateCustomerRequest
+import com.cuso.tailor.model.sales.customers
 import com.cuso.tailor.repository.SalesRepository
 import com.cuso.tailor.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -94,8 +98,9 @@ class CustomerViewModel @Inject constructor(
             result.fold(
                 onSuccess = { response ->
                     val customerData = response.data
-                    val customerList = customerData?.customers ?: emptyList()
-                    val pagination = customerData?.pagination
+                    // Fix: Unnecessary safe call removed
+                    val customerList = customerData.customers
+                    val pagination = response.pagination
 
                     totalPages = pagination?.totalPages ?: 1
 
@@ -164,7 +169,7 @@ class CustomerViewModel @Inject constructor(
     private var originalCustomer: CustomerViewData? = null
 
     /**
-     * Fetches the customer detail safely without throwing NullPointerExceptions.
+     * Fetches single customer details.
      */
     fun loadCustomerDetail(id: String) {
         launchBusy {
@@ -189,6 +194,7 @@ class CustomerViewModel @Inject constructor(
                             gender = data.gender.orEmpty(),
                             dob = data.dob,
                             status = data.status ?: "Active",
+                            contactMethod = data.preferences?.contactMethod.orEmpty().ifBlank { "WhatsApp" },
                             addressLine = line,
                             city = addr?.city.orEmpty(),
                             area = addr?.areaZone ?: addr?.area.orEmpty(),
@@ -206,6 +212,15 @@ class CustomerViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Resets the form state for creating a new customer.
+     */
+    fun resetFormForNewCustomer() {
+        originalCustomer = null
+        _formState.update { CustomerFormState() }
+        _detailState.update { CustomerDetailUiState.Success(CustomerViewData()) }
+    }
+
     // ── Form field updates ──
     fun onTypeChange(value: String) = _formState.update { it.copy(type = value) }
     fun onNameChange(value: String) = _formState.update { it.copy(name = value) }
@@ -215,63 +230,106 @@ class CustomerViewModel @Inject constructor(
     fun onAreaChange(value: String) = _formState.update { it.copy(area = value) }
     fun onMobileChange(value: String) = _formState.update { it.copy(mobile = value) }
     fun onStatusChange(value: String) = _formState.update { it.copy(status = value) }
+    fun onContactMethodChange(value: String) = _formState.update { it.copy(contactMethod = value) }
     fun onAddressLineChange(value: String) = _formState.update { it.copy(addressLine = value) }
     fun onCityChange(value: String) = _formState.update { it.copy(city = value) }
     fun onPincodeChange(value: String) = _formState.update { it.copy(pincode = value) }
 
     /**
-     * Builds update payload safely and updates the customer details.
+     * Creates a new customer profile using user-provided input.
      */
-    fun updateCustomer(id: String) {
-        val original = originalCustomer
-        if (original == null) {
-            _updateState.update { CustomerUpdateState.Error("Customer not loaded") }
-            return
-        }
+    fun createCustomer() {
+        viewModelScope.launch {
+            _createState.value = CustomerCreateState.Loading
 
-        val form = _formState.value
+            // Format customerType with first letter capitalized (e.g., "individual" -> "Individual")
+            val formattedCustomerType = _formState.value.type.trim()
+                .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
 
-        val request = UpdateCustomerRequest(
-            type = form.type,
-            name = form.name,
-            mobile = form.mobile,
-            email = form.email.takeIf { it.isNotBlank() },
-            gender = form.gender.takeIf { it.isNotBlank() },
-            dob = form.dob.takeIf { it.isNotBlank() },
-            status = form.status,
-            address = CustomerViewAddress(
-                addressLine = form.addressLine,
-                city = form.city,
-                area = form.area,
-                areaZone = form.area,
-                pincode = form.pincode
-            ),
-            preferences = original.preferences,
-            referralCount = original.referralCount ?: 0,
-            totalSpend = original.totalSpend ?: 0,
-            pendingPayment = original.pendingPayment ?: 0,
-            id = original.id,
-            organizationId = original.organizationId.orEmpty(),
-            createdAt = original.createdAt,
-            updatedAt = original.updatedAt,
-            v = original.v
-        )
+            // Build billing address only if at least one address field is provided
+            val address = CustomerBillingAddressRequest(
+                flatNo = null,
+                street = _formState.value.addressLine.trim().takeIf { it.isNotBlank() },
+                areaZone = _formState.value.area.trim().takeIf { it.isNotBlank() },
+                city = _formState.value.city.trim().takeIf { it.isNotBlank() },
+                subdivisionName = null,
+                countryName = null,
+                pincode = _formState.value.pincode.trim().takeIf { it.isNotBlank() }
+            )
 
-        launchBusy {
-            _updateState.update { CustomerUpdateState.Loading }
+            val request = CreateCustomerRequest(
+                fullName = _formState.value.name.trim(),
+                mobileNumber = _formState.value.mobile.trim(),
+                email = _formState.value.email.trim().takeIf { it.isNotBlank() },
+                customerType = formattedCustomerType,
+                gender = _formState.value.gender.trim().takeIf { it.isNotBlank() },
+                dateOfBirth = _formState.value.dob.trim().takeIf { it.isNotBlank() },
+                preferredLanguage = null, // Set only if collected from user form
+                preferredContactMethod = _formState.value.contactMethod.trim().takeIf { it.isNotBlank() },
+                customerLevel = null, // Set only if collected from user form
+                taxId = null,
+                taxIdType = null,
+                billingAddress = address,
+                sameAsBillingAddress = true,
+                status = _formState.value.status.trim().takeIf { it.isNotBlank() }
+            )
 
-            val result = repository.updateCustomer(id, request)
-
+            val result = repository.createCustomer(request)
             result.fold(
-                onSuccess = { updatedData ->
-                    originalCustomer = updatedData
-                    _detailState.update { CustomerDetailUiState.Success(updatedData) }
-                    _updateState.update { CustomerUpdateState.Success(updatedData) }
+                onSuccess = { createdCustomer ->
+                    _createState.value = CustomerCreateState.Success(createdCustomer)
                 },
-                onFailure = { error ->
-                    _updateState.update {
-                        CustomerUpdateState.Error(error.message ?: "Failed to update customer")
-                    }
+                onFailure = { throwable ->
+                    _createState.value = CustomerCreateState.Error(throwable.message ?: "Failed to create customer")
+                }
+            )
+        }
+    }
+
+    /**
+     * Updates an existing customer profile using user-provided input.
+     */
+    fun updateCustomer(customerId: String) {
+        viewModelScope.launch {
+            _updateState.value = CustomerUpdateState.Loading
+
+            val formattedCustomerType = _formState.value.type.trim()
+                .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+
+            val address = CustomerBillingAddressRequest(
+                flatNo = null,
+                street = _formState.value.addressLine.trim().takeIf { it.isNotBlank() },
+                areaZone = _formState.value.area.trim().takeIf { it.isNotBlank() },
+                city = _formState.value.city.trim().takeIf { it.isNotBlank() },
+                subdivisionName = null,
+                countryName = null,
+                pincode = _formState.value.pincode.trim().takeIf { it.isNotBlank() }
+            )
+
+            val request = UpdateCustomerRequest(
+                fullName = _formState.value.name.trim(),
+                mobileNumber = _formState.value.mobile.trim(),
+                email = _formState.value.email.trim().takeIf { it.isNotBlank() },
+                customerType = formattedCustomerType,
+                gender = _formState.value.gender.trim().takeIf { it.isNotBlank() },
+                dateOfBirth = _formState.value.dob.trim().takeIf { it.isNotBlank() },
+                preferredLanguage = null,
+                preferredContactMethod = _formState.value.contactMethod.trim().takeIf { it.isNotBlank() },
+                customerLevel = null,
+                taxId = null,
+                taxIdType = null,
+                billingAddress = address,
+                sameAsBillingAddress = true,
+                status = _formState.value.status.trim().takeIf { it.isNotBlank() }
+            )
+
+            val result = repository.updateCustomer(customerId, request)
+            result.fold(
+                onSuccess = { updatedCustomer ->
+                    _updateState.value = CustomerUpdateState.Success(updatedCustomer)
+                },
+                onFailure = { throwable ->
+                    _updateState.value = CustomerUpdateState.Error(throwable.message ?: "Failed to update customer")
                 }
             )
         }
@@ -352,6 +410,7 @@ data class CustomerFormState(
     val gender: String = "",
     val dob: String = "",
     val status: String = "Active",
+    val contactMethod: String = "WhatsApp",
     val addressLine: String = "",
     val city: String = "",
     val area: String = "",

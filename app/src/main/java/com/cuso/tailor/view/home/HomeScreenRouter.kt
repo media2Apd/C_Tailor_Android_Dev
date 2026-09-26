@@ -16,6 +16,7 @@ import com.cuso.tailor.model.inventory.LowStockItemDto
 import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.inventory.StockLocationItemDto
 import com.cuso.tailor.model.sales.CustomerItem
+import com.cuso.tailor.model.sales.MeasurementItem
 import com.cuso.tailor.model.settings.SegmentItem
 import com.cuso.tailor.view.home.branch.BranchSettingsScreen
 import com.cuso.tailor.view.home.department.DepartmentSettingsScreen
@@ -25,6 +26,9 @@ import com.cuso.tailor.view.home.finance.account_payable.payment_mode.PaymentDet
 import com.cuso.tailor.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceDetailScreen
 import com.cuso.tailor.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceItem
 import com.cuso.tailor.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceScreen
+import com.cuso.tailor.view.home.finance.account_payable.suppliers.FinanceSuppliersScreen
+import com.cuso.tailor.view.home.finance.account_payable.suppliers.SupplierDetailScreen
+import com.cuso.tailor.view.home.finance.account_payable.suppliers.SupplierRow
 import com.cuso.tailor.view.home.finance.account_receivable.customers.CustomerDetailViewScreen
 import com.cuso.tailor.view.home.finance.account_receivable.customers.FinanceCustomerScreen
 import com.cuso.tailor.view.home.finance.account_receivable.payment_received.AllPaymentScreen
@@ -45,6 +49,9 @@ import com.cuso.tailor.view.home.hr.attendance.AttendanceScreen
 import com.cuso.tailor.view.home.hr.employees.AllEmployeesScreen
 import com.cuso.tailor.view.home.hr.employees.EmployeeOnboardingScreen
 import com.cuso.tailor.view.home.hr.employees.ScreenMode
+import com.cuso.tailor.view.home.inventory.billing.AllBillsScreen
+import com.cuso.tailor.view.home.inventory.billing.BillPdfPreviewScreen
+import com.cuso.tailor.view.home.inventory.billing.NewVendorInvoiceScreen
 import com.cuso.tailor.view.home.inventory.bulk_items.AddBulkItemScreen
 import com.cuso.tailor.view.home.inventory.bulk_items.BulkDetailsScreen
 import com.cuso.tailor.view.home.inventory.bulk_items.BulkListScreen
@@ -57,12 +64,14 @@ import com.cuso.tailor.view.home.inventory.items.item_groups.AllItemGroupScreen
 import com.cuso.tailor.view.home.inventory.items.item_groups.CreateItemGroupScreen
 import com.cuso.tailor.view.home.inventory.items.item_groups.ItemGroupDetailScreen
 import com.cuso.tailor.view.home.inventory.items.transferorder.TransferOrdersStockListScreen
+import com.cuso.tailor.view.home.inventory.payments_made.AllInventoryPaymentScreen
+import com.cuso.tailor.view.home.inventory.payments_made.PaymentOverviewDetailScreen
 import com.cuso.tailor.view.home.inventory.pricing_list.AllPricingScreen
-import com.cuso.tailor.view.home.inventory.pricing_list.NewPriceListScreen
 import com.cuso.tailor.view.home.inventory.procurement.barcode.AllBarcodesScreen
 import com.cuso.tailor.view.home.inventory.procurement.barcode.BarcodeGeneratorScreen
-import com.cuso.tailor.view.home.inventory.procurement.billslist.PayableInvoicePdfPreviewScreen
+import com.cuso.tailor.view.home.inventory.procurement.billslist.AllBillListScreen
 import com.cuso.tailor.view.home.inventory.procurement.billslist.PurchaseDetailScreen as PayablePurchaseDetailScreen
+import com.cuso.tailor.view.home.inventory.procurement.billslist.RecordBillPaymentScreen
 import com.cuso.tailor.view.home.inventory.procurement.credits.AllCreditsScreen
 import com.cuso.tailor.view.home.inventory.procurement.location_management.AllStockLocationScreen
 import com.cuso.tailor.view.home.inventory.procurement.location_management.StockLocationDetailsScreen
@@ -82,6 +91,7 @@ import com.cuso.tailor.view.home.inventory.procurement.requisitions.RequisitionD
 import com.cuso.tailor.view.home.inventory.procurement.returns.AllReturnsScreen
 import com.cuso.tailor.view.home.inventory.procurement.suppliers.InventorySuppliersScreen
 import com.cuso.tailor.view.home.inventory.procurement.suppliers.SupplierDetailScreen
+import com.cuso.tailor.view.home.inventory.safety_stock.SafetyStockScreen
 import com.cuso.tailor.view.home.inventory.settings.*
 import com.cuso.tailor.view.home.logistics.delivery.DeliveryDetailScreen
 import com.cuso.tailor.view.home.logistics.delivery.DeliveryManagementScreen
@@ -101,6 +111,9 @@ import com.cuso.tailor.view.home.reports.sales.SalesOrderReportsScreen
 import com.cuso.tailor.view.home.role.RoleSettingsScreen
 import com.cuso.tailor.view.home.sales.customer.*
 import com.cuso.tailor.view.home.sales.lead.*
+import com.cuso.tailor.view.home.sales.measurements.MeasurementFieldsConfigScreen
+import com.cuso.tailor.view.home.sales.measurements.MeasurementManagementScreen
+import com.cuso.tailor.view.home.sales.measurements.MeasurementsAvailableDialog
 import com.cuso.tailor.view.home.sales.measurements.MeasurementsScreen
 import com.cuso.tailor.view.home.sales.payment_listing.*
 import com.cuso.tailor.view.home.sales.pricing.*
@@ -129,23 +142,14 @@ import com.cuso.tailor.view.home.services.settings.CreateServiceTemplateWizardSc
 import com.cuso.tailor.view.home.services.settings.ServiceTemplateListScreen
 import com.cuso.tailor.view.home.subscriptions.SubscriptionFlowContainer
 import com.cuso.tailor.view.home.warehouse.WarehouseSettingsScreen
-import com.cuso.tailor.view.home.finance.account_payable.suppliers.FinanceSuppliersScreen
-import com.cuso.tailor.view.home.finance.account_payable.suppliers.SupplierRow
-import com.cuso.tailor.view.home.finance.account_payable.suppliers.SupplierDetailScreen
-import com.cuso.tailor.view.home.inventory.billing.AllBillsScreen
-import com.cuso.tailor.view.home.inventory.billing.BillPdfPreviewScreen
-import com.cuso.tailor.view.home.inventory.billing.NewVendorInvoiceScreen
-import com.cuso.tailor.view.home.inventory.payments_made.AllInventoryPaymentScreen
-import com.cuso.tailor.view.home.inventory.payments_made.PaymentOverviewDetailScreen
-import com.cuso.tailor.view.home.inventory.procurement.billslist.AllBillListScreen
-import com.cuso.tailor.view.home.inventory.procurement.billslist.RecordBillPaymentScreen
-import com.cuso.tailor.view.home.inventory.safety_stock.SafetyStockScreen
 import com.cuso.tailor.viewmodel.*
 
 @SuppressLint("FlowOperatorInvokedInComposition")
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedMeasurementItem: MeasurementItem? = null,
+    onMeasurementItemSelected: (MeasurementItem?) -> Unit = {},
     selectedBarcodeIdForDetail: String? = null,
     onBarcodeIdForDetailSelected: (String?) -> Unit = {},
     selectedSupplier: SupplierRow?,
@@ -217,17 +221,271 @@ fun HomeScreenRouter(
     onOrderFlowOriginChange: (String?) -> Unit,
     onOrderSavedSuccessfully: (savedOrderId: String?) -> Unit
 ) {
-    var isGarmentActive by remember { mutableStateOf(false) }
-    var selectedSegmentForEdit by remember { mutableStateOf<SegmentItem?>(null) }
-//    var selectedPurchaseOrderForDetail by remember { mutableStateOf<PurchaseOrder?>(null) }
-    var selectedPurchaseOrderForEdit by remember { mutableStateOf<PurchaseOrder?>(null) }
-    var selectedAdjustmentType by remember { mutableStateOf(AdjustmentType.TransferStock) }
-    var selectedStockLocationItem by remember { mutableStateOf<StockLocationItemDto?>(null) }
-
     when (screen) {
-        // ─────────────────────────────────────────────────────────────
-        // 1. HOME & SETTINGS MODULE
-        // ─────────────────────────────────────────────────────────────
+        "home", "settings", "home_organization_profile", "home_branch_management",
+        "home_department_teams", "home_designation", "home_role_management",
+        "home_opening_balance", "home_warehouse_management", "profile-settings",
+        "settings_overview", "manage_subscription", "module_settings",
+        "organization_settings", "home_business_setup" -> {
+            HomeAndSettingsRouter(
+                screen = screen,
+                navController = navController,
+                widthSizeClass = widthSizeClass,
+                settingsViewModel = settingsViewModel,
+                authViewModel = authViewModel,
+                onNavigate = onNavigate,
+                onSafeNavigate = onSafeNavigate,
+                onGoBack = onGoBack,
+                onOpenDrawer = onOpenDrawer,
+                onRecentCustomerIdSelected = onRecentCustomerIdSelected,
+                onShowComingSoon = onShowComingSoon
+            )
+        }
+
+        "inventory_allocation_rules", "inventory_create_allocation", "inventory_pdf_templates",
+        "inventory_location_structure", "inventory_floor_overview", "inventory_add_floor",
+        "inventory_section_overview", "inventory_add_section", "inventory_rack_overview",
+        "inventory_add_rack", "inventory_bin_overview", "inventory_add_bin" -> {
+            InventoryStructureRouter(
+                screen = screen,
+                settingsViewModel = settingsViewModel,
+                onNavigate = onNavigate,
+                onGoBack = onGoBack,
+                onShowComingSoon = onShowComingSoon
+            )
+        }
+
+        "sales_lead", "create_lead", "view_lead", "edit_lead", "sales_customers",
+        "create_customer", "view_customer", "edit_customer", "view_customer_recent",
+        "sales_measurements", "measurements_available_view", "measurement_management_view",
+        "measurement_fields_config", "sales_sales_orders", "create_order",
+        "measurement_entry", "order_preview", "create_order_review", "order_overview",
+        "sales_pricing_overview", "garment_pricing_list", "create_garment_pricing",
+        "sales_pricing_quotation", "create_quotation", "sales_payment_and_billing",
+        "payment_detail", "sales_settings", "sales_category_detail", "sales_add_segment",
+        "sales_garment_type", "sales_garment_profile", "sales_configuration_preview",
+        "sales_add_existing_field", "sales_create_measurement_field", "sales_add_garment",
+        "sales_add_garment_category", "sales_garment_pricing_setup", "sales_add_garment_pricing",
+        "sales_add_fabric_pricing", "sales_add_work_pricing", "sales_measurement_list" -> {
+            SalesRouter(
+                screen = screen,
+                navController = navController,
+                widthSizeClass = widthSizeClass,
+                selectedMeasurementItem = selectedMeasurementItem,
+                onMeasurementItemSelected = onMeasurementItemSelected,
+                token = token,
+                customerViewModel = customerViewModel,
+                settingsViewModel = settingsViewModel,
+                selectedCustomer = selectedCustomer,
+                onCustomerSelected = onCustomerSelected,
+                selectedOrderId = selectedOrderId,
+                onOrderIdSelected = onOrderIdSelected,
+                editOrderId = editOrderId,
+                onEditOrderIdChange = onEditOrderIdChange,
+                selectedRecentCustomerId = selectedRecentCustomerId,
+                onRecentCustomerIdSelected = onRecentCustomerIdSelected,
+                editingPricingId = editingPricingId,
+                onEditingPricingIdChange = onEditingPricingIdChange,
+                quotationScreenMode = quotationScreenMode,
+                onQuotationScreenModeChange = onQuotationScreenModeChange,
+                pendingOrderReviewData = pendingOrderReviewData,
+                onPendingOrderReviewDataChange = onPendingOrderReviewDataChange,
+                onOrderFlowOriginChange = onOrderFlowOriginChange,
+                onOrderSavedSuccessfully = onOrderSavedSuccessfully,
+                onNavigate = onNavigate,
+                onGoBack = onGoBack,
+                onOpenDrawer = onOpenDrawer,
+                onOpenModulesPanel = onOpenModulesPanel,
+                onSalesSettingsModeChange = onSalesSettingsModeChange
+            )
+        }
+
+        "finance_sales_invoices", "finance_invoice_detail", "finance_purchase_invoices",
+        "finance_purchase_invoice_detail", "finance_customers", "finance_customer_detail",
+        "finance_suppliers", "finance_supplier_detail", "finance_expenses",
+        "finance_chart_of_accounts", "finance_journal_screen", "finance_trial_balance",
+        "finance_ledger", "finance_payments_received", "payment_detail_screen",
+        "finance_payments_mode", "payment_mode_detail", "finance_gst_settings",
+        "finance_add_gst", "finance_tax_rates", "finance_add_tax_group" -> {
+            FinanceRouter(
+                screen = screen,
+                token = token,
+                selectedSupplier = selectedSupplier,
+                selectedLedgerAccountId = selectedLedgerAccountId,
+                selectedLedgerAccountName = selectedLedgerAccountName,
+                onLedgerAccountSelected = onLedgerAccountSelected,
+                selectedSupplierId = selectedSupplierId,
+                onSupplierSelected = onSupplierSelected,
+                selectedPaymentModeId = selectedPaymentModeId,
+                onPaymentModeSelected = onPaymentModeSelected,
+                selectedInvoiceId = selectedInvoiceId,
+                onInvoiceSelected = onInvoiceSelected,
+                selectedPurchaseInvoice = selectedPurchaseInvoice,
+                onPurchaseInvoiceSelected = onPurchaseInvoiceSelected,
+                selectedRecentCustomerId = selectedRecentCustomerId,
+                onRecentCustomerIdSelected = onRecentCustomerIdSelected,
+                onNavigate = onNavigate,
+                onGoBack = onGoBack,
+                onOpenModulesPanel = onOpenModulesPanel
+            )
+        }
+
+        "inventory_items", "inventory_all_items", "inventory_create_item",
+        "inventory_item_detail", "inventory_item_groups", "inventory_item_group_detail",
+        "inventory_create_item_group", "inventory_bulk", "inventory_all_bulk",
+        "inventory_bulk_detail", "inventory_add_bulk", "inventory_adjustment",
+        "inventory_adjustments", "inventory_transfer_order", "inventory_transfer_stock",
+        "inventory_items_transfer_stock", "inventory_stock_location",
+        "inventory_location_management", "inventory_procurement_location_management",
+        "inventory_stock_location_details", "inventory_stock_location_form",
+        "inventory_safety_stock", "inventory_auto_reorder",
+        "inventory_multichannel_category_listing", "inventory_category_listing",
+        "inventory_approvals", "inventory_pricing_list" -> {
+            InventoryMainRouter(
+                screen = screen,
+                selectedInventoryItemId = selectedInventoryItemId,
+                onInventoryItemIdSelected = onInventoryItemIdSelected,
+                selectedItemGroupId = selectedItemGroupId,
+                onItemGroupIdSelected = onItemGroupIdSelected,
+                selectedBulkItemId = selectedBulkItemId,
+                onBulkItemIdSelected = onBulkItemIdSelected,
+                inventoryViewModel = inventoryViewModel,
+                onNavigate = onNavigate,
+                onGoBack = onGoBack,
+                onOpenModulesPanel = onOpenModulesPanel,
+                onShowComingSoon = onShowComingSoon
+            )
+        }
+
+        "inventory_suppliers", "inventory_supplier_detail", "inventory_requisitions",
+        "inventory_procurement_purchase_request", "inventory_procurement_requisitions",
+        "inventory_requisition_detail", "inventory_create_requisition",
+        "inventory_purchase_orders", "inventory_procurement_purchase_order",
+        "inventory_procurement_purchase_orders", "inventory_procurement_orders",
+        "inventory_purchase_order_detail_flow", "inventory_create_purchase_order_flow",
+        "inventory_purchase_receive", "inventory_procurement_purchase_receive",
+        "inventory_purchase_receive_detail", "inventory_purchase_new_bill",
+        "inventory_purchase_receive_preview_pdf", "inventory_all_bills",
+        "inventory_procurement_bill_list", "inventory_procurement_bills_list",
+        "inventory_bills_list", "inventory_bill_list", "inventory_payable_purchase_detail",
+        "inventory_record_bill_payment", "inventory_barcode", "inventory_procurement_barcode",
+        "inventory_procurement_barcode_list", "inventory_all_barcodes",
+        "inventory_create_barcode", "inventory_low_stock_alerts", "inventory_low_stock_alert",
+        "inventory_create_purchase_order", "inventory_payables_payments",
+        "inventory_payments_made", "inventory_payment_overview_detail",
+        "inventory_credits", "inventory_procurement_credits", "inventory_payables_credits",
+        "inventory_returns", "inventory_procurement_returns", "inventory_billing",
+        "inventory_bill_preview", "inventory_create_bill" -> {
+            InventoryProcurementRouter(
+                screen = screen,
+                selectedBarcodeIdForDetail = selectedBarcodeIdForDetail,
+                onBarcodeIdForDetailSelected = onBarcodeIdForDetailSelected,
+                selectedReceivePoId = selectedReceivePoId,
+                onReceivePoIdSelected = onReceivePoIdSelected,
+                selectedPurchaseOrderForDetail = selectedPurchaseOrderForDetail,
+                onPurchaseOrderForDetailSelected = onPurchaseOrderForDetailSelected,
+                selectedRequisitionIdForDetail = selectedRequisitionIdForDetail,
+                onRequisitionIdForDetailSelected = onRequisitionIdForDetailSelected,
+                selectedSupplierId = selectedSupplierId,
+                onSupplierSelected = onSupplierSelected,
+                selectedInvoiceId = selectedInvoiceId,
+                onInvoiceSelected = onInvoiceSelected,
+                selectedPaymentModeId = selectedPaymentModeId,
+                onPaymentModeSelected = onPaymentModeSelected,
+                selectedLowStockItem = selectedLowStockItem,
+                onLowStockItemSelected = onLowStockItemSelected,
+                inventoryViewModel = inventoryViewModel,
+                onNavigate = onNavigate,
+                onGoBack = onGoBack,
+                onOpenModulesPanel = onOpenModulesPanel
+            )
+        }
+
+        "hr_all_employees", "hr_employee_onboarding", "hr_attendance",
+        "hr_attendance_detail" -> {
+            HrRouter(
+                screen = screen,
+                hrViewModel = hrViewModel,
+                employeeScreenMode = employeeScreenMode,
+                onEmployeeScreenModeChange = onEmployeeScreenModeChange,
+                selectedEmployeeId = selectedEmployeeId,
+                onEmployeeIdSelected = onEmployeeIdSelected,
+                selectedAttendanceId = selectedAttendanceId,
+                onAttendanceIdSelected = onAttendanceIdSelected,
+                onNavigate = onNavigate,
+                onGoBack = onGoBack,
+                onOpenModulesPanel = onOpenModulesPanel
+            )
+        }
+
+        "logistics_delivery", "delivery_detail", "logistics_order_tracking",
+        "tracking_overview" -> {
+            LogisticsRouter(
+                screen = screen,
+                onOrderIdSelected = onOrderIdSelected,
+                onNavigate = onNavigate,
+                onGoBack = onGoBack,
+                onOpenModulesPanel = onOpenModulesPanel
+            )
+        }
+
+        "services_service_status", "sales_orders", "service_status_detail",
+        "order_management_overview", "services_delay_rework", "services_service_delivery",
+        "services_service_order", "service_order_overview", "services_service_request",
+        "create_request", "review_services", "services_alteration_management",
+        "create_alteration", "services_customer_feedback", "feedback_detail",
+        "services_service_templates", "services_create_service_template" -> {
+            ServicesRouter(
+                screen = screen,
+                navController = navController,
+                selectedManagementOrderId = selectedManagementOrderId,
+                onManagementOrderIdSelected = onManagementOrderIdSelected,
+                selectedOrderId = selectedOrderId,
+                onOrderIdSelected = onOrderIdSelected,
+                onEditOrderIdChange = onEditOrderIdChange,
+                selectedFeedbackId = selectedFeedbackId,
+                onFeedbackIdSelected = onFeedbackIdSelected,
+                pendingOrderReviewData = pendingOrderReviewData,
+                onPendingOrderReviewDataChange = onPendingOrderReviewDataChange,
+                onNavigate = onNavigate,
+                onGoBack = onGoBack,
+                onOpenDrawer = onOpenDrawer,
+                onOpenModulesPanel = onOpenModulesPanel
+            )
+        }
+
+        "reports_sales", "reports_inventory", "reports_inventory_stock_summary",
+        "reports_inventory_low_stock", "reports_inventory_warehouse_report",
+        "reports_inventory_purchase_report", "reports_inventory_dead_stock",
+        "reports_finance", "reports_finance_profit_and_loss_report" -> {
+            ReportsRouter(
+                screen = screen,
+                onNavigate = onNavigate,
+                onGoBack = onGoBack,
+                onOpenModulesPanel = onOpenModulesPanel,
+                onShowComingSoon = onShowComingSoon
+            )
+        }
+
+        else -> {}
+    }
+}
+
+@Composable
+private fun HomeAndSettingsRouter(
+    screen: String,
+    navController: NavHostController,
+    widthSizeClass: WindowWidthSizeClass,
+    settingsViewModel: SettingsViewModel,
+    authViewModel: Authenticate,
+    onNavigate: (String) -> Unit,
+    onSafeNavigate: (String) -> Unit,
+    onGoBack: () -> Unit,
+    onOpenDrawer: () -> Unit,
+    onRecentCustomerIdSelected: (String?) -> Unit,
+    onShowComingSoon: (String) -> Unit
+) {
+    when (screen) {
         "home" -> HomeScreenContent(
             navController = navController,
             widthSizeClass = widthSizeClass,
@@ -375,10 +633,18 @@ fun HomeScreenRouter(
             onClose = onGoBack,
             onSaveAndContinue = { onGoBack() }
         )
+    }
+}
 
-        // ─────────────────────────────────────────────────────────────
-        // 2. INVENTORY STRUCTURE MODULE
-        // ─────────────────────────────────────────────────────────────
+@Composable
+private fun InventoryStructureRouter(
+    screen: String,
+    settingsViewModel: SettingsViewModel,
+    onNavigate: (String) -> Unit,
+    onGoBack: () -> Unit,
+    onShowComingSoon: (String) -> Unit
+) {
+    when (screen) {
         "inventory_allocation_rules" -> AllocationRulesScreen(
             onClose = onGoBack,
             onAddNewClick = { onNavigate("inventory_create_allocation") }
@@ -515,10 +781,45 @@ fun HomeScreenRouter(
                 }
             )
         }
+    }
+}
 
-        // ─────────────────────────────────────────────────────────────
-        // 3. SALES MODULE
-        // ─────────────────────────────────────────────────────────────
+@Composable
+private fun SalesRouter(
+    screen: String,
+    selectedMeasurementItem: MeasurementItem?,
+    onMeasurementItemSelected: (MeasurementItem?) -> Unit,
+    navController: NavHostController,
+    widthSizeClass: WindowWidthSizeClass,
+    token: String,
+    customerViewModel: CustomerViewModel,
+    settingsViewModel: SettingsViewModel,
+    selectedCustomer: CustomerItem?,
+    onCustomerSelected: (CustomerItem?) -> Unit,
+    selectedOrderId: String?,
+    onOrderIdSelected: (String?) -> Unit,
+    editOrderId: String?,
+    onEditOrderIdChange: (String?) -> Unit,
+    selectedRecentCustomerId: String?,
+    onRecentCustomerIdSelected: (String?) -> Unit,
+    editingPricingId: String?,
+    onEditingPricingIdChange: (String?) -> Unit,
+    quotationScreenMode: String,
+    onQuotationScreenModeChange: (String) -> Unit,
+    pendingOrderReviewData: OrderReviewData?,
+    onPendingOrderReviewDataChange: (OrderReviewData?) -> Unit,
+    onOrderFlowOriginChange: (String?) -> Unit,
+    onOrderSavedSuccessfully: (savedOrderId: String?) -> Unit,
+    onNavigate: (String) -> Unit,
+    onGoBack: () -> Unit,
+    onOpenDrawer: () -> Unit,
+    onOpenModulesPanel: (String) -> Unit,
+    onSalesSettingsModeChange: (Boolean) -> Unit
+) {
+    var isGarmentActive by remember { mutableStateOf(false) }
+    var selectedSegmentForEdit by remember { mutableStateOf<SegmentItem?>(null) }
+
+    when (screen) {
         "sales_lead" -> LeadScreenContent(
             onCreateLead = { onNavigate("create_lead") },
             onViewLead = { onNavigate("view_lead") },
@@ -567,11 +868,26 @@ fun HomeScreenRouter(
             onBreadCrumbClick = { onOpenModulesPanel("Sales") }
         )
 
+        "create_customer" -> {
+            CustomerDetailScreen(
+                navController = navController,
+                customerId = "",
+                isCreateMode = true,
+                startInEditMode = true,
+                onClose = onGoBack,
+                onUpdateSuccess = {
+                    customerViewModel.refresh()
+                    onGoBack()
+                }
+            )
+        }
+
         "view_customer", "edit_customer" -> {
             if (selectedCustomer != null && selectedCustomer.id.isNotBlank()) {
                 CustomerDetailScreen(
                     navController = navController,
                     customerId = selectedCustomer.id,
+                    isCreateMode = false,
                     startInEditMode = screen == "edit_customer",
                     onClose = onGoBack,
                     onUpdateSuccess = {
@@ -610,9 +926,67 @@ fun HomeScreenRouter(
         "sales_measurements" -> MeasurementsScreen(
             navController = navController,
             onBack = onGoBack,
-            onCreateOrder = { onNavigate("create_order") },
+            onCreateMeasurement = {
+                onNavigate("measurement_entry")
+            },
+            onViewMeasurement = { item ->
+                //  Check if customerId exists in clicked item
+                android.util.Log.d("MEASUREMENT_DEBUG", "STEP 1: Clicked Measurement Card -> id='${item.id}', customerId='${item.customerId}', customerName='${item.customerName}'")
+                onMeasurementItemSelected(item)
+                onNavigate("measurements_available_view")
+            },
             onBreadCrumbClick = { onOpenModulesPanel("Sales") }
         )
+
+        "measurement_entry" -> {
+            // FIXED: Removed the hard null check on pendingOrderReviewData so it opens directly from measurements
+            MeasurementEntryScreen(
+                garmentType = pendingOrderReviewData?.garments?.firstOrNull()?.categoryName ?: "Shirt",
+                customerName = pendingOrderReviewData?.fullName ?: "",
+                customerPhone = pendingOrderReviewData?.phone ?: "",
+                onClose = onGoBack,
+                onSaveMeasurement = {
+                    if (pendingOrderReviewData != null) {
+                        onNavigate("order_preview")
+                    } else {
+                        // When opened standalone from Measurements screen, navigate back after saving
+                        onGoBack()
+                    }
+                }
+            )
+        }
+
+        "measurements_available_view" -> {
+            //  Check if customerId is being passed into the dialog
+            android.util.Log.d("MEASUREMENT_DEBUG", "STEP 2: Router navigating to measurements_available_view -> customerId='${selectedMeasurementItem?.customerId}'")
+            MeasurementsAvailableDialog(
+                customerId = selectedMeasurementItem?.customerId,
+                onGarmentSelected = { preset ->
+                    onNavigate("measurement_management_view")
+                },
+                onAddNew = {
+                    onNavigate("measurement_management_view")
+                },
+                onClose = onGoBack
+            )
+        }
+
+        "measurement_management_view" -> {
+            MeasurementManagementScreen(
+                customerName = selectedMeasurementItem?.customerName ?: "Hameed Rahman",
+                phone = selectedMeasurementItem?.contact ?: "+1 (555) 123-4567",
+                lastOrderDate = selectedMeasurementItem?.measuredDate ?: "Dec 20, 2025",
+                onAddField = { onNavigate("measurement_fields_config") },
+                onClose = onGoBack
+            )
+        }
+
+        "measurement_fields_config" -> {
+            MeasurementFieldsConfigScreen(
+                onAddNewCategory = { onNavigate("sales_add_garment_category") },
+                onClose = onGoBack
+            )
+        }
 
         "sales_sales_orders" -> SalesOrderScreen(
             navController = navController,
@@ -645,21 +1019,6 @@ fun HomeScreenRouter(
                 onNavigate("measurement_entry")
             }
         )
-
-        "measurement_entry" -> {
-            pendingOrderReviewData?.let { data ->
-                MeasurementEntryScreen(
-                    garmentType = data.garments.firstOrNull()?.categoryName ?: "Shirt",
-                    customerName = data.fullName,
-                    customerPhone = data.phone,
-                    onClose = onGoBack,
-                    onSaveMeasurement = {
-                        onNavigate("order_preview")
-                    }
-                )
-            } ?: run { onGoBack() }
-        }
-
         "order_preview" -> {
             pendingOrderReviewData?.let { data ->
                 OrderPreviewScreen(
@@ -965,10 +1324,32 @@ fun HomeScreenRouter(
                 viewModel = settingsViewModel
             )
         }
+    }
+}
 
-        // ─────────────────────────────────────────────────────────────
-        // 4. FINANCE MODULE
-        // ─────────────────────────────────────────────────────────────
+@Composable
+private fun FinanceRouter(
+    screen: String,
+    token: String,
+    selectedSupplier: SupplierRow?,
+    selectedLedgerAccountId: String?,
+    selectedLedgerAccountName: String,
+    onLedgerAccountSelected: (id: String?, name: String) -> Unit,
+    selectedSupplierId: String?,
+    onSupplierSelected: (String?) -> Unit,
+    selectedPaymentModeId: String?,
+    onPaymentModeSelected: (String?) -> Unit,
+    selectedInvoiceId: String?,
+    onInvoiceSelected: (String?) -> Unit,
+    selectedPurchaseInvoice: PurchaseInvoiceItem?,
+    onPurchaseInvoiceSelected: (PurchaseInvoiceItem?) -> Unit,
+    selectedRecentCustomerId: String?,
+    onRecentCustomerIdSelected: (String?) -> Unit,
+    onNavigate: (String) -> Unit,
+    onGoBack: () -> Unit,
+    onOpenModulesPanel: (String) -> Unit
+) {
+    when (screen) {
         "finance_sales_invoices" -> FinanceInvoiceScreen(
             onClose = onGoBack,
             onInvoiceClick = { invoice ->
@@ -1056,9 +1437,6 @@ fun HomeScreenRouter(
             } ?: run { onGoBack() }
         }
 
-
-
-
         "finance_expenses" -> ExpensesScreen(
             onClose = onGoBack,
             onBreadCrumbClick = { onOpenModulesPanel("Finance") }
@@ -1141,12 +1519,28 @@ fun HomeScreenRouter(
             onClose = onGoBack,
             onCreateGroup = { onGoBack() }
         )
+    }
+}
 
-        // ─────────────────────────────────────────────────────────────
-        // 5. INVENTORY MODULE
-        // ─────────────────────────────────────────────────────────────
+@Composable
+private fun InventoryMainRouter(
+    screen: String,
+    selectedInventoryItemId: String?,
+    onInventoryItemIdSelected: (String?) -> Unit,
+    selectedItemGroupId: String?,
+    onItemGroupIdSelected: (String?) -> Unit,
+    selectedBulkItemId: String?,
+    onBulkItemIdSelected: (String?) -> Unit,
+    inventoryViewModel: InventoryViewModel,
+    onNavigate: (String) -> Unit,
+    onGoBack: () -> Unit,
+    onOpenModulesPanel: (String) -> Unit,
+    onShowComingSoon: (String) -> Unit
+) {
+    var selectedAdjustmentType by remember { mutableStateOf(AdjustmentType.TransferStock) }
+    var selectedStockLocationItem by remember { mutableStateOf<StockLocationItemDto?>(null) }
 
-        // ── 1. All Items & Details ──
+    when (screen) {
         "inventory_items", "inventory_all_items" -> InventoryScreen(
             onClose = onGoBack,
             onAddItem = { onNavigate("inventory_create_item") },
@@ -1159,11 +1553,8 @@ fun HomeScreenRouter(
         )
 
         "inventory_create_item" -> {
-            // Log to check if selectedInventoryItemId is passed or null
             android.util.Log.d("InventoryNav", ">> Entering inventory_create_item with ID: '$selectedInventoryItemId'")
-
             CreateItemScreen(
-                // Note: If your CreateItemScreen parameter is named 'editItemId' or 'itemId', pass it here:
                 itemId = selectedInventoryItemId,
                 onDismiss = {
                     onInventoryItemIdSelected(null)
@@ -1216,7 +1607,6 @@ fun HomeScreenRouter(
             } ?: run { onGoBack() }
         }
 
-        // ── 2. Item Groups ──
         "inventory_item_groups" -> AllItemGroupScreen(
             onDismiss = onGoBack,
             onAddItemGroup = { onNavigate("inventory_create_item_group") },
@@ -1259,7 +1649,6 @@ fun HomeScreenRouter(
             }
         )
 
-        // ── 3. Bulk Items ──
         "inventory_bulk", "inventory_all_bulk" -> BulkListScreen(
             onClose = onGoBack,
             onItemClick = { itemId ->
@@ -1308,7 +1697,6 @@ fun HomeScreenRouter(
             )
         }
 
-        // ── 4. Stock Adjustment & Transfer Order ──
         "inventory_adjustment", "inventory_adjustments" -> AllOrdersStockListScreen(
             preselectedItemId = selectedInventoryItemId,
             initialAdjustmentType = selectedAdjustmentType,
@@ -1323,7 +1711,122 @@ fun HomeScreenRouter(
             }
         )
 
-        // ── 5. Procurement: Suppliers ──
+        "inventory_stock_location", "inventory_location_management", "inventory_procurement_location_management" -> {
+            AllStockLocationScreen(
+                inventoryViewModel = inventoryViewModel,
+                onClose = onGoBack,
+                onItemClick = { item ->
+                    selectedStockLocationItem = item
+                    inventoryViewModel.setSelectedStockLocationItem(item)
+                    onNavigate("inventory_stock_location_details")
+                },
+                onLocationClick = { item ->
+                    selectedStockLocationItem = item
+                    inventoryViewModel.setSelectedStockLocationItem(item)
+                    onNavigate("inventory_stock_location_form")
+                },
+                onOptionsClick = { _ -> }
+            )
+        }
+
+        "inventory_stock_location_details" -> {
+            StockLocationDetailsScreen(
+                itemId = selectedStockLocationItem?.id,
+                inventoryViewModel = inventoryViewModel,
+                onClose = onGoBack
+            )
+        }
+
+        "inventory_stock_location_form" -> {
+            StockLocationFormScreen(
+                item = selectedStockLocationItem,
+                onClose = {
+                    selectedStockLocationItem = null
+                    onGoBack()
+                },
+                onSave = {
+                    inventoryViewModel.fetchStockLocationItems()
+                    selectedStockLocationItem = null
+                    onGoBack()
+                }
+            )
+        }
+
+        "inventory_safety_stock" -> SafetyStockScreen(
+            onClose = onGoBack,
+            onItemClick = { selectedItem ->
+                android.util.Log.d("InventoryNav", ">> SafetyStock Card Clicked. ItemId: '${selectedItem.itemId}'")
+                if (selectedItem.itemId.isNotBlank()) {
+                    onInventoryItemIdSelected(selectedItem.itemId)
+                    onNavigate("inventory_item_detail")
+                } else {
+                    android.util.Log.e("InventoryNav", ">> SafetyStock Card Click: ItemId is NULL or BLANK!")
+                }
+            },
+            onEditClick = { itemId ->
+                android.util.Log.d("InventoryNav", ">> SafetyStock 3-Dot Edit Clicked. ItemId: '$itemId'")
+                if (itemId.isNotBlank()) {
+                    onInventoryItemIdSelected(itemId)
+                    onNavigate("inventory_create_item")
+                } else {
+                    android.util.Log.e("InventoryNav", ">> SafetyStock Edit Click: ItemId is NULL or BLANK!")
+                }
+            },
+            onFilterClick = { }
+        )
+
+        "inventory_auto_reorder" -> {
+            onShowComingSoon("Auto Reorder Feature Coming Soon")
+            onGoBack()
+        }
+
+        "inventory_multichannel_category_listing", "inventory_category_listing" -> {
+            onShowComingSoon("Multi-Channel Category Listing Coming Soon")
+            onGoBack()
+        }
+
+        "inventory_approvals" -> {
+            onShowComingSoon("Approvals Feature Coming Soon")
+            onGoBack()
+        }
+
+        "inventory_pricing_list" -> AllPricingScreen(
+            onClose = onGoBack,
+            onAddNew = { onNavigate("sales_create_price_list") },
+            onItemClick = { },
+            onEditItem = { onNavigate("sales_create_price_list") },
+            onDeleteItem = { }
+        )
+    }
+}
+
+@Composable
+private fun InventoryProcurementRouter(
+    screen: String,
+    selectedBarcodeIdForDetail: String?,
+    onBarcodeIdForDetailSelected: (String?) -> Unit,
+    selectedReceivePoId: String?,
+    onReceivePoIdSelected: (String?) -> Unit,
+    selectedPurchaseOrderForDetail: PurchaseOrder?,
+    onPurchaseOrderForDetailSelected: (PurchaseOrder?) -> Unit,
+    selectedRequisitionIdForDetail: String?,
+    onRequisitionIdForDetailSelected: (String?) -> Unit,
+    selectedSupplierId: String?,
+    onSupplierSelected: (String?) -> Unit,
+    selectedInvoiceId: String?,
+    onInvoiceSelected: (String?) -> Unit,
+    selectedPaymentModeId: String?,
+    onPaymentModeSelected: (String?) -> Unit,
+    selectedLowStockItem: LowStockItemDto?,
+    onLowStockItemSelected: (LowStockItemDto?) -> Unit,
+    inventoryViewModel: InventoryViewModel,
+    onNavigate: (String) -> Unit,
+    onGoBack: () -> Unit,
+    onOpenModulesPanel: (String) -> Unit
+) {
+    var selectedPurchaseOrderForEdit by remember { mutableStateOf<PurchaseOrder?>(null) }
+
+    when (screen) {
         "inventory_suppliers" -> InventorySuppliersScreen(
             onClose = onGoBack,
             onSupplierClick = { supplier ->
@@ -1346,7 +1849,6 @@ fun HomeScreenRouter(
             } ?: run { onGoBack() }
         }
 
-        // ── 6. Procurement: Purchase Request / Requisitions ──
         "inventory_requisitions", "inventory_procurement_purchase_request", "inventory_procurement_requisitions" -> AllRequisitionsScreen(
             onClose = onGoBack,
             onCreateRequisition = {
@@ -1389,7 +1891,6 @@ fun HomeScreenRouter(
             }
         )
 
-        // ── 7. Procurement: Purchase Orders (PO List, Details, Create) ──
         "inventory_purchase_orders", "inventory_procurement_purchase_order", "inventory_procurement_purchase_orders", "inventory_procurement_orders" -> {
             POListScreen(
                 viewModel = inventoryViewModel,
@@ -1433,7 +1934,6 @@ fun HomeScreenRouter(
             )
         }
 
-        // ── 8. Procurement: Purchase Receive & Receive Flow ──
         "inventory_purchase_receive", "inventory_procurement_purchase_receive" -> AllOrdersScreen(
             onClose = onGoBack,
             onCreateOrderClick = { onNavigate("inventory_create_purchase_order") },
@@ -1466,12 +1966,7 @@ fun HomeScreenRouter(
             onConvertToBillClick = { onNavigate("inventory_purchase_new_bill") }
         )
 
-        // ── 9. Procurement: Bill List / Payable Invoices ──
-        "inventory_all_bills",
-        "inventory_procurement_bill_list",
-        "inventory_procurement_bills_list",
-        "inventory_bills_list",
-        "inventory_bill_list" -> AllBillListScreen(
+        "inventory_all_bills", "inventory_procurement_bill_list", "inventory_procurement_bills_list", "inventory_bills_list", "inventory_bill_list" -> AllBillListScreen(
             onClose = onGoBack,
             onCreateOrder = { onNavigate("inventory_create_purchase_order") },
             onInvoiceClick = { billItem ->
@@ -1494,7 +1989,6 @@ fun HomeScreenRouter(
                         onInvoiceSelected(null)
                         onGoBack()
                     },
-                    onPreviewPdf = { onNavigate("inventory_payable_preview_pdf") },
                     onDownloadPdf = { },
                     onRecordPayment = { onNavigate("inventory_record_bill_payment") }
                 )
@@ -1511,13 +2005,6 @@ fun HomeScreenRouter(
             } ?: run { onGoBack() }
         }
 
-        "inventory_payable_preview_pdf" -> PayableInvoicePdfPreviewScreen(
-            onClose = onGoBack,
-            onDownloadPdf = { },
-            viewModel = inventoryViewModel
-        )
-
-        // ── 10. Procurement: Barcode / Barcode LIST ──
         "inventory_barcode", "inventory_procurement_barcode", "inventory_procurement_barcode_list", "inventory_all_barcodes" -> AllBarcodesScreen(
             onClose = onGoBack,
             onCreateBarcode = {
@@ -1542,49 +2029,6 @@ fun HomeScreenRouter(
             }
         )
 
-        // ── 11. Location Management / Stock Location ──
-        "inventory_stock_location", "inventory_location_management", "inventory_procurement_location_management" -> {
-            AllStockLocationScreen(
-                inventoryViewModel = inventoryViewModel,
-                onClose = onGoBack,
-                onItemClick = { item ->
-                    selectedStockLocationItem = item
-                    inventoryViewModel.setSelectedStockLocationItem(item)
-                    onNavigate("inventory_stock_location_details")
-                },
-                onLocationClick = { item ->
-                    selectedStockLocationItem = item
-                    inventoryViewModel.setSelectedStockLocationItem(item)
-                    onNavigate("inventory_stock_location_form")
-                },
-                onOptionsClick = { _ -> }
-            )
-        }
-
-        "inventory_stock_location_details" -> {
-            StockLocationDetailsScreen(
-                itemId = selectedStockLocationItem?.id,
-                inventoryViewModel = inventoryViewModel,
-                onClose = onGoBack
-            )
-        }
-
-        "inventory_stock_location_form" -> {
-            StockLocationFormScreen(
-                item = selectedStockLocationItem,
-                onClose = {
-                    selectedStockLocationItem = null
-                    onGoBack()
-                },
-                onSave = {
-                    inventoryViewModel.fetchStockLocationItems()
-                    selectedStockLocationItem = null
-                    onGoBack()
-                }
-            )
-        }
-
-        // ── 12. Low Stock Alert & Creation ──
         "inventory_low_stock_alerts", "inventory_low_stock_alert" -> {
             LowStockAlertsScreen(
                 onClose = onGoBack,
@@ -1620,36 +2064,6 @@ fun HomeScreenRouter(
             )
         }
 
-        // ── 13. Auto Reorder & Safety Stock ──
-        "inventory_auto_reorder" -> {
-            onShowComingSoon("Auto Reorder Feature Coming Soon")
-            onGoBack()
-        }
-
-        "inventory_safety_stock" -> SafetyStockScreen(
-            onClose = onGoBack,
-            onItemClick = { selectedItem ->
-                android.util.Log.d("InventoryNav", ">> SafetyStock Card Clicked. ItemId: '${selectedItem.itemId}'")
-                if (selectedItem.itemId.isNotBlank()) {
-                    onInventoryItemIdSelected(selectedItem.itemId)
-                    onNavigate("inventory_item_detail")
-                } else {
-                    android.util.Log.e("InventoryNav", ">> SafetyStock Card Click: ItemId is NULL or BLANK!")
-                }
-            },
-            onEditClick = { itemId ->
-                android.util.Log.d("InventoryNav", ">> SafetyStock 3-Dot Edit Clicked. ItemId: '$itemId'")
-                if (itemId.isNotBlank()) {
-                    onInventoryItemIdSelected(itemId)
-                    onNavigate("inventory_create_item")
-                } else {
-                    android.util.Log.e("InventoryNav", ">> SafetyStock Edit Click: ItemId is NULL or BLANK!")
-                }
-            },
-            onFilterClick = { }
-        )
-
-        // ── 14. Payables: Payments & Credits ──
         "inventory_payables_payments" -> AllPaymentListScreen(
             onClose = onGoBack,
             onPaymentClick = { paymentId ->
@@ -1657,6 +2071,7 @@ fun HomeScreenRouter(
                 onNavigate("payment_mode_detail")
             }
         )
+
         "inventory_payments_made" -> AllInventoryPaymentScreen(
             onClose = onGoBack,
             onPaymentSelect = { paymentId ->
@@ -1676,7 +2091,6 @@ fun HomeScreenRouter(
             onSendEmailClick = { }
         )
 
-
         "inventory_credits", "inventory_procurement_credits", "inventory_payables_credits" -> AllCreditsScreen(
             onClose = onGoBack,
             onCreditClick = { },
@@ -1690,27 +2104,6 @@ fun HomeScreenRouter(
             onReturnItemClick = { }
         )
 
-        // ── 15. Multi-Channel & Approvals ──
-        "inventory_multichannel_category_listing", "inventory_category_listing" -> {
-            onShowComingSoon("Multi-Channel Category Listing Coming Soon")
-            onGoBack()
-        }
-
-        "inventory_approvals" -> {
-            onShowComingSoon("Approvals Feature Coming Soon")
-            onGoBack()
-        }
-
-        // ── 16. Pricing Lists ──
-        "inventory_pricing_list" -> AllPricingScreen(
-            onClose = onGoBack,
-            onAddNew = { onNavigate("sales_create_price_list") },
-            onItemClick = { },
-            onEditItem = { onNavigate("sales_create_price_list") },
-            onDeleteItem = { }
-        )
-
-        // ── 9. Inventory Billing Flow ──
         "inventory_billing" -> AllBillsScreen(
             onClose = onGoBack,
             onCreateBillClick = { onNavigate("inventory_create_bill") },
@@ -1730,10 +2123,24 @@ fun HomeScreenRouter(
             onSaveDraft = onGoBack,
             onSaveAndSend = onGoBack
         )
+    }
+}
 
-        // ─────────────────────────────────────────────────────────────
-        // 6. HR MODULE
-        // ─────────────────────────────────────────────────────────────
+@Composable
+private fun HrRouter(
+    screen: String,
+    hrViewModel: HrViewModel,
+    employeeScreenMode: ScreenMode,
+    onEmployeeScreenModeChange: (ScreenMode) -> Unit,
+    selectedEmployeeId: String?,
+    onEmployeeIdSelected: (String?) -> Unit,
+    selectedAttendanceId: String?,
+    onAttendanceIdSelected: (String?) -> Unit,
+    onNavigate: (String) -> Unit,
+    onGoBack: () -> Unit,
+    onOpenModulesPanel: (String) -> Unit
+) {
+    when (screen) {
         "hr_all_employees" -> AllEmployeesScreen(
             onDismiss = onGoBack,
             onAddEmployee = {
@@ -1791,10 +2198,18 @@ fun HomeScreenRouter(
             onBreadCrumbClick = { onOpenModulesPanel("HR") },
             onHistoryClick = { }
         )
+    }
+}
 
-        // ─────────────────────────────────────────────────────────────
-        // 7. LOGISTICS MODULE
-        // ─────────────────────────────────────────────────────────────
+@Composable
+private fun LogisticsRouter(
+    screen: String,
+    onOrderIdSelected: (String?) -> Unit,
+    onNavigate: (String) -> Unit,
+    onGoBack: () -> Unit,
+    onOpenModulesPanel: (String) -> Unit
+) {
+    when (screen) {
         "logistics_delivery" -> DeliveryManagementScreen(
             onDismiss = onGoBack,
             onView = { onNavigate("delivery_detail") },
@@ -1813,10 +2228,28 @@ fun HomeScreenRouter(
         )
 
         "tracking_overview" -> TrackingOverviewScreen(onClose = onGoBack)
+    }
+}
 
-        // ─────────────────────────────────────────────────────────────
-        // 8. SERVICES MODULE
-        // ─────────────────────────────────────────────────────────────
+@Composable
+private fun ServicesRouter(
+    screen: String,
+    navController: NavHostController,
+    selectedManagementOrderId: String?,
+    onManagementOrderIdSelected: (String?) -> Unit,
+    selectedOrderId: String?,
+    onOrderIdSelected: (String?) -> Unit,
+    onEditOrderIdChange: (String?) -> Unit,
+    selectedFeedbackId: String?,
+    onFeedbackIdSelected: (String?) -> Unit,
+    pendingOrderReviewData: OrderReviewData?,
+    onPendingOrderReviewDataChange: (OrderReviewData?) -> Unit,
+    onNavigate: (String) -> Unit,
+    onGoBack: () -> Unit,
+    onOpenDrawer: () -> Unit,
+    onOpenModulesPanel: (String) -> Unit
+) {
+    when (screen) {
         "services_service_status", "sales_orders" -> ServiceStatusScreen(
             navController = navController,
             onMenuClick = onOpenDrawer,
@@ -1957,7 +2390,6 @@ fun HomeScreenRouter(
             }
         )
 
-        // ── Service Templates ──
         "services_service_templates" -> ServiceTemplateListScreen(
             onClose = onGoBack,
             onAddNewTemplate = { onNavigate("services_create_service_template") },
@@ -1970,10 +2402,18 @@ fun HomeScreenRouter(
             onClose = onGoBack,
             onTemplateCreated = onGoBack
         )
+    }
+}
 
-        // ─────────────────────────────────────────────────────────────
-        // 9. REPORTS MODULE
-        // ─────────────────────────────────────────────────────────────
+@Composable
+private fun ReportsRouter(
+    screen: String,
+    onNavigate: (String) -> Unit,
+    onGoBack: () -> Unit,
+    onOpenModulesPanel: (String) -> Unit,
+    onShowComingSoon: (String) -> Unit
+) {
+    when (screen) {
         "reports_sales" -> SalesOrderReportsScreen(
             onClose = onGoBack,
             onBreadCrumbClick = { onOpenModulesPanel("Reports") }
@@ -2008,7 +2448,5 @@ fun HomeScreenRouter(
         )
 
         "reports_finance_profit_and_loss_report" -> ProfitAndLossReportScreen(onClose = onGoBack)
-
-        else -> {}
     }
 }

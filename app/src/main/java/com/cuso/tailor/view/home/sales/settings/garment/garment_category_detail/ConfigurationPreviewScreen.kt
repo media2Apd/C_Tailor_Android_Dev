@@ -396,7 +396,7 @@ fun ActivateConfigurationDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        border = BorderStroke(1.dp, sectionBorder),
                         modifier = Modifier
                             .weight(1f)
                             .height(42.dp)

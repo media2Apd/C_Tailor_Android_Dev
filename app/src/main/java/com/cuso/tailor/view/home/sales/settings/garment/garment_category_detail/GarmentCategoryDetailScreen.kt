@@ -1156,7 +1156,7 @@ fun AddExistingFieldScreen(
                                 border = BorderStroke(
                                     1.dp,
                                     when {
-                                        isAlreadyAdded -> Color(0xFFE2E8F0)
+                                        isAlreadyAdded -> sectionBorder
                                         isChecked -> Primary
                                         else -> sectionBorder
                                     }
@@ -1206,7 +1206,7 @@ fun AddExistingFieldScreen(
                                     if (isAlreadyAdded) {
                                         Box(
                                             modifier = Modifier
-                                                .background(Color(0xFFE2E8F0), RoundedCornerShape(4.dp))
+                                                .background(sectionBorder, RoundedCornerShape(4.dp))
                                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                                         ) {
                                             Text(
@@ -1882,7 +1882,7 @@ fun DeleteMeasurementFieldDialog(
                     OutlinedButton(
                         onClick = onDismiss,
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        border = BorderStroke(1.dp, sectionBorder),
                         modifier = Modifier
                             .weight(1f)
                             .height(42.dp)

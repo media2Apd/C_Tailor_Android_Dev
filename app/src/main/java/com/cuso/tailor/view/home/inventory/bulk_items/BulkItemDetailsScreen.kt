@@ -311,7 +311,7 @@ fun SelectAdjustStockDialog(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(10.dp))
+                                .border(1.dp, sectionBorder, RoundedCornerShape(10.dp))
                                 .background(whiteBg, RoundedCornerShape(10.dp))
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,

@@ -1,5 +1,6 @@
 package com.cuso.tailor.network.sales.settings
 
+import com.cuso.tailor.model.sales.GarmentCategoryResponse
 import com.cuso.tailor.model.settings.ChangeDesignStatusRequest
 import com.cuso.tailor.model.settings.ChangeDesignStatusResponse
 import com.cuso.tailor.model.settings.ChangeGarmentCategoryStatusResponse
@@ -109,9 +110,21 @@ interface SalesSettingsApiService {
     suspend fun getGarments(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
-        @Query("page") page: Int = 1,
-        @Query("limit") limit: Int = 50
+        @Query("paginate") paginate: Boolean = false,
+        @Query("status") status: String = "Active",
+        @Query("page") page: Int? = null,
+        @Query("limit") limit: Int? = null
     ): Response<GarmentListResponse>
+
+    // Fetch garment categories filtered by garmentId
+    @GET("/api/sales/settings/garment-categories/view-all")
+    suspend fun getGarmentCategoriesByGarmentId(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("garmentId") garmentId: String,
+        @Query("paginate") paginate: Boolean = false,
+        @Query("status") status: String = "Active"
+    ): Response<GarmentCategoryResponse>
 
     // View one garment details by ID
     @GET("/api/sales/settings/garments/view-one/{id}")

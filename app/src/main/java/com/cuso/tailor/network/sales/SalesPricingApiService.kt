@@ -12,7 +12,7 @@ interface SalesPricingApiService {
         @Body request: PricingQuotationSaveRequest
     ): Response<PricingQuotationSaveResponse>
 
-    @GET("/api/pricing-quotations/garment-pricing/view-all")
+    @GET("/api/sales/pricing-quotations/garment-pricing/view-all")
     suspend fun getGarmentPricingList(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
@@ -39,7 +39,7 @@ interface SalesPricingApiService {
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<GarmentPricingResponse>
 
-    @GET("/api/quotations/view-all")
+    @GET("/api/sales/quotations/view-all")
     suspend fun getQuotations(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -49,21 +49,21 @@ interface SalesPricingApiService {
         @Query("status") status: String? = null
     ): Response<QuotationListResponse>
 
-    @POST("/api/quotations/create")
+    @POST("/api/sales/quotations/create")
     suspend fun createQuotation(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Body request: CreateQuotationRequest
     ): Response<CreateQuotationResponse>
 
-    @DELETE("/api/quotations/delete-one/{id}")
+    @DELETE("/api/sales/quotations/delete-one/{id}")
     suspend fun deleteQuotation(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<QuotationDeleteResponse>
 
-    @GET("/api/quotations/view-one/{id}")
+    @GET("/api/sales/quotations/view-one/{id}")
     suspend fun getQuotationById(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,

@@ -128,7 +128,7 @@ fun PurchaseDetailScreen(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TitleBar("Purchase Detail", onClose = onClose)
+            TitleBar(title = "Purchase Detail", onClose = onClose)
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->

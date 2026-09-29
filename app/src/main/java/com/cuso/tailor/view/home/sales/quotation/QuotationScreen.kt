@@ -72,17 +72,26 @@ data class PricingItem(
 )
 
 private fun QuotationItemDto.toPricingItem(): PricingItem {
-    val firstItem = items.firstOrNull()
+    val customGarmentItem = items.firstOrNull { it.lineType == "Custom_Garment" } ?: items.firstOrNull()
+    val garmentName = customGarmentItem?.customGarment?.garmentName
+        ?: customGarmentItem?.customGarment?.categoryDisplayName
+        ?: customGarmentItem?.itemDescription
+        ?: "Quotation"
+
+    val customerName = customerSnapshot?.name
+        ?: customerId?.fullName
+        ?: quotationNumber
+        ?: "Customer"
+
     return PricingItem(
         id = id,
-        title = customerSnapshot?.name?.let { "$it - ${firstItem?.garmentName ?: "Quotation"}" }
-            ?: quotationNumber,
+        title = "$customerName - $garmentName",
         price = "₹${String.format(java.util.Locale.US, "%.2f", grandTotal)}",
         isActive = status.equals("draft", ignoreCase = true).not(),
         status = status.replaceFirstChar { it.uppercase() },
-        applicableGarmentValue = firstItem?.garmentName ?: "-",
-        fabricLabel = firstItem?.fabric?.label ?: "N/A",
-        fabricPrice = firstItem?.fabric?.price ?: 0.0
+        applicableGarmentValue = garmentName,
+        fabricLabel = customGarmentItem?.customGarment?.fabricNotes ?: "N/A",
+        fabricPrice = 0.0
     )
 }
 
@@ -173,7 +182,7 @@ fun QuotationScreen(
             ) {
                 // Header
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    TitleBar("Quotation List", onClose = onClose)
+                    TitleBar(title ="Quotation List", onClose = onClose)
                     Spacer(Modifier.height(8.dp))
                 }
 

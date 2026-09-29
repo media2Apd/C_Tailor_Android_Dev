@@ -3,6 +3,8 @@ package com.cuso.tailor.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.tailor.model.service.CreateServiceRequestPayload
+import com.cuso.tailor.model.service.ServiceRequestData
 import com.cuso.tailor.model.settings.CreateStageRequest
 import com.cuso.tailor.model.settings.CreateTemplateRequest
 import com.cuso.tailor.model.settings.ProductionStageDto
@@ -28,6 +30,26 @@ data class ProductionTemplateUiState(
     val successMessage: String? = null,
     val searchQuery: String = ""
 )
+
+sealed class ServiceRequestUiState {
+    data object Loading : ServiceRequestUiState()
+    data class Success(val items: List<ServiceRequestData>, val total: Int) : ServiceRequestUiState()
+    data class Error(val message: String) : ServiceRequestUiState()
+}
+
+sealed class ServiceDetailUiState {
+    data object Idle : ServiceDetailUiState()
+    data object Loading : ServiceDetailUiState()
+    data class Success(val request: ServiceRequestData) : ServiceDetailUiState()
+    data class Error(val message: String) : ServiceDetailUiState()
+}
+
+sealed class ServiceActionUiState {
+    data object Idle : ServiceActionUiState()
+    data object Loading : ServiceActionUiState()
+    data class Success(val message: String) : ServiceActionUiState()
+    data class Error(val message: String) : ServiceActionUiState()
+}
 
 @HiltViewModel
 class ServicesViewModel @Inject constructor(
@@ -56,8 +78,6 @@ class ServicesViewModel @Inject constructor(
 
     private val _stagesError = MutableStateFlow<String?>(null)
     val stagesError: StateFlow<String?> = _stagesError.asStateFlow()
-
-    private var searchJob: Job? = null
 
     init {
         loadTemplates()
@@ -232,5 +252,97 @@ class ServicesViewModel @Inject constructor(
 
     fun clearAlerts() {
         _uiState.update { it.copy(errorMessage = null, successMessage = null) }
+    }
+
+    private val _listState = MutableStateFlow<ServiceRequestUiState>(ServiceRequestUiState.Loading)
+    val listState: StateFlow<ServiceRequestUiState> = _listState.asStateFlow()
+
+    private val _detailState = MutableStateFlow<ServiceDetailUiState>(ServiceDetailUiState.Idle)
+    val detailState: StateFlow<ServiceDetailUiState> = _detailState.asStateFlow()
+
+    private val _actionState = MutableStateFlow<ServiceActionUiState>(ServiceActionUiState.Idle)
+    val actionState: StateFlow<ServiceActionUiState> = _actionState.asStateFlow()
+
+    private var searchJob: Job? = null
+    private var currentPage = 1
+    private var currentSearch: String? = null
+    private var currentStatus: String? = null
+
+    fun loadServiceRequests(
+        page: Int = 1,
+        search: String? = null,
+        status: String? = null
+    ) {
+        currentPage = page
+        currentSearch = search
+        currentStatus = status
+
+        viewModelScope.launch {
+            _listState.value = ServiceRequestUiState.Loading
+            repository.getServiceRequests(page = page, search = search, status = status)
+                .onSuccess { response ->
+                    _listState.value = ServiceRequestUiState.Success(
+                        items = response.data,
+                        total = response.pagination?.total ?: response.data.size
+                    )
+                }
+                .onFailure { error ->
+                    _listState.value = ServiceRequestUiState.Error(error.localizedMessage ?: "Failed to load requests")
+                }
+        }
+    }
+
+    fun searchRequests(query: String) {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            loadServiceRequests(page = 1, search = query.ifBlank { null }, status = currentStatus)
+        }
+    }
+
+    fun loadServiceRequestById(id: String) {
+        viewModelScope.launch {
+            _detailState.value = ServiceDetailUiState.Loading
+            repository.getServiceRequestById(id)
+                .onSuccess { data ->
+                    _detailState.value = ServiceDetailUiState.Success(data)
+                }
+                .onFailure { error ->
+                    _detailState.value = ServiceDetailUiState.Error(error.localizedMessage ?: "Unable to fetch details")
+                }
+        }
+    }
+
+    fun createServiceRequest(payload: CreateServiceRequestPayload, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _actionState.value = ServiceActionUiState.Loading
+            repository.createServiceRequest(payload)
+                .onSuccess {
+                    _actionState.value = ServiceActionUiState.Success("Service request created successfully.")
+                    loadServiceRequests(page = 1)
+                    onSuccess()
+                }
+                .onFailure { error ->
+                    _actionState.value = ServiceActionUiState.Error(error.localizedMessage ?: "Creation failed")
+                }
+        }
+    }
+
+    fun updateServiceStatus(id: String, status: String) {
+        viewModelScope.launch {
+            _actionState.value = ServiceActionUiState.Loading
+            repository.updateServiceRequestStatus(id, status)
+                .onSuccess {
+                    _actionState.value = ServiceActionUiState.Success("Status updated to $status.")
+                    loadServiceRequestById(id)
+                    loadServiceRequests(page = currentPage)
+                }
+                .onFailure { error ->
+                    _actionState.value = ServiceActionUiState.Error(error.localizedMessage ?: "Status update failed")
+                }
+        }
+    }
+
+    fun resetActionState() {
+        _actionState.value = ServiceActionUiState.Idle
     }
 }

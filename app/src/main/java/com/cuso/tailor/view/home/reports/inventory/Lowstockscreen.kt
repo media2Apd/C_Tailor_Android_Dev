@@ -171,7 +171,7 @@ fun LowStockScreen(
                 // sheet/drawer scrim or blur can ever sit on top of it.
                 Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
                     Column {
-                        TitleBar("Low Stock", onClose = onClose)
+                        TitleBar(title = "Low Stock", onClose = onClose)
                     }
                 }
                 HorizontalDivider(color = BorderColor)

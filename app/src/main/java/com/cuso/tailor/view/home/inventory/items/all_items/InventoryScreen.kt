@@ -187,7 +187,7 @@ fun InventoryScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TitleBar("All Items", onClose = onClose)
+                TitleBar(title = "All Items", onClose = onClose)
             }
 
             Column(Modifier.fillMaxWidth()) {

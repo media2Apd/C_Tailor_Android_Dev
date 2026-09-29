@@ -125,7 +125,7 @@ fun ProfitAndLossReportScreen(
             topBar = {
                 Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
                     Column {
-                        TitleBar("Profit & Loss Report", onClose = onClose)
+                        TitleBar(title = "Profit & Loss Report", onClose = onClose)
                     }
                 }
                 HorizontalDivider(color = BorderColor)

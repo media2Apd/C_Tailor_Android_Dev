@@ -79,7 +79,7 @@ fun RecordBillPaymentScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Row(modifier = Modifier.fillMaxWidth()) {
-                TitleBar("Record Payment Form", onClose = onClose)
+                TitleBar(title = "Record Payment Form", onClose = onClose)
             }
         }
     ) { paddingValues ->

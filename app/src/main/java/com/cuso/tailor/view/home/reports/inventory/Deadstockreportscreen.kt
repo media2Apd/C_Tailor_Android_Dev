@@ -165,7 +165,7 @@ fun DeadStockReportScreen(
                 // sheet/drawer scrim or blur can ever sit on top of it.
                 Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
                     Column {
-                        TitleBar("Dead Stock Report", onClose = onClose)
+                        TitleBar(title = "Dead Stock Report", onClose = onClose)
                     }
                 }
                 HorizontalDivider(color = BorderColor)

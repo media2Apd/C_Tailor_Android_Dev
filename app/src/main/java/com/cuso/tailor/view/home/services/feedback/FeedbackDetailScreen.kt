@@ -116,7 +116,7 @@ fun FeedbackDetailScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TitleBar("Feedback Details", onClose= onDismiss)
+                TitleBar(title ="Feedback Details", onClose= onDismiss)
             }
             HorizontalDivider(color = BorderColor)
         },

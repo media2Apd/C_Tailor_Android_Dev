@@ -182,7 +182,7 @@ fun CreatePurchaseOrderScreen(
                     .fillMaxWidth()
                     .background(whiteBg)
             ) {
-                TitleBar("Create Purchase Order", onClose = onClose)
+                TitleBar(title = "Create Purchase Order", onClose = onClose)
                 HorizontalDivider(color = title_border)
             }
         }

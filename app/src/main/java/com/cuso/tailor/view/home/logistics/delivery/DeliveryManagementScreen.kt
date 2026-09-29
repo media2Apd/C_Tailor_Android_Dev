@@ -79,7 +79,7 @@ fun DeliveryManagementScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TitleBar("Delivery Management", onClose = onDismiss)
+            TitleBar(title = "Delivery Management", onClose = onDismiss)
 
         }
 

@@ -165,7 +165,7 @@ fun ExpensesScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TitleBar("All Expense", onClose = onClose)
+            TitleBar(title = "All Expense", onClose = onClose)
         }
 
         Column(Modifier.fillMaxWidth()) {
@@ -364,7 +364,7 @@ fun ExpenseDetailScreen(
                 .fillMaxWidth()
                 .background(whiteBg)
         ) {
-            TitleBar("Expense Details",onClose)
+            TitleBar(title = "Expense Details",onClose =onClose)
         }
         HorizontalDivider(color = title_border)
 
@@ -570,7 +570,7 @@ fun AddExpenseScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TitleBar("Add Expense", onClose = onClose)
+                TitleBar(title = "Add Expense", onClose = onClose)
             }
             HorizontalDivider(color = title_border)
 

@@ -133,7 +133,7 @@ fun ItemGroupDetailScreen(
         contentWindowInsets = WindowInsets(0,0,0,0),
         topBar = {
             Row(modifier = Modifier.fillMaxWidth()) {
-                TitleBar("Item Group Detail", onClose = onClose)
+                TitleBar(title = "Item Group Detail", onClose = onClose)
             }
         }
     ) { innerPadding ->

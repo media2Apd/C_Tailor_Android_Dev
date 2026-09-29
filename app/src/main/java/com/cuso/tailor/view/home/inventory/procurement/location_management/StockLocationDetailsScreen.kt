@@ -79,7 +79,7 @@ fun StockLocationDetailsScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Column(modifier = Modifier.fillMaxWidth().background(whiteBg)) {
-                TitleBar("Stock Location Details", onClose = {
+                TitleBar(title = "Stock Location Details", onClose = {
                     inventoryViewModel.clearSelectedStockLocationDetail()
                     onClose()
                 })

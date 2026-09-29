@@ -116,7 +116,7 @@ fun FinanceCustomerScreen(
     ) {
         // --- PERSISTENT HEADER SECTION ---
         Column(modifier = Modifier.fillMaxWidth()) {
-            TitleBar("All Customers", onClose = onClose)
+            TitleBar(title = "All Customers", onClose = onClose)
 
 
 

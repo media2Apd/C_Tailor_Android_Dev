@@ -275,12 +275,12 @@ fun FilterDrawer(
                             shape = RoundedCornerShape(50),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(50.dp)
+                                .height(40.dp)
                         ) {
                             Text(
                                 text = "Apply Filters",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Color.White
                             )
                         }
@@ -415,6 +415,49 @@ fun FilterDrawer(
         }
     }
 }
+
+fun getDefaultOpportunityFilterSections(
+    stages: List<String> = emptyList(),
+    categories: List<String> = emptyList()
+): List<FilterSection> = listOf(
+    FilterSection(
+        title = "Deal Stage",
+        options = if (stages.isNotEmpty()) {
+            stages.map { FilterOption(id = it, label = it) }
+        } else {
+            listOf(
+                FilterOption("new_opportunity", "New Opportunity"),
+                FilterOption("qualification", "Qualification"),
+                FilterOption("proposal", "Proposal/Quotation"),
+                FilterOption("negotiation", "Negotiation"),
+                FilterOption("closed_won", "Closed Won"),
+                FilterOption("closed_lost", "Closed Lost")
+            )
+        },
+        isMultiSelect = true
+    ),
+    FilterSection(
+        title = "Customer Type",
+        options = listOf(
+            FilterOption("retail", "Retail Customer"),
+            FilterOption("wholesale", "Wholesale Customer"),
+            FilterOption("corporate", "Corporate Customer"),
+            FilterOption("boutique", "Boutique / Reseller")
+        ),
+        isMultiSelect = true
+    ),
+    FilterSection(
+        title = "Product Category",
+        options = if (categories.isNotEmpty()) {
+            categories.map { FilterOption(id = it, label = it) }
+        } else {
+            listOf(
+                FilterOption("bridal_blouse", "Bridal Blouse")
+            )
+        },
+        isMultiSelect = true
+    )
+)
 
 private val DefaultBorderGray = Color(0xFFE8E8ED)
 private val DefaultTextSecondary = Color(0xFF9A9AA8)

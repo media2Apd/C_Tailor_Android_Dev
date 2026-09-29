@@ -75,7 +75,7 @@ fun AllStockLocationScreen(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 Column(modifier = Modifier.fillMaxWidth().background(whiteBg)) {
-                    TitleBar("All Stock Location", onClose)
+                    TitleBar(title = "All Stock Location", onClose =  onClose)
                     HorizontalDivider(color = title_border)
                 }
             }

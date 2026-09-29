@@ -209,12 +209,12 @@ object SidebarConfig {
                     "Opportunity",
                     "Measurements",
                     "Sales & Orders",
-                    "Pricing & Quotes",
+                    "Quotation",
                     "Payment & Billing"
                 ),
                 subItems = mapOf(
                     "Opportunity" to listOf("Opportunity Pipeline", "Opportunities"),
-                    "Pricing & Quotes" to listOf("Pricing Overview", "Quotation")
+//                    "Pricing & Quotes" to listOf("Pricing Overview", "Quotation")
                 )
             ),
             MenuItem(

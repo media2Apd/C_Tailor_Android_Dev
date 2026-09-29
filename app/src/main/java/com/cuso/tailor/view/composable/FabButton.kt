@@ -36,8 +36,11 @@ data class FabConfig(
     val label: String,
     val icon: ImageVector,
     val onClick: () -> Unit,
-    val endPadding: Dp = 10.dp,
-    val bottomPadding: Dp = 50.dp,
+    val alignment: Alignment = Alignment.CenterEnd,
+    val startPadding: Dp = 0.dp,
+    val topPadding: Dp = 0.dp,
+    val endPadding: Dp = 12.dp,
+    val bottomPadding: Dp = 0.dp,
     val draggable: Boolean = true
 )
 
@@ -54,18 +57,15 @@ data class FabConfig(
 fun FabScaffold(
     modifier: Modifier = Modifier,
     fab: FabConfig?,
-    fabVisible: Boolean = true, // NEW: controls animated show/hide of the FAB, e.g. while a bottom sheet is open
+    fabVisible: Boolean = true,
     snackbarHostState: SnackbarHostState? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
-    //  container size — needed to clamp drag within screen bounds
+    // Screen container dimensions
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    //  fab's own size — needed to clamp so it doesn't go off-edge
+    // Button dimensions
     var fabSize by remember { mutableStateOf(IntSize.Zero) }
-
-    //  drag offset from the FAB's default bottom-end position.
-    // null until the user actually drags it once — until then it renders
-    // at the normal align(BottomEnd) + padding position.
+    // User drag position
     var dragOffset by remember { mutableStateOf<Offset?>(null) }
 
     Box(
@@ -84,7 +84,7 @@ fun FabScaffold(
 
         if (fab != null) {
             val fabModifier = if (dragOffset != null) {
-                //  once dragged, position is driven purely by the tracked offset
+                // Position driven by manual drag gestures
                 Modifier.offset {
                     IntOffset(
                         dragOffset!!.x.roundToInt(),
@@ -92,14 +92,17 @@ fun FabScaffold(
                     )
                 }
             } else {
-                //   default resting spot — same as before
+                // Static resting position based on configured alignment
                 Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = fab.endPadding, bottom = fab.bottomPadding)
+                    .align(fab.alignment)
+                    .padding(
+                        start = fab.startPadding,
+                        top = fab.topPadding,
+                        end = fab.endPadding,
+                        bottom = fab.bottomPadding
+                    )
             }
 
-            // NEW: AnimatedVisibility (fade + scale) lets callers hide the FAB smoothly,
-            // e.g. by passing fabVisible = !isSheetOpen
             AnimatedVisibility(
                 visible = fabVisible,
                 modifier = fabModifier,
@@ -110,7 +113,7 @@ fun FabScaffold(
                     onClick = fab.onClick,
                     colors = ButtonDefaults.buttonColors(containerColor = Primary),
                     shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     modifier = Modifier
                         .onGloballyPositioned { fabSize = it.size }
                         .let { m ->
@@ -118,19 +121,20 @@ fun FabScaffold(
                                 m.pointerInput(Unit) {
                                     detectDragGestures(
                                         onDragStart = {
-                                            //  first drag — seed dragOffset from current visual
-                                            // position (bottom-end) so it doesn't jump
                                             if (dragOffset == null) {
-                                                dragOffset = Offset(
-                                                    x = (containerSize.width - fabSize.width - fab.endPadding.value.dp.value).let {
-                                                        containerSize.width.toFloat() - fabSize.width - with(
-                                                            this
-                                                        ) { fab.endPadding.toPx() }
-                                                    },
-                                                    y = containerSize.height.toFloat() - fabSize.height - with(
-                                                        this
-                                                    ) { fab.bottomPadding.toPx() }
-                                                )
+                                                val startX = containerSize.width.toFloat() - fabSize.width - with(this) { fab.endPadding.toPx() }
+                                                val startY = when (fab.alignment) {
+                                                    Alignment.CenterEnd, Alignment.Center, Alignment.CenterStart -> {
+                                                        (containerSize.height.toFloat() - fabSize.height) / 2f
+                                                    }
+                                                    Alignment.TopEnd, Alignment.TopCenter, Alignment.TopStart -> {
+                                                        with(this) { fab.topPadding.toPx() }
+                                                    }
+                                                    else -> {
+                                                        containerSize.height.toFloat() - fabSize.height - with(this) { fab.bottomPadding.toPx() }
+                                                    }
+                                                }
+                                                dragOffset = Offset(startX, startY)
                                             }
                                         },
                                         onDrag = { change, dragAmount ->

@@ -2043,7 +2043,7 @@ class SettingsViewModel @Inject constructor(
         code: String,
         description: String?,
         status: String = "Active",
-        segmentIds: List<String>,
+        applicableGarments: List<ApplicableGarmentPayload>,
         imageUri: Uri?,
         onSuccess: (DesignItem) -> Unit,
         onError: (String) -> Unit
@@ -2059,7 +2059,7 @@ class SettingsViewModel @Inject constructor(
                 code = code.trim().uppercase(),
                 description = description?.takeIf { it.isNotBlank() },
                 status = status,
-                segmentIds = segmentIds,
+                applicableGarments = applicableGarments,
                 imageUri = imageUri
             )
             _isSubmittingDesign.value = false
@@ -2084,8 +2084,8 @@ class SettingsViewModel @Inject constructor(
         designType: String,
         code: String,
         description: String?,
-        status: String,
-        segmentIds: List<String>,
+//        status: String,
+        applicableGarments: List<ApplicableGarmentPayload>,
         imageUri: Uri?,
         onSuccess: (DesignItem) -> Unit,
         onError: (String) -> Unit
@@ -2101,8 +2101,8 @@ class SettingsViewModel @Inject constructor(
                 designType = designType.trim(),
                 code = code.trim().uppercase(),
                 description = description?.takeIf { it.isNotBlank() },
-                status = status,
-                segmentIds = segmentIds,
+//                status = status,
+                applicableGarments = applicableGarments,
                 imageUri = imageUri
             )
             _isSubmittingDesign.value = false

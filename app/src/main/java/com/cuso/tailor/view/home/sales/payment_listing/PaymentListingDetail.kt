@@ -108,7 +108,7 @@ fun PaymentInformationScreen(
                     .fillMaxWidth()
 
             ) {
-                TitleBar("Payment Information", onClose = onClose)
+                TitleBar(title ="Payment Information", onClose = onClose)
             }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),

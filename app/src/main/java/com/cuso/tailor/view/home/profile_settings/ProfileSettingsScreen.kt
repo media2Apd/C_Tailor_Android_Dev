@@ -147,7 +147,7 @@ fun ProfileSettingsScreen(
             .background(Color.Transparent)
     ) {
         Row(modifier = Modifier.fillMaxWidth()) {
-            TitleBar("Profile Settings", onClose)
+            TitleBar(title = "Profile Settings",onClose = onClose)
         }
 
         LazyColumn(

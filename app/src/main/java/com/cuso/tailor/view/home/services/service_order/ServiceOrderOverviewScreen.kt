@@ -282,7 +282,7 @@ fun ServiceOrderOverviewScreen(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                TitleBar("Order Details", onClose = onClose)
+                TitleBar(title ="Order Details", onClose = onClose)
             }
         ) { padding ->
             Box(

@@ -66,7 +66,7 @@ fun BulkDetailsScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             Column(modifier = Modifier.fillMaxWidth().background(whiteBg)) {
-                TitleBar("Bulk Details", onClose)
+                TitleBar(title = "Bulk Details", onClose =  onClose)
                 HorizontalDivider(color = title_border)
             }
         }

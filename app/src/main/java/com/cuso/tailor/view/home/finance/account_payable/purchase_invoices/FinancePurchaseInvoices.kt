@@ -136,7 +136,7 @@ fun PurchaseInvoiceScreen(
             modifier = Modifier
                 .fillMaxWidth()
         ) {
-           TitleBar("All Invoices", onClose = onClose)
+           TitleBar(title = "All Invoices", onClose = onClose)
         }
 
         // Breadcrumb
@@ -330,7 +330,7 @@ fun PurchaseInvoiceDetailScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TitleBar("All Invoices", onClose = onClose)
+            TitleBar(title = "All Invoices", onClose = onClose)
         }
         HorizontalDivider(color = Color(0xFFEEEEEE))
 

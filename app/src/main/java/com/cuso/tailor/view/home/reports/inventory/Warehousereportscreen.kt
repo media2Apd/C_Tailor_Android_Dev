@@ -160,7 +160,7 @@ fun WarehouseReportScreen(
                 // sheet/drawer scrim or blur can ever sit on top of it.
                 Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
                     Column {
-                        TitleBar("Warehouse Report", onClose = onClose)
+                        TitleBar(title = "Warehouse Report", onClose = onClose)
                     }
                 }
                 HorizontalDivider(color = BorderColor)

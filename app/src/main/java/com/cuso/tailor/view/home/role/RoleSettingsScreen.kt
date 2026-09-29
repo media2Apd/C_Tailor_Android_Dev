@@ -107,7 +107,7 @@ fun RoleSettingsScreen(
             modifier = Modifier.fillMaxSize(),
             topBar = {
                 Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
-                    TitleBar("Role Management", onClose = onBack)
+                    TitleBar(title ="Role Management", onClose = onBack)
                 }
             },
             contentWindowInsets = WindowInsets(0, 0, 0, 0),

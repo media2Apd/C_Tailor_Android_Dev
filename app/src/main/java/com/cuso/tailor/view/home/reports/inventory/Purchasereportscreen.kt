@@ -170,7 +170,7 @@ fun PurchaseReportScreen(
                 // sheet/drawer scrim or blur can ever sit on top of it.
                 Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
                     Column {
-                        TitleBar("Purchase Report", onClose = onClose)
+                        TitleBar(title = "Purchase Report", onClose = onClose)
                     }
                 }
                 HorizontalDivider(color = BorderColor)

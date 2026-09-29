@@ -128,7 +128,7 @@ fun AttendanceScreen(
             containerColor = Color.Transparent,
             topBar = {
                 Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
-                    Column { TitleBar("Attendance", onClose = onClose) }
+                    Column { TitleBar(title = "Attendance", onClose = onClose) }
                 }
                 HorizontalDivider(color = BorderColor)
             },

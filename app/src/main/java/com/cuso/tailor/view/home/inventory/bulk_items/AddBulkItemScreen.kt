@@ -218,7 +218,7 @@ fun AddBulkItemScreen(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 Column(modifier = Modifier.fillMaxWidth().background(whiteBg)) {
-                    TitleBar(if (isEdit) "Edit Bulk Item" else "Add Bulk Item", onClose)
+                    TitleBar(title = if (isEdit) "Edit Bulk Item" else "Add Bulk Item", onClose =  onClose)
                     HorizontalDivider(color = title_border)
                 }
             }

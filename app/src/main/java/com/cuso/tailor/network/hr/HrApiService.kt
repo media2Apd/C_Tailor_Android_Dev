@@ -1,7 +1,15 @@
 package com.cuso.tailor.network.hr
 
-import com.cuso.tailor.model.hr.*
+import com.cuso.tailor.model.hr.CreateMemberRequest
+import com.cuso.tailor.model.hr.CreateMemberResponse
+import com.cuso.tailor.model.hr.DeleteProfilePictureResponse
+import com.cuso.tailor.model.hr.MemberDetailResponse
+import com.cuso.tailor.model.hr.MemberListResponse
+import com.cuso.tailor.model.hr.RoleListResponse
+import com.cuso.tailor.model.hr.ShiftListResponse
 import com.cuso.tailor.model.sales.StaffResponse
+import com.cuso.tailor.model.hr.UpdateMemberRequest
+import com.cuso.tailor.model.hr.UploadProfilePictureResponse
 import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.*

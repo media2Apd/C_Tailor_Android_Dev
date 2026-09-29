@@ -105,7 +105,7 @@ fun TrialBalanceScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TitleBar("Trial Balance", onClose = onClose)
+            TitleBar(title = "Trial Balance", onClose = onClose)
         }
 
         Column {

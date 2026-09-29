@@ -112,7 +112,7 @@ fun AllBillListScreen(
                         .fillMaxWidth()
                         .background(whiteBg)
                 ) {
-                    TitleBar("All Bill List", onClose)
+                    TitleBar(title = "All Bill List", onClose =onClose)
                     HorizontalDivider(color = title_border)
                 }
             },

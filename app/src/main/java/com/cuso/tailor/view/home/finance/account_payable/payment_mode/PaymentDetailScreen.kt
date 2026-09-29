@@ -80,7 +80,7 @@ fun PaymentDetailScreenAR(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            TitleBar("All Payments", onClose = onClose)
+            TitleBar(title = "All Payments", onClose = onClose)
         }
 
         Column(

@@ -49,7 +49,7 @@ fun InventoryReportPage(
             Column(
                 Modifier.fillMaxWidth()
             ) {
-                TitleBar("Inventory", onClose = onClose)
+                TitleBar(title = "Inventory", onClose = onClose)
             }
         },
         containerColor = Color.Transparent

@@ -181,7 +181,7 @@ fun TransferOrdersStockListScreen(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    TitleBar("Transfer Stock", onClose)
+                    TitleBar(title = "Transfer Stock", onClose = onClose)
                 }
             }
         ) { padding ->

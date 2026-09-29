@@ -107,7 +107,7 @@ fun ServiceStatusScreen(
         Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
             Column(modifier = Modifier.fillMaxWidth()) {
-                TitleBar("Service Status", onClose = onBack)
+                TitleBar(title ="Service Status", onClose = onBack)
             }
 
             Column(modifier = Modifier.fillMaxWidth()) {

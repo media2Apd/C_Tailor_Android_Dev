@@ -199,7 +199,7 @@ fun BranchSettingsScreen(
                             .fillMaxSize()
                             .background(Color.Transparent)
                     ) {
-                        TitleBar("Branch Management", onClose = onBack)
+                        TitleBar(title ="Branch Management", onClose = onBack)
 
                         Column(modifier = Modifier.fillMaxWidth()) {
                             SearchFilterBar(
@@ -489,7 +489,7 @@ fun AddBranchPage(
                 .background(Color.Transparent)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                TitleBar(if (isEditMode) "Edit Branch" else "Add New Branch", onClose = onBack)
+                TitleBar(title = if (isEditMode) "Edit Branch" else "Add New Branch", onClose = onBack)
                 HorizontalDivider(color = title_border)
             }
 

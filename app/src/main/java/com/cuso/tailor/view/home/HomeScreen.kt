@@ -228,6 +228,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     // Services State
     var selectedFeedbackId by remember { mutableStateOf<String?>(null) }
     var selectedServiceTemplate by remember { mutableStateOf<ProductionTemplateDto?>(null) }
+    var selectedServiceRequestId by remember { mutableStateOf<String?>(null) }
 
     // Dashboard recent-customer navigation state
     var selectedRecentCustomerId by remember { mutableStateOf<String?>(null) }
@@ -699,6 +700,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
+                "review_services" -> selectedServiceRequestId = null
                 "create_opportunity", "opportunity_detail" -> selectedOpportunityId = null
                 "services_view_service_template", "services_create_service_template" -> {
                     android.util.Log.d("TEMPLATE_NAV_DEBUG", ">> BackHandler: Clearing selectedServiceTemplate")
@@ -878,6 +880,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+                            selectedServiceRequestId = selectedServiceRequestId,
+                            onServiceRequestIdSelected = { selectedServiceRequestId = it },
                             selectedOpportunityId = selectedOpportunityId,
                             onOpportunityIdSelected = { selectedOpportunityId = it },
                             selectedServiceTemplate = selectedServiceTemplate,

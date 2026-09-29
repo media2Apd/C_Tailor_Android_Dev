@@ -77,7 +77,7 @@ fun CustomerFeedbackScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TitleBar("Lead Management", onClose= onDismiss)
+            TitleBar(title ="Lead Management", onClose= onDismiss)
         }
 
 

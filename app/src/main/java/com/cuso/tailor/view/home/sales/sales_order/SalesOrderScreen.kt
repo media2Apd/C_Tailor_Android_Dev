@@ -225,7 +225,7 @@ fun SalesOrderScreen(
             Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
                 // Top Bar
-                TitleBar("All Orders", onClose = onBack)
+                TitleBar(title ="All Orders", onClose = onBack)
 
                 HorizontalDivider(color = dividerColor)
 

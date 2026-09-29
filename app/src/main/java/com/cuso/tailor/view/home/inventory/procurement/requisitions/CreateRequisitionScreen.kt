@@ -32,7 +32,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -246,7 +245,7 @@ fun CreateRequisitionScreen(
                     .fillMaxWidth()
                     .background(whiteBg)
             ) {
-                TitleBar(if (isEditMode) "Edit Purchase Request" else "Create Purchase Request", onClose)
+                TitleBar(title = if (isEditMode) "Edit Purchase Request" else "Create Purchase Request",onClose = onClose)
                 HorizontalDivider(color = title_border)
             }
         }

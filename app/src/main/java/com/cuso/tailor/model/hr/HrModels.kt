@@ -11,6 +11,10 @@
 
 package com.cuso.tailor.model.hr
 
+import com.google.gson.*
+import com.google.gson.annotations.JsonAdapter
+import java.lang.reflect.Type
+
 // ═══════════════════════════════════════════════════════════
 // ── Roles: GET /api/roles/view-all ──
 // ═══════════════════════════════════════════════════════════
@@ -62,7 +66,7 @@ data class MemberItem(
     val branchId: MemberBranchRef? = null,
     val workingBranchId: String? = null,
     val departmentId: MemberDepartmentRef? = null,
-    val designationId: String? = null,
+    val designationId: MemberDesignationRef? = null,
     val shiftId: String? = null,
     val firstName: String? = null,
     val lastName: String? = null,
@@ -82,10 +86,28 @@ data class MemberItem(
     val customRoleId: MemberCustomRoleRefList? = null
 )
 
+@JsonAdapter(MemberCustomRoleDeserializer::class)
 data class MemberCustomRoleRefList(
     val _id: String? = null,
     val name: String? = null
 )
+
+class MemberCustomRoleDeserializer : JsonDeserializer<MemberCustomRoleRefList?> {
+    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): MemberCustomRoleRefList? {
+        if (json == null || json.isJsonNull) return null
+        return when {
+            json.isJsonObject -> {
+                val obj = json.asJsonObject
+                MemberCustomRoleRefList(
+                    _id = obj.get("_id")?.asString,
+                    name = obj.get("name")?.asString
+                )
+            }
+            json.isJsonPrimitive && json.asJsonPrimitive.isString -> MemberCustomRoleRefList(_id = json.asString)
+            else -> null
+        }
+    }
+}
 
 data class MemberUserRef(
     val _id: String? = null,
@@ -93,20 +115,74 @@ data class MemberUserRef(
     val mobile: String? = null
 )
 
+@JsonAdapter(MemberBranchDeserializer::class)
 data class MemberBranchRef(
     val _id: String? = null,
     val name: String? = null
 )
 
+class MemberBranchDeserializer : JsonDeserializer<MemberBranchRef?> {
+    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): MemberBranchRef? {
+        if (json == null || json.isJsonNull) return null
+        return when {
+            json.isJsonObject -> {
+                val obj = json.asJsonObject
+                MemberBranchRef(
+                    _id = obj.get("_id")?.asString,
+                    name = obj.get("name")?.asString
+                )
+            }
+            json.isJsonPrimitive && json.asJsonPrimitive.isString -> MemberBranchRef(_id = json.asString)
+            else -> null
+        }
+    }
+}
+
+@JsonAdapter(MemberDepartmentDeserializer::class)
 data class MemberDepartmentRef(
     val _id: String? = null,
     val name: String? = null
 )
 
+class MemberDepartmentDeserializer : JsonDeserializer<MemberDepartmentRef?> {
+    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): MemberDepartmentRef? {
+        if (json == null || json.isJsonNull) return null
+        return when {
+            json.isJsonObject -> {
+                val obj = json.asJsonObject
+                MemberDepartmentRef(
+                    _id = obj.get("_id")?.asString,
+                    name = obj.get("name")?.asString
+                )
+            }
+            json.isJsonPrimitive && json.asJsonPrimitive.isString -> MemberDepartmentRef(_id = json.asString)
+            else -> null
+        }
+    }
+}
+
+@JsonAdapter(MemberDesignationDeserializer::class)
 data class MemberDesignationRef(
     val _id: String? = null,
     val name: String? = null
 )
+
+class MemberDesignationDeserializer : JsonDeserializer<MemberDesignationRef?> {
+    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): MemberDesignationRef? {
+        if (json == null || json.isJsonNull) return null
+        return when {
+            json.isJsonObject -> {
+                val obj = json.asJsonObject
+                MemberDesignationRef(
+                    _id = obj.get("_id")?.asString,
+                    name = obj.get("name")?.asString
+                )
+            }
+            json.isJsonPrimitive && json.asJsonPrimitive.isString -> MemberDesignationRef(_id = json.asString)
+            else -> null
+        }
+    }
+}
 
 // ── Small UI helpers (used by AllEmployeesScreen) ──
 
@@ -157,83 +233,137 @@ fun ShiftItem.displayTimeRange(): String {
 }
 
 // ═══════════════════════════════════════════════════════════
-// ── Create & Update Request Models ──
+// ── Create & Update Request Models (Matching Exact Payload) ──
 // ═══════════════════════════════════════════════════════════
 
 data class AddressRequest(
-    val country: String,
-    val state: String,
-    val city: String,
-    val street: String,
-    val postalCode: String
+    val flatNo: String? = null,
+    val street: String? = null,
+    val areaZone: String? = null,
+    val city: String? = null,
+    val pincode: String? = null,
+    val countryCode: String? = null,
+    val countryName: String? = null,
+    val subdivisionCode: String? = null,
+    val subdivisionName: String? = null
 )
 
 data class EducationRequestItem(
     val instituteName: String,
     val degree: String,
     val specialization: String,
-    val completionDate: String
+    val startDate: String? = null,
+    val completionDate: String? = null,
+    val cgpa: String? = null
 )
 
 data class WorkExperienceRequestItem(
     val companyName: String,
     val jobTitle: String,
+    val employmentType: String? = null,
+    val location: String? = null,
     val fromDate: String,
     val toDate: String? = null,
     val jobDescription: String,
     val isRelevant: Boolean
 )
 
+data class NomineeRequestItem(
+    val name: String,
+    val relationship: String,
+    val share: String
+)
+
 data class CreateMemberRequest(
     val firstName: String,
     val lastName: String,
-    val email: String,
-    val personalEmail: String,
-    val personalMobile: String,
+    val personalMail: String,
     val workMobile: String,
+    val aadhaarNo: String,
+    val panNo: String,
+    val passportNo: String,
+    val bloodGroup: String,
     val dob: String,
+    val doj: String,
     val gender: String,
     val martialStatus: String,
-    val doj: String,
+    val emergencyContactName: String,
+    val emergencyContactMobile: String,
+    val uanNo: String,
+    val esicNumber: String,
+    val pfAccountNo: String,
+    val payFrequency: String,
+    val employmentType: String,
+    val workingDistrict: String,
     val branchId: String?,
+    val branchName: String?,
     val departmentId: String?,
     val designationId: String?,
     val customRoleId: String?,
     val shiftId: String?,
-    val workingDistrict: String?,
-    val employmentType: String,
     val reportingTo: String?,
     val secondaryReportingTo: String?,
+    // Bank Details
+    val accountHolderName: String,
+    val accountNumber: String,
+    val bankName: String,
+    val ifscCode: String,
+    // Address Details
     val permanentAddress: AddressRequest,
     val hasTemporaryAddress: Boolean,
     val temporaryAddress: AddressRequest? = null,
+    // Arrays
     val education: List<EducationRequestItem> = emptyList(),
-    val workExperience: List<WorkExperienceRequestItem> = emptyList()
-)
+    val workExperience: List<WorkExperienceRequestItem> = emptyList(),
+    val pfGratuityNominees: List<NomineeRequestItem> = emptyList()
+){
+    val email: String get() = personalMail
+    val personalEmail: String get() = personalMail
+    val personalMobile: String get() = emergencyContactMobile
+}
 
 data class UpdateMemberRequest(
     val firstName: String,
     val lastName: String,
-    val personalMobile: String,
+    val personalMail: String,
     val workMobile: String,
+    val aadhaarNo: String,
+    val panNo: String,
+    val passportNo: String,
+    val bloodGroup: String,
     val dob: String,
+    val doj: String,
     val gender: String,
     val martialStatus: String,
-    val doj: String,
+    val emergencyContactName: String,
+    val emergencyContactMobile: String,
+    val uanNo: String,
+    val esicNumber: String,
+    val pfAccountNo: String,
+    val payFrequency: String,
+    val employmentType: String,
+    val workingDistrict: String,
     val branchId: String?,
+    val branchName: String?,
     val departmentId: String?,
     val designationId: String?,
     val customRoleId: String?,
     val shiftId: String?,
-    val workingDistrict: String?,
-    val employmentType: String,
     val reportingTo: String?,
     val secondaryReportingTo: String?,
+    // Bank Details
+    val accountHolderName: String,
+    val accountNumber: String,
+    val bankName: String,
+    val ifscCode: String,
+    // Address Details
     val permanentAddress: AddressRequest,
     val hasTemporaryAddress: Boolean,
     val temporaryAddress: AddressRequest? = null,
+    // Arrays
     val education: List<EducationRequestItem> = emptyList(),
-    val workExperience: List<WorkExperienceRequestItem> = emptyList()
+    val workExperience: List<WorkExperienceRequestItem> = emptyList(),
+    val pfGratuityNominees: List<NomineeRequestItem> = emptyList()
 )
 
 // ── Responses ──
@@ -338,11 +468,15 @@ data class MemberDepartmentDetailRef(
 )
 
 data class MemberAddress(
-    val country: String? = null,
-    val state: String? = null,
-    val city: String? = null,
+    val flatNo: String? = null,
     val street: String? = null,
-    val postalCode: String? = null
+    val areaZone: String? = null,
+    val city: String? = null,
+    val pincode: String? = null,
+    val countryCode: String? = null,
+    val countryName: String? = null,
+    val subdivisionCode: String? = null,
+    val subdivisionName: String? = null
 )
 
 data class MemberEducationDetail(
@@ -371,7 +505,7 @@ data class MemberDetail(
     val branchId: MemberBranchDetailRef? = null,
     val workingBranchId: String? = null,
     val departmentId: MemberDepartmentDetailRef? = null,
-    val designationId: String? = null,
+    val designationId: MemberDesignationRef? = null,
     val shiftId: String? = null,
     val firstName: String? = null,
     val lastName: String? = null,
@@ -405,10 +539,6 @@ data class MemberDetail(
     val permissions: Map<String, Any>? = null,
     val __v: Int? = null
 )
-
-// ═══════════════════════════════════════════════════════════
-// ── Profile Picture Upload / Delete ──
-// ═══════════════════════════════════════════════════════════
 
 data class UploadProfilePictureResponse(
     val message: String?,

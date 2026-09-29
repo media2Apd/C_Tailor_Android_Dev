@@ -18,7 +18,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -32,22 +31,50 @@ import com.cuso.tailor.viewmodel.OpportunityActionState
 import com.cuso.tailor.viewmodel.OpportunityViewModel
 import kotlinx.coroutines.delay
 
+// ── Default Opportunity Filter Options ──
+
 @Composable
 fun OpportunitiesListScreen(
     onClose: () -> Unit,
     onAddDeal: () -> Unit,
     onViewOpportunity: (OpportunityListItem) -> Unit,
-    onEditOpportunity: (OpportunityListItem) -> Unit = {}, // Callback for Edit
+    onEditOpportunity: (OpportunityListItem) -> Unit = {},
     viewModel: OpportunityViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
+
+    val filterDrawerState = rememberFilterDrawerState()
+
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val deleteState by viewModel.deleteState.collectAsStateWithLifecycle()
 
     var opportunityPendingDelete by remember { mutableStateOf<OpportunityListItem?>(null) }
     var actionMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val allOpportunities = (uiState as? OpportunitiesUiState.Success)?.items ?: emptyList()
+
+    // Distinct stages and categories from opportunities
+    val stageNames = remember(allOpportunities) {
+        val distinct = allOpportunities.map { it.status }.filter { it.isNotBlank() }.distinct()
+        distinct.ifEmpty { listOf("New Opportunity", "Qualification", "Proposal/Quotation", "Negotiation", "Closed Won", "Closed Lost") }
+    }
+
+    val categoryNames = remember(allOpportunities) {
+        val distinct = allOpportunities.map { it.category }.filter { it.isNotBlank() }.distinct()
+        distinct.ifEmpty { listOf("Bridal Blouse") }
+    }
+
+    // FilterDrawer sections
+    var filterSections by remember(stageNames, categoryNames) {
+        mutableStateOf(getDefaultOpportunityFilterSections(stageNames, categoryNames))
+    }
+
+    // Badge count
+    val activeFilterCount = remember(filterSections) {
+        filterSections.sumOf { section -> section.options.count { it.isSelected } }
+    }
 
     LaunchedEffect(searchQuery) {
         delay(400)
@@ -68,199 +95,220 @@ fun OpportunitiesListScreen(
         }
     }
 
-    FabScaffold(
-        fab = FabConfig(
-            label = "Add Opportunity",
-            icon = Icons.Default.Add,
-            onClick = onAddDeal,
-            bottomPadding = 50.dp
-        )
-    ) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            topBar = {
+    Box(modifier = Modifier.fillMaxSize()) {
+        FabScaffold(
+            fab = FabConfig(
+                label = "Add Opportunity",
+                icon = Icons.Default.Add,
+                onClick = onAddDeal,
+                bottomPadding = 50.dp
+            )
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 Column(modifier = Modifier.fillMaxWidth().background(whiteBg)) {
                     TitleBar(title = "Opportunities", onClose = onClose)
                     HorizontalDivider(color = title_border)
                 }
-            }
-        ) { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                SearchFilterBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    placeholder = "Search Customers...",
-                    accentColor = BluePrimary,
-                    borderColor = BorderGray,
-                    textSecondaryColor = TextSecondary,
-                    onFilterClick = {}
-                )
 
-                OpportunityMetricsGrid()
-
-                when (val state = uiState) {
-                    is OpportunitiesUiState.Loading -> {
-                        ListSkeleton()
-                    }
-                    is OpportunitiesUiState.Error -> {
-                        AppErrorState(
-                            title = "Failed to load Opportunities",
-                            message = state.message,
-                            onRetry = { viewModel.loadOpportunities() }
+                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        SearchFilterBar(
+                            query = searchQuery,
+                            onQueryChange = { searchQuery = it },
+                            placeholder = "Search Customers...",
+                            accentColor = BluePrimary,
+                            borderColor = BorderGray,
+                            textSecondaryColor = TextSecondary,
+                            filterCount = activeFilterCount,
+                            onFilterClick = { filterDrawerState.open() }
                         )
-                    }
-                    is OpportunitiesUiState.Success -> {
-                        val opportunities = state.items
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.8f)
-                        ) {
-                            Text(
-                                text = "Showing ${opportunities.size} Deals",
-                                fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Medium,
-                                color = TextPrimary
-                            )
-                        }
+                        OpportunityMetricsGrid()
 
-                        LazyColumn(
-                            contentPadding = PaddingValues(top = tokens.extraPadding * 0.5f, bottom = 90.dp)
-                        ) {
-                            items(opportunities, key = { it.id }) { item ->
-                                val cardActions = listOf(
-                                    MenuAction("View", Icons.Default.Visibility) { onViewOpportunity(item) },
-                                    MenuAction("Edit", Icons.Default.Edit) { onEditOpportunity(item) }, // Navigates to Edit
-                                    MenuAction("Delete", Icons.Default.Delete, tint = redText, textColor = redText) {
-                                        opportunityPendingDelete = item
+                        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                            when (val state = uiState) {
+                                is OpportunitiesUiState.Loading -> {
+                                    ListSkeleton()
+                                }
+                                is OpportunitiesUiState.Error -> {
+                                    AppErrorState(
+                                        title = "Failed to load Opportunities",
+                                        message = state.message,
+                                        onRetry = { viewModel.loadOpportunities() }
+                                    )
+                                }
+                                is OpportunitiesUiState.Success -> {
+                                    val filteredOpportunities = remember(state.items, filterSections) {
+                                        val selectedStages = filterSections.find { it.title == "Deal Stage" }?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
+                                        val selectedCategories = filterSections.find { it.title == "Product Category" }?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
+
+                                        state.items.filter { item ->
+                                            val matchStage = selectedStages.isEmpty() || selectedStages.any { it.equals(item.status, ignoreCase = true) }
+                                            val matchCategory = selectedCategories.isEmpty() || selectedCategories.any { it.contains(item.category, ignoreCase = true) || item.category.contains(it, ignoreCase = true) }
+
+                                            matchStage && matchCategory
+                                        }
                                     }
-                                )
 
-                                DataCard(
-                                    item = item,
-                                    onClick = { onViewOpportunity(item) },
-                                    title = item.title,
-                                    subtitle = item.customerName,
-                                    headerContent = {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
+                                    Column(modifier = Modifier.fillMaxSize()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.8f)
                                         ) {
                                             Text(
-                                                text = item.code,
+                                                text = "Showing ${filteredOpportunities.size} Deals",
                                                 fontSize = tokens.bodySmall,
-                                                color = headerGrey
+                                                fontWeight = FontWeight.Medium,
+                                                color = TextPrimary
                                             )
-
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                val (badgeBg, badgeTextColor) = when (item.status.lowercase()) {
-                                                    "closed won", "won" -> greenBg to greentext
-                                                    "qualification" -> primary_light to Primary
-                                                    "closed lost", "lost" -> redBg to redText
-                                                    else -> yellowBg to yellowText
-                                                }
-
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(14.dp))
-                                                        .background(badgeBg)
-                                                        .padding(horizontal = 10.dp, vertical = 3.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text(
-                                                        text = item.status.toTitleCase(),
-                                                        fontSize = tokens.caption,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = badgeTextColor
-                                                    )
-                                                }
-
-                                                ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = cardActions)
-                                            }
                                         }
-                                    },
-                                    content = {
-                                        Column(modifier = Modifier.fillMaxWidth()) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(light_grey)
-                                                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text(text = item.category, fontSize = tokens.label, color = TextSecondary)
-                                                }
 
-                                                Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(mutedText))
-                                                Text(text = "Closing: ${item.closingDate}", fontSize = tokens.caption, color = headerGrey)
-                                            }
+                                        LazyColumn(
+                                            contentPadding = PaddingValues(top = tokens.extraPadding * 0.5f, bottom = 90.dp)
+                                        ) {
+                                            items(filteredOpportunities, key = { it.id }) { item ->
+                                                val cardActions = listOf(
+                                                    MenuAction("View", Icons.Default.Visibility) { onViewOpportunity(item) },
+                                                    MenuAction("Edit", Icons.Default.Edit) { onEditOpportunity(item) },
+                                                    MenuAction("Delete", Icons.Default.Delete, tint = redText, textColor = redText) {
+                                                        opportunityPendingDelete = item
+                                                    }
+                                                )
 
-                                            Spacer(Modifier.height(14.dp))
-                                            HorizontalDivider(color = grey_border, thickness = 1.dp)
-                                            Spacer(Modifier.height(10.dp))
+                                                DataCard(
+                                                    item = item,
+                                                    onClick = { onViewOpportunity(item) },
+                                                    title = item.title,
+                                                    subtitle = item.customerName,
+                                                    headerContent = {
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Text(
+                                                                text = item.code,
+                                                                fontSize = tokens.bodySmall,
+                                                                color = headerGrey
+                                                            )
 
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.Bottom
-                                            ) {
-                                                Column {
-                                                    Text(text = "Estimated Value", fontSize = tokens.label, color = mutedText)
-                                                    Spacer(Modifier.height(2.dp))
-                                                    Text(text = item.estimatedValue, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Primary)
-                                                }
+                                                            Row(
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                            ) {
+                                                                val (badgeBg, badgeTextColor) = when (item.status.lowercase()) {
+                                                                    "closed won", "won" -> greenBg to greentext
+                                                                    "qualification" -> primary_light to Primary
+                                                                    "closed lost", "lost" -> redBg to redText
+                                                                    else -> yellowBg to yellowText
+                                                                }
 
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(background_light_purple)
-                                                        .padding(horizontal = 14.dp, vertical = 6.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text(text = "Lead Stage", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Primary)
-                                                }
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .clip(RoundedCornerShape(14.dp))
+                                                                        .background(badgeBg)
+                                                                        .padding(horizontal = 10.dp, vertical = 3.dp),
+                                                                    contentAlignment = Alignment.Center
+                                                                ) {
+                                                                    Text(
+                                                                        text = item.status.toTitleCase(),
+                                                                        fontSize = tokens.caption,
+                                                                        fontWeight = FontWeight.Medium,
+                                                                        color = badgeTextColor
+                                                                    )
+                                                                }
+
+                                                                ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = cardActions)
+                                                            }
+                                                        }
+                                                    },
+                                                    content = {
+                                                        Column(modifier = Modifier.fillMaxWidth()) {
+                                                            Row(
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                            ) {
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .clip(RoundedCornerShape(6.dp))
+                                                                        .background(light_grey)
+                                                                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                                                                    contentAlignment = Alignment.Center
+                                                                ) {
+                                                                    Text(text = item.category, fontSize = tokens.label, color = TextSecondary)
+                                                                }
+
+                                                                Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(mutedText))
+                                                                Text(text = "Closing: ${item.closingDate}", fontSize = tokens.caption, color = headerGrey)
+                                                            }
+
+                                                            Spacer(Modifier.height(14.dp))
+                                                            HorizontalDivider(color = grey_border, thickness = 1.dp)
+                                                            Spacer(Modifier.height(10.dp))
+
+                                                            Row(
+                                                                modifier = Modifier.fillMaxWidth(),
+                                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                                verticalAlignment = Alignment.Bottom
+                                                            ) {
+                                                                Column {
+                                                                    Text(text = "Estimated Value", fontSize = tokens.label, color = mutedText)
+                                                                    Spacer(Modifier.height(2.dp))
+                                                                    Text(text = item.estimatedValue, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Primary)
+                                                                }
+
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .clip(RoundedCornerShape(8.dp))
+                                                                        .background(background_light_purple)
+                                                                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                                                                    contentAlignment = Alignment.Center
+                                                                ) {
+                                                                    Text(text = "Lead Stage", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Primary)
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                )
                                             }
                                         }
                                     }
-                                )
+                                }
                             }
                         }
                     }
+
+                    // ── FilterDrawer starts directly under TitleBar ──
+                    FilterDrawer(
+                        state = filterDrawerState,
+                        title = "Filter Opportunities",
+                        sections = filterSections,
+                        onApply = { updatedSections ->
+                            filterSections = updatedSections
+                        },
+                        onClearAll = {
+                            filterSections = filterSections.map { sec ->
+                                sec.copy(options = sec.options.map { it.copy(isSelected = false) })
+                            }
+                        }
+                    )
                 }
             }
-
-
         }
-    }
 
-    opportunityPendingDelete?.let { item ->
-        DeleteModel(
-            title = "Delete Opportunity",
-            message = "Are you sure you want to delete deal \"${item.title}\"? This action cannot be undone.",
-            onDismiss = { opportunityPendingDelete = null },
-            onDelete = {
-                viewModel.deleteOpportunity(item.id)
-                opportunityPendingDelete = null
-            }
-        )
-    }
-    Box(
-        Modifier.fillMaxWidth()
-    ) {
+        opportunityPendingDelete?.let { item ->
+            DeleteModel(
+                title = "Delete Opportunity",
+                message = "Are you sure you want to delete deal \"${item.title}\"? This action cannot be undone.",
+                onDismiss = { opportunityPendingDelete = null },
+                onDelete = {
+                    viewModel.deleteOpportunity(item.id)
+                    opportunityPendingDelete = null
+                }
+            )
+        }
+
         DynamicIslandSuccess(
             message = actionMessage,
             onDismiss = { actionMessage = null },

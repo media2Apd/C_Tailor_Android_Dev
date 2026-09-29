@@ -30,62 +30,29 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cuso.tailor.model.sales.AddonOption
-import com.cuso.tailor.model.sales.CreateQuotationRequest
-import com.cuso.tailor.model.sales.CustomerSnapshot
-import com.cuso.tailor.model.sales.CustomerSnapshotAddress
-import com.cuso.tailor.model.sales.DesignOption
-import com.cuso.tailor.model.sales.FabricOption
-import com.cuso.tailor.model.sales.QuotationItemInput
-import com.cuso.tailor.model.sales.QuotationOptionInput
-import com.cuso.tailor.ui.theme.Primary
-import com.cuso.tailor.ui.theme.blackTitle
-import com.cuso.tailor.ui.theme.darkGreenBg
-import com.cuso.tailor.ui.theme.light_blue
-import com.cuso.tailor.ui.theme.primary_light
-import com.cuso.tailor.ui.theme.title_color
-import com.cuso.tailor.ui.theme.title_font
-import com.cuso.tailor.ui.theme.whiteBg
-import com.cuso.tailor.view.composable.CirculerProgressIndicatorReuse
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
-import com.cuso.tailor.view.composable.StepNavigationFab
-import com.cuso.tailor.view.composable.TrailingFabAction
-import com.cuso.tailor.view.composable.toTitleCase
+import com.cuso.tailor.R
+import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.sales.*
+import com.cuso.tailor.model.settings.GarmentItem
+import com.cuso.tailor.model.settings.WorkPricingItem
+import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.pdfgenerator.QuotationPdfGenerator
-import com.cuso.tailor.viewmodel.CustomerViewModel
-import com.cuso.tailor.viewmodel.GarmentPricingUiState
-import com.cuso.tailor.viewmodel.GarmentPricingViewModel
-import com.cuso.tailor.viewmodel.ProfileViewModel
-import com.cuso.tailor.viewmodel.SalesOrderViewModel
+import com.cuso.tailor.viewmodel.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import com.cuso.tailor.R
-import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.ui.theme.grey_border
-import com.cuso.tailor.ui.theme.light_grey
-
-private val Purple = Color(0xFF3B3BF9)
-private val Green = Color(0xFF22C55E)
-private val BorderGray = grey_border
-private val TextGray = Color(0xFF6B7280)
-private val MutedGray = Color(0xFF9CA3AF)
-private val TitleDark = Color(0xFF111827)
-private val TintBg = primary_light
-private val TipBg = Color(0xFFEFF6FF)
-private val TipBlue = Color(0xFF2563EB)
+import java.util.*
 
 private const val TAX_RATE = 0.18
 
-// ── Models ──
 data class CustomerOption(
     val id: String,
     val name: String? = "",
@@ -93,23 +60,6 @@ data class CustomerOption(
     val addressLine: String = "",
     val city: String = "",
     val pincode: String = ""
-)
-
-data class GarmentOption(
-    val id: String,
-    val name: String,
-    val price: Double,
-    val fabricOptions: List<FabricOption> = emptyList(),
-    val designOptions: List<DesignOption> = emptyList(),
-    val addons: List<AddonOption> = emptyList()
-)
-
-data class GarmentSelectionState(
-    val garmentId: String,
-    val fabric: FabricOption? = null,
-    val design: DesignOption? = null,
-    val addons: List<AddonOption> = emptyList(),
-    val quantity: Int = 1
 )
 
 data class GarmentBreakdown(
@@ -126,7 +76,20 @@ data class GarmentBreakdown(
     val itemSubtotal: Double
 )
 
-// ── Formatting helpers ──
+enum class PriceEditType {
+    GARMENT,
+    FABRIC,
+    WORK
+}
+
+data class PriceEditDialogState(
+    val type: PriceEditType,
+    val id: String,
+    val title: String,
+    val currentPrice: Double,
+    val extraData: Any? = null
+)
+
 private fun formatPrice(amount: Double): String =
     "₹${String.format(Locale.US, "%.2f", amount)}"
 
@@ -134,46 +97,69 @@ private fun formatPrice(amount: Double): String =
 @Composable
 fun CreateQuotationScreen(
     quotationId: String? = null,
-    mode: String = "create",   // "create" | "view" | "edit"
+    mode: String = "create",
     onClose: () -> Unit = {},
     onSave: () -> Unit = {},
     token: String
 ) {
+    val context = LocalContext.current
+    val tokens = LocalAppTokens.current
+
     val customerViewModel: CustomerViewModel = hiltViewModel()
     val salesOrderViewModel: SalesOrderViewModel = hiltViewModel()
-    val garmentPricingViewModel: GarmentPricingViewModel = hiltViewModel()
-    val quotationViewModel: com.cuso.tailor.viewmodel.QuotationViewModel = hiltViewModel()
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
+    val quotationViewModel: QuotationViewModel = hiltViewModel()
     val profileViewModel: ProfileViewModel = hiltViewModel()
+    val salesViewModel: SalesViewModel = hiltViewModel()
+    val branchViewModel: BranchViewModel = hiltViewModel()
+    val inventoryViewModel: InventoryViewModel = hiltViewModel()
 
     val customerState by customerViewModel.uiState.collectAsStateWithLifecycle()
     val orderState by salesOrderViewModel.orderState.collectAsStateWithLifecycle()
-    val garmentPricingState by garmentPricingViewModel.uiState.collectAsStateWithLifecycle()
     val profileState by profileViewModel.uiState.collectAsStateWithLifecycle()
+    val branchState by branchViewModel.uiState.collectAsStateWithLifecycle()
+    val taxGroups by inventoryViewModel.taxGroups.collectAsStateWithLifecycle()
+
+    // ── Staff List for Salesperson Selection ──
+    val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
+    var selectedSalespersonId by remember { mutableStateOf<String?>(null) }
+    var staffDropdownExpanded by remember { mutableStateOf(false) }
+
+    val staffDisplayMap = remember(staffList) {
+        staffList.associate { "${it.firstName} ${it.lastName}".trim().ifEmpty { "Staff Member" } to it.id }
+    }
+    val staffOptions = remember(staffList) {
+        staffDisplayMap.keys.toList()
+    }
+
+    // ── Master lists for Garment, Fabric, and Work pricing ──
+    val garments by settingsViewModel.garments.collectAsStateWithLifecycle()
+    val fabricPricingList by settingsViewModel.fabricPricingList.collectAsStateWithLifecycle()
+    val workPricingList by settingsViewModel.workPricingList.collectAsStateWithLifecycle()
+
+    // ── Local Price Overrides (In-memory screen edits) ──
+    var garmentPriceOverrides by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
+    var fabricPriceOverrides by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
+    var workPriceOverrides by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
 
     var currentStep by remember { mutableIntStateOf(if (quotationId != null) 3 else 1) }
     var customerLeadTab by remember { mutableStateOf("Customer") }
     var selectedCustomerId by remember { mutableStateOf<String?>(null) }
 
-
-    var selectedGarmentId by remember { mutableStateOf<String?>(null) }
-    var selectedFabric by remember { mutableStateOf<FabricOption?>(null) }
-    var selectedDesign by remember { mutableStateOf<DesignOption?>(null) }
-
-    var selectedGarments by remember { mutableStateOf<List<GarmentSelectionState>>(emptyList()) }
-
-    // Helper to update one garment's selection without touching the others
-    fun updateGarment(garmentId: String, update: (GarmentSelectionState) -> GarmentSelectionState) {
-        selectedGarments = selectedGarments.map { if (it.garmentId == garmentId) update(it) else it }
-    }
-    var selectedAddons by remember { mutableStateOf<List<AddonOption>>(emptyList()) }
+    // ── Selections for Step 2 ──
+    var selectedGarment by remember { mutableStateOf<GarmentItem?>(null) }
+    var selectedFabric by remember { mutableStateOf<FabricPricingItem?>(null) }
+    var selectedWork by remember { mutableStateOf<WorkPricingItem?>(null) }
     var quantity by remember { mutableIntStateOf(1) }
+
+    var activePriceEdit by remember { mutableStateOf<PriceEditDialogState?>(null) }
     var previewShown by remember { mutableStateOf(mode == "view") }
     var isPrefilling by remember { mutableStateOf(quotationId != null) }
 
     val customers = remember(customerState) {
         when (customerState) {
-            is com.cuso.tailor.viewmodel.CustomerUiState.Success -> {
-                (customerState as com.cuso.tailor.viewmodel.CustomerUiState.Success).customers.map { customer ->
+            is CustomerUiState.Success -> {
+                (customerState as CustomerUiState.Success).customers.map { customer ->
                     CustomerOption(
                         id = customer.id,
                         name = customer.name,
@@ -190,8 +176,8 @@ fun CreateQuotationScreen(
 
     val leads = remember(orderState) {
         when (orderState) {
-            is com.cuso.tailor.viewmodel.OrderUiState.Success -> {
-                (orderState as com.cuso.tailor.viewmodel.OrderUiState.Success).orders.map { order ->
+            is OrderUiState.Success -> {
+                (orderState as OrderUiState.Success).orders.map { order ->
                     CustomerOption(
                         id = order.id,
                         name = order.customerId?.name ?: "Lead",
@@ -204,71 +190,52 @@ fun CreateQuotationScreen(
     }
 
     val currentItems = if (customerLeadTab == "Customer") customers else leads
-
-    val garmentOptions = remember(garmentPricingState) {
-        when (garmentPricingState) {
-            is GarmentPricingUiState.Success -> {
-                (garmentPricingState as GarmentPricingUiState.Success).items.map { item ->
-                    GarmentOption(
-                        id = item.garmentId,
-                        name = item.garmentName,
-                        price = item.basePrice,
-                        fabricOptions = item.fabricOptions,
-                        designOptions = item.designOptions,
-                        addons = item.addons
-                    )
-                }
-            }
-            else -> emptyList()
-        }
-    }
-
-    val garmentBreakdowns = remember(selectedGarments, garmentOptions) {
-        selectedGarments.mapNotNull { sel ->
-            val option = garmentOptions.find { it.id == sel.garmentId } ?: return@mapNotNull null
-            val perUnit = option.price + (sel.fabric?.price ?: 0.0) + (sel.design?.price ?: 0.0) +
-                    sel.addons.sumOf { it.price }
-            GarmentBreakdown(
-                garmentId = sel.garmentId,
-                garmentName = option.name,
-                basePrice = option.price,
-                fabricName = sel.fabric?.name ?: "-",
-                fabricPrice = sel.fabric?.price ?: 0.0,
-                designName = sel.design?.name ?: "-",
-                designPrice = sel.design?.price ?: 0.0,
-                addonsNames = sel.addons.joinToString(", ") { it.name },
-                addonsPrice = sel.addons.sumOf { it.price },
-                quantity = sel.quantity,
-                itemSubtotal = perUnit * sel.quantity
-            )
-        }
-    }
-
-    val subtotal = garmentBreakdowns.sumOf { it.itemSubtotal }
-    val tax = subtotal * TAX_RATE
-    val total = subtotal + tax
-
     val selectedCustomer = remember(currentItems, selectedCustomerId) {
         currentItems.find { it.id == selectedCustomerId }
     }
 
-    val selectedGarment = remember(garmentOptions, selectedGarmentId) {
-        garmentOptions.find { it.id == selectedGarmentId }
+    // ── Calculated price breakdown ──
+    val baseGarmentPrice = selectedGarment?.let { garmentPriceOverrides[it.id] ?: it.baseStitchingCharge } ?: 0.0
+    val fabricPrice = selectedFabric?.let { fabricPriceOverrides[it.id] ?: it.sellingPrice } ?: 0.0
+    val workPrice = selectedWork?.let { workPriceOverrides[it.id] ?: it.basePrice } ?: 0.0
+
+    val unitSubtotal = baseGarmentPrice + fabricPrice + workPrice
+    val subtotal = unitSubtotal * quantity
+    val tax = subtotal * TAX_RATE
+    val total = subtotal + tax
+
+    val dynamicBreakdowns = remember(selectedGarment, selectedFabric, selectedWork, quantity, garmentPriceOverrides, fabricPriceOverrides, workPriceOverrides) {
+        if (selectedGarment != null || selectedFabric != null || selectedWork != null) {
+            listOf(
+                GarmentBreakdown(
+                    garmentId = selectedGarment?.id ?: "custom_item",
+                    garmentName = selectedGarment?.displayName ?: selectedGarment?.name ?: "Custom Garment",
+                    basePrice = baseGarmentPrice,
+                    fabricName = selectedFabric?.name ?: "-",
+                    fabricPrice = fabricPrice,
+                    designName = "-",
+                    designPrice = 0.0,
+                    addonsNames = selectedWork?.workType ?: "",
+                    addonsPrice = workPrice,
+                    quantity = quantity,
+                    itemSubtotal = subtotal
+                )
+            )
+        } else {
+            emptyList()
+        }
     }
 
-    val basePrice = selectedGarment?.price ?: 0.0
-    val fabricPrice = selectedFabric?.price ?: 0.0
-    val designPrice = selectedDesign?.price ?: 0.0
-    val addonsPrice = selectedAddons.sumOf { it.price }
-//    val subtotal = (basePrice + fabricPrice + designPrice + addonsPrice) * quantity
-//    val tax = subtotal * TAX_RATE
-//    val total = subtotal + tax
-
-
+    // ── Initial API data loading ──
     LaunchedEffect(Unit) {
         customerViewModel.loadCustomers()
         salesOrderViewModel.fetchOrders()
-        garmentPricingViewModel.loadGarmentPricing()
+        salesViewModel.fetchStaff()
+        settingsViewModel.fetchGarments()
+        settingsViewModel.fetchFabricPricing()
+        settingsViewModel.fetchWorkPricing()
+        branchViewModel.loadBranches()
+        inventoryViewModel.fetchTaxGroups()
         profileViewModel.loadOrganization(token)
         if (quotationId != null) {
             quotationViewModel.fetchQuotationById(quotationId)
@@ -277,36 +244,26 @@ fun CreateQuotationScreen(
 
     val detailState by quotationViewModel.detailState.collectAsStateWithLifecycle()
 
-    // ── Prefill state once quotation detail + garment options are both ready ──
-    LaunchedEffect(detailState, garmentOptions) {
-        val state = detailState
-        if (quotationId != null && state is com.cuso.tailor.viewmodel.QuotationDetailUiState.Success && garmentOptions.isNotEmpty()) {
-            val dto = state.quotation
-            selectedCustomerId = dto.customerId
-
-            //    — build selection for EVERY item, not just the first
-            selectedGarments = dto.items.mapNotNull { item ->
-                val matchedGarment = garmentOptions.find { it.id == item.garmentCategoryId } ?: return@mapNotNull null
-                GarmentSelectionState(
-                    garmentId = item.garmentCategoryId?:"",
-                    fabric = matchedGarment.fabricOptions.find { it.name == item.fabric?.label },
-                    design = matchedGarment.designOptions.find { it.name == item.design?.label },
-                    addons = matchedGarment.addons.filter { addon ->
-                        item.addons.any { it.label == addon.name }
-                    },
-                    quantity = item.quantity
-                )
+    LaunchedEffect(detailState) {
+        when (val state = detailState) {
+            is QuotationDetailUiState.Success -> {
+                val dto = state.quotation
+                selectedCustomerId = dto.customerId?.id
+                isPrefilling = false
             }
-            isPrefilling = false
-        } else if (state is com.cuso.tailor.viewmodel.QuotationDetailUiState.Error) {
-            isPrefilling = false
-        } else if (quotationId == null) {
-            isPrefilling = false
+            is QuotationDetailUiState.Error -> {
+                isPrefilling = false
+            }
+            else -> {
+                if (quotationId == null) {
+                    isPrefilling = false
+                }
+            }
         }
     }
+
     val organizationLogoUrl = remember(profileState) {
-        (profileState as? com.cuso.tailor.viewmodel.ProfileUiState.Success)
-            ?.data?.organization?.organizationPicture ?: ""
+        (profileState as? ProfileUiState.Success)?.data?.organization?.organizationPicture ?: ""
     }
     var logoBase64 by remember { mutableStateOf("") }
     LaunchedEffect(organizationLogoUrl) {
@@ -322,24 +279,10 @@ fun CreateQuotationScreen(
         }
     }
 
-    LaunchedEffect(selectedCustomerId) {
-        if (selectedCustomerId != null) {
-            garmentPricingViewModel.loadGarmentPricing()
-        }
-    }
-
-    LaunchedEffect(customerLeadTab) {
-        if (customerLeadTab == "Customer") {
-            customerViewModel.loadCustomers()
-        } else {
-            salesOrderViewModel.fetchOrders()
-        }
-    }
-
     fun goToNextStep() {
         when (currentStep) {
             1 -> if (selectedCustomerId != null) currentStep++
-            2 -> if (selectedGarments.isNotEmpty()) currentStep++
+            2 -> if (selectedGarment != null || selectedFabric != null || selectedWork != null) currentStep++
             3 -> onSave()
         }
     }
@@ -347,15 +290,66 @@ fun CreateQuotationScreen(
     fun goToPreviousStep() {
         if (currentStep > 1) currentStep--
     }
+
     if (isPrefilling) {
-        Box(
-            modifier = Modifier.fillMaxSize().background(whiteBg),
-            contentAlignment = Alignment.Center
-        ) {
-            CirculerProgressIndicatorReuse()
-        }
+        ListSkeleton()
         return
     }
+
+    val quotationDto = (detailState as? QuotationDetailUiState.Success)?.quotation
+
+    val displayBreakdowns = remember(dynamicBreakdowns, quotationDto) {
+        if (dynamicBreakdowns.isNotEmpty()) {
+            dynamicBreakdowns
+        } else if (quotationDto != null) {
+            val customGarments = quotationDto.items.filter { it.lineType == "Custom_Garment" || it.customGarment != null }
+            if (customGarments.isNotEmpty()) {
+                customGarments.map { cg ->
+                    val childMaterial = quotationDto.items.find { it.lineType == "Garment_Material" && it.parentLineId == cg.id }
+                    val childAddon = quotationDto.items.find { it.lineType == "Garment_Addon" && it.parentLineId == cg.id }
+
+                    GarmentBreakdown(
+                        garmentId = cg.id ?: "",
+                        garmentName = cg.customGarment?.categoryDisplayName
+                            ?: cg.customGarment?.garmentName
+                            ?: cg.itemDescription
+                            ?: "Garment",
+                        basePrice = cg.unitPrice,
+                        fabricName = childMaterial?.itemDescription ?: cg.customGarment?.fabricNotes ?: "-",
+                        fabricPrice = childMaterial?.totalPrice ?: 0.0,
+                        designName = cg.customGarment?.designName ?: "-",
+                        designPrice = 0.0,
+                        addonsNames = childAddon?.itemDescription ?: cg.addonWork?.workType ?: "",
+                        addonsPrice = childAddon?.totalPrice ?: 0.0,
+                        quantity = cg.quantity.toInt().coerceAtLeast(1),
+                        itemSubtotal = cg.totalPrice + (childMaterial?.totalPrice ?: 0.0) + (childAddon?.totalPrice ?: 0.0)
+                    )
+                }
+            } else {
+                quotationDto.items.map { itm ->
+                    GarmentBreakdown(
+                        garmentId = itm.id ?: "",
+                        garmentName = itm.itemDescription ?: "Item",
+                        basePrice = itm.unitPrice,
+                        fabricName = "-",
+                        fabricPrice = 0.0,
+                        designName = "-",
+                        designPrice = 0.0,
+                        addonsNames = "",
+                        addonsPrice = 0.0,
+                        quantity = itm.quantity.toInt().coerceAtLeast(1),
+                        itemSubtotal = itm.totalPrice
+                    )
+                }
+            }
+        } else {
+            emptyList()
+        }
+    }
+
+    val displaySubtotal = if (quotationDto != null && dynamicBreakdowns.isEmpty()) quotationDto.subTotal else subtotal
+    val displayTax = if (quotationDto != null && dynamicBreakdowns.isEmpty()) quotationDto.taxAmount else tax
+    val displayTotal = if (quotationDto != null && dynamicBreakdowns.isEmpty()) quotationDto.grandTotal else total
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -364,31 +358,35 @@ fun CreateQuotationScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(whiteBg)
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                    .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 1.2f),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Create Quotation", fontSize = title_font, fontWeight = FontWeight.Bold, color = title_color)
+                Text(
+                    text = "Create Quotation",
+                    fontSize = tokens.h1,
+                    fontWeight = FontWeight.Bold,
+                    color = title_color
+                )
                 Icon(
-                    Icons.Default.Close,
+                    imageVector = Icons.Default.Close,
                     contentDescription = "Close",
-                    tint = TitleDark,
-                    modifier = Modifier.size(22.dp).clickable { onClose() }
+                    tint = close_color,
+                    modifier = Modifier.size(tokens.iconSize * 1.2f).clickable { onClose() }
                 )
             }
         },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .then(
-                    //    — scroll allowed on step 3 too, EXCEPT when PDF preview WebView is showing
                     if (currentStep != 3 || !previewShown) Modifier.verticalScroll(rememberScrollState())
                     else Modifier
                 )
-        ){
+        ) {
             QuotationStepper(currentStep = currentStep)
 
             when (currentStep) {
@@ -399,37 +397,59 @@ fun CreateQuotationScreen(
                     selectedId = selectedCustomerId,
                     onSelect = { selectedCustomerId = it },
                     isLoading = when (customerLeadTab) {
-                        "Customer" -> customerState is com.cuso.tailor.viewmodel.CustomerUiState.Loading
-                        else -> orderState is com.cuso.tailor.viewmodel.OrderUiState.Loading
+                        "Customer" -> customerState is CustomerUiState.Loading
+                        else -> orderState is OrderUiState.Loading
                     }
                 )
 
-                2 -> Step2GarmentDetails(
-                    garmentOptions = garmentOptions,
-                    selectedGarments = selectedGarments,
-                    onToggleGarment = { garmentId ->
-                        selectedGarments = if (selectedGarments.any { it.garmentId == garmentId }) {
-                            selectedGarments.filter { it.garmentId != garmentId }
-                        } else {
-                            selectedGarments + GarmentSelectionState(garmentId = garmentId)
-                        }
+                2 -> Step2PricingSelection(
+                    selectedSalespersonId = selectedSalespersonId,
+                    staffDisplayMap = staffDisplayMap,
+                    staffOptions = staffOptions,
+                    staffDropdownExpanded = staffDropdownExpanded,
+                    onStaffExpandChange = { staffDropdownExpanded = it },
+                    onSelectSalesperson = { selectedSalespersonId = it },
+
+                    garments = garments,
+                    fabricPricingList = fabricPricingList,
+                    workPricingList = workPricingList,
+                    garmentPriceOverrides = garmentPriceOverrides,
+                    fabricPriceOverrides = fabricPriceOverrides,
+                    workPriceOverrides = workPriceOverrides,
+                    selectedGarment = selectedGarment,
+                    selectedFabric = selectedFabric,
+                    selectedWork = selectedWork,
+                    onSelectGarment = { selectedGarment = if (selectedGarment?.id == it.id) null else it },
+                    onSelectFabric = { selectedFabric = if (selectedFabric?.id == it.id) null else it },
+                    onSelectWork = { selectedWork = if (selectedWork?.id == it.id) null else it },
+                    quantity = quantity,
+                    onQuantityChange = { quantity = it },
+
+                    onEditGarmentPrice = { item, currentEffectivePrice ->
+                        activePriceEdit = PriceEditDialogState(
+                            type = PriceEditType.GARMENT,
+                            id = item.id,
+                            title = item.displayName ?: item.name,
+                            currentPrice = currentEffectivePrice
+                        )
                     },
-                    onSelectFabric = { garmentId, fabric ->
-                        updateGarment(garmentId) { it.copy(fabric = fabric) }
+                    onEditFabricPrice = { item, currentEffectivePrice ->
+                        activePriceEdit = PriceEditDialogState(
+                            type = PriceEditType.FABRIC,
+                            id = item.id,
+                            title = item.name,
+                            currentPrice = currentEffectivePrice
+                        )
                     },
-                    onSelectDesign = { garmentId, design ->
-                        updateGarment(garmentId) { it.copy(design = design) }
+                    onEditWorkPrice = { item, currentEffectivePrice ->
+                        activePriceEdit = PriceEditDialogState(
+                            type = PriceEditType.WORK,
+                            id = item.id,
+                            title = item.workType,
+                            currentPrice = currentEffectivePrice,
+                            extraData = item
+                        )
                     },
-                    onToggleAddon = { garmentId, addon ->
-                        updateGarment(garmentId) { sel ->
-                            sel.copy(addons = if (sel.addons.contains(addon)) sel.addons - addon else sel.addons + addon)
-                        }
-                    },
-                    onQuantityChange = { garmentId, qty ->
-                        updateGarment(garmentId) { it.copy(quantity = qty) }
-                    },
-                    isLoading = garmentPricingState is GarmentPricingUiState.Loading,
-                    garmentBreakdowns = garmentBreakdowns,
                     subtotal = subtotal,
                     tax = tax,
                     total = total
@@ -440,23 +460,38 @@ fun CreateQuotationScreen(
                     previewShown = previewShown,
                     onPreview = { previewShown = true },
                     onComplete = { onSave() },
-                    customerName = selectedCustomer?.name ?: "-",
+                    customerName = quotationDto?.customerSnapshot?.name
+                        ?: quotationDto?.customerId?.fullName
+                        ?: selectedCustomer?.name
+                        ?: "-",
                     logoBase64 = logoBase64,
-                    subtotal = subtotal,
-                    tax = tax,
-                    total = total,
-                    quotationNumber = "QUO-${System.currentTimeMillis()}",
-                    quotationDate = SimpleDateFormat("MMMM d, yyyy", Locale.US).format(Date()),
+                    subtotal = displaySubtotal,
+                    tax = displayTax,
+                    total = displayTotal,
+                    quotationNumber = quotationDto?.quotationNumber ?: "QUO-${System.currentTimeMillis()}",
+                    quotationDate = quotationDto?.quotationDate?.take(10)
+                        ?: SimpleDateFormat("MMMM d, yyyy", Locale.US).format(Date()),
                     customerAddress = selectedCustomer?.let { "${it.name}\nPhone: ${it.phone}" } ?: "",
-                    customerPhone = selectedCustomer?.phone ?: "",
+                    customerPhone = quotationDto?.customerSnapshot?.phone
+                        ?: quotationDto?.customerId?.mobileNumber
+                        ?: selectedCustomer?.phone
+                        ?: "",
                     customerId = selectedCustomerId,
-                    garmentBreakdowns = garmentBreakdowns,   //    — single source now
+                    garmentBreakdowns = displayBreakdowns,
                     quotationViewModel = quotationViewModel,
-                    customerSnapshotName = selectedCustomer?.name ?: "",
-                    customerSnapshotPhone = selectedCustomer?.phone ?: "",
-                    customerSnapshotAddressLine = selectedCustomer?.addressLine ?: "",
-                    customerSnapshotCity = selectedCustomer?.city ?: "",
-                    customerSnapshotPincode = selectedCustomer?.pincode ?: "",
+
+                    // ── Dynamic Payload Construction Inputs ──
+                    branchState = branchState,
+                    taxGroups = taxGroups,
+                    selectedGarment = selectedGarment,
+                    selectedFabric = selectedFabric,
+                    selectedWork = selectedWork,
+                    garmentPriceOverrides = garmentPriceOverrides,
+                    fabricPriceOverrides = fabricPriceOverrides,
+                    workPriceOverrides = workPriceOverrides,
+                    quantity = quantity,
+                    selectedSalespersonId = selectedSalespersonId,
+
                     onEdit = {
                         previewShown = false
                         currentStep = 2
@@ -464,7 +499,7 @@ fun CreateQuotationScreen(
                 )
             }
 
-            Spacer(Modifier.height(90.dp))
+            Spacer(Modifier.height(tokens.buttonHeight * 2))
         }
 
         if (!(currentStep == 3 && previewShown) && mode != "view") {
@@ -480,35 +515,376 @@ fun CreateQuotationScreen(
                 trailingWidthFraction = 0.40f
             )
         }
+
+        activePriceEdit?.let { target ->
+            SinglePriceEditDialog(
+                title = target.title,
+                initialPrice = target.currentPrice,
+                onDismiss = { activePriceEdit = null },
+                onSave = { newPrice ->
+                    when (target.type) {
+                        PriceEditType.GARMENT -> {
+                            garmentPriceOverrides = garmentPriceOverrides + (target.id to newPrice)
+                            if (selectedGarment?.id == target.id) {
+                                selectedGarment = selectedGarment?.copy(baseStitchingCharge = newPrice)
+                            }
+                            activePriceEdit = null
+                        }
+                        PriceEditType.FABRIC -> {
+                            fabricPriceOverrides = fabricPriceOverrides + (target.id to newPrice)
+                            if (selectedFabric?.id == target.id) {
+                                selectedFabric = selectedFabric?.copy(sellingPrice = newPrice)
+                            }
+                            activePriceEdit = null
+                        }
+                        PriceEditType.WORK -> {
+                            workPriceOverrides = workPriceOverrides + (target.id to newPrice)
+                            if (selectedWork?.id == target.id) {
+                                selectedWork = selectedWork?.copy(basePrice = newPrice)
+                            }
+                            activePriceEdit = null
+                        }
+                    }
+                }
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// STEP 2 — Salesperson & 3 Dynamic Pricing Sections
+// ─────────────────────────────────────────────────────────────
+@Composable
+private fun Step2PricingSelection(
+    selectedSalespersonId: String?,
+    staffDisplayMap: Map<String, String>,
+    staffOptions: List<String>,
+    staffDropdownExpanded: Boolean,
+    onStaffExpandChange: (Boolean) -> Unit,
+    onSelectSalesperson: (String?) -> Unit,
+
+    garments: List<GarmentItem>,
+    fabricPricingList: List<FabricPricingItem>,
+    workPricingList: List<WorkPricingItem>,
+    garmentPriceOverrides: Map<String, Double>,
+    fabricPriceOverrides: Map<String, Double>,
+    workPriceOverrides: Map<String, Double>,
+    selectedGarment: GarmentItem?,
+    selectedFabric: FabricPricingItem?,
+    selectedWork: WorkPricingItem?,
+    onSelectGarment: (GarmentItem) -> Unit,
+    onSelectFabric: (FabricPricingItem) -> Unit,
+    onSelectWork: (WorkPricingItem) -> Unit,
+    quantity: Int,
+    onQuantityChange: (Int) -> Unit,
+    onEditGarmentPrice: (GarmentItem, Double) -> Unit,
+    onEditFabricPrice: (FabricPricingItem, Double) -> Unit,
+    onEditWorkPrice: (WorkPricingItem, Double) -> Unit,
+    subtotal: Double,
+    tax: Double,
+    total: Double
+) {
+    val tokens = LocalAppTokens.current
+
+    Spacer(Modifier.height(tokens.extraPadding * 0.4f))
+
+    // Salesperson Dropdown
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding)) {
+        FormDropdown(
+            label = "Salesperson / Assigned Staff",
+            value = staffDisplayMap.entries.firstOrNull { it.value == selectedSalespersonId }?.key ?: "Select Salesperson",
+            expanded = staffDropdownExpanded,
+            onExpandChange = onStaffExpandChange,
+            options = staffOptions,
+            onOptionSelected = { selectedLabel ->
+                onSelectSalesperson(staffDisplayMap[selectedLabel])
+            }
+        )
+    }
+
+    Spacer(Modifier.height(tokens.extraPadding * 1.2f))
+
+    // 1. Select Garment Pricing Section
+    if (garments.isNotEmpty()) {
+        PricingSectionGrid(
+            sectionTitle = "Select Garment Pricing",
+            items = garments.map {
+                val effectivePrice = garmentPriceOverrides[it.id] ?: it.baseStitchingCharge
+                PricingCardModel(
+                    id = it.id,
+                    title = it.displayName ?: it.name,
+                    price = effectivePrice
+                )
+            },
+            selectedId = selectedGarment?.id,
+            onSelect = { id ->
+                garments.find { it.id == id }?.let { onSelectGarment(it) }
+            },
+            onEdit = { id ->
+                garments.find { it.id == id }?.let { item ->
+                    val effectivePrice = garmentPriceOverrides[item.id] ?: item.baseStitchingCharge
+                    onEditGarmentPrice(item, effectivePrice)
+                }
+            }
+        )
+    }
+
+    // 2. Select Fabric Pricing Section
+    if (fabricPricingList.isNotEmpty()) {
+        Spacer(Modifier.height(tokens.extraPadding * 1.2f))
+        PricingSectionGrid(
+            sectionTitle = "Select Fabric Pricing",
+            items = fabricPricingList.map {
+                val effectivePrice = fabricPriceOverrides[it.id] ?: it.sellingPrice
+                PricingCardModel(
+                    id = it.id,
+                    title = it.name,
+                    price = effectivePrice
+                )
+            },
+            selectedId = selectedFabric?.id,
+            onSelect = { id ->
+                fabricPricingList.find { it.id == id }?.let { onSelectFabric(it) }
+            },
+            onEdit = { id ->
+                fabricPricingList.find { it.id == id }?.let { item ->
+                    val effectivePrice = fabricPriceOverrides[item.id] ?: item.sellingPrice
+                    onEditFabricPrice(item, effectivePrice)
+                }
+            }
+        )
+    }
+
+    // 3. Select Work Pricing Section
+    if (workPricingList.isNotEmpty()) {
+        Spacer(Modifier.height(tokens.extraPadding * 1.2f))
+        PricingSectionGrid(
+            sectionTitle = "Select Work Pricing",
+            items = workPricingList.map {
+                val effectivePrice = workPriceOverrides[it.id] ?: it.basePrice
+                PricingCardModel(
+                    id = it.id,
+                    title = it.workType,
+                    price = effectivePrice
+                )
+            },
+            selectedId = selectedWork?.id,
+            onSelect = { id ->
+                workPricingList.find { it.id == id }?.let { onSelectWork(it) }
+            },
+            onEdit = { id ->
+                workPricingList.find { it.id == id }?.let { item ->
+                    val effectivePrice = workPriceOverrides[item.id] ?: item.basePrice
+                    onEditWorkPrice(item, effectivePrice)
+                }
+            }
+        )
+    }
+
+    // 4. Quantity Selection
+    Spacer(Modifier.height(tokens.extraPadding * 1.2f))
+    QuantitySelector(
+        quantity = quantity,
+        onQuantityChange = onQuantityChange
+    )
+
+    // 5. Consolidated Pricing Breakdown
+    if (selectedGarment != null || selectedFabric != null || selectedWork != null) {
+        val selectedGarmentPrice = selectedGarment?.let { garmentPriceOverrides[it.id] ?: it.baseStitchingCharge } ?: 0.0
+        val selectedFabricPrice = selectedFabric?.let { fabricPriceOverrides[it.id] ?: it.sellingPrice } ?: 0.0
+        val selectedWorkPrice = selectedWork?.let { workPriceOverrides[it.id] ?: it.basePrice } ?: 0.0
+
+        Spacer(Modifier.height(tokens.extraPadding * 1.2f))
+        PriceBreakdownCard(
+            garment = selectedGarment?.displayName ?: selectedGarment?.name ?: "-",
+            garmentPrice = selectedGarmentPrice,
+            fabric = selectedFabric?.name ?: "-",
+            fabricPrice = selectedFabricPrice,
+            design = "-",
+            designPrice = 0.0,
+            addons = selectedWork?.workType ?: "-",
+            addonsPrice = selectedWorkPrice,
+            subtotal = formatPrice(subtotal),
+            tax = formatPrice(tax),
+            total = formatPrice(total),
+            quantity = quantity
+        )
+    }
+
+    TipBanner("Tip: You can edit any item's price inline using the pencil icon.")
+}
+
+data class PricingCardModel(
+    val id: String,
+    val title: String,
+    val price: Double
+)
+
+@Composable
+private fun PricingSectionGrid(
+    sectionTitle: String,
+    items: List<PricingCardModel>,
+    selectedId: String?,
+    onSelect: (String) -> Unit,
+    onEdit: (String) -> Unit
+) {
+    val tokens = LocalAppTokens.current
+
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding)) {
+        Text(
+            text = sectionTitle,
+            fontSize = tokens.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = TextPrimary
+        )
+        Spacer(Modifier.height(tokens.extraPadding * 0.8f))
+
+        items.chunked(3).forEach { rowItems ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
+            ) {
+                rowItems.forEach { item ->
+                    val isSelected = item.id == selectedId
+                    PricingSelectableCard(
+                        item = item,
+                        isSelected = isSelected,
+                        onClick = { onSelect(item.id) },
+                        onEdit = { onEdit(item.id) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                repeat(3 - rowItems.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+            Spacer(Modifier.height(tokens.extraPadding * 0.8f))
+        }
     }
 }
 
 @Composable
-private fun SendQuotationSection(
-    onEmail: () -> Unit
+private fun PricingSelectableCard(
+    item: PricingCardModel,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
-        Text("Send Quotation", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TitleDark)
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    val tokens = LocalAppTokens.current
 
-            Button(
-                onClick = onEmail,
-                modifier = Modifier.weight(1f).height(44.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = darkGreenBg)
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.7f))
+            .border(
+                width = if (isSelected) 1.5.dp else 1.dp,
+                color = if (isSelected) Primary else BorderGray,
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.7f)
+            )
+            .background(if (isSelected) primary_light else whiteBg)
+            .clickable { onClick() }
+            .padding(tokens.extraPadding * 0.8f)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_whatsapp),
-                    contentDescription = "Whatsapp",
-                    modifier = Modifier.size(16.dp),
-                    tint = whiteBg
+                Text(
+                    text = item.title,
+                    fontSize = tokens.bodySmall,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (isSelected) Primary else TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.width(6.dp))
-                Text("Whatsapp", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = whiteBg)
+
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(tokens.iconSize)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit Price",
+                        tint = if (isSelected) Primary else headerGrey,
+                        modifier = Modifier.size(tokens.iconSize * 0.75f)
+                    )
+                }
             }
+
+            Spacer(Modifier.height(4.dp))
+
+            Text(
+                text = "₹${item.price.toInt()}",
+                fontSize = tokens.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = if (isSelected) Primary else headerGrey
+            )
         }
     }
+}
+
+@Composable
+private fun SinglePriceEditDialog(
+    title: String,
+    initialPrice: Double,
+    onDismiss: () -> Unit,
+    onSave: (Double) -> Unit
+) {
+    val tokens = LocalAppTokens.current
+    var priceText by remember { mutableStateOf(initialPrice.toInt().toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = whiteBg,
+        shape = RoundedCornerShape(tokens.cardCornerRadius),
+        title = {
+            Text(
+                text = "Edit Price",
+                fontSize = tokens.h2,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary
+            )
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = title,
+                    fontSize = tokens.bodySmall,
+                    color = TextSecondary
+                )
+                Spacer(Modifier.height(tokens.extraPadding))
+                FormLabel("Price (₹)", isRequired = true)
+                FormTextField(
+                    value = priceText,
+                    onValueChange = { priceText = it },
+                    placeholder = "Enter new price",
+                    keyboardType = KeyboardType.Number
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val parsed = priceText.toDoubleOrNull() ?: 0.0
+                    onSave(parsed)
+                },
+                enabled = priceText.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+            ) {
+                Text("Save", fontSize = tokens.bodySmall, color = whiteBg)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", fontSize = tokens.bodySmall, color = headerGrey)
+            }
+        }
+    )
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -523,41 +899,48 @@ private fun Step1CustomerSelection(
     onSelect: (String) -> Unit,
     isLoading: Boolean
 ) {
+    val tokens = LocalAppTokens.current
+
     CustomerLeadToggle(selected = tab, onSelect = onTabChange)
-    Spacer(Modifier.height(18.dp))
+    Spacer(Modifier.height(tokens.extraPadding * 1.5f))
 
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            if (tab == "Customer") "Select Customer" else "Select Lead",
-            fontSize = 14.sp,
+            text = if (tab == "Customer") "Select Customer" else "Select Lead",
+            fontSize = tokens.bodyMedium,
             fontWeight = FontWeight.Medium,
-            color = TitleDark
+            color = TextPrimary
         )
-        Icon(Icons.Default.Search, contentDescription = null, tint = MutedGray, modifier = Modifier.size(18.dp))
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = null,
+            tint = mutedText,
+            modifier = Modifier.size(tokens.iconSize)
+        )
     }
-    Spacer(Modifier.height(10.dp))
+    Spacer(Modifier.height(tokens.extraPadding))
 
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding)) {
         if (isLoading) {
             Box(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = tokens.extraPadding * 2),
                 contentAlignment = Alignment.Center
             ) {
                 CirculerProgressIndicatorReuse()
             }
         } else if (items.isEmpty()) {
             Box(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = tokens.extraPadding * 2),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    if (tab == "Customer") "No customers found" else "No leads found",
-                    fontSize = 14.sp,
-                    color = MutedGray
+                    text = if (tab == "Customer") "No customers found" else "No leads found",
+                    fontSize = tokens.bodyMedium,
+                    color = mutedText
                 )
             }
         } else {
@@ -574,15 +957,17 @@ private fun Step1CustomerSelection(
 
 @Composable
 private fun CustomerLeadToggle(selected: String, onSelect: (String) -> Unit) {
+    val tokens = LocalAppTokens.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .height(44.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .padding(horizontal = tokens.screenPadding)
+            .height(tokens.fieldHeight * 1.1f)
+            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
             .background(whiteBg)
-            .border(1.dp, light_grey, RoundedCornerShape(8.dp))
-            .padding(6.dp)
+            .border(1.dp, light_grey, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+            .padding(4.dp)
     ) {
         listOf("Customer", "Lead").forEach { label ->
             val isSelected = selected == label
@@ -590,17 +975,16 @@ private fun CustomerLeadToggle(selected: String, onSelect: (String) -> Unit) {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.4f))
                     .background(if (isSelected) primary_light else Color.Transparent)
-                    .clickable { onSelect(label) }
-                    .padding(vertical = 0.dp),
+                    .clickable { onSelect(label) },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    label,
-                    fontSize = 13.sp,
+                    text = label,
+                    fontSize = tokens.bodySmall,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                    color = if (isSelected) Color(0xFF2F27CE) else Color(0xFF6B7280)
+                    color = if (isSelected) Primary else TextSecondary
                 )
             }
         }
@@ -609,28 +993,29 @@ private fun CustomerLeadToggle(selected: String, onSelect: (String) -> Unit) {
 
 @Composable
 private fun CustomerSelectionCard(customer: CustomerOption, selected: Boolean, onSelect: () -> Unit) {
+    val tokens = LocalAppTokens.current
     val formattedName = remember(customer.name) { customer.name?.toTitleCase() ?: "Unknown Customer" }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 5.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.8f))
             .border(
-                width = 1.dp ,
+                width = 1.dp,
                 color = if (selected) Primary else BorderGray,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.8f)
             )
-            .background( whiteBg)
+            .background(whiteBg)
             .clickable { onSelect() }
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = tokens.extraPadding, vertical = tokens.extraPadding * 0.8f),
         verticalAlignment = Alignment.CenterVertically
     ) {
         CustomRadioDot(selected = selected)
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(tokens.extraPadding))
         Column {
-            Text(formattedName, fontSize = 14.sp, color = TitleDark)
-            Text(customer.phone, fontSize = 12.sp, color = MutedGray)
+            Text(formattedName, fontSize = tokens.bodyMedium, color = TextPrimary)
+            Text(customer.phone, fontSize = tokens.caption, color = mutedText)
         }
     }
 }
@@ -660,382 +1045,47 @@ private fun CustomRadioDot(selected: Boolean) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// STEP 2 — Garment Details
-// ─────────────────────────────────────────────────────────────
-@Composable
-private fun Step2GarmentDetails(
-    garmentOptions: List<GarmentOption>,
-    selectedGarments: List<GarmentSelectionState>,
-    onToggleGarment: (String) -> Unit,
-    onSelectFabric: (String, FabricOption?) -> Unit,
-    onSelectDesign: (String, DesignOption?) -> Unit,
-    onToggleAddon: (String, AddonOption) -> Unit,
-    onQuantityChange: (String, Int) -> Unit,
-    isLoading: Boolean,
-    garmentBreakdowns: List<GarmentBreakdown>,
-    subtotal: Double,
-    tax: Double,
-    total: Double
-) {
-    Spacer(Modifier.height(4.dp))
-
-    if (isLoading) {
-        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
-            CirculerProgressIndicatorReuse()
-        }
-        return
-    }
-
-    // ── Multi-select garment grid ──
-    GarmentOptionGrid(
-        title = "Select Garment Type (multiple allowed)",
-        options = garmentOptions,
-        selectedIds = selectedGarments.map { it.garmentId }.toSet(),
-        onToggle = onToggleGarment,
-        showPrice = true
-    )
-
-    // ── One block per SELECTED garment, rendered one-by-one below ──
-    selectedGarments.forEachIndexed { index, sel ->
-        val garment = garmentOptions.find { it.id == sel.garmentId } ?: return@forEachIndexed
-        val breakdown = garmentBreakdowns.find { it.garmentId == sel.garmentId }
-
-        // Filter out options with blank or empty names
-        val validFabrics = garment.fabricOptions.filter { it.name.isNotBlank() }
-        val validDesigns = garment.designOptions.filter { it.name.isNotBlank() }
-        val validAddons = garment.addons.filter { it.name.isNotBlank() }
-
-        Spacer(Modifier.height(16.dp))
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .border(1.dp, BorderGray, RoundedCornerShape(12.dp))
-                .padding(bottom = 8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().background(TintBg).padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("${index + 1}. ${garment.name}", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TitleDark)
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Remove",
-                    tint = MutedGray,
-                    modifier = Modifier.size(18.dp).clickable { onToggleGarment(garment.id) }
-                )
-            }
-
-            // 1. Fabric Selection (only if valid named fabrics exist)
-            if (validFabrics.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                OptionSelectionGrid(
-                    title = "Select Fabric",
-                    options = validFabrics.map { OptionWithPrice(it.name, it.price) },
-                    selectedOption = sel.fabric?.name,
-                    onSelect = { name ->
-                        onSelectFabric(garment.id, validFabrics.find { it.name == name })
-                    },
-                    showPrice = true
-                )
-            }
-
-            // 2. Design Selection (only if valid named designs exist)
-            if (validDesigns.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                OptionSelectionGrid(
-                    title = "Select Design",
-                    options = validDesigns.map { OptionWithPrice(it.name, it.price) },
-                    selectedOption = sel.design?.name,
-                    onSelect = { name ->
-                        onSelectDesign(garment.id, validDesigns.find { it.name == name })
-                    },
-                    showPrice = true
-                )
-            }
-
-            // 3. Addons Selection (only if valid named addons exist)
-            if (validAddons.isNotEmpty()) {
-                Spacer(Modifier.height(8.dp))
-                AddonSelectionGrid(
-                    title = "Addons",
-                    addons = validAddons,
-                    selectedAddons = sel.addons,
-                    onToggle = { addon -> onToggleAddon(garment.id, addon) }
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-            QuantitySelector(
-                quantity = sel.quantity,
-                onQuantityChange = { qty -> onQuantityChange(garment.id, qty) }
-            )
-
-            breakdown?.let {
-                PriceBreakdownCard(
-                    garment = it.garmentName,
-                    garmentPrice = it.basePrice,
-                    fabric = it.fabricName,
-                    fabricPrice = it.fabricPrice,
-                    design = it.designName,
-                    designPrice = it.designPrice,
-                    addons = it.addonsNames,
-                    addonsPrice = it.addonsPrice,
-                    subtotal = formatPrice(it.itemSubtotal),
-                    tax = formatPrice(it.itemSubtotal * TAX_RATE),
-                    total = formatPrice(it.itemSubtotal * (1 + TAX_RATE)),
-                    quantity = it.quantity
-                )
-            }
-        }
-    }
-
-    // ── Combined total across ALL selected garments ──
-    if (selectedGarments.isNotEmpty()) {
-        Spacer(Modifier.height(16.dp))
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFFF9FAFB))
-                .padding(14.dp)
-        ) {
-            Text("Overall Total (${selectedGarments.size} garments)", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TitleDark)
-            Spacer(Modifier.height(8.dp))
-            BreakdownRow("Subtotal", formatPrice(subtotal))
-            BreakdownRow("Tax (18%)", formatPrice(tax))
-            HorizontalDivider(color = BorderGray, modifier = Modifier.padding(vertical = 6.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Grand Total", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TitleDark)
-                Text(formatPrice(total), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Purple)
-            }
-        }
-    }
-
-    TipBanner("Tip: You can apply discounts in the next step.")
-}
-
-@Suppress("SameParameterValue")
-@Composable
-private fun OptionSelectionGrid(
-    title: String,
-    options: List<OptionWithPrice>,
-    selectedOption: String?,
-    onSelect: (String) -> Unit,
-    showPrice: Boolean = true
-) {
-    if (options.isEmpty()) return
-
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) {
-        Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleDark)
-        Spacer(Modifier.height(8.dp))
-
-        options.chunked(2).forEach { rowItems ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                rowItems.forEach { option ->
-                    val selected = option.name == selectedOption
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .border(
-                                width = if (selected) 1.5.dp else 1.dp,
-                                color = if (selected) Purple else BorderGray,
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                            .background(if (selected) TintBg else whiteBg)
-                            .clickable { onSelect(option.name) }
-                            .padding(horizontal = 14.dp, vertical = 12.dp)
-                    ) {
-                        Text(
-                            option.name,
-                            fontSize = 13.sp,
-                            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                            color = TitleDark
-                        )
-                        if (showPrice && option.price > 0) {
-                            Text(
-                                formatPrice(option.price),
-                                fontSize = 12.sp,
-                                color = TextGray
-                            )
-                        }
-                    }
-                }
-                if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(8.dp))
-        }
-    }
-}
-
-@Suppress("SameParameterValue")
-@Composable
-private fun GarmentOptionGrid(
-    title: String,
-    options: List<GarmentOption>,
-    selectedIds: Set<String>,
-    onToggle: (String) -> Unit,
-    showPrice: Boolean = true
-) {
-    if (options.isEmpty()) return
-
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
-        Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleDark)
-        Spacer(Modifier.height(8.dp))
-
-        options.chunked(2).forEach { rowItems ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                rowItems.forEach { option ->
-                    val selected = option.id in selectedIds
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .border(
-                                width = if (selected) 1.5.dp else 1.dp,
-                                color = if (selected) Primary else BorderGray,
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                            .background(if (selected) light_blue else whiteBg)
-                            .clickable { onToggle(option.id) }
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            option.name,
-                            fontSize = 13.sp,
-                            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                            color = TitleDark,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        if (showPrice && option.price > 0) {
-                            Text(
-                                formatPrice(option.price),
-                                fontSize = 12.sp,
-                                color = TextGray,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
-                // ── only ONE item in the last row → fill the missing slot with an INVISIBLE placeholder, not a plain Spacer ──
-                if (rowItems.size == 1) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-        }
-    }
-}
-
-@Suppress("SameParameterValue")
-@Composable
-private fun AddonSelectionGrid(
-    title: String,
-    addons: List<AddonOption>,
-    selectedAddons: List<AddonOption>,
-    onToggle: (AddonOption) -> Unit
-) {
-    if (addons.isEmpty()) return
-
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) {
-        Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleDark)
-        Spacer(Modifier.height(8.dp))
-
-        addons.chunked(2).forEach { rowItems ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                rowItems.forEach { addon ->
-                    val selected = selectedAddons.contains(addon)
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .border(
-                                width = if (selected) 1.5.dp else 1.dp,
-                                color = if (selected) Purple else BorderGray,
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                            .background(if (selected) TintBg else whiteBg)
-                            .clickable { onToggle(addon) }
-                            .padding(horizontal = 14.dp, vertical = 12.dp)
-                    ) {
-                        Text(
-                            addon.name,
-                            fontSize = 13.sp,
-                            fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                            color = TitleDark
-                        )
-                        if (addon.price > 0) {
-                            Text(
-                                formatPrice(addon.price),
-                                fontSize = 12.sp,
-                                color = TextGray
-                            )
-                        }
-                    }
-                }
-                if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(8.dp))
-        }
-    }
-}
-
 @Composable
 private fun QuantitySelector(
     quantity: Int,
     onQuantityChange: (Int) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp),
+            .padding(horizontal = tokens.screenPadding, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text("Quantity", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleDark)
+        Text("Quantity", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TextPrimary)
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(
                 onClick = { if (quantity > 1) onQuantityChange(quantity - 1) },
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(tokens.fieldHeight * 0.8f)
             ) {
-                Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = Purple)
+                Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = Primary)
             }
             Text(
-                "$quantity",
-                fontSize = 16.sp,
-                color=blackTitle,
+                text = "$quantity",
+                fontSize = tokens.bodyLarge,
+                color = blackTitle,
                 fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(horizontal = 12.dp)
+                modifier = Modifier.padding(horizontal = tokens.extraPadding)
             )
             IconButton(
                 onClick = { onQuantityChange(quantity + 1) },
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(tokens.fieldHeight * 0.8f)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Increase", tint = Purple)
+                Icon(Icons.Default.Add, contentDescription = "Increase", tint = Primary)
             }
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// STEP 3 — Pricing Summary with PDF Preview
+// STEP 3 — Pricing Summary with PDF Preview & Dynamic Request Building
 // ─────────────────────────────────────────────────────────────
 @Suppress("unused_parameter")
 @Composable
@@ -1065,13 +1115,21 @@ private fun Step3PricingSummary(
     onEdit: () -> Unit = {},
     customerId: String? = null,
     garmentBreakdowns: List<GarmentBreakdown> = emptyList(),
-    quotationViewModel: com.cuso.tailor.viewmodel.QuotationViewModel? = null,
-    customerSnapshotName: String = "",
-    customerSnapshotPhone: String = "",
-    customerSnapshotAddressLine: String = "",
-    customerSnapshotCity: String = "",
-    customerSnapshotPincode: String = ""
+    quotationViewModel: QuotationViewModel? = null,
+
+    // Dynamic Payload Dependencies
+    branchState: BranchUiState,
+    taxGroups: List<com.cuso.tailor.model.inventory.TaxGroupDto>,
+    selectedGarment: GarmentItem?,
+    selectedFabric: FabricPricingItem?,
+    selectedWork: WorkPricingItem?,
+    garmentPriceOverrides: Map<String, Double>,
+    fabricPriceOverrides: Map<String, Double>,
+    workPriceOverrides: Map<String, Double>,
+    quantity: Int,
+    selectedSalespersonId: String? = null
 ) {
+    val tokens = LocalAppTokens.current
     var isDownloading by remember { mutableStateOf(false) }
     var isSavingDraft by remember { mutableStateOf(false) }
 
@@ -1081,6 +1139,7 @@ private fun Step3PricingSummary(
     val saveState = quotationViewModel?.saveState?.collectAsStateWithLifecycle()?.value
     var showDynamicIslandSuccess by remember { mutableStateOf(false) }
     var dynamicIslandMessage by remember { mutableStateOf("") }
+
     if (showDynamicIslandSuccess) {
         DynamicIslandSuccess(
             message = dynamicIslandMessage,
@@ -1091,75 +1150,161 @@ private fun Step3PricingSummary(
 
     LaunchedEffect(saveState) {
         when (saveState) {
-            is com.cuso.tailor.viewmodel.QuotationSaveUiState.Success -> {
+            is QuotationSaveUiState.Success -> {
                 isSavingDraft = false
                 showDynamicIslandSuccess = true
                 dynamicIslandMessage = "Saved as draft successfully"
-
                 quotationViewModel.resetState()
                 onComplete()
             }
-            is com.cuso.tailor.viewmodel.QuotationSaveUiState.Error -> {
+            is QuotationSaveUiState.Error -> {
                 isSavingDraft = false
                 Toast.makeText(context, "Failed to save draft: ${saveState.message}", Toast.LENGTH_SHORT).show()
                 quotationViewModel.resetState()
             }
-            is com.cuso.tailor.viewmodel.QuotationSaveUiState.Loading -> {
+            is QuotationSaveUiState.Loading -> {
                 isSavingDraft = true
             }
             else -> Unit
         }
     }
 
-    // Builds ONE QuotationItemInput per garment in garmentBreakdowns
+    /**
+     * Builds the quotation request payload dynamically using selected models.
+     */
     fun buildSaveDraftRequest(): CreateQuotationRequest? {
         val custId = customerId ?: return null
-        if (garmentBreakdowns.isEmpty()) return null
+        val staffId = selectedSalespersonId ?: return null
 
-        val items = garmentBreakdowns.map { b ->
-            val perUnitAmount = b.basePrice + b.fabricPrice + b.designPrice + b.addonsPrice
-            QuotationItemInput(
-                garmentCategoryId = b.garmentId,
-                garmentName = b.garmentName,
-                quantity = b.quantity,
-                basePrice = b.basePrice,
-                fabric = if (b.fabricName != "-") QuotationOptionInput(b.fabricName, b.fabricPrice) else null,
-                design = if (b.designName != "-") QuotationOptionInput(b.designName, b.designPrice) else null,
-                addons = if (b.addonsNames.isNotEmpty())
-                    b.addonsNames.split(", ").map { name ->
-                        QuotationOptionInput(name, 0.0) // per-addon price not separable from combined addonsPrice
-                    } else emptyList(),
-                expressCharge = 0.0,
-                unitPrice = perUnitAmount,
-                totalPrice = b.itemSubtotal
+        // 1. Resolve dynamic branch ID
+        val branches = (branchState as? BranchUiState.Success)?.branches ?: emptyList()
+        val resolvedBranchId = branches.firstOrNull()?.id ?: return null
+
+        // 2. Resolve default tax group ID
+        val defaultTaxGroupId = taxGroups.firstOrNull()?.id ?: ""
+
+        // 3. Generate ISO 8601 timestamps
+        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        val currentDate = Date()
+        val calendar = Calendar.getInstance().apply {
+            time = currentDate
+            add(Calendar.DAY_OF_YEAR, 21) // 3-week expiry
+        }
+        val currentIso = isoFormat.format(currentDate)
+        val expiryIso = isoFormat.format(calendar.time)
+
+        val tempParentId = "temp_quote_${System.currentTimeMillis()}"
+        val lineItems = mutableListOf<QuotationPayloadItem>()
+
+        // ── Line 1: Custom Garment ──
+        if (selectedGarment != null) {
+            val segment = selectedGarment.applicableSegments.firstOrNull()
+            val garmentPrice = garmentPriceOverrides[selectedGarment.id] ?: selectedGarment.baseStitchingCharge
+            val lineTotal = garmentPrice * quantity
+
+            lineItems.add(
+                QuotationPayloadItem(
+                    id = tempParentId,
+                    lineType = "Custom_Garment",
+                    itemDescription = "${selectedGarment.displayName ?: selectedGarment.name} Stitching",
+                    isTaxable = true,
+                    taxGroupId = defaultTaxGroupId,
+                    quantity = quantity.toDouble(),
+                    unit = "Piece",
+                    unitPrice = garmentPrice,
+                    discountAmount = 0.0,
+                    lineTotal = lineTotal,
+                    customGarment = CustomGarmentPayload(
+                        segmentId = segment?.id ?: "",
+                        segmentName = segment?.displayName ?: segment?.name ?: "",
+                        garmentId = selectedGarment.id,
+                        garmentName = selectedGarment.name,
+                        garmentCategoryId = selectedGarment.id,
+                        categoryDisplayName = selectedGarment.displayName ?: selectedGarment.name,
+                        designId = null,
+                        designName = null,
+                        sizeStandard = "36",
+                        stitchingType = "Normal Machine",
+                        fabricSource = if (selectedFabric != null) "Store_Fabric" else "Customer_Fabric",
+                        fabricNotes = selectedFabric?.name ?: "",
+                        specialInstructions = ""
+                    )
+                )
             )
         }
 
-        return CreateQuotationRequest(
-            customerId = custId,
-            leadId = null,
-            customerSnapshot = CustomerSnapshot(
-                name = customerSnapshotName,
-                phone = customerSnapshotPhone,
-                email = "",
-                address = CustomerSnapshotAddress(
-                    addressLine = customerSnapshotAddressLine,
-                    city = customerSnapshotCity,
-                    pincode = customerSnapshotPincode
+        // ── Line 2: Garment Material (Fabric) ──
+        if (selectedFabric != null) {
+            val fabricUnitPrice = fabricPriceOverrides[selectedFabric.id] ?: selectedFabric.sellingPrice
+            val fabricQty = 1.5 // Standard meter requirement per garment
+            val lineTotal = fabricUnitPrice * fabricQty
+
+            lineItems.add(
+                QuotationPayloadItem(
+                    parentLineId = tempParentId,
+                    lineType = "Garment_Material",
+                    itemDescription = "${selectedFabric.name} (${fabricQty}M)",
+                    isTaxable = true,
+                    taxGroupId = defaultTaxGroupId,
+                    hsnCode = "5007",
+                    quantity = fabricQty,
+                    unit = selectedFabric.unit.ifBlank { "Meter" },
+                    unitPrice = fabricUnitPrice,
+                    discountAmount = 0.0,
+                    lineTotal = lineTotal,
+                    product = ProductPayload(
+                        inventoryItemId = selectedFabric.id,
+                        sku = selectedFabric.sku,
+                        itemName = selectedFabric.name
+                    )
                 )
-            ),
-            items = items,
-            subTotal = subtotal,
-            taxPercent = TAX_RATE * 100,
-            taxAmount = tax,
-            discountAmount = 0.0,
-            grandTotal = total,
-            status = "draft",
-            notes = ""
+            )
+        }
+
+        // ── Line 3: Garment Addon (Work / Craftsmanship) ──
+        if (selectedWork != null) {
+            val workUnitPrice = workPriceOverrides[selectedWork.id] ?: selectedWork.basePrice
+            val lineTotal = workUnitPrice * 1.0
+
+            lineItems.add(
+                QuotationPayloadItem(
+                    parentLineId = tempParentId,
+                    lineType = "Garment_Addon",
+                    itemDescription = selectedWork.workType,
+                    isTaxable = selectedWork.isTaxable,
+                    taxGroupId = selectedWork.taxGroup?.id ?: defaultTaxGroupId,
+                    sacCode = "998812",
+                    quantity = 1.0,
+                    unit = "Piece",
+                    unitPrice = workUnitPrice,
+                    discountAmount = 0.0,
+                    lineTotal = lineTotal,
+                    addonWork = AddonWorkPayload(
+                        workPricingId = selectedWork.id,
+                        workType = selectedWork.workType,
+                        specialInstructions = ""
+                    )
+                )
+            )
+        }
+
+        if (lineItems.isEmpty()) return null
+
+        return CreateQuotationRequest(
+            branchId = resolvedBranchId,
+            customerId = custId,
+            salespersonId = staffId,
+            quotationDate = currentIso,
+            expiryDate = expiryIso,
+            currency = "INR",
+            notes = "Direct quotation generated via app",
+            items = lineItems,
+            deliveryCharge = 0.0
         )
     }
 
-    // PDF items built from ALL garments, not a single fallback item
     val pdfData = remember(
         customerName, garmentBreakdowns, subtotal, total, logoBase64
     ) {
@@ -1168,7 +1313,7 @@ private fun Step3PricingSummary(
             quotationDate = quotationDate,
             customerName = customerName,
             logoUrl = logoBase64.ifEmpty { null },
-            customerAddress = customerAddress.ifEmpty { "4304 Liberty Avenue\n92680 Tustin, CA" },
+            customerAddress = customerAddress.ifEmpty { "Customer Delivery Address" },
             customerVat = customerVat,
             customerEmail = customerEmail,
             customerPhone = customerPhone,
@@ -1193,17 +1338,12 @@ private fun Step3PricingSummary(
     val saveDraftAction: () -> Unit = {
         val request = buildSaveDraftRequest()
         if (request == null) {
-            Toast.makeText(context, "Please select a customer and garment first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Please select customer, salesperson, and pricing first", Toast.LENGTH_SHORT).show()
         } else if (!isSavingDraft) {
             quotationViewModel?.saveDraft(request)
         }
     }
 
-    // Shared "share the generated PDF" action — same underlying behavior that
-    // used to live inside the Email icon button in the preview header /
-    // SendQuotationSection. Both WhatsApp and Email buttons reuse this exact
-    // action (generate PDF -> share via system chooser), only the intent
-    // package differs for WhatsApp so it opens WhatsApp directly when installed.
     val shareQuotationPdf: (targetPackage: String?) -> Unit = { targetPackage ->
         pdfGenerator.downloadQuotationPdf(pdfData) { saved ->
             val uri = saved?.uri
@@ -1218,7 +1358,6 @@ private fun Step3PricingSummary(
                 try {
                     context.startActivity(intent)
                 } catch (_: android.content.ActivityNotFoundException) {
-                    // Target app not installed — fall back to the generic chooser
                     val fallbackIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                         type = "application/pdf"
                         putExtra(android.content.Intent.EXTRA_STREAM, uri)
@@ -1234,25 +1373,22 @@ private fun Step3PricingSummary(
     }
 
     if (!previewShown) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
-                Text("Quotation Summary", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TitleDark)
-                Spacer(Modifier.height(10.dp))
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.8f)) {
+                Text("Quotation Summary", fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                Spacer(Modifier.height(tokens.extraPadding))
                 SummaryRow("Customer", customerName)
 
                 garmentBreakdowns.forEachIndexed { idx, b ->
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(tokens.extraPadding * 0.6f))
                     Text(
-                        "${idx + 1}. ${b.garmentName}",
-                        fontSize = 13.sp,
+                        text = "${idx + 1}. ${b.garmentName}",
+                        fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = TitleDark
+                        color = TextPrimary
                     )
                     SummaryRow("Fabric", b.fabricName)
-                    SummaryRow("Design Style", b.designName)
+                    SummaryRow("Workmanship", b.addonsNames.ifBlank { "-" })
                     SummaryRow("Quantity", b.quantity.toString())
                 }
             }
@@ -1275,36 +1411,13 @@ private fun Step3PricingSummary(
                 )
             }
 
-            if (garmentBreakdowns.size > 1) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFF9FAFB))
-                        .padding(14.dp)
-                ) {
-                    Text("Overall Total (${garmentBreakdowns.size} garments)", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TitleDark)
-                    Spacer(Modifier.height(8.dp))
-                    BreakdownRow("Subtotal", formatPrice(subtotal))
-                    BreakdownRow("Tax (18%)", formatPrice(tax))
-                    HorizontalDivider(color = BorderGray, modifier = Modifier.padding(vertical = 6.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Grand Total", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TitleDark)
-                        Text(formatPrice(total), fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Purple)
-                    }
-                }
-            }
-
             TipBanner("Tip: You can apply discounts in the next step.")
 
-            // Send Quotation section — WhatsApp / Email, same layout & position as the reference image
             SendQuotationSection(
                 onWhatsApp = { shareQuotationPdf("com.whatsapp") },
                 onEmail = { shareQuotationPdf(null) }
             )
 
-            // Quick Actions section — Discount / Edit / Save as Draft, same layout as the reference image
             QuickActionsRow(
                 onDiscount = {},
                 onEdit = onEdit,
@@ -1312,16 +1425,13 @@ private fun Step3PricingSummary(
                 isSavingDraft = isSavingDraft
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(tokens.extraPadding * 2))
         }
     } else {
-        val tokens = LocalAppTokens.current
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .then(
-                    // Enable vertical scroll on tablets so the larger preview and action buttons don't compress
                     if (tokens.isTablet) Modifier.verticalScroll(rememberScrollState())
                     else Modifier.fillMaxHeight()
                 )
@@ -1331,15 +1441,15 @@ private fun Step3PricingSummary(
                     .fillMaxWidth()
                     .padding(
                         horizontal = if (tokens.isTablet) tokens.screenPadding else 16.dp,
-                        vertical = 8.dp
+                        vertical = tokens.extraPadding * 0.8f
                     ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Preview",
-                    fontSize = 18.sp,
-                    color = TitleDark
+                    fontSize = tokens.h2,
+                    color = TextPrimary
                 )
 
                 Row(
@@ -1353,62 +1463,50 @@ private fun Step3PricingSummary(
                                 pdfGenerator.downloadQuotationPdf(pdfData) { saved ->
                                     isDownloading = false
                                     if (saved != null) {
-                                        Toast.makeText(
-                                            context,
-                                            "Downloaded: ${saved.displayName}",
-                                            Toast.LENGTH_LONG
-                                        ).show()
+                                        Toast.makeText(context, "Downloaded: ${saved.displayName}", Toast.LENGTH_LONG).show()
                                     } else {
-                                        Toast.makeText(
-                                            context,
-                                            "Failed to download PDF",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                        Toast.makeText(context, "Failed to download PDF", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             }
                         },
                         enabled = !isDownloading,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(tokens.buttonHeight * 0.9f)
                     ) {
                         if (isDownloading) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(tokens.iconSize),
                                 strokeWidth = 2.dp,
                                 color = Primary
                             )
                         } else {
                             Icon(
-                                Icons.Default.Download,
+                                imageVector = Icons.Default.Download,
                                 contentDescription = "Download",
-                                modifier = Modifier.size(24.dp),
+                                modifier = Modifier.size(tokens.iconSize * 1.2f),
                                 tint = Primary
                             )
                         }
                     }
 
                     IconButton(
-                        onClick = {
-                            pdfGenerator.printQuotationPdf(pdfData)
-                        },
-                        modifier = Modifier.size(40.dp)
+                        onClick = { pdfGenerator.printQuotationPdf(pdfData) },
+                        modifier = Modifier.size(tokens.buttonHeight * 0.9f)
                     ) {
                         Icon(
-                            Icons.Default.Print,
+                            imageVector = Icons.Default.Print,
                             contentDescription = "Print",
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(tokens.iconSize * 1.2f),
                             tint = Primary
                         )
                     }
                 }
             }
 
-            // --- Adaptive Preview Box ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(
-                        // 540.dp height on tablets for a full readable view, weight(1f) on phones
                         if (tokens.isTablet) Modifier.height(540.dp)
                         else Modifier.weight(1f)
                     )
@@ -1439,13 +1537,11 @@ private fun Step3PricingSummary(
                 )
             }
 
-            // Send Quotation section — WhatsApp / Email
             SendQuotationSection(
                 onWhatsApp = { shareQuotationPdf("com.whatsapp") },
                 onEmail = { shareQuotationPdf(null) }
             )
 
-            // Quick Actions section — Discount / Edit / Save as Draft
             QuickActionsRow(
                 onDiscount = {},
                 onEdit = onEdit,
@@ -1453,98 +1549,67 @@ private fun Step3PricingSummary(
                 isSavingDraft = isSavingDraft
             )
 
-            // Bottom space clearance
             Spacer(Modifier.height(if (tokens.isTablet) 80.dp else 16.dp))
         }
     }
 }
 
-
-// ─────────────────────────────────────────────────────────────
-// Send Quotation section
-// Layout matches the reference image:
-//   "Send Quotation" title
-//   Row: [WhatsApp - green, filled] [Email - purple, filled]
-// Both buttons share equal width (weight 1f) and sit side by side.
-// ─────────────────────────────────────────────────────────────
 @Composable
 private fun SendQuotationSection(
     onWhatsApp: () -> Unit,
     onEmail: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
+            .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.8f)
     ) {
-        Text(
-            "Send Quotation",
-            fontSize = 18.sp,
-            color = TitleDark
-        )
-        Spacer(Modifier.height(10.dp))
+        Text("Send Quotation", fontSize = tokens.bodyLarge, color = TextPrimary)
+        Spacer(Modifier.height(tokens.extraPadding))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
         ) {
-            // WhatsApp button — green filled button with chat icon
-
-
             Button(
                 onClick = onWhatsApp,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(46.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = darkGreenBg,
-                    contentColor = whiteBg
-                ),
+                modifier = Modifier.weight(1f).height(tokens.buttonHeight * 1.15f),
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
+                colors = ButtonDefaults.buttonColors(containerColor = darkGreenBg, contentColor = whiteBg),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_whatsapp),
-                    contentDescription = "Whatsapp",
-                    modifier = Modifier.size(18.dp),
+                    contentDescription = "WhatsApp",
+                    modifier = Modifier.size(tokens.iconSize),
                     tint = whiteBg
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Whatsapp", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = whiteBg)
+                Text("WhatsApp", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = whiteBg)
             }
 
             Button(
                 onClick = onEmail,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(46.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Primary,
-                    contentColor = whiteBg
-                ),
+                modifier = Modifier.weight(1f).height(tokens.buttonHeight * 1.15f),
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = whiteBg),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_mail),
                     contentDescription = "Email",
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(tokens.iconSize),
                     tint = whiteBg
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Email", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = whiteBg)
+                Text("Email", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = whiteBg)
             }
-
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Quick Actions section
-//   "Quick Actions" title
-//   Row: [Discount - outlined] [Edit - outlined]
-//   Below: [Save as Draft - outlined, full width]
-// ─────────────────────────────────────────────────────────────
 @Composable
 private fun QuickActionsRow(
     onDiscount: () -> Unit,
@@ -1552,21 +1617,19 @@ private fun QuickActionsRow(
     onSaveDraft: () -> Unit,
     isSavingDraft: Boolean = false
 ) {
+    val tokens = LocalAppTokens.current
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
+            .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.8f)
     ) {
-        Text(
-            "Quick Actions",
-            fontSize = 18.sp,
-            color = TitleDark
-        )
-        Spacer(Modifier.height(10.dp))
+        Text("Quick Actions", fontSize = tokens.bodyLarge, color = TextPrimary)
+        Spacer(Modifier.height(tokens.extraPadding))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
         ) {
             QuickActionCard(
                 modifier = Modifier.weight(1f),
@@ -1582,7 +1645,7 @@ private fun QuickActionsRow(
             )
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(tokens.extraPadding))
 
         QuickActionCard(
             modifier = Modifier.fillMaxWidth(),
@@ -1594,10 +1657,6 @@ private fun QuickActionsRow(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Single Quick Action card — outlined, white background, icon + label
-// Reused by Discount, Edit, and Save as Draft in QuickActionsRow.
-// ─────────────────────────────────────────────────────────────
 @Composable
 private fun QuickActionCard(
     modifier: Modifier = Modifier,
@@ -1606,86 +1665,46 @@ private fun QuickActionCard(
     onClick: () -> Unit,
     enabled: Boolean = true
 ) {
+    val tokens = LocalAppTokens.current
+
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(46.dp),
-        shape = RoundedCornerShape(10.dp),
+        modifier = modifier.height(tokens.buttonHeight * 1.15f),
+        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = whiteBg,
-            contentColor = TitleDark
+            contentColor = TextPrimary
         ),
         border = androidx.compose.foundation.BorderStroke(1.dp, BorderGray)
     ) {
-        Icon(
-            icon,
-            contentDescription = label,
-            modifier = Modifier.size(16.dp),
-            tint = TitleDark
-        )
+        Icon(icon, contentDescription = label, modifier = Modifier.size(tokens.iconSize), tint = TextPrimary)
         Spacer(Modifier.width(8.dp))
-        Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleDark)
+        Text(label, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
     }
 }
 
 @Composable
 private fun SummaryRow(label: String, value: String) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+    val tokens = LocalAppTokens.current
+
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, fontSize = 13.sp, color = MutedGray)
-            Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TitleDark)
+            Text(label, fontSize = tokens.bodySmall, color = mutedText)
+            Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
         }
-        HorizontalDivider(color = light_grey, modifier = Modifier.padding(top = 8.dp))
+        HorizontalDivider(color = light_grey, modifier = Modifier.padding(top = 6.dp))
     }
 }
 
-@Composable
-private fun QuickActionsRow(
-    onDiscount: () -> Unit,
-    onEdit: () -> Unit,
-    onSaveDraft: () -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
-        Text("Quick Actions", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TitleDark)
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            QuickActionButton("Discount", Icons.Default.Percent, Modifier.weight(1f), onClick = onDiscount)
-            QuickActionButton("Edit", Icons.Default.Edit, Modifier.weight(1f), onClick = onEdit)
-        }
-        Spacer(Modifier.height(10.dp))
-        QuickActionButton("Save as Draft", Icons.Default.Description, Modifier.fillMaxWidth(), onClick = onSaveDraft)
-    }
-}
-
-@Composable
-private fun QuickActionButton(label: String, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .border(1.dp, BorderGray, RoundedCornerShape(10.dp))
-            .clickable { onClick() }
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(icon, contentDescription = null, tint = Purple, modifier = Modifier.size(15.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TitleDark)
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// SHARED — Stepper / Price breakdown / Tip banner
-// ─────────────────────────────────────────────────────────────
 @Composable
 private fun QuotationStepper(currentStep: Int) {
+    val tokens = LocalAppTokens.current
     val steps = listOf("Customer Selection", "Garment Details", "Pricing Summary")
 
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp)) {
-
-        // ── Row 1: circles + connectors ──
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = tokens.extraPadding * 1.5f)) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding * 2.5f),
             verticalAlignment = Alignment.CenterVertically
         ) {
             steps.forEachIndexed { index, _ ->
@@ -1702,7 +1721,7 @@ private fun QuotationStepper(currentStep: Int) {
                             modifier = Modifier
                                 .weight(1f)
                                 .height(2.dp)
-                                .background(if (stepNum < currentStep) Green else BorderGray)
+                                .background(if (stepNum < currentStep) darkGreenBg else BorderGray)
                         )
                         Spacer(Modifier.width(6.dp))
                     }
@@ -1712,9 +1731,8 @@ private fun QuotationStepper(currentStep: Int) {
 
         Spacer(Modifier.height(6.dp))
 
-        // ── Row 2: labels, positioned via fixed-size Box under each circle ──
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 40.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding * 2.5f),
             verticalAlignment = Alignment.Top
         ) {
             steps.forEachIndexed { index, label ->
@@ -1727,7 +1745,7 @@ private fun QuotationStepper(currentStep: Int) {
                     if (stepNum == currentStep) {
                         Text(
                             text = label,
-                            fontSize = 10.sp,
+                            fontSize = tokens.caption,
                             color = Primary,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
@@ -1747,11 +1765,13 @@ private fun QuotationStepper(currentStep: Int) {
 
 @Composable
 private fun StepCircle(stepNum: Int, currentStep: Int) {
+    val tokens = LocalAppTokens.current
     val isDone = stepNum < currentStep
     val isCurrent = stepNum == currentStep
+
     Box(
         modifier = Modifier
-            .size(28.dp)
+            .size(tokens.iconSize * 1.5f)
             .clip(CircleShape)
             .background(
                 when {
@@ -1761,24 +1781,23 @@ private fun StepCircle(stepNum: Int, currentStep: Int) {
                 }
             )
             .then(
-                if (!isDone && !isCurrent) Modifier.border(1.5.dp, Color(0xFFD1D5DB), CircleShape) else Modifier
+                if (!isDone && !isCurrent) Modifier.border(1.5.dp, sectionBorder, CircleShape) else Modifier
             ),
         contentAlignment = Alignment.Center
     ) {
         if (isDone) {
-            Icon(Icons.Default.Check, contentDescription = null, tint = whiteBg, modifier = Modifier.size(14.dp))
+            Icon(Icons.Default.Check, contentDescription = null, tint = whiteBg, modifier = Modifier.size(tokens.iconSize * 0.8f))
         } else {
             Text(
-                "$stepNum",
-                color = if (isCurrent) whiteBg else MutedGray,
-                fontSize = 12.sp,
+                text = "$stepNum",
+                color = if (isCurrent) whiteBg else mutedText,
+                fontSize = tokens.caption,
                 fontWeight = FontWeight.SemiBold
             )
         }
     }
 }
 
-@Suppress("unused_parameter")
 @Composable
 private fun PriceBreakdownCard(
     garment: String = "-",
@@ -1795,17 +1814,19 @@ private fun PriceBreakdownCard(
     quantity: Int = 1,
     showAllItems: Boolean = true
 ) {
+    val tokens = LocalAppTokens.current
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp)
+            .padding(horizontal = tokens.screenPadding, vertical = 6.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Info, contentDescription = null, tint = MutedGray, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.Info, contentDescription = null, tint = mutedText, modifier = Modifier.size(tokens.iconSize * 0.9f))
             Spacer(Modifier.width(6.dp))
-            Text("Price breakdown", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TitleDark)
+            Text("Price breakdown", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TextPrimary)
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(tokens.extraPadding))
 
         BreakdownRowWithPrice("Garment", garment, garmentPrice)
         if (fabric != "-") {
@@ -1815,7 +1836,7 @@ private fun PriceBreakdownCard(
             BreakdownRowWithPrice("Design", design, designPrice)
         }
         if (addons.isNotEmpty() && addons != "-") {
-            BreakdownRowWithPrice("Addons", addons, addonsPrice)
+            BreakdownRowWithPrice("Workmanship", addons, addonsPrice)
         }
         BreakdownRow("Quantity", quantity.toString())
 
@@ -1827,71 +1848,58 @@ private fun PriceBreakdownCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                "Total Amount",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TitleDark
-            )
-            Text(
-                total,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TitleDark
-            )
+            Text("Total Amount", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+            Text(total, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = TextPrimary)
         }
     }
 }
 
 @Composable
 private fun BreakdownRowWithPrice(label: String, name: String, price: Double) {
+    val tokens = LocalAppTokens.current
+
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            "$label: $name",
-            fontSize = 13.sp,
-            color = TextGray
-        )
-        Text(
-            formatPrice(price),
-            fontSize = 13.sp,
-            color = TitleDark
-        )
+        Text("$label: $name", fontSize = tokens.bodySmall, color = TextSecondary)
+        Text(formatPrice(price), fontSize = tokens.bodySmall, color = TextPrimary)
     }
 }
 
 @Composable
 private fun BreakdownRow(label: String, value: String) {
+    val tokens = LocalAppTokens.current
+
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, fontSize = 13.sp, color = TextGray)
-        Text(value, fontSize = 13.sp, color = TitleDark)
+        Text(label, fontSize = tokens.bodySmall, color = TextSecondary)
+        Text(value, fontSize = tokens.bodySmall, color = TextPrimary)
     }
 }
 
-@Suppress("SameParameterValue")
 @Composable
 private fun TipBanner(text: String) {
+    val tokens = LocalAppTokens.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 14.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(TipBg)
-            .padding(12.dp),
+            .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 1.2f)
+            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.7f))
+            .background(activity_purple_bg)
+            .padding(tokens.extraPadding),
         verticalAlignment = Alignment.Top
     ) {
-        Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color(0xFF3B82F6), modifier = Modifier.size(16.dp))
+        Icon(
+            imageVector = Icons.Default.LocationOn,
+            contentDescription = null,
+            tint = Primary,
+            modifier = Modifier.size(tokens.iconSize)
+        )
         Spacer(Modifier.width(8.dp))
-        Text(text, fontSize = 12.sp, color = TipBlue)
+        Text(text, fontSize = tokens.caption, color = Primary)
     }
 }
-
-data class OptionWithPrice(
-    val name: String,
-    val price: Double
-)

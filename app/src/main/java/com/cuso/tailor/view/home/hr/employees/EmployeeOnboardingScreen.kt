@@ -2,6 +2,7 @@
     "UNUSED_VALUE",
     "AssignedValueIsNeverRead",
     "unused",
+    "unusedVariable",
     "NAME_SHADOWING",
     "GrazieInspection",
     "SpellCheckingInspection",
@@ -50,12 +51,7 @@ import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.sales.Country
-import com.cuso.tailor.model.hr.AddressRequest
-import com.cuso.tailor.model.hr.CreateMemberRequest
-import com.cuso.tailor.model.hr.EducationRequestItem
-import com.cuso.tailor.model.hr.UpdateMemberRequest
-import com.cuso.tailor.model.hr.WorkExperienceRequestItem
-import com.cuso.tailor.model.hr.displayName
+import com.cuso.tailor.model.hr.*
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
@@ -82,20 +78,31 @@ enum class ScreenMode { CREATE, VIEW, EDIT }
 
 data class EducationEntry(
     val id: String = UUID.randomUUID().toString(),
-    val instituteName: String = "",
     val degree: String = "",
     val specialization: String = "",
-    val completionDate: String = " "
+    val instituteName: String = "",
+    val startDate: String = " ",
+    val completionDate: String = " ",
+    val cgpa: String = ""
 )
 
 data class ExperienceEntry(
     val id: String = UUID.randomUUID().toString(),
     val companyName: String = "",
     val jobTitle: String = "",
+    val employmentType: String = "Full Time",
+    val location: String = "",
     val fromDate: String = " ",
     val toDate: String = " ",
     val jobDescription: String = "",
-    val isCurrentRole: Boolean = false
+    val isCurrentRole: Boolean = true
+)
+
+data class NomineeEntry(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String = "",
+    val relationship: String = "",
+    val sharePercent: String = ""
 )
 
 @SuppressLint("ContextCastToActivity")
@@ -128,72 +135,99 @@ fun EmployeeOnboardingScreen(
     val isEditable = !isReadOnly
 
     var topSuccess by remember { mutableStateOf<String?>(null) }
-    var expandedSection by remember { mutableStateOf("Basic Information") }
+    var expandedSection by remember { mutableStateOf("Personal Information") }
 
-    // ── Basic Information state ──
+    // ── 1. Personal Information State ──
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
-    var workEmail by remember { mutableStateOf("") }
-    var personalEmail by remember { mutableStateOf("") }
-
+    var personalMail by remember { mutableStateOf("") }
     var workPhone by remember { mutableStateOf("") }
     var workPhoneCountry by remember { mutableStateOf<Country?>(null) }
-
     var personalPhone by remember { mutableStateOf("") }
     var personalPhoneCountry by remember { mutableStateOf<Country?>(null) }
-
     var dob by remember { mutableStateOf(" ") }
-    var gender by remember { mutableStateOf("Select Gender") }
+    var gender by remember { mutableStateOf("Select gender") }
     var genderExpanded by remember { mutableStateOf(false) }
-    var maritalStatus by remember { mutableStateOf("Select Marital Status") }
-    var maritalExpanded by remember { mutableStateOf(false) }
 
-    // ── Address state (Permanent) ──
+    // ── 2. Permanent & Temporary Address State ──
     var addressTab by remember { mutableStateOf("Permanent") }
-    var country by remember { mutableStateOf("Select country") }
-    var state by remember { mutableStateOf("Select state") }
+    var countryName by remember { mutableStateOf("India") }
+    var countryCode by remember { mutableStateOf("IN") }
+    var subdivisionName by remember { mutableStateOf("Tamil Nadu") }
+    var subdivisionCode by remember { mutableStateOf("TN") }
     var city by remember { mutableStateOf("") }
-    var postalCode by remember { mutableStateOf("") }
+    var flatNo by remember { mutableStateOf("") }
+    var areaZone by remember { mutableStateOf("") }
+    var pincode by remember { mutableStateOf("") }
     var streetAddress by remember { mutableStateOf("") }
 
-    // ── Address state (Temporary) ──
+    // Temporary Address
     var isSameAsPermanent by remember { mutableStateOf(false) }
-    var tempCountry by remember { mutableStateOf("Select country") }
-    var tempState by remember { mutableStateOf("Select state") }
+    var tempCountryName by remember { mutableStateOf("India") }
+    var tempCountryCode by remember { mutableStateOf("IN") }
+    var tempSubdivisionName by remember { mutableStateOf("Tamil Nadu") }
+    var tempSubdivisionCode by remember { mutableStateOf("TN") }
     var tempCity by remember { mutableStateOf("") }
-    var tempPostalCode by remember { mutableStateOf("") }
+    var tempFlatNo by remember { mutableStateOf("") }
+    var tempAreaZone by remember { mutableStateOf("") }
+    var tempPincode by remember { mutableStateOf("") }
     var tempStreetAddress by remember { mutableStateOf("") }
 
-    // ── Government IDs ──
-    var pan by remember { mutableStateOf("") }
-    var aadhaar by remember { mutableStateOf("") }
-    var uan by remember { mutableStateOf("") }
+    // ── 3. Identity & Personal Details ──
+    var aadhaarNo by remember { mutableStateOf("") }
+    var panNo by remember { mutableStateOf("") }
+    var passportNo by remember { mutableStateOf("") }
+    var maritalStatus by remember { mutableStateOf("Select status") }
+    var maritalExpanded by remember { mutableStateOf(false) }
+    var bloodGroup by remember { mutableStateOf("Select group") }
+    var bloodGroupExpanded by remember { mutableStateOf(false) }
+    var emergencyContactName by remember { mutableStateOf("") }
+    var emergencyContactMobile by remember { mutableStateOf("") }
+    var emergencyContactPhoneCountry by remember { mutableStateOf<Country?>(null) }
 
-    // ── Education & Experience Lists ──
-    val educationList = remember { mutableStateListOf<EducationEntry>() }
+    // ── 4. Government & Statutory IDs ──
+    var uanNo by remember { mutableStateOf("") }
+    var esicNumber by remember { mutableStateOf("") }
+    var pfAccountNo by remember { mutableStateOf("") }
+    var payFrequency by remember { mutableStateOf("Monthly") }
+    var payFrequencyExpanded by remember { mutableStateOf(false) }
+
+    // ── 5. Bank Account Details (Present in payload) ──
+    var accountHolderName by remember { mutableStateOf("") }
+    var accountNumber by remember { mutableStateOf("") }
+    var bankName by remember { mutableStateOf("") }
+    var ifscCode by remember { mutableStateOf("") }
+
+    // ── 6. PF / Gratuity Nominees ──
+    val nomineeList = remember { mutableStateListOf<NomineeEntry>() }
+
+    // ── 7. Work Experience ──
     val experienceList = remember { mutableStateListOf<ExperienceEntry>() }
 
-    // ── Work Info ──
-    var memberId by remember { mutableStateOf("") }
+    // ── 8. Education Details ──
+    val educationList = remember { mutableStateListOf<EducationEntry>() }
+
+    // ── 9. Job Details ──
     var employeeCode by remember { mutableStateOf("") }
     var doj by remember { mutableStateOf(" ") }
-    var branch by remember { mutableStateOf("Select Branch") }
-    var branchExpanded by remember { mutableStateOf(false) }
-    var department by remember { mutableStateOf("Select Department") }
+    var department by remember { mutableStateOf("Select department") }
     var departmentExpanded by remember { mutableStateOf(false) }
-    var designation by remember { mutableStateOf("Select Designation") }
+    var designation by remember { mutableStateOf("Select designation") }
     var designationExpanded by remember { mutableStateOf(false) }
-    var role by remember { mutableStateOf("Select Role") }
-    var roleExpanded by remember { mutableStateOf(false) }
-    var shift by remember { mutableStateOf("Select Shift") }
+    var branch by remember { mutableStateOf("Select branch") }
+    var branchExpanded by remember { mutableStateOf(false) }
+    var shift by remember { mutableStateOf("Select shift") }
     var shiftExpanded by remember { mutableStateOf(false) }
-    var employmentType by remember { mutableStateOf("Select Employment Type") }
-    var employmentTypeExpanded by remember { mutableStateOf(false) }
-    var workLocation by remember { mutableStateOf("") }
-    var reportingTo by remember { mutableStateOf("Select Reporting To") }
+    var reportingTo by remember { mutableStateOf("Search manager...") }
     var reportingToExpanded by remember { mutableStateOf(false) }
-    var secondaryReportingTo by remember { mutableStateOf("Select Secondary Reporting To") }
+    var secondaryReportingTo by remember { mutableStateOf("Search manager...") }
     var secondaryReportingToExpanded by remember { mutableStateOf(false) }
+    var workingDistrict by remember { mutableStateOf("") }
+    var employmentType by remember { mutableStateOf("full-time") }
+
+    // ── 10. Access & Permissions ──
+    var role by remember { mutableStateOf("Select role") }
+    var roleExpanded by remember { mutableStateOf(false) }
 
     val initials = remember(firstName, lastName) {
         "${firstName.firstOrNull()?.uppercaseChar() ?: ' '}${lastName.firstOrNull()?.uppercaseChar() ?: ' '}"
@@ -222,13 +256,24 @@ fun EmployeeOnboardingScreen(
     var showProfileOptionsDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    // Validation state
+    // Error states
     var currentErrorField by remember { mutableStateOf<String?>(null) }
     var topError by remember { mutableStateOf<String?>(null) }
+
+    var panError by remember { mutableStateOf<String?>(null) }
+    var aadhaarError by remember { mutableStateOf<String?>(null) }
+    var uanError by remember { mutableStateOf<String?>(null) }
 
     val uploadPictureState by hrViewModel.uploadPictureState.collectAsState()
     val deletePictureState by hrViewModel.deletePictureState.collectAsState()
     val memberDetail by hrViewModel.memberDetail.collectAsState()
+    val createMemberState by hrViewModel.createMemberState.collectAsState()
+    val memberDetailError by hrViewModel.memberDetailError.collectAsState()
+
+    var selectedRoleId by remember { mutableStateOf<String?>(null) }
+    var selectedShiftId by remember { mutableStateOf<String?>(null) }
+    var selectedReportingToId by remember { mutableStateOf<String?>(null) }
+    var selectedSecondaryReportingToId by remember { mutableStateOf<String?>(null) }
 
     val cropLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -270,107 +315,6 @@ fun EmployeeOnboardingScreen(
         }
     }
 
-    LaunchedEffect(uploadPictureState) {
-        when (val state = uploadPictureState) {
-            is HrViewModel.UploadPictureState.Success -> {
-                existingProfilePictureUrl = state.pictureUrl
-                profileImageUri = null
-                topSuccess = "Profile Uploaded Successfully"
-
-                authViewModel.updateUserProfilePictureIfCurrentUser(
-                    targetUserId = memberDetail?._id,
-                    newUrl = state.pictureUrl
-                )
-                hrViewModel.resetUploadPictureState()
-            }
-            is HrViewModel.UploadPictureState.Error -> {
-                topError = state.message
-                hrViewModel.resetUploadPictureState()
-            }
-            else -> Unit
-        }
-    }
-
-    LaunchedEffect(deletePictureState) {
-        when (val state = deletePictureState) {
-            is HrViewModel.DeletePictureState.Success -> {
-                existingProfilePictureUrl = null
-                profileImageUri = null
-                topSuccess = "Profile Deleted Successfully"
-
-                authViewModel.updateUserProfilePictureIfCurrentUser(
-                    targetUserId = memberDetail?._id,
-                    newUrl = null
-                )
-                hrViewModel.resetDeletePictureState()
-            }
-            is HrViewModel.DeletePictureState.Error -> {
-                topError = state.message
-                hrViewModel.resetDeletePictureState()
-            }
-            else -> Unit
-        }
-    }
-
-    var selectedRoleId by remember { mutableStateOf<String?>(null) }
-    var selectedShiftId by remember { mutableStateOf<String?>(null) }
-    var selectedReportingToId by remember { mutableStateOf<String?>(null) }
-    var selectedSecondaryReportingToId by remember { mutableStateOf<String?>(null) }
-
-    val createMemberState by hrViewModel.createMemberState.collectAsState()
-
-    var panError by remember { mutableStateOf<String?>(null) }
-    var aadhaarError by remember { mutableStateOf<String?>(null) }
-    var uanError by remember { mutableStateOf<String?>(null) }
-
-    var isPanValid by remember { mutableStateOf(false) }
-    var isAadhaarValid by remember { mutableStateOf(false) }
-    var isUanValid by remember { mutableStateOf(false) }
-
-    val memberDetailError by hrViewModel.memberDetailError.collectAsState()
-
-    LaunchedEffect(memberDetailError) {
-        if (memberDetailError != null) {
-            topError = memberDetailError
-        }
-    }
-
-    fun validatePanNumber(value: String): Boolean {
-        if (value.isBlank()) {
-            panError = null
-            isPanValid = false
-            return true
-        }
-        val result = GovernmentIdValidator.validatePan(value)
-        panError = if (result.isValid) null else result.message
-        isPanValid = result.isValid
-        return result.isValid
-    }
-
-    fun validateAadhaarNumber(value: String): Boolean {
-        if (value.isBlank()) {
-            aadhaarError = null
-            isAadhaarValid = false
-            return true
-        }
-        val result = GovernmentIdValidator.validateAadhaar(value)
-        aadhaarError = if (result.isValid) null else result.message
-        isAadhaarValid = result.isValid
-        return result.isValid
-    }
-
-    fun validateUanNumber(value: String): Boolean {
-        if (value.isBlank()) {
-            uanError = null
-            isUanValid = false
-            return true
-        }
-        val result = GovernmentIdValidator.validateUan(value)
-        uanError = if (result.isValid) null else result.message
-        isUanValid = result.isValid
-        return result.isValid
-    }
-
     fun toApiDate(displayDate: String): String {
         if (displayDate.isBlank() || displayDate == " ") return ""
         return try {
@@ -409,13 +353,17 @@ fun EmployeeOnboardingScreen(
         return when {
             firstName.isBlank() -> "First Name"
             lastName.isBlank() -> "Last Name"
+            personalMail.isBlank() -> "Personal Email"
             workPhone.isBlank() -> "Work Phone"
-            personalPhone.isBlank() -> "Personal Phone"
             dob.isBlank() || dob == " " -> "Date of Birth"
-            gender.isBlank() || gender == "Select Gender" -> "Gender"
+            gender.isBlank() || gender == "Select gender" -> "Gender"
+            bloodGroup.isBlank() || bloodGroup == "Select group" -> "Blood Group"
+            emergencyContactName.isBlank() -> "Emergency Contact Name"
+            emergencyContactMobile.isBlank() -> "Emergency Contact Phone"
+            payFrequency.isBlank() || payFrequency == "Select frequency" -> "Pay Frequency"
             doj.isBlank() || doj == " " -> "Date of Joining"
-            department == "Select Department" -> "Department"
-            role == "Select Role" -> "Role"
+            department == "Select department" -> "Department"
+            role == "Select role" -> "Role"
             else -> null
         }
     }
@@ -437,104 +385,65 @@ fun EmployeeOnboardingScreen(
         }
     }
 
-    LaunchedEffect(
-        memberDetail,
-        branchList,
-        departmentList,
-        designationList,
-        roles,
-        shifts,
-        members
-    ) {
+    LaunchedEffect(memberDetail) {
         val m = memberDetail ?: return@LaunchedEffect
-
         firstName = m.firstName.orEmpty()
         lastName = m.lastName.orEmpty()
-
-        // Map from direct fields or fallback to nested userId
-        workEmail = m.email ?: m.userId?.email.orEmpty()
-        personalEmail = m.email ?: m.userId?.email.orEmpty()
+        personalMail = m.email ?: m.userId?.email.orEmpty()
         workPhone = m.workMobile ?: m.userId?.mobile.orEmpty()
-        personalPhone = m.personalMobile ?: m.userId?.mobile.orEmpty()
-
         dob = m.dob?.let { formatDateForDisplay(it) } ?: " "
-        gender = m.gender?.replaceFirstChar { it.uppercase() } ?: "Select Gender"
-        maritalStatus = m.martialStatus?.replaceFirstChar { it.uppercase() } ?: "Select Marital Status"
+        gender = m.gender?.replaceFirstChar { it.uppercase() } ?: "Select gender"
+        maritalStatus = m.martialStatus?.replaceFirstChar { it.uppercase() } ?: "Select status"
 
-        // Permanent Address
         m.permanentAddress?.let { addr ->
-            country = addr.country.orEmpty().ifBlank { "Select country" }
-            state = addr.state.orEmpty().ifBlank { "Select state" }
+            countryName = addr.countryName.orEmpty().ifBlank { "India" }
+            countryCode = addr.countryCode.orEmpty().ifBlank { "IN" }
+            subdivisionName = addr.subdivisionName.orEmpty().ifBlank { "Tamil Nadu" }
+            subdivisionCode = addr.subdivisionCode.orEmpty().ifBlank { "TN" }
             city = addr.city.orEmpty()
-            postalCode = addr.postalCode.orEmpty()
+            flatNo = addr.flatNo.orEmpty()
+            areaZone = addr.areaZone.orEmpty()
+            pincode = addr.pincode.orEmpty()
             streetAddress = addr.street.orEmpty()
         }
 
-        // Temporary Address
-        if (m.hasTemporaryAddress) {
-            m.temporaryAddress?.let { addr ->
-                tempCountry = addr.country.orEmpty().ifBlank { "Select country" }
-                tempState = addr.state.orEmpty().ifBlank { "Select state" }
-                tempCity = addr.city.orEmpty()
-                tempPostalCode = addr.postalCode.orEmpty()
-                tempStreetAddress = addr.street.orEmpty()
-            }
+        m.temporaryAddress?.let { addr ->
+            tempCountryName = addr.countryName.orEmpty().ifBlank { "India" }
+            tempCountryCode = addr.countryCode.orEmpty().ifBlank { "IN" }
+            tempSubdivisionName = addr.subdivisionName.orEmpty().ifBlank { "Tamil Nadu" }
+            tempSubdivisionCode = addr.subdivisionCode.orEmpty().ifBlank { "TN" }
+            tempCity = addr.city.orEmpty()
+            tempFlatNo = addr.flatNo.orEmpty()
+            tempAreaZone = addr.areaZone.orEmpty()
+            tempPincode = addr.pincode.orEmpty()
+            tempStreetAddress = addr.street.orEmpty()
         }
 
-        // Education
-        educationList.clear()
-        m.education.forEach { edu ->
-            educationList.add(
-                EducationEntry(
-                    instituteName = edu.instituteName.orEmpty(),
-                    degree = edu.degree.orEmpty(),
-                    specialization = edu.specialization.orEmpty(),
-                    completionDate = edu.completionDate?.let { formatDateForDisplay(it) } ?: " "
-                )
-            )
-        }
-
-        // Experience
-        experienceList.clear()
-        m.workExperience.forEach { exp ->
-            experienceList.add(
-                ExperienceEntry(
-                    companyName = exp.companyName.orEmpty(),
-                    jobTitle = exp.jobTitle.orEmpty(),
-                    fromDate = exp.fromDate?.let { formatDateForDisplay(it) } ?: " ",
-                    toDate = exp.toDate?.let { formatDateForDisplay(it) } ?: " ",
-                    jobDescription = exp.jobDescription.orEmpty(),
-                    isCurrentRole = exp.isRelevant
-                )
-            )
-        }
-
-        // Work Info
-        memberId = m.memberId.orEmpty()
+        employeeCode = m.memberId.orEmpty()
         doj = m.doj?.let { formatDateForDisplay(it) } ?: " "
-        workLocation = m.workingDistrict.orEmpty()
-        employmentType = m.employmentType?.replaceFirstChar { it.uppercase() } ?: "Select Employment Type"
+        workingDistrict = m.workingDistrict.orEmpty()
+        employmentType = m.employmentType?.lowercase() ?: "full-time"
 
         selectedBranchId = m.branchId?._id
-        branch = branchList.find { it.id == selectedBranchId }?.name ?: m.branchId?.name ?: "Select Branch"
+        branch = branchList.find { it.id == selectedBranchId }?.name ?: m.branchId?.name ?: "Select branch"
 
         selectedDepartmentId = m.departmentId?._id
-        department = departmentList.find { it._id == selectedDepartmentId }?.name ?: m.departmentId?.name ?: "Select Department"
+        department = departmentList.find { it._id == selectedDepartmentId }?.name ?: m.departmentId?.name ?: "Select department"
 
-        selectedDesignationId = m.designationId
-        designation = designationList.find { it.id == selectedDesignationId }?.name ?: "Select Designation"
+        selectedDesignationId = m.designationId?._id
+        designation = designationList.find { it.id == selectedDesignationId }?.name ?: m.designationId?.name ?: "Select designation"
 
         selectedRoleId = m.customRoleId?._id
-        role = roles.find { it._id == selectedRoleId }?.name ?: m.customRoleId?.name ?: "Select Role"
+        role = roles.find { it._id == selectedRoleId }?.name ?: m.customRoleId?.name ?: "Select role"
 
         selectedShiftId = m.shiftId
-        shift = shifts.find { it._id == selectedShiftId }?.name ?: "Select Shift"
+        shift = shifts.find { it._id == selectedShiftId }?.name ?: "Select shift"
 
         selectedReportingToId = m.reportingTo
-        reportingTo = members.find { it._id == selectedReportingToId }?.displayName() ?: "Select Reporting To"
+        reportingTo = members.find { it._id == selectedReportingToId }?.displayName() ?: "Search manager..."
 
         selectedSecondaryReportingToId = m.secondaryReportingTo
-        secondaryReportingTo = members.find { it._id == selectedSecondaryReportingToId }?.displayName() ?: "Select Secondary Reporting To"
+        secondaryReportingTo = members.find { it._id == selectedSecondaryReportingToId }?.displayName() ?: "Search manager..."
 
         existingProfilePictureUrl = m.profilePicture
     }
@@ -554,31 +463,28 @@ fun EmployeeOnboardingScreen(
         }
     }
 
+    val totalAllocatedPercent = remember(nomineeList.toList()) {
+        nomineeList.sumOf { it.sharePercent.toDoubleOrNull() ?: 0.0 }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Transparent)
         ) {
-            // ── Header ──
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                // ── Header (Replaced with TitleBar) ──
-                TitleBar(
-                    title = when (mode) {
-                        ScreenMode.VIEW -> "View Employee"
-                        ScreenMode.EDIT -> "Edit Employee"
-                        ScreenMode.CREATE -> "Employee Onboarding"
-                    },
-                    onClose = {
-                        hrViewModel.clearMemberDetail()
-                        hrViewModel.fetchMembers()
-                        onDismiss()
-                    }
-                )
-            }
+            TitleBar(
+                title = when (mode) {
+                    ScreenMode.VIEW -> "View Employee"
+                    ScreenMode.EDIT -> "Edit Employee"
+                    ScreenMode.CREATE -> "Employee Onboarding"
+                },
+                onClose = {
+                    hrViewModel.clearMemberDetail()
+                    hrViewModel.fetchMembers()
+                    onDismiss()
+                }
+            )
 
             HorizontalDivider(color = BorderColor)
 
@@ -591,12 +497,12 @@ fun EmployeeOnboardingScreen(
                         else tokens.buttonHeight + sectionGap * 2
                     )
             ) {
-                // ── Basic Information ──
+                // ── 1. Personal Information ──
                 AccordionSection(
                     iconPainter = painterResource(R.drawable.person),
-                    title = "Basic Information",
-                    expanded = expandedSection == "Basic Information",
-                    onHeaderClick = { expandedSection = if (expandedSection == "Basic Information") "" else "Basic Information" }
+                    title = "Personal Information",
+                    expanded = expandedSection == "Personal Information",
+                    onHeaderClick = { expandedSection = if (expandedSection == "Personal Information") "" else "Personal Information" }
                 ) {
                     Box(
                         modifier = Modifier.fillMaxWidth(),
@@ -623,7 +529,7 @@ fun EmployeeOnboardingScreen(
                     }
 
                     Spacer(Modifier.height(sectionGap))
-                    FormLabel("First Name")
+                    FormLabel("First Name *")
                     FormTextField(
                         value = firstName,
                         onValueChange = {
@@ -632,14 +538,14 @@ fun EmployeeOnboardingScreen(
                                 if (currentErrorField == "First Name") { currentErrorField = null; topError = null }
                             }
                         },
-                        placeholder = "Enter Your First Name",
+                        placeholder = "e.g. John",
                         enabled = isEditable,
                         isError = currentErrorField == "First Name",
                         errorMessage = if (currentErrorField == "First Name") "First name is required" else null
                     )
 
                     Spacer(Modifier.height(fieldGap))
-                    FormLabel("Last Name")
+                    FormLabel("Last Name *")
                     FormTextField(
                         value = lastName,
                         onValueChange = {
@@ -648,33 +554,31 @@ fun EmployeeOnboardingScreen(
                                 if (currentErrorField == "Last Name") { currentErrorField = null; topError = null }
                             }
                         },
-                        placeholder = "Enter Your Last Name",
+                        placeholder = "e.g. Doe",
                         enabled = isEditable,
                         isError = currentErrorField == "Last Name",
                         errorMessage = if (currentErrorField == "Last Name") "Last name is required" else null
                     )
+
                     Spacer(Modifier.height(fieldGap))
-                    FormLabel("Work Email")
+                    FormLabel("Personal Email *")
                     FormTextField(
-                        value = workEmail,
-                        onValueChange = { if (isEditable) workEmail = it },
-                        placeholder = "Enter Your Work Email",
+                        value = personalMail,
+                        onValueChange = {
+                            if (isEditable) {
+                                personalMail = it
+                                if (currentErrorField == "Personal Email") { currentErrorField = null; topError = null }
+                            }
+                        },
+                        placeholder = "john.doe@company.com",
                         enabled = isEditable,
-                        keyboardType = KeyboardType.Email
+                        keyboardType = KeyboardType.Email,
+                        isError = currentErrorField == "Personal Email",
+                        errorMessage = if (currentErrorField == "Personal Email") "Personal Email is required" else null
                     )
 
                     Spacer(Modifier.height(fieldGap))
-                    FormLabel("Personal Email")
-                    FormTextField(
-                        value = personalEmail,
-                        onValueChange = { if (isEditable) personalEmail = it },
-                        placeholder = "Enter Your Personal Email",
-                        enabled = isEditable,
-                        keyboardType = KeyboardType.Email
-                    )
-
-                    Spacer(Modifier.height(fieldGap))
-                    FormLabel("Work Phone")
+                    FormLabel("Work Phone *")
                     PhoneInputField(
                         phoneValue = workPhone,
                         onPhoneChange = {
@@ -688,23 +592,18 @@ fun EmployeeOnboardingScreen(
                         isError = currentErrorField == "Work Phone",
                         errorMessage = if (currentErrorField == "Work Phone") "Work phone is required" else null
                     )
+
                     Spacer(Modifier.height(fieldGap))
                     FormLabel("Personal Phone")
                     PhoneInputField(
                         phoneValue = personalPhone,
-                        onPhoneChange = {
-                            if (isEditable) {
-                                personalPhone = it
-                                if (currentErrorField == "Personal Phone") { currentErrorField = null; topError = null }
-                            }
-                        },
+                        onPhoneChange = { if (isEditable) personalPhone = it },
                         onCountryChange = { if (isEditable) personalPhoneCountry = it },
-                        enabled = isEditable,
-                        isError = currentErrorField == "Personal Phone",
-                        errorMessage = if (currentErrorField == "Personal Phone") "Personal phone is required" else null
+                        enabled = isEditable
                     )
+
                     Spacer(Modifier.height(fieldGap))
-                    FormLabel("Date of Birth")
+                    FormLabel("Date of Birth *")
                     DatePickerField(
                         value = dob,
                         enabled = isEditable,
@@ -716,8 +615,9 @@ fun EmployeeOnboardingScreen(
                         },
                         isError = currentErrorField == "Date of Birth"
                     )
+
                     Spacer(Modifier.height(fieldGap))
-                    FormLabel("Gender")
+                    FormLabel("Gender *")
                     ErrorFieldWrapper(isError = currentErrorField == "Gender") {
                         FormDropdown(
                             value = gender,
@@ -732,24 +632,14 @@ fun EmployeeOnboardingScreen(
                             }
                         )
                     }
-
-                    Spacer(Modifier.height(fieldGap))
-                    FormDropdown(
-                        label = "Marital Status",
-                        value = maritalStatus,
-                        expanded = maritalExpanded && isEditable,
-                        onExpandChange = { if (isEditable) maritalExpanded = it },
-                        options = listOf("Single", "Married", "Divorced", "Widowed"),
-                        onOptionSelected = { if (isEditable) maritalStatus = it }
-                    )
                 }
 
-                // ── Address ──
+                // ── 2. Permanent & Temporary Address ──
                 AccordionSection(
                     iconPainter = painterResource(R.drawable.ic_location),
-                    title = "Address",
-                    expanded = expandedSection == "Address",
-                    onHeaderClick = { expandedSection = if (expandedSection == "Address") "" else "Address" }
+                    title = "Address Details",
+                    expanded = expandedSection == "Address Details",
+                    onHeaderClick = { expandedSection = if (expandedSection == "Address Details") "" else "Address Details" }
                 ) {
                     SettingsTabs(
                         tabs = listOf(
@@ -765,29 +655,60 @@ fun EmployeeOnboardingScreen(
                     Spacer(Modifier.height(fieldGap))
                     if (addressTab == "Permanent") {
                         CountryAndStatePicker(
-                            selectedCountry = country,
-                            selectedState = state,
+                            selectedCountry = countryName,
+                            selectedState = subdivisionName,
                             enabled = isEditable,
-                            onCountryChange = { if (isEditable) country = it },
-                            onStateChange = { if (isEditable) state = it }
+                            onCountryChange = {
+                                if (isEditable) {
+                                    countryName = it
+                                    countryCode = if (it.equals("India", ignoreCase = true)) "IN" else it.take(2).uppercase()
+                                }
+                            },
+                            onStateChange = {
+                                if (isEditable) {
+                                    subdivisionName = it
+                                    subdivisionCode = if (it.contains("Tamil", ignoreCase = true)) "TN" else it.take(2).uppercase()
+                                }
+                            }
                         )
+
                         Spacer(Modifier.height(fieldGap))
                         FormLabel("City")
                         FormTextField(
                             value = city,
                             onValueChange = { if (isEditable) city = it },
-                            placeholder = "Enter Your City",
+                            placeholder = "Enter city",
                             enabled = isEditable
                         )
+
                         Spacer(Modifier.height(fieldGap))
-                        FormLabel("Postal Code")
+                        FormLabel("Flat / Door No")
                         FormTextField(
-                            value = postalCode,
-                            onValueChange = { if (isEditable) postalCode = it },
-                            placeholder = "Enter postal code",
+                            value = flatNo,
+                            onValueChange = { if (isEditable) flatNo = it },
+                            placeholder = "Enter flat / door no.",
+                            enabled = isEditable
+                        )
+
+                        Spacer(Modifier.height(fieldGap))
+                        FormLabel("Area / Zone")
+                        FormTextField(
+                            value = areaZone,
+                            onValueChange = { if (isEditable) areaZone = it },
+                            placeholder = "Enter area / zone",
+                            enabled = isEditable
+                        )
+
+                        Spacer(Modifier.height(fieldGap))
+                        FormLabel("Pincode")
+                        FormTextField(
+                            value = pincode,
+                            onValueChange = { if (isEditable) pincode = it },
+                            placeholder = "Enter pincode",
                             keyboardType = KeyboardType.Number,
                             enabled = isEditable
                         )
+
                         Spacer(Modifier.height(fieldGap))
                         FormLabel("Street Address")
                         FormTextField(
@@ -805,30 +726,37 @@ fun EmployeeOnboardingScreen(
                                     val next = !isSameAsPermanent
                                     isSameAsPermanent = next
                                     if (next) {
-                                        tempCountry = country
-                                        tempState = state
+                                        tempCountryName = countryName
+                                        tempCountryCode = countryCode
+                                        tempSubdivisionName = subdivisionName
+                                        tempSubdivisionCode = subdivisionCode
                                         tempCity = city
-                                        tempPostalCode = postalCode
+                                        tempFlatNo = flatNo
+                                        tempAreaZone = areaZone
+                                        tempPincode = pincode
                                         tempStreetAddress = streetAddress
                                     }
                                 }
                         ) {
-                            Checkbox(
+                            AppCheckbox(
                                 checked = isSameAsPermanent,
                                 onCheckedChange = { checked ->
                                     if (isEditable) {
                                         isSameAsPermanent = checked
                                         if (checked) {
-                                            tempCountry = country
-                                            tempState = state
+                                            tempCountryName = countryName
+                                            tempCountryCode = countryCode
+                                            tempSubdivisionName = subdivisionName
+                                            tempSubdivisionCode = subdivisionCode
                                             tempCity = city
-                                            tempPostalCode = postalCode
+                                            tempFlatNo = flatNo
+                                            tempAreaZone = areaZone
+                                            tempPincode = pincode
                                             tempStreetAddress = streetAddress
                                         }
                                     }
                                 },
-                                enabled = isEditable,
-                                colors = CheckboxDefaults.colors(checkedColor = AccentColor)
+                                enabled = isEditable
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
@@ -840,29 +768,60 @@ fun EmployeeOnboardingScreen(
 
                         Spacer(Modifier.height(fieldGap))
                         CountryAndStatePicker(
-                            selectedCountry = tempCountry,
-                            selectedState = tempState,
+                            selectedCountry = tempCountryName,
+                            selectedState = tempSubdivisionName,
                             enabled = isEditable,
-                            onCountryChange = { if (isEditable) tempCountry = it },
-                            onStateChange = { if (isEditable) tempState = it }
+                            onCountryChange = {
+                                if (isEditable) {
+                                    tempCountryName = it
+                                    tempCountryCode = if (it.equals("India", ignoreCase = true)) "IN" else it.take(2).uppercase()
+                                }
+                            },
+                            onStateChange = {
+                                if (isEditable) {
+                                    tempSubdivisionName = it
+                                    tempSubdivisionCode = if (it.contains("Tamil", ignoreCase = true)) "TN" else it.take(2).uppercase()
+                                }
+                            }
                         )
+
                         Spacer(Modifier.height(fieldGap))
                         FormLabel("City")
                         FormTextField(
                             value = tempCity,
                             onValueChange = { if (isEditable) tempCity = it },
-                            placeholder = "Enter Your City",
+                            placeholder = "Enter city",
                             enabled = isEditable
                         )
+
                         Spacer(Modifier.height(fieldGap))
-                        FormLabel("Postal Code")
+                        FormLabel("Flat / Door No")
                         FormTextField(
-                            value = tempPostalCode,
-                            onValueChange = { if (isEditable) tempPostalCode = it },
-                            placeholder = "Enter postal code",
+                            value = tempFlatNo,
+                            onValueChange = { if (isEditable) tempFlatNo = it },
+                            placeholder = "Enter flat / door no.",
+                            enabled = isEditable
+                        )
+
+                        Spacer(Modifier.height(fieldGap))
+                        FormLabel("Area / Zone")
+                        FormTextField(
+                            value = tempAreaZone,
+                            onValueChange = { if (isEditable) tempAreaZone = it },
+                            placeholder = "Enter area / zone",
+                            enabled = isEditable
+                        )
+
+                        Spacer(Modifier.height(fieldGap))
+                        FormLabel("Pincode")
+                        FormTextField(
+                            value = tempPincode,
+                            onValueChange = { if (isEditable) tempPincode = it },
+                            placeholder = "Enter pincode",
                             keyboardType = KeyboardType.Number,
                             enabled = isEditable
                         )
+
                         Spacer(Modifier.height(fieldGap))
                         FormLabel("Street Address")
                         FormTextField(
@@ -874,185 +833,464 @@ fun EmployeeOnboardingScreen(
                     }
                 }
 
-                // ── Government IDs ──
+                // ── 3. Identity & Personal Details ──
                 AccordionSection(
                     iconPainter = painterResource(R.drawable.ic_credit),
-                    title = "Government IDs",
-                    expanded = expandedSection == "Government IDs",
-                    onHeaderClick = { expandedSection = if (expandedSection == "Government IDs") "" else "Government IDs" }
+                    title = "Identity & Personal Details",
+                    expanded = expandedSection == "Identity & Personal Details",
+                    onHeaderClick = { expandedSection = if (expandedSection == "Identity & Personal Details") "" else "Identity & Personal Details" }
                 ) {
-                    FormLabel("PAN Number")
-                    Column {
-                        FormTextField(
-                            value = pan,
-                            onValueChange = {
-                                if (isEditable) {
-                                    val newValue = it.uppercase().take(10)
-                                    pan = newValue
-                                    if (newValue.length >= 10) {
-                                        validatePanNumber(newValue)
-                                    } else {
-                                        panError = null
-                                    }
+                    FormLabel("Aadhaar Number")
+                    val aadhaarVisualTransformation = remember {
+                        VisualTransformation { text ->
+                            val trimmed = text.text.take(12)
+                            val formatted = trimmed.chunked(4).joinToString(" ")
+                            val offsetMapping = object : OffsetMapping {
+                                override fun originalToTransformed(offset: Int): Int {
+                                    val o = offset.coerceIn(0, trimmed.length)
+                                    val spacesBefore = (o - 1).coerceAtLeast(0) / 4
+                                    return (o + spacesBefore).coerceIn(0, formatted.length)
                                 }
-                            },
-                            placeholder = "Enter PAN Number (e.g., ABCDE1234F)",
-                            enabled = isEditable,
-                            isError = panError != null,
-                            errorMessage = null,
-                            keyboardType = KeyboardType.Text,
-                            keyboardCapitalization = KeyboardCapitalization.Characters
-                        )
-                        if (panError != null) {
-                            Text(
-                                text = panError!!,
-                                color = Color(0xFFDC2626),
-                                fontSize = tokens.caption,
-                                modifier = Modifier.padding(top = tinyGap)
-                            )
-                        }
-                        if (pan.isNotEmpty() && panError == null && pan.length == 10) {
-                            Text(
-                                text = "✓ Valid PAN number",
-                                color = Color(0xFF059669),
-                                fontSize = tokens.caption,
-                                modifier = Modifier.padding(top = tinyGap)
-                            )
+
+                                override fun transformedToOriginal(offset: Int): Int {
+                                    val o = offset.coerceIn(0, formatted.length)
+                                    val spacesBefore = formatted.substring(0, o).count { it == ' ' }
+                                    return (o - spacesBefore).coerceIn(0, trimmed.length)
+                                }
+                            }
+                            TransformedText(AnnotatedString(formatted), offsetMapping)
                         }
                     }
+                    FormTextField(
+                        value = aadhaarNo,
+                        onValueChange = {
+                            if (isEditable) {
+                                aadhaarNo = it.filter { char -> char.isDigit() }.take(12)
+                            }
+                        },
+                        placeholder = "XXXX-XXXX-XXXX",
+                        enabled = isEditable,
+                        keyboardType = KeyboardType.Number,
+                        visualTransformation = aadhaarVisualTransformation
+                    )
 
                     Spacer(Modifier.height(fieldGap))
-                    FormLabel("Aadhaar Number")
-                    Column {
-                        val aadhaarVisualTransformation = remember {
-                            VisualTransformation { text ->
-                                val trimmed = text.text.take(12)
-                                val formatted = trimmed.chunked(4).joinToString(" ")
-                                val offsetMapping = object : OffsetMapping {
-                                    override fun originalToTransformed(offset: Int): Int {
-                                        val o = offset.coerceIn(0, trimmed.length)
-                                        val spacesBefore = (o - 1).coerceAtLeast(0) / 4
-                                        return (o + spacesBefore).coerceIn(0, formatted.length)
-                                    }
+                    FormLabel("PAN Number")
+                    FormTextField(
+                        value = panNo,
+                        onValueChange = {
+                            if (isEditable) {
+                                panNo = it.uppercase().take(10)
+                            }
+                        },
+                        placeholder = "ABCDE1234F",
+                        enabled = isEditable,
+                        keyboardType = KeyboardType.Text,
+                        keyboardCapitalization = KeyboardCapitalization.Characters
+                    )
 
-                                    override fun transformedToOriginal(offset: Int): Int {
-                                        val o = offset.coerceIn(0, formatted.length)
-                                        val spacesBefore =
-                                            formatted.substring(0, o).count { it == ' ' }
-                                        return (o - spacesBefore).coerceIn(0, trimmed.length)
-                                    }
-                                }
-                                TransformedText(AnnotatedString(formatted), offsetMapping)
+                    Spacer(Modifier.height(fieldGap))
+                    FormLabel("Passport Number")
+                    FormTextField(
+                        value = passportNo,
+                        onValueChange = { if (isEditable) passportNo = it.uppercase() },
+                        placeholder = "e.g. A1234567",
+                        enabled = isEditable
+                    )
+
+                    Spacer(Modifier.height(fieldGap))
+                    FormDropdown(
+                        label = "Marital Status",
+                        value = maritalStatus,
+                        expanded = maritalExpanded && isEditable,
+                        onExpandChange = { if (isEditable) maritalExpanded = it },
+                        options = listOf("Single", "Married", "Divorced", "Widowed"),
+                        onOptionSelected = { if (isEditable) maritalStatus = it }
+                    )
+
+                    Spacer(Modifier.height(fieldGap))
+                    FormDropdown(
+                        label = "Blood Group *",
+                        value = bloodGroup,
+                        expanded = bloodGroupExpanded && isEditable,
+                        onExpandChange = { if (isEditable) bloodGroupExpanded = it },
+                        options = listOf("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"),
+                        onOptionSelected = {
+                            if (isEditable) {
+                                bloodGroup = it
+                                if (currentErrorField == "Blood Group") { currentErrorField = null; topError = null }
+                            }
+                        },
+                        isError = currentErrorField == "Blood Group",
+                        errorMessage = if (currentErrorField == "Blood Group") "Blood Group is required" else null
+                    )
+
+                    Spacer(Modifier.height(fieldGap))
+                    FormLabel("Emergency Contact Name *")
+                    FormTextField(
+                        value = emergencyContactName,
+                        onValueChange = {
+                            if (isEditable) {
+                                emergencyContactName = it
+                                if (currentErrorField == "Emergency Contact Name") { currentErrorField = null; topError = null }
+                            }
+                        },
+                        placeholder = "Full name",
+                        enabled = isEditable,
+                        isError = currentErrorField == "Emergency Contact Name",
+                        errorMessage = if (currentErrorField == "Emergency Contact Name") "Emergency Contact Name is required" else null
+                    )
+
+                    Spacer(Modifier.height(fieldGap))
+                    FormLabel("Emergency Contact Phone *")
+                    PhoneInputField(
+                        phoneValue = emergencyContactMobile,
+                        onPhoneChange = {
+                            if (isEditable) {
+                                emergencyContactMobile = it
+                                if (currentErrorField == "Emergency Contact Phone") { currentErrorField = null; topError = null }
+                            }
+                        },
+                        onCountryChange = { if (isEditable) emergencyContactPhoneCountry = it },
+                        enabled = isEditable,
+                        isError = currentErrorField == "Emergency Contact Phone",
+                        errorMessage = if (currentErrorField == "Emergency Contact Phone") "Emergency Contact Phone is required" else null
+                    )
+                }
+
+                // ── 4. Government & Statutory IDs ──
+                AccordionSection(
+                    iconPainter = painterResource(R.drawable.ic_building),
+                    title = "Government & Statutory IDs",
+                    expanded = expandedSection == "Government & Statutory IDs",
+                    onHeaderClick = { expandedSection = if (expandedSection == "Government & Statutory IDs") "" else "Government & Statutory IDs" }
+                ) {
+                    FormLabel("UAN Number (EPF)")
+                    FormTextField(
+                        value = uanNo,
+                        onValueChange = {
+                            if (isEditable) {
+                                uanNo = it.filter { char -> char.isDigit() }.take(12)
+                            }
+                        },
+                        placeholder = "Universal Account Number",
+                        enabled = isEditable,
+                        keyboardType = KeyboardType.Number
+                    )
+
+                    Spacer(Modifier.height(fieldGap))
+                    FormLabel("ESIC Number")
+                    FormTextField(
+                        value = esicNumber,
+                        onValueChange = { if (isEditable) esicNumber = it },
+                        placeholder = "Member Number",
+                        enabled = isEditable,
+                        keyboardType = KeyboardType.Number
+                    )
+
+                    Spacer(Modifier.height(fieldGap))
+                    FormLabel("PF Account Number")
+                    FormTextField(
+                        value = pfAccountNo,
+                        onValueChange = { if (isEditable) pfAccountNo = it },
+                        placeholder = "Org specific no. (e.g. TN/CHN/0000000/000/0000000)",
+                        enabled = isEditable
+                    )
+
+                    Spacer(Modifier.height(fieldGap))
+                    FormDropdown(
+                        label = "Pay Frequency *",
+                        value = payFrequency,
+                        expanded = payFrequencyExpanded && isEditable,
+                        onExpandChange = { if (isEditable) payFrequencyExpanded = it },
+                        options = listOf("Monthly", "Bi-weekly", "Weekly", "Daily"),
+                        onOptionSelected = {
+                            if (isEditable) {
+                                payFrequency = it
+                                if (currentErrorField == "Pay Frequency") { currentErrorField = null; topError = null }
                             }
                         }
-                        FormTextField(
-                            value = aadhaar,
-                            onValueChange = {
-                                if (isEditable) {
-                                    val newValue = it.filter { char -> char.isDigit() }.take(12)
-                                    aadhaar = newValue
-                                    if (newValue.length >= 12) {
-                                        validateAadhaarNumber(newValue)
-                                    } else {
-                                        aadhaarError = null
-                                    }
-                                }
-                            },
-                            placeholder = "Enter 12-digit Aadhaar Number",
-                            enabled = isEditable,
-                            isError = aadhaarError != null,
-                            errorMessage = null,
-                            keyboardType = KeyboardType.Number,
-                            visualTransformation = aadhaarVisualTransformation
-                        )
-                        if (aadhaarError != null) {
-                            Text(
-                                text = aadhaarError!!,
-                                color = Color(0xFFDC2626),
-                                fontSize = tokens.caption,
-                                modifier = Modifier.padding(top = tinyGap)
-                            )
-                        }
-                        if (aadhaar.isNotEmpty() && aadhaarError == null && aadhaar.length == 12) {
-                            Text(
-                                text = "✓ Valid Aadhaar number",
-                                color = Color(0xFF059669),
-                                fontSize = tokens.caption,
-                                modifier = Modifier.padding(top = tinyGap)
-                            )
-                        }
-                    }
+                    )
+                }
+
+                // ── 5. Bank Account Details (Added to prevent hardcoding) ──
+                AccordionSection(
+                    iconPainter = painterResource(R.drawable.ic_credit),
+                    title = "Bank Account Details",
+                    expanded = expandedSection == "Bank Account Details",
+                    onHeaderClick = { expandedSection = if (expandedSection == "Bank Account Details") "" else "Bank Account Details" }
+                ) {
+                    FormLabel("Account Holder Name")
+                    FormTextField(
+                        value = accountHolderName,
+                        onValueChange = { if (isEditable) accountHolderName = it },
+                        placeholder = "Enter account holder name",
+                        enabled = isEditable
+                    )
 
                     Spacer(Modifier.height(fieldGap))
-                    FormLabel("UAN Number")
-                    Column {
-                        FormTextField(
-                            value = uan,
-                            onValueChange = {
+                    FormLabel("Account Number")
+                    FormTextField(
+                        value = accountNumber,
+                        onValueChange = { if (isEditable) accountNumber = it },
+                        placeholder = "Enter account number",
+                        enabled = isEditable,
+                        keyboardType = KeyboardType.Number
+                    )
+
+                    Spacer(Modifier.height(fieldGap))
+                    FormLabel("Bank Name")
+                    FormTextField(
+                        value = bankName,
+                        onValueChange = { if (isEditable) bankName = it },
+                        placeholder = "Enter bank name",
+                        enabled = isEditable
+                    )
+
+                    Spacer(Modifier.height(fieldGap))
+                    FormLabel("IFSC Code")
+                    FormTextField(
+                        value = ifscCode,
+                        onValueChange = { if (isEditable) ifscCode = it.uppercase() },
+                        placeholder = "Enter IFSC code",
+                        enabled = isEditable,
+                        keyboardCapitalization = KeyboardCapitalization.Characters
+                    )
+                }
+
+                // ── 6. PF / Gratuity Nominees ──
+                AccordionSection(
+                    iconPainter = painterResource(R.drawable.person),
+                    title = "PF / Gratuity Nominees",
+                    expanded = expandedSection == "PF / Gratuity Nominees",
+                    onHeaderClick = { expandedSection = if (expandedSection == "PF / Gratuity Nominees") "" else "PF / Gratuity Nominees" }
+                ) {
+                    if (nomineeList.isEmpty()) {
+                        Text("No nominees added yet", fontSize = tokens.bodySmall, color = LabelColor, modifier = Modifier.padding(vertical = smallGap))
+                    } else {
+                        nomineeList.forEachIndexed { index, entry ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Nominee ${index + 1}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = TitleColor)
                                 if (isEditable) {
-                                    val newValue = it.filter { char -> char.isDigit() }.take(12)
-                                    uan = newValue
-                                    if (newValue.length >= 12) {
-                                        validateUanNumber(newValue)
-                                    } else {
-                                        uanError = null
-                                    }
+                                    Icon(
+                                        Icons.Filled.Delete,
+                                        contentDescription = "Remove",
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(tokens.iconSize).clickable { nomineeList.remove(entry) }
+                                    )
                                 }
-                            },
-                            placeholder = "Enter 12-digit UAN Number",
-                            enabled = isEditable,
-                            isError = uanError != null,
-                            errorMessage = null,
-                            keyboardType = KeyboardType.Number
-                        )
-                        if (uanError != null) {
-                            Text(
-                                text = uanError!!,
-                                color = Color(0xFFDC2626),
-                                fontSize = tokens.caption,
-                                modifier = Modifier.padding(top = tinyGap)
+                            }
+                            Spacer(Modifier.height(smallGap))
+                            FormLabel("Name *")
+                            FormTextField(
+                                value = entry.name,
+                                onValueChange = { if (isEditable) nomineeList[nomineeList.indexOf(entry)] = entry.copy(name = it) },
+                                placeholder = "Full name",
+                                enabled = isEditable
                             )
+
+                            Spacer(Modifier.height(fieldGap))
+                            FormLabel("Relationship *")
+                            FormTextField(
+                                value = entry.relationship,
+                                onValueChange = { if (isEditable) nomineeList[nomineeList.indexOf(entry)] = entry.copy(relationship = it) },
+                                placeholder = "e.g. Father, Mother, Spouse",
+                                enabled = isEditable
+                            )
+
+                            Spacer(Modifier.height(fieldGap))
+                            FormLabel("Share % *")
+                            FormTextField(
+                                value = entry.sharePercent,
+                                onValueChange = { if (isEditable) nomineeList[nomineeList.indexOf(entry)] = entry.copy(sharePercent = it) },
+                                placeholder = "e.g. 100",
+                                keyboardType = KeyboardType.Number,
+                                enabled = isEditable
+                            )
+
+                            if (index != nomineeList.lastIndex) {
+                                Spacer(Modifier.height(fieldGap))
+                                HorizontalDivider(color = BorderColor)
+                                Spacer(Modifier.height(fieldGap))
+                            }
                         }
-                        if (uan.isNotEmpty() && uanError == null && uan.length == 12) {
+
+                        Spacer(Modifier.height(smallGap))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(WarnBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                                .border(1.dp, WarnBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                                .padding(horizontal = smallGap, vertical = smallGap * 0.8f)
+                        ) {
                             Text(
-                                text = "✓ Valid UAN number",
-                                color = Color(0xFF059669),
+                                "Allocated: ${totalAllocatedPercent.toInt()}% (Pending: ${(100 - totalAllocatedPercent).coerceAtLeast(0.0).toInt()}%)",
                                 fontSize = tokens.caption,
-                                modifier = Modifier.padding(top = tinyGap)
+                                color = WarnText,
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }
 
-                    Spacer(Modifier.height(smallGap + tinyGap))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(WarnBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                            .border(1.dp, WarnBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                            .padding(horizontal = smallGap, vertical = smallGap * 0.8f)
-                    ) {
-                        Text(
-                            "These IDs are sensitive information and will be stored securely.",
-                            fontSize = tokens.caption,
-                            color = WarnText
-                        )
+                    if (isEditable) {
+                        Spacer(Modifier.height(fieldGap))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, AccentColor, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                                .clickable { nomineeList.add(NomineeEntry()) }
+                                .padding(vertical = smallGap),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("+ Add Nominee", color = AccentColor, fontWeight = FontWeight.Medium, fontSize = tokens.bodyMedium)
+                        }
                     }
                 }
 
-                // ── Education ──
+                // ── 7. Work Experience ──
+                AccordionSection(
+                    icon = Icons.Outlined.Work,
+                    title = "Work Experience",
+                    expanded = expandedSection == "Work Experience",
+                    onHeaderClick = { expandedSection = if (expandedSection == "Work Experience") "" else "Work Experience" }
+                ) {
+                    if (experienceList.isEmpty()) {
+                        Text("No work experience added yet", fontSize = tokens.bodySmall, color = LabelColor, modifier = Modifier.padding(vertical = smallGap))
+                    } else {
+                        experienceList.forEachIndexed { index, entry ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Experience ${index + 1}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = TitleColor)
+                                if (isEditable) {
+                                    Icon(
+                                        Icons.Filled.Delete,
+                                        contentDescription = "Remove",
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(tokens.iconSize).clickable { experienceList.remove(entry) }
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(smallGap))
+                            FormLabel("Company Name *")
+                            FormTextField(
+                                value = entry.companyName,
+                                onValueChange = { if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(companyName = it) },
+                                placeholder = "e.g. Google",
+                                enabled = isEditable
+                            )
+
+                            Spacer(Modifier.height(fieldGap))
+                            FormLabel("Job Title *")
+                            FormTextField(
+                                value = entry.jobTitle,
+                                onValueChange = { if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(jobTitle = it) },
+                                placeholder = "e.g. Senior Sales Executive",
+                                enabled = isEditable
+                            )
+
+                            Spacer(Modifier.height(fieldGap))
+                            FormLabel("Employment Type *")
+                            FormTextField(
+                                value = entry.employmentType,
+                                onValueChange = { if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(employmentType = it) },
+                                placeholder = "e.g. Full Time",
+                                enabled = isEditable
+                            )
+
+                            Spacer(Modifier.height(fieldGap))
+                            FormLabel("Location *")
+                            FormTextField(
+                                value = entry.location,
+                                onValueChange = { if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(location = it) },
+                                placeholder = "City, Country",
+                                enabled = isEditable
+                            )
+
+                            Spacer(Modifier.height(fieldGap))
+                            FormLabel("Start Date *")
+                            DatePickerField(
+                                value = entry.fromDate,
+                                onDateSelected = { if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(fromDate = it) },
+                                enabled = isEditable
+                            )
+
+                            Spacer(Modifier.height(fieldGap))
+                            FormLabel("End Date")
+                            DatePickerField(
+                                value = entry.toDate,
+                                onDateSelected = { if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(toDate = it) },
+                                enabled = !entry.isCurrentRole && isEditable
+                            )
+
+                            Spacer(Modifier.height(smallGap * 0.8f))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                AppCheckbox(
+                                    checked = entry.isCurrentRole,
+                                    onCheckedChange = { checked ->
+                                        if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(isCurrentRole = checked)
+                                    },
+                                    enabled = isEditable
+                                )
+                                Text("Currently Working", fontSize = tokens.bodySmall, color = if (isEditable) LabelColor else LabelColor.copy(alpha = 0.6f))
+                            }
+
+                            Spacer(Modifier.height(fieldGap))
+                            FormLabel("Description")
+                            OutlinedTextField(
+                                value = entry.jobDescription,
+                                onValueChange = { if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(jobDescription = it) },
+                                placeholder = { Text("Key responsibilities and achievements...", fontSize = tokens.bodyMedium, color = Color(0xFF9CA3AF)) },
+                                textStyle = TextStyle(fontSize = tokens.bodyMedium),
+                                shape = adaptiveFieldShape,
+                                enabled = isEditable,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = BorderColor,
+                                    focusedBorderColor = AccentColor,
+                                    disabledBorderColor = BorderColor.copy(alpha = 0.5f),
+                                    disabledTextColor = TitleColor.copy(alpha = 0.8f)
+                                ),
+                                modifier = Modifier.fillMaxWidth().height(tokens.fieldHeight * 2.2f)
+                            )
+
+                            if (index != experienceList.lastIndex) {
+                                Spacer(Modifier.height(fieldGap))
+                                HorizontalDivider(color = BorderColor)
+                                Spacer(Modifier.height(fieldGap))
+                            }
+                        }
+                    }
+
+                    if (isEditable) {
+                        Spacer(Modifier.height(fieldGap))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, AccentColor, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                                .clickable { experienceList.add(ExperienceEntry()) }
+                                .padding(vertical = smallGap),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("+ Add Experience", color = AccentColor, fontWeight = FontWeight.Medium, fontSize = tokens.bodyMedium)
+                        }
+                    }
+                }
+
+                // ── 8. Education Details ──
                 AccordionSection(
                     iconPainter = painterResource(R.drawable.ic_education),
-                    title = "Education",
-                    expanded = expandedSection == "Education",
-                    onHeaderClick = { expandedSection = if (expandedSection == "Education") "" else "Education" }
+                    title = "Education Details",
+                    expanded = expandedSection == "Education Details",
+                    onHeaderClick = { expandedSection = if (expandedSection == "Education Details") "" else "Education Details" }
                 ) {
                     if (educationList.isEmpty()) {
-                        Text(
-                            "No education added",
-                            fontSize = tokens.bodySmall,
-                            color = LabelColor,
-                            modifier = Modifier.padding(vertical = smallGap)
-                        )
+                        Text("No education details added yet", fontSize = tokens.bodySmall, color = LabelColor, modifier = Modifier.padding(vertical = smallGap))
                     } else {
                         educationList.forEachIndexed { index, entry ->
                             Row(
@@ -1071,29 +1309,37 @@ fun EmployeeOnboardingScreen(
                                 }
                             }
                             Spacer(Modifier.height(smallGap))
-                            FormLabel("Institute Name")
-                            FormTextField(
-                                value = entry.instituteName,
-                                onValueChange = { if (isEditable) educationList[educationList.indexOf(entry)] = entry.copy(instituteName = it) },
-                                placeholder = "Enter Institute Name",
-                                enabled = isEditable
-                            )
-
-                            Spacer(Modifier.height(fieldGap))
-                            FormLabel("Degree/Diploma")
+                            FormLabel("Degree *")
                             FormTextField(
                                 value = entry.degree,
                                 onValueChange = { if (isEditable) educationList[educationList.indexOf(entry)] = entry.copy(degree = it) },
-                                placeholder = "Enter Degree/Diploma",
+                                placeholder = "e.g. BCA / B.E.",
                                 enabled = isEditable
                             )
 
                             Spacer(Modifier.height(fieldGap))
-                            FormLabel("Specialization")
+                            FormLabel("Specialization / Field of Study")
                             FormTextField(
                                 value = entry.specialization,
                                 onValueChange = { if (isEditable) educationList[educationList.indexOf(entry)] = entry.copy(specialization = it) },
-                                placeholder = "Enter Specialization",
+                                placeholder = "e.g. Computer Science",
+                                enabled = isEditable
+                            )
+
+                            Spacer(Modifier.height(fieldGap))
+                            FormLabel("Institution Name *")
+                            FormTextField(
+                                value = entry.instituteName,
+                                onValueChange = { if (isEditable) educationList[educationList.indexOf(entry)] = entry.copy(instituteName = it) },
+                                placeholder = "e.g. Dummy University",
+                                enabled = isEditable
+                            )
+
+                            Spacer(Modifier.height(fieldGap))
+                            FormLabel("Start Date *")
+                            DatePickerField(
+                                value = entry.startDate,
+                                onDateSelected = { if (isEditable) educationList[educationList.indexOf(entry)] = entry.copy(startDate = it) },
                                 enabled = isEditable
                             )
 
@@ -1102,6 +1348,15 @@ fun EmployeeOnboardingScreen(
                             DatePickerField(
                                 value = entry.completionDate,
                                 onDateSelected = { if (isEditable) educationList[educationList.indexOf(entry)] = entry.copy(completionDate = it) },
+                                enabled = isEditable
+                            )
+
+                            Spacer(Modifier.height(fieldGap))
+                            FormLabel("CGPA")
+                            FormTextField(
+                                value = entry.cgpa,
+                                onValueChange = { if (isEditable) educationList[educationList.indexOf(entry)] = entry.copy(cgpa = it) },
+                                placeholder = "e.g. 9.0",
                                 enabled = isEditable
                             )
 
@@ -1128,151 +1383,23 @@ fun EmployeeOnboardingScreen(
                     }
                 }
 
-                // ── Experience ──
-                AccordionSection(
-                    icon = Icons.Outlined.Work,
-                    title = "Experience",
-                    expanded = expandedSection == "Experience",
-                    onHeaderClick = { expandedSection = if (expandedSection == "Experience") "" else "Experience" }
-                ) {
-                    if (experienceList.isEmpty()) {
-                        Text(
-                            "No experience added",
-                            fontSize = tokens.bodySmall,
-                            color = LabelColor,
-                            modifier = Modifier.padding(vertical = smallGap)
-                        )
-                    } else {
-                        experienceList.forEachIndexed { index, entry ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Experience ${index + 1}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = TitleColor)
-                                if (isEditable) {
-                                    Icon(
-                                        Icons.Filled.Delete,
-                                        contentDescription = "Remove",
-                                        tint = Color(0xFFDC2626),
-                                        modifier = Modifier.size(tokens.iconSize).clickable { experienceList.remove(entry) }
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.height(smallGap))
-                            FormLabel("Company Name")
-                            FormTextField(
-                                value = entry.companyName,
-                                onValueChange = { if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(companyName = it) },
-                                placeholder = "Enter Company Name",
-                                enabled = isEditable
-                            )
-
-                            Spacer(Modifier.height(fieldGap))
-                            FormLabel("Job Title")
-                            FormTextField(
-                                value = entry.jobTitle,
-                                onValueChange = { if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(jobTitle = it) },
-                                placeholder = "Enter Job Title",
-                                enabled = isEditable
-                            )
-
-                            Spacer(Modifier.height(fieldGap))
-                            FormLabel("From Date")
-                            DatePickerField(
-                                value = entry.fromDate,
-                                onDateSelected = { if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(fromDate = it) },
-                                enabled = isEditable
-                            )
-
-                            Spacer(Modifier.height(fieldGap))
-                            FormLabel("To Date")
-                            DatePickerField(
-                                value = entry.toDate,
-                                onDateSelected = { if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(toDate = it) },
-                                enabled = !entry.isCurrentRole && isEditable
-                            )
-
-                            Spacer(Modifier.height(fieldGap))
-                            FormLabel("Job Description")
-                            OutlinedTextField(
-                                value = entry.jobDescription,
-                                onValueChange = { if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(jobDescription = it) },
-                                placeholder = { Text("Enter Job Description", fontSize = tokens.bodyMedium, color = Color(0xFF9CA3AF)) },
-                                textStyle = TextStyle(fontSize = tokens.bodyMedium),
-                                shape = adaptiveFieldShape,
-                                enabled = isEditable,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    unfocusedBorderColor = BorderColor,
-                                    focusedBorderColor = AccentColor,
-                                    disabledBorderColor = BorderColor.copy(alpha = 0.5f),
-                                    disabledTextColor = TitleColor.copy(alpha = 0.8f)
-                                ),
-                                modifier = Modifier.fillMaxWidth().height(tokens.fieldHeight * 2.2f)
-                            )
-
-                            Spacer(Modifier.height(smallGap * 0.8f))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(
-                                    checked = entry.isCurrentRole,
-                                    onCheckedChange = { checked ->
-                                        if (isEditable) experienceList[experienceList.indexOf(entry)] = entry.copy(isCurrentRole = checked)
-                                    },
-                                    enabled = isEditable,
-                                    colors = CheckboxDefaults.colors(checkedColor = AccentColor)
-                                )
-                                Text("This experience is relevant to current role", fontSize = tokens.bodySmall, color = if (isEditable) LabelColor else LabelColor.copy(alpha = 0.6f))
-                            }
-
-                            if (index != experienceList.lastIndex) {
-                                Spacer(Modifier.height(fieldGap))
-                                HorizontalDivider(color = BorderColor)
-                                Spacer(Modifier.height(fieldGap))
-                            }
-                        }
-                    }
-
-                    if (isEditable) {
-                        Spacer(Modifier.height(fieldGap))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .border(1.dp, AccentColor, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                                .clickable { experienceList.add(ExperienceEntry()) }
-                                .padding(vertical = smallGap),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("+ Add Experience", color = AccentColor, fontWeight = FontWeight.Medium, fontSize = tokens.bodyMedium)
-                        }
-                    }
-                }
-
-                // ── Work Info ──
+                // ── 9. Job Details ──
                 AccordionSection(
                     iconPainter = painterResource(R.drawable.ic_building),
-                    title = "Work Info",
-                    expanded = expandedSection == "Work Info",
-                    onHeaderClick = { expandedSection = if (expandedSection == "Work Info") "" else "Work Info" }
+                    title = "Job Details",
+                    expanded = expandedSection == "Job Details",
+                    onHeaderClick = { expandedSection = if (expandedSection == "Job Details") "" else "Job Details" }
                 ) {
-                    FormLabel("Member ID")
-                    FormTextField(
-                        value = memberId,
-                        onValueChange = { if (isEditable) memberId = it },
-                        placeholder = "Enter Member ID",
-                        enabled = isEditable
-                    )
-
-                    Spacer(Modifier.height(fieldGap))
                     FormLabel("Employee Code")
                     FormTextField(
                         value = employeeCode,
                         onValueChange = { if (isEditable) employeeCode = it },
-                        placeholder = "Enter Employee Code",
+                        placeholder = "Auto-generated if left blank",
                         enabled = isEditable
                     )
 
                     Spacer(Modifier.height(fieldGap))
-                    FormLabel("Date of Joining")
+                    FormLabel("Joining Date *")
                     DatePickerField(
                         value = doj,
                         enabled = isEditable,
@@ -1284,24 +1411,10 @@ fun EmployeeOnboardingScreen(
                         },
                         isError = currentErrorField == "Date of Joining"
                     )
-                    Spacer(Modifier.height(fieldGap))
-                    FormDropdown(
-                        label = "Branch",
-                        value = branch,
-                        expanded = branchExpanded && isEditable,
-                        onExpandChange = { if (isEditable) branchExpanded = it },
-                        options = branchList.mapNotNull { it.name },
-                        onOptionSelected = { selectedName ->
-                            if (isEditable) {
-                                branch = selectedName
-                                selectedBranchId = branchList.find { it.name == selectedName }?.id
-                            }
-                        }
-                    )
 
                     Spacer(Modifier.height(fieldGap))
                     FormDropdown(
-                        label = "Department",
+                        label = "Department *",
                         value = department,
                         expanded = departmentExpanded && isEditable,
                         onExpandChange = { if (isEditable) departmentExpanded = it },
@@ -1334,20 +1447,17 @@ fun EmployeeOnboardingScreen(
 
                     Spacer(Modifier.height(fieldGap))
                     FormDropdown(
-                        label = "Role",
-                        value = role,
-                        expanded = roleExpanded && isEditable,
-                        onExpandChange = { if (isEditable) roleExpanded = it },
-                        options = roles.map { it.name },
+                        label = "Branch",
+                        value = branch,
+                        expanded = branchExpanded && isEditable,
+                        onExpandChange = { if (isEditable) branchExpanded = it },
+                        options = branchList.mapNotNull { it.name },
                         onOptionSelected = { selectedName ->
                             if (isEditable) {
-                                role = selectedName
-                                selectedRoleId = roles.find { it.name == selectedName }?._id
-                                if (currentErrorField == "Role") { currentErrorField = null; topError = null }
+                                branch = selectedName
+                                selectedBranchId = branchList.find { it.name == selectedName }?.id
                             }
-                        },
-                        isError = currentErrorField == "Role",
-                        errorMessage = if (currentErrorField == "Role") "Role is required" else null
+                        }
                     )
 
                     Spacer(Modifier.height(fieldGap))
@@ -1364,28 +1474,10 @@ fun EmployeeOnboardingScreen(
                             }
                         }
                     )
-                    Spacer(Modifier.height(fieldGap))
-                    FormDropdown(
-                        label = "Employment Type",
-                        value = employmentType,
-                        expanded = employmentTypeExpanded && isEditable,
-                        onExpandChange = { if (isEditable) employmentTypeExpanded = it },
-                        options = listOf("Full-time", "Part-time", "Contract"),
-                        onOptionSelected = { if (isEditable) employmentType = it }
-                    )
-
-                    Spacer(Modifier.height(fieldGap))
-                    FormLabel("Work Location")
-                    FormTextField(
-                        value = workLocation,
-                        onValueChange = { if (isEditable) workLocation = it },
-                        placeholder = "Enter Work Location",
-                        enabled = isEditable
-                    )
 
                     Spacer(Modifier.height(fieldGap))
                     FormDropdown(
-                        label = "Reporting To",
+                        label = "Reporting Manager",
                         value = reportingTo,
                         expanded = reportingToExpanded && isEditable,
                         onExpandChange = { if (isEditable) reportingToExpanded = it },
@@ -1397,9 +1489,10 @@ fun EmployeeOnboardingScreen(
                             }
                         }
                     )
+
                     Spacer(Modifier.height(fieldGap))
                     FormDropdown(
-                        label = "Secondary Reporting To",
+                        label = "Secondary Manager",
                         value = secondaryReportingTo,
                         expanded = secondaryReportingToExpanded && isEditable,
                         onExpandChange = { if (isEditable) secondaryReportingToExpanded = it },
@@ -1411,129 +1504,281 @@ fun EmployeeOnboardingScreen(
                             }
                         }
                     )
+
+                    Spacer(Modifier.height(fieldGap))
+                    FormLabel("Work Location")
+                    FormTextField(
+                        value = workingDistrict,
+                        onValueChange = { if (isEditable) workingDistrict = it },
+                        placeholder = "Enter work location (e.g. Chennai)",
+                        enabled = isEditable
+                    )
+
+                    Spacer(Modifier.height(fieldGap))
+                    FormLabel("Employment Type")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf("full-time", "part-time", "contract", "volunteer").forEach { type ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable(enabled = isEditable) {
+                                    employmentType = type
+                                }
+                            ) {
+                                AppRadioButton(
+                                    selected = employmentType == type,
+                                    onClick = { if (isEditable) employmentType = type },
+                                    enabled = isEditable,
+                                )
+                                Text(
+                                    type.replaceFirstChar { it.uppercase() },
+                                    fontSize = tokens.caption,
+                                    color = TitleColor
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ── 10. Access & Permissions ──
+                AccordionSection(
+                    iconPainter = painterResource(R.drawable.person),
+                    title = "Access & Permissions",
+                    expanded = expandedSection == "Access & Permissions",
+                    onHeaderClick = { expandedSection = if (expandedSection == "Access & Permissions") "" else "Access & Permissions" }
+                ) {
+                    Text(
+                        "Assign a role that determines what this employee can see and do.",
+                        fontSize = tokens.caption,
+                        color = LabelColor
+                    )
+                    Spacer(Modifier.height(fieldGap))
+                    FormDropdown(
+                        label = "Assign Role *",
+                        value = role,
+                        expanded = roleExpanded && isEditable,
+                        onExpandChange = { if (isEditable) roleExpanded = it },
+                        options = roles.map { it.name },
+                        onOptionSelected = { selectedName ->
+                            if (isEditable) {
+                                role = selectedName
+                                selectedRoleId = roles.find { it.name == selectedName }?._id
+                                if (currentErrorField == "Role") { currentErrorField = null; topError = null }
+                            }
+                        },
+                        isError = currentErrorField == "Role",
+                        errorMessage = if (currentErrorField == "Role") "Role is required" else null
+                    )
                 }
             }
         }
 
-        // ── Floating Action Button (Only in Create/Edit mode) ──
+        // ── Floating Action Button (Submit) ──
         if (mode != ScreenMode.VIEW) {
             ExtendedFloatingActionButton(
                 onClick = {
-                    var hasGovIdError = false
-
-                    if (pan.isNotBlank()) {
-                        val panResult = GovernmentIdValidator.validatePan(pan)
-                        if (!panResult.isValid) {
-                            currentErrorField = "PAN"
-                            topError = panResult.message
-                            expandedSection = "Government IDs"
-                            hasGovIdError = true
+                    val missingField = findFirstMissingField()
+                    if (missingField != null) {
+                        currentErrorField = missingField
+                        topError = "$missingField is required"
+                        expandedSection = when (missingField) {
+                            "First Name", "Last Name", "Personal Email", "Work Phone", "Date of Birth", "Gender" -> "Personal Information"
+                            "Blood Group", "Emergency Contact Name", "Emergency Contact Phone" -> "Identity & Personal Details"
+                            "Pay Frequency" -> "Government & Statutory IDs"
+                            "Date of Joining", "Department" -> "Job Details"
+                            "Role" -> "Access & Permissions"
+                            else -> expandedSection
                         }
-                    }
+                    } else {
+                        currentErrorField = null
+                        topError = null
 
-                    if (!hasGovIdError && aadhaar.isNotBlank()) {
-                        val aadhaarResult = GovernmentIdValidator.validateAadhaar(aadhaar)
-                        if (!aadhaarResult.isValid) {
-                            currentErrorField = "Aadhaar"
-                            topError = aadhaarResult.message
-                            expandedSection = "Government IDs"
-                            hasGovIdError = true
-                        }
-                    }
-
-                    if (!hasGovIdError && uan.isNotBlank()) {
-                        val uanResult = GovernmentIdValidator.validateUan(uan)
-                        if (!uanResult.isValid) {
-                            currentErrorField = "UAN"
-                            topError = uanResult.message
-                            expandedSection = "Government IDs"
-                            hasGovIdError = true
-                        }
-                    }
-
-                    if (!hasGovIdError) {
-                        val missingField = findFirstMissingField()
-                        if (missingField != null) {
-                            currentErrorField = missingField
-                            topError = "$missingField is required"
-                            expandedSection = when (missingField) {
-                                "First Name", "Last Name", "Work Phone", "Personal Phone", "Date of Birth", "Gender" -> "Basic Information"
-                                "Date of Joining", "Department", "Role" -> "Work Info"
-                                else -> expandedSection
+                        // Create Request Object matching Exact Payload
+                        val createRequest = CreateMemberRequest(
+                            firstName = firstName,
+                            lastName = lastName,
+                            personalMail = personalMail,
+                            workMobile = workPhone,
+                            aadhaarNo = aadhaarNo,
+                            panNo = panNo,
+                            passportNo = passportNo,
+                            bloodGroup = bloodGroup,
+                            dob = toApiDate(dob),
+                            doj = toApiDate(doj),
+                            gender = gender.lowercase(),
+                            martialStatus = maritalStatus.lowercase(),
+                            emergencyContactName = emergencyContactName,
+                            emergencyContactMobile = emergencyContactMobile,
+                            uanNo = uanNo,
+                            esicNumber = esicNumber,
+                            pfAccountNo = pfAccountNo,
+                            payFrequency = payFrequency,
+                            employmentType = employmentType,
+                            workingDistrict = workingDistrict,
+                            branchId = selectedBranchId,
+                            branchName = branchList.find { it.id == selectedBranchId }?.name ?: branch.takeIf { it != "Select branch" },
+                            departmentId = selectedDepartmentId,
+                            designationId = selectedDesignationId,
+                            customRoleId = selectedRoleId,
+                            shiftId = selectedShiftId,
+                            reportingTo = selectedReportingToId,
+                            secondaryReportingTo = selectedSecondaryReportingToId,
+                            accountHolderName = accountHolderName,
+                            accountNumber = accountNumber,
+                            bankName = bankName,
+                            ifscCode = ifscCode,
+                            permanentAddress = AddressRequest(
+                                flatNo = flatNo,
+                                street = streetAddress,
+                                areaZone = areaZone,
+                                city = city,
+                                pincode = pincode,
+                                countryCode = countryCode,
+                                countryName = countryName,
+                                subdivisionCode = subdivisionCode,
+                                subdivisionName = subdivisionName
+                            ),
+                            hasTemporaryAddress = addressTab == "Temporary",
+                            temporaryAddress = if (addressTab == "Temporary") {
+                                AddressRequest(
+                                    flatNo = tempFlatNo,
+                                    street = tempStreetAddress,
+                                    areaZone = tempAreaZone,
+                                    city = tempCity,
+                                    pincode = tempPincode,
+                                    countryCode = tempCountryCode,
+                                    countryName = tempCountryName,
+                                    subdivisionCode = tempSubdivisionCode,
+                                    subdivisionName = tempSubdivisionName
+                                )
+                            } else null,
+                            education = educationList.map {
+                                EducationRequestItem(
+                                    instituteName = it.instituteName,
+                                    degree = it.degree,
+                                    specialization = it.specialization,
+                                    startDate = toApiDate(it.startDate),
+                                    completionDate = toApiDate(it.completionDate),
+                                    cgpa = it.cgpa
+                                )
+                            },
+                            workExperience = experienceList.map {
+                                WorkExperienceRequestItem(
+                                    companyName = it.companyName,
+                                    jobTitle = it.jobTitle,
+                                    employmentType = it.employmentType,
+                                    location = it.location,
+                                    fromDate = toApiDate(it.fromDate),
+                                    toDate = toApiDate(it.toDate),
+                                    jobDescription = it.jobDescription,
+                                    isRelevant = it.isCurrentRole
+                                )
+                            },
+                            pfGratuityNominees = nomineeList.map {
+                                NomineeRequestItem(
+                                    name = it.name,
+                                    relationship = it.relationship,
+                                    share = it.sharePercent
+                                )
                             }
+                        )
+
+                        val updateRequest = UpdateMemberRequest(
+                            firstName = firstName,
+                            lastName = lastName,
+                            personalMail = personalMail,
+                            workMobile = workPhone,
+                            aadhaarNo = aadhaarNo,
+                            panNo = panNo,
+                            passportNo = passportNo,
+                            bloodGroup = bloodGroup,
+                            dob = dob.toIsoDate(),
+                            doj = doj.toIsoDate(),
+                            gender = gender.lowercase(),
+                            martialStatus = maritalStatus.lowercase(),
+                            emergencyContactName = emergencyContactName,
+                            emergencyContactMobile = emergencyContactMobile,
+                            uanNo = uanNo,
+                            esicNumber = esicNumber,
+                            pfAccountNo = pfAccountNo,
+                            payFrequency = payFrequency,
+                            employmentType = employmentType,
+                            workingDistrict = workingDistrict,
+                            branchId = selectedBranchId,
+                            branchName = branchList.find { it.id == selectedBranchId }?.name ?: branch.takeIf { it != "Select branch" },
+                            departmentId = selectedDepartmentId,
+                            designationId = selectedDesignationId,
+                            customRoleId = selectedRoleId,
+                            shiftId = selectedShiftId,
+                            reportingTo = selectedReportingToId,
+                            secondaryReportingTo = selectedSecondaryReportingToId,
+                            accountHolderName = accountHolderName,
+                            accountNumber = accountNumber,
+                            bankName = bankName,
+                            ifscCode = ifscCode,
+                            permanentAddress = AddressRequest(
+                                flatNo = flatNo,
+                                street = streetAddress,
+                                areaZone = areaZone,
+                                city = city,
+                                pincode = pincode,
+                                countryCode = countryCode,
+                                countryName = countryName,
+                                subdivisionCode = subdivisionCode,
+                                subdivisionName = subdivisionName
+                            ),
+                            hasTemporaryAddress = addressTab == "Temporary",
+                            temporaryAddress = if (addressTab == "Temporary") {
+                                AddressRequest(
+                                    flatNo = tempFlatNo,
+                                    street = tempStreetAddress,
+                                    areaZone = tempAreaZone,
+                                    city = tempCity,
+                                    pincode = tempPincode,
+                                    countryCode = tempCountryCode,
+                                    countryName = tempCountryName,
+                                    subdivisionCode = tempSubdivisionCode,
+                                    subdivisionName = tempSubdivisionName
+                                )
+                            } else null,
+                            education = educationList.map {
+                                EducationRequestItem(
+                                    instituteName = it.instituteName,
+                                    degree = it.degree,
+                                    specialization = it.specialization,
+                                    startDate = toApiDate(it.startDate),
+                                    completionDate = toApiDate(it.completionDate),
+                                    cgpa = it.cgpa
+                                )
+                            },
+                            workExperience = experienceList.map {
+                                WorkExperienceRequestItem(
+                                    companyName = it.companyName,
+                                    jobTitle = it.jobTitle,
+                                    employmentType = it.employmentType,
+                                    location = it.location,
+                                    fromDate = toApiDate(it.fromDate),
+                                    toDate = toApiDate(it.toDate),
+                                    jobDescription = it.jobDescription,
+                                    isRelevant = it.isCurrentRole
+                                )
+                            },
+                            pfGratuityNominees = nomineeList.map {
+                                NomineeRequestItem(
+                                    name = it.name,
+                                    relationship = it.relationship,
+                                    share = it.sharePercent
+                                )
+                            }
+                        )
+
+                        if (mode == ScreenMode.EDIT && memberIdToLoad != null) {
+                            hrViewModel.updateMember(memberIdToLoad, updateRequest)
                         } else {
-                            currentErrorField = null
-                            topError = null
-
-                            val createRequest = CreateMemberRequest(
-                                firstName = firstName,
-                                lastName = lastName,
-                                email = workEmail,
-                                personalEmail = personalEmail,
-                                personalMobile = personalPhone,
-                                workMobile = workPhone,
-                                dob = toApiDate(dob),
-                                gender = gender.lowercase(),
-                                martialStatus = maritalStatus.lowercase(),
-                                doj = toApiDate(doj),
-                                branchId = selectedBranchId,
-                                departmentId = selectedDepartmentId,
-                                designationId = selectedDesignationId,
-                                customRoleId = selectedRoleId,
-                                shiftId = selectedShiftId,
-                                workingDistrict = workLocation,
-                                employmentType = employmentType.lowercase().replace(" ", "-"),
-                                reportingTo = selectedReportingToId,
-                                secondaryReportingTo = selectedSecondaryReportingToId,
-                                permanentAddress = AddressRequest(country, state, city, streetAddress, postalCode),
-                                hasTemporaryAddress = addressTab == "Temporary",
-                                temporaryAddress = if (addressTab == "Temporary")
-                                    AddressRequest(tempCountry, tempState, tempCity, tempStreetAddress, tempPostalCode)
-                                else null,
-                                education = educationList.map {
-                                    EducationRequestItem(it.instituteName, it.degree, it.specialization, toApiDate(it.completionDate))
-                                },
-                                workExperience = experienceList.map {
-                                    WorkExperienceRequestItem(it.companyName, it.jobTitle, toApiDate(it.fromDate), it.toDate, it.jobDescription, it.isCurrentRole)
-                                }
-                            )
-                            val updateRequest = UpdateMemberRequest(
-                                firstName = firstName,
-                                lastName = lastName,
-//                                personalEmail = personalEmail,
-                                personalMobile = personalPhone,
-                                workMobile = workPhone,
-                                dob = dob.toIsoDate(),
-                                gender = gender.lowercase(),
-                                martialStatus = maritalStatus,
-                                doj = doj.toIsoDate(),
-                                branchId = selectedBranchId,
-                                departmentId = selectedDepartmentId,
-                                designationId = selectedDesignationId,
-                                customRoleId = selectedRoleId,
-                                shiftId = selectedShiftId,
-                                workingDistrict = workLocation,
-                                employmentType = employmentType.lowercase(),
-                                reportingTo = selectedReportingToId,
-                                secondaryReportingTo = selectedSecondaryReportingToId,
-                                permanentAddress = AddressRequest(country, state, city, streetAddress, postalCode),
-                                hasTemporaryAddress = addressTab == "Temporary",
-                                temporaryAddress = if (addressTab == "Temporary")
-                                    AddressRequest(tempCountry, tempState, tempCity, tempStreetAddress, tempPostalCode)
-                                else null,
-                                education = educationList.map {
-                                    EducationRequestItem(it.instituteName, it.degree, it.specialization, toApiDate(it.completionDate))
-                                },
-                                workExperience = experienceList.map {
-                                    WorkExperienceRequestItem(it.companyName, it.jobTitle, toApiDate(it.fromDate), it.toDate, it.jobDescription, it.isCurrentRole)
-                                }
-                            )
-
-                            if (mode == ScreenMode.EDIT && memberIdToLoad != null) {
-                                hrViewModel.updateMember(memberIdToLoad, updateRequest)
-                            } else {
-                                hrViewModel.createMember(createRequest)
-                            }
+                            hrViewModel.createMember(createRequest)
                         }
                     }
                 },

@@ -206,7 +206,7 @@ fun LowStockAlertsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 color = whiteBg
             ) {
-                TitleBar("Low Stock Alerts", onClose = onClose)
+                TitleBar(title = "Low Stock Alerts", onClose = onClose)
             }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),

@@ -127,7 +127,7 @@ fun AlterationManagementScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                     ) {
-                        TitleBar("Alteration Management", onClose = onClose)
+                        TitleBar(title ="Alteration Management", onClose = onClose)
 
                     }
 

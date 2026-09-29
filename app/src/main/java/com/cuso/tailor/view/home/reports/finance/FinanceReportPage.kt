@@ -43,7 +43,7 @@ fun FinanceReportPage(
             Column(
                 Modifier.fillMaxWidth()
             ) {
-                TitleBar("Finance", onClose = onClose)
+                TitleBar(title = "Finance", onClose = onClose)
             }
         },
         containerColor = Color.Transparent

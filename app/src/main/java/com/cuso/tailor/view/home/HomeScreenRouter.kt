@@ -139,10 +139,8 @@ import com.cuso.tailor.view.home.services.feedback.FeedbackDetailScreen
 import com.cuso.tailor.view.home.services.service_order.ServiceOrderOverviewScreen
 import com.cuso.tailor.view.home.services.service_order.ServiceOrderScreen
 import com.cuso.tailor.view.home.services.service_request.CreateServiceRequest
-import com.cuso.tailor.view.home.services.service_request.OrderDetails
-import com.cuso.tailor.view.home.services.service_request.ServiceDetails
+import com.cuso.tailor.view.home.services.service_request.ServiceRequestDetailsScreen
 import com.cuso.tailor.view.home.services.service_request.ServiceRequestScreen
-import com.cuso.tailor.view.home.services.service_request.ServiceRequetDetailsScreen
 import com.cuso.tailor.view.home.services.service_status.delay_rework.DelayReworkTrackingScreen
 import com.cuso.tailor.view.home.services.service_status.service_delivery.ServiceDeliveryStatusScreen
 import com.cuso.tailor.view.home.services.service_status.status.ServiceStatusDetailScreen
@@ -159,6 +157,8 @@ import com.cuso.tailor.viewmodel.*
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedServiceRequestId: String? = null,
+    onServiceRequestIdSelected: (String?) -> Unit = {},
     selectedOpportunityId: String? = null,
     onOpportunityIdSelected: (String?) -> Unit = {},
     selectedMeasurementItem: MeasurementItem? = null,
@@ -459,6 +459,8 @@ fun HomeScreenRouter(
         "services_view_service_template" -> {
             ServicesRouter(
                 screen = screen,
+                selectedServiceRequestId = selectedServiceRequestId,
+                onServiceRequestIdSelected = onServiceRequestIdSelected,
                 navController = navController,
                 selectedManagementOrderId = selectedManagementOrderId,
                 onManagementOrderIdSelected = onManagementOrderIdSelected,
@@ -2347,6 +2349,8 @@ private fun LogisticsRouter(
 @Composable
 private fun ServicesRouter(
     screen: String,
+    selectedServiceRequestId: String?,
+    onServiceRequestIdSelected: (String?) -> Unit,
     navController: NavHostController,
     selectedManagementOrderId: String?,
     onManagementOrderIdSelected: (String?) -> Unit,
@@ -2440,43 +2444,39 @@ private fun ServicesRouter(
             } ?: run { onGoBack() }
         }
 
+        // Service Request List Route
         "services_service_request" -> ServiceRequestScreen(
-            onClose = { },
-            onBreadcrumbClick = { },
+            onClose = onGoBack,
             onCreateNewRequest = { onNavigate("create_request") },
-            onViewClick = { onNavigate("review_services") }
+            onViewClick = { requestId ->
+                android.util.Log.d("SERVICE_NAV", "Selected Request ID: $requestId")
+                onServiceRequestIdSelected(requestId)
+                onNavigate("review_services")
+            }
         )
 
-        "create_request" -> CreateServiceRequest()
-
-        "review_services" -> ServiceRequetDetailsScreen(
-            service = ServiceDetails(
-                serviceRef = "SR-1045",
-                reviewStatus = "Pending Review",
-                service = "Bespoke Alteration",
-                requestDate = "Oct 24, 2025",
-                priority = "High",
-                serviceCategory = "Suit Fitting & Adjustments",
-                preferredCompletionDate = "Nov 15, 2023",
-                serviceType = "Internal Production Refit",
-                customerName = "Jonathan Sterling",
-                phoneNumber = "+1 (555) 123-4567",
-                emailAddress = "j.sterling@executive.com",
-                shippingAddress = "452 Premium Way, Floor 12\nManhattan, NY 10001"
-            ),
-            order = OrderDetails(
-                orderId = "#ORD-8829-23",
-                status = "Completed",
-                garmentItem = "Custom Charcoal 3-Piece Wool Suit",
-                orderDate = "Sep 12, 2023",
-                deliveryDate = "Oct 15, 2023",
-                issueDescription = "The sleeves are approximately 2 inches too long...",
-                internalNotes = "Check fabric elasticity before cutting...",
-                attachmentCount = 3
-            ),
-            onBack = onGoBack,
-            onViewFullOrderHistory = { onNavigate("order_history") }
+        // Create Service Request Route
+        "create_request" -> CreateServiceRequest(
+            onClose = onGoBack,
+            onCancel = onGoBack
         )
+
+        // Service Request Details (Real API Data)
+        "review_services" -> {
+            val id = selectedServiceRequestId
+            if (!id.isNullOrBlank()) {
+                ServiceRequestDetailsScreen(
+                    requestId = id,
+                    onBack = {
+                        onServiceRequestIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } else {
+                android.util.Log.e("SERVICE_NAV", "Error: selectedServiceRequestId is NULL!")
+                onGoBack()
+            }
+        }
 
         "services_alteration_management" -> AlterationManagementScreen(
             onClose = onGoBack,

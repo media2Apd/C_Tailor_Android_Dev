@@ -176,7 +176,7 @@ fun AllEmployeesScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TitleBar("All Employees", onClose = onDismiss)
+                    TitleBar(title = "All Employees", onClose = onDismiss)
                 }
 
                 Column {

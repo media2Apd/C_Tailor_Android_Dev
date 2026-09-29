@@ -458,7 +458,7 @@ fun InvoiceDetailScreen(
                     .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TitleBar("All Invoices", onClose = onClose)
+                TitleBar(title = "All Invoices", onClose = onClose)
 
             }
             HorizontalDivider(color = Color(0xFFEEEEEE))

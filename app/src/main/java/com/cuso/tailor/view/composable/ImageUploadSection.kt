@@ -2,525 +2,296 @@
 package com.cuso.tailor.view.composable
 
 import android.content.Context
-import android.media.AudioAttributes
-import android.media.MediaPlayer
 import android.net.Uri
 import android.provider.OpenableColumns
-import androidx.annotation.DrawableRes
-import androidx.compose.foundation.Image
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.FolderZip
-import androidx.compose.material.icons.outlined.PictureAsPdf
-import androidx.compose.material.icons.outlined.TableChart
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.rememberAsyncImagePainter
-import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.ui.theme.Primary
-import com.cuso.tailor.ui.theme.badgeGrey
-import com.cuso.tailor.ui.theme.headerGrey
-import com.cuso.tailor.ui.theme.redText
-import com.cuso.tailor.ui.theme.sectionBorder
-import com.cuso.tailor.ui.theme.title_color
+import com.cuso.tailor.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.util.Locale
 
 @Composable
 fun <T> ImageUploadSection(
     modifier: Modifier = Modifier,
-    isImage: Boolean = true,
     selectedImages: List<T>,
     onBrowseClick: () -> Unit,
-    onCameraClick: (() -> Unit)? = null,
     onRemoveImage: (T) -> Unit,
-    browseText: String = "Browse Files",
-    cameraText: String = "Camera",
-    documentUploadText: String = "Drag and drop files here",
-    @DrawableRes cameraIconRes: Int = R.drawable.ic_camera,
-    @DrawableRes uploadIconRes: Int = R.drawable.ic_upload,
-    uploadBoxHeight: Dp = if (isImage) 100.dp else 130.dp,
-    imagePreviewSize: Dp = 86.dp,
-    previewHeaderTitle: String = "ATTACHED FILES"
+    maxFiles: Int = 5,
+    title: String = "Media Upload",
+    subtitle: String = "Add your documents here, and you can upload up to $maxFiles files max",
+    supportedFormatsText: String = "Only support .jpg, .png and .svg and zip files",
+    onClose: (() -> Unit)? = null,
+    isImage: Boolean = true,
+    browseText: String? = null,
+    onCameraClick: (() -> Unit)? = null,
+    documentUploadText: String? = null,
+    uploadBoxHeight: Dp? = null,
+    imagePreviewSize: Dp? = null,
+    previewHeaderTitle: String? = null
 ) {
     val tokens = LocalAppTokens.current
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
-    Column(modifier = modifier.fillMaxWidth()) {
-        // Upload Action Box
+    val displayTitle = previewHeaderTitle ?: title
+    val buttonText = browseText ?: "Browse files"
+
+    // Track simulated upload progress for newly picked items
+    val uploadProgressMap = remember { mutableStateMapOf<T, Float>() }
+    val pausedItems = remember { mutableStateMapOf<T, Boolean>() }
+
+    // Start progress simulation for newly added items
+    LaunchedEffect(selectedImages) {
+        selectedImages.forEach { item ->
+            if (!uploadProgressMap.containsKey(item)) {
+                uploadProgressMap[item] = 0f
+                coroutineScope.launch {
+                    val progressAnim = Animatable(0f)
+                    while (progressAnim.value < 1f) {
+                        if (pausedItems[item] != true) {
+                            progressAnim.animateTo(
+                                targetValue = (progressAnim.value + 0.15f).coerceAtMost(1f),
+                                animationSpec = tween(durationMillis = 300, easing = LinearEasing)
+                            )
+                            uploadProgressMap[item] = progressAnim.value
+                        }
+                        delay(200)
+                    }
+                    uploadProgressMap[item] = 1f
+                }
+            }
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+    ) {
+        // ── Header (Title, Subtitle & Dismiss Icon) ──
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+
+                Text(
+                    text = subtitle,
+                    fontSize = tokens.caption,
+                    color = close_color
+                )
+            }
+
+            if (onClose != null) {
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = TextPrimary,
+                        modifier = Modifier.size(tokens.iconSize)
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(tokens.extraPadding))
+
+        // ── Dashed Upload Box ──
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(uploadBoxHeight)
-                .background(
-                    color = Color(0xFFF1F5FD),
-                    shape = RoundedCornerShape(tokens.cardCornerRadius)
-                )
                 .dashedBorder(
                     color = Primary,
-                    strokeWidth = 1.dp,
-                    shape = RoundedCornerShape(tokens.cardCornerRadius)
+                    strokeWidth = 1.5.dp,
+                    cornerRadius = tokens.cardCornerRadius * 0.7f
+                )
+                .background(
+                    color = primary_light.copy(alpha = 0.35f),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.7f)
                 )
                 .then(
-                    if (!isImage) Modifier.clickable { onBrowseClick() } else Modifier
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isImage) {
-                // Image Upload Layout: Browse & Camera Options
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = browseText,
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = Primary,
-                        modifier = Modifier
-                            .clickable { onBrowseClick() }
-                            .padding(8.dp)
-                            .drawBehind {
-                                val strokeWidthPx = 0.5.dp.toPx()
-                                val verticalOffset = 2.dp.toPx()
-                                val y = size.height - verticalOffset
-
-                                drawLine(
-                                    color = Primary,
-                                    start = Offset(0f, y),
-                                    end = Offset(size.width, y),
-                                    strokeWidth = strokeWidthPx
-                                )
-                            }
-                    )
-
-                    if (onCameraClick != null) {
-                        Spacer(modifier = Modifier.width(24.dp))
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clickable { onCameraClick() }
-                                .padding(8.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(cameraIconRes),
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = Primary
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = cameraText,
-                                fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Medium,
-                                color = Primary
-                            )
-                        }
-                    }
-                }
-            } else {
-                // Document Upload Layout: Cloud Upload Card & Text
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .shadow(
-                                elevation = 2.dp,
-                                shape = RoundedCornerShape(12.dp),
-                                ambientColor = Color.Black.copy(alpha = 0.05f),
-                                spotColor = Color.Black.copy(alpha = 0.05f)
-                            )
-                            .background(Color.White, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(uploadIconRes),
-                            contentDescription = "Upload Document",
-                            tint = Primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Text(
-                        text = documentUploadText,
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.Normal,
-                        color = Color(0xFF475569)
-                    )
-                }
-            }
-        }
-
-        // Preview Row for Selected Files / Images
-        if (selectedImages.isNotEmpty()) {
-            Spacer(Modifier.height(tokens.extraPadding))
-            Text(
-                text = "$previewHeaderTitle (${selectedImages.size})",
-                fontSize = tokens.caption,
-                color = Color(0xFF9CA3AF),
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.5.sp
-            )
-            Spacer(Modifier.height(tokens.extraPadding))
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(selectedImages) { item ->
-                    val isDoc = isDocumentFile(context, item)
-                    val fileName = getDisplayName(context, item)
-                    val extension = getFileExtension(fileName)
-
-                    Box(
-                        modifier = Modifier
-                            .size(imagePreviewSize)
-                            .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                            .background(badgeGrey)
-                            .border(
-                                width = 1.dp,
-                                color = sectionBorder,
-                                shape = RoundedCornerShape(tokens.cardCornerRadius)
-                            )
-                    ) {
-                        if (isDoc) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(6.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = getDocumentIcon(extension),
-                                    contentDescription = null,
-                                    tint = getDocumentColor(extension),
-                                    modifier = Modifier.size(28.dp)
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = fileName,
-                                    fontSize = 9.sp,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center,
-                                    color = Color(0xFF334155),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        } else {
-                            Image(
-                                painter = rememberAsyncImagePainter(item),
-                                contentDescription = "Attachment Preview",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        }
-
-                        // Remove Button Badge
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(4.dp)
-                                .size(18.dp)
-                                .clip(CircleShape)
-                                .background(redText)
-                                .clickable { onRemoveImage(item) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Remove Item",
-                                modifier = Modifier.size(12.dp),
-                                tint = Color.White
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun <T> VoiceUploadSection(
-    modifier: Modifier = Modifier,
-    isRecording: Boolean,
-    recordedAudios: List<T>,
-    onRecordClick: () -> Unit,
-    onRemoveAudio: (T) -> Unit,
-    headerTitle: String = "RECORDED VOICE NOTES",
-    recordBoxHeight: Dp = 120.dp
-) {
-    val tokens = LocalAppTokens.current
-    val context = LocalContext.current
-
-    // Audio Playback State
-    var currentlyPlayingItem by remember { mutableStateOf<T?>(null) }
-    var isPlaying by remember { mutableStateOf(false) }
-    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
-
-    fun stopAudio() {
-        try {
-            mediaPlayer?.apply {
-                if (isPlaying) stop()
-                release()
-            }
-        } catch (_: Exception) {}
-        mediaPlayer = null
-        isPlaying = false
-        currentlyPlayingItem = null
-    }
-
-    fun togglePlayAudio(item: T) {
-        if (currentlyPlayingItem == item && isPlaying) {
-            stopAudio()
-        } else {
-            stopAudio()
-            try {
-                val player = MediaPlayer().apply {
-                    setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .build()
-                    )
-                    when (item) {
-                        is Uri -> setDataSource(context, item)
-                        is String -> setDataSource(item)
-                    }
-                    prepare()
-                }
-
-                mediaPlayer = player
-                currentlyPlayingItem = item
-                isPlaying = true
-
-                player.setOnCompletionListener {
-                    stopAudio()
-                }
-                player.start()
-            } catch (e: Exception) {
-                e.printStackTrace()
-                stopAudio()
-            }
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            stopAudio()
-        }
-    }
-
-    Column(modifier = modifier.fillMaxWidth()) {
-        // Voice Recording Action Container
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(recordBoxHeight)
-                .background(
-                    color = Color(0xFFF1F5FD),
-                    shape = RoundedCornerShape(tokens.cardCornerRadius)
+                    if (uploadBoxHeight != null && uploadBoxHeight > 0.dp) Modifier.height(uploadBoxHeight)
+                    else Modifier
                 )
-                .dashedBorder(
-                    color = Primary,
-                    strokeWidth = 1.dp,
-                    shape = RoundedCornerShape(tokens.cardCornerRadius)
-                ),
+                .padding(vertical = tokens.extraPadding * 1.5f, horizontal = tokens.screenPadding),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // Record/Stop Action Button
-                Button(
-                    onClick = {
-                        stopAudio()
-                        onRecordClick()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isRecording) redText else Color.White
-                    ),
-                    shape = RoundedCornerShape(24.dp),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
+                // Folder upload icon with circular arrow badge
+                Box(
+                    modifier = Modifier.size(46.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = if (isRecording) Icons.Default.Stop else Icons.Default.Mic,
-                        contentDescription = null,
-                        tint = if (isRecording) Color.White else Primary,
-                        modifier = Modifier.size(20.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Primary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Folder,
+                            contentDescription = null,
+                            tint = whiteBg,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    // Upward upload arrow badge
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(whiteBg.copy(alpha = 0.25f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Upload,
+                            contentDescription = null,
+                            tint = whiteBg,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
+
+                Text(
+                    text = "Drag your file(s) to start uploading",
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary
+                )
+
+                Spacer(Modifier.height(tokens.extraPadding * 0.6f))
+
+                // OR separator
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.width(180.dp)
+                ) {
+                    HorizontalDivider(
+                        modifier = Modifier.weight(1f),
+                        color = grey_border,
+                        thickness = 1.dp
                     )
-                    Spacer(Modifier.width(8.dp))
                     Text(
-                        text = if (isRecording) "Stop Recording" else "Start Recording",
-                        color = if (isRecording) Color.White else Primary,
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold
+                        text = "  OR  ",
+                        fontSize = tokens.caption,
+                        color = mutedText,
+                        fontWeight = FontWeight.Medium
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.weight(1f),
+                        color = grey_border,
+                        thickness = 1.dp
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
-                Text(
-                    text = if (isRecording) "Recording in progress..." else "Tap to record voice instructions",
-                    fontSize = 12.sp,
-                    color = if (isRecording) redText else headerGrey,
-                    fontWeight = FontWeight.Medium
-                )
+                // Outlined "Browse files" button
+                OutlinedButton(
+                    onClick = onBrowseClick,
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                    border = BorderStroke(1.5.dp, Primary),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = whiteBg,
+                        contentColor = Primary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = buttonText,
+                        fontSize = tokens.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Primary
+                    )
+                }
             }
         }
 
-        // Full Width Vertical List for Recorded Audio Items
-        if (recordedAudios.isNotEmpty()) {
-            Spacer(Modifier.height(tokens.extraPadding))
-            Text(
-                text = "$headerTitle (${recordedAudios.size})",
-                fontSize = tokens.caption,
-                color = Color(0xFF9CA3AF),
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.5.sp
-            )
-            Spacer(Modifier.height(tokens.extraPadding))
+        Spacer(Modifier.height(tokens.extraPadding * 0.5f))
 
+        // ── Supported Format Footer ──
+        Text(
+            text = supportedFormatsText,
+            fontSize = tokens.caption,
+            color = mutedText,
+            modifier = Modifier.padding(start = 2.dp)
+        )
+
+        Spacer(Modifier.height(tokens.extraPadding))
+
+        // ── Uploaded / In-Progress Files List ──
+        if (selectedImages.isNotEmpty()) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                recordedAudios.forEachIndexed { index, audioItem ->
-                    val fileName = getDisplayName(context, audioItem)
-                    val isItemPlaying = currentlyPlayingItem == audioItem && isPlaying
+                selectedImages.forEach { item ->
+                    val progress = uploadProgressMap[item] ?: 1f
+                    val (fileName, fileSize) = getFileDetails(context, item)
 
-                    // Full-width Audio Card
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                            .background(badgeGrey)
-                            .border(
-                                width = 1.dp,
-                                color = if (isItemPlaying) Primary else sectionBorder,
-                                shape = RoundedCornerShape(tokens.cardCornerRadius)
-                            )
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Interactive Play/Pause/Waveform Button
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (isItemPlaying) Primary else Primary.copy(alpha = 0.1f)
-                                )
-                                .clickable { togglePlayAudio(audioItem) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (isItemPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isItemPlaying) "Pause" else "Play",
-                                tint = if (isItemPlaying) Color.White else Primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        // Audio Title / Details
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (fileName == "File" || fileName.isBlank()) "Voice Note ${index + 1}" else fileName,
-                                fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Medium,
-                                color = title_color,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = if (isItemPlaying) "Playing..." else "Recorded audio • Tap to play",
-                                fontSize = 11.sp,
-                                color = if (isItemPlaying) Primary else Color(0xFF16A34A),
-                                fontWeight = FontWeight.Normal
-                            )
-                        }
-
-                        // Remove Audio Button
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFFEE2E2))
-                                .clickable {
-                                    if (currentlyPlayingItem == audioItem) stopAudio()
-                                    onRemoveAudio(audioItem)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Delete Voice Note",
-                                tint = redText,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
+                    if (progress < 1f) {
+                        // ── Card 1: Uploading in Progress ──
+                        UploadingProgressCard(
+                            progress = progress,
+                            isPaused = pausedItems[item] == true,
+                            onTogglePause = {
+                                pausedItems[item] = !(pausedItems[item] ?: false)
+                            },
+                            onCancel = {
+                                uploadProgressMap.remove(item)
+                                onRemoveImage(item)
+                            }
+                        )
+                    } else {
+                        // ── Card 2: Upload Completed File ──
+                        CompletedFileCard(
+                            fileName = fileName,
+                            fileSize = fileSize,
+                            onRemove = {
+                                uploadProgressMap.remove(item)
+                                onRemoveImage(item)
+                            }
+                        )
                     }
                 }
             }
@@ -528,52 +299,230 @@ fun <T> VoiceUploadSection(
     }
 }
 
-// Shared Helper Methods
-private fun isDocumentFile(context: Context, item: Any?): Boolean {
-    if (item is Uri) {
-        val type = context.contentResolver.getType(item)
-        if (type != null) {
-            return !type.startsWith("image/")
-        }
-        val name = getDisplayName(context, item).lowercase()
-        return !name.endsWith(".jpg") && !name.endsWith(".jpeg") && !name.endsWith(".png") && !name.endsWith(".webp")
-    }
-    val path = item.toString().lowercase()
-    return !path.endsWith(".jpg") && !path.endsWith(".jpeg") && !path.endsWith(".png") && !path.endsWith(".webp")
-}
+/**
+ * Card displayed while file upload is in progress.
+ */
+@Composable
+private fun UploadingProgressCard(
+    progress: Float,
+    isPaused: Boolean,
+    onTogglePause: () -> Unit,
+    onCancel: () -> Unit
+) {
+    val tokens = LocalAppTokens.current
+    val progressPercent = (progress * 100).toInt()
+    val secondsRemaining = ((1f - progress) * 30).toInt().coerceAtLeast(1)
 
-private fun getDisplayName(context: Context, item: Any?): String {
-    if (item is Uri) {
-        context.contentResolver.query(item, null, null, null, null)?.use { cursor ->
-            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (cursor.moveToFirst() && nameIndex >= 0) {
-                return cursor.getString(nameIndex)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
+            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
+            .padding(tokens.screenPadding * 0.9f)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = if (isPaused) "Paused" else "Uploading...",
+                    fontSize = tokens.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "$progressPercent% • $secondsRemaining seconds remaining",
+                    fontSize = tokens.caption,
+                    color = mutedText
+                )
+            }
+
+            // Pause and Cancel icons
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Pause / Resume Button
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .border(1.dp, BorderGray, CircleShape)
+                        .clickable { onTogglePause() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                        contentDescription = "Pause",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
+
+                // Red Cancel Button
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(redBg)
+                        .clickable { onCancel() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cancel",
+                        tint = redText,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
             }
         }
-    }
-    return item?.toString()?.substringAfterLast("/") ?: "File"
-}
 
-private fun getFileExtension(fileName: String): String {
-    return fileName.substringAfterLast('.', "").lowercase()
-}
+        Spacer(Modifier.height(10.dp))
 
-private fun getDocumentIcon(extension: String): ImageVector {
-    return when (extension) {
-        "pdf" -> Icons.Outlined.PictureAsPdf
-        "doc", "docx" -> Icons.Outlined.Description
-        "xls", "xlsx", "csv" -> Icons.Outlined.TableChart
-        "zip", "rar" -> Icons.Outlined.FolderZip
-        else -> Icons.AutoMirrored.Filled.InsertDriveFile
+        // Linear Progress Bar
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(4.dp)),
+            color = Primary,
+            trackColor = grey_border
+        )
     }
 }
 
-private fun getDocumentColor(extension: String): Color {
-    return when (extension) {
-        "pdf" -> Color(0xFFE53935)
-        "doc", "docx" -> Color(0xFF2563EB)
-        "xls", "xlsx", "csv" -> Color(0xFF059669)
-        "zip", "rar" -> Color(0xFFD97706)
-        else -> Primary
+/**
+ * Card displayed once the file has uploaded successfully.
+ */
+@Composable
+private fun CompletedFileCard(
+    fileName: String,
+    fileSize: String,
+    onRemove: () -> Unit
+) {
+    val tokens = LocalAppTokens.current
+    val extension = fileName.substringAfterLast('.', "").uppercase()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
+            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
+            .padding(horizontal = tokens.screenPadding * 0.9f, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            // File Type Badge Icon
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFFFFF7ED)), // Light yellow/orange folder background
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.Folder,
+                        contentDescription = null,
+                        tint = Color(0xFFF59E0B),
+                        modifier = Modifier.size(22.dp)
+                    )
+                    if (extension.isNotBlank()) {
+                        Text(
+                            text = extension.take(4),
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Primary
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            Column {
+                Text(
+                    text = fileName,
+                    fontSize = tokens.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = fileSize,
+                    fontSize = tokens.caption,
+                    color = mutedText
+                )
+            }
+        }
+
+        // Circular Remove Button
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .border(1.dp, BorderGray, CircleShape)
+                .clickable { onRemove() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Remove File",
+                tint = mutedText,
+                modifier = Modifier.size(14.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Extracts the file display name and readable size from Uri.
+ */
+private fun getFileDetails(context: Context, item: Any?): Pair<String, String> {
+    var name = "file"
+    var size = "Unknown size"
+    if (item is Uri) {
+        try {
+            context.contentResolver.query(item, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                if (cursor.moveToFirst()) {
+                    if (nameIndex >= 0) name = cursor.getString(nameIndex) ?: "file"
+                    if (sizeIndex >= 0) {
+                        val bytes = cursor.getLong(sizeIndex)
+                        size = formatBytes(bytes)
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            name = item.lastPathSegment ?: "file"
+        }
+    } else {
+        name = item?.toString()?.substringAfterLast("/") ?: "file"
+    }
+    return Pair(name, size)
+}
+
+/**
+ * Formats raw bytes to human-readable format like '5.3MB'.
+ */
+private fun formatBytes(bytes: Long): String {
+    if (bytes <= 0) return "0 KB"
+    val kb = bytes / 1024.0
+    val mb = kb / 1024.0
+    return when {
+        mb >= 1.0 -> String.format(Locale.US, "%.1fMB", mb)
+        else -> String.format(Locale.US, "%.0fKB", kb)
     }
 }

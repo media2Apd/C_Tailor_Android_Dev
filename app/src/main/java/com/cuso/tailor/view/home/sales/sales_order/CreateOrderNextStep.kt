@@ -238,7 +238,7 @@ fun CreateOrderNextStep(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        TitleBar("Create Order", onClose = onClose)
+                        TitleBar(title ="Create Order", onClose = onClose)
                     }
                     HorizontalDivider(color = BorderColor)
                 }

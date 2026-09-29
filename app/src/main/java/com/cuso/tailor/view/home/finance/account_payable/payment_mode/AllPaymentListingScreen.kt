@@ -101,7 +101,7 @@ fun AllPaymentListScreen(
         Scaffold(
             topBar = {
                 Column(modifier = Modifier.fillMaxWidth().background(whiteBg)) {
-                    TitleBar("All Payments", onClose = onClose)
+                    TitleBar(title = "All Payments", onClose = onClose)
                 }
             },
             contentWindowInsets = WindowInsets(0, 0, 0, 0),

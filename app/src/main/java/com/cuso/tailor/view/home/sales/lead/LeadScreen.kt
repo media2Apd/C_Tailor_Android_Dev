@@ -1416,7 +1416,7 @@ fun LeadScreenContent(
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    TitleBar("Lead Management", onClose = onClose)
+                    TitleBar(title = "Sales & Order Reports", onClose = onClose)
                 }
                 HorizontalDivider(color = title_border)
 

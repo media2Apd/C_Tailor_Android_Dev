@@ -124,7 +124,7 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TitleBar("Tracking Overview", onClose = onClose)
+                        TitleBar(title = "Tracking Overview", onClose = onClose)
 
                     }
                     HorizontalDivider(color = GrayBorder)

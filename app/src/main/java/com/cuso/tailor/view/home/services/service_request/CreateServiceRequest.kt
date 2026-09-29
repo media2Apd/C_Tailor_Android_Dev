@@ -1,142 +1,141 @@
-@file:Suppress(
-    "UNUSED_VALUE",
-    "SpellCheckingInspection",
-    "GrazieInspection",
-    "AssignedValueIsNeverRead",
-    "unused_variable",
-    "unused_parameter",
-    "UnusedMaterial3ScaffoldPaddingParameter", "VariableNeverRead"
-)
-
+@file:Suppress("UNUSED_VALUE", "unused", "unusedVariable")
 package com.cuso.tailor.view.home.services.service_request
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.cuso.tailor.ui.theme.Primary
-import com.cuso.tailor.ui.theme.TextSecondary
-import com.cuso.tailor.ui.theme.blackTitle
-import com.cuso.tailor.ui.theme.whiteBg
-import com.cuso.tailor.view.composable.AccordionSection
-import com.cuso.tailor.view.composable.DashedUploadBox
-import com.cuso.tailor.view.composable.DatePickerField
-import com.cuso.tailor.view.composable.SelectableChipRow
-import com.cuso.tailor.view.composable.rememberFilePickerLauncher
-import com.cuso.tailor.view.composable.FormDropdown
-import com.cuso.tailor.view.composable.FormLabel
-import com.cuso.tailor.view.composable.FormTextField
-import com.cuso.tailor.view.composable.StepNavigationFab
-import com.cuso.tailor.view.composable.TrailingFabAction
-import com.cuso.tailor.view.home.sales.lead.MiniSwitch
-// ── NEW: adaptive design tokens ──
-import com.cuso.tailor.adaptive_screen.AppDesignTokens
-import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.view.composable.TitleBar
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.R
-import com.cuso.tailor.view.composable.FormTextArea
-
-private val BorderColor = Color(0xFFE3E4E8)
+import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.service.AlterationDetail
+import com.cuso.tailor.model.service.CreateServiceRequestItemPayload
+import com.cuso.tailor.model.service.CreateServiceRequestPayload
+import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.view.home.sales.lead.MiniSwitch
+import com.cuso.tailor.viewmodel.CustomerUiState
+import com.cuso.tailor.viewmodel.CustomerViewModel
+import com.cuso.tailor.viewmodel.ServiceActionUiState
+import com.cuso.tailor.viewmodel.ServicesViewModel
 
 @Composable
 fun CreateServiceRequest(
     onClose: () -> Unit = {},
     onCancel: () -> Unit = {},
-    onCreateServiceRequest: () -> Unit = {},
-    isSubmitting: Boolean = false // wire this to your ViewModel's loading state
+    serviceViewModel: ServicesViewModel = hiltViewModel(),
+    customerViewModel: CustomerViewModel = hiltViewModel()
 ) {
-    // ── Adaptive tokens: pulled from LocalAppTokens (set at app root via
-    // CompositionLocalProvider(LocalAppTokens provides getAdaptiveTokens(...))) ──
-    val tokens: AppDesignTokens = LocalAppTokens.current
-    val sectionGap = tokens.screenPadding                    // ~16 / 24 / 32.dp
-    val fieldGap = tokens.screenPadding * 0.75f               // ~12 / 18 / 24.dp
-    val smallGap = tokens.screenPadding * 0.5f                 // ~8 / 12 / 16.dp
-    val tinyGap = tokens.screenPadding * 0.3f                  // ~5 / 7 / 10.dp
-    val adaptiveCorner = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+    val context = LocalContext.current
+    val tokens = LocalAppTokens.current
+    val actionState by serviceViewModel.actionState.collectAsStateWithLifecycle()
+    val customerState by customerViewModel.uiState.collectAsStateWithLifecycle()
 
-    var expandedSection by remember { mutableStateOf("Customer Information") }
+    // ── Active Accordion Section States ──
+    var customerInfoExpanded by remember { mutableStateOf(true) }
+    var salesOrderRefExpanded by remember { mutableStateOf(true) }
+    var serviceDetailsExpanded by remember { mutableStateOf(true) }
+    var uploadEvidenceExpanded by remember { mutableStateOf(true) }
+    var preferredResolutionExpanded by remember { mutableStateOf(true) }
+    var internalNotesExpanded by remember { mutableStateOf(true) }
+    var chargesExpanded by remember { mutableStateOf(true) }
 
-    // ── Customer Information state ──
+    // ── 1. Customer Information State ──
     var customerName by remember { mutableStateOf("") }
     var customerId by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
     var emailAddress by remember { mutableStateOf("") }
 
-    // ── Sales Order Reference state ──
-    var orderId by remember { mutableStateOf("Select Order ID") }
+    // ── 2. Sales Order Reference State ──
+    var orderId by remember { mutableStateOf("") }
     var orderIdExpanded by remember { mutableStateOf(false) }
     var garmentName by remember { mutableStateOf("") }
     var garmentType by remember { mutableStateOf("") }
     var deliveryDate by remember { mutableStateOf("") }
-    var checked by remember { mutableStateOf(true) }
+    var trialCompleted by remember { mutableStateOf(false) }
 
-    // ── Service Request state ──
-    var serviceType by remember { mutableStateOf("Select Service Type") }
+    // ── 3. Service Details State ──
+    var serviceType by remember { mutableStateOf("") }
     var serviceTypeExpanded by remember { mutableStateOf(false) }
-    var priority by remember { mutableStateOf("Select Service Type") }
+    var priority by remember { mutableStateOf("") }
     var priorityExpanded by remember { mutableStateOf(false) }
     var issueDescription by remember { mutableStateOf("") }
 
-
-    // ── Product state ──
-    var garmentsForService by remember { mutableStateOf("Select Service Type") }
-    var garmentForServiceTypeExpanded by remember { mutableStateOf(false) }
-    val garmentOptions = listOf(
-        "Sleeve",
-        "Neck",
-        "Waist",
-        "Length",
-        "Fit",
-        "Damage",
-        "Fabric Issue"
-    )
-    var selectedGarmentCategories by remember { mutableStateOf(listOf<String>()) }
-
-    // ── Upload Evidence state ──
-    val launchFilePicker = rememberFilePickerLauncher { uri ->
-        // handle selected file uri here
+    // ── 4. Upload Evidence State ──
+    var selectedAttachments by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            selectedAttachments = (selectedAttachments + uris).distinct()
+        }
     }
-    // ── Preferred Resolution state ──
+
+    // ── 5. Preferred Resolution State ──
     var preferredServiceDate by remember { mutableStateOf("") }
     var resolutionNotes by remember { mutableStateOf("") }
 
-
-    // ── Internal Notes state ──
+    // ── 6. Internal Notes State ──
     var staffOnlyComments by remember { mutableStateOf("") }
+
+    // ── 7. Charges State ──
+    var serviceCharge by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        customerViewModel.loadCustomers()
+    }
+
+    LaunchedEffect(actionState) {
+        when (val state = actionState) {
+            is ServiceActionUiState.Success -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
+                serviceViewModel.resetActionState()
+                onClose()
+            }
+            is ServiceActionUiState.Error -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                serviceViewModel.resetActionState()
+            }
+            else -> Unit
+        }
+    }
 
     Scaffold(
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                TitleBar("Create Service Request", onClose = onClose)
+            Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
+                TitleBar(title ="Create Service Request", onClose = onClose)
             }
-            HorizontalDivider(color = BorderColor)
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = Color.Transparent
-
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -146,45 +145,46 @@ fun CreateServiceRequest(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Transparent)
                     .verticalScroll(rememberScrollState())
-                    .padding(bottom = tokens.buttonHeight * 1.9f) // clearance so content never sits under the FAB row
+                    .padding(bottom = tokens.buttonHeight * 2.2f)
             ) {
-                // ── Customer Information (expanded by default) ──
-                AccordionSection(
-                    iconPainter = painterResource(R.drawable.ic_person),
+                Spacer(Modifier.height(tokens.extraPadding * 0.5f))
+
+                // ─────────────────────────────────────────────
+                // 1. CUSTOMER INFORMATION
+                // ─────────────────────────────────────────────
+                FormAccordionSection(
                     title = "Customer Information",
-                    expanded = expandedSection == "Customer Information",
-                    onHeaderClick = {
-                        expandedSection = if (expandedSection == "Customer Information") "" else "Customer Information"
-                    }
+                    iconPainter = painterResource(R.drawable.ic_person),
+                    isExpanded = customerInfoExpanded,
+                    onToggle = { customerInfoExpanded = !customerInfoExpanded }
                 ) {
-                    FormLabel("Customer Name")
+                    FormLabel(text = "Customer Name")
                     FormTextField(
                         value = customerName,
                         onValueChange = { customerName = it },
                         placeholder = "Enter Customer Name"
                     )
 
-                    Spacer(Modifier.height(fieldGap))
-                    FormLabel("Customer ID")
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel(text = "Customer ID")
                     FormTextField(
                         value = customerId,
                         onValueChange = { customerId = it },
                         placeholder = "Enter Customer ID"
                     )
 
-                    Spacer(Modifier.height(fieldGap))
-                    FormLabel("Phone Number")
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel(text = "Phone Number")
                     FormTextField(
                         value = phoneNumber,
                         onValueChange = { phoneNumber = it },
-                        placeholder = "Enter Phone Number",
+                        placeholder = "Enter Mobile Number",
                         keyboardType = KeyboardType.Phone
                     )
 
-                    Spacer(Modifier.height(fieldGap))
-                    FormLabel("Email Address")
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel(text = "Email Address")
                     FormTextField(
                         value = emailAddress,
                         onValueChange = { emailAddress = it },
@@ -193,337 +193,401 @@ fun CreateServiceRequest(
                     )
                 }
 
-                // ── Sales Order Reference ──
-                AccordionSection(
-                    iconPainter = painterResource(R.drawable.ic_transaction_sheet),
+                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
+
+                // ─────────────────────────────────────────────
+                // 2. SALES ORDER REFERENCE
+                // ─────────────────────────────────────────────
+                FormAccordionSection(
                     title = "Sales Order Reference",
-                    expanded = expandedSection == "Sales Order Reference",
-                    onHeaderClick = {
-                        expandedSection = if (expandedSection == "Sales Order Reference") "" else "Sales Order Reference"
-                    }
+                    iconPainter = painterResource(R.drawable.ic_clippad_lines),
+                    isExpanded = salesOrderRefExpanded,
+                    onToggle = { salesOrderRefExpanded = !salesOrderRefExpanded }
                 ) {
                     FormDropdown(
                         label = "Order ID",
-                        value = orderId,
+                        value = orderId.ifBlank { "Select Order ID" },
                         expanded = orderIdExpanded,
                         onExpandChange = { orderIdExpanded = it },
-                        options = listOf("12345","223345","qweweq"),   // list of actual sales order IDs from your ViewModel
-                        onOptionSelected = { selected ->
-                            orderId = selected
-                        }
+                        options = listOf("SO-2024-0492", "SO-2024-0510", "SO-2024-0588"),
+                        onOptionSelected = { orderId = it }
                     )
-                    Spacer(Modifier.height(fieldGap))
 
-                    FormLabel("Garment Name")
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel(text = "Garment Name")
                     FormTextField(
                         value = garmentName,
                         onValueChange = { garmentName = it },
                         placeholder = "Enter Garment Name"
                     )
-                    Spacer(Modifier.height(fieldGap))
 
-                    FormLabel("Garment Type")
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel(text = "Garment Type")
                     FormTextField(
                         value = garmentType,
                         onValueChange = { garmentType = it },
-                        placeholder = "Enter Garment Type",
-                        keyboardType = KeyboardType.Phone
+                        placeholder = "Enter Garment Type"
                     )
-                    Spacer(Modifier.height(fieldGap))
 
-                    FormLabel("Delivery Date")
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel(text = "Delivery Date")
                     DatePickerField(
                         value = deliveryDate,
-                        onDateSelected = {deliveryDate = it}
+                        onDateSelected = { deliveryDate = it }
                     )
-                    Spacer(Modifier.height(fieldGap))
+
+                    Spacer(Modifier.height(tokens.extraPadding))
+
+                    // Trial Completed Switch & Delivered Status Badge
                     Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
-                    ){
-                        Text("Trial Completed", color = blackTitle, fontSize = tokens.caption)
-                        Spacer(Modifier.width(smallGap))
-                        MiniSwitch(
-                            checked = false,
-                            onCheckedChange = { checked = it}
-                        )
-                        Spacer(Modifier.weight(1f))
-                        Box(
-                            Modifier
-                                .background(Color(0xFFb2e6c3), RoundedCornerShape(30.dp))
-                        ){
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "Delivered",
-                                Modifier.padding(horizontal = smallGap, vertical = tinyGap),
-                                color = Color(0xFF0AB83E),
-                                fontSize = tokens.caption
+                                text = "Trial Completed",
+                                fontSize = tokens.bodySmall,
+                                color = TextPrimary
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            MiniSwitch(
+                                checked = trialCompleted,
+                                onCheckedChange = { trialCompleted = it }
                             )
                         }
 
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(greenBg)
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "Delivered",
+                                color = greentext,
+                                fontSize = tokens.caption,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
 
-                // ── Service Request Details ──
-                AccordionSection(
+                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
+
+                // ─────────────────────────────────────────────
+                // 3. SERVICE DETAILS
+                // ─────────────────────────────────────────────
+                FormAccordionSection(
+                    title = "Service Details",
                     iconPainter = painterResource(R.drawable.ic_clippad_lines),
-                    title = "Service Request Details",
-                    expanded = expandedSection == "Service Request Details",
-                    onHeaderClick = {
-                        expandedSection = if (expandedSection == "Service Request Details") "" else "Service Request Details"
-                    }
+                    isExpanded = serviceDetailsExpanded,
+                    onToggle = { serviceDetailsExpanded = !serviceDetailsExpanded }
                 ) {
                     FormDropdown(
                         label = "Service Type",
-                        value = serviceType,
+                        value = serviceType.ifBlank { "Select Service Type" },
                         expanded = serviceTypeExpanded,
                         onExpandChange = { serviceTypeExpanded = it },
-                        options = listOf("Replacement","Alteration","Refund"),   // list of actual sales order IDs from your ViewModel
-                        onOptionSelected = { selected ->
-                            serviceType = selected
-                        }
+                        options = listOf("Alteration", "Repair", "Restyling", "Replacement"),
+                        onOptionSelected = { serviceType = it }
                     )
-                    Spacer(Modifier.height(fieldGap))
 
+                    Spacer(Modifier.height(tokens.extraPadding))
                     FormDropdown(
                         label = "Priority",
-                        value = priority,
+                        value = priority.ifBlank { "Select Priority" },
                         expanded = priorityExpanded,
                         onExpandChange = { priorityExpanded = it },
-                        options = listOf("Low","Medium","High"),   // list of actual sales order IDs from your ViewModel
-                        onOptionSelected = { selected ->
-                            priority = selected
-                        }
+                        options = listOf("Low", "Medium", "High", "Urgent"),
+                        onOptionSelected = { priority = it }
                     )
-                    Spacer(Modifier.height(fieldGap))
 
-                    FormLabel("Issue Description")
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel(text = "Issue Description")
                     FormTextArea(
-                        value=issueDescription,
-                        onValueChange = { issueDescription = it }
+                        value = issueDescription,
+                        onValueChange = { issueDescription = it },
+                        placeholder = "Detail the specific issue with the garment..."
                     )
                 }
 
-                // ── Product Details ──
-                AccordionSection(
-                    iconPainter = painterResource(R.drawable.ic_clippad_tick),
-                    title = "Product Details",
-                    expanded = expandedSection == "Product Details",
-                    onHeaderClick = {
-                        expandedSection = if (expandedSection == "Product Details") "" else "Product Details"
-                    }
-                ) {
+                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
-                    FormDropdown(
-                        label = "Select Garments for Service",
-                        value = garmentsForService,
-                        expanded = garmentForServiceTypeExpanded,
-                        onExpandChange = { garmentForServiceTypeExpanded = it },
-                        options = listOf("Replacement","Alteration","Refund"),   // list of actual sales order IDs from your ViewModel
-                        onOptionSelected = { selected ->
-                            garmentsForService = selected
-                        }
-                    )
-                    Spacer(Modifier.height(fieldGap))
-                    FormLabel("Issue Areas")
-                    Spacer(Modifier.height(fieldGap))
-                    SelectableChipRow(
-                        options = garmentOptions,
-                        selectedOptions = selectedGarmentCategories,
-                        onSelectionChange = { selectedGarmentCategories = it }
-                    )
-                }
-
-                // ── Upload Evidence ──
-                AccordionSection(
-                    iconPainter = painterResource(R.drawable.ic_upload_cloud),
+                // ─────────────────────────────────────────────
+                // 4. UPLOAD EVIDENCE
+                // ─────────────────────────────────────────────
+                FormAccordionSection(
                     title = "Upload Evidence",
-                    expanded = expandedSection == "Upload Evidence",
-                    onHeaderClick = {
-                        expandedSection = if (expandedSection == "Upload Evidence") "" else "Upload Evidence"
-                    }
+                    iconPainter = painterResource(R.drawable.ic_upload_cloud),
+                    isExpanded = uploadEvidenceExpanded,
+                    onToggle = { uploadEvidenceExpanded = !uploadEvidenceExpanded }
                 ) {
-                    DashedUploadBox(
-                        onBrowseClick = { launchFilePicker() }
+                    ImageUploadSection(
+                        isImage = false,
+                        selectedImages = selectedAttachments,
+                        onBrowseClick = { filePickerLauncher.launch("image/*") },
+                        onCameraClick = null,
+                        onRemoveImage = { uri ->
+                            selectedAttachments = selectedAttachments - uri
+                        },
+                        browseText = "Browse Files",
+                        previewHeaderTitle = "ATTACHED FILES"
                     )
                 }
 
-                // ── Preferred Resolution ──
-                AccordionSection(
-                    iconPainter = painterResource(R.drawable.ic_calendar_tick),
+                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
+
+                // ─────────────────────────────────────────────
+                // 5. PREFERRED RESOLUTION
+                // ─────────────────────────────────────────────
+                FormAccordionSection(
                     title = "Preferred Resolution",
-                    expanded = expandedSection == "Preferred Resolution",
-                    onHeaderClick = {
-                        expandedSection = if (expandedSection == "Preferred Resolution") "" else "Preferred Resolution"
-                    }
+                    iconPainter = painterResource(R.drawable.ic_calendar),
+                    isExpanded = preferredResolutionExpanded,
+                    onToggle = { preferredResolutionExpanded = !preferredResolutionExpanded }
                 ) {
-                    FormLabel("Preferred Service Date")
+                    FormLabel(text = "Preferred Service Date")
                     DatePickerField(
                         value = preferredServiceDate,
-                        onDateSelected = {preferredServiceDate = it}
+                        onDateSelected = { preferredServiceDate = it }
                     )
-                    Spacer(Modifier.height(fieldGap))
 
-                    FormLabel("Resolution Notes")
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel(text = "Resolution Notes")
                     FormTextArea(
                         value = resolutionNotes,
-                        onValueChange = { resolutionNotes = it }
+                        onValueChange = { resolutionNotes = it },
+                        placeholder = "Additional details about desired resolution..."
                     )
                 }
 
-                // ── Internal Notes ──
-                AccordionSection(
-                    iconPainter = painterResource(R.drawable.ic_lock_2),
+                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
+
+                // ─────────────────────────────────────────────
+                // 6. INTERNAL NOTES
+                // ─────────────────────────────────────────────
+                FormAccordionSection(
                     title = "Internal Notes",
-                    iconTint = TextSecondary,
-                    expanded = expandedSection == "Internal Notes",
-                    onHeaderClick = {
-                        expandedSection = if (expandedSection == "Internal Notes") "" else "Internal Notes"
-                    }
+                    iconPainter = painterResource(R.drawable.ic_lock_2),
+                    isExpanded = internalNotesExpanded,
+                    onToggle = { internalNotesExpanded = !internalNotesExpanded }
                 ) {
-                    FormLabel("Staff-only comments")
+                    FormLabel(text = "Staff-only comments")
                     FormTextArea(
                         value = staffOnlyComments,
-                        onValueChange = { staffOnlyComments = it }
+                        onValueChange = { staffOnlyComments = it },
+                        placeholder = "Document any internal observations or private instructions here..."
                     )
+
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = mutedText,
+                            modifier = Modifier.size(tokens.iconSize * 0.8f)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "These notes are never visible to the customer.",
+                            fontSize = tokens.caption,
+                            color = mutedText
+                        )
+                    }
                 }
 
-                // ── Charges ──
-                AccordionSection(
+                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
+
+                // ─────────────────────────────────────────────
+                // 7. CHARGES
+                // ─────────────────────────────────────────────
+                FormAccordionSection(
                     title = "Charges",
-                    expanded = expandedSection == "Charges",
-                    onHeaderClick = {
-                        expandedSection = if (expandedSection == "Charges") "" else "Charges"
-                    }
+                    iconPainter = null,
+                    isExpanded = chargesExpanded,
+                    onToggle = { chargesExpanded = !chargesExpanded }
                 ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Service",
+                            fontSize = tokens.bodySmall,
+                            color = mutedText
+                        )
 
-                    ServicesSection()
+                        BasicTextField(
+                            value = serviceCharge,
+                            onValueChange = { serviceCharge = it },
+                            singleLine = true,
+                            textStyle = TextStyle(
+                                fontSize = tokens.bodySmall,
+                                color = TextPrimary,
+                                textAlign = TextAlign.End
+                            ),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            cursorBrush = SolidColor(Primary),
+                            modifier = Modifier
+                                .width(90.dp)
+                                .height(tokens.fieldHeight * 0.85f)
+                                .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius * 0.4f))
+                                .background(whiteBg)
+                                .padding(horizontal = 8.dp),
+                            decorationBox = { inner ->
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    if (serviceCharge.isEmpty()) {
+                                        Text("0.00", fontSize = tokens.bodySmall, color = mutedText)
+                                    }
+                                    inner()
+                                }
+                            }
+                        )
+                    }
 
+                    Spacer(Modifier.height(tokens.extraPadding * 0.5f))
 
+                    Row(
+                        modifier = Modifier.clickable { /* Add charge row */ },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Add Field",
+                            color = Primary,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add",
+                            tint = Primary,
+                            modifier = Modifier.size(tokens.iconSize * 0.8f)
+                        )
+                    }
                 }
             }
 
-            // ── Bottom action row: Cancel (Back) + Create Service Request (Trailing) ──
+            // ── Floating Action Bar: Cancel & Initialize Service Request ──
             StepNavigationFab(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(tokens.buttonHeight * 1.9f)
                     .align(Alignment.BottomCenter),
                 showBack = true,
                 onBack = onCancel,
                 backLabel = "Cancel",
-                backWidthFraction = 0.35f,       // keeps "Cancel" from colliding with the long trailing label
-                trailingWidthFraction = 0.55f,   // "Create Service Request" needs more room than the default pill
                 trailingAction = TrailingFabAction.Update(
-                    label = "Create Service Request",
-                    isLoading = isSubmitting,
-                    onClick = onCreateServiceRequest
-                )
-            )
-        }
-    }
-}
+                    label = "Initialize Service",
+                    isLoading = actionState is ServiceActionUiState.Loading,
+                    onClick = {
+                        val resolvedCustomerId = (customerState as? CustomerUiState.Success)
+                            ?.customers?.firstOrNull()?.id ?: ""
 
-@Composable
-fun AmountInputBox(
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    placeholder: String = "0.00"
-) {
-    val tokens = LocalAppTokens.current
-    BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        textStyle = LocalTextStyle.current.copy(
-            fontSize = tokens.bodyMedium,
-            color = Color(0xFF1A1A1A),
-            textAlign = TextAlign.Center
-        ),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        cursorBrush = SolidColor(Primary),
-        modifier = modifier
-            .width(80.dp)
-            .height(tokens.fieldHeight * 0.9f)
-            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f)),
-        decorationBox = { innerTextField ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = tokens.screenPadding * 0.5f),
-                contentAlignment = Alignment.Center
-            ) {
-                if (value.isEmpty()) {
-                    Text(
-                        text = placeholder,
-                        fontSize = tokens.bodyMedium,
-                        color = Color(0xFFB0B0B0), //   placeholder grey
-                        textAlign = TextAlign.Center
-                    )
-                }
-                innerTextField()
-            }
-        }
-    )
-}
-@Composable
-fun ServicesSection() {
-    val tokens = LocalAppTokens.current
-    var fields by remember { mutableStateOf(listOf("")) }
+                        val parsedCharge = serviceCharge.toDoubleOrNull() ?: 0.0
 
-    Column(Modifier.fillMaxWidth()) {
-        fields.forEachIndexed { index, value ->
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = tokens.screenPadding * 0.25f),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Services", fontSize = tokens.bodyMedium, color = Color(0xFF1A1A1A))
-                Spacer(Modifier.weight(1f))
+                        val payload = CreateServiceRequestPayload(
+                            customerId = resolvedCustomerId,
+                            primaryCategory = serviceType.orDash(),
+                            originalSalesOrderId = orderId.orDash(),
+                            priority = priority.orDash(),
+                            deliveryDate = (if (preferredServiceDate.isNotBlank()) preferredServiceDate else deliveryDate).orDash(),
+                            advanceAmountPaid = 0.0,
+                            attachments = selectedAttachments.map { it.toString() },
+                            items = listOf(
+                                CreateServiceRequestItemPayload(
+                                    category = serviceType.orDash(),
+                                    garmentDescription = garmentName.orDash(),
+                                    serviceCharge = parsedCharge,
+                                    issueSummary = issueDescription.orDash(),
+                                    internalNotes = staffOnlyComments.orDash(),
+                                    alterations = listOf(
+                                        AlterationDetail(
+                                            targetArea = "Sleeve_Length",
+                                            action = "Shorten",
+                                            value = 1.0,
+                                            unit = "inch",
+                                            notes = issueDescription.orDash()
+                                        )
+                                    )
+                                )
+                            )
+                        )
 
-                AmountInputBox(
-                    value = value,
-                    onValueChange = { newValue ->
-                        fields = fields.toMutableList().also { it[index] = newValue }
+                        serviceViewModel.createServiceRequest(payload) {
+                            onClose()
+                        }
                     }
                 )
-                Spacer(Modifier.width(tokens.screenPadding * 0.5f))
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Remove field",
-                    tint = Color(0xFF9CA3AF),
-                    modifier = Modifier
-                        .size(tokens.iconSize)
-                        .clickable {
-                            fields = fields.toMutableList().also { it.removeAt(index) }
-                        }
-                )
-
-            }
-        }
-
-        Spacer(Modifier.height(tokens.screenPadding * 0.5f))
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.Add, null, tint = Primary, modifier = Modifier.size(tokens.iconSize))
-            Spacer(Modifier.width(tokens.screenPadding * 0.6f))
-
-            Text(
-                text = "Add field",
-                color = Primary,
-                fontSize = tokens.bodySmall,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .clickable { fields = fields + "" }
-                    .padding(vertical = tokens.screenPadding * 0.25f)
             )
         }
     }
 }
+
+@Composable
+private fun FormAccordionSection(
+    title: String,
+    iconPainter: Painter?,
+    isExpanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val tokens = LocalAppTokens.current
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = whiteBg,
+        shadowElevation = 0.dp
+    ) {
+        Column(modifier = Modifier.padding(tokens.screenPadding)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle() },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (iconPainter != null) {
+                        Icon(
+                            painter = iconPainter,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(tokens.iconSize)
+                        )
+                        Spacer(Modifier.width(tokens.extraPadding * 0.6f))
+                    }
+                    Text(
+                        text = title,
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = TitleColor
+                    )
+                }
+
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = mutedText,
+                    modifier = Modifier.size(tokens.iconSize * 1.1f)
+                )
+            }
+
+            AnimatedVisibility(visible = isExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = tokens.extraPadding),
+                    content = content
+                )
+            }
+        }
+    }
+}
+
+private fun String?.orDash(): String =
+    if (this.isNullOrBlank()) "-" else this

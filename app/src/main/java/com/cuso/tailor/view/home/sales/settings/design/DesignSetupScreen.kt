@@ -37,6 +37,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.settings.ApplicableGarmentPayload
 import com.cuso.tailor.model.settings.DesignItem
 import com.cuso.tailor.model.settings.GarmentItem
 import com.cuso.tailor.model.settings.SegmentItem
@@ -139,15 +140,17 @@ fun DesignSetupScreen(
                 )
 
                 HorizontalDivider(color = title_border)
-
-                // Subtitle Instruction Text
-                Text(
-                    text = "Manage reusable garment designs and define where each design can be used.",
-                    fontSize = tokens.bodySmall,
-                    color = headerGrey,
-                    modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = 8.dp)
-                )
-
+//                Row(
+//                    Modifier.fillMaxWidth()
+//                        .padding(horizontal =tokens.screenPadding)
+//                ) {
+//                    Text(
+//                        "Manage reusable garment designs and define where each design can be used.",
+//                        fontSize = tokens.bodySmall,
+//                        color = title_color
+//                    )
+//                }
+//                HorizontalDivider(color = title_border)
                 // Search Bar
                 SearchFilterBar(
                     query = searchQuery,
@@ -320,70 +323,88 @@ private fun DesignCardItem(
                         )
                     }
                 }
-
-                // Options Menu in the top right
-                Box(
+                Row(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(4.dp)
+                        .padding(top = 8.dp, end = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    IconButton(
-                        onClick = { menuExpanded = true },
-                        modifier = Modifier.size(28.dp)
+                    // 1. Status Badge
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isActive) greenBg else redBg)
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Options",
-                            tint = iconMuted,
-                            modifier = Modifier.size(tokens.iconSize)
+                        Text(
+                            text = if (isActive) "Active" else "Inactive",
+                            fontSize = tokens.caption,
+                            color = if (isActive) greentext else redText,
+                            fontWeight = FontWeight.Medium
                         )
                     }
 
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                        containerColor = whiteBg,
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = "Edit",
-                                    fontSize = tokens.bodySmall,
-                                    color = TextPrimary
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onEdit()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = if (isActive) "Deactivate" else "Activate",
-                                    fontSize = tokens.bodySmall,
-                                    color = TextPrimary
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onToggleStatus()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = "Delete",
-                                    fontSize = tokens.bodySmall,
-                                    color = redText
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onDelete()
-                            }
-                        )
+                    // 2. Options Menu (3-Dots)
+                    Box {
+                        IconButton(
+                            onClick = { menuExpanded = true },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Options",
+                                tint = iconMuted,
+                                modifier = Modifier.size(tokens.iconSize)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                            containerColor = whiteBg,
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Edit",
+                                        fontSize = tokens.bodySmall,
+                                        color = TextPrimary
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onEdit()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = if (isActive) "Deactivate" else "Activate",
+                                        fontSize = tokens.bodySmall,
+                                        color = TextPrimary
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onToggleStatus()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Delete",
+                                        fontSize = tokens.bodySmall,
+                                        color = redText
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onDelete()
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -423,20 +444,7 @@ private fun DesignCardItem(
                         )
                     }
 
-                    // Status Badge
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(if (isActive) greenBg else light_grey)
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = if (isActive) "Active" else "Inactive",
-                            fontSize = tokens.caption,
-                            color = if (isActive) darkGreenBg else textSubdued,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+
                 }
 
                 // Applicable Garments Summary Text
@@ -949,7 +957,15 @@ fun AddEditDesignScreen(
                         val codeVal = designCode.ifBlank {
                             "FD-" + designName.trim().uppercase().take(3) + "-001"
                         }
-                        val segmentIds = mappings.map { it.segmentId }.distinct()
+
+                        val applicableGarmentsPayload = mappings.map { mapping ->
+                            ApplicableGarmentPayload(
+                                segmentId = mapping.segmentId,
+                                garmentId = mapping.garmentId,
+                                garmentCategoryId = null,
+                                allCategories = mapping.categoryName == "All Categories"
+                            )
+                        }
 
                         if (isEdit) {
                             viewModel.updateDesign(
@@ -959,8 +975,8 @@ fun AddEditDesignScreen(
                                 designType = backendType,
                                 code = codeVal,
                                 description = description,
-                                status = if (statusActive) "Active" else "Inactive",
-                                segmentIds = segmentIds,
+//                                status = if (statusActive) "Active" else "Inactive",
+                                applicableGarments = applicableGarmentsPayload,
                                 imageUri = selectedImageUri,
                                 onSuccess = { onSaveSuccess() },
                                 onError = { }
@@ -973,7 +989,7 @@ fun AddEditDesignScreen(
                                 code = codeVal,
                                 description = description,
                                 status = if (statusActive) "Active" else "Inactive",
-                                segmentIds = segmentIds,
+                                applicableGarments = applicableGarmentsPayload,
                                 imageUri = selectedImageUri,
                                 onSuccess = { onSaveSuccess() },
                                 onError = { }
@@ -1047,7 +1063,7 @@ fun AddGarmentMappingDialog(
 ) {
     val tokens = LocalAppTokens.current
 
-    var selectedSegment by remember { mutableStateOf<SegmentItem?>(segments.firstOrNull()) }
+    var selectedSegment by remember { mutableStateOf(segments.firstOrNull()) }
     var selectedGarment by remember { mutableStateOf<GarmentItem?>(null) }
     var selectedCategory by remember { mutableStateOf("All Categories") }
 

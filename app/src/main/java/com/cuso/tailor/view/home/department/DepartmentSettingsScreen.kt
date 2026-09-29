@@ -192,7 +192,7 @@ fun DepartmentSettingsScreen(
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
-                TitleBar("Department", onClose = onBack)
+                TitleBar(title ="Department", onClose = onBack)
             },
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0)
@@ -566,7 +566,7 @@ fun AddDepartmentPage(
                     .fillMaxWidth()
             ) {
                 TitleBar(
-                    if (isEditMode) "Edit Department" else "Add New Department",
+                    title = if (isEditMode) "Edit Department" else "Add New Department",
                     onClose = onBack
                 )
                 HorizontalDivider(color = title_border)

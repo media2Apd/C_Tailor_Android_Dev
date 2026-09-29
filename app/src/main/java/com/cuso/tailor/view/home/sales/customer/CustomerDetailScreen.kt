@@ -189,7 +189,7 @@ fun CustomerDetailScreen(
                         isEditMode -> "Edit Customer"
                         else -> "View Customer"
                     }
-                    TitleBar(title, onClose = { if (!isInteractionDisabled) onClose() })
+                    TitleBar(title = "Sales & Order Reports", onClose = onClose)
                 }
             }
         ) { padding ->

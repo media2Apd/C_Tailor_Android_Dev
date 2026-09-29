@@ -230,7 +230,7 @@ fun MeasurementsScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    TitleBar("Measurements", onClose = onBack)
+                    TitleBar(title ="Measurements", onClose = onBack)
                 }
 
                 HorizontalDivider(color = title_border)

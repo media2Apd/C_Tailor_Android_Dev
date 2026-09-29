@@ -1044,7 +1044,7 @@ fun AddExistingFieldScreen(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                TitleBar("Add Existing Field", onClose)
+                TitleBar(title ="Add Existing Field", onClose =onClose)
             }
         ) { padding ->
             Column(

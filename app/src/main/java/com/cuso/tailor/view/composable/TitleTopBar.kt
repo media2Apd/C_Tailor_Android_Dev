@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,9 +28,10 @@ import com.cuso.tailor.ui.theme.whiteBg
 
 @Composable
 fun TitleBar(
-    title: String,
-    onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    title: String,
+    subtitle: String? = null,
+    onClose: () -> Unit,
     // Optional Slot: Custom composable content (Badges, Buttons, Actions, etc.)
     trailingContent: (@Composable RowScope.() -> Unit)? = null
 ) {
@@ -40,29 +42,38 @@ fun TitleBar(
             .fillMaxWidth()
             .background(whiteBg)
             .padding(horizontal = tokens.screenPadding, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        verticalAlignment = Alignment.CenterVertically, // close button vertical center
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Single-line Title with Ellipsis on overflow
-        Text(
-            text = title,
-            fontSize = tokens.h1,
-            fontWeight = FontWeight.Bold,
-            color = title_color,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false)
-        )
+        // Left: Title (row 1) + Subtitle (row 2)
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = title,
+                fontSize = tokens.h1,
+                fontWeight = FontWeight.Bold,
+                color = title_color,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
 
-        // Right side container (Custom Slot Content + Close Button)
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    fontSize = tokens.bodySmall,
+                    color = title_color
+                )
+            }
+        }
+
+        // Right: Custom slot content + Close button
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Render custom content dynamically if provided
             trailingContent?.invoke(this)
 
-            // Close button
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Close",

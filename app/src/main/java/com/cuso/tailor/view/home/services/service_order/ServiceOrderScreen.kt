@@ -150,7 +150,7 @@ fun ServiceOrderScreen(
             Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    TitleBar("Service Orders", onClose = onBack)
+                    TitleBar(title ="Service Orders", onClose = onBack)
                 }
 
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -320,13 +320,13 @@ fun ServiceOrderScreen(
                                                             verticalArrangement = Arrangement.spacedBy(4.dp)
                                                         ) {
                                                             Text(
-                                                                text = "Total: ₹${order.totalAmount ?: 0}",
+                                                                text = "Total: ₹${order.totalAmount}",
                                                                 fontSize = 12.sp,
                                                                 color = Color(0xFF6B7280)
                                                             )
                                                             Row(verticalAlignment = Alignment.Bottom) {
                                                                 Text(
-                                                                    text = "₹${order.totalPaid ?: order.totalAmount ?: 0}",
+                                                                    text = "₹${order.totalPaid}",
                                                                     fontSize = 18.sp,
                                                                     fontWeight = FontWeight.Bold,
                                                                     color = Color(0xFF111827)

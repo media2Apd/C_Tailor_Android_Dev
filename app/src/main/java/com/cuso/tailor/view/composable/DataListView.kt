@@ -303,8 +303,7 @@ fun <T> DataCard(
                         if (eyebrowText != null) {
                             Text(
                                 text = eyebrowText,
-                                fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                fontSize = tokens.bodySmall,
                                 color = eyebrowColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis

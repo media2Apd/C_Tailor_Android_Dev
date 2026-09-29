@@ -69,7 +69,7 @@ fun SupplierDetailScreen(
                 .background(Color.Transparent)
         ) {
             // --- Top Bar ---
-            TitleBar("All Suppliers", onClose = onClose)
+            TitleBar(title = "All Suppliers", onClose = onClose)
             HorizontalDivider(color = dividerColor)
 
             Column(

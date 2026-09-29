@@ -67,7 +67,7 @@ fun OrderTrackingScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TitleBar("Order Tracking", onClose = onClose)
+                TitleBar(title = "Order Tracking", onClose = onClose)
 
             }
 

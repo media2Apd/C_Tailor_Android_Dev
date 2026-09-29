@@ -165,7 +165,7 @@ fun ManualJournalEntryScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TitleBar("Manual Journal Entry", onClose = onClose)
+                TitleBar(title = "Manual Journal Entry", onClose = onClose)
             }
 
             Column {

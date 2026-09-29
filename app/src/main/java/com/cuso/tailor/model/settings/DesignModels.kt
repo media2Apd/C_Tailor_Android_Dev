@@ -1,6 +1,9 @@
 package com.cuso.tailor.model.settings
 
+import com.google.gson.*
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
+import java.lang.reflect.Type
 
 // =============================================================================
 // 1. API RESPONSE WRAPPERS
@@ -80,7 +83,7 @@ data class DesignItem(
 )
 
 // =============================================================================
-// 3. NESTED SUPPORTING MODELS
+// 3. NESTED SUPPORTING MODELS (FIXED)
 // =============================================================================
 
 data class ApplicableGarmentItem(
@@ -89,21 +92,111 @@ data class ApplicableGarmentItem(
     @SerializedName("segmentId")
     val segmentId: DesignSegmentDto? = null,
     @SerializedName("garmentId")
-    val garmentId: String? = null,
+    val garmentId: DesignGarmentDto? = null,
     @SerializedName("garmentCategoryId")
-    val garmentCategoryId: String? = null,
+    val garmentCategoryId: DesignCategoryDto? = null,
     @SerializedName("allCategories")
     val allCategories: Boolean = true
 )
+data class ApplicableGarmentPayload(
+    val segmentId: String,
+    val garmentId: String,
+    val garmentCategoryId: String? = null,
+    val allCategories: Boolean = true
+)
 
+// ── Segment DTO & Deserializer ──
+@JsonAdapter(DesignSegmentDeserializer::class)
 data class DesignSegmentDto(
     @SerializedName("_id", alternate = ["id"])
-    val id: String,
+    val id: String? = null,
+    @SerializedName("name")
+    val name: String? = null,
+    @SerializedName("displayName")
+    val displayName: String? = null,
+    @SerializedName("code")
+    val code: String? = null
+)
+
+class DesignSegmentDeserializer : JsonDeserializer<DesignSegmentDto?> {
+    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): DesignSegmentDto? {
+        if (json == null || json.isJsonNull) return null
+        return when {
+            json.isJsonObject -> {
+                val obj = json.asJsonObject
+                DesignSegmentDto(
+                    id = obj.get("_id")?.asString ?: obj.get("id")?.asString,
+                    name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString,
+                    displayName = obj.get("displayName")?.takeIf { !it.isJsonNull }?.asString,
+                    code = obj.get("code")?.takeIf { !it.isJsonNull }?.asString
+                )
+            }
+            json.isJsonPrimitive && json.asJsonPrimitive.isString -> DesignSegmentDto(id = json.asString)
+            else -> null
+        }
+    }
+}
+
+// ── Garment DTO & Deserializer ──
+@JsonAdapter(DesignGarmentDeserializer::class)
+data class DesignGarmentDto(
+    @SerializedName("_id", alternate = ["id"])
+    val id: String? = null,
+    @SerializedName("name")
+    val name: String? = null,
+    @SerializedName("displayName")
+    val displayName: String? = null,
+    @SerializedName("code")
+    val code: String? = null
+)
+
+class DesignGarmentDeserializer : JsonDeserializer<DesignGarmentDto?> {
+    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): DesignGarmentDto? {
+        if (json == null || json.isJsonNull) return null
+        return when {
+            json.isJsonObject -> {
+                val obj = json.asJsonObject
+                DesignGarmentDto(
+                    id = obj.get("_id")?.asString ?: obj.get("id")?.asString,
+                    name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString,
+                    displayName = obj.get("displayName")?.takeIf { !it.isJsonNull }?.asString,
+                    code = obj.get("code")?.takeIf { !it.isJsonNull }?.asString
+                )
+            }
+            json.isJsonPrimitive && json.asJsonPrimitive.isString -> DesignGarmentDto(id = json.asString)
+            else -> null
+        }
+    }
+}
+
+// ── Category DTO & Deserializer ──
+@JsonAdapter(DesignCategoryDeserializer::class)
+data class DesignCategoryDto(
+    @SerializedName("_id", alternate = ["id"])
+    val id: String? = null,
     @SerializedName("name")
     val name: String? = null,
     @SerializedName("displayName")
     val displayName: String? = null
 )
+
+class DesignCategoryDeserializer : JsonDeserializer<DesignCategoryDto?> {
+    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): DesignCategoryDto? {
+        if (json == null || json.isJsonNull) return null
+        return when {
+            json.isJsonObject -> {
+                val obj = json.asJsonObject
+                DesignCategoryDto(
+                    id = obj.get("_id")?.asString ?: obj.get("id")?.asString,
+                    name = obj.get("name")?.takeIf { !it.isJsonNull }?.asString,
+                    displayName = obj.get("displayName")?.takeIf { !it.isJsonNull }?.asString
+                )
+            }
+            json.isJsonPrimitive && json.asJsonPrimitive.isString -> DesignCategoryDto(id = json.asString)
+            else -> null
+        }
+    }
+}
 
 // =============================================================================
 // 4. REQUEST PAYLOADS

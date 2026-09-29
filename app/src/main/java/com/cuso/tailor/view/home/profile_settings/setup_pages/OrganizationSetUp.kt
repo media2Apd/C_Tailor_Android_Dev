@@ -170,7 +170,7 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                TitleBar("Organization Setup", onClose = onBack)
+                TitleBar(title = "Organization Setup", onClose = onBack)
             }
         }
 

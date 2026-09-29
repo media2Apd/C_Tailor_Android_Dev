@@ -189,7 +189,7 @@ fun SalesOrderReportsScreen(
                 // never visually sit on top of it.
                 Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
                     Column {
-                        TitleBar("Sales & Order Reports", onClose = onClose)
+                        TitleBar(title = "Sales & Order Reports", onClose = onClose)
                     }
                 }
                 HorizontalDivider(color = BorderColor)

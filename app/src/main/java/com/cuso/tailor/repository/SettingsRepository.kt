@@ -1135,7 +1135,7 @@ class SettingsRepository @Inject constructor(
         code: String,
         description: String?,
         status: String = "Active",
-        segmentIds: List<String>,
+        applicableGarments: List<ApplicableGarmentPayload>,
         imageUri: Uri?
     ): Result<DesignItem> {
         return try {
@@ -1151,16 +1151,16 @@ class SettingsRepository @Inject constructor(
                 params["description"] = createPartFromString(it)
             }
 
-            val garmentParts = segmentIds.map { id ->
-                MultipartBody.Part.createFormData("applicableGarments[][segmentId]", id)
-            }
+            val applicableGarmentsJson = com.google.gson.Gson().toJson(applicableGarments)
+            val garmentPart = MultipartBody.Part.createFormData("applicableGarments", applicableGarmentsJson)
+
             val imagePart = imageUri?.let { uriToMultipartPart(context, it, "image") }
 
             val response = salesSettingsApi.createDesign(
                 token = accessToken,
                 csrfToken = csrfToken,
                 params = params,
-                applicableGarments = garmentParts,
+                applicableGarments = listOf(garmentPart), // ✅ JSON Array String Part
                 image = imagePart
             )
 
@@ -1181,8 +1181,8 @@ class SettingsRepository @Inject constructor(
         designType: String,
         code: String,
         description: String?,
-        status: String,
-        segmentIds: List<String>,
+//        status: String,
+        applicableGarments: List<ApplicableGarmentPayload>,
         imageUri: Uri?
     ): Result<DesignItem> {
         return try {
@@ -1191,16 +1191,15 @@ class SettingsRepository @Inject constructor(
             val params = mutableMapOf(
                 "name" to createPartFromString(name),
                 "designType" to createPartFromString(designType),
-                "code" to createPartFromString(code),
-                "status" to createPartFromString(status)
+                "code" to createPartFromString(code)
             )
             description?.takeIf { it.isNotBlank() }?.let {
                 params["description"] = createPartFromString(it)
             }
 
-            val garmentParts = segmentIds.map { segmentId ->
-                MultipartBody.Part.createFormData("applicableGarments[][segmentId]", segmentId)
-            }
+            val applicableGarmentsJson = com.google.gson.Gson().toJson(applicableGarments)
+            val garmentPart = MultipartBody.Part.createFormData("applicableGarments", applicableGarmentsJson)
+
             val imagePart = imageUri?.let { uriToMultipartPart(context, it, "image") }
 
             val response = salesSettingsApi.updateDesign(
@@ -1208,7 +1207,7 @@ class SettingsRepository @Inject constructor(
                 csrfToken = csrfToken,
                 id = id,
                 params = params,
-                applicableGarments = garmentParts,
+                applicableGarments = listOf(garmentPart),
                 image = imagePart
             )
 

@@ -106,7 +106,7 @@ fun PaymentListingScreen(
                 Modifier.fillMaxWidth()
             ) {
                 // ── Header ──
-                TitleBar("All Orders", onClose = onBack)
+                TitleBar(title ="All Orders", onClose = onBack)
             }
 
             // ── Breadcrumb + Search ──

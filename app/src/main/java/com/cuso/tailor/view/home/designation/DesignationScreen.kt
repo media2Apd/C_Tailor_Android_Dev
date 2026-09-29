@@ -183,7 +183,7 @@ fun DesignationScreen(
                             .fillMaxSize()
                             .background(Color.Transparent)
                     ) {
-                        TitleBar("Designation", onClose = onBack)
+                        TitleBar(title ="Designation", onClose = onBack)
 
                         Column(modifier = Modifier.fillMaxWidth()) {
                             SearchFilterBar(
@@ -399,7 +399,7 @@ fun AddDesignationPage(
                     modifier = Modifier
                         .fillMaxWidth()
                 ) {
-                    TitleBar(if (isEditMode) "Edit Designation" else "Add New Designation", onClose = onBack)
+                    TitleBar(title = if (isEditMode) "Edit Designation" else "Add New Designation", onClose = onBack)
                 }
                 HorizontalDivider(color = title_border)
 

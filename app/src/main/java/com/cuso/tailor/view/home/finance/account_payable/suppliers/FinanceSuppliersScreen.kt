@@ -64,7 +64,7 @@ private val dummySuppliers = List(6) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TitleBar("All Suppliers", onClose = onClose)
+            TitleBar(title = "All Suppliers", onClose = onClose)
 
         }
 

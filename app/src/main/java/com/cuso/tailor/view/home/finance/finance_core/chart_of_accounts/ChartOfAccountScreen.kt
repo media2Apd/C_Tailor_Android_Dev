@@ -193,7 +193,7 @@ fun ChartOfAccountScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TitleBar("Chart of Accounts", onClose = onClose)
+                TitleBar(title = "Chart of Accounts", onClose = onClose)
             }
 
             Column {

@@ -94,7 +94,7 @@ fun LedgerScreen(
             modifier = Modifier
                 .fillMaxWidth()
         ) {
-            TitleBar("Ledger", onClose = onClose)
+            TitleBar(title = "Ledger", onClose = onClose)
         }
 
         Column {

@@ -91,7 +91,7 @@ fun PricingScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                TitleBar("Pricing", onClose = onClose)
+                TitleBar(title ="Pricing", onClose = onClose)
             }
 
             HorizontalDivider(color = CardBorder)

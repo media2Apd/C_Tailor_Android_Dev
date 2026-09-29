@@ -115,7 +115,7 @@ fun OpeningBalancesScreen(
     Scaffold(
         topBar = {
             TitleBar(
-                "Opening Balances",
+                title = "Opening Balances",
                 // Close button steps back from the detail view to the list first,
                 // and only exits the screen when already on the list.
                 onClose = { if (selectedCategory != null) selectedCategoryId = null else onBack() }

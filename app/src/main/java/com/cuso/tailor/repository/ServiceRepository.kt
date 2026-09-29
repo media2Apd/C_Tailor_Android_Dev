@@ -3,12 +3,17 @@
 package com.cuso.tailor.repository
 
 import com.cuso.tailor.database.dao.TokensDao
+import com.cuso.tailor.model.service.CreateServiceRequestPayload
+import com.cuso.tailor.model.service.ServiceRequestData
+import com.cuso.tailor.model.service.ServiceRequestListResponse
+import com.cuso.tailor.model.service.UpdateServiceStatusPayload
 import com.cuso.tailor.model.settings.CreateStageRequest
 import com.cuso.tailor.model.settings.CreateTemplateRequest
 import com.cuso.tailor.model.settings.ProductionStageDto
 import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.model.settings.StageListResponse
 import com.cuso.tailor.model.settings.TemplateListResponse
+import com.cuso.tailor.network.services.ServicesApiService
 import com.cuso.tailor.network.services.settings.ServiceSettingsApiInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,7 +24,8 @@ import javax.inject.Singleton
 @Singleton
 class ServicesRepository @Inject constructor(
     private val templateApi: ServiceSettingsApiInterface,
-    private val tokensDao: TokensDao
+    private val tokensDao: TokensDao,
+    private val serviceApi: ServicesApiService
 ) {
     private suspend fun getAuthHeaders(): Pair<String, String> {
         val tokens = tokensDao.getTokens() ?: throw Exception("Session expired. Please log in again.")
@@ -192,5 +198,82 @@ class ServicesRepository @Inject constructor(
 
     private fun <T> extractError(response: Response<T>, fallback: String): String {
         return response.errorBody()?.string() ?: response.message().takeIf { it.isNotBlank() } ?: fallback
+    }
+
+    suspend fun getServiceRequests(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ): Result<ServiceRequestListResponse> {
+        return try {
+            val (token, csrfToken) = getAuthHeaders()
+            val response = serviceApi.getServiceRequests(token, csrfToken, page, limit, search, status)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch requests"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getServiceRequestById(id: String): Result<ServiceRequestData> {
+        return try {
+            val (token, csrfToken) = getAuthHeaders()
+            val response = serviceApi.getServiceRequestById(token, csrfToken, id)
+            if (response.isSuccessful && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to load request"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createServiceRequest(request: CreateServiceRequestPayload): Result<ServiceRequestData> {
+        return try {
+            val (token, csrfToken) = getAuthHeaders()
+            val response = serviceApi.createServiceRequest(token, csrfToken, request)
+            if (response.isSuccessful && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to create request"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateServiceRequest(id: String, request: CreateServiceRequestPayload): Result<ServiceRequestData> {
+        return try {
+            val (token, csrfToken) = getAuthHeaders()
+            val response = serviceApi.updateServiceRequest(token, csrfToken, id, request)
+            if (response.isSuccessful && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to update request"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateServiceRequestStatus(id: String, status: String): Result<ServiceRequestData> {
+        return try {
+            val (token, csrfToken) = getAuthHeaders()
+            val response = serviceApi.updateServiceRequestStatus(token, csrfToken, id,
+                UpdateServiceStatusPayload(status)
+            )
+            if (response.isSuccessful && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to update status"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

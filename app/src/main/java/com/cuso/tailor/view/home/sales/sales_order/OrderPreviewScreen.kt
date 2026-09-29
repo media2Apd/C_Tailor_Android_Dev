@@ -290,10 +290,9 @@ fun OrderPreviewScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.clickable { isFullAdvance = true }
                         ) {
-                            RadioButton(
+                            AppRadioButton(
                                 selected = isFullAdvance,
-                                onClick = { isFullAdvance = true },
-                                colors = RadioButtonDefaults.colors(selectedColor = Primary)
+                                onClick = { isFullAdvance = true }
                             )
                             Text("Full Advance", fontSize = 13.sp, color = Color(0xFF334155))
                         }
@@ -302,10 +301,9 @@ fun OrderPreviewScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.clickable { isFullAdvance = false }
                         ) {
-                            RadioButton(
+                            AppRadioButton(
                                 selected = !isFullAdvance,
-                                onClick = { isFullAdvance = false },
-                                colors = RadioButtonDefaults.colors(selectedColor = Primary)
+                                onClick = { isFullAdvance = false }
                             )
                             Text("Without Advance", fontSize = 13.sp, color = Color(0xFF334155))
                         }

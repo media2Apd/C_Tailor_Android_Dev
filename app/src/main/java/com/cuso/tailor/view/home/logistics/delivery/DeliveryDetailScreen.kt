@@ -44,6 +44,7 @@ import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.view.composable.AccordionSection
+import com.cuso.tailor.view.composable.AppRadioButton
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
@@ -497,12 +498,10 @@ fun DeliveryDetailScreen(
                                 .padding(vertical = 12.dp, horizontal = 10.dp),
                             verticalAlignment = Alignment.Top
                         ) {
-                            RadioButton(
+                            AppRadioButton(
                                 selected = isSelected,
                                 onClick = { if (!isDisabled) tempSelectedStaff = staff.name },
-                                enabled = !isDisabled,
-                                colors = RadioButtonDefaults.colors(selectedColor = RecommendedColor),
-                                modifier = Modifier.size(20.dp)
+                                enabled = !isDisabled
                             )
                             Spacer(Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {

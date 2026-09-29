@@ -10,6 +10,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -204,6 +206,7 @@ fun GarmentTypeContent(
 
                 when {
                     isLoadingSegments && segments.isEmpty() -> {
+                        // Display full-screen skeleton when initial segments are loading
                         ListSkeleton()
                     }
 
@@ -346,115 +349,124 @@ fun GarmentTypeContent(
                             }
                         }
 
-                        Spacer(Modifier.height(14.dp))
-
-                        /*
-                         * CRASH FIX:
-                         * Replaced nested `LazyColumn` with a standard `Column`.
-                         * When `SalesSettingsScreen` is hosted inside an already-scrollable parent container
-                         * (such as HomeScreen's LazyColumn/verticalScroll), a nested LazyColumn causes an
-                         * IllegalStateException due to infinite maximum height constraints.
-                         * Using a standard Column with spacing and padding avoids measuring conflicts completely.
-                         */
-                        Column(
+                        // Use weight(1f) to ensure LazyColumn only occupies remaining space and does not overflow
+                        LazyColumn(
                             modifier = Modifier
+                                .weight(1f)
                                 .fillMaxWidth()
-                                .padding(horizontal = tokens.screenPadding)
-                                .padding(bottom = 90.dp),
+                                .padding(horizontal = tokens.screenPadding),
+                            contentPadding = PaddingValues(top = 14.dp, bottom = 100.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            // "Add Segment" action container
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(tokens.buttonHeight)
-                                    .dashedBorder(
-                                        color = Primary,
-                                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                                        strokeWidth = 1.2.dp,
-                                        cornerRadius = tokens.cardCornerRadius * 0.5f
-                                    )
-                                    .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                                    .clickable { onAddSegmentClick() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = null,
-                                        tint = Primary,
-                                        modifier = Modifier.size(tokens.iconSize)
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        text = "Add Segment",
-                                        color = Primary,
-                                        fontSize = tokens.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
-
-                            // Dynamic content handling for loading, error, empty, and populated states
-                            if (isLoadingGarments && garments.isEmpty()) {
-                                ListSkeleton()
-                            } else if (garmentsError != null && garments.isEmpty()) {
-                                AppErrorState(
-                                    title = "Failed to load garments",
-                                    message = garmentsError ?: "Something went wrong. Please check your connection.",
-                                    onRetry = { viewModel.fetchGarments() }
-                                )
-                            } else if (filteredGarments.isEmpty()) {
+                            // Header Item: Add Segment Action Box
+                            item {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 32.dp),
+                                        .height(tokens.buttonHeight)
+                                        .dashedBorder(
+                                            color = Primary,
+                                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                                            strokeWidth = 1.2.dp,
+                                            cornerRadius = tokens.cardCornerRadius * 0.5f
+                                        )
+                                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                                        .clickable { onAddSegmentClick() },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = "No garments found in this segment",
-                                        fontSize = tokens.bodyMedium,
-                                        color = TextSecondary
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = null,
+                                            tint = Primary,
+                                            modifier = Modifier.size(tokens.iconSize)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = "Add Segment",
+                                            color = Primary,
+                                            fontSize = tokens.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
                                 }
-                            } else {
-                                // Iterate through filtered items safely without unbounded height constraints
-                                filteredGarments.forEach { item ->
-                                    val fieldsCount = item.measurementFields.size
-                                    val measurementsCount = item.measurementFields.count { it.isRequired }
-                                    val subtitleText = "$fieldsCount Fields · $measurementsCount Measurements"
+                            }
 
-                                    GarmentCategoryCard(
-                                        title = item.displayName ?: item.name,
-                                        subtitle = subtitleText,
-                                        iconRes = R.drawable.ic_shirts,
-                                        garmentStatus = item.status,
-                                        onConfigureClick = {
-                                            val segId = selectedSegment?.id ?: ""
-                                            val garmId = item.id
-                                            val title = "${selectedSegment?.name.orEmpty()} ${item.displayName ?: item.name}".trim()
+                            // Dynamic items handling
+                            when {
+                                isLoadingGarments && garments.isEmpty() -> {
+                                    // Use non-scrollable skeleton items directly to prevent nested LazyColumn crashes
+                                    items(4) {
+                                        GarmentCardSkeleton()
+                                    }
+                                }
 
-                                            Log.d("NAV_PARAM", "Clicked segmentId: $segId, garmentId: $garmId")
-                                            onConfigureGarmentClick(segId, garmId, title)
-                                        },
-                                        onCommonMeasurementsClick = {
-                                            garmentForCommonMeasurements = item
-                                            onCommonMeasurementsClick(item)
-                                        },
-                                        onEditGarmentClick = {
-                                            garmentToEdit = item
-                                            onEditGarmentClick(item)
-                                        },
-                                        onRemoveGarmentClick = {
-                                            garmentToDelete = item
-                                        },
-                                        onToggleGarmentStatusClick = {
-                                            garmentToToggleStatus = item
+                                garmentsError != null && garments.isEmpty() -> {
+                                    item {
+                                        AppErrorState(
+                                            title = "Failed to load garments",
+                                            message = garmentsError ?: "Something went wrong. Please check your connection.",
+                                            onRetry = { viewModel.fetchGarments() }
+                                        )
+                                    }
+                                }
+
+                                filteredGarments.isEmpty() -> {
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 32.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "No garments found in this segment",
+                                                fontSize = tokens.bodyMedium,
+                                                color = TextSecondary
+                                            )
                                         }
-                                    )
+                                    }
+                                }
+
+                                else -> {
+                                    // Render Garment Cards efficiently using keyed items
+                                    items(filteredGarments, key = { it.id }) { item ->
+                                        val fieldsCount = item.measurementFields.size
+                                        val measurementsCount = item.measurementFields.count { it.isRequired }
+                                        val subtitleText = "$fieldsCount Fields · $measurementsCount Measurements"
+
+                                        GarmentCategoryCard(
+                                            title = item.displayName ?: item.name,
+                                            subtitle = subtitleText,
+                                            iconRes = R.drawable.ic_shirts,
+                                            garmentStatus = item.status,
+                                            onConfigureClick = {
+                                                val segId = selectedSegment?.id ?: ""
+                                                val garmId = item.id
+                                                val title = "${selectedSegment?.name.orEmpty()} ${item.displayName ?: item.name}".trim()
+
+                                                Log.d("NAV_PARAM", "Clicked segmentId: $segId, garmentId: $garmId")
+                                                onConfigureGarmentClick(segId, garmId, title)
+                                            },
+                                            onCommonMeasurementsClick = {
+                                                garmentForCommonMeasurements = item
+                                                onCommonMeasurementsClick(item)
+                                            },
+                                            onEditGarmentClick = {
+                                                garmentToEdit = item
+                                                onEditGarmentClick(item)
+                                            },
+                                            onRemoveGarmentClick = {
+                                                garmentToDelete = item
+                                            },
+                                            onToggleGarmentStatusClick = {
+                                                garmentToToggleStatus = item
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -572,6 +584,63 @@ fun GarmentTypeContent(
             message = transientErrorMessage,
             onDismiss = { transientErrorMessage = null }
         )
+    }
+}
+
+// Skeleton placeholder item that safely matches GarmentCategoryCard structure
+@Composable
+private fun GarmentCardSkeleton() {
+    val tokens = LocalAppTokens.current
+    Card(
+        shape = RoundedCornerShape(tokens.cardCornerRadius),
+        colors = CardDefaults.cardColors(containerColor = whiteBg),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(tokens.screenPadding)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(tokens.fieldHeight)
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.45f))
+                        .background(grey_border.copy(alpha = 0.4f))
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.55f)
+                            .height(18.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(grey_border.copy(alpha = 0.45f))
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.35f)
+                            .height(14.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(grey_border.copy(alpha = 0.3f))
+                    )
+                }
+            }
+            Spacer(Modifier.height(14.dp))
+            Box(
+                modifier = Modifier
+                    .width(85.dp)
+                    .height(16.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(grey_border.copy(alpha = 0.35f))
+            )
+        }
     }
 }
 

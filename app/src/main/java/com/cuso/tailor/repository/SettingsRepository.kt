@@ -7,7 +7,10 @@ import com.cuso.tailor.database.dao.TokensDao
 import com.cuso.tailor.database.entities.GarmentMeasurement
 import com.cuso.tailor.database.entities.SelectedGarment
 import com.cuso.tailor.model.inventory.ProductCategoryItem
+import com.cuso.tailor.model.sales.FabricPricingItem
 import com.cuso.tailor.model.sales.GarmentCategoryDto
+import com.cuso.tailor.model.sales.UpdateFabricPriceRequest
+import com.cuso.tailor.model.sales.UpdateFabricPriceResponse
 import com.cuso.tailor.model.settings.*
 import com.cuso.tailor.network.inventory.settings.InventorySettingsApiService
 import com.cuso.tailor.network.sales.settings.SalesSettingsApiService
@@ -1036,6 +1039,45 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    //fabric pricing
+
+    // ===========================================================
+    // FABRIC PRICING
+    // ===========================================================
+
+    suspend fun getFabricPricing(page: Int = 1, limit: Int = 50): Result<List<FabricPricingItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = salesSettingsApi.getFabricPricing(accessToken, csrfToken, page, limit)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.items ?: emptyList())
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to fetch fabric pricing"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateFabricPrice(id: String, sellingPrice: Double): Result<UpdateFabricPriceResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val request = UpdateFabricPriceRequest(sellingPrice = sellingPrice)
+            val response = salesSettingsApi.updateFabricPrice(accessToken, csrfToken, id, request)
+            val body = response.body()
+            if (response.isSuccessful && body != null) {
+                Result.success(body)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to update fabric price"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // ===========================================================
     // 12. DESIGNS (SALES)
     // ===========================================================
@@ -1146,7 +1188,7 @@ class SettingsRepository @Inject constructor(
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
 
-            val params = mutableMapOf<String, RequestBody>(
+            val params = mutableMapOf(
                 "name" to createPartFromString(name),
                 "designType" to createPartFromString(designType),
                 "code" to createPartFromString(code),

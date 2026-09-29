@@ -30,7 +30,6 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Business
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -122,13 +121,13 @@ fun LeadFormTopBar(
                         Row(
                             modifier = Modifier.padding(
                                 horizontal = tokens.screenPadding * 0.75f,
-                                vertical = tokens.screenPadding * 0.375f
+                                vertical = 0.dp
                             ),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.CheckCircle,
+                                painter = painterResource(R.drawable.ic_tick),
                                 contentDescription = null,
                                 tint = darkGreenBg,
                                 modifier = Modifier.size(tokens.iconSize * 0.75f)
@@ -1502,6 +1501,46 @@ fun LeadScreenContent(
                                                 val (badgeText, badgeColors) = resolveStatusBadge(lead)
                                                 val (bgColor, textColor) = badgeColors
 
+                                                // Determine whether the lead is in a Qualified or Converted state
+                                                val isQualifiedOrConverted = lead.effectiveStatus.equals("Qualified", ignoreCase = true) ||
+                                                        lead.leadStatus.equals("Qualified", ignoreCase = true)
+
+                                                // Build actions dynamically; suppress "Edit" if the lead is already qualified
+                                                val cardActions = buildList {
+                                                    add(
+                                                        MenuAction(
+                                                            label = "View",
+                                                            icon = Icons.Default.Visibility,
+                                                            enabled = !isLoadingView
+                                                        ) {
+                                                            onViewClicked(lead)
+                                                        }
+                                                    )
+
+                                                    if (!isQualifiedOrConverted) {
+                                                        add(
+                                                            MenuAction(
+                                                                label = "Edit",
+                                                                icon = Icons.Default.Edit,
+                                                                enabled = !isLoadingEdit
+                                                            ) {
+                                                                onEditClicked(lead)
+                                                            }
+                                                        )
+                                                    }
+
+                                                    add(
+                                                        MenuAction(
+                                                            label = "Delete",
+                                                            icon = Icons.Default.Delete,
+                                                            tint = redText,
+                                                            textColor = redText,
+                                                            enabled = !isDeleting
+                                                        ) {
+                                                            leadToDelete = lead
+                                                        }
+                                                    )
+                                                }
                                                 DataCard(
                                                     item = lead,
                                                     dateText = "Order ID: ${lead.id.takeLast(6).uppercase()}",
@@ -1521,11 +1560,7 @@ fun LeadScreenContent(
                                                             textColor = TextLog
                                                         )
                                                     ),
-                                                    actions = listOf(
-                                                        MenuAction("View", Icons.Default.Visibility, enabled = !isLoadingView) { onViewClicked(lead) },
-                                                        MenuAction("Edit", Icons.Default.Edit, enabled = !isLoadingEdit) { onEditClicked(lead) },
-                                                        MenuAction("Delete", Icons.Default.Delete, tint = redText, textColor = redText, enabled = !isDeleting) { leadToDelete = lead }
-                                                    )
+                                                    actions = cardActions
                                                 )
                                             }
 

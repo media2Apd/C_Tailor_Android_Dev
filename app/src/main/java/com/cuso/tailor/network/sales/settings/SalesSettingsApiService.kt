@@ -1,6 +1,9 @@
 package com.cuso.tailor.network.sales.settings
 
+import com.cuso.tailor.model.sales.FabricPricingListResponse
 import com.cuso.tailor.model.sales.GarmentCategoryResponse
+import com.cuso.tailor.model.sales.UpdateFabricPriceRequest
+import com.cuso.tailor.model.sales.UpdateFabricPriceResponse
 import com.cuso.tailor.model.settings.ChangeDesignStatusRequest
 import com.cuso.tailor.model.settings.ChangeDesignStatusResponse
 import com.cuso.tailor.model.settings.ChangeGarmentCategoryStatusResponse
@@ -424,4 +427,28 @@ interface SalesSettingsApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<DeleteDesignResponse>
+
+    //fabric pricing
+
+    // ═══════════════════════════════════════════════════════════════
+    // FABRIC PRICING ENDPOINTS
+    // ═══════════════════════════════════════════════════════════════
+
+    // Fetch all fabric items for pricing
+    @GET("/api/inventory/item/fabric-list")
+    suspend fun getFabricPricing(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 50
+    ): Response<FabricPricingListResponse>
+
+    // Update fabric selling price per meter
+    @PUT("/api/inventory/item/update-one/{id}")
+    suspend fun updateFabricPrice(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: UpdateFabricPriceRequest
+    ): Response<UpdateFabricPriceResponse>
 }

@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.sales.FabricPricingItem
 import com.cuso.tailor.model.settings.GarmentStyleItem
 import com.cuso.tailor.model.settings.WorkPricingItem
 import com.cuso.tailor.ui.theme.*
@@ -67,9 +68,13 @@ fun PricingSetupScreen(
     val segmentsError by viewModel.segmentsError.collectAsStateWithLifecycle()
     val garmentStyles by viewModel.garmentStyles.collectAsStateWithLifecycle()
     val workPricingList by viewModel.workPricingList.collectAsStateWithLifecycle()
+    val fabricPricingList by viewModel.fabricPricingList.collectAsStateWithLifecycle()
 
     val isLoadingStyles by viewModel.isLoadingStyles.collectAsStateWithLifecycle()
     val isLoadingWorkPricing by viewModel.isLoadingWorkPricing.collectAsStateWithLifecycle()
+    val isLoadingFabricPricing by viewModel.isLoadingFabricPricing.collectAsStateWithLifecycle()
+    val isUpdatingFabricPrice by viewModel.isUpdatingFabricPrice.collectAsStateWithLifecycle()
+
     val errorMsg by viewModel.dynamicErrorMessage.collectAsStateWithLifecycle()
     val successMsg by viewModel.dynamicSuccessMessage.collectAsStateWithLifecycle()
 
@@ -77,25 +82,31 @@ fun PricingSetupScreen(
     var selectedSubTabIndex by remember { mutableIntStateOf(0) }
     val safeSegmentIndex = if (selectedSubTabIndex in segments.indices) selectedSubTabIndex else 0
 
+    // Fabric Edit Dialog State
+    var fabricItemToEdit by remember { mutableStateOf<FabricPricingItem?>(null) }
+
     LaunchedEffect(Unit) {
         viewModel.fetchSegments()
     }
 
     LaunchedEffect(selectedMainTab, safeSegmentIndex, segments) {
-        if (segments.isNotEmpty()) {
+        if (selectedMainTab == PricingTab.FABRIC_PRICING) {
+            viewModel.fetchFabricPricing()
+        } else if (segments.isNotEmpty()) {
             val segmentId = segments[safeSegmentIndex].id
             when (selectedMainTab) {
                 PricingTab.GARMENT_PRICING -> viewModel.fetchGarmentStyles(segmentId = segmentId, garmentId = null)
                 PricingTab.WORK_PRICING -> viewModel.fetchWorkPricing(segmentId = segmentId, status = "Active")
-                PricingTab.FABRIC_PRICING -> {}
+                else -> {}
             }
         }
     }
 
+    // Add FAB hidden for both Garment and Fabric pricing (Edit only)
     val fabConfig = remember(selectedMainTab) {
         when (selectedMainTab) {
             PricingTab.GARMENT_PRICING -> null
-            PricingTab.FABRIC_PRICING -> FabConfig(label = "Add New", icon = Icons.Default.Add, onClick = onAddFabricPricing)
+            PricingTab.FABRIC_PRICING -> null // Removed Add button
             PricingTab.WORK_PRICING -> FabConfig(label = "Add New", icon = Icons.Default.Add, onClick = onAddWorkPricing)
         }
     }
@@ -140,7 +151,8 @@ fun PricingSetupScreen(
                         }
                     }
 
-                    if (segments.isNotEmpty()) {
+                    // Segment tabs (Only displayed when segment filtering is applicable)
+                    if (selectedMainTab != PricingTab.FABRIC_PRICING && segments.isNotEmpty()) {
                         ScrollableTabRow(
                             selectedTabIndex = safeSegmentIndex,
                             edgePadding = tokens.screenPadding,
@@ -174,60 +186,49 @@ fun PricingSetupScreen(
                     }
 
                     Box(modifier = Modifier.weight(1f)) {
-                        when {
-                            segmentsError != null && segments.isEmpty() -> {
-                                AppErrorState(
-                                    title = "Failed to load pricing setups",
-                                    message = segmentsError ?: "Something went wrong. Please check your connection.",
-                                    onRetry = { viewModel.fetchSegments() }
+                        when (selectedMainTab) {
+                            PricingTab.GARMENT_PRICING -> {
+                                GarmentPricingListContent(
+                                    styles = garmentStyles,
+                                    isLoading = isLoadingStyles,
+                                    onEdit = onEditGarmentPricing
                                 )
                             }
-                            selectedMainTab == PricingTab.GARMENT_PRICING && errorMsg != null && garmentStyles.isEmpty() -> {
-                                AppErrorState(
-                                    title = "Failed to load garment pricing",
-                                    message = errorMsg ?: "Something went wrong. Please check your connection.",
-                                    onRetry = {
-                                        if (segments.isNotEmpty()) {
-                                            viewModel.fetchGarmentStyles(segmentId = segments[safeSegmentIndex].id, garmentId = null)
-                                        }
-                                    }
+                            PricingTab.FABRIC_PRICING -> {
+                                FabricPricingListContent(
+                                    items = fabricPricingList,
+                                    isLoading = isLoadingFabricPricing,
+                                    onEdit = { fabricItem -> fabricItemToEdit = fabricItem }
                                 )
                             }
-                            selectedMainTab == PricingTab.WORK_PRICING && errorMsg != null && workPricingList.isEmpty() -> {
-                                AppErrorState(
-                                    title = "Failed to load work pricing",
-                                    message = errorMsg ?: "Something went wrong. Please check your connection.",
-                                    onRetry = {
-                                        if (segments.isNotEmpty()) {
-                                            viewModel.fetchWorkPricing(segmentId = segments[safeSegmentIndex].id, status = "Active")
-                                        }
-                                    }
+                            PricingTab.WORK_PRICING -> {
+                                WorkPricingListContent(
+                                    items = workPricingList,
+                                    isLoading = isLoadingWorkPricing,
+                                    onEdit = onEditWorkPricing,
+                                    onToggleStatus = { item -> viewModel.changeWorkPricingStatus(item) }
                                 )
-                            }
-                            else -> {
-                                when (selectedMainTab) {
-                                    PricingTab.GARMENT_PRICING -> {
-                                        GarmentPricingListContent(
-                                            styles = garmentStyles,
-                                            isLoading = isLoadingStyles,
-                                            onEdit = onEditGarmentPricing
-                                        )
-                                    }
-                                    PricingTab.FABRIC_PRICING -> FabricPricingListContent()
-                                    PricingTab.WORK_PRICING -> {
-                                        WorkPricingListContent(
-                                            items = workPricingList,
-                                            isLoading = isLoadingWorkPricing,
-                                            onEdit = onEditWorkPricing,
-                                            onToggleStatus = { item -> viewModel.changeWorkPricingStatus(item) }
-                                        )
-                                    }
-                                }
                             }
                         }
                     }
                 }
             }
+        }
+
+        // Edit Fabric Price Dialog
+        fabricItemToEdit?.let { fabricItem ->
+            EditFabricPriceDialog(
+                item = fabricItem,
+                isUpdating = isUpdatingFabricPrice,
+                onDismiss = { fabricItemToEdit = null },
+                onSave = { newPrice ->
+                    viewModel.updateFabricPrice(
+                        id = fabricItem.id,
+                        sellingPrice = newPrice,
+                        onSuccess = { fabricItemToEdit = null }
+                    )
+                }
+            )
         }
 
         DynamicIslandSuccess(
@@ -242,10 +243,7 @@ fun PricingSetupScreen(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = tokens.fieldHeight * 1.5f),
-            message = errorMsg?.takeIf {
-                (selectedMainTab == PricingTab.GARMENT_PRICING && garmentStyles.isNotEmpty()) ||
-                        (selectedMainTab == PricingTab.WORK_PRICING && workPricingList.isNotEmpty())
-            },
+            message = errorMsg,
             onDismiss = { viewModel.clearDynamicErrorMessage() }
         )
     }
@@ -333,14 +331,12 @@ private fun GarmentPricingListContent(
 }
 
 @Composable
-private fun FabricPricingListContent() {
+private fun FabricPricingListContent(
+    items: List<FabricPricingItem>,
+    isLoading: Boolean,
+    onEdit: (FabricPricingItem) -> Unit
+) {
     val tokens = LocalAppTokens.current
-    val fabricItems = remember {
-        listOf(
-            FabricPriceItem("Premium Cotton", "Cotton", "White", "FAB-001", "Meter", "₹450", null, true),
-            FabricPriceItem("Linen Premium", "Linen", "Blue", "FAB-002", "Meter", "₹650", "₹700 ↗", true)
-        )
-    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = 14.dp)) {
@@ -349,35 +345,158 @@ private fun FabricPricingListContent() {
             Text(text = "Set the selling price of each fabric per meter.", fontSize = 12.sp, color = close_color)
         }
 
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(bottom = 80.dp)
-        ) {
-            items(fabricItems) { item ->
-                Column(modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = 8.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(text = item.name, fontSize = 15.sp, color = title_color)
-                        Box(
-                            modifier = Modifier
-                                .background(if (item.isActive) Color(0xFFE6F7ED) else grey_border, RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+        if (isLoading) {
+            Box(modifier = Modifier.weight(1f)) { ListSkeleton() }
+        } else if (items.isEmpty()) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text("No fabrics found.", color = iconMuted)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 80.dp)
+            ) {
+                items(items, key = { it.id }) { item ->
+                    val isActive = item.status.equals("active", ignoreCase = true)
+
+                    Column(modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = 8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = item.name, fontSize = 15.sp, color = title_color, fontWeight = FontWeight.SemiBold)
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = "SKU: ${item.sku} • ${item.unit}",
+                                    fontSize = 12.sp,
+                                    color = headerGrey
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(if (isActive) Color(0xFFE6F7ED) else grey_border, RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = if (isActive) "ACTIVE" else "INACTIVE",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isActive) Color(0xFF10B981) else headerGrey
+                                    )
+                                }
+
+                                IconButton(
+                                    onClick = { onEdit(item) },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Edit Price",
+                                        tint = Primary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (item.isActive) "ACTIVE" else "INACTIVE",
-                                fontSize = 9.sp, fontWeight = FontWeight.Bold, color = if (item.isActive) Color(0xFF10B981) else headerGrey
+                                text = "Selling Price (${item.unit})",
+                                fontSize = 13.sp,
+                                color = headerGrey
+                            )
+                            Text(
+                                text = "₹${item.sellingPrice.toInt()}",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = title_color
                             )
                         }
+
+                        Spacer(Modifier.height(10.dp))
+                        HorizontalDivider(color = title_border, thickness = 0.8.dp)
                     }
-                    Spacer(Modifier.height(10.dp))
-                    HorizontalDivider(color = title_border, thickness = 0.8.dp)
                 }
             }
         }
     }
+}
+
+@Composable
+private fun EditFabricPriceDialog(
+    item: FabricPricingItem,
+    isUpdating: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (Double) -> Unit
+) {
+    val tokens = LocalAppTokens.current
+    var priceText by remember(item) { mutableStateOf(item.sellingPrice.toInt().toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = whiteBg,
+        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.7f),
+        title = {
+            Text(
+                text = "Edit Fabric Price",
+                fontSize = tokens.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                color = title_color
+            )
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = item.name,
+                    fontSize = tokens.bodySmall,
+                    color = headerGrey
+                )
+                Spacer(Modifier.height(14.dp))
+                FormLabel("Selling Price (₹ per meter)", isRequired = true)
+                FormTextField(
+                    value = priceText,
+                    onValueChange = { priceText = it },
+                    placeholder = "Enter price per meter",
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val parsed = priceText.toDoubleOrNull() ?: 0.0
+                    onSave(parsed)
+                },
+                enabled = !isUpdating && priceText.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary, disabledContainerColor = disabled),
+                shape = RoundedCornerShape(6.dp)
+            ) {
+                if (isUpdating) {
+                    CirculerProgressIndicatorSmall()
+                } else {
+                    Text("Save", fontSize = tokens.bodySmall, color = whiteBg)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isUpdating) {
+                Text("Cancel", fontSize = tokens.bodySmall, color = headerGrey)
+            }
+        }
+    )
 }
 
 @Composable

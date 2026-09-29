@@ -1,7 +1,9 @@
-@file:Suppress("UNUSED_PARAMETER", "unused", "UNUSED_VALUE", "ASSIGNED_VALUE_IS_NEVER_READ")
+@file:Suppress("UNUSED_PARAMETER", "unused", "unusedVariable", "AssignedValueIsNeverRead")
 
 package com.cuso.tailor.view.home.services.settings
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,11 +16,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.FilterList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,34 +36,21 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.model.settings.SegmentItem
+import com.cuso.tailor.model.settings.*
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.view.composable.AppCheckbox
-import com.cuso.tailor.view.composable.AppUnderlineTabRow
-import com.cuso.tailor.view.composable.DataCard
-import com.cuso.tailor.view.composable.FormDropdown
-import com.cuso.tailor.view.composable.FormLabel
-import com.cuso.tailor.view.composable.FormTextArea
-import com.cuso.tailor.view.composable.FormTextField
-import com.cuso.tailor.view.composable.MenuAction
-import com.cuso.tailor.view.composable.SearchFilterBar
+import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.composable.SheetValue
-import com.cuso.tailor.view.composable.SmoothBottomSheet
-import com.cuso.tailor.view.composable.StepNavigationFab
-import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.TrailingFabAction
-import com.cuso.tailor.view.composable.blurScrim
 import com.cuso.tailor.view.home.sales.customer.OrderStatusStepper
 import com.cuso.tailor.view.home.sales.lead.MiniSwitch
+import com.cuso.tailor.viewmodel.ServicesViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
 
 // ─────────────────────────────────────────────────────────────
-// Models
+// Local Helper UI Models for Wizard Pages
 // ─────────────────────────────────────────────────────────────
 
 data class WorkflowStepItem(
@@ -65,7 +59,8 @@ data class WorkflowStepItem(
     val workType: String = stage,
     val isRequired: Boolean = true,
     val allowRework: Boolean = true,
-    val instructions: String = ""
+    val instructions: String = "",
+    val stageId: String = ""
 )
 
 data class OptionalWorkItem(
@@ -76,75 +71,40 @@ data class OptionalWorkItem(
     val status: String = "Active"
 )
 
-data class ServiceTemplateItem(
-    val id: String,
-    val name: String,
-    val serviceType: String,
-    val description: String = "",
-    val garmentCount: Int = 1,
-    val stepCount: Int = 7,
-    val timeAgo: String = "2 hours ago",
-    val status: String = "ACTIVE"
-)
-
 // ─────────────────────────────────────────────────────────────
 // Screen 1: Service Templates List Screen
 // ─────────────────────────────────────────────────────────────
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ServiceTemplateListScreen(
     onClose: () -> Unit = {},
     onAddNewTemplate: () -> Unit = {},
-    onViewTemplate: (ServiceTemplateItem) -> Unit = {}
+    onViewTemplate: (ProductionTemplateDto) -> Unit = {},
+    onEditTemplate: (ProductionTemplateDto) -> Unit = {},
+    templateViewModel: ServicesViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
-    var searchQuery by remember { mutableStateOf("") }
+    val uiState by templateViewModel.uiState.collectAsState()
 
-    val sampleTemplates = remember {
-        listOf(
-            ServiceTemplateItem(
-                id = "1",
-                name = "Men's Shirt – Standard",
-                serviceType = "Custom Tailoring",
-                garmentCount = 1,
-                stepCount = 7,
-                timeAgo = "2 hours ago",
-                status = "ACTIVE"
-            ),
-            ServiceTemplateItem(
-                id = "2",
-                name = "Men's Shirt – Standard",
-                serviceType = "Custom Tailoring",
-                garmentCount = 1,
-                stepCount = 6,
-                timeAgo = "2 hours ago",
-                status = "ACTIVE"
-            ),
-            ServiceTemplateItem(
-                id = "3",
-                name = "Men's Shirt – Standard",
-                serviceType = "Custom Tailoring",
-                garmentCount = 1,
-                stepCount = 8,
-                timeAgo = "2 hours ago",
-                status = "ACTIVE"
-            ),
-            ServiceTemplateItem(
-                id = "4",
-                name = "Men's Shirt – Standard",
-                serviceType = "Custom Tailoring",
-                garmentCount = 3,
-                stepCount = 9,
-                timeAgo = "Just now",
-                status = "DRAFT"
-            )
-        )
+    var templateToDelete by remember { mutableStateOf<ProductionTemplateDto?>(null) }
+
+    LaunchedEffect(Unit) {
+        templateViewModel.loadTemplates()
     }
 
-    Box(
+    FabScaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Transparent)
+            .background(Color.Transparent),
+        fab = FabConfig(
+            label = "Add New",
+            icon = Icons.Default.Add,
+            onClick = onAddNewTemplate,
+            endPadding = 16.dp,
+            bottomPadding = 50.dp,
+            draggable = true
+        )
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             TitleBar(
@@ -154,186 +114,271 @@ fun ServiceTemplateListScreen(
 
             HorizontalDivider(color = title_border)
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = tokens.screenPadding, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    SearchFilterBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        placeholder = "Search Customers...",
-                        accentColor = BluePrimary
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                        .background(whiteBg)
-                        .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                        .clickable { },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.FilterList,
-                        contentDescription = "Filter",
-                        tint = Color(0xFF334155),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+            Row(modifier = Modifier.fillMaxWidth()) {
+                SearchFilterBar(
+                    query = uiState.searchQuery,
+                    onQueryChange = { templateViewModel.onSearchQueryChanged(it) },
+                    placeholder = "Search Templates...",
+                    accentColor = Primary
+                )
             }
 
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = tokens.screenPadding, vertical = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = tokens.screenPadding, vertical = 6.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Service Templates",
-                        fontSize = tokens.h2,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
-                    )
-                    Text(
-                        text = "Create and manage reusable service workflows for garments.",
-                        fontSize = tokens.bodySmall,
-                        color = headerGrey
-                    )
-                }
-
-                Button(
-                    onClick = onAddNewTemplate,
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                ) {
-                    Icon(Icons.Default.Add, null, tint = whiteBg, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Add New", color = whiteBg, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold)
-                }
+                Text(
+                    text = "Service Templates",
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary
+                )
+                Text(
+                    text = "Create and manage reusable service workflows for garments.",
+                    fontSize = tokens.bodySmall,
+                    color = headerGrey
+                )
             }
 
             Spacer(Modifier.height(8.dp))
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 80.dp)
-            ) {
-                items(sampleTemplates) { item ->
-                    val isDraft = item.status.equals("DRAFT", ignoreCase = true)
-                    val badgeBg = if (isDraft) Color(0xFFF3E8FF) else Color(0xFFDCFCE7)
-                    val badgeTextColor = if (isDraft) Color(0xFF9333EA) else Color(0xFF16A34A)
+            if (uiState.isLoading && uiState.templates.isEmpty()) {
+               ListSkeleton()
+            } else if (!uiState.errorMessage.isNullOrBlank() && uiState.templates.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = uiState.errorMessage ?: "Failed to load templates",
+                            fontSize = tokens.bodyMedium,
+                            color = redText
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Button(
+                            onClick = { templateViewModel.loadTemplates() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Retry", color = whiteBg, fontSize = tokens.bodySmall)
+                        }
+                    }
+                }
+            } else if (uiState.templates.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No templates found.",
+                        fontSize = tokens.bodyMedium,
+                        color = headerGrey
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 100.dp)
+                ) {
+                    items(uiState.templates, key = { it.id }) { item ->
+                        val isDraft = item.status.equals("DRAFT", ignoreCase = true)
+                        val badgeBg = if (isDraft) primary_light else greenBg
+                        val badgeTextColor = if (isDraft) Primary else darkGreenBg
+                        val garmentCount = item.safeGarmentCount
+                        val stepCount = item.safeStepCount
+                        val relativeTime = formatRelativeTime(item.updatedAt ?: item.createdAt)
 
-                    DataCard<ServiceTemplateItem>(
-                        item = item,
-                        title = item.name,
-                        titleColor = Color(0xFF0F172A),
-                        topBadgeText = item.status,
-                        topBadgeTextColor = badgeTextColor,
-                        topBadgeBgColor = badgeBg,
-                        topBadgeShowDot = false,
-                        topBadgeInline = true,
-                        showHeaderDivider = false,
-                        actions = listOf(
-                            MenuAction("View", Icons.Default.Visibility) { onViewTemplate(item) },
-                            MenuAction("Edit", Icons.Default.Edit) { }
-                        ),
-                        content = {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(Color(0xFFEEF2FF))
-                                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                        DataCard(
+                            item = item,
+                            title = item.name ?: "Untitled Template",
+                            titleColor = TextPrimary,
+                            topBadgeText = item.status,
+                            topBadgeTextColor = badgeTextColor,
+                            topBadgeBgColor = badgeBg,
+                            topBadgeShowDot = false,
+                            topBadgeInline = true,
+                            showHeaderDivider = false,
+                            onClick = {
+                                templateViewModel.setSelectedTemplateDirect(item)
+                                onViewTemplate(item)
+                            },
+                            actions = listOf(
+                                MenuAction("View", Icons.Default.Visibility) {
+                                    templateViewModel.setSelectedTemplateDirect(item)
+                                    onViewTemplate(item)
+                                },
+                                MenuAction("Edit", Icons.Default.Edit) {
+                                    templateViewModel.setSelectedTemplateDirect(item)
+                                    onEditTemplate(item)
+                                },
+                                MenuAction(
+                                    label = "Delete",
+                                    icon = Icons.Default.Delete,
+                                    tint = redText,
+                                    textColor = redText
                                 ) {
-                                    Text(
-                                        text = item.serviceType,
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF4F46E5),
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                    templateToDelete = item
                                 }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
+                            ),
+                            content = {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            templateViewModel.setSelectedTemplateDirect(item)
+                                            onViewTemplate(item)
+                                        },
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        modifier = Modifier.weight(1f)
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(primary_light)
+                                            .padding(horizontal = 10.dp, vertical = 3.dp)
                                     ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_shopping_bag),
-                                            contentDescription = null,
-                                            tint = Color(0xFF94A3B8),
-                                            modifier = Modifier.size(15.dp)
+                                        Text(
+                                            text = item.segment?.displayName
+                                                ?: item.segment?.name
+                                                ?: "All Segments",
+                                            fontSize = tokens.caption,
+                                            color = Primary,
+                                            fontWeight = FontWeight.Medium
                                         )
-                                        Text("Garment: ", fontSize = tokens.bodySmall, color = headerGrey)
-                                        Text("${item.garmentCount}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
                                     }
 
                                     Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.CheckCircle,
-                                            contentDescription = null,
-                                            tint = Color(0xFF94A3B8),
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Text("${item.stepCount} Steps", fontSize = tokens.bodySmall, color = headerGrey)
-                                    }
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_shopping_bag),
+                                                contentDescription = null,
+                                                tint = iconMuted,
+                                                modifier = Modifier.size(tokens.iconSize)
+                                            )
+                                            Text(
+                                                text = "Garment: ",
+                                                fontSize = tokens.bodySmall,
+                                                color = headerGrey
+                                            )
+                                            Text(
+                                                text = "$garmentCount",
+                                                fontSize = tokens.bodySmall,
+                                                fontWeight = FontWeight.Medium,
+                                                color = TextPrimary
+                                            )
+                                        }
 
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.AccessTime,
-                                            contentDescription = null,
-                                            tint = Color(0xFF94A3B8),
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                        Text(item.timeAgo, fontSize = tokens.caption, color = Color(0xFF94A3B8))
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.CheckCircle,
+                                                contentDescription = null,
+                                                tint = iconMuted,
+                                                modifier = Modifier.size(tokens.iconSize)
+                                            )
+                                            Text(
+                                                text = "$stepCount Steps",
+                                                fontSize = tokens.bodySmall,
+                                                color = headerGrey
+                                            )
+                                        }
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.AccessTime,
+                                                contentDescription = null,
+                                                tint = iconMuted,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Text(
+                                                text = relativeTime,
+                                                fontSize = tokens.caption,
+                                                color = iconMuted
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
     }
+
+    templateToDelete?.let { template ->
+        DeleteModel(
+            title = "Delete Service Template?",
+            message = "You are about to delete \"${template.name ?: "this template"}\".\nThis will remove it from future order creation.",
+            onDismiss = { templateToDelete = null },
+            onDelete = {
+                val idToDelete = template.id
+                templateToDelete = null
+                templateViewModel.deleteTemplate(idToDelete) {
+                    templateViewModel.loadTemplates()
+                }
+            }
+        )
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+fun formatRelativeTime(dateString: String?): String {
+    if (dateString.isNullOrBlank()) return "Just now"
+    return try {
+        val instant = java.time.Instant.parse(dateString)
+        val now = java.time.Instant.now()
+        val duration = java.time.Duration.between(instant, now)
+
+        val seconds = duration.seconds
+        val minutes = duration.toMinutes()
+        val hours = duration.toHours()
+        val days = duration.toDays()
+
+        when {
+            seconds < 60 -> "Just now"
+            minutes < 60 -> "${minutes}m ago"
+            hours < 24 -> "${hours}h ago"
+            days < 30 -> "${days / 7}w ago"
+            days < 365 -> "${days / 30}mo ago"
+            else -> "${days / 365}y ago"
+        }
+    } catch (_: Exception) {
+        "Just now"
+    }
 }
 
 // ─────────────────────────────────────────────────────────────
-// Screen 2: Create Service Template Wizard Screen (5 Steps)
+// Screen 2: Create / Edit Service Template Wizard Screen (4 Steps)
 // ─────────────────────────────────────────────────────────────
 
 @Composable
 fun CreateServiceTemplateWizardScreen(
+    templateIdToEdit: String? = null,
     onClose: () -> Unit = {},
     onTemplateCreated: () -> Unit = onClose,
-    settingsViewModel: SettingsViewModel = hiltViewModel()
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
+    templateViewModel: ServicesViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
     var currentStep by remember { mutableIntStateOf(0) }
     var isAddingWorkflowStepPage by remember { mutableStateOf(false) }
-    var isAddingOptionalWorkPage by remember { mutableStateOf(false) }
 
     var addGarmentSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var backgroundBlur by remember { mutableStateOf(0.dp) }
@@ -344,112 +389,174 @@ fun CreateServiceTemplateWizardScreen(
         "Basic Info",
         "Garment",
         "Workflow",
-        "Optional Work",
         "Review"
     )
 
+    // Data streams from ViewModels
     val segments by settingsViewModel.segments.collectAsState()
     val garments by settingsViewModel.garments.collectAsState()
+    val apiStages by templateViewModel.stages.collectAsState()
+    val isLoadingStages by templateViewModel.isLoadingStages.collectAsState()
+    val selectedDetail by templateViewModel.selectedTemplate.collectAsState()
+    val isLoadingDetail by templateViewModel.isLoadingDetail.collectAsState()
 
+    // Initial API loads
     LaunchedEffect(Unit) {
-        if (segments.isEmpty()) {
-            settingsViewModel.fetchSegments()
-        }
-        if (garments.isEmpty()) {
-            settingsViewModel.fetchGarments()
+        if (segments.isEmpty()) settingsViewModel.fetchSegments()
+        if (garments.isEmpty()) settingsViewModel.fetchGarments()
+        templateViewModel.loadStages()
+    }
+
+    // Trigger View-One API if in Edit Mode
+    LaunchedEffect(templateIdToEdit) {
+        if (!templateIdToEdit.isNullOrBlank()) {
+            templateViewModel.fetchTemplateDetail(templateIdToEdit)
         }
     }
 
-    // Step 1: Basic Info
-    var templateName by remember { mutableStateOf("Men's Shirt - Standard Tailoring") }
+    // Step 1: Basic Info States
+    var templateName by remember { mutableStateOf("") }
+    var templateCode by remember { mutableStateOf("") }
     var serviceType by remember { mutableStateOf("Custom Tailoring") }
     var serviceTypeExpanded by remember { mutableStateOf(false) }
     var description by remember { mutableStateOf("") }
     var statusActive by remember { mutableStateOf(true) }
 
-    // Step 2: Garment & Measurement
+    // Step 2: Garment & Measurement States
     var applyToGroup by remember { mutableStateOf(false) }
     var selectedCategoryTabIndex by remember { mutableIntStateOf(0) }
-    var selectedGarment by remember { mutableStateOf("") }
-    var garmentDropdownExpanded by remember { mutableStateOf(false) }
-    var garmentGroup by remember { mutableStateOf("Shirts") }
-    var garmentGroupExpanded by remember { mutableStateOf(false) }
-
-    var groupFormalShirt by remember { mutableStateOf(true) }
-    var groupCasualShirt by remember { mutableStateOf(true) }
-    var groupDesignerShirt by remember { mutableStateOf(true) }
-    var groupHalfSleeve by remember { mutableStateOf(false) }
-    var groupFullSleeve by remember { mutableStateOf(false) }
-    var groupLinenShirt by remember { mutableStateOf(false) }
+    var selectedGarmentId by remember { mutableStateOf("") }
+    var selectedGroupGarmentIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var garmentGroup by remember { mutableStateOf("") }
 
     val currentSegment = segments.getOrNull(selectedCategoryTabIndex)
     val filteredGarments = remember(currentSegment, garments) {
         if (currentSegment != null) {
             garments.filter { garment ->
-                garment.applicableSegments.any { it.id == currentSegment.id }
+                garment.applicableSegments.isEmpty() ||
+                        garment.applicableSegments.any { it.id == currentSegment.id }
             }
         } else {
             garments
         }
     }
 
-    val garmentOptions = remember(filteredGarments) {
-        filteredGarments.map { it.name }.ifEmpty { listOf("Formal Shirt", "Casual Shirt", "Kurta", "Blazer", "Trousers") }
-    }
-
-    LaunchedEffect(garmentOptions) {
-        if (selectedGarment.isBlank() || selectedGarment !in garmentOptions) {
-            selectedGarment = garmentOptions.firstOrNull() ?: "Formal Shirt"
+    // Auto-select garment for Create Mode
+    LaunchedEffect(filteredGarments) {
+        if (templateIdToEdit.isNullOrBlank() && selectedGarmentId.isBlank() && filteredGarments.isNotEmpty()) {
+            selectedGarmentId = filteredGarments.first().id
         }
     }
 
-    // Step 3: Workflow
-    var workflowSteps by remember {
-        mutableStateOf(
-            listOf(
-                WorkflowStepItem(1, "Measurement"),
-                WorkflowStepItem(2, "Cutting"),
-                WorkflowStepItem(3, "Stitching"),
-                WorkflowStepItem(4, "Trial"),
-                WorkflowStepItem(5, "Finishing"),
-                WorkflowStepItem(6, "Quality Check"),
-                WorkflowStepItem(7, "Ready for Delivery")
-            )
-        )
+    // Step 3: Workflow States (Backed by API stages)
+    var workflowSteps by remember { mutableStateOf<List<WorkflowStepItem>>(emptyList()) }
+
+    // Synchronize initial workflow steps from API stages when in Create Mode
+    LaunchedEffect(apiStages) {
+        if (templateIdToEdit.isNullOrBlank() && workflowSteps.isEmpty() && apiStages.isNotEmpty()) {
+            workflowSteps = apiStages.mapIndexed { index, stageDto ->
+                WorkflowStepItem(
+                    sequence = index + 1,
+                    stage = stageDto.effectiveTitle,
+                    workType = stageDto.workType ?: stageDto.effectiveTitle,
+                    isRequired = !stageDto.workType.equals("Trial", ignoreCase = true),
+                    allowRework = stageDto.allowRework,
+                    instructions = stageDto.description.orEmpty(),
+                    stageId = stageDto.id
+                )
+            }
+        }
     }
 
-    // Step 4: Optional Work
-    var optionalWorks by remember {
-        mutableStateOf(
-            listOf(
-                OptionalWorkItem("Aari Work", notes = "Additional decorative work if requested by customer."),
-                OptionalWorkItem("Embroidery", notes = "Custom embroidery detailing."),
-                OptionalWorkItem("Stone Work", notes = "Stone/bead embellishment work.")
-            )
-        )
-    }
-
-    // Step 5: Activate Dialog
+    // Step 4: Activation Dialog
     var showActivateConfirmDialog by remember { mutableStateOf(false) }
 
+    // Prefill data when in Edit Mode
+    var isPrefilled by remember { mutableStateOf(false) }
+    LaunchedEffect(selectedDetail, segments, garments) {
+        val detail = selectedDetail
+        if (!templateIdToEdit.isNullOrBlank() && detail != null && detail.id == templateIdToEdit && !isPrefilled) {
+            templateName = detail.name.orEmpty()
+            templateCode = detail.code.orEmpty()
+            description = detail.description.orEmpty()
+            statusActive = detail.status.equals("Active", ignoreCase = true)
+
+            // Segment tab prefill
+            detail.segment?.let { seg ->
+                val foundIdx = segments.indexOfFirst { it.id == seg.id }
+                if (foundIdx >= 0) selectedCategoryTabIndex = foundIdx
+            }
+
+            // Single Garment Prefill
+            if (detail.garment != null) {
+                applyToGroup = false
+                selectedGarmentId = detail.garment.id
+            }
+
+            // Multiple Garments (Group) Prefill
+            val rawIds = detail.rawGarmentIds.orEmpty().mapNotNull { el ->
+                if (el.isJsonObject) el.asJsonObject.get("_id")?.asString
+                else if (el.isJsonPrimitive) el.asString
+                else null
+            }
+            if (rawIds.isNotEmpty()) {
+                applyToGroup = true
+                selectedGroupGarmentIds = rawIds.toSet()
+                selectedGarmentId = rawIds.first()
+            }
+
+            // Stages Prefill from existing template
+            val detailStages = detail.stages.orEmpty()
+            if (detailStages.isNotEmpty()) {
+                workflowSteps = detailStages.map { st ->
+                    WorkflowStepItem(
+                        sequence = st.displayOrder,
+                        stage = st.stageDetail?.displayName ?: st.stageDetail?.name ?: "Stage ${st.displayOrder}",
+                        workType = st.stageDetail?.workType ?: "General",
+                        isRequired = st.isMandatory,
+                        allowRework = st.allowRework,
+                        instructions = st.instructions.orEmpty(),
+                        stageId = st.stageDetail?.id ?: st.id.orEmpty()
+                    )
+                }
+            }
+            isPrefilled = true
+        }
+    }
+
+    // Display loader if template details are being fetched
+    if (isLoadingDetail && !isPrefilled && !templateIdToEdit.isNullOrBlank()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(whiteBg),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = Primary, modifier = Modifier.size(36.dp))
+        }
+        return
+    }
+
+    // Add Step Sub-page
     if (isAddingWorkflowStepPage) {
         AddWorkflowStepPage(
             sequenceNumber = workflowSteps.size + 1,
             onBack = { isAddingWorkflowStepPage = false },
-            onAddStep = { newStep ->
-                workflowSteps = workflowSteps + newStep
-                isAddingWorkflowStepPage = false
-            }
-        )
-        return
-    }
-
-    if (isAddingOptionalWorkPage) {
-        AddOptionalWorkPage(
-            onBack = { isAddingOptionalWorkPage = false },
-            onAddWork = { newWork ->
-                optionalWorks = optionalWorks + newWork
-                isAddingOptionalWorkPage = false
+            onCreateNewStage = { newStageRequest, onDone ->
+                templateViewModel.createStage(newStageRequest) { createdStage ->
+                    val newStep = WorkflowStepItem(
+                        sequence = workflowSteps.size + 1,
+                        stage = createdStage.effectiveTitle,
+                        workType = createdStage.workType ?: createdStage.effectiveTitle,
+                        isRequired = true,
+                        allowRework = createdStage.allowRework,
+                        instructions = createdStage.description.orEmpty(),
+                        stageId = createdStage.id
+                    )
+                    workflowSteps = workflowSteps + newStep
+                    onDone()
+                    isAddingWorkflowStepPage = false
+                }
             }
         )
         return
@@ -467,7 +574,7 @@ fun CreateServiceTemplateWizardScreen(
                     .background(whiteBg)
             ) {
                 TitleBar(
-                    title = "Create Service Template",
+                    title = if (templateIdToEdit.isNullOrBlank()) "Create Service Template" else "Edit Service Template",
                     onClose = onClose
                 )
                 HorizontalDivider(color = title_border)
@@ -488,25 +595,38 @@ fun CreateServiceTemplateWizardScreen(
 
                 HorizontalDivider(color = title_border)
 
+                val selectedGarmentObj = garments.find { it.id == selectedGarmentId }
+                val displayGarmentName = selectedGarmentObj?.displayName ?: selectedGarmentObj?.name ?: "All Garments"
+
                 if (currentStep > 1) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(grey_border)
-                            .padding(horizontal = tokens.screenPadding, vertical = 8.dp),
+                            .padding(horizontal = tokens.screenPadding, vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = "Template: $templateName",
-                            fontSize = 11.sp,
-                            color = Color(0xFF334155),
+                            fontSize = tokens.caption,
+                            color = textSubdued,
                             fontWeight = FontWeight.Medium
                         )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(grey_border)
+                            .padding(horizontal = tokens.screenPadding, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = "Garment: ${selectedGarment.ifBlank { "Men's Shirt" }}",
-                            fontSize = 11.sp,
-                            color = Color(0xFF334155),
+                            text = "Garment: $displayGarmentName",
+                            fontSize = tokens.caption,
+                            color = textSubdued,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -538,47 +658,32 @@ fun CreateServiceTemplateWizardScreen(
                             applyToGroup = applyToGroup,
                             onApplyToGroupChange = { applyToGroup = it },
                             segments = segments,
+                            garments = garments,
                             selectedCategoryTabIndex = selectedCategoryTabIndex,
                             onCategoryTabSelect = { selectedCategoryTabIndex = it },
-                            selectedGarment = selectedGarment,
-                            garmentOptions = garmentOptions,
-                            garmentDropdownExpanded = garmentDropdownExpanded,
-                            onGarmentDropdownExpandedChange = { garmentDropdownExpanded = it },
-                            onGarmentSelect = { selectedGarment = it },
-                            garmentGroup = garmentGroup,
-                            garmentGroupExpanded = garmentGroupExpanded,
-                            onGarmentGroupExpandedChange = { garmentGroupExpanded = it },
-                            onGarmentGroupSelect = { garmentGroup = it },
-                            groupFormalShirt = groupFormalShirt,
-                            onGroupFormalShirtChange = { groupFormalShirt = it },
-                            groupCasualShirt = groupCasualShirt,
-                            onGroupCasualShirtChange = { groupCasualShirt = it },
-                            groupDesignerShirt = groupDesignerShirt,
-                            onGroupDesignerShirtChange = { groupDesignerShirt = it },
-                            groupHalfSleeve = groupHalfSleeve,
-                            onGroupHalfSleeveChange = { groupHalfSleeve = it },
-                            groupFullSleeve = groupFullSleeve,
-                            onGroupFullSleeveChange = { groupFullSleeve = it },
-                            groupLinenShirt = groupLinenShirt,
-                            onGroupLinenShirtChange = { groupLinenShirt = it },
+                            selectedGarmentId = selectedGarmentId,
+                            onGarmentSelect = { chosen -> selectedGarmentId = chosen.id },
+                            selectedGroupGarmentIds = selectedGroupGarmentIds,
+                            onToggleGroupGarment = { gid ->
+                                selectedGroupGarmentIds = if (gid in selectedGroupGarmentIds) {
+                                    selectedGroupGarmentIds - gid
+                                } else {
+                                    selectedGroupGarmentIds + gid
+                                }
+                            },
                             onAddGarmentClick = { addGarmentSheetState = SheetValue.Expanded }
                         )
 
                         2 -> StepThreeWorkflow(
                             workflowSteps = workflowSteps,
+                            isLoadingStages = isLoadingStages,
+                            onStepsChange = { workflowSteps = it },
                             onAddStepClick = { isAddingWorkflowStepPage = true }
                         )
 
-                        3 -> StepFourOptionalWork(
-                            optionalWorks = optionalWorks,
-                            onAddOptionalWorkClick = { isAddingOptionalWorkPage = true }
-                        )
-
-                        4 -> StepFiveReviewAndActivate(
+                        3 -> StepFiveReviewAndActivate(
                             workflowSteps = workflowSteps,
-                            optionalWorks = optionalWorks,
-                            onEditWorkflow = { currentStep = 2 },
-                            onEditOptionalWork = { currentStep = 3 }
+                            onEditWorkflow = { currentStep = 2 }
                         )
                     }
                 }
@@ -595,9 +700,11 @@ fun CreateServiceTemplateWizardScreen(
                 showBackArrow = true,
                 showTrailingArrow = true,
                 trailingAction = TrailingFabAction.Next(
-                    label = if (currentStep == 4) "Activate Template" else "Next",
+                    label = if (currentStep == 3) {
+                        if (templateIdToEdit.isNullOrBlank()) "Activate Template" else "Update Template"
+                    } else "Next",
                     onClick = {
-                        if (currentStep < 4) {
+                        if (currentStep < 3) {
                             currentStep++
                         } else {
                             showActivateConfirmDialog = true
@@ -631,17 +738,18 @@ fun CreateServiceTemplateWizardScreen(
                 }
             }
         ) {
-            val currentSegmentName = segments.getOrNull(selectedCategoryTabIndex)?.name ?: "Men"
+            val currentSegmentName = segments.getOrNull(selectedCategoryTabIndex)?.displayName ?: "General"
             AddGarmentSheetContent(
                 category = currentSegmentName,
-                garmentGroup = garmentGroup,
+                garmentGroup = garmentGroup.ifBlank { "Standard" },
                 onDismiss = {
                     backgroundBlur = 0.dp
                     addGarmentSheetState = SheetValue.Hidden
                 },
-                onCreate = { name, code, desc ->
+                onCreate = { _, _, _ ->
                     backgroundBlur = 0.dp
                     addGarmentSheetState = SheetValue.Hidden
+                    settingsViewModel.fetchGarments()
                 }
             )
         }
@@ -649,10 +757,45 @@ fun CreateServiceTemplateWizardScreen(
 
     if (showActivateConfirmDialog) {
         ActivateTemplateConfirmDialog(
+            isEdit = !templateIdToEdit.isNullOrBlank(),
             onDismiss = { showActivateConfirmDialog = false },
             onConfirm = {
                 showActivateConfirmDialog = false
-                onTemplateCreated()
+                val generatedCode = templateCode.ifBlank {
+                    templateName.trim().uppercase().replace(Regex("[^A-Z0-9]+"), "_") + "_WF"
+                }
+
+                val stagePayloads = workflowSteps.mapIndexed { idx, st ->
+                    CreateTemplateStageItem(
+                        stageId = st.stageId.ifBlank { "STAGE_${idx + 1}" },
+                        displayOrder = idx + 1,
+                        isMandatory = st.isRequired,
+                        isAllocationRequired = true,
+                        allowRework = st.allowRework,
+                        instructions = st.instructions.ifBlank { "Complete according to approved specs." }
+                    )
+                }
+                val isEdit = !templateIdToEdit.isNullOrBlank()
+
+                val request = CreateTemplateRequest(
+                    name = templateName.ifBlank { "Standard Pipeline" },
+                    code = generatedCode,
+                    description = description.ifBlank { "Automated production workflow." },
+                    segmentId = if (!isEdit) null else currentSegment?.id,
+                    garmentId = if (isEdit || applyToGroup) null else selectedGarmentId.takeIf { it.isNotBlank() },
+                    stages = stagePayloads,
+                    status = if (statusActive) "Active" else "Inactive"
+                )
+
+                if (templateIdToEdit.isNullOrBlank()) {
+                    templateViewModel.createTemplate(request) {
+                        onTemplateCreated()
+                    }
+                } else {
+                    templateViewModel.updateTemplate(templateIdToEdit, request) {
+                        onTemplateCreated()
+                    }
+                }
             }
         )
     }
@@ -675,8 +818,15 @@ private fun StepOneBasicInfo(
     statusActive: Boolean,
     onStatusChange: (Boolean) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Basic Information", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+        Text(
+            text = "Basic Information",
+            fontSize = tokens.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = TextPrimary
+        )
         HorizontalDivider(color = sectionBorder)
 
         Column {
@@ -694,7 +844,7 @@ private fun StepOneBasicInfo(
                 value = serviceType,
                 expanded = serviceTypeExpanded,
                 onExpandChange = onServiceTypeExpandedChange,
-                options = listOf("Custom Tailoring", "Alteration", "Dry Cleaning", "Embroidery Only"),
+                options = listOf("Custom Tailoring", "General Service / Alteration"),
                 onOptionSelected = onServiceTypeSelect
             )
         }
@@ -715,7 +865,12 @@ private fun StepOneBasicInfo(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("Status", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF334155))
+            Text(
+                text = "Status",
+                fontSize = tokens.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = textSubdued
+            )
             MiniSwitch(
                 checked = statusActive,
                 onCheckedChange = onStatusChange
@@ -728,63 +883,75 @@ private fun StepOneBasicInfo(
 // Step 2: Garment & Measurement Content
 // ─────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun StepTwoGarmentAndMeasurement(
     applyToGroup: Boolean,
     onApplyToGroupChange: (Boolean) -> Unit,
     segments: List<SegmentItem>,
+    garments: List<GarmentItem>,
     selectedCategoryTabIndex: Int,
     onCategoryTabSelect: (Int) -> Unit,
-    selectedGarment: String,
-    garmentOptions: List<String>,
-    garmentDropdownExpanded: Boolean,
-    onGarmentDropdownExpandedChange: (Boolean) -> Unit,
-    onGarmentSelect: (String) -> Unit,
-    garmentGroup: String,
-    garmentGroupExpanded: Boolean,
-    onGarmentGroupExpandedChange: (Boolean) -> Unit,
-    onGarmentGroupSelect: (String) -> Unit,
-    groupFormalShirt: Boolean,
-    onGroupFormalShirtChange: (Boolean) -> Unit,
-    groupCasualShirt: Boolean,
-    onGroupCasualShirtChange: (Boolean) -> Unit,
-    groupDesignerShirt: Boolean,
-    onGroupDesignerShirtChange: (Boolean) -> Unit,
-    groupHalfSleeve: Boolean,
-    onGroupHalfSleeveChange: (Boolean) -> Unit,
-    groupFullSleeve: Boolean,
-    onGroupFullSleeveChange: (Boolean) -> Unit,
-    groupLinenShirt: Boolean,
-    onGroupLinenShirtChange: (Boolean) -> Unit,
+    selectedGarmentId: String,
+    onGarmentSelect: (GarmentItem) -> Unit,
+    selectedGroupGarmentIds: Set<String>,
+    onToggleGroupGarment: (String) -> Unit,
     onAddGarmentClick: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+    var garmentDropdownExpanded by remember { mutableStateOf(false) }
+
     val tabNames = remember(segments) {
-        if (segments.isNotEmpty()) segments.map { it.name } else listOf("Men", "Women", "Kids", "Uniform")
+        segments.map { it.displayName.ifBlank { it.name } }
     }
 
-    val selectedGarmentsList = remember(
-        groupFormalShirt,
-        groupCasualShirt,
-        groupDesignerShirt,
-        groupHalfSleeve,
-        groupFullSleeve,
-        groupLinenShirt
-    ) {
-        buildList {
-            if (groupFormalShirt) add("Formal Shirt")
-            if (groupCasualShirt) add("Casual Shirt")
-            if (groupDesignerShirt) add("Designer Shirt")
-            if (groupHalfSleeve) add("Half Sleeve Shirt")
-            if (groupFullSleeve) add("Full Sleeve Shirt")
-            if (groupLinenShirt) add("Linen Shirt")
+    val currentSegment = remember(segments, selectedCategoryTabIndex) {
+        segments.getOrNull(selectedCategoryTabIndex)
+    }
+
+    val filteredGarments = remember(currentSegment, garments) {
+        if (currentSegment != null) {
+            garments.filter { garment ->
+                garment.applicableSegments.any { applicable ->
+                    applicable.id.equals(currentSegment.id, ignoreCase = true)
+                }
+            }
+        } else {
+            emptyList()
         }
     }
 
+    LaunchedEffect(filteredGarments) {
+        if (!applyToGroup && filteredGarments.isNotEmpty()) {
+            val existsInFiltered = filteredGarments.any { it.id == selectedGarmentId }
+            if (!existsInFiltered) {
+                onGarmentSelect(filteredGarments.first())
+            }
+        }
+    }
+
+    val activeSingleGarment = remember(selectedGarmentId, filteredGarments) {
+        filteredGarments.find { it.id == selectedGarmentId } ?: filteredGarments.firstOrNull()
+    }
+
+    val activeGroupGarments = remember(selectedGroupGarmentIds, filteredGarments) {
+        filteredGarments.filter { it.id in selectedGroupGarmentIds }
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Garment & Measurement", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = title_color)
+        Text(
+            text = "Garment & Measurement",
+            fontSize = tokens.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = title_color
+        )
         HorizontalDivider(color = sectionBorder)
 
-        Text("Apply Template To", fontSize = 13.sp, color = Color(0xFF475569))
+        Text(
+            text = "Apply Template To",
+            fontSize = tokens.bodySmall,
+            color = TextSecondary
+        )
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -792,55 +959,70 @@ private fun StepTwoGarmentAndMeasurement(
         ) {
             Button(
                 onClick = { onApplyToGroupChange(false) },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(tokens.buttonHeight),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (!applyToGroup) Color(0xFFE0E7FF) else Color.Transparent
+                    containerColor = if (!applyToGroup) primary_light else Color.Transparent
                 ),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, if (!applyToGroup) Color(0xFF818CF8) else sectionBorder)
+                border = BorderStroke(1.dp, if (!applyToGroup) Primary else sectionBorder)
             ) {
                 Text(
                     text = "Single Garment",
-                    color = if (!applyToGroup) Color(0xFF3730A3) else headerGrey,
-                    fontSize = 13.sp,
+                    color = if (!applyToGroup) Primary else headerGrey,
+                    fontSize = tokens.bodySmall,
                     fontWeight = FontWeight.Medium
                 )
             }
 
             Button(
                 onClick = { onApplyToGroupChange(true) },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(tokens.buttonHeight),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (applyToGroup) Color(0xFFE0E7FF) else Color.Transparent
+                    containerColor = if (applyToGroup) primary_light else Color.Transparent
                 ),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, if (applyToGroup) Color(0xFF818CF8) else sectionBorder)
+                border = BorderStroke(1.dp, if (applyToGroup) Primary else sectionBorder)
             ) {
                 Text(
                     text = "Garment Group",
-                    color = if (applyToGroup) Color(0xFF3730A3) else headerGrey,
-                    fontSize = 13.sp,
+                    color = if (applyToGroup) Primary else headerGrey,
+                    fontSize = tokens.bodySmall,
                     fontWeight = FontWeight.Medium
                 )
             }
         }
 
-        AppUnderlineTabRow(
-            tabs = tabNames,
-            selectedIndex = selectedCategoryTabIndex.coerceIn(0, (tabNames.size - 1).coerceAtLeast(0)),
-            onTabSelected = onCategoryTabSelect
-        )
+        if (tabNames.isNotEmpty()) {
+            AppUnderlineTabRow(
+                tabs = tabNames,
+                selectedIndex = selectedCategoryTabIndex.coerceIn(0, tabNames.lastIndex),
+                onTabSelected = onCategoryTabSelect
+            )
+        }
 
         HorizontalDivider(color = grey_border)
 
         if (!applyToGroup) {
-            FormLabel("Garment")
+            FormLabel("Garment", isRequired = true)
+
+            val currentGarmentName = activeSingleGarment?.displayName ?: activeSingleGarment?.name ?: "Select Garment"
+            val garmentNames = filteredGarments.map { it.displayName ?: it.name }
+
             FormDropdown(
-                value = selectedGarment,
+                value = if (filteredGarments.isEmpty()) "No garments available" else currentGarmentName,
                 expanded = garmentDropdownExpanded,
-                onExpandChange = onGarmentDropdownExpandedChange,
-                options = garmentOptions,
-                onOptionSelected = onGarmentSelect
+                onExpandChange = { if (filteredGarments.isNotEmpty()) garmentDropdownExpanded = it },
+                options = garmentNames,
+                onOptionSelected = { chosenName ->
+                    val chosen = filteredGarments.find { (it.displayName ?: it.name) == chosenName }
+                    if (chosen != null) {
+                        onGarmentSelect(chosen)
+                    }
+                }
             )
 
             Card(
@@ -852,31 +1034,48 @@ private fun StepTwoGarmentAndMeasurement(
                     modifier = Modifier.padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("Selected Garment Config", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                    Text(
+                        text = "Selected Garment Config",
+                        fontSize = tokens.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = TextPrimary
+                    )
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Garment:", fontSize = 13.sp, color = headerGrey)
-                        Text(selectedGarment.ifBlank { "Formal Shirt" }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
+                        Text("Garment:", fontSize = tokens.bodySmall, color = headerGrey)
+                        Text(
+                            text = activeSingleGarment?.displayName ?: activeSingleGarment?.name ?: "None",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = TextPrimary
+                        )
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Configuration:", fontSize = 13.sp, color = headerGrey)
-                        Text("${selectedGarment.ifBlank { "Formal Shirt" }} Standard", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
+                        Text("Code:", fontSize = tokens.bodySmall, color = headerGrey)
+                        Text(
+                            text = activeSingleGarment?.code ?: "—",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = TextPrimary
+                        )
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Active Fields:", fontSize = 13.sp, color = headerGrey)
-                        Text("12 Measurement Fields", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
+                        Text("Active Fields:", fontSize = tokens.bodySmall, color = headerGrey)
+                        Text(
+                            text = "${activeSingleGarment?.measurementFields?.size ?: 0} Measurement Fields",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = TextPrimary
+                        )
                     }
                 }
             }
         } else {
-            FormLabel("Garment Group")
-            FormDropdown(
-                value = garmentGroup,
-                expanded = garmentGroupExpanded,
-                onExpandChange = onGarmentGroupExpandedChange,
-                options = listOf("Shirts", "Trousers", "Suits", "Ethnic"),
-                onOptionSelected = onGarmentGroupSelect
+            Text(
+                text = "Available Garments (${filteredGarments.size})",
+                fontSize = tokens.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = TextSecondary
             )
-            Text("Available Garments", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF475569))
 
             Card(
                 colors = CardDefaults.cardColors(containerColor = whiteBg),
@@ -884,18 +1083,40 @@ private fun StepTwoGarmentAndMeasurement(
                 shape = RoundedCornerShape(10.dp)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    Spacer(Modifier.height(10.dp))
+                    if (filteredGarments.isEmpty()) {
+                        Text(
+                            text = "No garments found under this segment.",
+                            fontSize = tokens.bodySmall,
+                            color = headerGrey,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
+                    } else {
+                        val half = (filteredGarments.size + 1) / 2
+                        val col1 = filteredGarments.take(half)
+                        val col2 = filteredGarments.drop(half)
 
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            CheckboxOptionRow("Formal Shirt", groupFormalShirt, onGroupFormalShirtChange)
-                            CheckboxOptionRow("Casual Shirt", groupCasualShirt, onGroupCasualShirtChange)
-                            CheckboxOptionRow("Designer Shirt", groupDesignerShirt, onGroupDesignerShirtChange)
-                        }
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            CheckboxOptionRow("Half Sleeve Shirt", groupHalfSleeve, onGroupHalfSleeveChange)
-                            CheckboxOptionRow("Full Sleeve Shirt", groupFullSleeve, onGroupFullSleeveChange)
-                            CheckboxOptionRow("Linen Shirt", groupLinenShirt, onGroupLinenShirtChange)
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                col1.forEach { item ->
+                                    val isChecked = item.id in selectedGroupGarmentIds
+                                    CheckboxOptionRow(
+                                        title = item.displayName ?: item.name,
+                                        checked = isChecked,
+                                        onCheckedChange = { onToggleGroupGarment(item.id) }
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                col2.forEach { item ->
+                                    val isChecked = item.id in selectedGroupGarmentIds
+                                    CheckboxOptionRow(
+                                        title = item.displayName ?: item.name,
+                                        checked = isChecked,
+                                        onCheckedChange = { onToggleGroupGarment(item.id) }
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -908,21 +1129,31 @@ private fun StepTwoGarmentAndMeasurement(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(Icons.Default.Add, null, tint = Color(0xFF4338CA), modifier = Modifier.size(16.dp))
-                        Text("Add Garment", color = Color(0xFF4338CA), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(tokens.iconSize)
+                        )
+                        Text(
+                            text = "Add Garment",
+                            color = Primary,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }
 
-            if (selectedGarmentsList.isNotEmpty()) {
+            if (activeGroupGarments.isNotEmpty()) {
                 Text(
-                    text = "Selected Garments (${selectedGarmentsList.size})",
-                    fontSize = 13.sp,
+                    text = "Selected Garments (${activeGroupGarments.size})",
+                    fontSize = tokens.bodySmall,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF475569)
+                    color = TextSecondary
                 )
 
-                selectedGarmentsList.forEach { item ->
+                activeGroupGarments.forEach { item ->
                     Card(
                         colors = CardDefaults.cardColors(containerColor = whiteBg),
                         border = BorderStroke(1.dp, sectionBorder),
@@ -936,8 +1167,17 @@ private fun StepTwoGarmentAndMeasurement(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text(item, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                                Text("$item Standard", fontSize = 12.sp, color = headerGrey)
+                                Text(
+                                    text = item.displayName ?: item.name,
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = "Code: ${item.code}",
+                                    fontSize = tokens.caption,
+                                    color = headerGrey
+                                )
                             }
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -946,17 +1186,31 @@ private fun StepTwoGarmentAndMeasurement(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(20.dp))
-                                        .background(Color(0xFFDCFCE7))
+                                        .background(greenBg)
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
-                                    Text("Configured", fontSize = 11.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Medium)
+                                    Text(
+                                        text = "Configured",
+                                        fontSize = tokens.label,
+                                        color = darkGreenBg,
+                                        fontWeight = FontWeight.Medium
+                                    )
                                 }
-                                Text("View", fontSize = 12.sp, color = Color(0xFF4338CA), fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    text = "View",
+                                    fontSize = tokens.caption,
+                                    color = Primary,
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         }
                     }
                 }
             }
+        }
+
+        val dynamicMeasurementFields = remember(activeSingleGarment) {
+            activeSingleGarment?.measurementFields?.mapNotNull { it.field?.displayName ?: it.field?.name } ?: emptyList()
         }
 
         Card(
@@ -973,31 +1227,68 @@ private fun StepTwoGarmentAndMeasurement(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Measurement Fields", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                    Text("Standard Pattern", fontSize = 12.sp, color = Color(0xFF4338CA), fontWeight = FontWeight.Medium)
+                    Text(
+                        text = "Measurement Fields",
+                        fontSize = tokens.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = TextPrimary
+                    )
+                    Text(
+                        text = if (dynamicMeasurementFields.isNotEmpty()) "${dynamicMeasurementFields.size} Fields" else "Standard Pattern",
+                        fontSize = tokens.caption,
+                        color = Primary,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
 
                 HorizontalDivider(color = grey_border)
 
-                MeasurementGroup("BODY", listOf("Chest Round", "Waist Round", "Seat / Hip Round"))
-                MeasurementGroup("SHOULDER & BACK", listOf("Shoulder Width", "Back Width"))
-                MeasurementGroup("SLEEVE", listOf("Sleeve Length", "Bicep Round", "Armhole Round"))
-                MeasurementGroup("NECK & COLLAR", listOf("Neck Round"))
-                MeasurementGroup("LENGTH", listOf("Shirt Length"))
+                if (dynamicMeasurementFields.isNotEmpty()) {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        dynamicMeasurementFields.forEach { fieldName ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Primary_background)
+                                    .border(1.dp, grey_border, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = fieldName,
+                                    fontSize = tokens.bodySmall,
+                                    color = textSubdued
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    MeasurementGroup("BODY", listOf("Chest Round", "Waist Round", "Seat / Hip Round"))
+                    MeasurementGroup("SHOULDER & BACK", listOf("Shoulder Width", "Back Width"))
+                    MeasurementGroup("SLEEVE", listOf("Sleeve Length", "Bicep Round", "Armhole Round"))
+                    MeasurementGroup("LENGTH", listOf("Garment Length"))
+                }
             }
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// Step 3: Workflow Steps Content
+// Step 3: Workflow Steps Content (Integrated with API Stages)
 // ─────────────────────────────────────────────────────────────
 
 @Composable
 private fun StepThreeWorkflow(
     workflowSteps: List<WorkflowStepItem>,
+    isLoadingStages: Boolean,
+    onStepsChange: (List<WorkflowStepItem>) -> Unit,
     onAddStepClick: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1005,8 +1296,17 @@ private fun StepThreeWorkflow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Service Workflow", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                Text("Define the sequence of work.", fontSize = 12.sp, color = headerGrey)
+                Text(
+                    text = "Service Workflow",
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary
+                )
+                Text(
+                    text = "Define the sequence of work for this template.",
+                    fontSize = tokens.caption,
+                    color = headerGrey
+                )
             }
             Button(
                 onClick = onAddStepClick,
@@ -1014,289 +1314,163 @@ private fun StepThreeWorkflow(
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
             ) {
-                Icon(Icons.Default.Add, null, tint = whiteBg, modifier = Modifier.size(14.dp))
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    tint = whiteBg,
+                    modifier = Modifier.size(tokens.iconSize)
+                )
                 Spacer(Modifier.width(4.dp))
-                Text("Add Workflow Step", color = whiteBg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = "Add Stage",
+                    color = whiteBg,
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = whiteBg),
-            border = BorderStroke(1.dp, sectionBorder),
-            shape = RoundedCornerShape(10.dp)
-        ) {
-            Column {
-                workflowSteps.forEachIndexed { index, item ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.DragIndicator, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            text = "%02d".format(item.sequence),
-                            color = headerGrey,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = item.stage,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF0F172A),
-                            modifier = Modifier.weight(1f)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0xFFDCFCE7))
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            Text(if (item.isRequired) "Required" else "Optional", fontSize = 11.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Medium)
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Default.MoreVert, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
-                    }
-                    if (index < workflowSteps.lastIndex) {
-                        HorizontalDivider(color = grey_border)
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Step 4: Optional Work Content
-// ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun StepFourOptionalWork(
-    optionalWorks: List<OptionalWorkItem>,
-    onAddOptionalWorkClick: () -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Optional Work", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                Text("Define the sequence of work.", fontSize = 12.sp, color = headerGrey)
-            }
-            Button(
-                onClick = onAddOptionalWorkClick,
-                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Icon(Icons.Default.Add, null, tint = whiteBg, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("Add Optional Work", color = whiteBg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            }
-        }
-
-        Card(
-            colors = CardDefaults.cardColors(containerColor = whiteBg),
-            border = BorderStroke(1.dp, sectionBorder),
-            shape = RoundedCornerShape(10.dp)
-        ) {
-            Column {
-                optionalWorks.forEachIndexed { index, item ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(item.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
-                            Text("Optional", fontSize = 12.sp, color = headerGrey)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0xFFDCFCE7))
-                                .padding(horizontal = 10.dp, vertical = 3.dp)
-                        ) {
-                            Text(item.status, fontSize = 11.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Medium)
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Default.MoreVert, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
-                    }
-                    if (index < optionalWorks.lastIndex) {
-                        HorizontalDivider(color = grey_border)
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Screen: Add Optional Work Page (Full Page)
-// ─────────────────────────────────────────────────────────────
-
-@Composable
-fun AddOptionalWorkPage(
-    onBack: () -> Unit,
-    onAddWork: (OptionalWorkItem) -> Unit
-) {
-    var workType by remember { mutableStateOf("Finishing") }
-    var isRequired by remember { mutableStateOf(false) }
-    var notes by remember { mutableStateOf("Additional decorative work if requested by customer.") }
-
-    var workTypeError by remember { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Transparent)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFFFBFBFB))
-        ) {
-            Column(
+        if (isLoadingStages && workflowSteps.isEmpty()) {
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(whiteBg)
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
+                CircularProgressIndicator(color = Primary, modifier = Modifier.size(32.dp))
+            }
+        } else if (workflowSteps.isEmpty()) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = whiteBg),
+                border = BorderStroke(1.dp, sectionBorder),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 18.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Add Optional Work",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = title_color
-                    )
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = close_color,
-                        modifier = Modifier
-                            .size(22.dp)
-                            .clickable { onBack() }
+                        text = "No production stages added. Click '+ Add Stage' to create or add steps.",
+                        fontSize = tokens.bodySmall,
+                        color = headerGrey,
+                        textAlign = TextAlign.Center
                     )
                 }
-                HorizontalDivider(color = title_border)
             }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 20.dp)
-                    .padding(bottom = 90.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+        } else {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = whiteBg),
+                border = BorderStroke(1.dp, sectionBorder),
+                shape = RoundedCornerShape(10.dp)
             ) {
                 Column {
-                    FormLabel("Work Type", isRequired = true)
-                    FormTextField(
-                        value = workType,
-                        onValueChange = {
-                            workType = it
-                            workTypeError = false
-                        },
-                        placeholder = "e.g. Finishing",
-                        isError = workTypeError,
-                        errorMessage = if (workTypeError) "Work Type is required" else null
-                    )
-                }
-
-                Column {
-                    Text("Requirement", fontSize = 13.sp, color = Color(0xFF475569))
-                    Spacer(Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                    workflowSteps.forEachIndexed { index, item ->
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { isRequired = true }
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            RadioButton(
-                                selected = isRequired,
-                                onClick = { isRequired = true }
+                            Icon(
+                                imageVector = Icons.Default.DragIndicator,
+                                contentDescription = null,
+                                tint = iconMuted,
+                                modifier = Modifier.size(tokens.iconSize)
                             )
-                            Text("Required", fontSize = 13.sp, color = Color(0xFF0F172A))
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = "%02d".format(index + 1),
+                                color = headerGrey,
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = item.stage,
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextPrimary
+                                )
+                                if (item.workType.isNotBlank()) {
+                                    Text(
+                                        text = "Type: ${item.workType}",
+                                        fontSize = tokens.caption,
+                                        color = headerGrey
+                                    )
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(if (item.isRequired) greenBg else quickaccessBg)
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .clickable {
+                                        val updated = workflowSteps.toMutableList()
+                                        updated[index] = item.copy(isRequired = !item.isRequired)
+                                        onStepsChange(updated)
+                                    }
+                            ) {
+                                Text(
+                                    text = if (item.isRequired) "Required" else "Optional",
+                                    fontSize = tokens.label,
+                                    color = if (item.isRequired) darkGreenBg else Primary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            IconButton(
+                                onClick = {
+                                    val updated = workflowSteps.toMutableList()
+                                    updated.removeAt(index)
+                                    onStepsChange(updated)
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Remove Step",
+                                    tint = redText,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { isRequired = false }
-                        ) {
-                            RadioButton(
-                                selected = !isRequired,
-                                onClick = { isRequired = false }
-                            )
-                            Text("Optional", fontSize = 13.sp, color = Color(0xFF0F172A))
+                        if (index < workflowSteps.lastIndex) {
+                            HorizontalDivider(color = grey_border)
                         }
                     }
-                }
-
-                Column {
-                    FormLabel("Notes")
-                    FormTextArea(
-                        value = notes,
-                        onValueChange = { notes = it },
-                        placeholder = "Additional decorative work if requested by customer.",
-                        minLines = 4,
-                        maxLines = 6
-                    )
                 }
             }
         }
-
-        StepNavigationFab(
-            showBack = true,
-            onBack = onBack,
-            backLabel = "Cancel",
-            showBackArrow = false,
-            showTrailingArrow = false,
-            trailingAction = TrailingFabAction.Next(
-                label = "Add Work",
-                onClick = {
-                    if (workType.isBlank()) {
-                        workTypeError = true
-                        return@Next
-                    }
-                    onAddWork(
-                        OptionalWorkItem(
-                            name = workType,
-                            workType = workType,
-                            isRequired = isRequired,
-                            notes = notes,
-                            status = "Active"
-                        )
-                    )
-                }
-            )
-        )
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// Step 5: Review & Activate Content
+// Step 4: Review & Activate Content
 // ─────────────────────────────────────────────────────────────
 
 @Composable
 private fun StepFiveReviewAndActivate(
     workflowSteps: List<WorkflowStepItem>,
-    optionalWorks: List<OptionalWorkItem>,
-    onEditWorkflow: () -> Unit,
-    onEditOptionalWork: () -> Unit
+    onEditWorkflow: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Column {
-            Text("Review & Activate", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-            Text("Verify the service template configuration details before activating.", fontSize = 12.sp, color = headerGrey)
+            Text(
+                text = "Review & Activate",
+                fontSize = tokens.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = TextPrimary
+            )
+            Text(
+                text = "Verify the service template configuration details before activating.",
+                fontSize = tokens.caption,
+                color = headerGrey
+            )
         }
 
         Row(
@@ -1304,14 +1478,29 @@ private fun StepFiveReviewAndActivate(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Workflow Configuration", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+            Text(
+                text = "Workflow Configuration (${workflowSteps.size} Stages)",
+                fontSize = tokens.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = TextPrimary
+            )
             Row(
                 modifier = Modifier.clickable { onEditWorkflow() },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(Icons.Default.Edit, null, tint = Color(0xFF4338CA), modifier = Modifier.size(14.dp))
-                Text("Edit Workflow", fontSize = 12.sp, color = Color(0xFF4338CA), fontWeight = FontWeight.Medium)
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = "Edit Workflow",
+                    fontSize = tokens.caption,
+                    color = Primary,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
 
@@ -1332,76 +1521,40 @@ private fun StepFiveReviewAndActivate(
                             modifier = Modifier
                                 .size(24.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFE0F2FE)),
+                                .background(quickaccessBg),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("%02d".format(step.sequence), fontSize = 10.sp, color = Color(0xFF0284C7), fontWeight = FontWeight.Bold)
+                            Text(
+                                text = "%02d".format(index + 1),
+                                fontSize = tokens.label,
+                                color = Primary,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                         Spacer(Modifier.width(12.dp))
-                        Text(step.stage, fontSize = 13.sp, color = Color(0xFF0F172A), modifier = Modifier.weight(1f))
+                        Text(
+                            text = step.stage,
+                            fontSize = tokens.bodySmall,
+                            color = TextPrimary,
+                            modifier = Modifier.weight(1f)
+                        )
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0xFFDCFCE7))
+                                .background(greenBg)
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
-                            Text(if (step.isRequired) "Required" else "Optional", fontSize = 11.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Medium)
+                            Text(
+                                text = if (step.isRequired) "Required" else "Optional",
+                                fontSize = tokens.label,
+                                color = darkGreenBg,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
-                        Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Default.MoreVert, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
                     }
-                    if (index < workflowSteps.lastIndex) HorizontalDivider(color = grey_border)
-                }
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Optional Add-on Work", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-            Row(
-                modifier = Modifier.clickable { onEditOptionalWork() },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(Icons.Default.Edit, null, tint = Color(0xFF4338CA), modifier = Modifier.size(14.dp))
-                Text("Edit Optional Work", fontSize = 12.sp, color = Color(0xFF4338CA), fontWeight = FontWeight.Medium)
-            }
-        }
-
-        Card(
-            colors = CardDefaults.cardColors(containerColor = whiteBg),
-            border = BorderStroke(1.dp, sectionBorder),
-            shape = RoundedCornerShape(10.dp)
-        ) {
-            Column {
-                optionalWorks.forEachIndexed { index, work ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(work.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
-                            Text("Optional", fontSize = 11.sp, color = headerGrey)
-                        }
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color(0xFFDCFCE7))
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            Text(work.status, fontSize = 11.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Medium)
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Default.MoreVert, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
+                    if (index < workflowSteps.lastIndex) {
+                        HorizontalDivider(color = grey_border)
                     }
-                    if (index < optionalWorks.lastIndex) HorizontalDivider(color = grey_border)
                 }
             }
         }
@@ -1409,23 +1562,27 @@ private fun StepFiveReviewAndActivate(
 }
 
 // ─────────────────────────────────────────────────────────────
-// Screen: Add Workflow Step Page (Full Page)
+// Screen: Add Workflow Step / Create Stage Page
 // ─────────────────────────────────────────────────────────────
 
 @Composable
 fun AddWorkflowStepPage(
     sequenceNumber: Int,
     onBack: () -> Unit,
-    onAddStep: (WorkflowStepItem) -> Unit
+    onCreateNewStage: (CreateStageRequest, () -> Unit) -> Unit
 ) {
-    var stage by remember { mutableStateOf("Cutting") }
+    val tokens = LocalAppTokens.current
+    var stageName by remember { mutableStateOf("") }
+    var displayName by remember { mutableStateOf("") }
     var workType by remember { mutableStateOf("Cutting") }
-    var sequence by remember { mutableStateOf("$sequenceNumber") }
-    var isRequired by remember { mutableStateOf(true) }
+    var workTypeExpanded by remember { mutableStateOf(false) }
+    var description by remember { mutableStateOf("") }
+    var isAllocationRequired by remember { mutableStateOf(true) }
     var allowRework by remember { mutableStateOf(true) }
-    var instructions by remember { mutableStateOf("Complete the stage according to the approved service requirements.") }
-
     var stageError by remember { mutableStateOf(false) }
+    var isSubmitting by remember { mutableStateOf(false) }
+
+    val workTypes = listOf("Cutting", "Stitching", "QC", "Trial", "Finishing", "Embroidery")
 
     Box(
         modifier = Modifier
@@ -1435,7 +1592,7 @@ fun AddWorkflowStepPage(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFFBFBFB))
+                .background(Primary_background)
         ) {
             Column(
                 modifier = Modifier
@@ -1445,14 +1602,14 @@ fun AddWorkflowStepPage(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                        .padding(horizontal = tokens.screenPadding, vertical = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Add Workflow Step",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
+                        text = "Create Production Stage (Step #$sequenceNumber)",
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Medium,
                         color = title_color
                     )
                     Icon(
@@ -1460,7 +1617,7 @@ fun AddWorkflowStepPage(
                         contentDescription = "Close",
                         tint = close_color,
                         modifier = Modifier
-                            .size(22.dp)
+                            .size(tokens.iconSize)
                             .clickable { onBack() }
                     )
                 }
@@ -1471,67 +1628,77 @@ fun AddWorkflowStepPage(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 20.dp)
+                    .padding(horizontal = tokens.screenPadding, vertical = 20.dp)
                     .padding(bottom = 90.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Column {
-                    FormLabel("Stage", isRequired = true)
+                    FormLabel("Stage Name", isRequired = true)
                     FormTextField(
-                        value = stage,
+                        value = stageName,
                         onValueChange = {
-                            stage = it
+                            stageName = it
                             stageError = false
                         },
-                        placeholder = "e.g. Cutting",
+                        placeholder = "e.g. Fabric Cutting",
                         isError = stageError,
-                        errorMessage = if (stageError) "Stage is required" else null
+                        errorMessage = if (stageError) "Stage name is required" else null
                     )
                 }
 
                 Column {
-                    FormLabel("Work Type")
+                    FormLabel("Display Name (Optional)")
                     FormTextField(
+                        value = displayName,
+                        onValueChange = { displayName = it },
+                        placeholder = "e.g. Cutting Master Work"
+                    )
+                }
+
+                Column {
+                    FormDropdown(
+                        label = "Work Type",
                         value = workType,
-                        onValueChange = { workType = it },
-                        placeholder = "e.g. Cutting"
+                        expanded = workTypeExpanded,
+                        onExpandChange = { workTypeExpanded = it },
+                        options = workTypes,
+                        onOptionSelected = { workType = it }
                     )
                 }
 
                 Column {
-                    FormLabel("Sequence")
-                    FormTextField(
-                        value = sequence,
-                        onValueChange = { sequence = it },
-                        placeholder = "e.g. 4"
+                    FormLabel("Description (Optional)")
+                    FormTextArea(
+                        value = description,
+                        onValueChange = { description = it },
+                        placeholder = "Explain what tasks are performed in this stage...",
+                        minLines = 3,
+                        maxLines = 5
                     )
                 }
 
-                Column {
-                    Text("Requirement", fontSize = 13.sp, color = Color(0xFF475569))
-                    Spacer(Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { isRequired = true }
-                        ) {
-                            RadioButton(
-                                selected = isRequired,
-                                onClick = { isRequired = true }
-                            )
-                            Text("Required", fontSize = 13.sp, color = Color(0xFF0F172A))
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { isRequired = false }
-                        ) {
-                            RadioButton(
-                                selected = !isRequired,
-                                onClick = { isRequired = false }
-                            )
-                            Text("Optional", fontSize = 13.sp, color = Color(0xFF0F172A))
-                        }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "Allocation Required",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = textSubdued
+                        )
+                        Text(
+                            text = "Assign worker/tailor to this stage",
+                            fontSize = tokens.caption,
+                            color = iconMuted
+                        )
                     }
+                    MiniSwitch(
+                        checked = isAllocationRequired,
+                        onCheckedChange = { isAllocationRequired = it }
+                    )
                 }
 
                 Row(
@@ -1542,30 +1709,19 @@ fun AddWorkflowStepPage(
                     Column {
                         Text(
                             text = "Allow Rework",
-                            fontSize = 13.sp,
+                            fontSize = tokens.bodySmall,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF334155)
+                            color = textSubdued
                         )
                         Text(
-                            text = "Can be sent back to this stage",
-                            fontSize = 11.sp,
-                            color = Color(0xFF94A3B8)
+                            text = "Can be sent back to this stage during QC",
+                            fontSize = tokens.caption,
+                            color = iconMuted
                         )
                     }
                     MiniSwitch(
                         checked = allowRework,
                         onCheckedChange = { allowRework = it }
-                    )
-                }
-
-                Column {
-                    FormLabel("Instructions")
-                    FormTextArea(
-                        value = instructions,
-                        onValueChange = { instructions = it },
-                        placeholder = "Complete the stage according to the approved service requirements.",
-                        minLines = 4,
-                        maxLines = 6
                     )
                 }
             }
@@ -1578,22 +1734,27 @@ fun AddWorkflowStepPage(
             showBackArrow = false,
             showTrailingArrow = false,
             trailingAction = TrailingFabAction.Next(
-                label = "Add Step",
+                label = if (isSubmitting) "Saving..." else "Save Stage",
                 onClick = {
-                    if (stage.isBlank()) {
+                    if (stageName.isBlank()) {
                         stageError = true
                         return@Next
                     }
-                    onAddStep(
-                        WorkflowStepItem(
-                            sequence = sequence.toIntOrNull() ?: sequenceNumber,
-                            stage = stage,
-                            workType = workType,
-                            isRequired = isRequired,
-                            allowRework = allowRework,
-                            instructions = instructions
-                        )
+                    isSubmitting = true
+                    val code = stageName.trim().uppercase().replace(Regex("[^A-Z0-9]+"), "_")
+                    val request = CreateStageRequest(
+                        name = stageName.trim(),
+                        displayName = displayName.ifBlank { stageName.trim() },
+                        code = code,
+                        description = description,
+                        workType = workType,
+                        isAllocationRequired = isAllocationRequired,
+                        allowRework = allowRework,
+                        status = "Active"
                     )
+                    onCreateNewStage(request) {
+                        isSubmitting = false
+                    }
                 }
             )
         )
@@ -1611,6 +1772,7 @@ fun AddGarmentSheetContent(
     onDismiss: () -> Unit,
     onCreate: (name: String, code: String, desc: String) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     var name by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var desc by remember { mutableStateOf("") }
@@ -1619,7 +1781,7 @@ fun AddGarmentSheetContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = tokens.screenPadding)
             .padding(bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
@@ -1629,14 +1791,14 @@ fun AddGarmentSheetContent(
         ) {
             Text(
                 text = "ADD GARMENT",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                fontSize = tokens.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = TextPrimary
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 text = "Create a new garment under the selected category and garment group.",
-                fontSize = 12.sp,
+                fontSize = tokens.caption,
                 color = headerGrey
             )
         }
@@ -1665,15 +1827,15 @@ fun AddGarmentSheetContent(
 
         Text(
             text = "This garment will be added to the $garmentGroup group under $category.",
-            fontSize = 11.sp,
-            color = Color(0xFF94A3B8)
+            fontSize = tokens.caption,
+            color = iconMuted
         )
 
         Text(
             text = "Garment Information",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF0F172A)
+            fontSize = tokens.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = TextPrimary
         )
 
         Column {
@@ -1713,14 +1875,14 @@ fun AddGarmentSheetContent(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Status",
-                    fontSize = 13.sp,
+                    fontSize = tokens.bodySmall,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF334155)
+                    color = textSubdued
                 )
                 Text(
                     text = "Active garments can be selected in Service Templates and Orders.",
-                    fontSize = 11.sp,
-                    color = Color(0xFF94A3B8)
+                    fontSize = tokens.caption,
+                    color = iconMuted
                 )
             }
             MiniSwitch(
@@ -1739,14 +1901,14 @@ fun AddGarmentSheetContent(
                 onClick = onDismiss,
                 modifier = Modifier
                     .weight(1f)
-                    .height(46.dp),
+                    .height(tokens.buttonHeight),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, sectionBorder)
             ) {
                 Text(
                     text = "Cancel",
-                    color = Color(0xFF334155),
-                    fontSize = 14.sp,
+                    color = textSubdued,
+                    fontSize = tokens.bodySmall,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -1754,15 +1916,15 @@ fun AddGarmentSheetContent(
                 onClick = { onCreate(name, code, desc) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(46.dp),
+                    .height(tokens.buttonHeight),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Primary)
             ) {
                 Text(
                     text = "Create Garment",
                     color = whiteBg,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontSize = tokens.bodySmall,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -1771,9 +1933,12 @@ fun AddGarmentSheetContent(
 
 @Composable
 fun ActivateTemplateConfirmDialog(
+    isEdit: Boolean = false,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -1789,17 +1954,27 @@ fun ActivateTemplateConfirmDialog(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFEEF2FF)),
+                        .background(primary_light),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Check, null, tint = Color(0xFF4F46E5), modifier = Modifier.size(24.dp))
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Primary,
+                        modifier = Modifier.size(tokens.iconSize)
+                    )
                 }
 
-                Text("Activate Service Template?", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                Text(
+                    text = if (isEdit) "Update Service Template?" else "Activate Service Template?",
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary
+                )
 
                 Text(
-                    text = "Once activated, this template will be available for service order creation.",
-                    fontSize = 13.sp,
+                    text = if (isEdit) "The modified workflow changes will be applied to this template." else "Once activated, this template will be available for service order creation.",
+                    fontSize = tokens.bodySmall,
                     color = headerGrey,
                     modifier = Modifier.padding(horizontal = 8.dp),
                     textAlign = TextAlign.Center
@@ -1807,17 +1982,39 @@ fun ActivateTemplateConfirmDialog(
 
                 Spacer(Modifier.height(8.dp))
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) {
-                        Text("Cancel", color = Color(0xFF334155))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(tokens.buttonHeight),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, sectionBorder)
+                    ) {
+                        Text(
+                            text = "Cancel",
+                            color = textSubdued,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                     Button(
                         onClick = onConfirm,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(tokens.buttonHeight),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Primary)
                     ) {
-                        Text("Activate Template", color = whiteBg)
+                        Text(
+                            text = if (isEdit) "Update   " else "Activate",
+                            color = whiteBg,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }
@@ -1831,175 +2028,282 @@ fun ActivateTemplateConfirmDialog(
 
 @Composable
 fun ServiceTemplateDetailViewScreen(
-    template: ServiceTemplateItem,
+    templateId: String,
     onClose: () -> Unit = {},
-    onDeactivate: () -> Unit = onClose
+    onDeactivate: () -> Unit = onClose,
+    templateViewModel: ServicesViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
+    val selectedDetail by templateViewModel.selectedTemplate.collectAsState()
+    val isLoadingDetail by templateViewModel.isLoadingDetail.collectAsState()
 
-    val workflowSteps = listOf(
-        "Measurement",
-        "Cutting",
-        "Stitching",
-        "Trial",
-        "Finishing",
-        "Quality Check",
-        "Ready for Delivery"
-    )
-
-    val optionalWorks = listOf(
-        "Aari Work",
-        "Embroidery",
-        "Stone Work"
-    )
+    LaunchedEffect(templateId) {
+        if (templateId.isNotBlank()) {
+            templateViewModel.fetchTemplateDetail(templateId)
+        }
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Transparent)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            TitleBar(
-                title = template.name,
-                onClose = onClose
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(badgeGrey)
-                    .padding(horizontal = tokens.screenPadding, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+        if (isLoadingDetail && selectedDetail == null) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Service Type: ${template.serviceType}", fontSize = 11.sp, color = Color(0xFF475569))
-                    Text("Garment: Men's Shirt", fontSize = 11.sp, color = Color(0xFF475569))
-                }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Model: Men's Shirt - Standard Tailoring", fontSize = 11.sp, color = Color(0xFF475569))
-                    Text("Total Steps: ${template.stepCount} Steps", fontSize = 11.sp, color = Color(0xFF475569))
-                }
+                CircularProgressIndicator(
+                    color = Primary,
+                    modifier = Modifier.size(36.dp)
+                )
             }
+        } else {
+            val template = selectedDetail
+            val stages = template?.stages.orEmpty()
+            val segmentName = template?.segment?.displayName
+                ?: template?.segment?.name
+                ?: "General"
+            val garmentName = template?.garment?.displayName
+                ?: template?.garment?.name
+                ?: "Standard Tailoring"
 
-            HorizontalDivider(color = title_border)
+            Column(modifier = Modifier.fillMaxSize()) {
+                TitleBar(
+                    title = template?.name ?: "Template Details",
+                    onClose = onClose
+                )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = tokens.screenPadding, vertical = 14.dp)
-                    .padding(bottom = 90.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFEFF6FF))
-                        .border(1.dp, Color(0xFFBFDBFE), RoundedCornerShape(8.dp))
-                        .padding(12.dp)
+                        .background(badgeGrey)
+                        .padding(horizontal = tokens.screenPadding, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = "This template is currently used by existing orders. Changes will apply only to future orders.",
-                        color = Color(0xFF1D4ED8),
-                        fontSize = 12.sp
-                    )
-                }
-
-                Text("Workflow Configuration", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = whiteBg),
-                    border = BorderStroke(1.dp, sectionBorder),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Column {
-                        workflowSteps.forEachIndexed { index, stepName ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFDCFCE7)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("%02d".format(index + 1), fontSize = 10.sp, color = Color(0xFF16A34A), fontWeight = FontWeight.Bold)
-                                }
-                                Spacer(Modifier.width(12.dp))
-                                Text(stepName, fontSize = 13.sp, color = Color(0xFF0F172A), modifier = Modifier.weight(1f))
-                                Icon(Icons.Default.MoreVert, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
-                            }
-                            if (index < workflowSteps.lastIndex) HorizontalDivider(color = grey_border)
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Segment: $segmentName",
+                            fontSize = tokens.caption,
+                            color = close_color
+                        )
+                        Text(
+                            text = "Garment: $garmentName",
+                            fontSize = tokens.caption,
+                            color = close_color
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Code: ${template?.code ?: "—"}",
+                            fontSize = tokens.caption,
+                            color = close_color
+                        )
+                        Text(
+                            text = "Total Steps: ${stages.size} Steps",
+                            fontSize = tokens.caption,
+                            color = close_color
+                        )
                     }
                 }
 
-                Text("Optional Work", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = whiteBg),
-                    border = BorderStroke(1.dp, sectionBorder),
-                    shape = RoundedCornerShape(10.dp)
+                HorizontalDivider(color = grey_border)
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = tokens.screenPadding, vertical = 14.dp)
+                        .padding(bottom = 90.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Column {
-                        optionalWorks.forEachIndexed { index, workName ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(workName, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
-                                    Text("Optional", fontSize = 11.sp, color = headerGrey)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(activity_purple_bg)
+                            .border(1.dp, light_blue_border, RoundedCornerShape(8.dp))
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = "This template is currently used by existing orders. Changes will apply only to future orders.",
+                            color = darkPurple,
+                            fontSize = tokens.caption
+                        )
+                    }
+
+                    Text(
+                        text = "Workflow Configuration",
+                        fontSize = tokens.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = TextPrimary
+                    )
+
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = whiteBg),
+                        border = BorderStroke(1.dp, sectionBorder),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Column {
+                            if (stages.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "No workflow stages configured.",
+                                        fontSize = tokens.bodySmall,
+                                        color = headerGrey
+                                    )
                                 }
-                                Icon(Icons.Default.MoreVert, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
+                            } else {
+                                stages.forEachIndexed { index, stepItem ->
+                                    val stageName = stepItem.stageDetail?.displayName
+                                        ?: stepItem.stageDetail?.name
+                                        ?: "Stage ${stepItem.displayOrder}"
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(greenBg),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "%02d".format(stepItem.displayOrder),
+                                                fontSize = tokens.label,
+                                                color = darkGreenBg,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                        Spacer(Modifier.width(12.dp))
+                                        Text(
+                                            text = stageName,
+                                            fontSize = tokens.bodySmall,
+                                            color = TextPrimary,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(20.dp))
+                                                .background(greenBg)
+                                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = if (stepItem.isMandatory) "Mandatory" else "Optional",
+                                                fontSize = tokens.label,
+                                                color = darkGreenBg,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                        Spacer(Modifier.width(8.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.MoreVert,
+                                            contentDescription = null,
+                                            tint = iconMuted,
+                                            modifier = Modifier.size(tokens.iconSize)
+                                        )
+                                    }
+                                    if (index < stages.lastIndex) {
+                                        HorizontalDivider(color = grey_border)
+                                    }
+                                }
                             }
-                            if (index < optionalWorks.lastIndex) HorizontalDivider(color = grey_border)
+                        }
+                    }
+
+                    if (!template?.description.isNullOrBlank()) {
+                        Text(
+                            text = "Description",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = TextPrimary
+                        )
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = whiteBg),
+                            border = BorderStroke(1.dp, sectionBorder),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(
+                                text = template.description,
+                                fontSize = tokens.bodySmall,
+                                color = textSubdued,
+                                modifier = Modifier.padding(14.dp)
+                            )
                         }
                     }
                 }
             }
-        }
 
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth(),
-            color = whiteBg,
-            shadowElevation = 8.dp
-        ) {
-            Row(
+            Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth(),
+                color = Color.Transparent,
+                shadowElevation = 0.dp
             ) {
-                OutlinedButton(
-                    onClick = onClose,
-                    modifier = Modifier.weight(1f).height(46.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, sectionBorder)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = tokens.screenPadding, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Cancel", color = Color(0xFF334155))
-                }
-                Button(
-                    onClick = onDeactivate,
-                    modifier = Modifier.weight(1f).height(46.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFEE2E2),
-                        contentColor = Color(0xFFDC2626)
-                    )
-                ) {
-                    Text("Deactivate", color = Color(0xFFDC2626), fontWeight = FontWeight.SemiBold)
+                    OutlinedButton(
+                        onClick = onClose,
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(whiteBg)
+                            .height(tokens.buttonHeight),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, sectionBorder)
+                    ) {
+                        Text(
+                            text = "Close",
+                            color = textSubdued,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Button(
+                        onClick = {
+//                            template?.id?.let { id ->
+//                                templateViewModel.deleteTemplate(id) {
+//                                    onDeactivate()
+//                                }
+//                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(tokens.buttonHeight),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = redBg,
+                            contentColor = redText
+                        )
+                    ) {
+                        Text(
+                            text = "Deactivate Template",
+                            color = redText,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }
@@ -2016,6 +2320,8 @@ private fun CheckboxOptionRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -2027,7 +2333,11 @@ private fun CheckboxOptionRow(
             checked = checked,
             onCheckedChange = onCheckedChange
         )
-        Text(title, fontSize = 12.sp, color = title_color)
+        Text(
+            text = title,
+            fontSize = tokens.bodySmall,
+            color = title_color
+        )
     }
 }
 
@@ -2036,8 +2346,15 @@ private fun MeasurementGroup(
     title: String,
     fields: List<String>
 ) {
+    val tokens = LocalAppTokens.current
+
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(title, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = headerGrey)
+        Text(
+            text = title,
+            fontSize = tokens.caption,
+            fontWeight = FontWeight.Medium,
+            color = headerGrey
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -2050,7 +2367,11 @@ private fun MeasurementGroup(
                         .border(1.dp, grey_border, RoundedCornerShape(8.dp))
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
-                    Text(field, fontSize = 12.sp, color = Color(0xFF334155))
+                    Text(
+                        text = field,
+                        fontSize = tokens.bodySmall,
+                        color = textSubdued
+                    )
                 }
             }
         }

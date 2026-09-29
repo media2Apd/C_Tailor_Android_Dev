@@ -58,8 +58,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -110,6 +108,7 @@ import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.ui.theme.yellowBg
 import com.cuso.tailor.ui.theme.yellowText
+import com.cuso.tailor.view.composable.AppRadioButton
 import com.cuso.tailor.view.composable.StepNavigationFab
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
@@ -926,10 +925,9 @@ private fun Step2SelectCycle(
                         Text(" /month", fontSize = tokens.caption, color = TextSecondary)
                     }
                 }
-                RadioButton(
+                AppRadioButton(
                     selected = !isAnnualBilling,
-                    onClick = { onCycleSelected(false) },
-                    colors = RadioButtonDefaults.colors(selectedColor = Primary)
+                    onClick = { onCycleSelected(false) }
                 )
             }
         }
@@ -972,10 +970,9 @@ private fun Step2SelectCycle(
                     Spacer(Modifier.height(4.dp))
                     Text("₹2,03,988 billed annually", fontSize = tokens.caption, color = greentext, fontWeight = FontWeight.Medium)
                 }
-                RadioButton(
+                AppRadioButton(
                     selected = isAnnualBilling,
-                    onClick = { onCycleSelected(true) },
-                    colors = RadioButtonDefaults.colors(selectedColor = Primary)
+                    onClick = { onCycleSelected(true) }
                 )
             }
         }
@@ -1110,10 +1107,9 @@ private fun Step4Payment(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                RadioButton(
+                AppRadioButton(
                     selected = selectedPaymentMethod == "visa",
-                    onClick = { onPaymentMethodSelected("visa") },
-                    colors = RadioButtonDefaults.colors(selectedColor = Primary)
+                    onClick = { onPaymentMethodSelected("visa") }
                 )
                 Spacer(Modifier.width(8.dp))
                 Box(
@@ -1143,10 +1139,9 @@ private fun Step4Payment(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                RadioButton(
+                AppRadioButton(
                     selected = selectedPaymentMethod == "mastercard",
-                    onClick = { onPaymentMethodSelected("mastercard") },
-                    colors = RadioButtonDefaults.colors(selectedColor = Primary)
+                    onClick = { onPaymentMethodSelected("mastercard") }
                 )
                 Spacer(Modifier.width(8.dp))
                 Box(

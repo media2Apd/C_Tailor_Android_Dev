@@ -26,6 +26,7 @@ import com.cuso.tailor.network.sales.SalesOppertunitiesApiService
 import com.cuso.tailor.network.sales.SalesOrderApiService
 import com.cuso.tailor.network.sales.SalesPricingApiService
 import com.cuso.tailor.network.sales.settings.SalesSettingsApiService
+import com.cuso.tailor.network.services.settings.ServiceSettingsApiInterface
 import com.cuso.tailor.network.user.UserApiService
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -157,6 +158,12 @@ object NetworkModule {
     @Singleton
     fun provideSettingsApiService(retrofit: Retrofit): SalesSettingsApiService {
         return retrofit.create(SalesSettingsApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideServiceSettingsApiInterface(retrofit: Retrofit): ServiceSettingsApiInterface {
+        return retrofit.create(ServiceSettingsApiInterface::class.java)
     }
 
     @Provides

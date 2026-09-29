@@ -3,6 +3,8 @@
 package com.cuso.tailor.view.home
 
 import android.annotation.SuppressLint
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -17,6 +19,7 @@ import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.inventory.StockLocationItemDto
 import com.cuso.tailor.model.sales.CustomerItem
 import com.cuso.tailor.model.sales.MeasurementItem
+import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.model.settings.SegmentItem
 import com.cuso.tailor.view.home.branch.BranchSettingsScreen
 import com.cuso.tailor.view.home.department.DepartmentSettingsScreen
@@ -64,6 +67,8 @@ import com.cuso.tailor.view.home.inventory.items.item_groups.AllItemGroupScreen
 import com.cuso.tailor.view.home.inventory.items.item_groups.CreateItemGroupScreen
 import com.cuso.tailor.view.home.inventory.items.item_groups.ItemGroupDetailScreen
 import com.cuso.tailor.view.home.inventory.items.transferorder.TransferOrdersStockListScreen
+import com.cuso.tailor.view.home.inventory.multi_channel_management.allocation_list.AllocationListScreen
+import com.cuso.tailor.view.home.inventory.multi_channel_management.basic_info.BasicInfoScreen
 import com.cuso.tailor.view.home.inventory.payments_made.AllInventoryPaymentScreen
 import com.cuso.tailor.view.home.inventory.payments_made.PaymentOverviewDetailScreen
 import com.cuso.tailor.view.home.inventory.pricing_list.AllPricingScreen
@@ -143,11 +148,13 @@ import com.cuso.tailor.view.home.services.service_status.service_delivery.Servic
 import com.cuso.tailor.view.home.services.service_status.status.ServiceStatusDetailScreen
 import com.cuso.tailor.view.home.services.service_status.status.ServiceStatusScreen
 import com.cuso.tailor.view.home.services.settings.CreateServiceTemplateWizardScreen
+import com.cuso.tailor.view.home.services.settings.ServiceTemplateDetailViewScreen
 import com.cuso.tailor.view.home.services.settings.ServiceTemplateListScreen
 import com.cuso.tailor.view.home.subscriptions.SubscriptionFlowContainer
 import com.cuso.tailor.view.home.warehouse.WarehouseSettingsScreen
 import com.cuso.tailor.viewmodel.*
 
+@RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("FlowOperatorInvokedInComposition")
 @Composable
 fun HomeScreenRouter(
@@ -155,6 +162,8 @@ fun HomeScreenRouter(
     selectedOpportunityId: String? = null,
     onOpportunityIdSelected: (String?) -> Unit = {},
     selectedMeasurementItem: MeasurementItem? = null,
+    selectedServiceTemplate: ProductionTemplateDto? = null,
+    onServiceTemplateSelected: (ProductionTemplateDto?) -> Unit = {},
     onMeasurementItemSelected: (MeasurementItem?) -> Unit = {},
     selectedBarcodeIdForDetail: String? = null,
     onBarcodeIdForDetailSelected: (String?) -> Unit = {},
@@ -349,6 +358,8 @@ fun HomeScreenRouter(
         "inventory_location_management", "inventory_procurement_location_management",
         "inventory_stock_location_details", "inventory_stock_location_form",
         "inventory_safety_stock", "inventory_auto_reorder",
+        "inventory_multichannel_basic_info",
+        "inventory_multichannel_allocation_list",
         "inventory_multichannel_category_listing", "inventory_category_listing",
         "inventory_approvals", "inventory_pricing_list" -> {
             InventoryMainRouter(
@@ -444,7 +455,8 @@ fun HomeScreenRouter(
         "services_service_order", "service_order_overview", "services_service_request",
         "create_request", "review_services", "services_alteration_management",
         "create_alteration", "services_customer_feedback", "feedback_detail",
-        "services_service_templates", "services_create_service_template" -> {
+        "services_service_templates", "services_create_service_template",
+        "services_view_service_template" -> {
             ServicesRouter(
                 screen = screen,
                 navController = navController,
@@ -455,6 +467,8 @@ fun HomeScreenRouter(
                 onEditOrderIdChange = onEditOrderIdChange,
                 selectedFeedbackId = selectedFeedbackId,
                 onFeedbackIdSelected = onFeedbackIdSelected,
+                selectedServiceTemplate = selectedServiceTemplate,
+                onServiceTemplateSelected = onServiceTemplateSelected,
                 pendingOrderReviewData = pendingOrderReviewData,
                 onPendingOrderReviewDataChange = onPendingOrderReviewDataChange,
                 onNavigate = onNavigate,
@@ -1877,6 +1891,24 @@ private fun InventoryMainRouter(
             onEditItem = { onNavigate("sales_create_price_list") },
             onDeleteItem = { }
         )
+
+        // Multi-Channel Basic Info Screen
+        "inventory_multichannel_basic_info" -> {
+            BasicInfoScreen(
+                onClose = onGoBack
+            )
+        }
+
+        // Multi-Channel Allocation List Screen
+        "inventory_multichannel_allocation_list" -> {
+            AllocationListScreen(
+                onClose = onGoBack,
+                onAddNew = { },
+                onViewItem = { item -> },
+                onEditItem = { item -> },
+                onDeleteItem = { item -> }
+            )
+        }
     }
 }
 
@@ -2311,6 +2343,7 @@ private fun LogisticsRouter(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun ServicesRouter(
     screen: String,
@@ -2322,6 +2355,8 @@ private fun ServicesRouter(
     onEditOrderIdChange: (String?) -> Unit,
     selectedFeedbackId: String?,
     onFeedbackIdSelected: (String?) -> Unit,
+    selectedServiceTemplate: ProductionTemplateDto?,
+    onServiceTemplateSelected: (ProductionTemplateDto?) -> Unit,
     pendingOrderReviewData: OrderReviewData?,
     onPendingOrderReviewDataChange: (OrderReviewData?) -> Unit,
     onNavigate: (String) -> Unit,
@@ -2472,16 +2507,53 @@ private fun ServicesRouter(
 
         "services_service_templates" -> ServiceTemplateListScreen(
             onClose = onGoBack,
-            onAddNewTemplate = { onNavigate("services_create_service_template") },
-            onViewTemplate = { _ ->
+            onAddNewTemplate = {
+                android.util.Log.d("TEMPLATE_NAV_DEBUG", ">> Add New Clicked: clearing selected template")
+                onServiceTemplateSelected(null)
+                onNavigate("services_create_service_template")
+            },
+            onViewTemplate = { templateItem ->
+                android.util.Log.d("TEMPLATE_NAV_DEBUG", ">> View Template Clicked: id='${templateItem.id}', name='${templateItem.name}'")
+                onServiceTemplateSelected(templateItem)
                 onNavigate("services_view_service_template")
+            },
+            onEditTemplate = { templateItem ->
+                android.util.Log.d("TEMPLATE_NAV_DEBUG", ">> Edit Template Clicked: id='${templateItem.id}', name='${templateItem.name}'")
+                onServiceTemplateSelected(templateItem)
+                onNavigate("services_create_service_template")
             }
         )
 
-        "services_create_service_template" -> CreateServiceTemplateWizardScreen(
-            onClose = onGoBack,
-            onTemplateCreated = onGoBack
-        )
+        "services_view_service_template" -> {
+            selectedServiceTemplate?.id?.let { id ->
+                ServiceTemplateDetailViewScreen(
+                    templateId = id,
+                    onClose = {
+                        onServiceTemplateSelected(null)
+                        onGoBack()
+                    },
+                    onDeactivate = {
+                        onServiceTemplateSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
+
+        "services_create_service_template" -> {
+            android.util.Log.d("TEMPLATE_NAV_DEBUG", ">> Navigating to Create/Edit Screen with templateId: '${selectedServiceTemplate?.id}'")
+            CreateServiceTemplateWizardScreen(
+                templateIdToEdit = selectedServiceTemplate?.id,
+                onClose = {
+                    onServiceTemplateSelected(null)
+                    onGoBack()
+                },
+                onTemplateCreated = {
+                    onServiceTemplateSelected(null)
+                    onGoBack()
+                }
+            )
+        }
     }
 }
 

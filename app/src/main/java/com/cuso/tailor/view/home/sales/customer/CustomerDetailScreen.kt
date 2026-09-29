@@ -405,25 +405,29 @@ private fun PersonalInformationStep(
                 isError = errorField == "name",
                 errorMessage = if (errorField == "name") "Please check the name" else null
             )
-            Spacer(Modifier.height(12.dp))
-            FormLabel("Gender")
-            FormDropdown(
-                value = formState.gender.ifEmpty { "Select an option" },
-                expanded = genderExpanded && isEditMode,
-                onExpandChange = { if (isEditMode) genderExpanded = it },
-                options = listOf("Male", "Female", "Other"),
-                onOptionSelected = viewModel::onGenderChange,
-                enabled = isEditMode
-            )
 
-            Spacer(Modifier.height(12.dp))
-            FormLabel("Date of Birth")
-            val dobDisplay = formState.dob.toDisplayDate()
-            DatePickerField(
-                value = if (dobDisplay != "—") dobDisplay else "Select date",
-                onDateSelected = { selected -> if (isEditMode) viewModel.onDobChange(selected.toIsoDate()) },
-                enabled = isEditMode
-            )
+            // Render Gender and Date of Birth strictly for Individual customers
+            if (formState.type.equals("Individual", ignoreCase = true)) {
+                Spacer(Modifier.height(12.dp))
+                FormLabel("Gender")
+                FormDropdown(
+                    value = formState.gender.ifEmpty { "Select an option" },
+                    expanded = genderExpanded && isEditMode,
+                    onExpandChange = { if (isEditMode) genderExpanded = it },
+                    options = listOf("Male", "Female", "Other"),
+                    onOptionSelected = viewModel::onGenderChange,
+                    enabled = isEditMode
+                )
+
+                Spacer(Modifier.height(12.dp))
+                FormLabel("Date of Birth")
+                val dobDisplay = formState.dob.toDisplayDate()
+                DatePickerField(
+                    value = if (dobDisplay != "—") dobDisplay else "Select date",
+                    onDateSelected = { selected -> if (isEditMode) viewModel.onDobChange(selected.toIsoDate()) },
+                    enabled = isEditMode
+                )
+            }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -472,7 +476,7 @@ private fun PersonalInformationStep(
                 value = formState.contactMethod.ifEmpty { "-" },
                 expanded = contactExpanded && isEditMode,
                 onExpandChange = { if (isEditMode) contactExpanded = it },
-                options = listOf("Call", "Whatsapp", "Email", "SMS"),
+                options = listOf("Whatsapp", "Call", "Email", "SMS"),
                 onOptionSelected = viewModel::onContactMethodChange,
                 enabled = isEditMode
             )

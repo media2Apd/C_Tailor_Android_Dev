@@ -177,4 +177,6 @@ interface InventorySettingsApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<BaseInventoryResponse<Unit>>
+
+
 }

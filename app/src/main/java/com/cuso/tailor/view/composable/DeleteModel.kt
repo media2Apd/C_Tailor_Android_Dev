@@ -20,7 +20,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.redText
-import com.cuso.tailor.ui.theme.whiteBg
 
 @Composable
 fun DeleteModel(
@@ -65,7 +64,7 @@ fun DeleteModel(
                             tint = Color(0xFF9CA3AF),
                             modifier = Modifier
                                 .offset(y = (-10).dp)
-                                .size(24.dp)
+                                .size(40.dp)
                                 .clickable { onDismiss() }
                         )
                     }
@@ -90,7 +89,7 @@ fun DeleteModel(
                         lineHeight = tokens.bodyMedium.times(1.3f)
                     )
 
-                    Spacer(modifier = Modifier.height(tokens.screenPadding))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // Checkbox Integration
                     Row(
@@ -102,13 +101,9 @@ fun DeleteModel(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Checkbox(
+                        AppCheckbox(
                             checked = isConfirmed,
-                            onCheckedChange = { isConfirmed = it },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = redText,
-                                checkmarkColor = whiteBg
-                            )
+                            onCheckedChange = { isConfirmed = it }
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(

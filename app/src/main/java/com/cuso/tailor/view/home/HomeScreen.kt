@@ -138,6 +138,7 @@ import com.cuso.tailor.viewmodel.ProfileViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
 import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.sales.MeasurementItem
+import com.cuso.tailor.model.settings.ProductionTemplateDto
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 
@@ -226,6 +227,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
     // Services State
     var selectedFeedbackId by remember { mutableStateOf<String?>(null) }
+    var selectedServiceTemplate by remember { mutableStateOf<ProductionTemplateDto?>(null) }
 
     // Dashboard recent-customer navigation state
     var selectedRecentCustomerId by remember { mutableStateOf<String?>(null) }
@@ -545,6 +547,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_payments_made",
             "inventory_payment_overview_detail",
 
+            "inventory_multichannel_allocation_list",
+            "inventory_multichannel_basic_info",
+
             // ── HR ──
             "hr_all_employees",
             "hr_employee_onboarding",
@@ -574,6 +579,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "review_services",
             "services_service_templates",
             "services_create_service_template",
+            "services_view_service_template",
 
             // ── Reports ──
             "reports_sales",
@@ -694,6 +700,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onClearStateForScreen = { scr ->
             when (scr) {
                 "create_opportunity", "opportunity_detail" -> selectedOpportunityId = null
+                "services_view_service_template", "services_create_service_template" -> {
+                    android.util.Log.d("TEMPLATE_NAV_DEBUG", ">> BackHandler: Clearing selectedServiceTemplate")
+                    selectedServiceTemplate = null
+                }
                 "create_order_review", "create_order" -> pendingOrderReviewData = null
                 "finance_invoice_detail", "inventory_payable_purchase_detail" -> selectedInvoiceId = null
                 "measurements_available_view", "measurement_management_view" -> selectedMeasurementItem = null
@@ -870,6 +880,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             screen = screen,
                             selectedOpportunityId = selectedOpportunityId,
                             onOpportunityIdSelected = { selectedOpportunityId = it },
+                            selectedServiceTemplate = selectedServiceTemplate,
+                            onServiceTemplateSelected = { selectedServiceTemplate = it },
                             selectedReceivePoId = selectedReceivePoId,
                             onReceivePoIdSelected = { selectedReceivePoId = it },
                             selectedBarcodeIdForDetail = selectedBarcodeIdForDetail,
@@ -2196,6 +2208,8 @@ fun normalizeRoute(rawKey: String): String {
 
         // Multi-Channel mapping
         "inventory_multichannel_category_listing" -> "inventory_category_listing"
+        "inventory_multichannel_basic_info", "inventory_basic_info" -> "inventory_multichannel_basic_info"
+        "inventory_multichannel_allocation_list", "inventory_allocation_list" -> "inventory_multichannel_allocation_list"
 
         "logistics_delivery" -> "logistics_delivery"
         "logistics_order_tracking" -> "logistics_order_tracking"

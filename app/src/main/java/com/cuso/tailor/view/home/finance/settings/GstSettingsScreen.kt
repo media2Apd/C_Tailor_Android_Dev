@@ -572,10 +572,9 @@ fun AddGstSettingsScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.clickable { isGstRegistered = "Yes" }
                             ) {
-                                RadioButton(
+                                AppRadioButton(
                                     selected = isGstRegistered == "Yes",
                                     onClick = { isGstRegistered = "Yes" },
-                                    colors = RadioButtonDefaults.colors(selectedColor = Primary)
                                 )
                                 Text("Yes", fontSize = tokens.bodyMedium, color = TextPrimary)
                             }
@@ -584,10 +583,9 @@ fun AddGstSettingsScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.clickable { isGstRegistered = "No" }
                             ) {
-                                RadioButton(
+                                AppRadioButton(
                                     selected = isGstRegistered == "No",
                                     onClick = { isGstRegistered = "No" },
-                                    colors = RadioButtonDefaults.colors(selectedColor = Primary)
                                 )
                                 Text("No", fontSize = tokens.bodyMedium, color = TextPrimary)
                             }

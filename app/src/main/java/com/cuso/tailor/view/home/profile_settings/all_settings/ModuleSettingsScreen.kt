@@ -1,4 +1,4 @@
-@file:Suppress("unused", "SpellCheckingInspection", "UNUSED_PARAMETER")
+@file:Suppress("unused", "SpellCheckingInspection", "UNUSED_PARAMETER", "AssignedValueIsNeverRead")
 
 package com.cuso.tailor.view.home.profile_settings.all_settings
 
@@ -7,15 +7,15 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
@@ -27,13 +27,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.cuso.tailor.R
+import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
-
-private val PrimaryBlue = Color(0xFF3B3BF9)
+import com.cuso.tailor.view.home.sales.settings.design.DesignSetupScreen
 
 // Sub-Item Model for Module Settings
 data class ModuleSubItem(
@@ -61,10 +60,11 @@ fun ModuleSettingsScreen(
     onConfigureSales: () -> Unit = { onNavigateToModule("sales_garment_type") },
     onConfigureSalesPricing: () -> Unit = { onNavigateToModule("sales_garment_pricing_setup") },
     onNavigateMeasurementList: () -> Unit = { onNavigateToModule("sales_measurement_list") },
+    onNavigateDesignSetup: () -> Unit = { onNavigateToModule("sales_design_setup") },
     onConfigureMarketing: () -> Unit = {},
     onConfigureFinance: () -> Unit = { onNavigateToModule("finance_chart_of_accounts") },
     onConfigureInventory: () -> Unit = { onNavigateToModule("inventory_allocation_rules") },
-    // Inventory 7 Sub-items Navigation
+    // Inventory Sub-items Navigation
     onNavigateAllocationRules: () -> Unit = { onNavigateToModule("inventory_allocation_rules") },
     onNavigatePdfTemplates: () -> Unit = { onNavigateToModule("inventory_pdf_templates") },
     onNavigateLocationStructure: () -> Unit = { onNavigateToModule("inventory_location_structure") },
@@ -83,12 +83,25 @@ fun ModuleSettingsScreen(
     onConfigureSecurity: () -> Unit = {},
     onConfigureReports: () -> Unit = { onNavigateToModule("reports_sales") }
 ) {
+    val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
+
+    // State to toggle the full Design Setup screen overlay
+    var isDesignSetupOpen by remember { mutableStateOf(false) }
+
+    if (isDesignSetupOpen) {
+        DesignSetupScreen(
+            onClose = { isDesignSetupOpen = false }
+        )
+        return
+    }
 
     val moduleList = remember(
         onConfigureHome,
         onConfigureSales,
         onConfigureSalesPricing,
+        onNavigateMeasurementList,
+        onNavigateDesignSetup,
         onConfigureMarketing,
         onConfigureFinance,
         onConfigureInventory,
@@ -129,7 +142,15 @@ fun ModuleSettingsScreen(
                 subItems = listOf(
                     ModuleSubItem(title = "Garment", onClick = onConfigureSales),
                     ModuleSubItem(title = "Garment Pricing", onClick = onConfigureSalesPricing),
-                    ModuleSubItem(title = "Measurement List", onClick = onNavigateMeasurementList)
+                    ModuleSubItem(title = "Measurement List", onClick = onNavigateMeasurementList),
+                    // Design Setup sub-item integrated under Measurement List
+                    ModuleSubItem(
+                        title = "Design Setup",
+                        onClick = {
+                            onNavigateDesignSetup()
+                            isDesignSetupOpen = true
+                        }
+                    )
                 ),
                 onConfigure = onConfigureSales
             ),
@@ -151,7 +172,7 @@ fun ModuleSettingsScreen(
                 isConfigured = true,
                 subItems = listOf(
                     ModuleSubItem(title = "GST Settings", onClick = onNavigateGstSettings),
-                    ModuleSubItem(title = "Tax Rates & Rules", onClick = onNavigateTaxRates) // <-- UPDATE THIS
+                    ModuleSubItem(title = "Tax Rates & Rules", onClick = onNavigateTaxRates)
                 ),
                 onConfigure = onConfigureFinance
             ),
@@ -254,16 +275,16 @@ fun ModuleSettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Transparent)
+            .background(Primary_background)
     ) {
         TitleBar(title = "Module Settings", onClose = onClose)
-        HorizontalDivider(color = light_grey)
+        HorizontalDivider(color = title_border)
 
         SearchFilterBar(
             query = searchQuery,
             onQueryChange = { searchQuery = it },
             placeholder = "Search Module Settings...",
-            accentColor = PrimaryBlue,
+            accentColor = Primary,
             borderColor = BorderGray,
             textSecondaryColor = TextSecondary,
             onFilterClick = { }
@@ -271,7 +292,7 @@ fun ModuleSettingsScreen(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            contentPadding = PaddingValues(horizontal = tokens.screenPadding, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             items(filteredModules, key = { it.id }) { module ->
@@ -283,23 +304,23 @@ fun ModuleSettingsScreen(
 
 @Composable
 fun ModuleSettingCard(module: ModuleSettingItem) {
-    // Default-ah close (false) ஆக வைக்கப்பட்டுள்ளது
+    val tokens = LocalAppTokens.current
     var isExpanded by remember { mutableStateOf(false) }
 
-    val statusBg = if (module.isConfigured) Color(0xFFE6F7ED) else Color(0xFFFEF3C7)
-    val statusTextColor = if (module.isConfigured) Color(0xFF10B981) else Color(0xFFD97706)
+    // Theme color palette mappings
+    val statusBg = if (module.isConfigured) greenBg else yellowBg
+    val statusTextColor = if (module.isConfigured) darkGreenBg else yellowText
 
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(tokens.cardCornerRadius),
         colors = CardDefaults.cardColors(containerColor = whiteBg),
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, sectionBorder, RoundedCornerShape(16.dp))
+        border = BorderStroke(1.dp, sectionBorder),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(tokens.screenPadding)
         ) {
             Row(
                 modifier = Modifier
@@ -315,8 +336,8 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
             ) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(tokens.fieldHeight)
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.45f))
                         .background(background_light_purple),
                     contentAlignment = Alignment.Center
                 ) {
@@ -324,7 +345,7 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                         painter = painterResource(id = module.icon),
                         contentDescription = null,
                         tint = Color.Unspecified,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(tokens.iconSize)
                     )
                 }
 
@@ -332,8 +353,8 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
 
                 Text(
                     text = module.title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
                     color = title_color,
                     modifier = Modifier.weight(1f)
                 )
@@ -341,15 +362,14 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                 Box(
                     modifier = Modifier
                         .background(statusBg, RoundedCornerShape(20.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = if (module.isConfigured) "CONFIGURED" else "SETUP REQUIRED",
                         color = statusTextColor,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.4.sp
+                        fontSize = tokens.label,
+                        fontWeight = FontWeight.Medium
                     )
                 }
 
@@ -360,18 +380,18 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                         imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
                         tint = headerGrey,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(tokens.iconSize)
                     )
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
 
             Text(
                 text = module.description,
-                fontSize = 13.sp,
+                fontSize = tokens.caption,
                 color = close_color,
-                lineHeight = 18.sp
+                fontWeight = FontWeight.Normal
             )
 
             AnimatedVisibility(
@@ -387,29 +407,29 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                     module.subItems.forEach { subItem ->
                         HorizontalDivider(
                             color = grey_border,
-                            thickness = 2.dp
+                            thickness = 1.dp
                         )
 
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { subItem.onClick() }
-                                .padding(vertical = 14.dp, horizontal = 4.dp),
+                                .padding(vertical = 12.dp, horizontal = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = subItem.title,
-                                fontSize = 14.sp,
+                                fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = title_color
                             )
 
                             Icon(
-                                imageVector = Icons.Default.ChevronRight,
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                 contentDescription = null,
-                                tint = Color(0xFF94A3B8),
-                                modifier = Modifier.size(18.dp)
+                                tint = iconMuted,
+                                modifier = Modifier.size(tokens.iconSize)
                             )
                         }
                     }

@@ -31,16 +31,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
@@ -64,14 +59,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.tailor.R
-import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.CreateItemGroupRequest
 import com.cuso.tailor.model.inventory.PricingDto
@@ -86,7 +78,6 @@ import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_border
-import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.view.composable.AccordionSection
 import com.cuso.tailor.view.composable.AppButton
 import com.cuso.tailor.view.composable.AppCheckbox
@@ -105,6 +96,8 @@ import com.cuso.tailor.viewmodel.InventoryViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
 import java.util.UUID
 import androidx.core.net.toUri
+import com.cuso.tailor.view.composable.AttributeTypeSelector
+import com.cuso.tailor.view.composable.AttributeValueSelector
 
 data class AttributeEntry(
     val id: String = UUID.randomUUID().toString(),
@@ -438,7 +431,23 @@ fun CreateItemGroupScreen(
                         value = unit,
                         expanded = unitExpanded,
                         onExpandChange = { unitExpanded = it },
-                        options = listOf("Pieces", "Meters", "Centimeters", "Inches", "Kilograms", "Grams", "Liters", "Boxes", "Packs", "Pairs", "Rolls"),
+                        options = listOf(
+                            "Pieces",
+                            "Meters",
+                            "Centimeters",
+                            "Inches",
+                            "Kilograms",
+                            "Grams",
+                            "Liters",
+                            "Milliliters",
+                            "Boxes",
+                            "Packs",
+                            "Pairs",
+                            "Dozens",
+                            "Rolls",
+                            "Bundles",
+                            "Sets"
+                        ),
                         onOptionSelected = { unit = it }
                     )
 
@@ -533,83 +542,45 @@ fun CreateItemGroupScreen(
                         expandedSection = if (expandedSection == "Attributes (Variants)") "" else "Attributes (Variants)"
                     }
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().background(whiteBg),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .background(whiteBg, RoundedCornerShape(6.dp))
-                                .border(1.dp, BorderGray, RoundedCornerShape(6.dp))
-                                .padding(horizontal = 10.dp, vertical = 5.dp)
-                        ) {
-                            Text("Max 3 Attributes", fontSize = tokens.label, color = TextSecondary)
-                        }
-                        Text(
-                            "+ Add Attribute",
-                            fontSize = tokens.bodySmall,
-                            color = Primary,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.clickable {
-                                if (attributesList.size < 3) attributesList.add(AttributeEntry())
-                            }
-                        )
-                    }
-
-                    Spacer(Modifier.height(10.dp))
                     Text(
-                        "Add attribute types and values, then tap 'Confirm Attributes'.",
+                        "Select the attribute types you want, add values, then tap 'Confirm Attributes'.",
                         fontSize = tokens.caption,
                         color = TextSecondary
                     )
 
+                    Spacer(Modifier.height(14.dp))
+                    FormLabel("Attribute Type")
+                    AttributeTypeSelector(
+                        selectedTypes = attributesList.map { it.attributeType }.toSet(),
+                        onTypeToggled = { type, isChecked ->
+                            if (isChecked) {
+                                if (attributesList.none { it.attributeType.equals(type, ignoreCase = true) }) {
+                                    attributesList.add(AttributeEntry(attributeType = type))
+                                }
+                            } else {
+                                attributesList.removeAll { it.attributeType.equals(type, ignoreCase = true) }
+                            }
+                        },
+                        tokens = tokens
+                    )
+
                     attributesList.forEachIndexed { index, entry ->
                         Spacer(Modifier.height(tokens.extraPadding))
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            Column {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Close,
-                                        contentDescription = "Remove",
-                                        tint = redText,
-                                        modifier = Modifier
-                                            .size(tokens.iconSize * 0.9f)
-                                            .clickable { attributesList.removeAt(index) }
-                                    )
-                                }
-                                FormLabel("Attribute Type")
-                                FormTextField(
-                                    value = entry.attributeType,
-                                    onValueChange = { attributesList[index] = entry.copy(attributeType = it) },
-                                    placeholder = "e.g. Color, Size"
-                                )
-                                Spacer(Modifier.height(12.dp))
-                                Text("Values", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextSecondary)
-                                Spacer(Modifier.height(6.dp))
-                                AttributeValuesInput(
-                                    values = entry.values,
-                                    onValuesChange = { newValues ->
-                                        attributesList[index] = entry.copy(values = newValues)
-                                    },
-                                    tokens = tokens
-                                )
-                            }
+                        Column {
+                            Text("${entry.attributeType} Values", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextSecondary)
+                            Spacer(Modifier.height(6.dp))
+                            AttributeValueSelector(
+                                attributeType = entry.attributeType,
+                                values = entry.values,
+                                onValuesChange = { newValues -> attributesList[index] = entry.copy(values = newValues) },
+                                tokens = tokens
+                            )
                         }
                     }
 
                     Spacer(Modifier.height(tokens.extraPadding))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        AppButton(
-                            text = "Confirm Attributes",
-                            onClick = onConfirmAttributes
-                        )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                        AppButton(text = "Confirm Attributes", onClick = onConfirmAttributes)
                     }
                 }
 
@@ -1024,113 +995,5 @@ fun CreateItemGroupScreen(
                 validationError = null
             }
         )
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun AttributeValuesInput(
-    values: List<String>,
-    onValuesChange: (List<String>) -> Unit,
-    tokens: AppDesignTokens
-) {
-    var inputText by remember { mutableStateOf("") }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-            .border(
-                width = 1.dp,
-                color = BorderGray,
-                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-            )
-            .padding(horizontal = 8.dp, vertical = 6.dp)
-    ) {
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            values.forEach { value ->
-                Box(
-                    modifier = Modifier
-                        .wrapContentSize()
-                        .background(
-                            color = background_light_purple,
-                            shape = RoundedCornerShape(6.dp)
-                        )
-                        .border(
-                            width = 1.dp,
-                            color = Primary.copy(alpha = 0.25f),
-                            shape = RoundedCornerShape(6.dp)
-                        )
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = value,
-                            fontSize = tokens.bodySmall,
-                            color = Primary,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = "Remove",
-                            tint = Primary.copy(alpha = 0.7f),
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clickable { onValuesChange(values - value) }
-                        )
-                    }
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .height(28.dp)
-                    .padding(horizontal = 4.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                BasicTextField(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    modifier = Modifier.widthIn(min = 45.dp, max = 80.dp),
-                    singleLine = true,
-                    textStyle = TextStyle(
-                        fontSize = tokens.bodySmall,
-                        color = TextPrimary
-                    ),
-                    decorationBox = { innerTextField ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (inputText.isEmpty()) {
-                                Text(
-                                    text = "Add..",
-                                    fontSize = tokens.bodySmall,
-                                    color = mutedText
-                                )
-                            }
-                            innerTextField()
-                        }
-                    },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            if (inputText.isNotBlank()) {
-                                val trimmed = inputText.trim()
-                                if (!values.contains(trimmed)) {
-                                    onValuesChange(values + trimmed)
-                                }
-                                inputText = ""
-                            }
-                        }
-                    )
-                )
-            }
-        }
     }
 }

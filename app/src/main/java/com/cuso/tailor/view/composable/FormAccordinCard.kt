@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,20 +35,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.Primary
+import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.mutedText
-import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 
 /**
  * Reusable collapsible accordion card for grouping form sections.
  * Supports an optional leading icon, smooth expand/collapse animations,
- * and adaptive design tokens.
+ * adaptive design tokens, and optional rounded corners.
+ *
+ * @param isRoundedCorner If true, applies [AppDesignTokens.cardCornerRadius]; otherwise 0.dp.
  */
 @Composable
 fun FormAccordionCard(
@@ -55,7 +59,9 @@ fun FormAccordionCard(
     expanded: Boolean,
     onHeaderClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isRoundedCorner: Boolean = false,
     icon: ImageVector? = null,
+    iconPainter: Int? = null,
     tokens: AppDesignTokens = LocalAppTokens.current,
     containerColor: Color = whiteBg,
     elevation: Dp = 0.5.dp,
@@ -69,7 +75,7 @@ fun FormAccordionCard(
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(0.dp),
+        shape = RoundedCornerShape(if (isRoundedCorner) tokens.cardCornerRadius else 0.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = elevation)
     ) {
@@ -98,11 +104,20 @@ fun FormAccordionCard(
                         )
                         Spacer(Modifier.width(tokens.extraPadding * 0.8f))
                     }
+                    if (iconPainter != null) {
+                        Icon(
+                            painter = painterResource(iconPainter) ,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(tokens.iconSize)
+                        )
+                        Spacer(Modifier.width(tokens.extraPadding * 0.8f))
+                    }
                     Text(
                         text = title,
                         fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = title_color
+                        color = Primary
                     )
                 }
 
@@ -123,7 +138,9 @@ fun FormAccordionCard(
                 exit = shrinkVertically(animationSpec = tween(250)) + fadeOut(animationSpec = tween(150))
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Spacer(Modifier.height(tokens.extraPadding * 1.4f))
+                    Spacer(Modifier.height(tokens.extraPadding ))
+                    HorizontalDivider(color = grey_border)
+                    Spacer(Modifier.height(tokens.extraPadding))
                     content()
                 }
             }

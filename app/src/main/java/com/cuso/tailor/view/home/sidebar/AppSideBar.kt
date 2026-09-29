@@ -157,6 +157,8 @@ fun buildNavigationKey(menu: String, subItem: String): String {
             "Credits"             -> "inventory_payables_credits"
 
             // Multi-Channel sub-items
+            "Basic Info"          -> "inventory_multichannel_basic_info"
+            "Allocation List"     -> "inventory_multichannel_allocation_list"
             "Category Listing"    -> "inventory_multichannel_category_listing"
 
             // Standalone approvals
@@ -240,6 +242,7 @@ object SidebarConfig {
                     "Finance Core"        to listOf("Chart of Accounts", "Journal Entries", "Trial Balance")
                 )
             ),
+            // Inside SidebarConfig.kt -> getFullMenuItems() -> Inventory item:
             MenuItem(
                 icon = R.drawable.inventory,
                 label = "Inventory",
@@ -275,8 +278,21 @@ object SidebarConfig {
                         "Payments",
                         "Credits"
                     ),
+                    // ADD "Basic Info" and other sub-items here:
                     "Multi-Channel" to listOf(
-                        "Category Listing"
+                        "Basic Info",
+                        "Allocation List",
+                        "Product Listings",
+                        "Publish Listing",
+                        "Publish History",
+                        "Variant Listing",
+                        "SKU Listing",
+                        "Category Listing",
+                        "Attributes Listing",
+                        "Return Req List",
+                        "Low Stock Alerts",
+                        "Auto Reorder",
+                        "Safety stock settings"
                     )
                 )
             ),

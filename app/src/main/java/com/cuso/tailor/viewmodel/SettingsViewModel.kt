@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.database.entities.GarmentMeasurement
 import com.cuso.tailor.model.inventory.ProductCategoryItem
+import com.cuso.tailor.model.sales.FabricPricingItem
 import com.cuso.tailor.model.sales.myOrganizationResponse
 import com.cuso.tailor.model.settings.*
 import com.cuso.tailor.repository.AuthRepository
@@ -1925,6 +1926,63 @@ class SettingsViewModel @Inject constructor(
                     showError(clean)
                 }
             _isLoadingLocationStructure.value = false
+        }
+    }
+
+    // ===========================================================
+    // FABRIC PRICING STATE & ACTIONS
+    // ===========================================================
+
+    private val _fabricPricingList = MutableStateFlow<List<FabricPricingItem>>(emptyList())
+    val fabricPricingList: StateFlow<List<FabricPricingItem>> = _fabricPricingList.asStateFlow()
+
+    private val _isLoadingFabricPricing = MutableStateFlow(false)
+    val isLoadingFabricPricing: StateFlow<Boolean> = _isLoadingFabricPricing.asStateFlow()
+
+    private val _fabricPricingError = MutableStateFlow<String?>(null)
+    val fabricPricingError: StateFlow<String?> = _fabricPricingError.asStateFlow()
+
+    private val _isUpdatingFabricPrice = MutableStateFlow(false)
+    val isUpdatingFabricPrice: StateFlow<Boolean> = _isUpdatingFabricPrice.asStateFlow()
+
+    fun fetchFabricPricing() {
+        viewModelScope.launch {
+            _isLoadingFabricPricing.value = true
+            _fabricPricingError.value = null
+            val result = settingsRepository.getFabricPricing()
+            _isLoadingFabricPricing.value = false
+
+            result.onSuccess { list ->
+                _fabricPricingList.value = list
+            }.onFailure { exception ->
+                val error = extractErrorMessage(exception.message)
+                _fabricPricingError.value = error
+                showError(error)
+            }
+        }
+    }
+
+    fun updateFabricPrice(
+        id: String,
+        sellingPrice: Double,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isUpdatingFabricPrice.value = true
+            val result = settingsRepository.updateFabricPrice(id, sellingPrice)
+            _isUpdatingFabricPrice.value = false
+
+            result.onSuccess { response ->
+                fetchFabricPricing()
+                val message = response.message ?: "Fabric price updated successfully"
+                showSuccess(message)
+                onSuccess(message)
+            }.onFailure { exception ->
+                val error = extractErrorMessage(exception.message)
+                showError(error)
+                onError(error)
+            }
         }
     }
 

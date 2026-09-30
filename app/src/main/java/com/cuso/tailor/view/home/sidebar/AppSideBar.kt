@@ -181,6 +181,35 @@ fun buildNavigationKey(menu: String, subItem: String): String {
         }
     }
 
+    if (menu == "HR") {
+        return when (subItem) {
+            "Employee Management"        -> "hr_employee_management"
+            "Organization Structure"    -> "hr_organization_structure"
+            "Daily Attendance"           -> "hr_daily_attendance"
+            "Manual Entry"               -> "hr_attendance_manual_entry"
+            "Monthly Attendance"         -> "hr_monthly_attendance"
+//            "Biometric Management"       -> "hr_attendance_biometric_management"
+            "Shift Management"           -> "hr_attendance_shift_management"
+            "Leave Balance"              -> "hr_leave_balance"
+            "Leave Approval"             -> "hr_leave_approval"
+            "Salary Structure Master"    -> "hr_payroll_salary_structure"
+            "Employee Salary Assignment" -> "hr_payroll_salary_assignment"
+            "Payroll Processing"         -> "hr_payroll_processing"
+            "Payslip Management"         -> "hr_payroll_payslip"
+            "Statutory Compliance"       -> "hr_payroll_statutory_compliance"
+            "Reimbursements & Bonus"     -> "hr_payroll_reimbursements_bonus"
+            "Loans & Advances"           -> "hr_payroll_loans_advances"
+            "Approvals"                  -> "hr_expense_approvals"
+            "New Claim"                  -> "hr_expense_new_claim"
+            "Expense Type"               -> "hr_expense_type"
+            "Finance Reimbursement"      -> "hr_expense_finance_reimbursement"
+            "Training Management"        -> "hr_training_management"
+            "Document Management"        -> "hr_document_management"
+            "Clearance"                  -> "hr_exit_clearance"
+            else -> "hr_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
+        }
+    }
+
     val menuKey = menu.lowercase().replace(" ", "_").replace("&", "and")
     val subItemKey = subItem.lowercase().replace(" ", "_").replace("&", "and")
     return "${menuKey}_${subItemKey}"
@@ -318,7 +347,49 @@ object SidebarConfig {
             MenuItem(
                 R.drawable.hr, "HR",
                 isPanel = true,
-                categories = listOf("Employees", "Attendance")
+                categories = listOf(
+                    "Employee Management",
+                    "Organization Structure",
+                    "Attendance Management",
+                    "Leave Management",
+                    "Payroll Management",
+                    "Expense Management",
+                    "Training Management",
+                    "Document Management",
+                    "Exit Management"
+                ),
+                subItems = mapOf(
+                    "Attendance Management" to listOf(
+                        "Daily Attendance",
+                        "Monthly Attendance",
+                        "Manual Entry",
+//                        "Biometric Management",
+                        "Shift Management"
+                    ),
+                    "Leave Management" to listOf(
+                        "Leave Balance",
+                        "Leave Approval"
+                    ),
+                    "Payroll Management" to listOf(
+                        "Salary Structure Master",
+                        "Employee Salary Assignment",
+                        "Payroll Processing",
+                        "Payslip Management",
+                        "Statutory Compliance",
+                        "Reimbursements & Bonus",
+                        "Loans & Advances"
+                    ),
+                    "Expense Management" to listOf(
+                        "Approvals",
+                        "New Claim",
+                        "Expense Type",
+                        "Finance Reimbursement"
+                    ),
+                    "Exit Management" to listOf(
+                        "Approvals",
+                        "Clearance"
+                    )
+                )
             ),
             MenuItem(
                 R.drawable.it, "IT",

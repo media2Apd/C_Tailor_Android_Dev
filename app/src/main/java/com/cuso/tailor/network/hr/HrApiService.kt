@@ -1,14 +1,26 @@
 package com.cuso.tailor.network.hr
 
+import com.cuso.tailor.model.hr.AttendanceApproveRequest
+import com.cuso.tailor.model.hr.AttendanceApproveResponse
+import com.cuso.tailor.model.hr.AttendanceResponse
+import com.cuso.tailor.model.hr.CreateManualAttendanceRequest
+import com.cuso.tailor.model.hr.CreateManualAttendanceResponse
 import com.cuso.tailor.model.hr.CreateMemberRequest
 import com.cuso.tailor.model.hr.CreateMemberResponse
+import com.cuso.tailor.model.hr.CreateShiftRequest
+import com.cuso.tailor.model.hr.CreateShiftResponse
 import com.cuso.tailor.model.hr.DeleteProfilePictureResponse
+import com.cuso.tailor.model.hr.GenericApiResponse
 import com.cuso.tailor.model.hr.MemberDetailResponse
 import com.cuso.tailor.model.hr.MemberListResponse
+import com.cuso.tailor.model.hr.MonthlyAttendanceResponse
 import com.cuso.tailor.model.hr.RoleListResponse
+import com.cuso.tailor.model.hr.ShiftDetailResponse
 import com.cuso.tailor.model.hr.ShiftListResponse
 import com.cuso.tailor.model.sales.StaffResponse
 import com.cuso.tailor.model.hr.UpdateMemberRequest
+import com.cuso.tailor.model.hr.UpdateShiftRequest
+import com.cuso.tailor.model.hr.UpdateShiftResponse
 import com.cuso.tailor.model.hr.UploadProfilePictureResponse
 import okhttp3.MultipartBody
 import retrofit2.Response
@@ -80,4 +92,80 @@ interface HrApiService {
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<ShiftListResponse>
+
+    // Monthly Attendance
+    @GET("/api/hr/attendance/monthly-view")
+    suspend fun getMonthlyAttendance(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("organizationMemberId") organizationMemberId: String,
+        @Query("month") month: Int,
+        @Query("year") year: Int
+    ): Response<MonthlyAttendanceResponse>
+
+    // Daily Attendance (With Pagination & Filters)
+    @GET("/api/hr/attendance/view-all")
+    suspend fun getAttendanceList(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null,
+        @Query("date") date: String? = null
+    ): Response<AttendanceResponse>
+
+    //approve
+    @PATCH("/api/hr/attendance-manual/approve/{id}")
+    suspend fun approveAttendance(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") attendanceId: String,
+        @Body request: AttendanceApproveRequest
+    ): Response<AttendanceApproveResponse>
+
+    //create manual entry
+
+    @POST("/api/hr/attendance-manual/create")
+    suspend fun createManualAttendance(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: CreateManualAttendanceRequest
+    ): Response<CreateManualAttendanceResponse>
+
+    @GET("/api/hr/shift/view-all")
+    suspend fun getShiftsViewAll(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<ShiftListResponse>
+
+    @POST("/api/hr/shift/create")
+    suspend fun createShift(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: CreateShiftRequest
+    ): Response<CreateShiftResponse>
+
+    @GET("/api/hr/shift/view-one/{id}")
+    suspend fun getShiftDetail(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<ShiftDetailResponse>
+
+    @PUT("/api/hr/shift/update-one/{id}")
+    suspend fun updateShift(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: UpdateShiftRequest
+    ): Response<UpdateShiftResponse>
+
+    @DELETE("/api/hr/shift/delete-one/{id}")
+    suspend fun deleteShift(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<GenericApiResponse>
+
 }

@@ -31,7 +31,7 @@ fun ExitAppDialog(
             Text(
                 text = "Exit App",
                 color = blackTitle,
-                fontSize = tokens.h2,
+                fontSize = tokens.bodyLarge,
                 fontWeight = FontWeight.Bold
             )
         },

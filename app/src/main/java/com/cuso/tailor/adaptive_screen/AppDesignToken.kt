@@ -10,9 +10,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
+ * MAX FONT WEIGHT SHOULD BE FonWeight.Medium
+ * MAX FONT SIZE SHOULD BE body.Medium
  * QUICK USAGE GUIDE:
- * 1. tokens.h1              -> Main Page Title
- * 2. tokens.h2               -> Customer Name / section header
  * 3. tokens.bodyLarge        -> Pricing/Total Amounts
  * 4. tokens.bodyMedium       -> Field placeholders, standard content
  * 5. tokens.bodySmall        -> Field typed text, Order ID, muted info
@@ -39,8 +39,8 @@ data class AppDesignTokens(
     val cardHeight: Dp,      // Standard height for stat cards
 
     // --- Typography Scale ---
-    val h1: TextUnit,        // Large titles (e.g., Lead Management header)
-    val h2: TextUnit,        // Sub-headers or Names (e.g., Customer Name)
+    val h1: TextUnit,        // Large titles (e.g., Lead Management header) DONT USE THIS
+    val h2: TextUnit,        // Sub-headers or Names (e.g., Customer Name)  DONT USE THIS
     val bodyLarge: TextUnit, // Primary data (e.g., Currency amounts, highlighted info)
     val bodyMedium: TextUnit,// Standard readable text (General content)
     val bodySmall: TextUnit, // Secondary info (e.g., Order IDs, Muted info)

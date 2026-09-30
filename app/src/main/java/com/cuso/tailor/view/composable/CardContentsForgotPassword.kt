@@ -51,7 +51,7 @@ fun CardContentsForgotPassword(
         // Adaptive Header
         Text(
             text = "Reset your password",
-            fontSize = tokens.h2,
+            fontSize = tokens.bodyLarge,
             fontWeight = FontWeight.Bold,
             color = blackTitle
         )

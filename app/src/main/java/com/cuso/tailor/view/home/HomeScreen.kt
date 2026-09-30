@@ -224,6 +224,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var employeeScreenMode by remember { mutableStateOf(ScreenMode.CREATE) }
     var selectedEmployeeId by remember { mutableStateOf<String?>(null) }
     var selectedAttendanceId by remember { mutableStateOf<String?>(null) }
+    var selectedShiftId by remember { mutableStateOf<String?>(null) }
 
     // Services State
     var selectedFeedbackId by remember { mutableStateOf<String?>(null) }
@@ -554,8 +555,16 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             // ── HR ──
             "hr_all_employees",
             "hr_employee_onboarding",
+            "hr_employee_management",
+            "hr_daily_attendance",
+            "hr_attendance_manual_entry",
+            "hr_attendance_shift_management",
+            "hr_create_shift",
             "hr_attendance",
             "hr_attendance_detail",
+            "hr_attendance_management",
+            "hr_attendance_biometric_management",
+            "hr_monthly_attendance",
 
             // ── Logistics ──
             "logistics_delivery",
@@ -716,6 +725,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 "inventory_create_item_group" -> selectedItemGroupId = null
                 "hr_employee_onboarding" -> selectedEmployeeId = null
                 "hr_attendance_detail" -> selectedAttendanceId = null
+                "hr_create_shift" -> selectedShiftId = null
                 "feedback_detail" -> selectedFeedbackId = null
                 "view_customer", "edit_customer" -> selectedCustomer = null
                 "view_customer_recent" -> selectedRecentCustomerId = null
@@ -953,6 +963,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             onEmployeeIdSelected = { selectedEmployeeId = it },
                             selectedAttendanceId = selectedAttendanceId,
                             onAttendanceIdSelected = { selectedAttendanceId = it },
+                            selectedShiftId = selectedShiftId,
+                            onShiftIdSelected = { selectedShiftId = it },
                             selectedFeedbackId = selectedFeedbackId,
                             onFeedbackIdSelected = { selectedFeedbackId = it },
                             selectedRecentCustomerId = selectedRecentCustomerId,
@@ -2227,7 +2239,16 @@ fun normalizeRoute(rawKey: String): String {
         "services_service_orders", "services_service_order" -> "services_service_orders"
         "service_order_overview" -> "service_order_overview"
 
-        "hr_employees" -> "hr_all_employees"
+        "hr_employees",
+        "hr_employee_management" -> "hr_all_employees"
+
+        "hr_monthly_attendance" -> "hr_monthly_attendance"
+        "hr_daily_attendance" -> "hr_daily_attendance"
+        "hr_attendance_manual_entry" -> "hr_attendance_manual_entry"
+        "hr_attendance_shift_management" -> "hr_attendance_shift_management"
+        "hr_create_shift" -> "hr_create_shift"
+        "hr_attendance_management",
+        "hr_attendance_biometric_management" -> "hr_attendance"
 
         "reports_sales" -> "reports_sales"
         "reports_marketing" -> "reports_marketing"

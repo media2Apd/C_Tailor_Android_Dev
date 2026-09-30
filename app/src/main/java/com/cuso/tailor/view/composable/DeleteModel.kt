@@ -72,7 +72,7 @@ fun DeleteModel(
                     // Title
                     Text(
                         text = title,
-                        fontSize = tokens.h2,
+                        fontSize = tokens.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF111827),
                         textAlign = TextAlign.Center

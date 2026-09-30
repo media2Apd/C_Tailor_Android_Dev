@@ -571,7 +571,7 @@ fun TimePickerField(
             title = {
                 Text(
                     "Appointment Time",
-                    fontSize = tokens.h2,
+                    fontSize = tokens.bodyLarge,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827)
                 )
@@ -759,7 +759,7 @@ fun CustomTimePicker(
                         ) {
                             Text(
                                 text = String.format("%02d", h),
-                                fontSize = if (isSelected) tokens.h1 else tokens.bodyLarge,
+                                fontSize = if (isSelected) tokens.bodyLarge else tokens.bodyLarge,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSelected) palette.accent else palette.subtext
                             )
@@ -769,7 +769,7 @@ fun CustomTimePicker(
             }
         }
 
-        Text(":", fontSize = tokens.h1, fontWeight = FontWeight.Bold, color = palette.text, modifier = Modifier.padding(horizontal = tokens.screenPadding * 0.25f))
+        Text(":", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = palette.text, modifier = Modifier.padding(horizontal = tokens.screenPadding * 0.25f))
 
         // --- Minute wheel ---
         Column(
@@ -814,7 +814,7 @@ fun CustomTimePicker(
                         ) {
                             Text(
                                 text = m,
-                                fontSize = if (isSelected) tokens.h1 else tokens.bodyLarge,
+                                fontSize = if (isSelected) tokens.bodyLarge else tokens.bodySmall,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSelected) palette.accent else palette.subtext
                             )

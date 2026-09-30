@@ -1,369 +1,402 @@
-@file:Suppress(
-    "UNUSED_PARAMETER",
-    "unused",
-    "UNCHECKED_CAST",
-    "DEPRECATION",
-    "AssignedValueIsNeverRead",
-    "GrazieInspection",
-    "SpellCheckingInspection",
-    "unusedvariable"
-)
-
+@file:Suppress("unused","AssignedValueIsNeverRead")
 package com.cuso.tailor.view.home.hr.attendance
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.ui.theme.Primary
-import com.cuso.tailor.ui.theme.PrimaryBorder
-import com.cuso.tailor.ui.theme.greentext
-import com.cuso.tailor.ui.theme.grey_border
-import com.cuso.tailor.ui.theme.mutedText
-import com.cuso.tailor.ui.theme.redText
-import com.cuso.tailor.ui.theme.title_color
-import com.cuso.tailor.ui.theme.whiteBg
-import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.SheetValue
-import com.cuso.tailor.view.composable.SmoothBottomSheet
-import com.cuso.tailor.view.composable.blurScrim
+import com.cuso.tailor.model.hr.AttendanceRecord
+import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.viewmodel.AttendanceUiState
+import com.cuso.tailor.viewmodel.HrViewModel
 
-// ── Design tokens ──
-private val HrPrimary = Primary
-private val CriticalRed = redText
-private val WarningOrange = Color(0xFFF59E0B)
-private val HealthyGreen = greentext
-private val TitleColor = title_color
-private val MutedColor = mutedText
-private val BorderColor = PrimaryBorder
-
-// ── Data Models ──
-private data class AttendanceStat(
-    val label: String,
-    val value: String,
-    val valueColor: Color = TitleColor
-)
-
-private enum class AttendanceStatus { PRESENT, ABSENT, LATE, ON_LEAVE }
-
-private data class AttendanceRecord(
-    val id: String,
-    val name: String,
-    val empId: String,
-    val designation: String,
-    val status: AttendanceStatus,
-    val checkIn: String,
-    val checkOut: String,
-    val workingHrs: String
-)
-
-private fun statusColor(status: AttendanceStatus): Color = when (status) {
-    AttendanceStatus.PRESENT -> HealthyGreen
-    AttendanceStatus.ABSENT -> CriticalRed
-    AttendanceStatus.LATE -> WarningOrange
-    AttendanceStatus.ON_LEAVE -> HrPrimary
-}
-
-private fun statusLabel(status: AttendanceStatus): String = when (status) {
-    AttendanceStatus.PRESENT -> "Present"
-    AttendanceStatus.ABSENT -> "Absent"
-    AttendanceStatus.LATE -> "Late"
-    AttendanceStatus.ON_LEAVE -> "On Leave"
-}
-
-private fun sampleAttendance(): List<AttendanceRecord> = listOf(
-    AttendanceRecord("1", "John Anderson", "EMP-1018", "Senior Software Engineer", AttendanceStatus.PRESENT, "09:00 Am", "06:15 PM", "09h 13m"),
-    AttendanceRecord("2", "John Anderson", "EMP-1018", "Senior Software Engineer", AttendanceStatus.ABSENT, "-", "-", "-"),
-    AttendanceRecord("3", "John Anderson", "EMP-1018", "Senior Software Engineer", AttendanceStatus.LATE, "10:42 Am", "06:15 PM", "07h 00m"),
-    AttendanceRecord("4", "John Anderson", "EMP-1018", "Senior Software Engineer", AttendanceStatus.PRESENT, "09:00 Am", "06:15 PM", "09h 13m")
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AttendanceScreen(
-    onClose: () -> Unit,
-    onBreadCrumbClick: () -> Unit = {},
-    onRecordClick: (String) -> Unit = {}
+fun AttendanceListScreen(
+    viewModel: HrViewModel,
+    onClose: () -> Unit = {},
+    onManualEntryClick: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
 
-    var searchQuery by remember { mutableStateOf("") }
-    var exportSheetState by remember { mutableStateOf(SheetValue.Hidden) }
-    var exportBlur by remember { mutableStateOf(0.dp) }
+    val uiState by viewModel.uiState.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val filterType by viewModel.filterType.collectAsState()
 
-    val allRecords = remember { sampleAttendance() }
-    val filteredRecords = remember(searchQuery, allRecords) {
-        if (searchQuery.isBlank()) allRecords
-        else allRecords.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.empId.contains(searchQuery, ignoreCase = true)
+    var filterDropdownOpen by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+
+    var selectedRecordForApproval by remember { mutableStateOf<AttendanceRecord?>(null) }
+    var isApproving by remember { mutableStateOf(false) }
+
+    val shouldLoadMore = remember {
+        derivedStateOf {
+            val totalItems = listState.layoutInfo.totalItemsCount
+            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            totalItems > 0 && lastVisibleIndex >= totalItems - 2
         }
     }
 
-    val stats = listOf(
-        AttendanceStat("Present", "128", HealthyGreen),
-        AttendanceStat("Absent", "6", CriticalRed),
-        AttendanceStat("Late", "8"),
-        AttendanceStat("On Leave", "12", HrPrimary)
-    )
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = Color.Transparent,
-            topBar = {
-                Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
-                    Column { TitleBar(title = "Attendance", onClose = onClose) }
-                }
-                HorizontalDivider(color = BorderColor)
-            },
-            contentWindowInsets = WindowInsets(0, 0, 0, 0)
-        ) { innerPadding ->
-
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                Box(modifier = Modifier.fillMaxSize().blurScrim(exportBlur)) {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize().background(Color.Transparent),
-                        contentPadding = PaddingValues(bottom = tokens.screenPadding * 1.5f)
-                    ) {
-                        // ── Breadcrumb + Export ──
-                        item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(modifier = Modifier.weight(1f)) {
-                                }
-                                Row(
-                                    modifier = Modifier
-                                        .clickable { exportSheetState = SheetValue.Collapsed }
-                                        .padding(horizontal = tokens.screenPadding / 2, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(Icons.Default.FileUpload, contentDescription = "Export", tint = HrPrimary, modifier = Modifier.size(tokens.iconSize))
-                                    Text("Export", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = HrPrimary)
-                                }
-                            }
-                        }
-
-                        // ── Stat grid ──
-                        item {
-                            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                stats.chunked(2).forEach { row ->
-                                    Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                        row.forEach { stat -> AttendanceStatCard(stat, Modifier.weight(1f)) }
-                                    }
-                                }
-                            }
-                            Spacer(Modifier.height(14.dp))
-                        }
-
-                        // ── Search + filter ──
-                        item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(tokens.fieldHeight)
-                                        .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius / 1.5f))
-                                        .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius / 1.5f))
-                                        .padding(horizontal = tokens.screenPadding * 0.85f),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Search, contentDescription = null, tint = MutedColor, modifier = Modifier.size(tokens.iconSize))
-                                    Spacer(Modifier.width(8.dp))
-                                    BasicTextField(
-                                        value = searchQuery,
-                                        onValueChange = { searchQuery = it },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        singleLine = true,
-                                        textStyle = TextStyle(fontSize = tokens.bodyMedium, color = TitleColor),
-                                        decorationBox = { inner ->
-                                            if (searchQuery.isEmpty()) {
-                                                Text("Search Employee Name or ID", fontSize = tokens.bodyMedium, color = MutedColor)
-                                            }
-                                            inner()
-                                        }
-                                    )
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .size(tokens.fieldHeight)
-                                        .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius / 1.5f))
-                                        .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius / 1.5f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = TitleColor, modifier = Modifier.size(tokens.iconSize))
-                                }
-                            }
-                            Spacer(Modifier.height(16.dp))
-                        }
-
-                        // ── Section title ──
-                        item {
-                            Row(modifier = Modifier.fillMaxWidth().background(whiteBg).padding(horizontal = tokens.screenPadding, vertical = 10.dp)) {
-                                Text("Today's Attendance", fontSize = tokens.bodyLarge,  color = TitleColor)
-                            }
-                            Spacer(Modifier.height(6.dp))
-                        }
-
-                        // ── List ──
-                        items(filteredRecords, key = { it.id }) { record ->
-                            AttendanceCard(record, onClick = { onRecordClick(record.id) })
-                        }
-                    }
-                }
-
-                SmoothBottomSheet(
-                    state = exportSheetState,
-                    onStateChange = { exportSheetState = it },
-                    peekHeight = 340.dp,
-                    topInset = 0.dp,
-                    maxBlurRadius = 16.dp,
-                    maxScrimAlpha = 0.45f,
-                    scrollableContent = false,
-                    onBlurScrimChange = { blur, _ -> exportBlur = blur },
-                    onDismissRequest = { exportSheetState = SheetValue.Hidden }
-                ) {
-                    ExportAttendanceSheetContent(onDismiss = { exportSheetState = SheetValue.Hidden })
-                }
-            }
+    LaunchedEffect(shouldLoadMore.value) {
+        if (shouldLoadMore.value) {
+            viewModel.loadNextPage()
         }
     }
-}
 
-@Composable
-private fun AttendanceStatCard(stat: AttendanceStat, modifier: Modifier = Modifier) {
-    val tokens = LocalAppTokens.current
-    Column(modifier = modifier.background(whiteBg).padding(tokens.screenPadding * 0.85f)) {
-        Text(stat.label, fontSize = tokens.caption, color = MutedColor)
-        Spacer(Modifier.height(8.dp))
-        Text(stat.value, fontSize = tokens.bodyLarge, color = stat.valueColor)
-    }
-}
-
-@Composable
-private fun AttendanceCard(record: AttendanceRecord, onClick: () -> Unit) {
-    val tokens = LocalAppTokens.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(whiteBg)
-            .clickable(onClick = onClick)
-            .padding(horizontal = tokens.screenPadding, vertical = 14.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(record.name, fontSize = tokens.bodyMedium, color = TitleColor)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                AttendanceBadge(statusLabel(record.status), statusColor(record.status))
-                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MutedColor, modifier = Modifier.size(tokens.iconSize))
-            }
-        }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            "ID: ${record.empId} · Designation: ${record.designation}",
-            fontSize = tokens.caption,
-            color = MutedColor
+    FabScaffold(
+        fab = FabConfig(
+            label = "Manual Entry",
+            icon = Icons.Default.Add,
+            onClick = onManualEntryClick,
+            alignment = Alignment.BottomEnd,
+            bottomPadding = tokens.screenPadding,
+            endPadding = tokens.screenPadding
         )
-        Spacer(Modifier.height(10.dp))
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Check In", fontSize = tokens.caption, color = MutedColor)
-                Spacer(Modifier.height(2.dp))
-                Text(record.checkIn, fontSize = tokens.bodySmall, color = TitleColor)
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Check Out", fontSize = tokens.caption, color = MutedColor)
-                Spacer(Modifier.height(2.dp))
-                Text(record.checkOut, fontSize = tokens.bodySmall, color = TitleColor)
-            }
-            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                Text("Working Hrs", fontSize = tokens.caption, color = MutedColor)
-                Spacer(Modifier.height(2.dp))
-                Text(record.workingHrs, fontSize = tokens.bodySmall, color = TitleColor)
-            }
-        }
-    }
-    HorizontalDivider(color = BorderColor)
-}
-
-@Composable
-private fun AttendanceBadge(text: String, color: Color) {
-    val tokens = LocalAppTokens.current
-    Box(
-        modifier = Modifier
-            .background(color.copy(alpha = 0.12f), RoundedCornerShape(999.dp))
-            .padding(horizontal = 10.dp, vertical = 4.dp)
     ) {
-        Text(text, fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = color)
-    }
-}
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Transparent)
+        ) {
+            TitleBar(
+                title = "Attendance List",
+                onClose = onClose
+            )
 
-@Composable
-private fun ExportAttendanceSheetContent(onDismiss: () -> Unit) {
-    val tokens = LocalAppTokens.current
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = tokens.screenPadding)) {
-        Text("Export Report", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = TitleColor)
-        Text("Choose an export option", fontSize = tokens.caption, color = MutedColor)
-        Spacer(Modifier.height(12.dp))
-        listOf(
-            Triple(Icons.Default.PictureAsPdf, redText, "Export as PDF"),
-            Triple(Icons.Default.GridOn, Color(0xFF16A34A), "Export as Excel"),
-            Triple(Icons.Default.Share, Color(0xFF3B82F6), "Share Report"),
-            Triple(Icons.Default.Email, Color(0xFF9333EA), "Send by Email")
-        ).forEach { (icon, color, label) ->
+
+            // Search Bar + Dropdown
             Row(
-                modifier = Modifier.fillMaxWidth().clickable(onClick = onDismiss).padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier
+                    .fillMaxWidth()
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = { viewModel.onSearchQueryChanged(it) },
+                    placeholder = "Search Employee...",
+                )
+            }
+
+            when (val state = uiState) {
+                is AttendanceUiState.Loading -> {
+                    ListSkeleton()
+                }
+                is AttendanceUiState.Error -> {
                     Box(
                         modifier = Modifier
-                            .size(tokens.fieldHeight * 0.8f)
-                            .background(color.copy(alpha = 0.12f), RoundedCornerShape(tokens.cardCornerRadius / 1.5f)),
+                            .fillMaxSize()
+                            .padding(horizontal = tokens.screenPadding),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(tokens.iconSize))
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = state.message,
+                                color = redText,
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Button(
+                                onClick = { viewModel.loadAttendance(reset = true) },
+                                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = "Retry",
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.White
+                                )
+                            }
+                        }
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Text(label, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TitleColor)
                 }
-                Icon(Icons.Default.ChevronRight, null, tint = MutedColor, modifier = Modifier.size(tokens.iconSize))
+                is AttendanceUiState.Success -> {
+                    if (state.records.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(bottom = 80.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No attendance records found.",
+                                color = headerGrey,
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 80.dp)
+                        ) {
+                            items(
+                                items = state.records,
+                                key = { it.id }
+                            ) { record ->
+                                val isPresent = record.status.equals("Present", ignoreCase = true)
+                                val isAbsent = record.status.equals("Absent", ignoreCase = true)
+
+                                val badgeBg = when {
+                                    isPresent -> greenBg
+                                    isAbsent -> redBg
+                                    else -> yellowBg
+                                }
+                                val badgeText = when {
+                                    isPresent -> greentext
+                                    isAbsent -> redText
+                                    else -> yellowText
+                                }
+
+                                // Show Approve option only when approvalStatus is pending
+                                val menuActions = if (record.approvalStatus.equals("pending", ignoreCase = true)) {
+                                    listOf(
+                                        MenuAction(
+                                            label = "Approve",
+                                            icon = Icons.Default.CheckCircleOutline,
+                                            tint = complete_button_bg,
+                                            textColor = title_color,
+                                            onClick = {
+                                                selectedRecordForApproval = record
+                                            }
+                                        )
+                                    )
+                                } else {
+                                    emptyList()
+                                }
+
+                                DataCard(
+                                    item = record,
+                                    title = record.name,
+                                    titleColor = title_color,
+                                    titleFontWeight = FontWeight.Medium,
+                                    subtitle = "${record.empCode} • ${record.department}",
+                                    topBadgeText = record.status,
+                                    topBadgeBgColor = badgeBg,
+                                    topBadgeTextColor = badgeText,
+                                    topBadgeInline = true,
+                                    topBadgeShowDot = false,
+                                    showHeaderDivider = true,
+                                    actions = menuActions,
+                                    content = {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.Top
+                                        ) {
+                                            // Left details
+                                            Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)) {
+                                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                    Text(
+                                                        text = "SHIFT",
+                                                        fontSize = tokens.label,
+                                                        color = headerGrey,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                    Text(
+                                                        text = record.shift,
+                                                        fontSize = tokens.bodySmall,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = TextPrimary
+                                                    )
+                                                }
+                                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                    Text(
+                                                        text = "IN TIME",
+                                                        fontSize = tokens.label,
+                                                        color = headerGrey,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                    Text(
+                                                        text = record.inTime,
+                                                        fontSize = tokens.bodySmall,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = TextPrimary
+                                                    )
+                                                }
+                                            }
+
+                                            // Right details
+                                            Column(
+                                                horizontalAlignment = Alignment.End,
+                                                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
+                                            ) {
+                                                Column(
+                                                    horizontalAlignment = Alignment.End,
+                                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "TOTAL HOURS",
+                                                        fontSize = tokens.label,
+                                                        color = headerGrey,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                    Text(
+                                                        text = record.totalHours,
+                                                        fontSize = tokens.bodySmall,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = TextPrimary
+                                                    )
+                                                }
+                                                Column(
+                                                    horizontalAlignment = Alignment.End,
+                                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "OUT TIME",
+                                                        fontSize = tokens.label,
+                                                        color = headerGrey,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                    Text(
+                                                        text = record.outTime,
+                                                        fontSize = tokens.bodySmall,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = TextPrimary
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+
+                            if (state.canLoadMore) {
+                                item {
+                                    ThreeDotLoading()
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
-        Spacer(Modifier.height(10.dp))
-        OutlinedButton(
-            onClick = onDismiss,
-            modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight),
-            shape = RoundedCornerShape(tokens.cardCornerRadius / 1.5f)
-        ) {
-            Text("Cancel", fontSize = tokens.bodyMedium, color = TitleColor, fontWeight = FontWeight.Medium)
+    }
+
+    // Confirmation Dialog matching the image
+    selectedRecordForApproval?.let { record ->
+        val dateText = if (record.date.isNotBlank()) " for ${record.date}" else ""
+        Dialog(onDismissRequest = {
+            if (!isApproving) selectedRecordForApproval = null
+        }) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = whiteBg,
+                shadowElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    Text(
+                        text = "Approve Manual Attendance",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A)
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    Text(
+                        text = "${record.name} (${record.empCode}) - Do you want to approve the manual attendance${dateText}? Once approved, the status will be changed to \"Present\".",
+                        fontSize = 13.5.sp,
+                        lineHeight = 20.sp,
+                        color = Color(0xFF334155),
+                        fontWeight = FontWeight.Normal
+                    )
+
+                    Spacer(Modifier.height(24.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = { selectedRecordForApproval = null },
+                            enabled = !isApproving,
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = whiteBg,
+                                contentColor = Color(0xFF0F172A)
+                            ),
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                            modifier = Modifier.height(38.dp)
+                        ) {
+                            Text(
+                                text = "Cancel",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF0F172A)
+                            )
+                        }
+
+                        Spacer(Modifier.width(12.dp))
+
+                        Button(
+                            onClick = {
+                                isApproving = true
+                                viewModel.approveAttendance(
+                                    attendanceId = record.id,
+                                    onSuccess = {
+                                        isApproving = false
+                                        selectedRecordForApproval = null
+                                    },
+                                    onError = {
+                                        isApproving = false
+                                        selectedRecordForApproval = null
+                                    }
+                                )
+                            },
+                            enabled = !isApproving,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFEEF2FF),
+                                contentColor = Primary
+                            ),
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                            modifier = Modifier.height(38.dp)
+                        ) {
+                            if (isApproving) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Primary
+                                )
+                            } else {
+                                Text(
+                                    text = "Approve",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Primary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
-        Spacer(Modifier.height(20.dp))
     }
 }

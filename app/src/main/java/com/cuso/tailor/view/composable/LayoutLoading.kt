@@ -143,7 +143,7 @@ private fun GreetingCardSkeleton(tokens: AppDesignTokens, brush: Brush) {
             ShimmerBox(
                 modifier = Modifier
                     .fillMaxWidth(if (tokens.isTablet) 0.35f else 0.55f)
-                    .height(tokens.h1.value.dp),
+                    .height(tokens.bodyLarge.value.dp),
                 shape = RoundedCornerShape(6.dp),
                 brush = rememberShimmerBrush(
                     listOf(
@@ -242,7 +242,7 @@ private fun DashboardStatCardSkeleton(
         ShimmerBox(
             modifier = Modifier
                 .fillMaxWidth(0.65f)
-                .height(tokens.h2.value.dp * 1.15f),
+                .height(tokens.bodyLarge.value.dp * 1.15f),
             shape = RoundedCornerShape(5.dp),
             brush = brush
         )
@@ -277,7 +277,7 @@ private fun QuickModulesSkeleton(tokens: AppDesignTokens, brush: Brush) {
         ShimmerBox(
             modifier = Modifier
                 .width(130.dp)
-                .height(tokens.h2.value.dp),
+                .height(tokens.bodyLarge.value.dp),
             shape = RoundedCornerShape(4.dp),
             brush = brush
         )
@@ -328,7 +328,7 @@ private fun RecentActivitySkeleton(tokens: AppDesignTokens, brush: Brush) {
             ShimmerBox(
                 modifier = Modifier
                     .width(130.dp)
-                    .height(tokens.h2.value.dp),
+                    .height(tokens.bodyLarge.value.dp),
                 shape = RoundedCornerShape(4.dp),
                 brush = brush
             )
@@ -403,7 +403,7 @@ private fun RecentCustomersSkeleton(tokens: AppDesignTokens, brush: Brush) {
         ShimmerBox(
             modifier = Modifier
                 .width(150.dp)
-                .height(tokens.h2.value.dp),
+                .height(tokens.bodyLarge.value.dp),
             shape = RoundedCornerShape(4.dp),
             brush = brush
         )

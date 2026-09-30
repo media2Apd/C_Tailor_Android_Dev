@@ -155,7 +155,7 @@ fun ForgotOtpInput(
                     Text(
                         text = char,
                         style = TextStyle(
-                            fontSize = tokens.h2, // Adaptive font instead of fixed 22.sp
+                            fontSize = tokens.bodyLarge, // Adaptive font instead of fixed 22.sp
                             fontWeight = FontWeight.Bold,
                             color = blackTitle,
                             textAlign = TextAlign.Center

@@ -56,7 +56,7 @@ fun ForgotOtpSelection(
         androidx.compose.material3.Text(
             text = "Enter your OTP",
             color = blackTitle,
-            fontSize = tokens.h2,
+            fontSize = tokens.bodyLarge,
             fontWeight = FontWeight.Bold
         )
 

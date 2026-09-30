@@ -125,7 +125,7 @@ fun ColorPickerDialog(
                 modifier = Modifier.fillMaxWidth().padding(tokens.cardPadding),
                 verticalArrangement = Arrangement.spacedBy(tokens.screenPadding)
             ) {
-                Text("Choose Color", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Text("Choose Color", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
 
                 HsvColorPicker(
                     modifier = Modifier.fillMaxWidth().height(260.dp).padding(tokens.extraPadding),

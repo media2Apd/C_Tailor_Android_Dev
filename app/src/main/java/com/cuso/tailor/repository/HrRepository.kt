@@ -1,29 +1,46 @@
 @file:Suppress("unused")
 package com.cuso.tailor.repository
 
+import com.cuso.tailor.database.dao.TokensDao
+import com.cuso.tailor.model.hr.AttendanceApproveRequest
+import com.cuso.tailor.model.hr.AttendanceRecord
+import com.cuso.tailor.model.hr.CreateManualAttendanceRequest
 import com.cuso.tailor.model.hr.CreateMemberRequest
+import com.cuso.tailor.model.hr.CreateShiftRequest
 import com.cuso.tailor.model.hr.CreatedMemberFullData
 import com.cuso.tailor.model.hr.DeleteProfilePictureResponse
 import com.cuso.tailor.model.hr.MemberDetail
 import com.cuso.tailor.model.hr.MemberListResponse
+import com.cuso.tailor.model.hr.MonthlyAttendanceItem
 import com.cuso.tailor.model.hr.RoleItem
+import com.cuso.tailor.model.hr.ShiftDetailData
+import com.cuso.tailor.model.hr.ShiftDto
 import com.cuso.tailor.model.hr.ShiftItem
 import com.cuso.tailor.model.hr.UpdateMemberRequest
+import com.cuso.tailor.model.hr.UpdateShiftRequest
 import com.cuso.tailor.model.hr.UploadProfilePictureResponse
 import com.cuso.tailor.network.hr.HrApiService
+import com.cuso.tailor.utils.format24HrTo12Hr
+import com.cuso.tailor.utils.formatIsoToTime
+import com.cuso.tailor.utils.formatMinutesToHours
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class HrRepository @Inject constructor(
     private val hrApi: HrApiService,
-    private val tokensDao: com.cuso.tailor.database.dao.TokensDao
+    private val tokensDao: TokensDao
 ) {
 
     private suspend fun getAuthHeaders(): Pair<String, String> {
@@ -79,12 +96,13 @@ class HrRepository @Inject constructor(
     }
 
     // ── Shifts ──
-    suspend fun getShifts(): Result<List<ShiftItem>> {
-        return try {
+    suspend fun getShifts(): Result<List<ShiftItem>> = withContext(Dispatchers.IO) {
+        try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = hrApi.getShifts(accessToken, csrfToken)
             if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!.data)
+                val dtoList = response.body()?.data ?: emptyList()
+                Result.success(dtoList.map { it.toShiftItem() })
             } else {
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to fetch shifts: ${response.code()}")
@@ -123,7 +141,7 @@ class HrRepository @Inject constructor(
         request.designationId?.let { fields["designationId"] = it.asTextBody() }
         request.customRoleId?.let { fields["customRoleId"] = it.asTextBody() }
         request.shiftId?.let { fields["shiftId"] = it.asTextBody() }
-        request.workingDistrict?.let { fields["workingDistrict"] = it.asTextBody() }
+        request.workingDistrict.let { fields["workingDistrict"] = it.asTextBody() }
         request.reportingTo?.let { fields["reportingTo"] = it.asTextBody() }
         request.secondaryReportingTo?.let { fields["secondaryReportingTo"] = it.asTextBody() }
 
@@ -154,16 +172,16 @@ class HrRepository @Inject constructor(
         }
     }
 
-    suspend fun updateMember(memberId: String, request: UpdateMemberRequest): Result<CreatedMemberFullData> {
+    suspend fun updateMember(memberId: String, request: UpdateMemberRequest): Result<String> {
         return try {
             val (authHeader, csrfToken) = getAuthHeaders()
             val response = hrApi.updateMember(authHeader, csrfToken, memberId, request)
-            val body = response.body()
 
-            if (response.isSuccessful && body?.success == true && body.data != null) {
-                Result.success(body.data)
+            if (response.isSuccessful) {
+                Result.success("Member updated successfully")
             } else {
-                Result.failure(Exception(body?.message ?: "Failed to update member"))
+                val errorString = response.errorBody()?.string()
+                Result.failure(Exception(errorString ?: "Failed to update member"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -229,6 +247,255 @@ class HrRepository @Inject constructor(
                 Result.success(response.body()!!)
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Delete failed: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    //MONTHLY ATTENDANCE
+    suspend fun getMonthlyAttendance(
+        organizationMemberId: String,
+        month: Int,
+        year: Int
+    ): Result<List<MonthlyAttendanceItem>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.getMonthlyAttendance(
+                token = accessToken,
+                csrfToken = csrfToken,
+                organizationMemberId = organizationMemberId,
+                month = month,
+                year = year
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch attendance"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── Daily Attendance with Pagination ──
+    suspend fun getDailyAttendanceList(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null,
+        date: String? = null
+    ): Result<List<AttendanceRecord>> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val effectiveStatus = if (status.equals("All", ignoreCase = true)) null else status?.lowercase()
+            val effectiveSearch = search?.trim()?.ifBlank { null }
+
+            val response = hrApi.getAttendanceList(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = effectiveSearch,
+                status = effectiveStatus,
+                date = date
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val dtoList = response.body()?.data ?: emptyList()
+                val mappedList = dtoList.map { dto ->
+                    val fullName = listOfNotNull(
+                        dto.organizationMember?.firstName,
+                        dto.organizationMember?.lastName
+                    ).joinToString(" ").ifBlank { "Unknown Member" }
+
+                    val empCode = dto.organizationMember?.memberId
+                        ?: dto.organizationMember?.memberId
+                        ?: "N/A"
+
+                    val deptName = dto.organizationMember?.department?.name ?: "General"
+                    val shiftName = dto.shift?.name ?: "General Shift"
+
+                    val inTime = formatIsoToTime(dto.firstIn)
+                    val outTime = formatIsoToTime(dto.lastOut)
+                    val totalHrs = formatMinutesToHours(dto.totalWorkingMinutes)
+                    val displayDate = formatIsoToDisplayDate(dto.date)
+
+                    AttendanceRecord(
+                        id = dto.id,
+                        name = fullName,
+                        empCode = empCode,
+                        department = deptName,
+                        shift = shiftName,
+                        inTime = inTime,
+                        totalHours = totalHrs,
+                        outTime = outTime,
+                        status = dto.status?.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } ?: "Absent",
+                        date = displayDate,
+                        approvalStatus = dto.approvalStatus?.lowercase() ?: ""
+                    )
+                }
+                Result.success(mappedList)
+            } else {
+                Result.failure(Exception(response.body()?.message ?: "Failed to fetch attendance"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    fun formatIsoToDisplayDate(isoString: String?): String {
+        if (isoString.isNullOrBlank()) return ""
+        return try {
+            val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ENGLISH).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val date = isoFormat.parse(isoString)
+            val displayFormat = SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH)
+            date?.let { displayFormat.format(it) } ?: ""
+        } catch (_: Exception) {
+            ""
+        }
+    }
+    //approval
+    suspend fun approveAttendance(attendanceId: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val request = AttendanceApproveRequest(
+                attendanceId = attendanceId,
+                isApproved = true,
+                approvalStatus = "approved",
+                status = "present"
+            )
+            val response = hrApi.approveAttendance(
+                token = accessToken,
+                csrfToken = csrfToken,
+                attendanceId = attendanceId,
+                request = request
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.message ?: "Attendance approved successfully")
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to approve attendance"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    //create manual entry
+    suspend fun createManualAttendance(request: CreateManualAttendanceRequest): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.createManualAttendance(
+                token = accessToken,
+                csrfToken = csrfToken,
+                request = request
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.message ?: "Manual attendance created successfully")
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to create manual attendance"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    //shifts
+
+    suspend fun getShiftsViewAll(): Result<List<ShiftItem>> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.getShiftsViewAll(accessToken, csrfToken)
+            if (response.isSuccessful && response.body()?.success == true) {
+                val dtoList = response.body()?.data ?: emptyList()
+                Result.success(dtoList.map { it.toShiftItem() })
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch shifts"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun ShiftDto.toShiftItem(): ShiftItem {
+        val breakMins = breakDuration?.let { "$it mins" } ?: "0 mins"
+        val type = shiftType ?: if (isDefault) "Fixed" else "Rotation"
+        val deptOrCode = shiftId ?: description ?: "Shift"
+
+        return ShiftItem(
+            id = id,
+            title = name ?: "Unnamed Shift",
+            department = deptOrCode,
+            startTime = format24HrTo12Hr(startTime),
+            endTime = format24HrTo12Hr(endTime),
+            breakDuration = breakMins,
+            shiftType = type,
+            isActive = status
+        )
+    }
+
+    suspend fun createShift(request: CreateShiftRequest): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.createShift(
+                token = accessToken,
+                csrfToken = csrfToken,
+                request = request
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.message ?: "Shift created successfully")
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to create shift"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getShiftDetail(shiftId: String): Result<ShiftDetailData> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.getShiftDetail(accessToken, csrfToken, shiftId)
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception("Failed to load shift detail"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateShift(shiftId: String, request: UpdateShiftRequest): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.updateShift(accessToken, csrfToken, shiftId, request)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.message ?: "Shift updated successfully")
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to update shift"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteShift(shiftId: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.deleteShift(accessToken, csrfToken, shiftId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.message ?: "Shift deleted successfully")
+            } else {
+                Result.failure(Exception("Failed to delete shift"))
             }
         } catch (e: Exception) {
             Result.failure(e)

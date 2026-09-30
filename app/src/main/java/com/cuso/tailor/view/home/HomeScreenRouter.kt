@@ -21,6 +21,7 @@ import com.cuso.tailor.model.sales.CustomerItem
 import com.cuso.tailor.model.sales.MeasurementItem
 import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.model.settings.SegmentItem
+import com.cuso.tailor.view.home.hr.attendance.AttendanceListScreen
 import com.cuso.tailor.view.home.branch.BranchSettingsScreen
 import com.cuso.tailor.view.home.department.DepartmentSettingsScreen
 import com.cuso.tailor.view.home.designation.DesignationScreen
@@ -48,10 +49,13 @@ import com.cuso.tailor.view.home.finance.settings.AddTaxGroupScreen
 import com.cuso.tailor.view.home.finance.settings.GstSettingsOverviewScreen
 import com.cuso.tailor.view.home.finance.settings.TaxRatesScreen
 import com.cuso.tailor.view.home.hr.attendance.AttendanceDetailScreen
-import com.cuso.tailor.view.home.hr.attendance.AttendanceScreen
 import com.cuso.tailor.view.home.hr.employees.AllEmployeesScreen
 import com.cuso.tailor.view.home.hr.employees.EmployeeOnboardingScreen
 import com.cuso.tailor.view.home.hr.employees.ScreenMode
+import com.cuso.tailor.view.home.hr.manual_entry.ManualAttendanceEntryScreen
+import com.cuso.tailor.view.home.hr.monthly_calendar.AttendanceCalendarScreen
+import com.cuso.tailor.view.home.hr.shift.CreateNewListScreen
+import com.cuso.tailor.view.home.hr.shift.ShiftListOverviewScreen
 import com.cuso.tailor.view.home.inventory.billing.AllBillsScreen
 import com.cuso.tailor.view.home.inventory.billing.BillPdfPreviewScreen
 import com.cuso.tailor.view.home.inventory.billing.NewVendorInvoiceScreen
@@ -157,6 +161,8 @@ import com.cuso.tailor.viewmodel.*
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedShiftId: String? = null,
+    onShiftIdSelected: (String?) -> Unit = {},
     selectedServiceRequestId: String? = null,
     onServiceRequestIdSelected: (String?) -> Unit = {},
     selectedOpportunityId: String? = null,
@@ -423,7 +429,10 @@ fun HomeScreenRouter(
         }
 
         "hr_all_employees", "hr_employee_onboarding", "hr_attendance",
-        "hr_attendance_detail" -> {
+        "hr_attendance_detail", "hr_monthly_attendance", "hr_daily_attendance",
+        "hr_attendance_manual_entry", "hr_attendance_shift_management",
+        "hr_shift_list",
+        "hr_create_shift" -> {
             HrRouter(
                 screen = screen,
                 hrViewModel = hrViewModel,
@@ -433,6 +442,8 @@ fun HomeScreenRouter(
                 onEmployeeIdSelected = onEmployeeIdSelected,
                 selectedAttendanceId = selectedAttendanceId,
                 onAttendanceIdSelected = onAttendanceIdSelected,
+                selectedShiftId = selectedShiftId,
+                onShiftIdSelected = onShiftIdSelected,
                 onNavigate = onNavigate,
                 onGoBack = onGoBack,
                 onOpenModulesPanel = onOpenModulesPanel
@@ -2240,6 +2251,7 @@ private fun InventoryProcurementRouter(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun HrRouter(
     screen: String,
@@ -2250,12 +2262,14 @@ private fun HrRouter(
     onEmployeeIdSelected: (String?) -> Unit,
     selectedAttendanceId: String?,
     onAttendanceIdSelected: (String?) -> Unit,
+    selectedShiftId: String?,
+    onShiftIdSelected: (String?) -> Unit,
     onNavigate: (String) -> Unit,
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit
 ) {
     when (screen) {
-        "hr_all_employees" -> AllEmployeesScreen(
+        "hr_all_employees", "hr_employee_management" -> AllEmployeesScreen(
             onDismiss = onGoBack,
             onAddEmployee = {
                 onEmployeeScreenModeChange(ScreenMode.CREATE)
@@ -2292,16 +2306,53 @@ private fun HrRouter(
                 onEmployeeIdSelected(null)
                 onGoBack()
             },
+            onNavigateToEdit = { editMemberId ->
+                onEmployeeScreenModeChange(ScreenMode.EDIT)
+                onEmployeeIdSelected(editMemberId)
+            },
             hrViewModel = hrViewModel
         )
 
-        "hr_attendance" -> AttendanceScreen(
+        "hr_daily_attendance", "hr_attendance" -> AttendanceListScreen(
             onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("HR") },
-            onRecordClick = { recordId ->
-                onAttendanceIdSelected(recordId)
-                onNavigate("hr_attendance_detail")
+            onManualEntryClick = { onNavigate("hr_attendance_manual_entry") },
+            viewModel = hrViewModel
+        )
+
+        "hr_attendance_manual_entry" -> ManualAttendanceEntryScreen(
+            onClose = onGoBack,
+            onSubmit = { onGoBack() },
+            viewModel = hrViewModel
+        )
+
+        "hr_attendance_shift_management", "hr_shift_list" -> ShiftListOverviewScreen(
+            viewModel = hrViewModel,
+            onClose = onGoBack,
+            onAddShiftClick = {
+                onShiftIdSelected(null)
+                onNavigate("hr_create_shift")
+            },
+            onEditShift = { shift ->
+                onShiftIdSelected(shift.id)
+                onNavigate("hr_create_shift")
             }
+        )
+
+        "hr_create_shift" -> CreateNewListScreen(
+            viewModel = hrViewModel,
+            shiftIdToEdit = selectedShiftId,
+            onClose = {
+                onShiftIdSelected(null)
+                onGoBack()
+            },
+            onSubmitSuccess = {
+                onShiftIdSelected(null)
+                onGoBack()
+            }
+        )
+
+        "hr_monthly_attendance" -> AttendanceCalendarScreen(
+            onClose = onGoBack
         )
 
         "hr_attendance_detail" -> AttendanceDetailScreen(

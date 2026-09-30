@@ -173,7 +173,7 @@ fun LoginOtpInput(
                         Text(
                             text = char,
                             style = TextStyle(
-                                fontSize = tokens.h2,
+                                fontSize = tokens.bodyLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = blackTitle,
                                 textAlign = TextAlign.Center

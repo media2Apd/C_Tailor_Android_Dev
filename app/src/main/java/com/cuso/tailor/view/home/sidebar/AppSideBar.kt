@@ -186,6 +186,7 @@ fun buildNavigationKey(menu: String, subItem: String): String {
             "Employee Management"        -> "hr_employee_management"
             "Organization Structure"    -> "hr_organization_structure"
             "Daily Attendance"           -> "hr_daily_attendance"
+            "Apply for Leave"            -> "hr_apply_leave"
             "Manual Entry"               -> "hr_attendance_manual_entry"
             "Monthly Attendance"         -> "hr_monthly_attendance"
 //            "Biometric Management"       -> "hr_attendance_biometric_management"
@@ -367,17 +368,17 @@ object SidebarConfig {
                         "Shift Management"
                     ),
                     "Leave Management" to listOf(
+                        "Leave Dashboard",
+                        "Apply for Leave",
                         "Leave Balance",
                         "Leave Approval"
                     ),
                     "Payroll Management" to listOf(
-                        "Salary Structure Master",
-                        "Employee Salary Assignment",
-                        "Payroll Processing",
-                        "Payslip Management",
-                        "Statutory Compliance",
-                        "Reimbursements & Bonus",
-                        "Loans & Advances"
+                        "Salary Templates",
+                        "Salary Components",
+                        "Reimbrsements",
+                        "Bonus & Incentive",
+                        "Bonus Approval"
                     ),
                     "Expense Management" to listOf(
                         "Approvals",

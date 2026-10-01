@@ -21,7 +21,7 @@ import com.cuso.tailor.model.sales.CustomerItem
 import com.cuso.tailor.model.sales.MeasurementItem
 import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.model.settings.SegmentItem
-import com.cuso.tailor.view.home.hr.attendance.AttendanceListScreen
+import com.cuso.tailor.view.home.hr.attendance_management.attendance.AttendanceListScreen
 import com.cuso.tailor.view.home.branch.BranchSettingsScreen
 import com.cuso.tailor.view.home.department.DepartmentSettingsScreen
 import com.cuso.tailor.view.home.designation.DesignationScreen
@@ -48,14 +48,20 @@ import com.cuso.tailor.view.home.finance.settings.AddGstSettingsScreen
 import com.cuso.tailor.view.home.finance.settings.AddTaxGroupScreen
 import com.cuso.tailor.view.home.finance.settings.GstSettingsOverviewScreen
 import com.cuso.tailor.view.home.finance.settings.TaxRatesScreen
-import com.cuso.tailor.view.home.hr.attendance.AttendanceDetailScreen
-import com.cuso.tailor.view.home.hr.employees.AllEmployeesScreen
-import com.cuso.tailor.view.home.hr.employees.EmployeeOnboardingScreen
-import com.cuso.tailor.view.home.hr.employees.ScreenMode
-import com.cuso.tailor.view.home.hr.manual_entry.ManualAttendanceEntryScreen
-import com.cuso.tailor.view.home.hr.monthly_calendar.AttendanceCalendarScreen
-import com.cuso.tailor.view.home.hr.shift.CreateNewListScreen
-import com.cuso.tailor.view.home.hr.shift.ShiftListOverviewScreen
+import com.cuso.tailor.view.home.hr.attendance_management.attendance.AttendanceDetailScreen
+import com.cuso.tailor.view.home.hr.attendance_management.employees.AllEmployeesScreen
+import com.cuso.tailor.view.home.hr.attendance_management.employees.EmployeeOnboardingScreen
+import com.cuso.tailor.view.home.hr.attendance_management.employees.ScreenMode
+import com.cuso.tailor.view.home.hr.attendance_management.manual_entry.ManualAttendanceEntryScreen
+import com.cuso.tailor.view.home.hr.attendance_management.monthly_calendar.AttendanceCalendarScreen
+import com.cuso.tailor.view.home.hr.attendance_management.shift.CreateNewListScreen
+import com.cuso.tailor.view.home.hr.attendance_management.shift.ShiftListOverviewScreen
+import com.cuso.tailor.view.home.hr.leave_management.leave_approval.LeaveApprovalScreen
+import com.cuso.tailor.view.home.hr.leave_management.apply_leave.ApplyLeaveScreen
+import com.cuso.tailor.view.home.inventory.approval.ApprovalDetailScreen
+import com.cuso.tailor.view.home.inventory.approval.ApprovalsListScreen
+import com.cuso.tailor.view.home.inventory.auto_reorder.AutoReorderScreen
+import com.cuso.tailor.view.home.inventory.auto_reorder.CreateAutoReorderRuleScreen
 import com.cuso.tailor.view.home.inventory.billing.AllBillsScreen
 import com.cuso.tailor.view.home.inventory.billing.BillPdfPreviewScreen
 import com.cuso.tailor.view.home.inventory.billing.NewVendorInvoiceScreen
@@ -161,6 +167,8 @@ import com.cuso.tailor.viewmodel.*
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedApprovalId: String? = null,
+    onApprovalIdSelected: (String?) -> Unit = {},
     selectedShiftId: String? = null,
     onShiftIdSelected: (String?) -> Unit = {},
     selectedServiceRequestId: String? = null,
@@ -363,13 +371,15 @@ fun HomeScreenRouter(
         "inventory_items_transfer_stock", "inventory_stock_location",
         "inventory_location_management", "inventory_procurement_location_management",
         "inventory_stock_location_details", "inventory_stock_location_form",
-        "inventory_safety_stock", "inventory_auto_reorder",
+        "inventory_safety_stock", "inventory_auto_reorder","inventory_auto_reorder_detail",
         "inventory_multichannel_basic_info",
         "inventory_multichannel_allocation_list",
         "inventory_multichannel_category_listing", "inventory_category_listing",
-        "inventory_approvals", "inventory_pricing_list" -> {
+        "inventory_approvals", "inventory_pricing_list","inventory_approval_detail" -> {
             InventoryMainRouter(
                 screen = screen,
+                selectedApprovalId = selectedApprovalId,
+                onApprovalIdSelected = onApprovalIdSelected,
                 selectedInventoryItemId = selectedInventoryItemId,
                 onInventoryItemIdSelected = onInventoryItemIdSelected,
                 selectedItemGroupId = selectedItemGroupId,
@@ -432,7 +442,9 @@ fun HomeScreenRouter(
         "hr_attendance_detail", "hr_monthly_attendance", "hr_daily_attendance",
         "hr_attendance_manual_entry", "hr_attendance_shift_management",
         "hr_shift_list",
-        "hr_create_shift" -> {
+        "hr_create_shift",
+        "hr_leave_approval",
+        "hr_apply_leave"   -> {
             HrRouter(
                 screen = screen,
                 hrViewModel = hrViewModel,
@@ -1632,6 +1644,8 @@ private fun FinanceRouter(
 @Composable
 private fun InventoryMainRouter(
     screen: String,
+    selectedApprovalId: String?,
+    onApprovalIdSelected: (String?) -> Unit,
     selectedInventoryItemId: String?,
     onInventoryItemIdSelected: (String?) -> Unit,
     selectedItemGroupId: String?,
@@ -1882,19 +1896,59 @@ private fun InventoryMainRouter(
             onFilterClick = { }
         )
 
-        "inventory_auto_reorder" -> {
-            onShowComingSoon("Auto Reorder Feature Coming Soon")
-            onGoBack()
-        }
+        // 1. Auto Reorder List Screen
+        "inventory_auto_reorder" -> AutoReorderScreen(
+            onBack = onGoBack,
+            onCreateNewItem = {
+                println("DEBUG_NAV: Create New Item Clicked!")
+                onNavigate("inventory_auto_reorder_detail")
+            },
+            onEditItem = { item ->
+                // Navigate to edit rule
+            },
+            onFilterClick = { }
+        )
+
+        // 2. Create Rule Screen
+        "inventory_auto_reorder_detail" -> CreateAutoReorderRuleScreen(
+            onClose = onGoBack,
+            onCreateRuleSuccess = {
+                onGoBack()
+            }
+        )
 
         "inventory_multichannel_category_listing", "inventory_category_listing" -> {
             onShowComingSoon("Multi-Channel Category Listing Coming Soon")
             onGoBack()
         }
 
-        "inventory_approvals" -> {
-            onShowComingSoon("Approvals Feature Coming Soon")
-            onGoBack()
+        // ── Approvals List Screen ──
+        "inventory_approvals" -> ApprovalsListScreen(
+            viewModel = inventoryViewModel,
+            onBack = onGoBack,
+            onItemClick = { approvalId ->
+                onApprovalIdSelected(approvalId)
+                onNavigate("inventory_approval_detail")
+            },
+            onFilterClick = { }
+        )
+
+        // ── Approval Detail Screen ──
+        "inventory_approval_detail" -> {
+            selectedApprovalId?.let { id ->
+                ApprovalDetailScreen(
+                    approvalId = id,
+                    viewModel = inventoryViewModel,
+                    onBack = {
+                        onApprovalIdSelected(null)
+                        onGoBack()
+                    },
+                    onDownloadPdf = { }
+                )
+            } ?: run {
+                // If id is null, safely navigate back to avoid blank screen
+                onGoBack()
+            }
         }
 
         "inventory_pricing_list" -> AllPricingScreen(
@@ -1913,7 +1967,7 @@ private fun InventoryMainRouter(
         }
 
         // Multi-Channel Allocation List Screen
-        "inventory_multichannel_allocation_list" -> {
+            "inventory_multichannel_allocation_list" -> {
             AllocationListScreen(
                 onClose = onGoBack,
                 onAddNew = { },
@@ -2363,6 +2417,16 @@ private fun HrRouter(
             onBreadCrumbClick = { onOpenModulesPanel("HR") },
             onHistoryClick = { }
         )
+
+        "hr_leave_approval" -> LeaveApprovalScreen(
+            onClose = onGoBack,
+            viewModel = hrViewModel
+        )
+
+        "hr_apply_leave" -> ApplyLeaveScreen(
+            onClose = onGoBack,
+            viewModel = hrViewModel
+        )
     }
 }
 
@@ -2514,10 +2578,9 @@ private fun ServicesRouter(
 
         // Service Request Details (Real API Data)
         "review_services" -> {
-            val id = selectedServiceRequestId
-            if (!id.isNullOrBlank()) {
+            if (!selectedServiceRequestId.isNullOrBlank()) {
                 ServiceRequestDetailsScreen(
-                    requestId = id,
+                    requestId = selectedServiceRequestId,
                     onBack = {
                         onServiceRequestIdSelected(null)
                         onGoBack()

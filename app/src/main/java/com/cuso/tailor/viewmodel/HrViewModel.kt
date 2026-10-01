@@ -10,11 +10,15 @@ package com.cuso.tailor.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.tailor.model.hr.ApplyLeaveRequest
 import com.cuso.tailor.model.hr.AttendanceRecord
+import com.cuso.tailor.model.hr.CreateLeaveRequest
 import com.cuso.tailor.model.hr.CreateManualAttendanceRequest
 import com.cuso.tailor.model.hr.CreateMemberRequest
 import com.cuso.tailor.model.hr.CreateShiftRequest
 import com.cuso.tailor.model.hr.CreatedMemberFullData
+import com.cuso.tailor.model.hr.LeaveRequestItemDto
+import com.cuso.tailor.model.hr.LeaveTypeItemDto
 import com.cuso.tailor.model.hr.MemberDetail
 import com.cuso.tailor.model.hr.MemberItem
 import com.cuso.tailor.model.hr.MonthlyAttendanceItem
@@ -35,6 +39,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import okhttp3.MultipartBody
 import java.io.File
 import javax.inject.Inject
 
@@ -663,6 +668,138 @@ class HrViewModel @Inject constructor(
             }.onFailure { e ->
                 onError(e.localizedMessage ?: "Failed to delete shift")
             }
+        }
+    }
+
+    //LEAVE MANAGEMENT
+
+    // ═══════════════════════════════════════════════
+// ── Leave Approval State ──
+// ═══════════════════════════════════════════════
+    private val _leaveRequests = MutableStateFlow<List<LeaveRequestItemDto>>(emptyList())
+    val leaveRequests: StateFlow<List<LeaveRequestItemDto>> = _leaveRequests.asStateFlow()
+
+    private val _isLoadingLeaveRequests = MutableStateFlow(false)
+    val isLoadingLeaveRequests: StateFlow<Boolean> = _isLoadingLeaveRequests.asStateFlow()
+
+    private val _leaveRequestsError = MutableStateFlow<String?>(null)
+    val leaveRequestsError: StateFlow<String?> = _leaveRequestsError.asStateFlow()
+
+    fun fetchLeaveRequests(status: String? = null) {
+        launchBusy {
+            _isLoadingLeaveRequests.value = true
+            _leaveRequestsError.value = null
+            val result = hrRepository.getLeaveRequests(page = 1, limit = 50, status = status)
+            result.fold(
+                onSuccess = { _leaveRequests.value = it },
+                onFailure = { e -> _leaveRequestsError.value = e.message ?: "Failed to load leave requests" }
+            )
+            _isLoadingLeaveRequests.value = false
+        }
+    }
+
+    // Unified leave status updater
+    fun updateLeaveStatus(
+        id: String,
+        status: String, // "approved" or "rejected"
+        note: String? = null,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val result = hrRepository.updateLeaveStatus(id, status, note)
+            result.fold(
+                onSuccess = { msg ->
+                    // Refresh list on status update
+                    fetchLeaveRequests()
+                    onSuccess(msg)
+                },
+                onFailure = { e ->
+                    onError(e.message ?: "Failed to update leave status")
+                }
+            )
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    // ── Leave Types & Application State ──
+    // ═══════════════════════════════════════════════
+    private val _leaveTypes = MutableStateFlow<List<LeaveTypeItemDto>>(emptyList())
+    val leaveTypes: StateFlow<List<LeaveTypeItemDto>> = _leaveTypes.asStateFlow()
+
+    private val _isLoadingLeaveTypes = MutableStateFlow(false)
+    val isLoadingLeaveTypes: StateFlow<Boolean> = _isLoadingLeaveTypes.asStateFlow()
+
+    private val _isSubmittingLeave = MutableStateFlow(false)
+    val isSubmittingLeave: StateFlow<Boolean> = _isSubmittingLeave.asStateFlow()
+
+    fun fetchLeaveTypes() {
+        viewModelScope.launch {
+            _isLoadingLeaveTypes.value = true
+            val result = hrRepository.getLeaveTypes()
+            result.fold(
+                onSuccess = { _leaveTypes.value = it },
+                onFailure = { _leaveTypes.value = emptyList() }
+            )
+            _isLoadingLeaveTypes.value = false
+        }
+    }
+
+    private val _isCreatingLeave = MutableStateFlow(false)
+    val isCreatingLeave: StateFlow<Boolean> = _isCreatingLeave.asStateFlow()
+
+    fun createLeaveRequest(
+        organizationMemberId: String,
+        leaveTypeId: String,
+        startDate: String,
+        endDate: String,
+        totalDays: Int,
+        isHalfDay: Boolean,
+        reason: String,
+        attachmentParts: List<MultipartBody.Part>,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (organizationMemberId.isBlank()) {
+            onError("Please select an employee")
+            return
+        }
+        if (leaveTypeId.isBlank()) {
+            onError("Please select a leave type")
+            return
+        }
+        if (startDate.isBlank() || endDate.isBlank()) {
+            onError("Please select start and end dates")
+            return
+        }
+        if (reason.isBlank()) {
+            onError("Please provide a reason for leave")
+            return
+        }
+
+        viewModelScope.launch {
+            _isCreatingLeave.value = true
+            val result = hrRepository.createLeaveRequest(
+                organizationMemberId = organizationMemberId,
+                leaveTypeId = leaveTypeId,
+                startDate = startDate,
+                endDate = endDate,
+                totalDays = totalDays,
+                isHalfDay = isHalfDay,
+                reason = reason,
+                attachmentParts = attachmentParts
+            )
+            result.fold(
+                onSuccess = { message ->
+                    _isCreatingLeave.value = false
+                    fetchLeaveRequests()
+                    onSuccess(message)
+                },
+                onFailure = { error ->
+                    _isCreatingLeave.value = false
+                    onError(error.message ?: "Failed to create leave request")
+                }
+            )
         }
     }
 

@@ -7,6 +7,7 @@ import com.cuso.tailor.model.inventory.AdjustmentReasonsResponse
 import com.cuso.tailor.model.inventory.AllReceivesResponse
 import com.cuso.tailor.model.inventory.AssignStockLocationRequest
 import com.cuso.tailor.model.inventory.AssignStockLocationResponse
+import com.cuso.tailor.model.inventory.AutoReorderResponse
 import com.cuso.tailor.model.inventory.BarcodeDetailResponse
 import com.cuso.tailor.model.inventory.BarcodeListResponse
 import com.cuso.tailor.model.inventory.BaseBulkResponse
@@ -15,6 +16,8 @@ import com.cuso.tailor.model.inventory.BuildBulkItemRequest
 import com.cuso.tailor.model.inventory.BulkItemDetailResponse
 import com.cuso.tailor.model.inventory.BulkItemListResponse
 import com.cuso.tailor.model.inventory.ConvertToBillResponse
+import com.cuso.tailor.model.inventory.CreateAutoReorderRuleRequest
+import com.cuso.tailor.model.inventory.CreateAutoReorderRuleResponse
 import com.cuso.tailor.model.inventory.CreateBillRequest
 import com.cuso.tailor.model.inventory.CreateBillResponse
 import com.cuso.tailor.model.inventory.CreateInventoryItemResponse
@@ -25,6 +28,7 @@ import com.cuso.tailor.model.inventory.CreateRequisitionRequest
 import com.cuso.tailor.model.inventory.CreateSupplierRequest
 import com.cuso.tailor.model.inventory.CreateWarehouseRequest
 import com.cuso.tailor.model.inventory.DecreaseStockRequest
+import com.cuso.tailor.model.inventory.DeleteAutoReorderResponse
 import com.cuso.tailor.model.inventory.DeleteBarcodeResponse
 import com.cuso.tailor.model.inventory.DeleteInventoryItemResponse
 import com.cuso.tailor.model.inventory.DeleteItemGroupResponse
@@ -71,6 +75,7 @@ import com.cuso.tailor.model.inventory.SupplierLedgerResponse
 import com.cuso.tailor.model.inventory.SupplierListResponse
 import com.cuso.tailor.model.inventory.SupplierViewOneResponse
 import com.cuso.tailor.model.inventory.TaxGroupsResponse
+import com.cuso.tailor.model.inventory.ToggleAutoReorderStatusResponse
 import com.cuso.tailor.model.inventory.TransferStockRequest
 import com.cuso.tailor.model.inventory.UpdateInventoryItemResponse
 import com.cuso.tailor.model.inventory.UpdateItemGroupResponse
@@ -955,5 +960,81 @@ interface InventoryApiService {
         @Query("search") search: String? = null,
         @Query("status") status: String? = null
     ): Response<com.cuso.tailor.model.inventory.PaymentsMadeListResponse>
+
+    // =============================================================================
+    // Auto Reorder
+    // =============================================================================
+    // Fetch all auto reorder rules
+    @GET("/api/inventory/auto-reorder/view-all")
+    suspend fun getAutoReorderRules(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20,
+        @Query("search") search: String? = null
+    ): Response<AutoReorderResponse>
+
+    // Delete an auto reorder rule
+    @DELETE("/api/inventory/auto-reorder/delete-one/{id}")
+    suspend fun deleteAutoReorderRule(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<DeleteAutoReorderResponse>
+
+    @POST("/api/inventory/auto-reorder/create")
+    suspend fun createAutoReorderRule(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: CreateAutoReorderRuleRequest
+    ): Response<CreateAutoReorderRuleResponse>
+
+    // =========================================================================
+    // APPROVALS
+    // =========================================================================
+
+    /**
+     * Get paginated list of approvals.
+     */
+    @GET("/api/inventory/approval/view-all")
+    suspend fun getApprovalsList(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<com.cuso.tailor.model.inventory.ApprovalListResponse>
+
+    /**
+     * Get single approval detail by ID.
+     */
+    @GET("/api/inventory/approval/view-one/{id}")
+    suspend fun getApprovalDetailById(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<com.cuso.tailor.model.inventory.ApprovalDetailResponse>
+
+    /**
+     * Add comment to an approval.
+     */
+    @POST("/api/inventory/approvals/{id}/comment")
+    suspend fun addApprovalComment(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: com.cuso.tailor.model.inventory.AddApprovalCommentRequest
+    ): Response<com.cuso.tailor.model.inventory.ApprovalDetailResponse>
+
+    /**
+     * Toggle active/inactive status of an auto reorder rule.
+     */
+    @PATCH("/api/inventory/auto-reorder/toggle-active/{id}")
+    suspend fun toggleAutoReorderStatus(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<ToggleAutoReorderStatusResponse>
 
 }

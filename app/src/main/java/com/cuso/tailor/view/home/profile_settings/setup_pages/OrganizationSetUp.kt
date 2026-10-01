@@ -196,25 +196,6 @@ fun SettingsScreen(
             )
         }
     }
-
-    // ── Dynamic Island Overlays ──
-    Box(modifier = Modifier.fillMaxSize()) {
-        DynamicIslandSuccess(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .zIndex(10f),
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .zIndex(10f),
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
-    }
 }
 
 // ─────────────────────────────────────────────────────────────

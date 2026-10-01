@@ -16,11 +16,14 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.model.inventory.AssignStockLocationRequest
+import com.cuso.tailor.model.inventory.AutoReorderRuleData
+import com.cuso.tailor.model.inventory.AutoReorderRuleItemDto
 import com.cuso.tailor.model.inventory.BarcodeItemDoc
 import com.cuso.tailor.model.inventory.BillCreatedData
 import com.cuso.tailor.model.inventory.BillResponseData
 import com.cuso.tailor.model.inventory.BulkItemDoc
 import com.cuso.tailor.model.inventory.CapacitySummary
+import com.cuso.tailor.model.inventory.CreateAutoReorderRuleRequest
 import com.cuso.tailor.model.inventory.CreateBillRequest
 import com.cuso.tailor.model.inventory.CreateInventoryItemResponse
 import com.cuso.tailor.model.inventory.CreateItemGroupRequest
@@ -3773,5 +3776,274 @@ class InventoryViewModel @Inject constructor(
 
     fun clearPaymentsMadeError() {
         _paymentsMadeError.value = null
+    }
+
+    // ═══════════════════════════════════════════════
+    // ── Auto Re-Order State & Operations ──
+    // ═══════════════════════════════════════════════
+    private val _autoReorderRules = MutableStateFlow<List<AutoReorderRuleItemDto>>(emptyList())
+    val autoReorderRules: StateFlow<List<AutoReorderRuleItemDto>> = _autoReorderRules.asStateFlow()
+
+    private val _isLoadingAutoReorder = MutableStateFlow(false)
+    val isLoadingAutoReorder: StateFlow<Boolean> = _isLoadingAutoReorder.asStateFlow()
+
+    private val _autoReorderError = MutableStateFlow<String?>(null)
+    val autoReorderError: StateFlow<String?> = _autoReorderError.asStateFlow()
+
+    fun fetchAutoReorderRules(search: String? = null) {
+        viewModelScope.launch {
+            _isLoadingAutoReorder.value = true
+            _autoReorderError.value = null
+            val result = inventoryRepository.getAutoReorderRules(page = 1, limit = 50, search = search)
+            result.fold(
+                onSuccess = { _autoReorderRules.value = it },
+                onFailure = { _autoReorderError.value = it.message ?: "Failed to load auto reorder rules" }
+            )
+            _isLoadingAutoReorder.value = false
+        }
+    }
+
+    fun deleteAutoReorderRule(
+        id: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val result = inventoryRepository.deleteAutoReorderRule(id)
+            result.fold(
+                onSuccess = { msg ->
+                    fetchAutoReorderRules()
+                    onSuccess(msg)
+                },
+                onFailure = { e ->
+                    onError(e.message ?: "Failed to delete auto reorder rule")
+                }
+            )
+        }
+    }
+
+    // ── Create Auto Reorder Rule State ──
+    private val _isSubmittingAutoReorder = MutableStateFlow(false)
+    val isSubmittingAutoReorder: StateFlow<Boolean> = _isSubmittingAutoReorder.asStateFlow()
+
+    private val _autoReorderActionError = MutableStateFlow<String?>(null)
+    val autoReorderActionError: StateFlow<String?> = _autoReorderActionError.asStateFlow()
+
+    private val _autoReorderActionSuccess = MutableStateFlow<String?>(null)
+    val autoReorderActionSuccess: StateFlow<String?> = _autoReorderActionSuccess.asStateFlow()
+
+    fun createAutoReorderRule(
+        request: CreateAutoReorderRuleRequest,
+        onSuccess: (AutoReorderRuleData) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingAutoReorder.value = true
+            _autoReorderActionError.value = null
+            _autoReorderActionSuccess.value = null
+
+            val result = inventoryRepository.createAutoReorderRule(request)
+            _isSubmittingAutoReorder.value = false
+
+            result.fold(
+                onSuccess = { data ->
+                    _autoReorderActionSuccess.value = "Auto reorder rule created successfully"
+                    fetchAutoReorderRules() // Refresh the rules list
+                    onSuccess(data)
+                },
+                onFailure = { error ->
+                    _autoReorderActionError.value = extractErrorMessage(error.message)
+                }
+            )
+        }
+    }
+
+    fun clearAutoReorderActionAlerts() {
+        _autoReorderActionError.value = null
+        _autoReorderActionSuccess.value = null
+    }
+
+    // =========================================================================
+    // APPROVALS STATE & OPERATIONS
+    // =========================================================================
+
+    // ── Approvals List State ──
+    private val _approvalsList = MutableStateFlow<List<com.cuso.tailor.model.inventory.ApprovalListItemDto>>(emptyList())
+    val approvalsList: StateFlow<List<com.cuso.tailor.model.inventory.ApprovalListItemDto>> = _approvalsList.asStateFlow()
+
+    private val _isLoadingApprovals = MutableStateFlow(false)
+    val isLoadingApprovals: StateFlow<Boolean> = _isLoadingApprovals.asStateFlow()
+
+    private val _isLoadingMoreApprovals = MutableStateFlow(false)
+    val isLoadingMoreApprovals: StateFlow<Boolean> = _isLoadingMoreApprovals.asStateFlow()
+
+    private val _canLoadMoreApprovals = MutableStateFlow(true)
+    val canLoadMoreApprovals: StateFlow<Boolean> = _canLoadMoreApprovals.asStateFlow()
+
+    private val _currentApprovalsPage = MutableStateFlow(1)
+    val currentApprovalsPage: StateFlow<Int> = _currentApprovalsPage.asStateFlow()
+
+    private val _approvalsError = MutableStateFlow<String?>(null)
+    val approvalsError: StateFlow<String?> = _approvalsError.asStateFlow()
+
+    private var activeApprovalsSearch: String? = null
+    private var activeApprovalsStatus: String? = null
+
+    // ── Approval Detail State ──
+    private val _selectedApprovalDetail = MutableStateFlow<com.cuso.tailor.model.inventory.ApprovalDetailData?>(null)
+    val selectedApprovalDetail: StateFlow<com.cuso.tailor.model.inventory.ApprovalDetailData?> = _selectedApprovalDetail.asStateFlow()
+
+    private val _isLoadingApprovalDetail = MutableStateFlow(false)
+    val isLoadingApprovalDetail: StateFlow<Boolean> = _isLoadingApprovalDetail.asStateFlow()
+
+    private val _approvalDetailError = MutableStateFlow<String?>(null)
+    val approvalDetailError: StateFlow<String?> = _approvalDetailError.asStateFlow()
+
+    private val _isSubmittingApprovalComment = MutableStateFlow(false)
+    val isSubmittingApprovalComment: StateFlow<Boolean> = _isSubmittingApprovalComment.asStateFlow()
+
+    fun fetchApprovals(
+        page: Int = 1,
+        limit: Int = 20,
+        search: String? = null,
+        status: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingApprovals.value = true
+            _approvalsError.value = null
+            _currentApprovalsPage.value = page
+            _canLoadMoreApprovals.value = true
+            activeApprovalsSearch = search
+            activeApprovalsStatus = status
+
+            inventoryRepository.getApprovalsList(page, limit, search, status)
+                .onSuccess { response ->
+                    _approvalsList.value = response.data
+                    val totalPages = response.pagination?.totalPages ?: 1
+                    _canLoadMoreApprovals.value = page < totalPages && response.data.isNotEmpty()
+                }
+                .onFailure { error ->
+                    _approvalsError.value = extractErrorMessage(error.message)
+                }
+
+            _isLoadingApprovals.value = false
+        }
+    }
+
+    fun loadMoreApprovals(limit: Int = 20) {
+        if (_isLoadingMoreApprovals.value || _isLoadingApprovals.value || !_canLoadMoreApprovals.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreApprovals.value = true
+            val nextPage = _currentApprovalsPage.value + 1
+
+            inventoryRepository.getApprovalsList(
+                page = nextPage,
+                limit = limit,
+                search = activeApprovalsSearch,
+                status = activeApprovalsStatus
+            ).onSuccess { response ->
+                val newItems = response.data
+                if (newItems.isNotEmpty()) {
+                    _approvalsList.update { (it + newItems).distinctBy { item -> item.id } }
+                    _currentApprovalsPage.value = nextPage
+                    val totalPages = response.pagination?.totalPages ?: nextPage
+                    _canLoadMoreApprovals.value = nextPage < totalPages
+                } else {
+                    _canLoadMoreApprovals.value = false
+                }
+            }.onFailure {
+                _canLoadMoreApprovals.value = false
+            }
+
+            _isLoadingMoreApprovals.value = false
+        }
+    }
+
+    fun fetchApprovalDetail(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingApprovalDetail.value = true
+            _approvalDetailError.value = null
+
+            inventoryRepository.getApprovalDetailById(id)
+                .onSuccess { detail ->
+                    _selectedApprovalDetail.value = detail
+                }
+                .onFailure { error ->
+                    _approvalDetailError.value = extractErrorMessage(error.message)
+                }
+
+            _isLoadingApprovalDetail.value = false
+        }
+    }
+
+    fun submitApprovalComment(id: String, text: String, onSuccess: () -> Unit = {}) {
+        if (id.isBlank() || text.isBlank()) return
+        viewModelScope.launch {
+            _isSubmittingApprovalComment.value = true
+
+            inventoryRepository.addApprovalComment(id, text.trim())
+                .onSuccess { updatedDetail ->
+                    _selectedApprovalDetail.value = updatedDetail
+                    onSuccess()
+                }
+                .onFailure { error ->
+                    _approvalDetailError.value = extractErrorMessage(error.message)
+                }
+
+            _isSubmittingApprovalComment.value = false
+        }
+    }
+
+    fun clearApprovalsAlerts() {
+        _approvalsError.value = null
+        _approvalDetailError.value = null
+    }
+
+    fun clearSelectedApprovalDetail() {
+        _selectedApprovalDetail.value = null
+        _approvalDetailError.value = null
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // AUTO REORDER STATE & OPERATIONS
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private val _isTogglingAutoReorder = MutableStateFlow(false)
+    val isTogglingAutoReorder: StateFlow<Boolean> = _isTogglingAutoReorder.asStateFlow()
+
+    /**
+     * Toggles the active/inactive status of an Auto-Reorder rule.
+     * Updates the local list optimistically upon successful API response.
+     */
+    fun toggleAutoReorderStatus(
+        id: String,
+        onSuccess: (AutoReorderRuleData) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isTogglingAutoReorder.value = true
+            val result = inventoryRepository.toggleAutoReorderStatus(id)
+            _isTogglingAutoReorder.value = false
+
+            result.fold(
+                onSuccess = { updatedItem ->
+                    // Optimistically update the item in current rules list
+                    _autoReorderRules.update { currentList ->
+                        currentList.map { item ->
+                            if (item.id == updatedItem.id) {
+                                item.copy(isActive = updatedItem.isActive)
+                            } else item
+                        }
+                    }
+                    onSuccess(updatedItem)
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    _autoReorderError.value = cleanError
+                    onError(cleanError)
+                }
+            )
+        }
     }
 }

@@ -1,5 +1,6 @@
 @file:Suppress("unused", "unusedVariable", "AssignedValueIsNeverRead", "VariableNeverRead")
-package com.cuso.tailor.view.home.hr.manual_entry
+
+package com.cuso.tailor.view.home.hr.attendance_management.manual_entry
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke

@@ -12,6 +12,8 @@ import com.cuso.tailor.model.settings.WorkPricingSegment
 import com.cuso.tailor.model.settings.WorkPricingSegmentDeserializer
 import com.cuso.tailor.model.settings.WorkPricingTaxGroup
 import com.cuso.tailor.model.settings.WorkPricingTaxGroupDeserializer
+import com.cuso.tailor.network.AuthInterceptor
+import com.cuso.tailor.network.NetworkMessageInterceptor
 import com.cuso.tailor.network.SafeListTypeAdapterFactory
 import com.cuso.tailor.network.auth.AuthApiService
 import com.cuso.tailor.network.finance.FinanceApiService
@@ -62,9 +64,13 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(
-        loggingInterceptor: HttpLoggingInterceptor
+        loggingInterceptor: HttpLoggingInterceptor,
+        authInterceptor: AuthInterceptor,
+        networkMessageInterceptor: NetworkMessageInterceptor
     ): OkHttpClient {
         return OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
+            .addInterceptor(networkMessageInterceptor)
             .addInterceptor(loggingInterceptor)
             .build()
     }

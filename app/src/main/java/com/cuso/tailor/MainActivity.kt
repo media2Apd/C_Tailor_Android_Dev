@@ -24,8 +24,12 @@ import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
@@ -42,8 +46,11 @@ import com.cuso.tailor.repository.SessionManager
 import com.cuso.tailor.ui.theme.CusoTailorTheme
 import com.cuso.tailor.ui.theme.NoRippleProvider
 import com.cuso.tailor.utils.AppLoadingManager
+import com.cuso.tailor.utils.AuthEventManager
+import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.utils.LocalIsAppBusy
 import com.cuso.tailor.view.composable.DynamicIslandError
+import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.forgot_password.ForgotUserPassword
 import com.cuso.tailor.view.forgot_password.ResetPassword
 import com.cuso.tailor.view.forgot_password.VerifyForgotPassword
@@ -70,7 +77,6 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var sessionManager: SessionManager
 
-    // Holds login state. Splash screen stays until this is not null.
     private var isLoggedIn: Boolean? = null
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -88,6 +94,31 @@ class MainActivity : ComponentActivity() {
                 val windowSizeClass = calculateWindowSizeClass(this@MainActivity)
                 val tokens = getAdaptiveTokens(windowSizeClass.widthSizeClass)
                 val isAppBusy by AppLoadingManager.busyState.collectAsState()
+
+                // State holders for Global Dynamic Island notifications
+                var globalSuccessMessage by remember { mutableStateOf<String?>(null) }
+                var globalErrorMessage by remember { mutableStateOf<String?>(null) }
+
+                // 1. Listen for global API success messages
+                LaunchedEffect(Unit) {
+                    DynamicIslandManager.successMessage.collect { message ->
+                        globalSuccessMessage = message
+                    }
+                }
+
+                // 2. Listen for global API error messages
+                LaunchedEffect(Unit) {
+                    DynamicIslandManager.errorMessage.collect { message ->
+                        globalErrorMessage = message
+                    }
+                }
+
+                // 3. Listen for session expired events
+                LaunchedEffect(Unit) {
+                    AuthEventManager.sessionExpiredEvent.collect { message ->
+                        globalErrorMessage = message
+                    }
+                }
 
                 CompositionLocalProvider(
                     LocalAppTokens provides tokens,
@@ -113,10 +144,16 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
 
-                                // 🛡 Global Dynamic Island Error Layer
+                                //  Global Dynamic Island Success Layer
+                                DynamicIslandSuccess(
+                                    message = globalSuccessMessage,
+                                    onDismiss = { globalSuccessMessage = null }
+                                )
+
+                                //  Global Dynamic Island Error Layer
                                 DynamicIslandError(
-                                    message = MyApplication.dynamicIslandMessage,
-                                    onDismiss = { MyApplication.dynamicIslandMessage = null }
+                                    message = globalErrorMessage,
+                                    onDismiss = { globalErrorMessage = null }
                                 )
                             }
                         }
@@ -135,6 +172,16 @@ fun AppNav(
 ) {
     val navController = rememberNavController()
     val startDestination = if (startLoggedIn) "home" else "login?message={message}"
+
+    // Handling session expired navigation redirection
+    LaunchedEffect(Unit) {
+        AuthEventManager.sessionExpiredEvent.collect { _ ->
+            navController.navigate("login?message=") {
+                popUpTo(0) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
 
     NavHost(
         navController = navController,

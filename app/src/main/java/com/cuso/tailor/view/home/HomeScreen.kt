@@ -116,7 +116,7 @@ import com.cuso.tailor.view.composable.FilterSectionType
 import com.cuso.tailor.view.composable.blurScrim
 import com.cuso.tailor.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceItem
 import com.cuso.tailor.view.home.finance.account_payable.suppliers.SupplierRow
-import com.cuso.tailor.view.home.hr.employees.ScreenMode
+import com.cuso.tailor.view.home.hr.attendance_management.employees.ScreenMode
 import com.cuso.tailor.view.home.sales.sales_order.OrderReviewData
 import com.cuso.tailor.view.home.sales.sales_order.toOrderReviewData
 import com.cuso.tailor.view.home.sidebar.FullSideBar
@@ -139,6 +139,7 @@ import com.cuso.tailor.viewmodel.SettingsViewModel
 import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.sales.MeasurementItem
 import com.cuso.tailor.model.settings.ProductionTemplateDto
+import com.cuso.tailor.utils.DynamicIslandManager
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 
@@ -218,6 +219,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedPurchaseOrderForDetail by remember { mutableStateOf<PurchaseOrder?>(null) }
     var selectedReceivePoId by remember { mutableStateOf<String?>(null) }
     var selectedBarcodeIdForDetail by remember { mutableStateOf<String?>(null) }
+    // Approvals State
+    var selectedApprovalId by remember { mutableStateOf<String?>(null) }
 
 
     // HR State
@@ -249,7 +252,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var modulesPanelInitialExpanded by remember { mutableStateOf<String?>(null) }
     var showQuickAccessPanel by remember { mutableStateOf(false) }
     var quickAccessBlur by remember { mutableStateOf(0.dp) }
-    var comingSoonMessage by remember { mutableStateOf<String?>(null) }
     var showExitDialog by remember { mutableStateOf(false) }
 
     val deleteState by customerViewModel.deleteState.collectAsState()
@@ -518,6 +520,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_low_stock_alerts",
             "inventory_create_purchase_order",
             "inventory_auto_reorder",
+            "inventory_auto_reorder_detail",
             "inventory_safety_stock",
             "inventory_safety_stock",
             "inventory_allocation_rules",
@@ -545,6 +548,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_multichannel_category_listing",
             "inventory_category_listing",
             "inventory_approvals",
+            "inventory_approval_detail",
 
             "inventory_payments_made",
             "inventory_payment_overview_detail",
@@ -565,6 +569,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "hr_attendance_management",
             "hr_attendance_biometric_management",
             "hr_monthly_attendance",
+            "hr_leave_approval",
+            "hr_apply_leave",
 
             // ── Logistics ──
             "logistics_delivery",
@@ -610,7 +616,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             isSalesSettingsMode = false
             navigateTo(navKey)
         } else {
-            comingSoonMessage = "Coming Soon, Stay tuned !"
+            DynamicIslandManager.showSuccess("Coming Soon, Stay tuned !")
         }
     }
 
@@ -629,10 +635,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
     LaunchedEffect(editOrderId) {
         editOrderId?.let { orderOverviewViewModel.fetchSalesOverview(it) }
-    }
-
-    LaunchedEffect(Unit) {
-        profileViewModel.loadOrganization("")
     }
 
     LaunchedEffect(token) {
@@ -674,11 +676,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     LaunchedEffect(deleteState) {
         when (val state = deleteState) {
             is CustomerDeleteState.Success -> {
-                coroutineScope.launch { snackbarHostState.showSnackbar("Customer deleted successfully") }
+                DynamicIslandManager.showSuccess("Customer deleted successfully")
                 customerViewModel.resetDeleteState()
             }
             is CustomerDeleteState.Error -> {
-                coroutineScope.launch { snackbarHostState.showSnackbar(state.message) }
+                DynamicIslandManager.showError(state.message)
                 customerViewModel.resetDeleteState()
             }
             else -> {}
@@ -720,6 +722,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 "measurements_available_view", "measurement_management_view" -> selectedMeasurementItem = null
                 "finance_ledger" -> selectedLedgerAccountId = null
                 "finance_supplier_detail" -> selectedSupplier = null
+                "inventory_approval_detail" -> selectedApprovalId = null
                 "inventory_item_detail" -> selectedInventoryItemId = null
                 "inventory_create_purchase_order" -> selectedLowStockItem = null
                 "inventory_create_item_group" -> selectedItemGroupId = null
@@ -890,6 +893,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+                            selectedApprovalId = selectedApprovalId,
+                            onApprovalIdSelected = { selectedApprovalId = it },
                             selectedServiceRequestId = selectedServiceRequestId,
                             onServiceRequestIdSelected = { selectedServiceRequestId = it },
                             selectedOpportunityId = selectedOpportunityId,
@@ -923,7 +928,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                 modulesPanelInitialExpanded = it
                                 showModulesPanel = true
                             },
-                            onShowComingSoon = { comingSoonMessage = it },
+                            onShowComingSoon = { DynamicIslandManager.showSuccess(it) },
                             onSalesSettingsModeChange = { isSalesSettingsMode = it },
                             selectedCustomer = selectedCustomer,
                             onCustomerSelected = { selectedCustomer = it },
@@ -1044,14 +1049,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 }
             },
             onBlurScrimChange = { radius, _ -> quickAccessBlur = radius }
-        )
-
-        DynamicIslandSuccess(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 100.dp),
-            message = comingSoonMessage,
-            onDismiss = { comingSoonMessage = null }
         )
     }
 }

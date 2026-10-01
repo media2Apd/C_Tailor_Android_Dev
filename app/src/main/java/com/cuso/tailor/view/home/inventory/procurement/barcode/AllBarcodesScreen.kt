@@ -2,7 +2,6 @@
 
 package com.cuso.tailor.view.home.inventory.procurement.barcode
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,18 +24,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.QrCode2
-import androidx.compose.material.icons.filled.ToggleOn
-import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -86,6 +80,7 @@ fun AllBarcodesScreen(
 
     val listState = rememberLazyListState()
 
+    // Debounced search query trigger
     var isInitialized by remember { mutableStateOf(false) }
     LaunchedEffect(searchQuery) {
         if (!isInitialized) {
@@ -97,6 +92,7 @@ fun AllBarcodesScreen(
         }
     }
 
+    // Infinite scroll pagination listener
     LaunchedEffect(listState, canLoadMore, searchQuery) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
@@ -117,6 +113,7 @@ fun AllBarcodesScreen(
             }
     }
 
+    // Confirmation dialog for barcode deletion
     itemToDelete?.let { barcodeDoc ->
         DeleteModel(
             title = "Delete Barcode",
@@ -137,57 +134,40 @@ fun AllBarcodesScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Primary_background)
+            .background(Color.Transparent)
     ) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            topBar = {
+        FabScaffold(
+            fab = FabConfig(
+                label = "Create Barcode",
+                icon = Icons.Default.Add,
+                onClick = onCreateBarcode
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
+            ) {
+                // Header Bar with Back Button
                 TitleBar(
                     title = "All Barcodes",
                     onClose = onClose
                 )
-            },
-            floatingActionButton = {
-                ExtendedFloatingActionButton(
-                    onClick = onCreateBarcode,
-                    containerColor = Primary,
-                    contentColor = whiteBg,
-                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                    modifier = Modifier.height(tokens.buttonHeight)
-                ) {
-                    Text(
-                        text = "Create Barcode",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = whiteBg
-                    )
-                    Spacer(Modifier.width(tokens.extraPadding * 0.4f))
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Create",
-                        tint = whiteBg,
-                        modifier = Modifier.size(tokens.iconSize)
-                    )
-                }
-            }
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            ) {
+
+                Spacer(Modifier.height(tokens.extraPadding * 0.4f))
+
+                // Search Bar with Filter Option
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
                     placeholder = "Search Barcodes or SKU...",
-                    showFilterIcon = true,
                     onFilterClick = { },
                     height = tokens.fieldHeight * 1.1f
                 )
 
                 HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 1.dp)
 
+                // UI State Handler: Loading, Error, Empty, or Content List
                 when {
                     isLoading && barcodeList.isEmpty() -> {
                         ListSkeleton()
@@ -227,13 +207,14 @@ fun AllBarcodesScreen(
                                 Text(
                                     text = "No Barcodes Found",
                                     fontSize = tokens.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontWeight = FontWeight.Medium,
                                     color = TextPrimary
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     text = "Generate your first product barcode",
                                     fontSize = tokens.caption,
+                                    fontWeight = FontWeight.Normal,
                                     color = mutedText
                                 )
                             }
@@ -278,6 +259,7 @@ fun AllBarcodesScreen(
             }
         }
 
+        // Dynamic Island Notifications
         DynamicIslandSuccess(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -318,7 +300,6 @@ private fun BarcodeCardItem(
         listOf(
             MenuAction(
                 label = "View Details",
-                icon = Icons.Default.Visibility,
                 tint = Primary,
                 onClick = onClick
             ),
@@ -329,7 +310,6 @@ private fun BarcodeCardItem(
             ),
             MenuAction(
                 label = "Delete",
-                icon = Icons.Default.Delete,
                 tint = redText,
                 textColor = redText,
                 onClick = onDeleteClick
@@ -350,7 +330,7 @@ private fun BarcodeCardItem(
                 .fillMaxWidth()
                 .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.9f)
         ) {
-            // ── Top Row: Barcode Chip, Status Indicator, and Menu ──
+            // Top Row: Barcode Chip, Status Badge, and Context Menu
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -364,7 +344,7 @@ private fun BarcodeCardItem(
                     Text(
                         text = barcodeNum,
                         fontSize = tokens.caption,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Medium,
                         color = title_color
                     )
                 }
@@ -375,7 +355,7 @@ private fun BarcodeCardItem(
                     modifier = Modifier
                         .clip(RoundedCornerShape(tokens.cardCornerRadius))
                         .background(if (isActive) greenBg else redBg)
-                        .padding(horizontal = tokens.extraPadding * 0.6f, vertical = 3.dp)
+                        .padding(horizontal = tokens.extraPadding * 0.6f, vertical = 0.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
@@ -406,7 +386,7 @@ private fun BarcodeCardItem(
             HorizontalDivider(color = grey_border.copy(alpha = 0.4f), thickness = 0.8.dp)
             Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
-            // ── Product Title & Category Tag ──
+            // Product Name & Category Chip
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -415,7 +395,7 @@ private fun BarcodeCardItem(
                 Text(
                     text = productName,
                     fontSize = tokens.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = title_color
                 )
 
@@ -436,14 +416,14 @@ private fun BarcodeCardItem(
 
             Spacer(Modifier.height(tokens.extraPadding * 0.9f))
 
-            // ── Grid Row 1: SKU & Variant ──
+            // Grid Row 1: SKU & Variant
             Row(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("SKU", fontSize = tokens.bodySmall, color = mutedText)
+                    Text("SKU", fontSize = tokens.bodySmall, color = mutedText, fontWeight = FontWeight.Normal)
                     Text(skuCode, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
                 }
                 Spacer(Modifier.width(tokens.screenPadding * 1.2f))
@@ -452,7 +432,7 @@ private fun BarcodeCardItem(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Variant", fontSize = tokens.bodySmall, color = mutedText)
+                    Text("Variant", fontSize = tokens.bodySmall, color = mutedText, fontWeight = FontWeight.Normal)
                     Text(variantLabel, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
                 }
             }
@@ -461,14 +441,14 @@ private fun BarcodeCardItem(
             DashedSeparator(color = grey_border.copy(alpha = 0.6f))
             Spacer(Modifier.height(tokens.extraPadding * 0.6f))
 
-            // ── Grid Row 2: Type & Created Date ──
+            // Grid Row 2: Type & Created Date
             Row(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Type", fontSize = tokens.bodySmall, color = mutedText)
+                    Text("Type", fontSize = tokens.bodySmall, color = mutedText, fontWeight = FontWeight.Normal)
                     Text(barcodeType, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
                 }
                 Spacer(Modifier.width(tokens.screenPadding * 1.2f))
@@ -477,7 +457,7 @@ private fun BarcodeCardItem(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Created", fontSize = tokens.bodySmall, color = mutedText)
+                    Text("Created", fontSize = tokens.bodySmall, color = mutedText, fontWeight = FontWeight.Normal)
                     Text(formattedDate, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
                 }
             }
@@ -486,7 +466,7 @@ private fun BarcodeCardItem(
             DashedSeparator(color = grey_border.copy(alpha = 0.6f))
             Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
-            // ── Footer Row: Warehouse & View Details ──
+            // Footer Row: Warehouse Name & Details Trigger
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -503,6 +483,7 @@ private fun BarcodeCardItem(
                     Text(
                         text = warehouseName,
                         fontSize = tokens.bodySmall,
+                        fontWeight = FontWeight.Normal,
                         color = mutedText
                     )
                 }
@@ -510,7 +491,7 @@ private fun BarcodeCardItem(
                 Text(
                     text = "View Details",
                     fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = Primary,
                     modifier = Modifier.clickable { onClick() }
                 )
@@ -520,7 +501,7 @@ private fun BarcodeCardItem(
 }
 
 /**
- * Draws a subtle dashed line separator using custom Canvas draw scope.
+ * Custom dashed line divider canvas scope.
  */
 @Composable
 private fun DashedSeparator(color: Color) {
@@ -539,7 +520,7 @@ private fun DashedSeparator(color: Color) {
 }
 
 /**
- * Formats standard ISO date timestamps into DD/MM/YYYY format to match reference UI.
+ * Formats standard ISO timestamp into DD/MM/YYYY format.
  */
 private fun formatToSlashDate(rawDate: String?): String {
     if (rawDate.isNullOrBlank()) return "14/03/2026"

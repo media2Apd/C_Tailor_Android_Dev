@@ -1,8 +1,12 @@
 package com.cuso.tailor.network.hr
 
+import com.cuso.tailor.model.hr.ApplyLeaveRequest
+import com.cuso.tailor.model.hr.ApplyLeaveResponse
 import com.cuso.tailor.model.hr.AttendanceApproveRequest
 import com.cuso.tailor.model.hr.AttendanceApproveResponse
 import com.cuso.tailor.model.hr.AttendanceResponse
+import com.cuso.tailor.model.hr.CreateLeaveRequest
+import com.cuso.tailor.model.hr.CreateLeaveResponse
 import com.cuso.tailor.model.hr.CreateManualAttendanceRequest
 import com.cuso.tailor.model.hr.CreateManualAttendanceResponse
 import com.cuso.tailor.model.hr.CreateMemberRequest
@@ -11,18 +15,24 @@ import com.cuso.tailor.model.hr.CreateShiftRequest
 import com.cuso.tailor.model.hr.CreateShiftResponse
 import com.cuso.tailor.model.hr.DeleteProfilePictureResponse
 import com.cuso.tailor.model.hr.GenericApiResponse
+import com.cuso.tailor.model.hr.LeaveActionResponse
+import com.cuso.tailor.model.hr.LeaveRequestsResponse
+import com.cuso.tailor.model.hr.LeaveTypeResponse
 import com.cuso.tailor.model.hr.MemberDetailResponse
 import com.cuso.tailor.model.hr.MemberListResponse
 import com.cuso.tailor.model.hr.MonthlyAttendanceResponse
 import com.cuso.tailor.model.hr.RoleListResponse
 import com.cuso.tailor.model.hr.ShiftDetailResponse
 import com.cuso.tailor.model.hr.ShiftListResponse
+import com.cuso.tailor.model.hr.UpdateLeaveStatusRequest
+import com.cuso.tailor.model.hr.UpdateLeaveStatusResponse
 import com.cuso.tailor.model.sales.StaffResponse
 import com.cuso.tailor.model.hr.UpdateMemberRequest
 import com.cuso.tailor.model.hr.UpdateShiftRequest
 import com.cuso.tailor.model.hr.UpdateShiftResponse
 import com.cuso.tailor.model.hr.UploadProfilePictureResponse
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -167,5 +177,43 @@ interface HrApiService {
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<GenericApiResponse>
+
+    //LEAVE MANAGEMENT
+
+    // Fetch all leave requests
+    @GET("/api/hr/leave-request/by-status/pending")
+    suspend fun getLeaveRequests(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("status") status: String? = null
+    ): Response<LeaveRequestsResponse>
+
+    // Update leave request status (Approve / Reject)
+    @PATCH("/api/hr/leave-request/status/{id}")
+    suspend fun updateLeaveStatus(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: UpdateLeaveStatusRequest
+    ): Response<UpdateLeaveStatusResponse>
+
+    // Fetch all configured leave types
+    @GET("/api/hr/leave-type/view-all")
+    suspend fun getLeaveTypes(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String
+    ): Response<LeaveTypeResponse>
+
+    // Create a new leave request
+    @Multipart
+    @POST("/api/hr/leave-request/create")
+    suspend fun createLeaveRequest(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @PartMap partMap: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part attachments: List<MultipartBody.Part>?
+    ): Response<CreateLeaveResponse>
 
 }

@@ -1,5 +1,6 @@
 @file:Suppress("unused","AssignedValueIsNeverRead")
-package com.cuso.tailor.view.home.hr.attendance
+
+package com.cuso.tailor.view.home.hr.attendance_management.attendance
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background

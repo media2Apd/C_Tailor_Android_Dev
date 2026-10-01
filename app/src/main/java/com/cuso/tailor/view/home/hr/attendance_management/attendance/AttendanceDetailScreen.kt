@@ -9,7 +9,7 @@
     "unusedvariable"
 )
 
-package com.cuso.tailor.view.home.hr.attendance
+package com.cuso.tailor.view.home.hr.attendance_management.attendance
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

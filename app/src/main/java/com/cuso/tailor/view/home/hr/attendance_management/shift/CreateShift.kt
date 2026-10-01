@@ -1,4 +1,4 @@
-package com.cuso.tailor.view.home.hr.shift
+package com.cuso.tailor.view.home.hr.attendance_management.shift
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -77,7 +77,7 @@ fun CreateNewListScreen(
     }
 
     Scaffold(
-        containerColor = whiteBg,
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0),
         topBar = {
             TitleBar(
@@ -88,15 +88,13 @@ fun CreateNewListScreen(
         bottomBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = whiteBg,
-                shadowElevation = 8.dp,
-                border = BorderStroke(1.dp, grey_border)
+                color = Color.Transparent,
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = tokens.screenPadding, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(100.dp)
                 ) {
                     OutlinedButton(
                         onClick = onClose,
@@ -155,20 +153,16 @@ fun CreateNewListScreen(
                         },
                         enabled = !isBusy && !isLoadingDetail,
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary, disabledContainerColor = disabled),
                         modifier = Modifier
                             .weight(1f)
                             .height(tokens.buttonHeight)
                     ) {
                         if (isBusy) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
+                           CirculerProgressIndicatorSmall()
                         } else {
                             Text(
-                                text = if (isEditMode) "Update Shift" else "Submit Request",
+                                text = if (isEditMode) "Update" else "Submit",
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color.White
@@ -193,7 +187,7 @@ fun CreateNewListScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .background(whiteBg)
+                    .background(Color.Transparent)
             ) {
                 Column(
                     modifier = Modifier

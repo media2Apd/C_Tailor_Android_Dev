@@ -9,7 +9,7 @@
     "VariableNeverRead"
 )
 
-package com.cuso.tailor.view.home.hr.employees
+package com.cuso.tailor.view.home.hr.attendance_management.employees
 
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -79,6 +79,7 @@ import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.toIsoDate
 import com.cuso.tailor.viewmodel.*
 import com.yalantis.ucrop.UCrop
+import kotlinx.coroutines.delay
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -582,7 +583,7 @@ fun EmployeeOnboardingScreen(
                 topError = null
                 topSuccess = if (mode == ScreenMode.EDIT) "Member updated successfully" else "Employee created successfully"
                 hrViewModel.resetCreateMemberState()
-                kotlinx.coroutines.delay(800)
+                delay(800)
                 hrViewModel.fetchMembers()
                 if (mode == ScreenMode.EDIT) onUpdateEmployee() else onCreateEmployee()
                 onDismiss()
@@ -593,7 +594,7 @@ fun EmployeeOnboardingScreen(
                     topError = null
                     topSuccess = "Member updated successfully"
                     hrViewModel.resetCreateMemberState()
-                    kotlinx.coroutines.delay(800)
+                    delay(800)
                     hrViewModel.fetchMembers()
                     if (mode == ScreenMode.EDIT) onUpdateEmployee() else onCreateEmployee()
                     onDismiss()

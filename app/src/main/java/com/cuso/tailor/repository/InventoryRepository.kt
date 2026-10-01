@@ -72,8 +72,11 @@ import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 import androidx.core.graphics.scale
+import com.cuso.tailor.model.inventory.AutoReorderRuleData
+import com.cuso.tailor.model.inventory.AutoReorderRuleItemDto
 import com.cuso.tailor.model.inventory.BillPaymentData
 import com.cuso.tailor.model.inventory.BillResponseData
+import com.cuso.tailor.model.inventory.CreateAutoReorderRuleRequest
 import com.cuso.tailor.model.inventory.CreateBillRequest
 import com.cuso.tailor.model.inventory.PaymentTermDto
 import com.cuso.tailor.model.inventory.PurchaseOrderDetailData
@@ -2021,4 +2024,161 @@ class InventoryRepository @Inject constructor(
         }
     }
 
+    // =============================================================================
+    // Auto Reorder
+    // =============================================================================
+
+    // Fetch auto reorder rules from API
+    suspend fun getAutoReorderRules(
+        page: Int = 1,
+        limit: Int = 20,
+        search: String? = null
+    ): Result<List<AutoReorderRuleItemDto>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getAutoReorderRules(accessToken,csrfToken,page, limit, search)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch auto reorder rules"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Delete an auto reorder rule
+    suspend fun deleteAutoReorderRule(id: String): Result<String> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.deleteAutoReorderRule(accessToken,csrfToken,id)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.message)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to delete auto reorder rule"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    //create reorder
+    suspend fun createAutoReorderRule(
+        request: CreateAutoReorderRuleRequest
+    ): Result<AutoReorderRuleData> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.createAutoReorderRule(accessToken, csrfToken, request)
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: response.body()?.message ?: "Failed to create rule"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // =========================================================================
+    // APPROVALS
+    // =========================================================================
+
+    suspend fun getApprovalsList(
+        page: Int = 1,
+        limit: Int = 20,
+        search: String? = null,
+        status: String? = null
+    ): Result<com.cuso.tailor.model.inventory.ApprovalListResponse> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getApprovalsList(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search,
+                status = status
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to fetch approvals")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getApprovalDetailById(id: String): Result<com.cuso.tailor.model.inventory.ApprovalDetailData> =
+        withContext(Dispatchers.IO) {
+            try {
+                val (accessToken, csrfToken) = getAuthHeaders()
+                val response = inventoryApi.getApprovalDetailById(
+                    token = accessToken,
+                    csrfToken = csrfToken,
+                    id = id
+                )
+
+                if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                    Result.success(response.body()!!.data!!)
+                } else {
+                    Result.failure(Exception(extractErrorMessage(response, "Failed to fetch approval details")))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun addApprovalComment(
+        id: String,
+        text: String
+    ): Result<com.cuso.tailor.model.inventory.ApprovalDetailData> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val request = com.cuso.tailor.model.inventory.AddApprovalCommentRequest(text = text)
+            val response = inventoryApi.addApprovalComment(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id,
+                request = request
+            )
+
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to post comment")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Toggles the active/inactive status of an auto-reorder rule by ID.
+     */
+    suspend fun toggleAutoReorderStatus(id: String): Result<AutoReorderRuleData> =
+        withContext(Dispatchers.IO) {
+            try {
+                val (accessToken, csrfToken) = getAuthHeaders()
+                val response = inventoryApi.toggleAutoReorderStatus(
+                    token = accessToken,
+                    csrfToken = csrfToken,
+                    id = id
+                )
+                val body = response.body()
+
+                if (response.isSuccessful && body?.success == true && body.data != null) {
+                    Result.success(body.data)
+                } else {
+                    val errorMsg = response.errorBody()?.string()
+                        ?: body?.message
+                        ?: "Failed to toggle auto reorder rule status"
+                    Result.failure(Exception(errorMsg))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 }

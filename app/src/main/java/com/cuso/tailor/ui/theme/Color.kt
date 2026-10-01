@@ -21,14 +21,12 @@ val whiteBg = Color.White
 val light_blue = Color(0xFFf9fbff)
 val background_light_purple = Color(0xFFEEECFC)
 val lightGray = Color(0xFFF2F2F2)
-
 val headerGrey = Color(0xFF64748B)
 val headerBg =Color(0xFFf9fbfd)
 val PanelBg = Color(0xFFF7F7FA)
 val modelBg = Color(0xfff8f9ff)
 val quickaccessBg = Color(0xFFDCE9FF)
 val cardBgLight = Color(0xFFFCFDFF)
-
 val badgeGrey = Color(0xFFF8FAFC)
 val transactionSheetBg = Color(0xFFE2EDFF)
 
@@ -47,10 +45,8 @@ val close_color = headerGrey
 val textSubdued = Color(0xFF334155)
 val iconMuted = Color(0xFF94A3B8)
 val transactionSheetTint = Color(0xFF93B3EC)
-
 // login / signup screen text
 val TextLog = Color(0xFF374151)
-
 // font size constant
 val title_font = 24.sp
 
@@ -64,33 +60,25 @@ val modelBorder = Color(0xffe8eaf4)
 val sectionBorder = Color(0xFFE2E8F0)
 val light_grey = Color(0xFFF3F4F6)
 
-
 // ===========================================================
 // STATUS COLORS - Success / Error / Warning states
 // (each has text + bg + optional dark variant)
 // ===========================================================
-
 // Success / Green
 val greentext = Color(0xFF0AB83E)
 val greenBg = Color(0xFFDBFCE7)
 val darkGreenBg = Color(0xFF16A34A)
 val complete_button_bg = Color(0xFF10B981)
-
 // Error / Red
 val redText = Color(0xFFBB3838)
 val redBg = Color(0xFFFEE2E2)
-
 // Warning / Yellow
 val yellowText = Color(0xFFD97706)
 val yellowBg = Color(0xFFFFFBEB)
-
 // Orange
 val orangeBg = Color(0xFFFDEFE0)
 val orangeText =Color(0xFFE08A2C)
 val darkPurple = Color(0xFF1E3A8A)
-
-
-
 
 // ===========================================================
 // ACTIVITY FEED COLORS - Activity icons/badges (text + bg pairs)
@@ -98,18 +86,15 @@ val darkPurple = Color(0xFF1E3A8A)
 val activity_brown = Color(0xFF7C2D12)
 val activity_green = Color(0xFF14532D)
 val activity_purple = Color(0xFF1E3A8A)
-
 val activity_purple_bg = Color(0xFFEFF6FF)
 val activity_green_bg = Color(0xFFF0FDF4)
 val activity_orange_bg = Color(0xFFFFFBEB)
-
 
 // ===========================================================
 // DISABLED / MISC UTILITY COLORS
 // ===========================================================
 val disabled = Color(0xFFC7D2FE)
 val statLogoBg = Color(0xff424656)
-
 
 // ===========================================================
 // MATERIAL DEFAULT PALETTE (Compose template defaults)
@@ -119,10 +104,7 @@ val PurpleGrey80 = Color(0xFFCCC2DC)
 val Pink80 = Color(0xFFEFB8C8)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
-
 val grey_border = Color(0xFFF1F5F9)
 val dividerColor = grey_border
 val modelGray = grey_border
-
-
 val title_border = Color(0xFFF0F0F0)

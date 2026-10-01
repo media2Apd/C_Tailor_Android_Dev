@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package com.cuso.tailor.view.home.hr.employees
+package com.cuso.tailor.view.home.hr.attendance_management.employees
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn

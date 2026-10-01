@@ -1,4 +1,4 @@
-package com.cuso.tailor.view.home.hr.monthly_calendar
+package com.cuso.tailor.view.home.hr.attendance_management.monthly_calendar
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,11 +26,13 @@ import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.viewmodel.HrViewModel
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -39,10 +42,10 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 enum class DayStatus(val color: Color, val label: String) {
-    PRESENT(Color(0xFF10B981), "Present"),
-    ABSENT(Color(0xFFEF4444), "Absent"),
-    LATE(Color(0xFFF59E0B), "Late"),
-    LEAVE(Color(0xFF3B82F6), "Leave"),
+    PRESENT(complete_button_bg, "Present"),
+    ABSENT(redText, "Absent"),
+    LATE(orangeText, "Late"),
+    LEAVE(BluePrimary, "Leave"),
     NONE(Color.Transparent, "")
 }
 
@@ -153,13 +156,12 @@ fun buildMonthCells(
 @Composable
 fun AttendanceCalendarScreen(
     onClose: () -> Unit = {},
-    hrViewModel: com.cuso.tailor.viewmodel.HrViewModel = androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel()
+    hrViewModel: HrViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
     var selectedView by remember { mutableStateOf("Calendar") }
     var monthDropdownOpen by remember { mutableStateOf(false) }
 
-    // Dropdown Employee states
     var employeeDropdownOpen by remember { mutableStateOf(false) }
     val members by hrViewModel.members.collectAsState()
     var selectedEmployeeName by remember { mutableStateOf("") }
@@ -170,16 +172,12 @@ fun AttendanceCalendarScreen(
     val monthFmt = remember { DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH) }
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
 
-    // API attendance data
     val apiAttendanceList by hrViewModel.monthlyAttendance.collectAsState()
-    val isLoading by hrViewModel.isLoadingMonthlyAttendance.collectAsState()
 
-    // Load initial members list
     LaunchedEffect(Unit) {
         hrViewModel.fetchMembers(limit = 100)
     }
 
-    // Auto-select first member
     LaunchedEffect(members) {
         if (members.isNotEmpty() && selectedEmployeeId == null) {
             val first = members.first()
@@ -188,7 +186,6 @@ fun AttendanceCalendarScreen(
         }
     }
 
-    // Trigger API whenever selected employee or month changes
     LaunchedEffect(selectedEmployeeId, currentMonth) {
         val empId = selectedEmployeeId
         if (!empId.isNullOrBlank()) {
@@ -200,7 +197,7 @@ fun AttendanceCalendarScreen(
         }
     }
 
-    // Convert API records into a map keyed by LocalDate
+    // Map API attendance records by date
     val records: Map<LocalDate, AttendanceRecord> = remember(apiAttendanceList) {
         apiAttendanceList.mapNotNull { item ->
             val localDate = parseIsoToLocalDate(item.date) ?: return@mapNotNull null
@@ -227,7 +224,7 @@ fun AttendanceCalendarScreen(
         }.toMap()
     }
 
-    // Build items for the List View
+    // Build items for the List View matching API records
     val listItems: List<AttendanceListItem> = remember(currentMonth, apiAttendanceList) {
         val daysInMonth = currentMonth.lengthOfMonth()
         val apiMap = apiAttendanceList.mapNotNull { item ->
@@ -244,7 +241,8 @@ fun AttendanceCalendarScreen(
             if (item != null) {
                 val isAbsent = item.status.equals("absent", ignoreCase = true)
                 val isLeave = item.status.equals("leave", ignoreCase = true)
-                val isLate = item.isLate
+                val isLate = item.isLate || item.status.equals("late", ignoreCase = true)
+                val isPresent = item.status.equals("present", ignoreCase = true)
 
                 val inPunch = item.punches.firstOrNull { it.type.equals("in", ignoreCase = true) }?.time
                 val outPunch = item.punches.lastOrNull { it.type.equals("out", ignoreCase = true) }?.time
@@ -253,10 +251,11 @@ fun AttendanceCalendarScreen(
                 val outFormatted = parseTimeToAmPm(outPunch)
 
                 val (statusText, statusColor) = when {
-                    isLeave -> "Leave" to Color(0xFF3B82F6)
-                    isAbsent -> "Absent" to Color(0xFFEF4444)
-                    isLate -> "Late" to Color(0xFFF59E0B)
-                    else -> "Present" to Color(0xFF2563EB)
+                    isLeave -> "Leave" to BluePrimary
+                    isAbsent -> "Absent" to redText
+                    isLate -> "Late" to orangeText
+                    isPresent -> "Present" to complete_button_bg
+                    else -> (item.status?.replaceFirstChar { it.uppercase() } ?: "—") to iconMuted
                 }
 
                 val timeRangeText = when {
@@ -283,7 +282,7 @@ fun AttendanceCalendarScreen(
                         dayOfMonth = day,
                         dayOfWeek = dayOfWeekStr,
                         statusText = "Week Off",
-                        statusColor = Color(0xFF64748B),
+                        statusColor = headerGrey,
                         timeRangeText = "No punch records",
                         workedTimeText = "0m",
                         isWeekOff = true
@@ -293,8 +292,8 @@ fun AttendanceCalendarScreen(
                         date = date,
                         dayOfMonth = day,
                         dayOfWeek = dayOfWeekStr,
-                        statusText = "Absent",
-                        statusColor = Color(0xFFEF4444),
+                        statusText = "—",
+                        statusColor = iconMuted,
                         timeRangeText = "No punch records",
                         workedTimeText = "0m",
                         isWeekOff = false
@@ -306,7 +305,6 @@ fun AttendanceCalendarScreen(
 
     val calendarDays = remember(currentMonth, records) { buildMonthCells(currentMonth, records) }
 
-    // Summary calculation from API data
     val monthRecords = remember(currentMonth, records) {
         records.filterKeys { YearMonth.from(it) == currentMonth }.values
     }
@@ -332,26 +330,26 @@ fun AttendanceCalendarScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            contentPadding = PaddingValues(bottom = 24.dp)
+            contentPadding = PaddingValues(bottom = tokens.screenPadding)
         ) {
-            // Section Title & Description
             item {
                 Column(
                     modifier = Modifier.padding(
                         horizontal = tokens.screenPadding,
-                        vertical = 8.dp
+                        vertical = tokens.extraPadding * 0.5f
                     )
                 ) {
                     Text(
                         text = "Monthly Attendance Calendar",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Medium,
                         color = title_color
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = "Visualize team performance and presence schedules.",
                         fontSize = tokens.caption,
+                        fontWeight = FontWeight.Normal,
                         color = headerGrey
                     )
                 }
@@ -362,26 +360,26 @@ fun AttendanceCalendarScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = tokens.screenPadding, vertical = 6.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .border(1.dp, grey_border, RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF8FAFC))
+                        .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.4f)
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius))
+                        .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius))
+                        .background(whiteBg)
                         .padding(4.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxWidth()) {
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (selectedView == "List View") Color(0xFFE0E7FF) else Color.Transparent)
+                                .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.7f))
+                                .background(if (selectedView == "List View") primary_light else Color.Transparent)
                                 .clickable { selectedView = "List View" }
-                                .padding(vertical = 10.dp),
+                                .padding(vertical = tokens.extraPadding * 0.6f),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "List View",
+                                text = "List View",
                                 fontSize = tokens.bodySmall,
-                                fontWeight = if (selectedView == "List View") FontWeight.SemiBold else FontWeight.Medium,
+                                fontWeight = FontWeight.Medium,
                                 color = if (selectedView == "List View") Primary else headerGrey
                             )
                         }
@@ -389,16 +387,16 @@ fun AttendanceCalendarScreen(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (selectedView == "Calendar") Color(0xFFE0E7FF) else Color.Transparent)
+                                .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.7f))
+                                .background(if (selectedView == "Calendar") primary_light else Color.Transparent)
                                 .clickable { selectedView = "Calendar" }
-                                .padding(vertical = 10.dp),
+                                .padding(vertical = tokens.extraPadding * 0.6f),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "Calendar",
+                                text = "Calendar",
                                 fontSize = tokens.bodySmall,
-                                fontWeight = if (selectedView == "Calendar") FontWeight.SemiBold else FontWeight.Medium,
+                                fontWeight = FontWeight.Medium,
                                 color = if (selectedView == "Calendar") Primary else headerGrey
                             )
                         }
@@ -411,41 +409,41 @@ fun AttendanceCalendarScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = tokens.screenPadding, vertical = 6.dp)
+                        .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.4f)
                 ) {
                     OutlinedButton(
-                        onClick = { /* Export action */ },
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.5.dp, Primary),
+                        onClick = { },
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.8f),
+                        border = BorderStroke(1.dp, Primary),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(42.dp),
+                            .height(tokens.buttonHeight),
                         colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
                     ) {
                         Icon(
                             imageVector = Icons.Default.FileDownload,
                             contentDescription = null,
                             tint = Primary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(tokens.iconSize)
                         )
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(tokens.extraPadding * 0.8f))
                         Text(
                             text = "Export Report",
                             fontSize = tokens.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Medium,
                             color = Primary
                         )
                     }
                 }
             }
 
-            // Month Dropdown & Employee Dropdown
+            // Month & Employee Dropdown Section
             item {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = tokens.screenPadding, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.4f),
+                    verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
                 ) {
                     FormDropdown(
                         label = "Month",
@@ -478,7 +476,7 @@ fun AttendanceCalendarScreen(
                 }
             }
 
-            // Conditional View Rendering: List View vs Calendar View
+            // View Section (List View vs Calendar Grid)
             if (selectedView == "List View") {
                 item {
                     AttendanceListViewCard(
@@ -487,56 +485,56 @@ fun AttendanceCalendarScreen(
                     )
                 }
             } else {
-                // Status Filters Container
+                // Status Filter Legend Header
                 item {
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = tokens.screenPadding, vertical = 8.dp),
-                        shape = RoundedCornerShape(10.dp),
+                            .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.5f),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius),
                         border = BorderStroke(1.dp, grey_border),
                         color = whiteBg
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        Column(modifier = Modifier.padding(tokens.extraPadding * 0.8f)) {
                             Text(
-                                "STATUS FILTERS",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
+                                text = "STATUS FILTERS",
+                                fontSize = tokens.label,
+                                fontWeight = FontWeight.Medium,
                                 color = headerGrey
                             )
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.6f))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
                             ) {
                                 listOf(
-                                    Triple("Present", Color(0xFF10B981), Color(0xFFF0FDF4)),
-                                    Triple("Absent", Color(0xFFEF4444), Color(0xFFFEF2F2)),
-                                    Triple("Late", Color(0xFFF59E0B), Color(0xFFFFFBEB)),
-                                    Triple("Leave", Color(0xFF3B82F6), Color(0xFFEFF6FF))
+                                    Triple("Present", complete_button_bg, greenBg),
+                                    Triple("Absent", redText, redBg),
+                                    Triple("Late", orangeText, orangeBg),
+                                    Triple("Leave", BluePrimary, activity_purple_bg)
                                 ).forEach { (label, dotColor, _) ->
                                     Surface(
-                                        shape = RoundedCornerShape(20.dp),
+                                        shape = RoundedCornerShape(tokens.cardCornerRadius * 1.5f),
                                         border = BorderStroke(1.dp, grey_border),
                                         color = whiteBg
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(
-                                                horizontal = 10.dp,
-                                                vertical = 5.dp
+                                                horizontal = tokens.extraPadding * 0.8f,
+                                                vertical = tokens.extraPadding * 0.4f
                                             ),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Box(
                                                 modifier = Modifier
-                                                    .size(7.dp)
+                                                    .size(6.dp)
                                                     .clip(CircleShape)
                                                     .background(dotColor)
                                             )
-                                            Spacer(Modifier.width(5.dp))
+                                            Spacer(Modifier.width(4.dp))
                                             Text(
-                                                label,
-                                                fontSize = 11.sp,
+                                                text = label,
+                                                fontSize = tokens.label,
                                                 color = TextPrimary,
                                                 fontWeight = FontWeight.Medium
                                             )
@@ -548,35 +546,35 @@ fun AttendanceCalendarScreen(
                     }
                 }
 
-                // Calendar Grid
+                // Calendar Grid Surface
                 item {
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = tokens.screenPadding, vertical = 8.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.5f),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius),
+                        border = BorderStroke(1.dp, sectionBorder),
                         color = whiteBg
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color(0xFFFAFAFA))
-                                    .padding(vertical = 8.dp)
+                                    .background(headerBg)
+                                    .padding(vertical = tokens.extraPadding * 0.5f)
                             ) {
                                 daysOfWeek.forEach { day ->
                                     Text(
                                         text = day,
                                         modifier = Modifier.weight(1f),
                                         textAlign = TextAlign.Center,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = tokens.caption,
+                                        fontWeight = FontWeight.Medium,
                                         color = headerGrey
                                     )
                                 }
                             }
-                            HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+                            HorizontalDivider(color = sectionBorder, thickness = 1.dp)
 
                             val rows = calendarDays.chunked(7)
                             rows.forEach { week ->
@@ -585,19 +583,18 @@ fun AttendanceCalendarScreen(
                                         Box(
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .height(76.dp)
+                                                .height(72.dp)
                                                 .background(
                                                     when {
-                                                        cell.isHighlighted -> Color(0xFFEDE9FE)
-                                                        cell.isWeekend && cell.isCurrentMonth -> Color(0xFFF8FAFC)
+                                                        cell.isHighlighted -> background_light_purple
+                                                        cell.isWeekend && cell.isCurrentMonth -> badgeGrey
                                                         else -> Color.Transparent
                                                     }
                                                 )
-                                                .border(0.5.dp, Color(0xFFE2E8F0))
-                                                .padding(horizontal = 4.dp, vertical = 4.dp)
+                                                .border(0.5.dp, sectionBorder)
+                                                .padding(horizontal = 3.dp, vertical = 3.dp)
                                         ) {
                                             Column(modifier = Modifier.fillMaxSize()) {
-                                                // Top Row: Status Dot and Day Number
                                                 Row(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -606,24 +603,23 @@ fun AttendanceCalendarScreen(
                                                     if (cell.status != DayStatus.NONE) {
                                                         Box(
                                                             modifier = Modifier
-                                                                .size(7.dp)
+                                                                .size(6.dp)
                                                                 .clip(CircleShape)
                                                                 .background(cell.status.color)
                                                         )
                                                     } else {
-                                                        Spacer(modifier = Modifier.size(7.dp))
+                                                        Spacer(modifier = Modifier.size(6.dp))
                                                     }
 
                                                     Text(
                                                         text = cell.dayNumber,
-                                                        fontSize = 12.sp,
-                                                        fontWeight = FontWeight.SemiBold,
-                                                        color = if (cell.isCurrentMonth) title_color else Color(0xFFCBD5E1),
+                                                        fontSize = tokens.caption,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = if (cell.isCurrentMonth) title_color else iconMuted,
                                                         textAlign = TextAlign.End
                                                     )
                                                 }
 
-                                                // Center Content
                                                 Box(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
@@ -631,10 +627,9 @@ fun AttendanceCalendarScreen(
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     val compactTimeStyle = TextStyle(
-                                                        fontSize = 9.sp,
-                                                        lineHeight = 9.5.sp,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = Color(0xFF475569),
+                                                        fontSize = tokens.label,
+                                                        fontWeight = FontWeight.Normal,
+                                                        color = textSubdued,
                                                         platformStyle = PlatformTextStyle(
                                                             includeFontPadding = false
                                                         )
@@ -664,7 +659,7 @@ fun AttendanceCalendarScreen(
                                                             Text(
                                                                 text = cell.statusText,
                                                                 style = compactTimeStyle.copy(
-                                                                    fontWeight = FontWeight.SemiBold,
+                                                                    fontWeight = FontWeight.Medium,
                                                                     color = cell.status.color
                                                                 ),
                                                                 maxLines = 1
@@ -682,7 +677,7 @@ fun AttendanceCalendarScreen(
                 }
             }
 
-            // Employee Info Card
+            // Employee Summary Details Card
             item {
                 val currentMember = remember(members, selectedEmployeeId) {
                     members.find { it._id == selectedEmployeeId }
@@ -690,12 +685,12 @@ fun AttendanceCalendarScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = tokens.screenPadding, vertical = 6.dp),
-                    shape = RoundedCornerShape(12.dp),
+                        .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.4f),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius),
                     border = BorderStroke(1.dp, grey_border),
                     color = whiteBg
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
+                    Column(modifier = Modifier.padding(tokens.extraPadding)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -706,52 +701,58 @@ fun AttendanceCalendarScreen(
 
                             Box(
                                 modifier = Modifier
-                                    .size(42.dp)
+                                    .size(tokens.buttonHeight)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFEDE9FE)),
+                                    .background(background_light_purple),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    initials,
+                                    text = initials,
                                     color = Primary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = tokens.bodySmall
                                 )
                             }
-                            Spacer(Modifier.width(10.dp))
+                            Spacer(Modifier.width(tokens.extraPadding * 0.8f))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    "${currentMember?.firstName.orEmpty()} ${currentMember?.lastName.orEmpty()}".trim().ifBlank { selectedEmployeeName },
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    text = "${currentMember?.firstName.orEmpty()} ${currentMember?.lastName.orEmpty()}".trim().ifBlank { selectedEmployeeName },
+                                    fontSize = tokens.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
                                     color = title_color
                                 )
                                 Text(
-                                    currentMember?.departmentId?.name ?: "Department",
+                                    text = currentMember?.departmentId?.name ?: "Department",
                                     fontSize = tokens.caption,
+                                    fontWeight = FontWeight.Normal,
                                     color = headerGrey
                                 )
                             }
                             StatusBadge(
                                 text = currentMember?.memberId ?: "EMP",
-                                bgColor = Color(0xFFEDE9FE),
+                                bgColor = background_light_purple,
                                 textColor = Primary,
                                 showDot = false
                             )
                         }
 
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(tokens.extraPadding * 0.8f))
                         HorizontalDivider(color = sectionBorder, thickness = 1.dp)
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
                         val shiftInfo = apiAttendanceList.firstOrNull()?.shiftId
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Primary Shift", fontSize = tokens.caption, color = headerGrey)
                             Text(
-                                "${shiftInfo?.name ?: "General"} (${shiftInfo?.startTime ?: "09:00"}–${shiftInfo?.endTime ?: "18:00"})",
+                                text = "Primary Shift",
+                                fontSize = tokens.caption,
+                                fontWeight = FontWeight.Normal,
+                                color = headerGrey
+                            )
+                            Text(
+                                text = "${shiftInfo?.name ?: "General"} (${shiftInfo?.startTime ?: "09:00"}–${shiftInfo?.endTime ?: "18:00"})",
                                 fontSize = tokens.caption,
                                 color = TextPrimary,
                                 fontWeight = FontWeight.Medium
@@ -761,120 +762,130 @@ fun AttendanceCalendarScreen(
                 }
             }
 
-            // Monthly Summary Card
+            // Monthly Counters Summary Card
             item {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = tokens.screenPadding, vertical = 6.dp),
-                    shape = RoundedCornerShape(12.dp),
+                        .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.4f),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius),
                     border = BorderStroke(1.dp, grey_border),
                     color = whiteBg
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
+                    Column(modifier = Modifier.padding(tokens.extraPadding)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                Icons.Default.CalendarMonth,
+                                imageVector = Icons.Default.CalendarMonth,
                                 contentDescription = null,
                                 tint = Primary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(tokens.iconSize)
                             )
-                            Spacer(Modifier.width(6.dp))
+                            Spacer(Modifier.width(tokens.extraPadding * 0.5f))
                             Text(
-                                "Monthly Summary",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
+                                text = "Monthly Summary",
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Medium,
                                 color = title_color
                             )
                         }
 
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                "Total Working Days",
+                                text = "Total Working Days",
                                 fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Normal,
                                 color = TextPrimary
                             )
                             Text(
-                                workingDays.toString(),
+                                text = workingDays.toString(),
                                 fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.Medium,
                                 color = TextPrimary
                             )
                         }
 
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(tokens.extraPadding * 0.6f))
                         HorizontalDivider(color = grey_border, thickness = 1.dp)
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(tokens.extraPadding * 0.6f))
 
                         val summaryStats = listOf(
-                            Triple("Present", present.toString(), Color(0xFF10B981)),
-                            Triple("Absent", absent.toString(), Color(0xFFEF4444)),
-                            Triple("Leave", leave.toString(), Color(0xFF3B82F6)),
-                            Triple("Late Count", late.toString(), Color(0xFFF59E0B))
+                            Triple("Present", present.toString(), complete_button_bg),
+                            Triple("Absent", absent.toString(), redText),
+                            Triple("Leave", leave.toString(), BluePrimary),
+                            Triple("Late Count", late.toString(), orangeText)
                         )
 
                         summaryStats.forEach { (label, count, dotColor) ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 3.dp),
+                                    .padding(vertical = tokens.extraPadding * 0.2f),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Box(
                                         modifier = Modifier
-                                            .size(7.dp)
+                                            .size(6.dp)
                                             .clip(CircleShape)
                                             .background(dotColor)
                                     )
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(label, fontSize = tokens.bodySmall, color = headerGrey)
+                                    Spacer(Modifier.width(tokens.extraPadding * 0.6f))
+                                    Text(
+                                        text = label,
+                                        fontSize = tokens.bodySmall,
+                                        fontWeight = FontWeight.Normal,
+                                        color = headerGrey
+                                    )
                                 }
                                 Text(
-                                    count,
+                                    text = count,
                                     fontSize = tokens.bodySmall,
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontWeight = FontWeight.Medium,
                                     color = TextPrimary
                                 )
                             }
                         }
 
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
-                        // Presence Rate Progress Bar
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFF8FAFC)
+                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
+                            color = badgeGrey
                         ) {
-                            Column(modifier = Modifier.padding(10.dp)) {
+                            Column(modifier = Modifier.padding(tokens.extraPadding * 0.7f)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("Presence Rate", fontSize = 11.sp, color = headerGrey)
                                     Text(
-                                        String.format(Locale.ENGLISH, "%.1f%%", presenceRate * 100),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        text = "Presence Rate",
+                                        fontSize = tokens.label,
+                                        fontWeight = FontWeight.Normal,
+                                        color = headerGrey
+                                    )
+                                    Text(
+                                        text = String.format(Locale.ENGLISH, "%.1f%%", presenceRate * 100),
+                                        fontSize = tokens.label,
+                                        fontWeight = FontWeight.Medium,
                                         color = Primary
                                     )
                                 }
-                                Spacer(Modifier.height(6.dp))
+                                Spacer(Modifier.height(tokens.extraPadding * 0.4f))
                                 LinearProgressIndicator(
                                     progress = { presenceRate },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(5.dp)
-                                        .clip(RoundedCornerShape(10.dp)),
+                                        .height(4.dp)
+                                        .clip(RoundedCornerShape(tokens.cardCornerRadius)),
                                     color = Primary,
-                                    trackColor = Color(0xFFE2E8F0)
+                                    trackColor = sectionBorder
                                 )
                             }
                         }
@@ -882,40 +893,47 @@ fun AttendanceCalendarScreen(
                 }
             }
 
-            // Calendar Legend
+            // Legend Info Card
             item {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = tokens.screenPadding, vertical = 6.dp),
-                    shape = RoundedCornerShape(10.dp),
+                        .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.4f),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius),
                     border = BorderStroke(1.dp, grey_border),
                     color = whiteBg
                 ) {
                     Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.padding(tokens.extraPadding),
+                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
                     ) {
                         Text(
-                            "CALENDAR LEGEND",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            text = "CALENDAR LEGEND",
+                            fontSize = tokens.label,
+                            fontWeight = FontWeight.Medium,
                             color = headerGrey
                         )
 
                         listOf(
-                            "On Time" to Color(0xFF10B981),
-                            "Late Arrival" to Color(0xFFF59E0B),
-                            "Absent" to Color(0xFFEF4444),
-                            "Authorized Leave" to Color(0xFF3B82F6)
+                            "On Time" to complete_button_bg,
+                            "Late Arrival" to orangeText,
+                            "Absent" to redText,
+                            "Authorized Leave" to BluePrimary
                         ).forEach { (legendText, color) ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
-                                    modifier = Modifier.size(7.dp).clip(CircleShape)
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
                                         .background(color)
                                 )
-                                Spacer(Modifier.width(8.dp))
-                                Text(legendText, fontSize = tokens.caption, color = headerGrey)
+                                Spacer(Modifier.width(tokens.extraPadding * 0.6f))
+                                Text(
+                                    text = legendText,
+                                    fontSize = tokens.caption,
+                                    fontWeight = FontWeight.Normal,
+                                    color = headerGrey
+                                )
                             }
                         }
                     }
@@ -928,14 +946,16 @@ fun AttendanceCalendarScreen(
 @Composable
 fun AttendanceListViewCard(
     items: List<AttendanceListItem>,
-    horizontalPadding: androidx.compose.ui.unit.Dp
+    horizontalPadding: Dp
 ) {
+    val tokens = LocalAppTokens.current
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = horizontalPadding, vertical = 8.dp),
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            .padding(horizontal = horizontalPadding, vertical = tokens.extraPadding * 0.5f),
+        shape = RoundedCornerShape(tokens.cardCornerRadius),
+        border = BorderStroke(1.dp, sectionBorder),
         color = whiteBg
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -943,14 +963,16 @@ fun AttendanceListViewCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(
+                            horizontal = tokens.extraPadding,
+                            vertical = tokens.extraPadding * 0.8f
+                        ),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left: Date Badge
                     Surface(
-                        modifier = Modifier.size(46.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFF1F5F9)
+                        modifier = Modifier.size(tokens.buttonHeight),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.7f),
+                        color = badgeGrey
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
@@ -959,70 +981,74 @@ fun AttendanceListViewCard(
                         ) {
                             Text(
                                 text = item.dayOfMonth.toString(),
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1E293B)
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = title_color
                             )
                             Text(
                                 text = item.dayOfWeek,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF94A3B8)
+                                fontSize = tokens.label,
+                                fontWeight = FontWeight.Normal,
+                                color = iconMuted
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(14.dp))
+                    Spacer(modifier = Modifier.width(tokens.extraPadding * 0.8f))
 
-                    // Middle: Status & Punch Timings
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            val statusIcon = when {
+                                item.isWeekOff -> Icons.Default.NightsStay
+                                item.statusText == "—" -> Icons.Default.RemoveCircleOutline
+                                else -> Icons.Default.CheckCircleOutline
+                            }
+
                             Icon(
-                                imageVector = if (item.isWeekOff) Icons.Default.NightsStay else Icons.Default.CheckCircleOutline,
+                                imageVector = statusIcon,
                                 contentDescription = null,
                                 tint = item.statusColor,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(tokens.iconSize * 0.8f)
                             )
-                            Spacer(modifier = Modifier.width(5.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = item.statusText,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium,
                                 color = item.statusColor
                             )
                         }
-                        Spacer(modifier = Modifier.height(3.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = item.timeRangeText,
-                            fontSize = 11.sp,
-                            color = Color(0xFF64748B),
+                            fontSize = tokens.caption,
+                            color = headerGrey,
                             fontWeight = FontWeight.Normal
                         )
                     }
 
-                    // Right: Worked Hours
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
                             text = item.workedTimeText,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E293B)
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = title_color
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "worked",
-                            fontSize = 9.sp,
-                            color = Color(0xFF94A3B8)
+                            fontSize = tokens.label,
+                            fontWeight = FontWeight.Normal,
+                            color = iconMuted
                         )
                     }
                 }
 
-                // Divider between rows
                 if (index < items.lastIndex) {
                     HorizontalDivider(
-                        color = Color(0xFFF1F5F9),
+                        color = grey_border,
                         thickness = 1.dp,
-                        modifier = Modifier.padding(horizontal = 14.dp)
+                        modifier = Modifier.padding(horizontal = tokens.extraPadding)
                     )
                 }
             }

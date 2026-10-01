@@ -2,13 +2,17 @@
 package com.cuso.tailor.repository
 
 import com.cuso.tailor.database.dao.TokensDao
+import com.cuso.tailor.model.hr.ApplyLeaveRequest
 import com.cuso.tailor.model.hr.AttendanceApproveRequest
 import com.cuso.tailor.model.hr.AttendanceRecord
+import com.cuso.tailor.model.hr.CreateLeaveRequest
 import com.cuso.tailor.model.hr.CreateManualAttendanceRequest
 import com.cuso.tailor.model.hr.CreateMemberRequest
 import com.cuso.tailor.model.hr.CreateShiftRequest
 import com.cuso.tailor.model.hr.CreatedMemberFullData
 import com.cuso.tailor.model.hr.DeleteProfilePictureResponse
+import com.cuso.tailor.model.hr.LeaveRequestItemDto
+import com.cuso.tailor.model.hr.LeaveTypeItemDto
 import com.cuso.tailor.model.hr.MemberDetail
 import com.cuso.tailor.model.hr.MemberListResponse
 import com.cuso.tailor.model.hr.MonthlyAttendanceItem
@@ -16,6 +20,7 @@ import com.cuso.tailor.model.hr.RoleItem
 import com.cuso.tailor.model.hr.ShiftDetailData
 import com.cuso.tailor.model.hr.ShiftDto
 import com.cuso.tailor.model.hr.ShiftItem
+import com.cuso.tailor.model.hr.UpdateLeaveStatusRequest
 import com.cuso.tailor.model.hr.UpdateMemberRequest
 import com.cuso.tailor.model.hr.UpdateShiftRequest
 import com.cuso.tailor.model.hr.UploadProfilePictureResponse
@@ -496,6 +501,108 @@ class HrRepository @Inject constructor(
                 Result.success(response.body()?.message ?: "Shift deleted successfully")
             } else {
                 Result.failure(Exception("Failed to delete shift"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    //LEAVE MANAGEMENT
+
+    // Fetch Leave Requests
+    suspend fun getLeaveRequests(
+        page: Int = 1,
+        limit: Int = 10,
+        status: String? = null
+    ): Result<List<LeaveRequestItemDto>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.getLeaveRequests(accessToken, csrfToken, page, limit, status)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch leave requests"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Update Leave Request Status
+    suspend fun updateLeaveStatus(
+        id: String,
+        status: String,
+        approverNote: String? = null
+    ): Result<String> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+
+            val request = UpdateLeaveStatusRequest(
+                status = status,
+                approverNote = approverNote
+            )
+            val response = hrApi.updateLeaveStatus(accessToken, csrfToken, id, request)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.message)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to update leave status"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Get Leave Types
+    suspend fun getLeaveTypes(): Result<List<LeaveTypeItemDto>> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.getLeaveTypes(accessToken, csrfToken)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch leave types"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Create Leave Request
+    suspend fun createLeaveRequest(
+        organizationMemberId: String,
+        leaveTypeId: String,
+        startDate: String,
+        endDate: String,
+        totalDays: Int,
+        isHalfDay: Boolean,
+        reason: String,
+        attachmentParts: List<MultipartBody.Part>
+    ): Result<String> {
+        return try {
+            val textMediaType = "text/plain".toMediaTypeOrNull()
+            val (accessToken, csrfToken) = getAuthHeaders()
+
+            val partMap = mapOf(
+                "organizationMemberId" to organizationMemberId.toRequestBody(textMediaType),
+                "leaveTypeId" to leaveTypeId.toRequestBody(textMediaType),
+                "startDate" to startDate.toRequestBody(textMediaType),
+                "endDate" to endDate.toRequestBody(textMediaType),
+                "totalDays" to totalDays.toString().toRequestBody(textMediaType),
+                "isHalfDay" to isHalfDay.toString().toRequestBody(textMediaType),
+                "reason" to reason.toRequestBody(textMediaType)
+            )
+
+            val response = hrApi.createLeaveRequest(
+                token = accessToken,
+                csrfToken = csrfToken,
+                partMap = partMap,
+                attachments = attachmentParts.ifEmpty { null }
+            )
+
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.message)
+            } else {
+                Result.failure(Exception(response.errorBody()?.string() ?: "Failed to create leave request"))
             }
         } catch (e: Exception) {
             Result.failure(e)

@@ -529,7 +529,6 @@ fun CreateRequisitionScreen(
                             selectedFiles = selectedFiles.filter { it != uri }
                         },
                         documentUploadText = "Upload or drop files here",
-                        uploadBoxHeight = 120.dp,
                         previewHeaderTitle = "ATTACHED FILES"
                     )
                 }

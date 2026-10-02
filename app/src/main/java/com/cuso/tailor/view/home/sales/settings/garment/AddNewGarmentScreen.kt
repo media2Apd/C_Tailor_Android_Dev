@@ -157,7 +157,6 @@ fun AddNewGarmentScreen(
                         onRemoveImage = { removedUri ->
                             selectedImagesList = selectedImagesList.filter { it != removedUri }
                         },
-                        uploadBoxHeight = 90.dp,
                         imagePreviewSize = 90.dp,
                         previewHeaderTitle = "ATTACHED IMAGES"
                     )

@@ -808,7 +808,6 @@ private fun StepMedia(
                     },
                     browseText = "Browse Files",
                     documentUploadText = "Drag & drop product images\nRecommended: JPG, PNG.",
-                    uploadBoxHeight = 140.dp,
                     imagePreviewSize = 86.dp,
                     previewHeaderTitle = "UPLOADED ANGLES"
                 )

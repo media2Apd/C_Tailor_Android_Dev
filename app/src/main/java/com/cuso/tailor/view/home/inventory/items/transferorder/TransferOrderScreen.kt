@@ -40,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,12 +78,17 @@ import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.ErrorMapper
+import com.cuso.tailor.view.composable.FilterDrawer
+import com.cuso.tailor.view.composable.FilterOption
+import com.cuso.tailor.view.composable.FilterSection
+import com.cuso.tailor.view.composable.FilterSectionType
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.SheetValue
 import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.rememberFilterDrawerState
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -101,7 +107,6 @@ fun TransferOrdersStockListScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    // API States from InventoryViewModel
     val adjustmentsList by viewModel.stockAdjustmentsList.collectAsState()
     val isLoadingAdjustments by viewModel.isLoadingAdjustments.collectAsState()
     val isLoadingMoreAdjustments by viewModel.isLoadingMoreAdjustments.collectAsState()
@@ -118,10 +123,49 @@ fun TransferOrdersStockListScreen(
     var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var selectedAdjustment by remember { mutableStateOf<StockAdjustmentData?>(null) }
 
-    // Scroll state for LazyColumn to support infinite scroll
     val listState = rememberLazyListState()
 
-    // Fetch API Data on screen launch
+    // ── Filter Drawer State & Sections ──
+    val filterDrawerState = rememberFilterDrawerState()
+    var filterSections by remember {
+        mutableStateOf(
+            listOf(
+                FilterSection(
+                    title = "Warehouse",
+                    type = FilterSectionType.CHECKBOX_LIST,
+                    options = emptyList()
+                ),
+                FilterSection(
+                    title = "Status",
+                    type = FilterSectionType.CHECKBOX_LIST,
+                    options = listOf(
+                        FilterOption("completed", "Completed"),
+                        FilterOption("reversed", "Reversed")
+                    )
+                )
+            )
+        )
+    }
+
+    // Dynamic populate Warehouses from warehouseDropdown API
+    LaunchedEffect(warehouseDropdown) {
+        if (warehouseDropdown.isNotEmpty()) {
+            filterSections = filterSections.map { sec ->
+                if (sec.title == "Warehouse") {
+                    sec.copy(
+                        options = warehouseDropdown.map { item ->
+                            FilterOption(id = item.value, label = item.label)
+                        }
+                    )
+                } else sec
+            }
+        }
+    }
+
+    val activeFilterCount by remember(filterSections) {
+        derivedStateOf { filterSections.sumOf { sec -> sec.options.count { it.isSelected } } }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.clearAdjustmentAlerts()
         viewModel.fetchStockAdjustments(reset = true, adjustmentType = "transfer")
@@ -130,47 +174,29 @@ fun TransferOrdersStockListScreen(
         settingsViewModel.fetchBins(isRefresh = true)
     }
 
-    // Scroll listener: triggers next page fetch only when crossing the bottom threshold
-    LaunchedEffect(listState, canLoadMoreAdjustments, searchQuery) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
+    // Filter Logic
+    val filteredList by remember(adjustmentsList, searchQuery, filterSections) {
+        derivedStateOf {
+            val selectedWarehouseNames = filterSections.find { it.title == "Warehouse" }
+                ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
+            val selectedStatuses = filterSections.find { it.title == "Status" }
+                ?.options?.filter { it.isSelected }?.map { it.id } ?: emptyList()
 
-            // Trigger when 2 items away from bottom
-            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
-        }
-            .distinctUntilChanged()
-            .collect { isNearBottom ->
-                if (isNearBottom &&
-                    canLoadMoreAdjustments &&
-                    !isLoadingMoreAdjustments &&
-                    !isLoadingAdjustments &&
-                    searchQuery.isBlank()
-                ) {
-                    viewModel.loadMoreStockAdjustments()
-                }
-            }
-    }
-
-    LaunchedEffect(adjustmentSuccessMessage) {
-        if (!adjustmentSuccessMessage.isNullOrBlank()) {
-            sheetState = SheetValue.Hidden
-            viewModel.fetchStockAdjustments(reset = true, adjustmentType = "transfer")
-        }
-    }
-
-    // Client-side search filter
-    val filteredList = remember(adjustmentsList, searchQuery) {
-        if (searchQuery.isBlank()) adjustmentsList
-        else {
             adjustmentsList.filter { item ->
-                item.itemName.contains(searchQuery, ignoreCase = true) ||
+                val matchesSearch = searchQuery.isBlank() ||
+                        item.itemName.contains(searchQuery, ignoreCase = true) ||
                         item.itemSku.contains(searchQuery, ignoreCase = true) ||
-                        item.adjustmentCode.orEmpty().contains(searchQuery, ignoreCase = true) ||
                         item.originWarehouseName.contains(searchQuery, ignoreCase = true) ||
-                        item.destinationWarehouseName.contains(searchQuery, ignoreCase = true) ||
-                        (item.reason?.contains(searchQuery, ignoreCase = true) == true)
+                        item.destinationWarehouseName.contains(searchQuery, ignoreCase = true)
+
+                val matchesWarehouse = selectedWarehouseNames.isEmpty() ||
+                        selectedWarehouseNames.any { it.equals(item.originWarehouseName, ignoreCase = true) || it.equals(item.destinationWarehouseName, ignoreCase = true) }
+
+                val matchesStatus = selectedStatuses.isEmpty() ||
+                        (selectedStatuses.contains("reversed") && item.isReversed) ||
+                        (selectedStatuses.contains("completed") && !item.isReversed)
+
+                matchesSearch && matchesWarehouse && matchesStatus
             }
         }
     }
@@ -186,93 +212,77 @@ fun TransferOrdersStockListScreen(
             }
         ) { padding ->
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
+                modifier = Modifier.fillMaxSize().padding(padding)
             ) {
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
                     placeholder = "Search SKU, Item, Warehouse, Code...",
                     showFilterIcon = true,
-                    onFilterClick = { },
+                    filterCount = activeFilterCount,
+                    onFilterClick = { filterDrawerState.open() },
                     height = tokens.fieldHeight * 1.1f
                 )
 
                 HorizontalDivider(color = grey_border)
 
-                if (isLoadingAdjustments && adjustmentsList.isEmpty()) {
-                    ListSkeleton()
-                } else if (!adjustmentErrorMessage.isNullOrBlank() && adjustmentsList.isEmpty()) {
-                    AppErrorState(
-                        title = "Failed to load stock adjustments",
-                        message = adjustmentErrorMessage?.let { ErrorMapper.map(it) } ?: "Something went wrong. Please check your connection and try again.",
-                        onRetry = {
-                            viewModel.fetchStockAdjustments(reset = true, adjustmentType = "transfer")
-                        }
-                    )
-                } else if (filteredList.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (searchQuery.isBlank()) "No stock adjustments found" else "No matching adjustments found",
-                            fontSize = tokens.bodyMedium,
-                            color = mutedText
+                when {
+                    isLoadingAdjustments && adjustmentsList.isEmpty() -> ListSkeleton()
+                    !adjustmentErrorMessage.isNullOrBlank() && adjustmentsList.isEmpty() -> {
+                        AppErrorState(
+                            title = "Failed to load stock adjustments",
+                            message = adjustmentErrorMessage?.let { ErrorMapper.map(it) } ?: "Something went wrong.",
+                            onRetry = { viewModel.fetchStockAdjustments(reset = true, adjustmentType = "transfer") }
                         )
                     }
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .weight(1f)
-                    ) {
-                        items(
-                            items = filteredList,
-                            key = { it.id.ifBlank { it.hashCode().toString() } }
-                        ) { adjustment ->
-                            AllOrdersItemCard(
-                                adjustment = adjustment,
-                                tokens = tokens,
-                                onClick = {
-                                    selectedAdjustment = adjustment
-                                    sheetState = SheetValue.Expanded
-                                }
+                    filteredList.isEmpty() -> {
+                        Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = if (searchQuery.isBlank() && activeFilterCount == 0) "No stock adjustments found" else "No matching adjustments found",
+                                fontSize = tokens.bodyMedium,
+                                color = mutedText
                             )
                         }
-
-                        // Three-dot loader is shown only while the next page request is in-flight
-                        if (isLoadingMoreAdjustments) {
-                            item(key = "pagination_threedot_loader") {
-                                ThreeDotLoading(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 16.dp)
+                    }
+                    else -> {
+                        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().weight(1f)) {
+                            items(filteredList, key = { it.id.ifBlank { it.hashCode().toString() } }) { adjustment ->
+                                AllOrdersItemCard(
+                                    adjustment = adjustment,
+                                    tokens = tokens,
+                                    onClick = {
+                                        selectedAdjustment = adjustment
+                                        sheetState = SheetValue.Expanded
+                                    }
                                 )
                             }
-                        }
-
-                        item {
-                            Spacer(Modifier.height(80.dp))
+                            if (isLoadingMoreAdjustments) {
+                                item(key = "pagination_threedot_loader") {
+                                    ThreeDotLoading(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp))
+                                }
+                            }
+                            item { Spacer(Modifier.height(80.dp)) }
                         }
                     }
                 }
             }
         }
 
-        DynamicIslandSuccess(
-            message = adjustmentSuccessMessage,
-            onDismiss = { viewModel.clearAdjustmentAlerts() }
+        // ── Filter Transfers Drawer ──
+        FilterDrawer(
+            state = filterDrawerState,
+            title = "Filter Transfers",
+            sections = filterSections,
+            onApply = { updated -> filterSections = updated },
+            onClearAll = {
+                filterSections = filterSections.map { sec ->
+                    sec.copy(options = sec.options.map { it.copy(isSelected = false) })
+                }
+            }
         )
 
-        DynamicIslandError(
-            message = adjustmentErrorMessage?.takeIf { it.isNotBlank() && adjustmentsList.isNotEmpty() }?.let { ErrorMapper.map(it) },
-            onDismiss = { viewModel.clearAdjustmentAlerts() }
-        )
+        DynamicIslandSuccess(message = adjustmentSuccessMessage, onDismiss = { viewModel.clearAdjustmentAlerts() })
+        DynamicIslandError(message = adjustmentErrorMessage?.takeIf { it.isNotBlank() && adjustmentsList.isNotEmpty() }?.let { ErrorMapper.map(it) }, onDismiss = { viewModel.clearAdjustmentAlerts() })
     }
 }
 

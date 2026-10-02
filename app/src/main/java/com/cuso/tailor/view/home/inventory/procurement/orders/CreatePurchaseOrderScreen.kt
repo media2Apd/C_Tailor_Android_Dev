@@ -647,7 +647,6 @@ fun CreatePurchaseOrderScreen(
                                 selectedFiles = selectedFiles.filter { it != uri }
                             },
                             documentUploadText = "Upload or drag attachments here",
-                            uploadBoxHeight = 120.dp,
                             previewHeaderTitle = "ATTACHED FILES"
                         )
                     }

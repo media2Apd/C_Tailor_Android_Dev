@@ -418,8 +418,7 @@ fun BusinessSetupScreen(
                             onRemoveImage = { uri ->
                                 selectedLogos = selectedLogos.filter { it != uri }
                             },
-                            documentUploadText = "Supported formats: PNG, JPG, SVG (Max. 3MB) · Recommended: 512x512px",
-                            uploadBoxHeight = tokens.cardHeight * 1.2f
+                            documentUploadText = "Supported formats: PNG, JPG, SVG (Max. 3MB) · Recommended: 512x512px"
                         )
                     }
                 }

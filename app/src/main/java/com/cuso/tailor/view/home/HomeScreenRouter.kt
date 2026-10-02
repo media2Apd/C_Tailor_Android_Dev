@@ -79,6 +79,8 @@ import com.cuso.tailor.view.home.inventory.items.item_groups.ItemGroupDetailScre
 import com.cuso.tailor.view.home.inventory.items.transferorder.TransferOrdersStockListScreen
 import com.cuso.tailor.view.home.inventory.multi_channel_management.allocation_list.AllocationListScreen
 import com.cuso.tailor.view.home.inventory.multi_channel_management.basic_info.BasicInfoScreen
+import com.cuso.tailor.view.home.inventory.multi_channel_management.category_listing.CategoryManagementScreen
+import com.cuso.tailor.view.home.inventory.multi_channel_management.category_listing.CreateCategoryScreen
 import com.cuso.tailor.view.home.inventory.payments_made.AllInventoryPaymentScreen
 import com.cuso.tailor.view.home.inventory.payments_made.PaymentOverviewDetailScreen
 import com.cuso.tailor.view.home.inventory.pricing_list.AllPricingScreen
@@ -167,6 +169,8 @@ import com.cuso.tailor.viewmodel.*
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedCategoryIdForEdit: String? = null,
+    onCategoryIdForEditSelected: (String?) -> Unit = {},
     selectedApprovalId: String? = null,
     onApprovalIdSelected: (String?) -> Unit = {},
     selectedShiftId: String? = null,
@@ -375,7 +379,7 @@ fun HomeScreenRouter(
         "inventory_multichannel_basic_info",
         "inventory_multichannel_allocation_list",
         "inventory_multichannel_category_listing", "inventory_category_listing",
-        "inventory_approvals", "inventory_pricing_list","inventory_approval_detail" -> {
+        "inventory_approvals", "inventory_pricing_list","inventory_approval_detail", "inventory_create_category", -> {
             InventoryMainRouter(
                 screen = screen,
                 selectedApprovalId = selectedApprovalId,
@@ -386,7 +390,11 @@ fun HomeScreenRouter(
                 onItemGroupIdSelected = onItemGroupIdSelected,
                 selectedBulkItemId = selectedBulkItemId,
                 onBulkItemIdSelected = onBulkItemIdSelected,
+                // Pass category edit parameters here
+                selectedCategoryIdForEdit = selectedCategoryIdForEdit,
+                onCategoryIdForEditSelected = onCategoryIdForEditSelected,
                 inventoryViewModel = inventoryViewModel,
+                settingsViewModel = settingsViewModel,
                 onNavigate = onNavigate,
                 onGoBack = onGoBack,
                 onOpenModulesPanel = onOpenModulesPanel,
@@ -1652,7 +1660,11 @@ private fun InventoryMainRouter(
     onItemGroupIdSelected: (String?) -> Unit,
     selectedBulkItemId: String?,
     onBulkItemIdSelected: (String?) -> Unit,
+    // Add category edit parameters here
+    selectedCategoryIdForEdit: String?,
+    onCategoryIdForEditSelected: (String?) -> Unit,
     inventoryViewModel: InventoryViewModel,
+    settingsViewModel: SettingsViewModel,
     onNavigate: (String) -> Unit,
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit,
@@ -1875,15 +1887,15 @@ private fun InventoryMainRouter(
 
         "inventory_safety_stock" -> SafetyStockScreen(
             onClose = onGoBack,
-            onItemClick = { selectedItem ->
-                android.util.Log.d("InventoryNav", ">> SafetyStock Card Clicked. ItemId: '${selectedItem.itemId}'")
-                if (selectedItem.itemId.isNotBlank()) {
-                    onInventoryItemIdSelected(selectedItem.itemId)
-                    onNavigate("inventory_item_detail")
-                } else {
-                    android.util.Log.e("InventoryNav", ">> SafetyStock Card Click: ItemId is NULL or BLANK!")
-                }
-            },
+//            onItemClick = { selectedItem ->
+//                android.util.Log.d("InventoryNav", ">> SafetyStock Card Clicked. ItemId: '${selectedItem.itemId}'")
+//                if (selectedItem.itemId.isNotBlank()) {
+//                    onInventoryItemIdSelected(selectedItem.itemId)
+//                    onNavigate("inventory_item_detail")
+//                } else {
+//                    android.util.Log.e("InventoryNav", ">> SafetyStock Card Click: ItemId is NULL or BLANK!")
+//                }
+//            },
             onEditClick = { itemId ->
                 android.util.Log.d("InventoryNav", ">> SafetyStock 3-Dot Edit Clicked. ItemId: '$itemId'")
                 if (itemId.isNotBlank()) {
@@ -1918,8 +1930,39 @@ private fun InventoryMainRouter(
         )
 
         "inventory_multichannel_category_listing", "inventory_category_listing" -> {
-            onShowComingSoon("Multi-Channel Category Listing Coming Soon")
-            onGoBack()
+            CategoryManagementScreen(
+                viewModel = inventoryViewModel,          // <-- Share instance
+                settingsViewModel = settingsViewModel,
+                onClose = onGoBack,
+                onAddCategory = {
+                    onCategoryIdForEditSelected(null)
+                    onNavigate("inventory_create_category")
+                },
+                onEditCategory = { category ->
+                    onCategoryIdForEditSelected(category.id)
+                    onNavigate("inventory_create_category")
+                }
+            )
+        }
+
+        "inventory_create_category" -> {
+            CreateCategoryScreen(
+                categoryId = selectedCategoryIdForEdit,
+                inventoryViewModel = inventoryViewModel,   // <-- Share instance
+                settingsViewModel = settingsViewModel,
+                onClose = {
+                    onCategoryIdForEditSelected(null)
+                    onGoBack()
+                },
+                onCancel = {
+                    onCategoryIdForEditSelected(null)
+                    onGoBack()
+                },
+                onSavedSuccess = {
+                    onCategoryIdForEditSelected(null)
+                    onGoBack()
+                }
+            )
         }
 
         // ── Approvals List Screen ──
@@ -2254,21 +2297,30 @@ private fun InventoryProcurementRouter(
         "inventory_payments_made" -> AllInventoryPaymentScreen(
             onClose = onGoBack,
             onPaymentSelect = { paymentId ->
-                onPaymentModeSelected(paymentId)
-                onNavigate("inventory_payment_overview_detail")
+                android.util.Log.d("PAYMENT_NAV", "Navigating with Payment ID: $paymentId")
+                if (paymentId.isNotBlank()) {
+                    onPaymentModeSelected(paymentId)
+                    onNavigate("inventory_payment_overview_detail")
+                } else {
+                    android.util.Log.e("PAYMENT_NAV", "Payment ID is null or blank!")
+                }
             },
             onFilterClick = { }
         )
 
-        "inventory_payment_overview_detail" -> PaymentOverviewDetailScreen(
-            onClose = {
-                onPaymentModeSelected(null)
-                onGoBack()
-            },
-            onEditClick = { },
-            onPreviewPdfClick = { },
-            onSendEmailClick = { }
-        )
+        "inventory_payment_overview_detail" -> {
+            PaymentOverviewDetailScreen(
+                paymentId = selectedPaymentModeId.orEmpty(), // <--- PASS THE SELECTED ID HERE
+                viewModel = inventoryViewModel,             // <--- SHARE THE INVENTORY VIEW MODEL
+                onClose = {
+                    onPaymentModeSelected(null)
+                    onGoBack()
+                },
+                onEditClick = { },
+                onPreviewPdfClick = { },
+                onSendEmailClick = { }
+            )
+        }
 
         "inventory_credits", "inventory_procurement_credits", "inventory_payables_credits" -> AllCreditsScreen(
             onClose = onGoBack,

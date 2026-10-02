@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,11 +55,16 @@ import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
+import com.cuso.tailor.view.composable.FilterDrawer
+import com.cuso.tailor.view.composable.FilterOption
+import com.cuso.tailor.view.composable.FilterSection
+import com.cuso.tailor.view.composable.FilterSectionType
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.rememberFilterDrawerState
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import java.text.SimpleDateFormat
@@ -81,47 +87,76 @@ fun AllItemGroupScreen(
     var itemGroupToDelete by remember { mutableStateOf<ItemGroupDto?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Scroll state for LazyColumn to support infinite scroll
     val listState = rememberLazyListState()
 
-    // Sync error state (show toast only if data is already present)
-    LaunchedEffect(uiState.errorMessage) {
-        if (uiState.filteredList.isNotEmpty()) {
-            displayedErrorMessage = uiState.errorMessage
-        }
-    }
-    // Initial fetch on screen entry
-    LaunchedEffect(Unit) {
-        viewModel.refreshItemGroups()
+    // ── Filter Drawer State & Sections ──
+    val filterDrawerState = rememberFilterDrawerState()
+    var filterSections by remember {
+        mutableStateOf(
+            listOf(
+                FilterSection(
+                    title = "Category",
+                    type = FilterSectionType.CHECKBOX_LIST,
+                    options = listOf(
+                        FilterOption("shirt", "Shirt"),
+                        FilterOption("pant", "Pant"),
+                        FilterOption("blazer", "Blazer"),
+                        FilterOption("fabric", "Fabric")
+                    )
+                ),
+                FilterSection(
+                    title = "Fabric",
+                    type = FilterSectionType.CHECKBOX_LIST,
+                    options = listOf(
+                        FilterOption("cotton", "Cotton"),
+                        FilterOption("linen", "Linen"),
+                        FilterOption("terry_wool", "Terry Wool")
+                    )
+                )
+            )
+        )
     }
 
-    // Scroll listener: triggers next page fetch only when crossing the bottom threshold
-    LaunchedEffect(listState, uiState.canLoadMore, uiState.searchQuery) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-
-            // Trigger when 2 items away from bottom
-            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
-        }
-            .distinctUntilChanged()
-            .collect { isNearBottom ->
-                if (isNearBottom &&
-                    uiState.canLoadMore &&
-                    !uiState.isLoadingMore &&
-                    !uiState.isLoading &&
-                    uiState.searchQuery.isBlank()
-                ) {
-                    viewModel.loadMoreItemGroups()
-                }
+    // Dynamic populate options from Item Groups response
+    LaunchedEffect(uiState.filteredList) {
+        val dynamicFabrics = uiState.filteredList.mapNotNull { it.productType ?: it.type }.filter { it.isNotBlank() }.distinct()
+        if (dynamicFabrics.isNotEmpty()) {
+            filterSections = filterSections.map { sec ->
+                if (sec.title == "Fabric") {
+                    val allFabrics = (sec.options.map { it.label } + dynamicFabrics).distinct()
+                    sec.copy(options = allFabrics.map { FilterOption(id = it.lowercase(), label = it) })
+                } else sec
             }
+        }
+    }
+
+    val activeFilterCount by remember(filterSections) {
+        derivedStateOf { filterSections.sumOf { sec -> sec.options.count { it.isSelected } } }
+    }
+
+    LaunchedEffect(Unit) { viewModel.refreshItemGroups() }
+
+    // Client-side Filter
+    val displayedList by remember(uiState.filteredList, filterSections) {
+        derivedStateOf {
+            val selectedCategories = filterSections.find { it.title == "Category" }
+                ?.options?.filter { it.isSelected }?.map { it.label.lowercase() } ?: emptyList()
+            val selectedFabrics = filterSections.find { it.title == "Fabric" }
+                ?.options?.filter { it.isSelected }?.map { it.label.lowercase() } ?: emptyList()
+
+            uiState.filteredList.filter { group ->
+                val matchesCategory = selectedCategories.isEmpty() ||
+                        selectedCategories.any { group.name.contains(it, ignoreCase = true) }
+                val matchesFabric = selectedFabrics.isEmpty() ||
+                        selectedFabrics.any { (group.productType ?: group.type)?.contains(it, ignoreCase = true) == true }
+
+                matchesCategory && matchesFabric
+            }
+        }
     }
 
     FabScaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Primary_background),
+        modifier = Modifier.fillMaxSize().background(Primary_background),
         fab = FabConfig(
             label = "Create item group",
             icon = Icons.Default.Add,
@@ -133,58 +168,43 @@ fun AllItemGroupScreen(
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Header Bar
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    TitleBar(
-                        title = "Item Group",
-                        onClose = onDismiss
-                    )
+                    TitleBar(title = "Item Group", onClose = onDismiss)
                 }
 
-                // Search Bar
                 SearchFilterBar(
                     query = uiState.searchQuery,
                     onQueryChange = { query -> viewModel.onSearchQueryChanged(query) },
                     placeholder = "Search Item Group...",
+                    filterCount = activeFilterCount,
                     accentColor = Primary,
                     borderColor = BorderGray,
                     textSecondaryColor = mutedText,
-                    onFilterClick = { }
+                    onFilterClick = { filterDrawerState.open() }
                 )
 
                 HorizontalDivider(color = title_border, thickness = 2.dp)
 
-                // List Content Area
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) {
+                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     when {
-                        uiState.isLoading && uiState.filteredList.isEmpty() -> {
-                            ListSkeleton()
-                        }
+                        uiState.isLoading && uiState.filteredList.isEmpty() -> ListSkeleton()
                         uiState.errorMessage != null && uiState.filteredList.isEmpty() -> {
                             AppErrorState(
                                 title = "Failed to load item groups",
-                                message = uiState.errorMessage ?: "Something went wrong. Please check your connection and try again.",
+                                message = uiState.errorMessage ?: "Something went wrong.",
                                 onRetry = { viewModel.refreshItemGroups() }
                             )
                         }
-                        uiState.filteredList.isEmpty() -> {
-                            EmptyStateView(tokens = tokens)
-                        }
+                        displayedList.isEmpty() -> EmptyStateView(tokens = tokens)
                         else -> {
                             ItemGroupListView(
-                                itemGroups = uiState.filteredList,
+                                itemGroups = displayedList,
                                 listState = listState,
                                 isLoadingMore = uiState.isLoadingMore,
                                 tokens = tokens,
                                 onView = onView,
                                 onEdit = { id ->
-                                    viewModel.fetchItemGroupViewOne(id) {
-                                        onEdit(id)
-                                    }
+                                    viewModel.fetchItemGroupViewOne(id) { onEdit(id) }
                                 },
                                 onDelete = { group ->
                                     itemGroupToDelete = group
@@ -196,15 +216,24 @@ fun AllItemGroupScreen(
                 }
             }
 
-            // Delete Confirmation Dialog
+            // ── Filter Item Groups Drawer ──
+            FilterDrawer(
+                state = filterDrawerState,
+                title = "Filter Item Groups",
+                sections = filterSections,
+                onApply = { updated -> filterSections = updated },
+                onClearAll = {
+                    filterSections = filterSections.map { sec ->
+                        sec.copy(options = sec.options.map { it.copy(isSelected = false) })
+                    }
+                }
+            )
+
             if (showDeleteDialog && itemGroupToDelete != null) {
                 DeleteModel(
                     title = "Delete Item Group",
-                    message = "Are you sure you want to delete \"${itemGroupToDelete?.name}\"?\nThis will remove the item group and its variants.",
-                    onDismiss = {
-                        showDeleteDialog = false
-                        itemGroupToDelete = null
-                    },
+                    message = "Are you sure you want to delete \"${itemGroupToDelete?.name}\"?",
+                    onDismiss = { showDeleteDialog = false; itemGroupToDelete = null },
                     onDelete = {
                         itemGroupToDelete?.let { group -> viewModel.deleteItemGroup(id = group.id) }
                         showDeleteDialog = false
@@ -213,16 +242,8 @@ fun AllItemGroupScreen(
                 )
             }
 
-            // Dynamic Island Notifications
-            DynamicIslandSuccess(
-                message = deleteSuccessMessage,
-                onDismiss = { viewModel.clearDeleteSuccessMessage() }
-            )
-
-            DynamicIslandError(
-                message = displayedErrorMessage,
-                onDismiss = { displayedErrorMessage = null }
-            )
+            DynamicIslandSuccess(message = deleteSuccessMessage, onDismiss = { viewModel.clearDeleteSuccessMessage() })
+            DynamicIslandError(message = displayedErrorMessage, onDismiss = { displayedErrorMessage = null })
         }
     }
 }

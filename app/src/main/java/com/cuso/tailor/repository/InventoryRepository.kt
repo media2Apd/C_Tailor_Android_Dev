@@ -76,15 +76,21 @@ import com.cuso.tailor.model.inventory.AutoReorderRuleData
 import com.cuso.tailor.model.inventory.AutoReorderRuleItemDto
 import com.cuso.tailor.model.inventory.BillPaymentData
 import com.cuso.tailor.model.inventory.BillResponseData
+import com.cuso.tailor.model.inventory.CategoryListResponse
 import com.cuso.tailor.model.inventory.CreateAutoReorderRuleRequest
 import com.cuso.tailor.model.inventory.CreateBillRequest
+import com.cuso.tailor.model.inventory.DocumentTemplateDto
 import com.cuso.tailor.model.inventory.PaymentTermDto
 import com.cuso.tailor.model.inventory.PurchaseOrderDetailData
+import com.cuso.tailor.model.inventory.PurchasePaymentRecord
+import com.cuso.tailor.model.inventory.PurchasePaymentViewAllResponse
 import com.cuso.tailor.model.inventory.RecordPaymentRequest
 import com.cuso.tailor.model.inventory.SafetyStockResponse
 import com.cuso.tailor.model.inventory.SubmitForApprovalRequest
 import com.cuso.tailor.model.inventory.TaxGroupDto
 import com.cuso.tailor.model.inventory.ViewMultipleReceivesRequest
+import com.cuso.tailor.model.inventory.VoidPaymentRequest
+import com.cuso.tailor.model.inventory.VoidPaymentResponse
 
 @Singleton
 class InventoryRepository @Inject constructor(
@@ -2181,4 +2187,207 @@ class InventoryRepository @Inject constructor(
                 Result.failure(e)
             }
         }
+
+    // =========================================================================
+    // DOCUMENT TEMPLATES REPOSITORY
+    // =========================================================================
+
+    suspend fun getDocumentTemplates(
+        docType: String? = "paymentReceipt"
+    ): Result<List<DocumentTemplateDto>> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getDocumentTemplates(
+                token = accessToken,
+                csrfToken = csrfToken,
+                docType = docType
+            )
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to load document templates")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // =========================================================================
+    // PURCHASE PAYMENT (VIEW ONE & VIEW ALL) REPOSITORY
+    // =========================================================================
+
+    suspend fun getPurchasePaymentsViewAll(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ): Result<PurchasePaymentViewAllResponse> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getPurchasePaymentsViewAll(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search,
+                status = status
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to fetch purchase payments")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPurchasePaymentById(paymentId: String): Result<PurchasePaymentRecord> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getPurchasePaymentById(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = paymentId
+            )
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to fetch purchase payment details")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+     suspend fun voidPayment(
+        paymentId: String,
+        request: VoidPaymentRequest
+    ): Result<VoidPaymentResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.voidPayment(accessToken, csrfToken, paymentId, request)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to void payment"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // =========================================================================
+    // CATEGORIES REPOSITORY
+    // =========================================================================
+
+    suspend fun getCategories(
+        page: Int = 1,
+        pageSize: Int = 20,
+        search: String? = null,
+        status: String? = null
+    ): Result<CategoryListResponse> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getCategories(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                pageSize = pageSize,
+                search = search,
+                status = status
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to fetch categories")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // =========================================================================
+    // CATEGORY OPERATIONS
+    // =========================================================================
+
+    suspend fun getCategoryById(id: String): Result<com.cuso.tailor.model.inventory.CategoryItemDto> =
+        withContext(Dispatchers.IO) {
+            try {
+                val (accessToken, csrfToken) = getAuthHeaders()
+                val response = inventoryApi.getCategoryById(accessToken, csrfToken, id)
+                val body = response.body()
+
+                if (response.isSuccessful && body?.success == true && body.data != null) {
+                    Result.success(body.data)
+                } else {
+                    Result.failure(Exception(extractErrorMessage(response, "Failed to load category details")))
+                }
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun createCategory(
+        request: com.cuso.tailor.model.inventory.CreateCategoryRequest
+    ): Result<com.cuso.tailor.model.inventory.CategoryItemDto> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.createCategory(accessToken, csrfToken, request)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to create category")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateCategory(
+        id: String,
+        request: com.cuso.tailor.model.inventory.CreateCategoryRequest
+    ): Result<com.cuso.tailor.model.inventory.CategoryItemDto> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.updateCategory(accessToken, csrfToken, id, request)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to update category")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Deletes a category and returns a success message or failure.
+     */
+    suspend fun deleteCategory(id: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.deleteCategory(accessToken, csrfToken, id)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body.message ?: "Category deleted successfully")
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to delete category")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

@@ -18,6 +18,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,10 +28,12 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -44,16 +49,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.ui.theme.blackTitle
-import com.cuso.tailor.ui.theme.close_color
-import com.cuso.tailor.ui.theme.grey_border
-import com.cuso.tailor.ui.theme.headerGrey
-import com.cuso.tailor.ui.theme.light_grey
-import com.cuso.tailor.ui.theme.sectionBorder
-import com.cuso.tailor.ui.theme.title_color
-import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.home.formatIndianNumber
+import com.cuso.tailor.viewmodel.InventoryViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
 // --- String Utilities ---
 
@@ -212,7 +217,7 @@ fun <T> DataCard(
     dateText: String? = null,
     code: String? = null,
     dateIcon: ImageVector = Icons.Default.CalendarMonth,
-    headerContent: (@Composable () -> Unit)? = null, // Custom Header Slot added
+    headerContent: (@Composable () -> Unit)? = null,
     topBadgeText: String? = null,
     topBadgeTextColor: Color = Color(0xFF10B981),
     topBadgeBgColor: Color = Color(0xFFDCFCE7),
@@ -253,6 +258,7 @@ fun <T> DataCard(
     val tokens = LocalAppTokens.current
     val formattedTitle = remember(title) { title?.toTitleCase() }
 
+    // Resolve click action: if both onClick is null and actions is empty, click will be null
     val effectiveCardClick: (() -> Unit)? = remember(onClick, actions, item) {
         when {
             onClick != null -> {
@@ -274,7 +280,7 @@ fun <T> DataCard(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 10.dp)// Adds 10.dp gap between cards
+            .padding(bottom = 10.dp)
             .then(
                 if (effectiveCardClick != null) {
                     Modifier.clickable { effectiveCardClick() }
@@ -290,7 +296,6 @@ fun <T> DataCard(
                 .let { m -> if (containerBrush != null) m.background(containerBrush) else m }
                 .padding(horizontal = tokens.screenPadding, vertical = 14.dp)
         ) {
-            // Header Row: Custom Header takes priority if provided, else falls back to default layout
             if (showHeaderRow) {
                 if (headerContent != null) {
                     headerContent()
@@ -318,7 +323,7 @@ fun <T> DataCard(
                                 Spacer(Modifier.width(5.dp))
 
                                 if (code != null) {
-                                    Text(code ,fontSize = tokens.caption, color = close_color)
+                                    Text(code, fontSize = tokens.caption, color = close_color)
                                 }
                             }
                         } else {
@@ -346,7 +351,7 @@ fun <T> DataCard(
                 Spacer(Modifier.height(6.dp))
             }
 
-            // Primary Identity Row: Image, Title, Subtitle, Inline Badge, and Actions
+            // Primary Identity Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top
@@ -363,27 +368,17 @@ fun <T> DataCard(
                         contentAlignment = Alignment.Center
                     ) {
                         when {
-                            // Profile photo from network URL fills the circle
                             !image.url.isNullOrBlank() -> {
                                 AsyncImage(
                                     model = coil.request.ImageRequest.Builder(context)
                                         .data(image.url)
                                         .crossfade(true)
-                                        .listener(
-                                            onError = { _, result ->
-                                                android.util.Log.e("COIL_DEBUG", "Error loading image: ${image.url}", result.throwable)
-                                            },
-                                            onSuccess = { _, _ ->
-                                                android.util.Log.d("COIL_DEBUG", "Success loading image: ${image.url}")
-                                            }
-                                        )
                                         .build(),
                                     contentDescription = null,
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
-                            // Drawable/Painter icon sits inside the circle with proper padding
                             image.painter != null -> {
                                 Image(
                                     painter = image.painter,
@@ -393,7 +388,6 @@ fun <T> DataCard(
                                     modifier = Modifier.size(avatarSize * 0.6f)
                                 )
                             }
-                            // Vector icon sits inside the circle with proper padding
                             image.vector != null -> {
                                 Icon(
                                     imageVector = image.vector,
@@ -466,15 +460,12 @@ fun <T> DataCard(
                 }
             }
 
-            // Divider separating the identity section from content body
             if (showHeaderDivider) {
                 Spacer(Modifier.height(5.dp))
                 HorizontalDivider(color = sectionBorder, thickness = 1.dp)
                 Spacer(Modifier.height(5.dp))
-
             }
 
-            // Custom Content Slot
             if (content != null) {
                 Spacer(Modifier.height(10.dp))
                 content()

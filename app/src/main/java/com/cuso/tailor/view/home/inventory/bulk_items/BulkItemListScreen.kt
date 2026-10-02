@@ -30,7 +30,6 @@ import com.cuso.tailor.model.inventory.BulkItemDoc
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.InventoryViewModel
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun BulkListScreen(
@@ -52,79 +51,85 @@ fun BulkListScreen(
 
     val listState = rememberLazyListState()
 
-    LaunchedEffect(Unit) {
-        viewModel.fetchBulkItems()
+    // ── Filter Drawer State & Sections ──
+    val filterDrawerState = rememberFilterDrawerState()
+    var filterSections by remember {
+        mutableStateOf(
+            listOf(
+                FilterSection(
+                    title = "Assembly Type",
+                    type = FilterSectionType.CHECKBOX_LIST,
+                    options = listOf(
+                        FilterOption("on_order", "On Order"),
+                        FilterOption("pre_assembled", "Pre-assembled")
+                    )
+                ),
+                FilterSection(
+                    title = "Status",
+                    type = FilterSectionType.CHECKBOX_LIST,
+                    options = listOf(
+                        FilterOption("active", "Active"),
+                        FilterOption("inactive", "Inactive")
+                    )
+                )
+            )
+        )
     }
 
-    LaunchedEffect(listState, canLoadMore, searchQuery) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
-        }
-            .distinctUntilChanged()
-            .collect { isNearBottom ->
-                if (isNearBottom && canLoadMore && !viewModel.isLoadingMoreBulk.value && !viewModel.isLoading.value && searchQuery.isBlank()) {
-                    viewModel.loadMoreBulkItems()
-                }
+    val activeFilterCount by remember(filterSections) {
+        derivedStateOf { filterSections.sumOf { sec -> sec.options.count { it.isSelected } } }
+    }
+
+    LaunchedEffect(Unit) { viewModel.fetchBulkItems() }
+
+    // Client-side Filter
+    val filteredList by remember(bulkList, searchQuery, filterSections) {
+        derivedStateOf {
+            val selectedAssembly = filterSections.find { it.title == "Assembly Type" }
+                ?.options?.filter { it.isSelected }?.map { it.label.lowercase() } ?: emptyList()
+            val selectedStatuses = filterSections.find { it.title == "Status" }
+                ?.options?.filter { it.isSelected }?.map { it.label.lowercase() } ?: emptyList()
+
+            bulkList.filter { item ->
+                val matchesSearch = searchQuery.isBlank() ||
+                        item.name.contains(searchQuery, ignoreCase = true) ||
+                        item.sku.contains(searchQuery, ignoreCase = true)
+
+                val matchesAssembly = selectedAssembly.isEmpty() ||
+                        selectedAssembly.any { item.assemblyType?.contains(it, ignoreCase = true) == true }
+
+                val matchesStatus = selectedStatuses.isEmpty() ||
+                        selectedStatuses.any { item.status.contains(it, ignoreCase = true) }
+
+                matchesSearch && matchesAssembly && matchesStatus
             }
-    }
-
-    val filteredList = remember(bulkList, searchQuery) {
-        if (searchQuery.isBlank()) bulkList
-        else bulkList.filter {
-            it.name.contains(searchQuery, ignoreCase = true) || it.sku.contains(searchQuery, ignoreCase = true)
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Primary_background)
-    ) {
+    Box(modifier = Modifier.fillMaxSize().background(Primary_background)) {
         Scaffold(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                // நிரந்தர தீர்வு: Surface -> Column-க்குள் வரிசையாக வைப்பதால் எக்காரணத்தைக் கொண்டும் ஒன்றன் மேல் ஒன்று மறையாது
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color.Transparent
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        TitleBar(
-                            title = "All Bulk",
-                            onClose = onClose
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = tokens.extraPadding * 0.4f)
-                        ) {
+                Surface(modifier = Modifier.fillMaxWidth(), color = Color.Transparent) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        TitleBar(title = "All Bulk", onClose = onClose)
+                        Box(modifier = Modifier.fillMaxWidth().padding(bottom = tokens.extraPadding * 0.4f)) {
                             SearchFilterBar(
                                 query = searchQuery,
                                 onQueryChange = { searchQuery = it },
                                 placeholder = "Search Bulk Items...",
-                                onFilterClick = { }
+                                filterCount = activeFilterCount,
+                                onFilterClick = { filterDrawerState.open() }
                             )
                         }
-
-                        HorizontalDivider(
-                            color = dividerColor,
-                            thickness = 1.dp
-                        )
+                        HorizontalDivider(color = dividerColor, thickness = 1.dp)
                     }
                 }
             }
         ) { paddingValues ->
             FabScaffold(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
+                modifier = Modifier.fillMaxSize().padding(paddingValues),
                 fab = FabConfig(
                     label = "Add Bulk Item",
                     icon = Icons.Default.Add,
@@ -134,94 +139,60 @@ fun BulkListScreen(
                 )
             ) {
                 when {
-                    isLoading && bulkList.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
+                    isLoading && bulkList.isEmpty() -> ListSkeleton()
                     errorMessage != null && bulkList.isEmpty() -> {
                         AppErrorState(
                             title = "Failed to load bulk items",
-                            message = errorMessage ?: "Something went wrong. Please check your connection.",
+                            message = errorMessage ?: "Something went wrong.",
                             onRetry = { viewModel.fetchBulkItems() }
                         )
                     }
-
                     filteredList.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
-                                text = if (searchQuery.isNotBlank()) "No matching bulk items found" else "No Bulk Items Yet",
+                                text = if (searchQuery.isNotBlank() || activeFilterCount > 0) "No matching bulk items found" else "No Bulk Items Yet",
                                 fontSize = tokens.bodyMedium,
                                 color = TextSecondary
                             )
                         }
                     }
-
                     else -> {
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(vertical = tokens.extraPadding)
                         ) {
-                            items(
-                                items = filteredList,
-                                key = { it.id.ifBlank { it.hashCode().toString() } }
-                            ) { item ->
+                            items(filteredList, key = { it.id.ifBlank { it.hashCode().toString() } }) { item ->
                                 BulkListItemCard(
                                     item = item,
-                                    onClick = {
-                                        if (item.id.isNotBlank()) {
-                                            onItemClick(item.id)
-                                        }
-                                    },
-                                    onEditClick = {
-                                        if (item.id.isNotBlank()) {
-                                            onEditClick(item.id)
-                                        }
-                                    },
-                                    onDeleteClick = {
-                                        viewModel.deleteBulkItem(item.id) {}
-                                    }
+                                    onClick = { if (item.id.isNotBlank()) onItemClick(item.id) },
+                                    onEditClick = { if (item.id.isNotBlank()) onEditClick(item.id) },
+                                    onDeleteClick = { viewModel.deleteBulkItem(item.id) {} }
                                 )
                                 Spacer(Modifier.height(tokens.extraPadding * 0.8f))
                             }
-
-                            if (isLoadingMore) {
-                                item(key = "pagination_threedot_loader") {
-                                    ThreeDotLoading(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = tokens.screenPadding)
-                                    )
-                                }
-                            }
-
-                            item {
-                                Spacer(Modifier.height(tokens.buttonHeight * 2f))
-                            }
+                            item { Spacer(Modifier.height(tokens.buttonHeight * 2f)) }
                         }
                     }
                 }
             }
         }
 
-        DynamicIslandSuccess(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = successMessage,
-            onDismiss = { viewModel.clearBulkSuccessMessage() }
+        // ── Filter Bulk Items Drawer ──
+        FilterDrawer(
+            state = filterDrawerState,
+            title = "Filter Bulk Items",
+            sections = filterSections,
+            onApply = { updated -> filterSections = updated },
+            onClearAll = {
+                filterSections = filterSections.map { sec ->
+                    sec.copy(options = sec.options.map { it.copy(isSelected = false) })
+                }
+            }
         )
 
-        DynamicIslandError(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = errorMessage?.takeIf { bulkList.isNotEmpty() },
-            onDismiss = { viewModel.clearBulkError() }
-        )
+        DynamicIslandSuccess(message = successMessage, onDismiss = { viewModel.clearBulkSuccessMessage() })
+        DynamicIslandError(message = errorMessage?.takeIf { bulkList.isNotEmpty() }, onDismiss = { viewModel.clearBulkError() })
     }
 }
 

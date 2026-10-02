@@ -15,11 +15,14 @@ import com.cuso.tailor.model.inventory.BinDropdownResponse
 import com.cuso.tailor.model.inventory.BuildBulkItemRequest
 import com.cuso.tailor.model.inventory.BulkItemDetailResponse
 import com.cuso.tailor.model.inventory.BulkItemListResponse
+import com.cuso.tailor.model.inventory.CategoryListResponse
+import com.cuso.tailor.model.inventory.CategoryViewOneResponse
 import com.cuso.tailor.model.inventory.ConvertToBillResponse
 import com.cuso.tailor.model.inventory.CreateAutoReorderRuleRequest
 import com.cuso.tailor.model.inventory.CreateAutoReorderRuleResponse
 import com.cuso.tailor.model.inventory.CreateBillRequest
 import com.cuso.tailor.model.inventory.CreateBillResponse
+import com.cuso.tailor.model.inventory.CreateCategoryRequest
 import com.cuso.tailor.model.inventory.CreateInventoryItemResponse
 import com.cuso.tailor.model.inventory.CreateItemGroupResponse
 import com.cuso.tailor.model.inventory.CreatePurchaseOrderRequest
@@ -33,6 +36,7 @@ import com.cuso.tailor.model.inventory.DeleteBarcodeResponse
 import com.cuso.tailor.model.inventory.DeleteInventoryItemResponse
 import com.cuso.tailor.model.inventory.DeleteItemGroupResponse
 import com.cuso.tailor.model.inventory.DeleteRequisitionResponse
+import com.cuso.tailor.model.inventory.DocumentTemplateListResponse
 import com.cuso.tailor.model.inventory.FloorDropdownResponse
 import com.cuso.tailor.model.inventory.GenerateBarcodeRequest
 import com.cuso.tailor.model.inventory.IncreaseStockRequest
@@ -50,6 +54,8 @@ import com.cuso.tailor.model.inventory.PurchaseOrderDetailResponse
 import com.cuso.tailor.model.inventory.PurchaseOrderListResponse
 import com.cuso.tailor.model.inventory.PurchaseOrderSingleResponse
 import com.cuso.tailor.model.inventory.PurchaseOrderSummaryResponse
+import com.cuso.tailor.model.inventory.PurchasePaymentViewAllResponse
+import com.cuso.tailor.model.inventory.PurchasePaymentViewOneResponse
 import com.cuso.tailor.model.inventory.PurchaseReceiveResponse
 import com.cuso.tailor.model.inventory.RackDropdownResponse
 import com.cuso.tailor.model.inventory.ReceiveHistoryByPoResponse
@@ -82,6 +88,8 @@ import com.cuso.tailor.model.inventory.UpdateItemGroupResponse
 import com.cuso.tailor.model.inventory.UpdateWarehouseRequest
 import com.cuso.tailor.model.inventory.ViewMultipleReceivesRequest
 import com.cuso.tailor.model.inventory.ViewMultipleReceivesResponse
+import com.cuso.tailor.model.inventory.VoidPaymentRequest
+import com.cuso.tailor.model.inventory.VoidPaymentResponse
 import com.cuso.tailor.model.inventory.WarehouseDropdownResponse
 import com.cuso.tailor.model.inventory.WarehouseListResponse
 import com.cuso.tailor.model.inventory.WarehouseMessageResponse
@@ -1037,4 +1045,100 @@ interface InventoryApiService {
         @Path("id") id: String
     ): Response<ToggleAutoReorderStatusResponse>
 
+    // =========================================================================
+    // DOCUMENT TEMPLATES
+    // =========================================================================
+
+    @GET("/api/documents/templates")
+    suspend fun getDocumentTemplates(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("docType") docType: String? = "paymentReceipt"
+    ): Response<DocumentTemplateListResponse>
+
+    // =========================================================================
+    // PURCHASE PAYMENTS (VIEW ONE & VIEW ALL)
+    // =========================================================================
+
+    @GET("/api/finance/purchase-payments/view-all")
+    suspend fun getPurchasePaymentsViewAll(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<PurchasePaymentViewAllResponse>
+
+    @GET("/api/finance/purchase-payments/view-one/{id}")
+    suspend fun getPurchasePaymentById(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<PurchasePaymentViewOneResponse>
+
+
+    /**
+     * Voids an existing payment made record.
+     */
+    @POST("/api/finance/purchase-payments/void/{id}")
+    suspend fun voidPayment(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") paymentId: String,
+        @Body request: VoidPaymentRequest
+    ): Response<VoidPaymentResponse>
+
+    // =========================================================================
+    // CATEGORY MANAGEMENT
+    // =========================================================================
+
+    /**
+     * Get paginated category list with search and status filters.
+     */
+    @GET("/api/inventory/category/view-all")
+    suspend fun getCategories(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("pageSize") pageSize: Int = 20,
+        @Query("search") search: String? = null,
+        @Query("status") status: String? = null
+    ): Response<CategoryListResponse>
+
+    // =========================================================================
+    // CATEGORY MANAGEMENT (VIEW-ONE, CREATE, UPDATE)
+    // =========================================================================
+
+    @GET("/api/inventory/category/view-one/{id}")
+    suspend fun getCategoryById(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<CategoryViewOneResponse>
+
+    @POST("/api/inventory/category/create")
+    suspend fun createCategory(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: CreateCategoryRequest
+    ): Response<CategoryViewOneResponse>
+
+    @PUT("/api/inventory/category/update-one/{id}")
+    suspend fun updateCategory(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: CreateCategoryRequest
+    ): Response<CategoryViewOneResponse>
+
+    /**
+     * Delete an inventory category by ID.
+     */
+    @DELETE("/api/inventory/category/delete-one/{id}")
+    suspend fun deleteCategory(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<com.cuso.tailor.model.inventory.DeleteCategoryResponse>
 }

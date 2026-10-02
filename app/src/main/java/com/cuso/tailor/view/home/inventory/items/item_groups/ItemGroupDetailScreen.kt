@@ -351,8 +351,7 @@ fun ItemGroupDetailScreen(
                                 onRemoveImage = { itemToRemove ->
                                     uploadedImages.remove(itemToRemove)
                                 },
-                                browseText = "Browse Files",
-                                uploadBoxHeight = 110.dp
+                                browseText = "Browse Files"
                             )
                         }
                     }

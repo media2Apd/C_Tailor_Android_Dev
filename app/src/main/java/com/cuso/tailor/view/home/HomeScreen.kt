@@ -140,6 +140,7 @@ import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.sales.MeasurementItem
 import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 
@@ -158,6 +159,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val profileViewModel: ProfileViewModel = hiltViewModel()
     val orderOverviewViewModel: OrderOverviewViewModel = hiltViewModel()
+    val inventoryViewModel: InventoryViewModel = hiltViewModel()
 
     val authTokens by authViewModel.tokens.collectAsStateWithLifecycle()
     val token: String = authTokens?.accessToken.orEmpty()
@@ -219,6 +221,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedPurchaseOrderForDetail by remember { mutableStateOf<PurchaseOrder?>(null) }
     var selectedReceivePoId by remember { mutableStateOf<String?>(null) }
     var selectedBarcodeIdForDetail by remember { mutableStateOf<String?>(null) }
+    var selectedCategoryIdForEdit by remember { mutableStateOf<String?>(null) }
+
     // Approvals State
     var selectedApprovalId by remember { mutableStateOf<String?>(null) }
 
@@ -547,6 +551,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_procurement_returns",
             "inventory_multichannel_category_listing",
             "inventory_category_listing",
+            "inventory_create_category",
             "inventory_approvals",
             "inventory_approval_detail",
 
@@ -717,6 +722,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                     android.util.Log.d("TEMPLATE_NAV_DEBUG", ">> BackHandler: Clearing selectedServiceTemplate")
                     selectedServiceTemplate = null
                 }
+                // Reset category edit ID when leaving create/edit screen
+                "inventory_create_category" -> selectedCategoryIdForEdit = null
                 "create_order_review", "create_order" -> pendingOrderReviewData = null
                 "finance_invoice_detail", "inventory_payable_purchase_detail" -> selectedInvoiceId = null
                 "measurements_available_view", "measurement_management_view" -> selectedMeasurementItem = null
@@ -894,6 +901,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         HomeScreenRouter(
                             screen = screen,
                             selectedApprovalId = selectedApprovalId,
+                            // Forward category edit state to router
+                            selectedCategoryIdForEdit = selectedCategoryIdForEdit,
+                            onCategoryIdForEditSelected = { selectedCategoryIdForEdit = it },
                             onApprovalIdSelected = { selectedApprovalId = it },
                             selectedServiceRequestId = selectedServiceRequestId,
                             onServiceRequestIdSelected = { selectedServiceRequestId = it },
@@ -918,6 +928,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             token = token,
                             hrViewModel = hrViewModel,
                             customerViewModel = customerViewModel,
+                            inventoryViewModel = inventoryViewModel,
                             settingsViewModel = settingsViewModel,
                             authViewModel = authViewModel,
                             onNavigate = { navigateTo(it) },
@@ -981,7 +992,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             pendingOrderReviewData = pendingOrderReviewData,
                             onPendingOrderReviewDataChange = { pendingOrderReviewData = it },
                             onOrderFlowOriginChange = { orderFlowOrigin = it },
-                            inventoryViewModel = hiltViewModel(),
                             onOrderSavedSuccessfully = { savedOrderId ->
                                 screenStack.removeAll {
                                     it in setOf(
@@ -2223,6 +2233,9 @@ fun normalizeRoute(rawKey: String): String {
         "inventory_multichannel_category_listing" -> "inventory_category_listing"
         "inventory_multichannel_basic_info", "inventory_basic_info" -> "inventory_multichannel_basic_info"
         "inventory_multichannel_allocation_list", "inventory_allocation_list" -> "inventory_multichannel_allocation_list"
+        // Map Multi-Channel Category Listing to inventory_category_listing
+        "inventory_multichannel_category_listing", "inventory_category_listing" -> "inventory_category_listing"
+        "inventory_create_category" -> "inventory_create_category"
 
         "logistics_delivery" -> "logistics_delivery"
         "logistics_order_tracking" -> "logistics_order_tracking"

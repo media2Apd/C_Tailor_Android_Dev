@@ -52,11 +52,16 @@ import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
+import com.cuso.tailor.view.composable.FilterDrawer
+import com.cuso.tailor.view.composable.FilterOption
+import com.cuso.tailor.view.composable.FilterSection
+import com.cuso.tailor.view.composable.FilterSectionType
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.rememberFilterDrawerState
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -90,7 +95,6 @@ fun InventoryScreen(
     inventoryViewModel: InventoryViewModel = hiltViewModel(),
     onBreadCrumbClick: () -> Unit = {}
 ) {
-    // Observe state from ViewModel
     val rawItems by inventoryViewModel.inventoryItems.collectAsStateWithLifecycle()
     val isLoading by inventoryViewModel.isLoadingInventoryItems.collectAsStateWithLifecycle()
     val isLoadingMore by inventoryViewModel.isLoadingMoreInventoryItems.collectAsStateWithLifecycle()
@@ -98,7 +102,6 @@ fun InventoryScreen(
     val errorMessage by inventoryViewModel.inventoryError.collectAsStateWithLifecycle()
     val viewOneItem by inventoryViewModel.viewOneItem.collectAsStateWithLifecycle()
 
-    // Dialog & Notification States
     var itemToDelete by remember { mutableStateOf<InventoryItem?>(null) }
     var successToastMessage by remember { mutableStateOf<String?>(null) }
     var errorToastMessage by remember { mutableStateOf<String?>(null) }
@@ -107,7 +110,37 @@ fun InventoryScreen(
     var searchQuery by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
-    // Single unified initial fetch & debounced search (prevents double initialization)
+    // ── Filter Drawer State & Sections (As per Image) ──
+    val filterDrawerState = rememberFilterDrawerState()
+    var filterSections by remember {
+        mutableStateOf(
+            listOf(
+                FilterSection(
+                    title = "Type",
+                    type = FilterSectionType.CHECKBOX_LIST,
+                    options = listOf(
+                        FilterOption(id = "goods", label = "Goods"),
+                        FilterOption(id = "service", label = "Service")
+                    )
+                ),
+                FilterSection(
+                    title = "Stock Status",
+                    type = FilterSectionType.CHECKBOX_LIST,
+                    options = listOf(
+                        FilterOption(id = "in_stock", label = "In Stock"),
+                        FilterOption(id = "low_stock", label = "Low Stock"),
+                        FilterOption(id = "out_of_stock", label = "Out of Stock"),
+                        FilterOption(id = "not_tracked", label = "Not Tracked")
+                    )
+                )
+            )
+        )
+    }
+
+    val activeFilterCount by remember(filterSections) {
+        derivedStateOf { filterSections.sumOf { sec -> sec.options.count { it.isSelected } } }
+    }
+
     var isInitialized by remember { mutableStateOf(false) }
     LaunchedEffect(searchQuery) {
         if (!isInitialized) {
@@ -119,60 +152,53 @@ fun InventoryScreen(
         }
     }
 
-    // Scroll listener using snapshotFlow: only fires when the user crosses the bottom threshold
+    // Scroll pagination
     LaunchedEffect(listState, canLoadMore, searchQuery) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
             val totalItemsNumber = layoutInfo.totalItemsCount
             val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-
-            // Trigger when 2 items away from bottom
             totalItemsNumber > 0 && lastVisibleItemIndex >= (totalItemsNumber - 2)
         }
             .distinctUntilChanged()
             .collect { isNearBottom ->
-                if (isNearBottom &&
-                    canLoadMore &&
-                    !inventoryViewModel.isLoadingMoreInventoryItems.value &&
-                    !inventoryViewModel.isLoadingInventoryItems.value &&
-                    searchQuery.isBlank()
+                if (isNearBottom && canLoadMore && !inventoryViewModel.isLoadingMoreInventoryItems.value &&
+                    !inventoryViewModel.isLoadingInventoryItems.value && searchQuery.isBlank()
                 ) {
                     inventoryViewModel.loadMoreInventoryItems()
                 }
             }
     }
 
-    // Prefill form for editing
-    LaunchedEffect(viewOneItem) {
-        viewOneItem?.let { item ->
-            inventoryViewModel.populateFormForEdit(item)
-            onEditItem()
-            inventoryViewModel.clearViewOneItem()
-        }
-    }
+    // ── Filter logic applying Search + Drawer filters ──
+    val filteredItems by remember(items, searchQuery, filterSections) {
+        derivedStateOf {
+            val selectedTypes = filterSections.find { it.title == "Type" }
+                ?.options?.filter { it.isSelected }?.map { it.label.lowercase() } ?: emptyList()
+            val selectedStatuses = filterSections.find { it.title == "Stock Status" }
+                ?.options?.filter { it.isSelected }?.map { it.label.lowercase() } ?: emptyList()
 
-    // Delete Confirmation Dialog
-    itemToDelete?.let { item ->
-        val itemName = item.name.ifBlank { "this item" }
-        DeleteModel(
-            title = "Delete Product",
-            message = "Are you sure you want to delete \"$itemName\"? It can be restored within 7 days, after which it is permanently removed.",
-            onDismiss = { itemToDelete = null },
-            onDelete = {
-                val itemId = item._id
-                if (itemId.isNotBlank()) {
-                    inventoryViewModel.deleteInventoryItem(
-                        itemId = itemId,
-                        onSuccess = {
-                            successToastMessage = "Item deleted. It can be restored within 7 days, after which it is permanently removed."
-                            itemToDelete = null
-                        }
-                    )
-                } else {
-                    itemToDelete = null
+            items.filter { item ->
+                val matchesSearch = searchQuery.isBlank() ||
+                        item.name.contains(searchQuery, ignoreCase = true) ||
+                        item.sku.contains(searchQuery, ignoreCase = true)
+
+                val matchesType = selectedTypes.isEmpty() || selectedTypes.any { it.equals(item.type, ignoreCase = true) }
+
+                val itemStockStatus = item.stockStatus?.lowercase().orEmpty()
+                val matchesStatus = selectedStatuses.isEmpty() || selectedStatuses.any { status ->
+                    when (status) {
+                        "in stock" -> itemStockStatus.contains("in stock", ignoreCase = true)
+                        "low stock" -> itemStockStatus.contains("low", ignoreCase = true)
+                        "out of stock" -> itemStockStatus.contains("out of stock", ignoreCase = true) || itemStockStatus.contains("stock not assigned", ignoreCase = true)
+                        "not tracked" -> !item.trackInventory
+                        else -> itemStockStatus.contains(status, ignoreCase = true)
+                    }
                 }
+
+                matchesSearch && matchesType && matchesStatus
             }
-        )
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -181,7 +207,6 @@ fun InventoryScreen(
                 .fillMaxSize()
                 .background(Color.Transparent)
         ) {
-            // ── Header ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -195,10 +220,11 @@ fun InventoryScreen(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
                     placeholder = "Search Items...",
+                    filterCount = activeFilterCount,
                     accentColor = BluePrimary,
                     borderColor = BorderGray,
                     textSecondaryColor = TextSecondary,
-                    onFilterClick = { }
+                    onFilterClick = { filterDrawerState.open() }
                 )
             }
             HorizontalDivider(color = title_border)
@@ -216,7 +242,7 @@ fun InventoryScreen(
                     )
                 }
 
-                items.isEmpty() -> {
+                filteredItems.isEmpty() -> {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -231,48 +257,22 @@ fun InventoryScreen(
                                 .background(background_light_purple),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                Icons.Default.Inventory2,
-                                contentDescription = null,
-                                tint = Primary,
-                                modifier = Modifier.size(30.dp)
-                            )
+                            Icon(Icons.Default.Inventory2, contentDescription = null, tint = Primary, modifier = Modifier.size(30.dp))
                         }
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            "No Items Found",
+                            text = if (searchQuery.isNotBlank() || activeFilterCount > 0) "No Matching Items" else "No Items Found",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = TextPrimary
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "Start by adding your first inventory item",
+                            text = if (searchQuery.isNotBlank() || activeFilterCount > 0) "Try adjusting your search or filters" else "Start by adding your first inventory item",
                             fontSize = 13.sp,
                             color = mutedText,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(Modifier.height(20.dp))
-                        Button(
-                            onClick = onAddItem,
-                            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = null,
-                                tint = whiteBg,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                "Add Item",
-                                color = whiteBg,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
                     }
                 }
 
@@ -292,30 +292,18 @@ fun InventoryScreen(
                                 .background(Color.Transparent)
                         ) {
                             itemsIndexed(
-                                items = items,
-                                key = { index, item ->
-                                    val id = item._id
-                                    if (id.isNotBlank()) id else "item_$index"
-                                }
+                                items = filteredItems,
+                                key = { index, item -> item._id.ifBlank { "item_$index" } }
                             ) { _, item ->
                                 val (badgeFg, badgeBg) = inventoryStatusColors(item.stockStatus)
-                                val isTracking = item.trackInventory
-                                val stockCount = item.currentStock
-                                val stockText = if (!isTracking) "—" else stockCount.toInt().toString()
-
-                                val itemType = item.type.replaceFirstChar {
-                                    if (it.isLowerCase()) it.titlecase() else it.toString()
-                                }.ifBlank { "N/A" }
-                                val price = item.sellingPrice
-                                val skuText = item.sku.ifBlank { "—" }
-                                val nameText = item.name.ifBlank { "Unnamed Item" }
-                                val itemId = item._id
+                                val stockText = if (!item.trackInventory) "—" else item.currentStock.toInt().toString()
+                                val itemType = item.type.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }.ifBlank { "N/A" }
 
                                 DataCard(
                                     item = item,
                                     modifier = Modifier.animateItem(),
-                                    smalltitle = "$skuText • SKU",
-                                    subtitle = nameText,
+                                    smalltitle = "${item.sku.ifBlank { "—" }} • SKU",
+                                    subtitle = item.name.ifBlank { "Unnamed Item" },
                                     topBadgeText = item.stockStatus,
                                     topBadgeTextColor = badgeFg,
                                     topBadgeBgColor = badgeBg,
@@ -324,48 +312,23 @@ fun InventoryScreen(
                                     footerFields = listOf(
                                         DataCardField(label = "Type", text = itemType),
                                         DataCardField(label = "Stock", text = stockText),
-                                        DataCardField(
-                                            label = "Selling Price",
-                                            text = "₹${"%.2f".format(price)}"
-                                        )
+                                        DataCardField(label = "Selling Price", text = "₹${"%.2f".format(item.sellingPrice)}")
                                     ),
                                     actions = listOf(
-                                        MenuAction(
-                                            label = "View",
-                                            icon = Icons.Default.Visibility,
-                                            onClick = { onViewItem(item) }
-                                        ),
-                                        MenuAction(
-                                            label = "Edit",
-                                            icon = Icons.Default.Edit,
-                                            onClick = {
-                                                if (itemId.isNotBlank()) {
-                                                    inventoryViewModel.onViewOneClicked(itemId)
-                                                }
-                                            }
-                                        ),
-                                        MenuAction(
-                                            label = "Delete",
-                                            icon = Icons.Default.Delete,
-                                            onClick = {
-                                                itemToDelete = item
-                                            }
-                                        )
+                                        MenuAction(label = "View", icon = Icons.Default.Visibility, onClick = { onViewItem(item) }),
+                                        MenuAction(label = "Edit", icon = Icons.Default.Edit, onClick = {
+                                            if (item._id.isNotBlank()) inventoryViewModel.onViewOneClicked(item._id)
+                                        }),
+                                        MenuAction(label = "Delete", icon = Icons.Default.Delete, onClick = { itemToDelete = item })
                                     )
                                 )
                             }
 
-                            // Render ThreeDotLoading ONLY when next page is actively loading
                             if (isLoadingMore) {
                                 item(key = "pagination_threedot_loader") {
-                                    ThreeDotLoading(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp)
-                                    )
+                                    ThreeDotLoading(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp))
                                 }
                             }
-
                             item { Spacer(Modifier.height(80.dp)) }
                         }
                     }
@@ -373,15 +336,20 @@ fun InventoryScreen(
             }
         }
 
-        // ── Dynamic Island Notifications ──
-        DynamicIslandSuccess(
-            message = successToastMessage,
-            onDismiss = { successToastMessage = null }
+        // ── Filter Items Drawer ──
+        FilterDrawer(
+            state = filterDrawerState,
+            title = "Filter Items",
+            sections = filterSections,
+            onApply = { updated -> filterSections = updated },
+            onClearAll = {
+                filterSections = filterSections.map { sec ->
+                    sec.copy(options = sec.options.map { it.copy(isSelected = false) })
+                }
+            }
         )
 
-        DynamicIslandError(
-            message = errorToastMessage ?: errorMessage,
-            onDismiss = { errorToastMessage = null }
-        )
+        DynamicIslandSuccess(message = successToastMessage, onDismiss = { successToastMessage = null })
+        DynamicIslandError(message = errorToastMessage ?: errorMessage, onDismiss = { errorToastMessage = null })
     }
 }

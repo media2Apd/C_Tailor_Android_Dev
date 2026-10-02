@@ -2,9 +2,7 @@
 
 package com.cuso.tailor.view.home.inventory.safety_stock
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -13,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,10 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
@@ -68,7 +64,7 @@ private fun getHealthTheme(status: String): HealthTheme {
 @Composable
 fun SafetyStockScreen(
     onClose: () -> Unit = {},
-    onItemClick: (SafetyStockItemDto) -> Unit = {},
+//    onItemClick: (SafetyStockItemDto) -> Unit = {},
     onEditClick: (String) -> Unit = {},
     onFilterClick: () -> Unit = {},
     viewModel: InventoryViewModel = hiltViewModel()
@@ -96,7 +92,7 @@ fun SafetyStockScreen(
         }
     }
 
-    // Scroll pagination threshold observer
+    // Scroll pagination observer
     LaunchedEffect(listState, canLoadMore, searchQuery) {
         snapshotFlow {
             val layoutInfo = listState.layoutInfo
@@ -117,126 +113,251 @@ fun SafetyStockScreen(
             .fillMaxSize()
             .background(Primary_background)
     ) {
-        Scaffold(
-            topBar = {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = whiteBg
-                ) {
-                    TitleBar(
-                        title = "Safety Stock",
-                        onClose = onClose
-                    )
-                }
-            },
-            containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0)
-        ) { innerPadding ->
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Screen Header
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
+                    .fillMaxWidth()
+                    .background(whiteBg)
             ) {
-                // Breadcrumb indicators
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = 6.dp)
-                ) {
-                    Text(text = "Inventory", fontSize = tokens.caption, color = mutedText)
-                    Text(text = "  >  ", fontSize = tokens.caption, color = mutedText)
-                    Text(text = "Alerts & Reorder", fontSize = tokens.caption, color = mutedText)
-                    Text(text = "  >  ", fontSize = tokens.caption, color = mutedText)
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(yellowBg)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "Safety Stock",
-                            fontSize = tokens.caption,
-                            fontWeight = FontWeight.Bold,
-                            color = yellowText
-                        )
-                    }
-                }
+                TitleBar(
+                    title = "Safety Stock",
+                    onClose = onClose
+                )
+                HorizontalDivider(color = title_border)
+            }
 
-                // Search field container
-                Box(
-                    modifier = Modifier.padding(
-                        horizontal = tokens.screenPadding,
-                        vertical = tokens.extraPadding * 0.4f
-                    )
-                ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Search Bar without extra padding wrapper
                     SearchFilterBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
                         placeholder = "Search Stock Items...",
-                        onFilterClick = onFilterClick,
-                        height = tokens.fieldHeight
+                        accentColor = BluePrimary,
+                        borderColor = BorderGray,
+                        textSecondaryColor = TextSecondary,
+                        onFilterClick = onFilterClick
                     )
-                }
 
-                HorizontalDivider(color = dividerColor, thickness = 1.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        when {
+                            isLoading && safetyStockItems.isEmpty() -> {
+                                ListSkeleton()
+                            }
 
-                when {
-                    isLoading && safetyStockItems.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
-                    errorMessage != null && safetyStockItems.isEmpty() -> {
-                        AppErrorState(
-                            title = "Failed to load safety stock",
-                            message = errorMessage ?: "Something went wrong. Please check your connection.",
-                            onRetry = { viewModel.fetchSafetyStock(search = searchQuery.trim()) }
-                        )
-                    }
-
-                    safetyStockItems.isEmpty() -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (searchQuery.isBlank()) "No safety stock records found." else "No matching items.",
-                                color = mutedText,
-                                fontSize = tokens.bodyMedium
-                            )
-                        }
-                    }
-
-                    else -> {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding),
-                            contentPadding = PaddingValues(
-                                start = tokens.screenPadding,
-                                end = tokens.screenPadding,
-                                top = tokens.extraPadding,
-                                bottom = tokens.screenPadding * 2
-                            )
-                        ) {
-                            itemsIndexed(
-                                items = safetyStockItems,
-                                key = { index, item -> item.itemId.ifBlank { "item_$index" } }
-                            ) { _, item ->
-                                SafetyStockCard(
-                                    item = item,
-                                    onClick = { onItemClick(item) },
-                                    onEditClick = { onEditClick(item.itemId) }
+                            errorMessage != null && safetyStockItems.isEmpty() -> {
+                                AppErrorState(
+                                    title = "Failed to load safety stock",
+                                    message = errorMessage ?: "Something went wrong. Please check your connection.",
+                                    onRetry = { viewModel.fetchSafetyStock(search = searchQuery.trim()) }
                                 )
                             }
 
-                            if (isLoadingMore) {
-                                item(key = "safety_stock_loader") {
-                                    ThreeDotLoading(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp)
+                            safetyStockItems.isEmpty() -> {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (searchQuery.isBlank()) "No safety stock records found." else "No matching items.",
+                                        color = mutedText,
+                                        fontSize = tokens.bodyMedium
                                     )
+                                }
+                            }
+
+                            else -> {
+                                Column(modifier = Modifier.fillMaxSize()) {
+                                    LazyColumn(
+                                        state = listState,
+                                        contentPadding = PaddingValues(
+                                            top = tokens.extraPadding * 0.5f,
+                                            bottom = 90.dp
+                                        )
+                                    ) {
+                                        itemsIndexed(
+                                            items = safetyStockItems,
+                                            key = { index, item -> item.itemId.ifBlank { "item_$index" } }
+                                        ) { _, item ->
+                                            val theme = getHealthTheme(item.health)
+                                            val displayUnit = item.unit?.ifBlank { "Meters" } ?: "Meters"
+                                            val progressRatio = (item.healthPercent.toFloat() / 100f).coerceIn(0.08f, 1f)
+
+                                            val cardActions = listOf(
+//                                                MenuAction("View", Icons.Default.Visibility) { onItemClick(item) },
+                                                MenuAction("Edit") { onEditClick(item.itemId) }
+                                            )
+
+                                            DataCard(
+                                                item = item,
+//                                                onClick = { onItemClick(item) },
+                                                title = item.name.ifBlank { "Product" },
+                                                subtitle = buildString {
+                                                    append("SKU: ${item.sku.ifBlank { "—" }}")
+                                                    if (!item.variantLabel.isNullOrBlank()) {
+                                                        append(" · Variant: ${item.variantLabel}")
+                                                    }
+                                                },
+                                                headerContent = {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(
+                                                            text = item.warehouseName ?: "Main Warehouse",
+                                                            fontSize = tokens.bodySmall,
+                                                            color = headerGrey
+                                                        )
+
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                        ) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .clip(RoundedCornerShape(14.dp))
+                                                                    .background(theme.bgColor)
+                                                                    .padding(horizontal = 10.dp, vertical = 0.dp),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Text(
+                                                                    text = item.health.ifBlank { "-" },
+                                                                    fontSize = tokens.caption,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    color = theme.textColor
+                                                                )
+                                                            }
+
+                                                            ActionDropdownMenu(
+                                                                icon = Icons.Default.MoreVert,
+                                                                actions = cardActions
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                content = {
+                                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                                        // Stock Health and Available Quantities
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.Bottom
+                                                        ) {
+                                                            Column {
+                                                                Text(
+                                                                    text = "Current Stock",
+                                                                    fontSize = tokens.label,
+                                                                    color = mutedText
+                                                                )
+                                                                Spacer(Modifier.height(2.dp))
+                                                                Text(
+                                                                    text = "${item.available.toInt()} $displayUnit",
+                                                                    fontSize = tokens.bodyMedium,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    color = TextPrimary
+                                                                )
+                                                            }
+
+                                                            Column(horizontalAlignment = Alignment.End) {
+                                                                Text(
+                                                                    text = "Health Ratio",
+                                                                    fontSize = tokens.label,
+                                                                    color = mutedText
+                                                                )
+                                                                Spacer(Modifier.height(2.dp))
+                                                                Text(
+                                                                    text = "${item.healthPercent}%",
+                                                                    fontSize = tokens.bodyMedium,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    color = theme.textColor
+                                                                )
+                                                            }
+                                                        }
+
+                                                        Spacer(Modifier.height(8.dp))
+
+                                                        // Health Level Progress Indicator
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .height(5.dp)
+                                                                .clip(RoundedCornerShape(3.dp))
+                                                                .background(dividerColor)
+                                                        ) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .fillMaxWidth(progressRatio)
+                                                                    .fillMaxHeight()
+                                                                    .clip(RoundedCornerShape(3.dp))
+                                                                    .background(theme.progressColor)
+                                                            )
+                                                        }
+
+                                                        Spacer(Modifier.height(14.dp))
+                                                        HorizontalDivider(color = grey_border, thickness = 1.dp)
+                                                        Spacer(Modifier.height(10.dp))
+
+                                                        // Safety Level & Reorder Level Comparison
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                                            verticalAlignment = Alignment.Bottom
+                                                        ) {
+                                                            Column {
+                                                                Text(
+                                                                    text = "Safety Level",
+                                                                    fontSize = tokens.label,
+                                                                    color = mutedText
+                                                                )
+                                                                Spacer(Modifier.height(2.dp))
+                                                                Text(
+                                                                    text = "${item.safetyStock.toInt()} $displayUnit",
+                                                                    fontSize = tokens.bodySmall,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    color = TextPrimary
+                                                                )
+                                                            }
+
+                                                            Column(horizontalAlignment = Alignment.End) {
+                                                                Text(
+                                                                    text = "Reorder Level",
+                                                                    fontSize = tokens.label,
+                                                                    color = mutedText
+                                                                )
+                                                                Spacer(Modifier.height(2.dp))
+                                                                Text(
+                                                                    text = "${item.reorderLevel.toInt()} $displayUnit",
+                                                                    fontSize = tokens.bodySmall,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    color = Primary
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                        }
+
+                                        if (isLoadingMore) {
+                                            item(key = "safety_stock_loader") {
+                                                ThreeDotLoading(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 16.dp)
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -256,229 +377,74 @@ fun SafetyStockScreen(
 }
 
 @Composable
-fun SafetyStockCard(
-    item: SafetyStockItemDto,
-    onClick: () -> Unit,
-    onEditClick: () -> Unit = {}
-) {
+fun SafetyStockMetricsGrid(items: List<SafetyStockItemDto>) {
     val tokens = LocalAppTokens.current
-    val theme = getHealthTheme(item.health)
-    val displayUnit = item.unit?.ifBlank { "Meters" } ?: "Meters"
-    var menuExpanded by remember { mutableStateOf(false) }
 
-    val progressRatio = (item.healthPercent.toFloat() / 100f).coerceIn(0.08f, 1f)
+    val totalItems = items.size
+    val safeCount = items.count { it.health.trim().lowercase() in listOf("safe", "healthy") }
+    val lowCount = items.count { it.health.trim().lowercase() in listOf("low", "warning") }
+    val criticalCount = items.count { it.health.trim().lowercase() in listOf("critical", "out of stock") }
 
-    Card(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.8f),
-        colors = CardDefaults.cardColors(containerColor = whiteBg),
-        border = BorderStroke(1.dp, sectionBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp)
+            .padding(horizontal = tokens.screenPadding, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            SafetyStockMetricCard(label = "Monitored Items", value = "$totalItems", modifier = Modifier.weight(1f))
+            SafetyStockMetricCard(label = "Safe Stock", value = "$safeCount", modifier = Modifier.weight(1f))
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            SafetyStockMetricCard(label = "Low Warning", value = "$lowCount", modifier = Modifier.weight(1f))
+            SafetyStockMetricCard(label = "Critical Reorder", value = "$criticalCount", modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+fun SafetyStockMetricCard(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    val tokens = LocalAppTokens.current
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(whiteBg, RoundedCornerShape(20.dp)),
+        shape = RoundedCornerShape(20.dp),
+        color = whiteBg
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(tokens.screenPadding)
+                .padding(horizontal = 14.dp, vertical = 12.dp)
         ) {
-            // Header section: Product details and actions menu
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = item.name.ifBlank { "Product" },
-                    fontSize = tokens.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
-                    modifier = Modifier.weight(1f)
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(theme.bgColor)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = item.health.ifBlank { "Safe" },
-                        fontSize = tokens.label,
-                        fontWeight = FontWeight.Bold,
-                        color = theme.textColor
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                Box {
-                    IconButton(
-                        onClick = { menuExpanded = true },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Options",
-                            tint = iconMuted,
-                            modifier = Modifier.size(tokens.iconSize)
-                        )
-                    }
-
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                        offset = DpOffset(x = (-10).dp, y = 0.dp),
-                        modifier = Modifier.background(
-                            color = whiteBg,
-                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                        )
-                    ) {
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = "Edit",
-                                    fontSize = tokens.bodyMedium,
-                                    color = TextPrimary
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit",
-                                    tint = Primary,
-                                    modifier = Modifier.size(tokens.iconSize)
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onEditClick()
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = buildString {
-                    append("SKU: ${item.sku.ifBlank { "—" }}")
-                    if (!item.variantLabel.isNullOrBlank()) {
-                        append(" · Variant: ${item.variantLabel}")
-                    }
-                },
+                text = label,
                 fontSize = tokens.caption,
-                color = mutedText
+                fontWeight = FontWeight.Normal,
+                color = headerGrey,
+                maxLines = 1
             )
 
-            Spacer(modifier = Modifier.height(tokens.extraPadding))
+            Spacer(Modifier.height(8.dp))
 
-            // Inventory location and stock levels
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                Column(modifier = Modifier.weight(1.2f)) {
-                    Text(
-                        text = "Warehouse",
-                        fontSize = tokens.caption,
-                        color = mutedText
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = item.warehouseName ?: "Main Warehouse",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "Stock Health",
-                        fontSize = tokens.caption,
-                        color = mutedText
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "${item.available.toInt()} $displayUnit",
-                        fontSize = tokens.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Health progress indicator bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(5.dp)
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(dividerColor)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(progressRatio)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(theme.progressColor)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(tokens.extraPadding))
-            HorizontalDivider(color = dividerColor.copy(alpha = 0.5f), thickness = 0.8.dp)
-            Spacer(modifier = Modifier.height(tokens.extraPadding))
-
-            // Threshold details
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "SAFETY LEVEL",
-                        fontSize = tokens.label,
-                        fontWeight = FontWeight.Medium,
-                        color = mutedText,
-                        letterSpacing = 0.5.sp
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "${item.safetyStock.toInt()} $displayUnit",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "REORDER LEVEL",
-                        fontSize = tokens.label,
-                        fontWeight = FontWeight.Medium,
-                        color = mutedText,
-                        letterSpacing = 0.5.sp
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "${item.reorderLevel.toInt()} $displayUnit",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
-                    )
-                }
-            }
+            Text(
+                text = value,
+                fontSize = tokens.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = TextPrimary
+            )
         }
     }
 }

@@ -84,6 +84,10 @@ import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.ErrorMapper
+import com.cuso.tailor.view.composable.FilterDrawer
+import com.cuso.tailor.view.composable.FilterOption
+import com.cuso.tailor.view.composable.FilterSection
+import com.cuso.tailor.view.composable.FilterSectionType
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.SearchFilterBar
@@ -92,6 +96,7 @@ import com.cuso.tailor.view.composable.SmoothBottomSheet
 import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.rememberFilterDrawerState
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
 
@@ -129,6 +134,39 @@ fun AllOrdersStockListScreen(
 
     val listState = rememberLazyListState()
 
+    // ── Filter Drawer State & Sections ──
+    val filterDrawerState = rememberFilterDrawerState()
+    var filterSections by remember {
+        mutableStateOf(
+            listOf(
+                FilterSection(
+                    title = "Warehouse",
+                    type = FilterSectionType.CHECKBOX_LIST,
+                    options = emptyList()
+                )
+            )
+        )
+    }
+
+    // Populate Warehouses dynamically from warehouseDropdown API
+    LaunchedEffect(warehouseDropdown) {
+        if (warehouseDropdown.isNotEmpty()) {
+            filterSections = listOf(
+                FilterSection(
+                    title = "Warehouse",
+                    type = FilterSectionType.CHECKBOX_LIST,
+                    options = warehouseDropdown.map { item ->
+                        FilterOption(id = item.value, label = item.label)
+                    }
+                )
+            )
+        }
+    }
+
+    val activeFilterCount by remember(filterSections) {
+        derivedStateOf { filterSections.sumOf { sec -> sec.options.count { it.isSelected } } }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.clearAdjustmentAlerts()
         viewModel.clearStockSummaryAlerts()
@@ -138,46 +176,22 @@ fun AllOrdersStockListScreen(
         settingsViewModel.fetchBins(isRefresh = true)
     }
 
-    val shouldLoadMore = remember {
+    // Filter Logic
+    val filteredList by remember(stockSummaryList, searchQuery, filterSections) {
         derivedStateOf {
-            val totalItems = listState.layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
-        }
-    }
+            val selectedWarehouseNames = filterSections.find { it.title == "Warehouse" }
+                ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
 
-    LaunchedEffect(shouldLoadMore.value, canLoadMoreSummary, isLoadingMoreSummary, isLoadingSummary) {
-        if (shouldLoadMore.value && canLoadMoreSummary && !isLoadingMoreSummary && !isLoadingSummary && searchQuery.isBlank()) {
-            viewModel.loadMoreStockSummaryList()
-        }
-    }
-
-    LaunchedEffect(stockSummaryList, preselectedItemId, initialAdjustmentType) {
-        if (!preselectedItemId.isNullOrBlank() && stockSummaryList.isNotEmpty()) {
-            val matchedItem = stockSummaryList.find { it.itemId == preselectedItemId }
-            if (matchedItem != null) {
-                selectedStockItem = matchedItem
-                activeAdjustmentType = initialAdjustmentType
-                sheetState = SheetValue.Expanded
-            }
-        }
-    }
-
-    LaunchedEffect(adjustmentSuccessMessage) {
-        if (!adjustmentSuccessMessage.isNullOrBlank()) {
-            sheetState = SheetValue.Hidden
-            viewModel.fetchStockSummaryList()
-        }
-    }
-
-    val filteredList = remember(stockSummaryList, searchQuery) {
-        if (searchQuery.isBlank()) stockSummaryList
-        else {
             stockSummaryList.filter { item ->
-                item.product.contains(searchQuery, ignoreCase = true) ||
+                val matchesSearch = searchQuery.isBlank() ||
+                        item.product.contains(searchQuery, ignoreCase = true) ||
                         item.sku.contains(searchQuery, ignoreCase = true) ||
-                        item.warehouse.contains(searchQuery, ignoreCase = true) ||
-                        (item.variant?.contains(searchQuery, ignoreCase = true) == true)
+                        item.warehouse.contains(searchQuery, ignoreCase = true)
+
+                val matchesWarehouse = selectedWarehouseNames.isEmpty() ||
+                        selectedWarehouseNames.any { it.equals(item.warehouse, ignoreCase = true) }
+
+                matchesSearch && matchesWarehouse
             }
         }
     }
@@ -186,71 +200,46 @@ fun AllOrdersStockListScreen(
         Scaffold(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            topBar = {
-                TitleBar(
-                    title = "Stock Adjustments",
-                    onClose = onClose
-                )
-            }
+            topBar = { TitleBar(title = "Stock Adjustments", onClose = onClose) }
         ) { padding ->
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
+                modifier = Modifier.fillMaxSize().padding(padding)
             ) {
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
                     placeholder = "Search Stock Adjustment....",
                     showFilterIcon = true,
-                    onFilterClick = { },
+                    filterCount = activeFilterCount,
+                    onFilterClick = { filterDrawerState.open() },
                     height = tokens.fieldHeight * 1.1f
                 )
 
                 HorizontalDivider(color = grey_border)
 
                 when {
-                    isLoadingSummary && stockSummaryList.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
+                    isLoadingSummary && stockSummaryList.isEmpty() -> ListSkeleton()
                     stockSummaryError != null && stockSummaryList.isEmpty() -> {
                         AppErrorState(
                             title = "Failed to load stock adjustments",
-                            message = stockSummaryError?.let { ErrorMapper.map(it) } ?: "Something went wrong. Please check your connection.",
+                            message = stockSummaryError?.let { ErrorMapper.map(it) } ?: "Something went wrong.",
                             onRetry = { viewModel.fetchStockSummaryList() }
                         )
                     }
-
                     filteredList.isEmpty() -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No stock items found",
-                                fontSize = tokens.bodyMedium,
-                                color = mutedText
-                            )
+                        Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
+                            Text(text = "No stock items found", fontSize = tokens.bodyMedium, color = mutedText)
                         }
                     }
-
                     else -> {
                         LazyColumn(
                             state = listState,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .weight(1f),
+                            modifier = Modifier.fillMaxSize().weight(1f),
                             contentPadding = PaddingValues(vertical = 8.dp)
                         ) {
                             items(
                                 items = filteredList,
-                                key = { item ->
-                                    val keyPrefix = item.itemId.ifBlank { item.hashCode().toString() }
-                                    "${keyPrefix}_${item.warehouseId}_${item.variant.orEmpty()}"
-                                }
+                                key = { item -> "${item.itemId}_${item.warehouseId}_${item.variant.orEmpty()}" }
                             ) { item ->
                                 StockAdjustmentCardItem(
                                     stockItem = item,
@@ -262,25 +251,30 @@ fun AllOrdersStockListScreen(
                                     }
                                 )
                             }
-
                             if (isLoadingMoreSummary) {
-                                item(key = "pagination_threedot_loader") {
-                                    ThreeDotLoading(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 14.dp)
-                                    )
+                                item(key = "pagination_loader") {
+                                    ThreeDotLoading(modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp))
                                 }
                             }
-
-                            item {
-                                Spacer(Modifier.height(40.dp))
-                            }
+                            item { Spacer(Modifier.height(40.dp)) }
                         }
                     }
                 }
             }
         }
+
+        // ── Filter Stock Drawer ──
+        FilterDrawer(
+            state = filterDrawerState,
+            title = "Filter Stock",
+            sections = filterSections,
+            onApply = { updated -> filterSections = updated },
+            onClearAll = {
+                filterSections = filterSections.map { sec ->
+                    sec.copy(options = sec.options.map { it.copy(isSelected = false) })
+                }
+            }
+        )
 
         SmoothBottomSheet(
             state = sheetState,
@@ -294,10 +288,7 @@ fun AllOrdersStockListScreen(
             scrollableContent = true,
             collapsedCornerRadius = tokens.cardCornerRadius,
             sheetBackgroundColor = whiteBg,
-            onDismissRequest = {
-                viewModel.clearAdjustmentAlerts()
-                sheetState = SheetValue.Hidden
-            }
+            onDismissRequest = { viewModel.clearAdjustmentAlerts(); sheetState = SheetValue.Hidden }
         ) {
             selectedStockItem?.let { item ->
                 AdjustStockModalContent(
@@ -308,10 +299,7 @@ fun AllOrdersStockListScreen(
                     isSubmitting = isSubmittingAdjustment,
                     tokens = tokens,
                     settingsViewModel = settingsViewModel,
-                    onDismiss = {
-                        viewModel.clearAdjustmentAlerts()
-                        sheetState = SheetValue.Hidden
-                    },
+                    onDismiss = { viewModel.clearAdjustmentAlerts(); sheetState = SheetValue.Hidden },
                     onIncreaseStock = { req -> viewModel.submitIncreaseStock(req) },
                     onDecreaseStock = { req -> viewModel.submitDecreaseStock(req) },
                     onTransferStock = { req -> viewModel.submitStockTransfer(req) }
@@ -320,23 +308,14 @@ fun AllOrdersStockListScreen(
         }
 
         DynamicIslandSuccess(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = tokens.fieldHeight * 1.5f),
             message = adjustmentSuccessMessage,
             onDismiss = { viewModel.clearAdjustmentAlerts() }
         )
-
         DynamicIslandError(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = adjustmentErrorMessage?.takeIf { it.isNotBlank() }?.let { ErrorMapper.map(it) }
-                ?: stockSummaryError?.takeIf { it.isNotBlank() && stockSummaryList.isNotEmpty() }?.let { ErrorMapper.map(it) },
-            onDismiss = {
-                viewModel.clearAdjustmentAlerts()
-                viewModel.clearStockSummaryAlerts()
-            }
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = tokens.fieldHeight * 1.5f),
+            message = adjustmentErrorMessage?.takeIf { it.isNotBlank() }?.let { ErrorMapper.map(it) },
+            onDismiss = { viewModel.clearAdjustmentAlerts() }
         )
     }
 }

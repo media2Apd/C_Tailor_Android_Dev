@@ -394,8 +394,7 @@ fun ApplyLeaveScreen(
                     selectedImages = uploadedDocuments,
                     onBrowseClick = { filePickerLauncher.launch("*/*") },
                     onRemoveImage = { uploadedDocuments.remove(it) },
-                    subtitle = "Add supporting documents if required by policy",
-                    uploadBoxHeight = 140.dp
+                    subtitle = "Add supporting documents if required by policy"
                 )
 
                 Spacer(Modifier.height(tokens.extraPadding * 1.2f))

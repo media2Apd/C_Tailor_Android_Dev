@@ -477,7 +477,6 @@ private fun RecordPaymentFormContent(
                             attachedUris = attachedUris - removedUri
                         },
                         documentUploadText = "Click to upload or drag and drop files\nMaximum 5MB per file (PDF, JPEG, PNG)",
-                        uploadBoxHeight = 120.dp,
                         previewHeaderTitle = "ATTACHMENTS"
                     )
                 }

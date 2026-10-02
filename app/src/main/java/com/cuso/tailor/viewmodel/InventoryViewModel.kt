@@ -33,6 +33,7 @@ import com.cuso.tailor.model.inventory.CreateRequisitionRequest
 import com.cuso.tailor.model.inventory.CreateSupplierRequest
 import com.cuso.tailor.model.inventory.CreateWarehouseRequest
 import com.cuso.tailor.model.inventory.DecreaseStockRequest
+import com.cuso.tailor.model.inventory.DocumentTemplateDto
 import com.cuso.tailor.model.inventory.GenerateBarcodeRequest
 import com.cuso.tailor.model.inventory.HierarchyDropdownItem
 import com.cuso.tailor.model.inventory.IncreaseStockRequest
@@ -49,6 +50,7 @@ import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.inventory.PurchaseOrderData
 import com.cuso.tailor.model.inventory.PurchaseOrderDetailData
 import com.cuso.tailor.model.inventory.PurchaseOrderSummaryDto
+import com.cuso.tailor.model.inventory.PurchasePaymentRecord
 import com.cuso.tailor.model.inventory.PurchaseReceiveItem
 import com.cuso.tailor.model.inventory.PurchaseRequisition
 import com.cuso.tailor.model.inventory.ReceiveHistoryByPoResponse
@@ -67,6 +69,7 @@ import com.cuso.tailor.model.inventory.TaxGroupDto
 import com.cuso.tailor.model.inventory.TransferStockRequest
 import com.cuso.tailor.model.inventory.UpdateWarehouseRequest
 import com.cuso.tailor.model.inventory.VariantSelection
+import com.cuso.tailor.model.inventory.VoidPaymentRequest
 import com.cuso.tailor.model.inventory.WarehouseAddress
 import com.cuso.tailor.model.inventory.WarehouseDropdownItem
 import com.cuso.tailor.model.inventory.WarehouseItem
@@ -4044,6 +4047,419 @@ class InventoryViewModel @Inject constructor(
                     onError(cleanError)
                 }
             )
+        }
+    }
+
+    // =========================================================================
+    // DOCUMENT TEMPLATES STATE
+    // =========================================================================
+    private val _documentTemplates = MutableStateFlow<List<DocumentTemplateDto>>(emptyList())
+    val documentTemplates: StateFlow<List<DocumentTemplateDto>> = _documentTemplates.asStateFlow()
+
+    private val _isLoadingTemplates = MutableStateFlow(false)
+    val isLoadingTemplates: StateFlow<Boolean> = _isLoadingTemplates.asStateFlow()
+
+    // =========================================================================
+    // PURCHASE PAYMENT VIEW ONE & VIEW ALL STATES
+    // =========================================================================
+    private val _purchasePaymentsList = MutableStateFlow<List<PurchasePaymentRecord>>(emptyList())
+    val purchasePaymentsList: StateFlow<List<PurchasePaymentRecord>> = _purchasePaymentsList.asStateFlow()
+
+    private val _isLoadingPurchasePayments = MutableStateFlow(false)
+    val isLoadingPurchasePayments: StateFlow<Boolean> = _isLoadingPurchasePayments.asStateFlow()
+
+    private val _isLoadingMorePurchasePayments = MutableStateFlow(false)
+    val isLoadingMorePurchasePayments: StateFlow<Boolean> = _isLoadingMorePurchasePayments.asStateFlow()
+
+    private val _canLoadMorePurchasePayments = MutableStateFlow(true)
+    val canLoadMorePurchasePayments: StateFlow<Boolean> = _canLoadMorePurchasePayments.asStateFlow()
+
+    private val _currentPurchasePaymentPage = MutableStateFlow(1)
+    val currentPurchasePaymentPage: StateFlow<Int> = _currentPurchasePaymentPage.asStateFlow()
+
+    private val _purchasePaymentError = MutableStateFlow<String?>(null)
+    val purchasePaymentError: StateFlow<String?> = _purchasePaymentError.asStateFlow()
+
+    private val _selectedPurchasePaymentDetail = MutableStateFlow<PurchasePaymentRecord?>(null)
+    val selectedPurchasePaymentDetail: StateFlow<PurchasePaymentRecord?> = _selectedPurchasePaymentDetail.asStateFlow()
+
+    private val _isLoadingPaymentDetail = MutableStateFlow(false)
+    val isLoadingPaymentDetail: StateFlow<Boolean> = _isLoadingPaymentDetail.asStateFlow()
+
+    private val _paymentDetailError = MutableStateFlow<String?>(null)
+    val paymentDetailError: StateFlow<String?> = _paymentDetailError.asStateFlow()
+
+    private var activePaymentSearch: String? = null
+    private var activePaymentStatus: String? = null
+
+    // =========================================================================
+    // DOCUMENT TEMPLATES STATE & ACTIONS
+    // =========================================================================
+
+    fun fetchDocumentTemplates(docType: String = "paymentReceipt") {
+        viewModelScope.launch {
+            _isLoadingTemplates.value = true
+            inventoryRepository.getDocumentTemplates(docType = docType)
+                .onSuccess { templates ->
+                    _documentTemplates.value = templates
+                }
+                .onFailure { error ->
+                    // Optionally handle or log error
+                }
+            _isLoadingTemplates.value = false
+        }
+    }
+
+    // ── Load View All ──
+    fun fetchPurchasePayments(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingPurchasePayments.value = true
+            _purchasePaymentError.value = null
+            _currentPurchasePaymentPage.value = page
+            _canLoadMorePurchasePayments.value = true
+            activePaymentSearch = search
+            activePaymentStatus = status
+
+            inventoryRepository.getPurchasePaymentsViewAll(page, limit, search, status)
+                .onSuccess { response ->
+                    _purchasePaymentsList.value = response.data
+                    val totalPages = response.pagination?.totalPages ?: 1
+                    _canLoadMorePurchasePayments.value = page < totalPages && response.data.isNotEmpty()
+                }
+                .onFailure { error ->
+                    _purchasePaymentError.value = extractErrorMessage(error.message)
+                }
+
+            _isLoadingPurchasePayments.value = false
+        }
+    }
+
+    fun loadMorePurchasePayments(limit: Int = 10) {
+        if (_isLoadingMorePurchasePayments.value || _isLoadingPurchasePayments.value || !_canLoadMorePurchasePayments.value) return
+
+        viewModelScope.launch {
+            _isLoadingMorePurchasePayments.value = true
+            val nextPage = _currentPurchasePaymentPage.value + 1
+
+            inventoryRepository.getPurchasePaymentsViewAll(
+                page = nextPage,
+                limit = limit,
+                search = activePaymentSearch,
+                status = activePaymentStatus
+            ).onSuccess { response ->
+                val newItems = response.data
+                if (newItems.isNotEmpty()) {
+                    _purchasePaymentsList.update { (it + newItems).distinctBy { item -> item.id } }
+                    _currentPurchasePaymentPage.value = nextPage
+                    val totalPages = response.pagination?.totalPages ?: nextPage
+                    _canLoadMorePurchasePayments.value = nextPage < totalPages
+                } else {
+                    _canLoadMorePurchasePayments.value = false
+                }
+            }.onFailure {
+                _canLoadMorePurchasePayments.value = false
+            }
+
+            _isLoadingMorePurchasePayments.value = false
+        }
+    }
+
+    // ── Load View One ──
+    fun fetchPurchasePaymentDetail(paymentId: String) {
+        if (paymentId.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingPaymentDetail.value = true
+            _paymentDetailError.value = null
+
+            inventoryRepository.getPurchasePaymentById(paymentId)
+                .onSuccess { detail ->
+                    _selectedPurchasePaymentDetail.value = detail
+                }
+                .onFailure { error ->
+                    _paymentDetailError.value = extractErrorMessage(error.message)
+                }
+
+            _isLoadingPaymentDetail.value = false
+        }
+    }
+
+    fun clearPurchasePaymentDetail() {
+        _selectedPurchasePaymentDetail.value = null
+        _paymentDetailError.value = null
+    }
+
+    //Purchase made void
+
+    // Loading and error states for voiding a payment
+    private val _isVoidingPayment = MutableStateFlow(false)
+    val isVoidingPayment = _isVoidingPayment.asStateFlow()
+
+    private val _voidPaymentError = MutableStateFlow<String?>(null)
+    val voidPaymentError = _voidPaymentError.asStateFlow()
+
+    /**
+     * Executes the void payment operation and re-fetches the detail on success.
+     */
+    fun voidPayment(
+        paymentId: String,
+        reason: String,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isVoidingPayment.value = true
+            _voidPaymentError.value = null
+
+            val result = inventoryRepository.voidPayment(paymentId,
+                VoidPaymentRequest(reason = reason)
+            )
+            result.onSuccess {
+                _isVoidingPayment.value = false
+                // Re-fetch payment details so status updates to "Void"
+                fetchPurchasePaymentDetail(paymentId)
+                onSuccess()
+            }.onFailure { throwable ->
+                _isVoidingPayment.value = false
+                _voidPaymentError.value = throwable.localizedMessage ?: "Failed to void payment"
+            }
+        }
+    }
+
+    // =========================================================================
+    // CATEGORY MANAGEMENT STATES & OPERATIONS
+    // =========================================================================
+
+    private val _categoriesList = MutableStateFlow<List<com.cuso.tailor.model.inventory.CategoryItemDto>>(emptyList())
+    val categoriesList: StateFlow<List<com.cuso.tailor.model.inventory.CategoryItemDto>> = _categoriesList.asStateFlow()
+
+    private val _isLoadingCategories = MutableStateFlow(false)
+    val isLoadingCategories: StateFlow<Boolean> = _isLoadingCategories.asStateFlow()
+
+    private val _isLoadingMoreCategories = MutableStateFlow(false)
+    val isLoadingMoreCategories: StateFlow<Boolean> = _isLoadingMoreCategories.asStateFlow()
+
+    private val _canLoadMoreCategories = MutableStateFlow(true)
+    val canLoadMoreCategories: StateFlow<Boolean> = _canLoadMoreCategories.asStateFlow()
+
+    private val _currentCategoryPage = MutableStateFlow(1)
+    val currentCategoryPage: StateFlow<Int> = _currentCategoryPage.asStateFlow()
+
+    private val _categoriesError = MutableStateFlow<String?>(null)
+    val categoriesError: StateFlow<String?> = _categoriesError.asStateFlow()
+
+    private var activeCategorySearch: String? = null
+    private var activeCategoryStatus: String? = null
+    private var categorySearchJob: Job? = null
+
+    fun fetchCategories(
+        page: Int = 1,
+        pageSize: Int = 20,
+        search: String? = null,
+        status: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingCategories.value = true
+            _categoriesError.value = null
+            _currentCategoryPage.value = page
+            _canLoadMoreCategories.value = true
+            activeCategorySearch = search
+            activeCategoryStatus = status
+
+            inventoryRepository.getCategories(
+                page = page,
+                pageSize = pageSize,
+                search = search,
+                status = status
+            ).onSuccess { response ->
+                _categoriesList.value = response.categories
+                _canLoadMoreCategories.value = page < response.totalPages && response.categories.isNotEmpty()
+            }.onFailure { error ->
+                _categoriesError.value = extractErrorMessage(error.message)
+            }
+
+            _isLoadingCategories.value = false
+        }
+    }
+
+    fun loadMoreCategories(pageSize: Int = 20) {
+        if (_isLoadingMoreCategories.value || _isLoadingCategories.value || !_canLoadMoreCategories.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreCategories.value = true
+            val nextPage = _currentCategoryPage.value + 1
+
+            inventoryRepository.getCategories(
+                page = nextPage,
+                pageSize = pageSize,
+                search = activeCategorySearch,
+                status = activeCategoryStatus
+            ).onSuccess { response ->
+                val newItems = response.categories
+                if (newItems.isNotEmpty()) {
+                    _categoriesList.update { (it + newItems).distinctBy { item -> item.id } }
+                    _currentCategoryPage.value = nextPage
+                    _canLoadMoreCategories.value = nextPage < response.totalPages
+                } else {
+                    _canLoadMoreCategories.value = false
+                }
+            }.onFailure {
+                _canLoadMoreCategories.value = false
+            }
+
+            _isLoadingMoreCategories.value = false
+        }
+    }
+
+    fun onCategorySearchQueryChanged(newQuery: String) {
+        categorySearchJob?.cancel()
+        categorySearchJob = viewModelScope.launch {
+            delay(400)
+            fetchCategories(
+                page = 1,
+                search = newQuery.takeIf { it.isNotBlank() },
+                status = activeCategoryStatus
+            )
+        }
+    }
+
+    fun clearCategoryError() {
+        _categoriesError.value = null
+    }
+
+    // =========================================================================
+    // CATEGORY VIEW-ONE & MUTATION STATES
+    // =========================================================================
+
+    private val _selectedCategoryDetail = MutableStateFlow<com.cuso.tailor.model.inventory.CategoryItemDto?>(null)
+    val selectedCategoryDetail: StateFlow<com.cuso.tailor.model.inventory.CategoryItemDto?> = _selectedCategoryDetail.asStateFlow()
+
+    private val _isLoadingCategoryDetail = MutableStateFlow(false)
+    val isLoadingCategoryDetail: StateFlow<Boolean> = _isLoadingCategoryDetail.asStateFlow()
+
+    private val _isSavingCategory = MutableStateFlow(false)
+    val isSavingCategory: StateFlow<Boolean> = _isSavingCategory.asStateFlow()
+
+    private val _categoryActionSuccess = MutableStateFlow<String?>(null)
+    val categoryActionSuccess: StateFlow<String?> = _categoryActionSuccess.asStateFlow()
+
+    private val _categoryActionError = MutableStateFlow<String?>(null)
+    val categoryActionError: StateFlow<String?> = _categoryActionError.asStateFlow()
+
+    fun fetchCategoryDetail(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingCategoryDetail.value = true
+            _categoryActionError.value = null
+
+            inventoryRepository.getCategoryById(id)
+                .onSuccess { detail ->
+                    _selectedCategoryDetail.value = detail
+                }
+                .onFailure { error ->
+                    _categoryActionError.value = extractErrorMessage(error.message)
+                }
+
+            _isLoadingCategoryDetail.value = false
+        }
+    }
+
+    fun createCategory(
+        name: String,
+        code: String?,
+        parentCategoryId: String?,
+        description: String?,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSavingCategory.value = true
+            _categoryActionError.value = null
+
+            val request = com.cuso.tailor.model.inventory.CreateCategoryRequest(
+                name = name.trim(),
+                code = code?.trim()?.takeIf { it.isNotBlank() },
+                parentCategoryId = parentCategoryId?.takeIf { it.isNotBlank() },
+                description = description?.trim()?.takeIf { it.isNotBlank() }
+            )
+
+            inventoryRepository.createCategory(request)
+                .onSuccess {
+                    _categoryActionSuccess.value = "Category created successfully"
+                    fetchCategories(page = 1)
+                    onSuccess()
+                }
+                .onFailure { error ->
+                    _categoryActionError.value = extractErrorMessage(error.message)
+                }
+
+            _isSavingCategory.value = false
+        }
+    }
+
+    fun updateCategory(
+        id: String,
+        name: String,
+        code: String?,
+        parentCategoryId: String?,
+        description: String?,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSavingCategory.value = true
+            _categoryActionError.value = null
+
+            val request = com.cuso.tailor.model.inventory.CreateCategoryRequest(
+                name = name.trim(),
+                code = code?.trim()?.takeIf { it.isNotBlank() },
+                parentCategoryId = parentCategoryId?.takeIf { it.isNotBlank() },
+                description = description?.trim()?.takeIf { it.isNotBlank() }
+            )
+
+            inventoryRepository.updateCategory(id, request)
+                .onSuccess {
+                    _categoryActionSuccess.value = "Category updated successfully"
+                    fetchCategories(page = 1)
+                    onSuccess()
+                }
+                .onFailure { error ->
+                    _categoryActionError.value = extractErrorMessage(error.message)
+                }
+
+            _isSavingCategory.value = false
+        }
+    }
+
+    fun clearSelectedCategoryDetail() {
+        _selectedCategoryDetail.value = null
+        _categoryActionError.value = null
+        _categoryActionSuccess.value = null
+    }
+
+    private val _isDeletingCategory = MutableStateFlow(false)
+    val isDeletingCategory: StateFlow<Boolean> = _isDeletingCategory.asStateFlow()
+
+    /**
+     * Deletes a category by ID and refreshes the categories list.
+     */
+    fun deleteCategory(id: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _isDeletingCategory.value = true
+            _categoryActionError.value = null
+
+            val result = inventoryRepository.deleteCategory(id)
+            _isDeletingCategory.value = false
+
+            result.onSuccess { message ->
+                _categoryActionSuccess.value = message
+                // Refresh categories list
+                fetchCategories(page = 1)
+                onSuccess()
+            }.onFailure { error ->
+                _categoryActionError.value = extractErrorMessage(error.message)
+            }
         }
     }
 }

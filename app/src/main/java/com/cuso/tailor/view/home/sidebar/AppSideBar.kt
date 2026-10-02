@@ -300,8 +300,9 @@ object SidebarConfig {
                         "Purchase Request",
                         "Purchase Order",
                         "Purchase Receive",
+                        "Return",
                         "Bill List",
-                        "Barcode LIST"
+                        "Barcode List"
                     ),
                     "Payables" to listOf(
                         "Invoices",

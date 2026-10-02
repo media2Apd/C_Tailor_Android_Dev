@@ -112,9 +112,14 @@ fun CreateItemScreen(
     val categoryOptions = remember(productCategories) {
         productCategories.mapNotNull { it.name.takeIf { name -> name.isNotBlank() } }
     }
+
+    // Match category by ID or by Name so the dropdown selects the correct name
     val selectedCategoryDisplayName = remember(formState.category, productCategories) {
-        productCategories.find { it.id == formState.category }?.name
-            ?: formState.category.ifBlank { "Select Category" }
+        val matchedCategory = productCategories.find {
+            it.id.equals(formState.category, ignoreCase = true) ||
+                    it.name.equals(formState.category, ignoreCase = true)
+        }
+        matchedCategory?.name ?: formState.category.ifBlank { "Select Category" }
     }
 
     // ── 2. Item Group Options (Inventory: name, id) ──
@@ -215,7 +220,7 @@ fun CreateItemScreen(
     // Prefill form completely when item details arrive from either API call
     LaunchedEffect(viewOneItem, selectedItemDetail) {
         val currentItem: Any? = viewOneItem ?: selectedItemDetail
-        if (!itemId.isNullOrBlank() && currentItem != null && formState.name.isBlank()) {
+        if (!itemId.isNullOrBlank() && currentItem != null) {
             Log.d("CreateItemScreen", ">> Prefilling all form fields for item ID: '$itemId'")
 
             // Invoke ViewModel prefill logic if viewOne is available
@@ -225,7 +230,9 @@ fun CreateItemScreen(
             val rawName = extractProperty(currentItem, "name")
             val rawSku = extractProperty(currentItem, "sku")
             val rawBarcode = extractProperty(currentItem, "barcode")
-            val rawCategory = extractProperty(currentItem, "categoryId", "category")
+
+            // Use extractIdOrValue to extract the ID even if the category is returned as a nested object
+            val rawCategory = extractIdOrValue(currentItem, "categoryId", "category", "productCategory")
             val rawUnit = extractProperty(currentItem, "unit")
             val rawType = extractProperty(currentItem, "type", "itemType")
             val rawStatus = extractProperty(currentItem, "status")
@@ -234,14 +241,14 @@ fun CreateItemScreen(
             val rawManufacturer = extractProperty(currentItem, "manufacturer")
             val rawBrand = extractProperty(currentItem, "brand")
             val rawHsnCode = extractProperty(currentItem, "hsnCode")
-            val rawTaxGroup = extractProperty(currentItem, "taxGroupId", "taxCategory")
-            val rawSalesAccount = extractProperty(currentItem, "salesAccountId", "salesAccount")
-            val rawPurchaseAccount = extractProperty(currentItem, "purchaseAccountId", "purchaseAccount")
-            val rawPreferredVendor = extractProperty(currentItem, "preferredVendorId", "preferredVendor")
+            val rawTaxGroup = extractIdOrValue(currentItem, "taxGroupId", "taxCategory")
+            val rawSalesAccount = extractIdOrValue(currentItem, "salesAccountId", "salesAccount")
+            val rawPurchaseAccount = extractIdOrValue(currentItem, "purchaseAccountId", "purchaseAccount")
+            val rawPreferredVendor = extractIdOrValue(currentItem, "preferredVendorId", "preferredVendor")
             val rawReturnable = extractProperty(currentItem, "returnable").toBoolean()
             val rawReorderLevel = extractProperty(currentItem, "reorderLevel")
             val rawSafetyStock = extractProperty(currentItem, "safetyStock")
-            val rawParentGroupId = extractProperty(currentItem, "parentGroupId").takeIf { it.isNotBlank() }
+            val rawParentGroupId = extractIdOrValue(currentItem, "parentGroupId").takeIf { it.isNotBlank() }
 
             viewModel.updateCreateItemForm { current ->
                 current.copy(
@@ -249,7 +256,7 @@ fun CreateItemScreen(
                     name = current.name.ifBlank { rawName },
                     sku = current.sku.ifBlank { rawSku },
                     barcode = current.barcode.ifBlank { rawBarcode.ifBlank { "000000000024" } },
-                    category = current.category.ifBlank { rawCategory },
+                    category = if (rawCategory.isNotBlank()) rawCategory else current.category,
                     unit = current.unit.ifBlank { rawUnit.ifBlank { "Meters" } },
                     itemType = if (rawType.equals("service", ignoreCase = true)) ItemType.SERVICE else ItemType.GOODS,
                     status = current.status.ifBlank { rawStatus.ifBlank { "active" } },
@@ -268,6 +275,19 @@ fun CreateItemScreen(
                     parentGroupId = current.parentGroupId ?: rawParentGroupId,
                     autoGenerateSku = false
                 )
+            }
+        }
+    }
+
+    // Ensure formState.category is synchronized to the Category ID when productCategories load
+    LaunchedEffect(formState.category, productCategories) {
+        if (formState.category.isNotBlank() && productCategories.isNotEmpty()) {
+            val matchedCategory = productCategories.find {
+                it.id.equals(formState.category, ignoreCase = true) ||
+                        it.name.equals(formState.category, ignoreCase = true)
+            }
+            if (matchedCategory != null && formState.category != matchedCategory.id) {
+                viewModel.updateCreateItemForm { it.copy(category = matchedCategory.id) }
             }
         }
     }
@@ -522,7 +542,6 @@ fun CreateItemScreen(
                                     }
                                 }
                             },
-                            uploadBoxHeight = if (isEditable) 90.dp else 0.dp,
                             imagePreviewSize = 90.dp,
                             previewHeaderTitle = "ATTACHED IMAGE"
                         )
@@ -792,7 +811,7 @@ fun CreateItemScreen(
 }
 
 // =============================================================================
-// PROPERTY REFLECTION HELPER
+// PROPERTY REFLECTION HELPERS
 // =============================================================================
 
 /**
@@ -801,22 +820,59 @@ fun CreateItemScreen(
 private fun extractProperty(target: Any?, vararg candidateNames: String): String {
     if (target == null) return ""
     for (name in candidateNames) {
-        try {
-            val getterName = "get" + name.replaceFirstChar { it.uppercase() }
-            val method = target.javaClass.methods.firstOrNull {
-                it.name.equals(getterName, ignoreCase = true) || it.name.equals(name, ignoreCase = true)
-            }
-            val result = method?.invoke(target)?.toString()
-            if (!result.isNullOrBlank()) return result
-        } catch (_: Exception) {}
-        try {
-            val field = target.javaClass.declaredFields.firstOrNull { it.name.equals(name, ignoreCase = true) }
-            field?.isAccessible = true
-            val result = field?.get(target)?.toString()
-            if (!result.isNullOrBlank()) return result
-        } catch (_: Exception) {}
+        val raw = getRawProperty(target, name)
+        if (raw != null) {
+            val str = raw.toString()
+            if (str.isNotBlank()) return str
+        }
     }
     return ""
+}
+
+/**
+ * Extracts clean ID or string representation from either direct values or nested DTO objects.
+ */
+private fun extractIdOrValue(target: Any?, vararg candidateNames: String): String {
+    if (target == null) return ""
+    for (name in candidateNames) {
+        val value = getRawProperty(target, name) ?: continue
+        when (value) {
+            is String -> {
+                if (value.isNotBlank()) return value
+            }
+            else -> {
+                // If value is a nested object, check for _id, id, or value properties
+                val idValue = extractProperty(value, "_id", "id", "value")
+                if (idValue.isNotBlank()) return idValue
+
+                val nameValue = extractProperty(value, "name", "label")
+                if (nameValue.isNotBlank()) return nameValue
+            }
+        }
+    }
+    return ""
+}
+
+/**
+ * Reflectively invokes getter methods or accesses declared fields.
+ */
+private fun getRawProperty(target: Any?, name: String): Any? {
+    if (target == null) return null
+    try {
+        val getterName = "get" + name.replaceFirstChar { it.uppercase() }
+        val method = target.javaClass.methods.firstOrNull {
+            it.name.equals(getterName, ignoreCase = true) || it.name.equals(name, ignoreCase = true)
+        }
+        if (method != null) {
+            return method.invoke(target)
+        }
+    } catch (_: Exception) {}
+    try {
+        val field = target.javaClass.declaredFields.firstOrNull { it.name.equals(name, ignoreCase = true) }
+        field?.isAccessible = true
+        return field?.get(target)
+    } catch (_: Exception) {}
+    return null
 }
 
 // =============================================================================

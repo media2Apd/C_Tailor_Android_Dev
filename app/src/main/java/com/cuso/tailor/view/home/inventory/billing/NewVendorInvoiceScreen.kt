@@ -580,8 +580,7 @@ fun NewVendorInvoiceScreen(
                         attachedFiles = attachedFiles.filter { it != fileToRemove }
                     },
                     documentUploadText = "Tap to upload PDF, PNG, JPG (up to 10MB)",
-                    previewHeaderTitle = "ATTACHED INVOICE FILES",
-                    uploadBoxHeight = tokens.buttonHeight * 2.2f
+                    previewHeaderTitle = "ATTACHED INVOICE FILES"
                 )
             }
 

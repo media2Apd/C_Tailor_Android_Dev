@@ -17,9 +17,13 @@ import com.cuso.tailor.model.hr.MemberDetail
 import com.cuso.tailor.model.hr.MemberListResponse
 import com.cuso.tailor.model.hr.MonthlyAttendanceItem
 import com.cuso.tailor.model.hr.RoleItem
+import com.cuso.tailor.model.hr.SalaryComponentItem
+import com.cuso.tailor.model.hr.SalaryComponentListData
+import com.cuso.tailor.model.hr.SalaryComponentRequest
 import com.cuso.tailor.model.hr.ShiftDetailData
 import com.cuso.tailor.model.hr.ShiftDto
 import com.cuso.tailor.model.hr.ShiftItem
+import com.cuso.tailor.model.hr.ToggleSalaryComponentStatusRequest
 import com.cuso.tailor.model.hr.UpdateLeaveStatusRequest
 import com.cuso.tailor.model.hr.UpdateMemberRequest
 import com.cuso.tailor.model.hr.UpdateShiftRequest
@@ -603,6 +607,119 @@ class HrRepository @Inject constructor(
                 Result.success(response.body()!!.message)
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed to create leave request"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    // ── Salary Components ──
+    // ═══════════════════════════════════════════════
+
+    suspend fun getSalaryComponents(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        type: String? = null,
+        status: String? = null
+    ): Result<SalaryComponentListData> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.getSalaryComponents(
+                token = accessToken,
+                csrfToken = csrfToken,
+                page = page,
+                limit = limit,
+                search = search,
+                type = type,
+                status = status
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to fetch salary components"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getSalaryComponentDetail(id: String): Result<SalaryComponentItem> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.getSalaryComponentDetail(accessToken, csrfToken, id)
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to fetch component detail"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createSalaryComponent(request: SalaryComponentRequest): Result<SalaryComponentItem> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.createSalaryComponent(accessToken, csrfToken, request)
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to create salary component"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateSalaryComponent(id: String, request: SalaryComponentRequest): Result<SalaryComponentItem> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.updateSalaryComponent(accessToken, csrfToken, id, request)
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to update salary component"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun toggleSalaryComponentStatus(id: String, isActive: Boolean): Result<SalaryComponentItem> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.toggleSalaryComponentStatus(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id,
+                request = ToggleSalaryComponentStatusRequest(isActive = isActive)
+            )
+            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
+                Result.success(response.body()!!.data!!)
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to update component status"
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteSalaryComponent(id: String): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = hrApi.deleteSalaryComponent(accessToken, csrfToken, id)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()?.message ?: "Salary component deleted successfully")
+            } else {
+                val errorMsg = response.errorBody()?.string() ?: "Failed to delete salary component"
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(e)

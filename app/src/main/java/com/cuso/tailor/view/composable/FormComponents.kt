@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,6 +49,7 @@ import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.R
 import com.cuso.tailor.utils.AppLoadingManager
 
 private val AccentColor = Color(0xFF3D3DFF)
@@ -168,7 +170,7 @@ fun FormDropdown(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(if (isSelected) disabled else Color.Transparent)
+                                    .background(if (isSelected) Color(0xFFEFF6FF) else Color.Transparent)
                                     .clickable {
                                         val updatedList = if (isSelected) {
                                             selectedOptions - option
@@ -190,6 +192,12 @@ fun FormDropdown(
                                     color = if (isSelected) Primary else Color(0xFF374151),
                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                                 )
+                                if (isSelected) {
+                                    Spacer(Modifier.weight(1f))
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_tick_2), tint = Primary, contentDescription = "tick"
+                                    )
+                                }
                             }
                         } else {
                             Text(

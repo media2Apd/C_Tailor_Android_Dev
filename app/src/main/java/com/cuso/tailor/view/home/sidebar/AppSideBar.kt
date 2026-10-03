@@ -193,7 +193,9 @@ fun buildNavigationKey(menu: String, subItem: String): String {
             "Shift Management"           -> "hr_attendance_shift_management"
             "Leave Balance"              -> "hr_leave_balance"
             "Leave Approval"             -> "hr_leave_approval"
-            "Salary Structure Master"    -> "hr_payroll_salary_structure"
+            "Salary Components"          -> "hr_payroll_salary_components"
+            "Salary Templates",
+            "Salary Structure Master"    -> "hr_payroll_salary_templates"
             "Employee Salary Assignment" -> "hr_payroll_salary_assignment"
             "Payroll Processing"         -> "hr_payroll_processing"
             "Payslip Management"         -> "hr_payroll_payslip"
@@ -205,6 +207,10 @@ fun buildNavigationKey(menu: String, subItem: String): String {
             "Expense Type"               -> "hr_expense_type"
             "Finance Reimbursement"      -> "hr_expense_finance_reimbursement"
             "Training Management"        -> "hr_training_management"
+            "Training Program"           -> "hr_training_management"
+            "Assign Management",
+            "Assigning Management",
+            "Training Assignment"        -> "hr_training_assignment_list"
             "Document Management"        -> "hr_document_management"
             "Clearance"                  -> "hr_exit_clearance"
             else -> "hr_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
@@ -386,6 +392,10 @@ object SidebarConfig {
                         "New Claim",
                         "Expense Type",
                         "Finance Reimbursement"
+                    ),
+                    "Training Management" to listOf(
+                        "Training Program",
+                        "Assign Management"
                     ),
                     "Exit Management" to listOf(
                         "Approvals",

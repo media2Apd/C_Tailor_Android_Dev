@@ -39,6 +39,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -50,7 +52,16 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.Primary
+import com.cuso.tailor.ui.theme.Primary_background
+import com.cuso.tailor.ui.theme.TextPrimary
+import com.cuso.tailor.ui.theme.TextSecondary
+import com.cuso.tailor.ui.theme.blackTitle
 import com.cuso.tailor.ui.theme.grey_border
+import com.cuso.tailor.ui.theme.mutedText
+import com.cuso.tailor.ui.theme.orangeText
+import com.cuso.tailor.ui.theme.primary_light
+import com.cuso.tailor.ui.theme.sectionBorder
+import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 
 // ── Filter Section Data ──
@@ -165,7 +176,7 @@ fun rememberFilterDrawerState(): FilterDrawerState {
     return remember { FilterDrawerStateImpl() }
 }
 
-// ── Animated Filter Page (Starts below TitleBar) ──
+// ── Animated Filter Page with CSS Glassmorphism Effect ──
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FilterDrawer(
@@ -187,11 +198,37 @@ fun FilterDrawer(
 
     var searchQuery by remember { mutableStateOf("") }
 
+    // Intercept hardware back press when drawer is open
     BackHandler(enabled = state.isOpen) {
         state.close()
     }
 
-    // Smooth Page Slide Animation below TitleBar
+    // Trigger backdrop-filter: blur(20px) on parent screen
+    LaunchedEffect(state.isOpen) {
+        onBackgroundBlurChange(if (state.isOpen) 20.dp else 0.dp)
+    }
+
+    // ── CSS Glassmorphism Brushes ──
+    val glassCardBackground = Brush.linearGradient(
+        colors = listOf(
+            whiteBg.copy(alpha = 0.88f),
+            whiteBg.copy(alpha = 0.72f)
+        ),
+        start = Offset.Zero,
+        end = Offset.Infinite
+    )
+
+    val glassBorderBrush = Brush.linearGradient(
+        colors = listOf(
+            whiteBg.copy(alpha = 0.70f),
+            whiteBg.copy(alpha = 0.20f),
+            whiteBg.copy(alpha = 0.40f)
+        ),
+        start = Offset.Zero,
+        end = Offset.Infinite
+    )
+
+    // Smooth page slide animation with glass backdrop
     AnimatedVisibility(
         visible = state.isOpen,
         enter = slideInHorizontally(
@@ -206,216 +243,329 @@ fun FilterDrawer(
             .fillMaxSize()
             .zIndex(50f)
     ) {
-        Scaffold(
-            containerColor = whiteBg,
-            contentWindowInsets = WindowInsets(0),
-            topBar = {
-                // Header below TitleBar: <- Filters        Clear all
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = tokens.screenPadding, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) { state.close() }
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color(0xFF1E293B),
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Text(
-                            text = title,
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E293B)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(whiteBg) // Backdrop shadow depth
+        ) {
+            Scaffold(
+                containerColor = whiteBg,
+                contentWindowInsets = WindowInsets(0),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(glassCardBackground)
+                    .border(
+                        width = 1.dp,
+                        brush = glassBorderBrush,
+                        shape = RoundedCornerShape(topStart = tokens.cardCornerRadius, bottomStart = tokens.cardCornerRadius)
+                    ),
+                topBar = {
+                    // Glass Header with spec highlight
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(whiteBg.copy(alpha = 0.35f))
+                                .padding(horizontal = tokens.screenPadding, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { state.close() }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = title_color,
+                                    modifier = Modifier.size(tokens.iconSize)
+                                )
+                                Text(
+                                    text = title,
+                                    fontSize = tokens.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = title_color
+                                )
+                            }
+
+                            Text(
+                                text = "Clear all",
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = orangeText,
+                                modifier = Modifier.clickable {
+                                    currentSections = currentSections.map { section ->
+                                        section.copy(options = section.options.map { it.copy(isSelected = false) })
+                                    }
+                                    onClearAll()
+                                }
+                            )
+                        }
+
+                        // Bottom hairline divider for glass header
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .align(Alignment.BottomCenter)
+                                .background(whiteBg.copy(alpha = 0.3f))
                         )
                     }
-
-                    Text(
-                        text = "Clear all",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFFF97316),
-                        modifier = Modifier.clickable {
-                            currentSections = currentSections.map { section ->
-                                section.copy(options = section.options.map { it.copy(isSelected = false) })
-                            }
-                            onClearAll()
-                        }
-                    )
-                }
-            },
-            bottomBar = {
-                // Bottom Fixed Primary Button: Apply Filters
-                Surface(
-                    color = whiteBg,
-                    modifier = Modifier.fillMaxWidth(),
-                    shadowElevation = 8.dp
-                ) {
+                },
+                bottomBar = {
+                    // Glass Bottom Fixed Action Container
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = tokens.screenPadding, vertical = 14.dp)
+                            .background(whiteBg.copy(alpha = 0.45f))
                     ) {
-                        Button(
-                            onClick = {
-                                onApply(currentSections)
-                                state.close()
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                            shape = RoundedCornerShape(50),
+                        // Top horizontal highlight (CSS ::before equivalent)
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(40.dp)
+                                .height(1.dp)
+                                .align(Alignment.TopCenter)
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(
+                                            Color.Transparent,
+                                            whiteBg.copy(alpha = 0.8f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                )
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = tokens.screenPadding, vertical = 12.dp)
                         ) {
-                            Text(
-                                text = "Apply Filters",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
+                            Button(
+                                onClick = {
+                                    onApply(currentSections)
+                                    state.close()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                                shape = RoundedCornerShape(tokens.cardCornerRadius),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(tokens.buttonHeight)
+                            ) {
+                                Text(
+                                    text = "Apply Filters",
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = whiteBg
+                                )
+                            }
+                        }
+                    }
+                }
+            ) { paddingValues ->
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Primary_background)
+                        .padding(paddingValues),
+                    contentPadding = PaddingValues(horizontal = tokens.screenPadding, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    // Glass Search Box
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(tokens.fieldHeight)
+                                .clip(RoundedCornerShape(tokens.cardCornerRadius))
+                                .background(whiteBg.copy(alpha = 0.4f))
+                                .border(
+                                    width = 1.dp,
+                                    brush = Brush.linearGradient(
+                                        listOf(
+                                            whiteBg.copy(alpha = 0.8f),
+                                            whiteBg.copy(alpha = 0.2f)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(tokens.cardCornerRadius)
+                                )
+                                .padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Search,
+                                contentDescription = null,
+                                tint = mutedText,
+                                modifier = Modifier.size(tokens.iconSize)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            BasicTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                textStyle = TextStyle(
+                                    fontSize = tokens.bodySmall,
+                                    color = TextPrimary,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                decorationBox = { inner ->
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        if (searchQuery.isEmpty()) {
+                                            Text(
+                                                text = "Search filters...",
+                                                fontSize = tokens.bodySmall,
+                                                color = mutedText,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                        inner()
+                                    }
+                                }
                             )
                         }
                     }
-                }
-            }
-        ) { paddingValues ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(horizontal = tokens.screenPadding, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                // Search box
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp)
-                            .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                            .border(1.dp, grey_border, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Filled.Search,
-                            contentDescription = null,
-                            tint = Color(0xFF9CA3AF),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            textStyle = TextStyle(fontSize = 13.sp, color = Color(0xFF1E293B)),
-                            decorationBox = { inner ->
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    if (searchQuery.isEmpty()) {
-                                        Text("Search filters...", fontSize = 13.sp, color = Color(0xFF9CA3AF))
-                                    }
-                                    inner()
-                                }
-                            }
-                        )
+
+                    content?.let {
+                        item { Column { it() } }
                     }
-                }
 
-                content?.let {
-                    item { Column { it() } }
-                }
-
-                // Filter options
-                val filteredSections = if (searchQuery.isBlank()) {
-                    currentSections
-                } else {
-                    currentSections.mapNotNull { sec ->
-                        val matchingOptions = sec.options.filter { it.label.contains(searchQuery, ignoreCase = true) }
-                        if (sec.title.contains(searchQuery, ignoreCase = true) || matchingOptions.isNotEmpty()) {
-                            sec.copy(options = if (matchingOptions.isNotEmpty()) matchingOptions else sec.options)
-                        } else null
+                    // Filter Categories and Options
+                    val filteredSections = if (searchQuery.isBlank()) {
+                        currentSections
+                    } else {
+                        currentSections.mapNotNull { sec ->
+                            val matchingOptions = sec.options.filter { it.label.contains(searchQuery, ignoreCase = true) }
+                            if (sec.title.contains(searchQuery, ignoreCase = true) || matchingOptions.isNotEmpty()) {
+                                sec.copy(options = if (matchingOptions.isNotEmpty()) matchingOptions else sec.options)
+                            } else null
+                        }
                     }
-                }
 
-                items(filteredSections.size) { index ->
-                    val section = filteredSections[index]
+                    items(filteredSections.size) { index ->
+                        val section = filteredSections[index]
 
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = section.title,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E293B)
-                        )
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = section.title,
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = title_color
+                            )
 
-                        Spacer(Modifier.height(10.dp))
+                            Spacer(Modifier.height(10.dp))
 
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            section.options.forEach { option ->
-                                val isSelected = option.isSelected
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                section.options.forEach { option ->
+                                    val isSelected = option.isSelected
 
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(50))
-                                        .background(if (isSelected) Primary else Color(0xFFF1F5F9))
-                                        .clickable {
-                                            currentSections = currentSections.map { sec ->
-                                                if (sec.title == section.title) {
-                                                    val updatedOptions = if (sec.isMultiSelect) {
-                                                        sec.options.map { opt ->
-                                                            if (opt.id == option.id) opt.copy(isSelected = !opt.isSelected)
-                                                            else opt
+                                    // Glass Option Pills with CSS border specular reflection
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(tokens.cardCornerRadius))
+                                            .background(
+                                                if (isSelected) Primary
+                                                else primary_light
+                                            )
+                                            .border(
+                                                width = 1.dp,
+                                                brush = if (isSelected) {
+                                                    SolidColor(Primary)
+                                                } else {
+                                                    Brush.linearGradient(
+                                                        listOf(
+                                                            whiteBg.copy(alpha = 0.7f),
+                                                            whiteBg.copy(alpha = 0.15f)
+                                                        )
+                                                    )
+                                                },
+                                                shape = RoundedCornerShape(tokens.cardCornerRadius)
+                                            )
+                                            .clickable {
+                                                currentSections = currentSections.map { sec ->
+                                                    if (sec.title == section.title) {
+                                                        val updatedOptions = if (sec.isMultiSelect) {
+                                                            sec.options.map { opt ->
+                                                                if (opt.id == option.id) opt.copy(isSelected = !opt.isSelected)
+                                                                else opt
+                                                            }
+                                                        } else {
+                                                            sec.options.map { opt ->
+                                                                opt.copy(isSelected = opt.id == option.id)
+                                                            }
                                                         }
-                                                    } else {
-                                                        sec.options.map { opt ->
-                                                            opt.copy(isSelected = opt.id == option.id)
-                                                        }
-                                                    }
-                                                    sec.copy(options = updatedOptions)
-                                                } else sec
+                                                        sec.copy(options = updatedOptions)
+                                                    } else sec
+                                                }
                                             }
-                                        }
-                                        .padding(horizontal = 18.dp, vertical = 9.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = option.label.uppercase(),
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) Color.White else Color(0xFF475569),
-                                        letterSpacing = 0.5.sp
-                                    )
+                                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = option.label.toTitleCase(),
+                                            fontSize = tokens.caption,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (isSelected) whiteBg else TextSecondary
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                item {
-                    Spacer(Modifier.height(16.dp))
+                    item {
+                        Spacer(Modifier.height(16.dp))
+                    }
                 }
             }
+
+            // ── Top Specular Light Highlight (CSS ::before replica) ──
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .align(Alignment.TopCenter)
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color.Transparent,
+                                whiteBg.copy(alpha = 0.85f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+
+            // ── Left Specular Light Highlight (CSS ::after replica) ──
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(1.dp)
+                    .align(Alignment.CenterStart)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                whiteBg.copy(alpha = 0.85f),
+                                Color.Transparent,
+                                whiteBg.copy(alpha = 0.30f)
+                            )
+                        )
+                    )
+            )
         }
     }
 }
-
 fun getDefaultOpportunityFilterSections(
     stages: List<String> = emptyList(),
     categories: List<String> = emptyList()

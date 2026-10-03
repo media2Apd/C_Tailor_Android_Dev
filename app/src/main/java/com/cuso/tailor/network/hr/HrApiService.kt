@@ -22,8 +22,12 @@ import com.cuso.tailor.model.hr.MemberDetailResponse
 import com.cuso.tailor.model.hr.MemberListResponse
 import com.cuso.tailor.model.hr.MonthlyAttendanceResponse
 import com.cuso.tailor.model.hr.RoleListResponse
+import com.cuso.tailor.model.hr.SalaryComponentListResponse
+import com.cuso.tailor.model.hr.SalaryComponentRequest
+import com.cuso.tailor.model.hr.SalaryComponentSingleResponse
 import com.cuso.tailor.model.hr.ShiftDetailResponse
 import com.cuso.tailor.model.hr.ShiftListResponse
+import com.cuso.tailor.model.hr.ToggleSalaryComponentStatusRequest
 import com.cuso.tailor.model.hr.UpdateLeaveStatusRequest
 import com.cuso.tailor.model.hr.UpdateLeaveStatusResponse
 import com.cuso.tailor.model.sales.StaffResponse
@@ -215,5 +219,59 @@ interface HrApiService {
         @PartMap partMap: Map<String, @JvmSuppressWildcards RequestBody>,
         @Part attachments: List<MultipartBody.Part>?
     ): Response<CreateLeaveResponse>
+
+    //SALARY COMPONENTS
+
+    // ═══════════════════════════════════════════════
+    // ── SALARY COMPONENTS ──
+    // ═══════════════════════════════════════════════
+
+    @GET("/api/hr/salary-component/view-all")
+    suspend fun getSalaryComponents(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 10,
+        @Query("search") search: String? = null,
+        @Query("type") type: String? = null,
+        @Query("status") status: String? = null
+    ): Response<SalaryComponentListResponse>
+
+    @GET("/api/hr/salary-component/view-one/{id}")
+    suspend fun getSalaryComponentDetail(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<SalaryComponentSingleResponse>
+
+    @POST("/api/hr/salary-component/create")
+    suspend fun createSalaryComponent(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: SalaryComponentRequest
+    ): Response<SalaryComponentSingleResponse>
+
+    @PUT("/api/hr/salary-component/update/{id}")
+    suspend fun updateSalaryComponent(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: SalaryComponentRequest
+    ): Response<SalaryComponentSingleResponse>
+
+    @PATCH("/api/hr/salary-component/delete/{id}")
+    suspend fun toggleSalaryComponentStatus(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: ToggleSalaryComponentStatusRequest
+    ): Response<SalaryComponentSingleResponse>
+
+    @DELETE("/api/hr/salary-component/delete/{id}")
+    suspend fun deleteSalaryComponent(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String
+    ): Response<SalaryComponentSingleResponse>
 
 }

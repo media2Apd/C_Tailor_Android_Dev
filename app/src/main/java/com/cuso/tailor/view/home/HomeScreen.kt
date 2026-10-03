@@ -108,7 +108,6 @@ import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.tailor.view.composable.DashboardSkeleton
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.ExitAppDialog
 import com.cuso.tailor.view.composable.FilterOption
 import com.cuso.tailor.view.composable.FilterSection
@@ -141,7 +140,6 @@ import com.cuso.tailor.model.sales.MeasurementItem
 import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.viewmodel.InventoryViewModel
-import kotlinx.coroutines.launch
 import java.time.LocalTime
 
 val LeadPrimary = Primary
@@ -232,6 +230,12 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedEmployeeId by remember { mutableStateOf<String?>(null) }
     var selectedAttendanceId by remember { mutableStateOf<String?>(null) }
     var selectedShiftId by remember { mutableStateOf<String?>(null) }
+    var selectedSalaryComponentId by remember { mutableStateOf<String?>(null) }
+    // HR Salary Template state
+    var selectedSalaryTemplateId by remember { mutableStateOf<String?>(null) }
+    // HR Training Management state
+    var selectedTrainingProgramId by remember { mutableStateOf<String?>(null) }
+    var selectedTrainingAssignmentId by remember { mutableStateOf<String?>(null) }
 
     // Services State
     var selectedFeedbackId by remember { mutableStateOf<String?>(null) }
@@ -576,6 +580,22 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "hr_monthly_attendance",
             "hr_leave_approval",
             "hr_apply_leave",
+            "hr_payroll_salary_structure",
+            "hr_payroll_salary_components",
+            "hr_payroll_salary_components_create",
+            // Training Management Routes
+            "hr_training_management",
+            "hr_add_edit_program",
+            "hr_training_assignment_list",
+            "hr_assign_training_form",
+            "hr_training_management",
+            "hr_add_edit_program",
+            "hr_training_assignment_list",
+            "hr_assign_training_form",
+
+            // Salary Template Routes
+            "hr_payroll_salary_templates",
+            "hr_payroll_salary_templates_form",
 
             // ── Logistics ──
             "logistics_delivery",
@@ -716,6 +736,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
+                "hr_assign_training_form" -> selectedTrainingAssignmentId = null
+                "hr_add_edit_program" -> selectedTrainingProgramId = null
+                "hr_payroll_salary_templates_form" -> selectedSalaryTemplateId = null
+                "hr_payroll_salary_components_create" -> selectedSalaryComponentId = null
                 "review_services" -> selectedServiceRequestId = null
                 "create_opportunity", "opportunity_detail" -> selectedOpportunityId = null
                 "services_view_service_template", "services_create_service_template" -> {
@@ -900,7 +924,15 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+                            selectedTrainingAssignmentId = selectedTrainingAssignmentId,
+                            onTrainingAssignmentIdSelected = { selectedTrainingAssignmentId = it },
+                            selectedTrainingProgramId = selectedTrainingProgramId,
+                            onTrainingProgramIdSelected = { selectedTrainingProgramId = it },
                             selectedApprovalId = selectedApprovalId,
+                            selectedSalaryTemplateId = selectedSalaryTemplateId,
+                            onSalaryTemplateIdSelected = { selectedSalaryTemplateId = it },
+                            selectedSalaryComponentId = selectedSalaryComponentId,
+                            onSalaryComponentIdSelected = { selectedSalaryComponentId = it },
                             // Forward category edit state to router
                             selectedCategoryIdForEdit = selectedCategoryIdForEdit,
                             onCategoryIdForEditSelected = { selectedCategoryIdForEdit = it },
@@ -1566,7 +1598,7 @@ private fun mapOperationsToCustomers(ops: List<OperationItem>): List<RecentCusto
             word.lowercase().replaceFirstChar { it.uppercase() }
         }
         RecentCustomer(
-            id = op.customerId?:"",
+            id = op.customerId.orEmpty(),
             name = prettyName.ifBlank { op.customer },
             role = op.type,
             initials = initials,
@@ -2251,7 +2283,9 @@ fun normalizeRoute(rawKey: String): String {
 
         "hr_employees",
         "hr_employee_management" -> "hr_all_employees"
-
+        "hr_payroll_salary_structure",
+        "hr_salary_templates",
+        "hr_payroll_salary_templates" -> "hr_payroll_salary_templates"
         "hr_monthly_attendance" -> "hr_monthly_attendance"
         "hr_daily_attendance" -> "hr_daily_attendance"
         "hr_attendance_manual_entry" -> "hr_attendance_manual_entry"
@@ -2259,6 +2293,15 @@ fun normalizeRoute(rawKey: String): String {
         "hr_create_shift" -> "hr_create_shift"
         "hr_attendance_management",
         "hr_attendance_biometric_management" -> "hr_attendance"
+        "hr_salary_components",
+        "hr_training_management" -> "hr_training_management"
+        "hr_payroll_salary_components" -> "hr_payroll_salary_components"
+        "hr_training_program",
+        "hr_training_management" -> "hr_training_management"
+
+        "hr_assign_management",
+        "hr_assigning_management",
+        "hr_training_assignment_list" -> "hr_training_assignment_list"
 
         "reports_sales" -> "reports_sales"
         "reports_marketing" -> "reports_marketing"

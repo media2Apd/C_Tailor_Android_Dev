@@ -17,6 +17,7 @@ import com.cuso.tailor.network.NetworkMessageInterceptor
 import com.cuso.tailor.network.SafeListTypeAdapterFactory
 import com.cuso.tailor.network.auth.AuthApiService
 import com.cuso.tailor.network.finance.FinanceApiService
+import com.cuso.tailor.network.generic.GenericApi
 import com.cuso.tailor.network.hr.HrApiService
 import com.cuso.tailor.network.inventory.InventoryApiService
 import com.cuso.tailor.network.inventory.settings.InventorySettingsApiService
@@ -184,4 +185,9 @@ object NetworkModule {
     fun provideServicesApiService(retrofit: Retrofit): ServicesApiService {
         return retrofit.create(ServicesApiService::class.java)
     }
+
+    // One generic API service used by ApiRepository
+    @Provides
+    @Singleton
+    fun provideGenericApi(retrofit: Retrofit): GenericApi = retrofit.create(GenericApi::class.java)
 }

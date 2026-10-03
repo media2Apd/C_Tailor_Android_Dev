@@ -19,6 +19,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
@@ -70,6 +71,9 @@ import com.cuso.tailor.view.others.TermsConditions
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.ui.window.DialogProperties
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -113,12 +117,12 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // 3. Listen for session expired events
-                LaunchedEffect(Unit) {
-                    AuthEventManager.sessionExpiredEvent.collect { message ->
-                        globalErrorMessage = message
-                    }
-                }
+//                // 3. Listen for session expired events
+//                LaunchedEffect(Unit) {
+//                    AuthEventManager.sessionExpiredEvent.collect { message ->
+//                        globalErrorMessage = message
+//                    }
+//                }
 
                 CompositionLocalProvider(
                     LocalAppTokens provides tokens,
@@ -172,15 +176,56 @@ fun AppNav(
 ) {
     val navController = rememberNavController()
     val startDestination = if (startLoggedIn) "home" else "login?message={message}"
+    // State to display the session timeout dialog
+    var sessionExpiredMessage by remember { mutableStateOf<String?>(null) }
 
-    // Handling session expired navigation redirection
+//    // Handling session expired navigation redirection
+//    LaunchedEffect(Unit) {
+//        AuthEventManager.sessionExpiredEvent.collect { _ ->
+//            navController.navigate("login?message=") {
+//                popUpTo(0) { inclusive = true }
+//                launchSingleTop = true
+//            }
+//        }
+//    }
+
+
+
+    // Listen for session expiration events
     LaunchedEffect(Unit) {
-        AuthEventManager.sessionExpiredEvent.collect { _ ->
-            navController.navigate("login?message=") {
-                popUpTo(0) { inclusive = true }
-                launchSingleTop = true
-            }
+        AuthEventManager.sessionExpiredEvent.collect { message ->
+            sessionExpiredMessage = message.ifBlank { "Session timeout. Please relog." }
         }
+    }
+
+    // Session Expired Alert Dialog
+    if (sessionExpiredMessage != null) {
+        AlertDialog(
+            onDismissRequest = { /* Non-dismissible by tapping outside */ },
+            title = {
+                Text(text = "Session Expired")
+            },
+            text = {
+                Text(text = sessionExpiredMessage ?: "Session timeout. Please relog.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        sessionExpiredMessage = null
+                        navController.navigate("login?message=") {
+                            popUpTo(0) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            properties = DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false
+            )
+        )
     }
 
     NavHost(

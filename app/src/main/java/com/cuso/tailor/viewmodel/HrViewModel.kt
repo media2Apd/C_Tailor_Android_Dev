@@ -10,9 +10,10 @@ package com.cuso.tailor.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cuso.tailor.model.hr.ApplyLeaveRequest
+import com.cuso.tailor.model.hr.AssignedTrainingListResponse
+import com.cuso.tailor.model.hr.AssignedTrainingProgramDto
+import com.cuso.tailor.model.hr.AssignedTrainingSingleResponse
 import com.cuso.tailor.model.hr.AttendanceRecord
-import com.cuso.tailor.model.hr.CreateLeaveRequest
 import com.cuso.tailor.model.hr.CreateManualAttendanceRequest
 import com.cuso.tailor.model.hr.CreateMemberRequest
 import com.cuso.tailor.model.hr.CreateShiftRequest
@@ -23,12 +24,30 @@ import com.cuso.tailor.model.hr.MemberDetail
 import com.cuso.tailor.model.hr.MemberItem
 import com.cuso.tailor.model.hr.MonthlyAttendanceItem
 import com.cuso.tailor.model.hr.RoleItem
+import com.cuso.tailor.model.hr.SalaryComponentItem
+import com.cuso.tailor.model.hr.SalaryComponentRequest
 import com.cuso.tailor.model.hr.ShiftDetailData
 import com.cuso.tailor.model.hr.ShiftItem
 import com.cuso.tailor.model.hr.UpdateMemberRequest
 import com.cuso.tailor.model.hr.UpdateShiftRequest
 import com.cuso.tailor.repository.HrRepository
 import com.cuso.tailor.utils.convert12HrTo24Hr
+import com.cuso.tailor.model.hr.SalaryComponentListResponse
+import com.cuso.tailor.model.hr.SalaryComponentSingleResponse
+import com.cuso.tailor.model.hr.SalaryTemplateDto
+import com.cuso.tailor.model.hr.SalaryTemplateListResponse
+import com.cuso.tailor.model.hr.SalaryTemplateSingleResponse
+import com.cuso.tailor.model.hr.SaveAssignedTrainingRequest
+import com.cuso.tailor.model.hr.SaveSalaryTemplateRequest
+import com.cuso.tailor.model.hr.SaveTrainingProgramRequest
+import com.cuso.tailor.model.hr.SimpleActionResponse
+import com.cuso.tailor.model.hr.ToggleSalaryComponentStatusRequest
+import com.cuso.tailor.model.hr.TrainingProgramDto
+import com.cuso.tailor.model.hr.TrainingProgramListResponse
+import com.cuso.tailor.model.hr.TrainingProgramSingleResponse
+import com.cuso.tailor.repository.ApiRepository
+import com.cuso.tailor.utils.UiState // explicit import wins over same-package UiState
+import com.cuso.tailor.utils.launchState
 import com.cuso.tailor.utils.convertUiDateToApiDate
 import com.cuso.tailor.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -42,6 +61,10 @@ import kotlinx.coroutines.launch
 import okhttp3.MultipartBody
 import java.io.File
 import javax.inject.Inject
+import kotlin.collections.filter
+
+// Base path for all salary component endpoints
+private const val SALARY_BASE = "/api/hr/salary-component"
 
 sealed interface AttendanceUiState {
     object Loading : AttendanceUiState
@@ -55,7 +78,8 @@ sealed interface AttendanceUiState {
  */
 @HiltViewModel
 class HrViewModel @Inject constructor(
-    private val hrRepository: HrRepository
+    private val hrRepository: HrRepository,
+    private val repo: ApiRepository // generic repository for new APIs
 ) : ViewModel() {
 
     // ═══════════════════════════════════════════════
@@ -803,6 +827,669 @@ class HrViewModel @Inject constructor(
         }
     }
 
+    // ═══════════════════════════════════════════════
+    // ── Salary Components State & Handlers ──
+    // ═══════════════════════════════════════════════
+
+    private val _salaryComponents = MutableStateFlow<List<SalaryComponentItem>>(emptyList())
+    val salaryComponents: StateFlow<List<SalaryComponentItem>> = _salaryComponents.asStateFlow()
+
+    private val _salaryComponentTotal = MutableStateFlow(0)
+    val salaryComponentTotal: StateFlow<Int> = _salaryComponentTotal.asStateFlow()
+
+    private val _isLoadingSalaryComponents = MutableStateFlow(false)
+    val isLoadingSalaryComponents: StateFlow<Boolean> = _isLoadingSalaryComponents.asStateFlow()
+
+    private val _salaryComponentError = MutableStateFlow<String?>(null)
+    val salaryComponentError: StateFlow<String?> = _salaryComponentError.asStateFlow()
+
+    private val _salaryComponentDetail = MutableStateFlow<SalaryComponentItem?>(null)
+    val salaryComponentDetail: StateFlow<SalaryComponentItem?> = _salaryComponentDetail.asStateFlow()
+
+    private val _isLoadingSalaryComponentDetail = MutableStateFlow(false)
+    val isLoadingSalaryComponentDetail: StateFlow<Boolean> = _isLoadingSalaryComponentDetail.asStateFlow()
+
+    private val _isSubmittingSalaryComponent = MutableStateFlow(false)
+    val isSubmittingSalaryComponent: StateFlow<Boolean> = _isSubmittingSalaryComponent.asStateFlow()
+
+    // ── Fetch All ──
+    fun fetchSalaryComponents(
+        page: Int = 1,
+        limit: Int = 20,
+        search: String? = null,
+        type: String? = null,
+        status: String? = null
+    ) {
+        launchBusy {
+            _isLoadingSalaryComponents.value = true
+            _salaryComponentError.value = null
+
+            val result = hrRepository.getSalaryComponents(
+                page = page,
+                limit = limit,
+                search = search,
+                type = type,
+                status = status
+            )
+
+            result.fold(
+                onSuccess = { listData ->
+                    _salaryComponents.value = listData.data
+                    _salaryComponentTotal.value = listData.pagination?.total ?: listData.data.size
+                },
+                onFailure = { e ->
+                    _salaryComponentError.value = e.message ?: "Failed to fetch salary components"
+                }
+            )
+            _isLoadingSalaryComponents.value = false
+        }
+    }
+
+    // ── Fetch One ──
+    fun fetchSalaryComponentDetail(id: String) {
+        viewModelScope.launch {
+            _isLoadingSalaryComponentDetail.value = true
+            val result = hrRepository.getSalaryComponentDetail(id)
+            result.onSuccess { data ->
+                _salaryComponentDetail.value = data
+                _isLoadingSalaryComponentDetail.value = false
+            }.onFailure {
+                _isLoadingSalaryComponentDetail.value = false
+            }
+        }
+    }
+
+    fun clearSalaryComponentDetail() {
+        _salaryComponentDetail.value = null
+    }
+
+    // ── Create ──
+    fun createSalaryComponent(
+        request: SalaryComponentRequest,
+        onSuccess: (SalaryComponentItem) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSubmittingSalaryComponent.value = true
+            val result = hrRepository.createSalaryComponent(request)
+            result.onSuccess { createdItem ->
+                _isSubmittingSalaryComponent.value = false
+                fetchSalaryComponents() // Refresh list
+                onSuccess(createdItem)
+            }.onFailure { e ->
+                _isSubmittingSalaryComponent.value = false
+                onError(e.localizedMessage ?: "Failed to create salary component")
+            }
+        }
+    }
+
+    // ── Update ──
+    fun updateSalaryComponent(
+        id: String,
+        request: SalaryComponentRequest,
+        onSuccess: (SalaryComponentItem) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSubmittingSalaryComponent.value = true
+            val result = hrRepository.updateSalaryComponent(id, request)
+            result.onSuccess { updatedItem ->
+                _isSubmittingSalaryComponent.value = false
+                fetchSalaryComponents() // Refresh list
+                onSuccess(updatedItem)
+            }.onFailure { e ->
+                _isSubmittingSalaryComponent.value = false
+                onError(e.localizedMessage ?: "Failed to update salary component")
+            }
+        }
+    }
+
+    // ── Toggle Active / Inactive ──
+    fun toggleSalaryComponentStatus(
+        id: String,
+        isActive: Boolean,
+        onSuccess: (SalaryComponentItem) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val result = hrRepository.toggleSalaryComponentStatus(id, isActive)
+            result.onSuccess { updatedItem ->
+                // Update item in local list directly to avoid full reload flicker
+                _salaryComponents.value = _salaryComponents.value.map { item ->
+                    if (item.id == id) updatedItem else item
+                }
+                onSuccess(updatedItem)
+            }.onFailure { e ->
+                onError(e.localizedMessage ?: "Failed to change status")
+            }
+        }
+    }
+
+    // ── Delete ──
+    fun deleteSalaryComponent(
+        id: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val result = hrRepository.deleteSalaryComponent(id)
+            result.onSuccess {
+                _salaryComponents.value = _salaryComponents.value.filter { it.id != id }
+                onSuccess()
+            }.onFailure { e ->
+                onError(e.localizedMessage ?: "Failed to delete salary component")
+            }
+        }
+    }
+
+    //NEW GENERIC API
+
+    // ─────────────────────────────────────────────
+    // LIST  (GET with query params)
+    // ─────────────────────────────────────────────
+
+    // Loading / Error state of the list call
+    private val _list = MutableStateFlow<UiState<SalaryComponentListResponse>>(UiState.Idle)
+    val list: StateFlow<UiState<SalaryComponentListResponse>> = _list.asStateFlow()
+
+    // Plain list used by the UI (also edited locally after toggle / delete)
+    private val _components = MutableStateFlow<List<SalaryComponentItem>>(emptyList())
+    val components: StateFlow<List<SalaryComponentItem>> = _components.asStateFlow()
+
+    private val _total = MutableStateFlow(0)
+    val total: StateFlow<Int> = _total.asStateFlow()
+
+    fun loadList(
+        page: Int = 1,
+        limit: Int = 20,
+        search: String? = null,
+        type: String? = null,
+        status: String? = null
+    ) {
+        launchState(
+            state = _list,
+            onSuccess = { res ->
+                // res.data = list data, res.data.data = items
+                _components.value = res.data.data
+                _total.value = res.data.pagination?.total ?: res.data.data.size
+            }
+        ) {
+            repo.request<SalaryComponentListResponse> {
+                get(
+                    "$SALARY_BASE/view-all",
+                    repo.query(
+                        "page" to page,
+                        "limit" to limit,
+                        "search" to search,
+                        "type" to type,
+                        "status" to status
+                    )
+                )
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // DETAIL  (GET one)
+    // ─────────────────────────────────────────────
+
+    private val _detail = MutableStateFlow<UiState<SalaryComponentSingleResponse>>(UiState.Idle)
+    val detail: StateFlow<UiState<SalaryComponentSingleResponse>> = _detail.asStateFlow()
+
+    fun loadDetail(id: String) {
+        launchState(_detail) {
+            repo.request<SalaryComponentSingleResponse> { get("$SALARY_BASE/view-one/$id") }
+        }
+    }
+    // Reset detail when the form opens in "create" mode
+    fun clearDetail() {
+        _detail.value = UiState.Idle
+    }
+
+    // ─────────────────────────────────────────────
+    // CREATE / UPDATE  (POST / PUT with JSON body)
+    // ─────────────────────────────────────────────
+
+    // Shared by create and update (Loading = button spinner)
+    private val _save = MutableStateFlow<UiState<SalaryComponentSingleResponse>>(UiState.Idle)
+    val save: StateFlow<UiState<SalaryComponentSingleResponse>> = _save.asStateFlow()
+
+    fun create(
+        request: SalaryComponentRequest,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        launchState(
+            state = _save,
+            onSuccess = {
+                loadList() // refresh list after create
+                onSuccess()
+            },
+            onError = onError
+        ) {
+            repo.request<SalaryComponentSingleResponse> { post("$SALARY_BASE/create", request) }
+        }
+    }
+
+    fun update(
+        id: String,
+        request: SalaryComponentRequest,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        launchState(
+            state = _save,
+            onSuccess = {
+                loadList() // refresh list after update
+                onSuccess()
+            },
+            onError = onError
+        ) {
+            repo.request<SalaryComponentSingleResponse> { put("$SALARY_BASE/update/$id", request) }
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // TOGGLE ACTIVE / INACTIVE  (PATCH with JSON body)
+    // ─────────────────────────────────────────────
+
+    private val _toggle = MutableStateFlow<UiState<SalaryComponentSingleResponse>>(UiState.Idle)
+    val toggle: StateFlow<UiState<SalaryComponentSingleResponse>> = _toggle.asStateFlow()
+
+    fun toggleStatus(
+        id: String,
+        isActive: Boolean,
+        onError: (String) -> Unit = {}
+    ) {
+        launchState(
+            state = _toggle,
+            onSuccess = { res ->
+                // Replace only the changed item locally
+                res.data?.let { updated ->
+                    _components.value = _components.value.map { if (it.id == id) updated else it }
+                }
+            },
+            onError = onError
+        ) {
+            repo.request<SalaryComponentSingleResponse> {
+                patch("$SALARY_BASE/delete/$id", ToggleSalaryComponentStatusRequest(isActive))
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // DELETE  (DELETE without body)
+    // ─────────────────────────────────────────────
+
+    private val _delete = MutableStateFlow<UiState<SalaryComponentSingleResponse>>(UiState.Idle)
+    val delete: StateFlow<UiState<SalaryComponentSingleResponse>> = _delete.asStateFlow()
+
+    fun deleteComponent(
+        id: String,
+        onError: (String) -> Unit = {}
+    ) {
+        launchState(
+            state = _delete,
+            onSuccess = {
+                // Remove the item from the local list
+                _components.value = _components.value.filter { it.id != id }
+            },
+            onError = onError
+        ) {
+            repo.request<SalaryComponentSingleResponse> { delete("$SALARY_BASE/delete/$id") }
+        }
+    }
+
+
+    //SALARY TEMPLATE
+
+    // HrViewModel.kt - Add this constant at the top
+    private val TEMPLATE_BASE = "/api/hr/salary-template"
+
+// Add these inside HrViewModel class:
+
+    // ─────────────────────────────────────────────
+    // SALARY TEMPLATES (LIST / VIEW ALL)
+    // ─────────────────────────────────────────────
+    private val _templateListState = MutableStateFlow<UiState<SalaryTemplateListResponse>>(UiState.Idle)
+    val templateListState: StateFlow<UiState<SalaryTemplateListResponse>> = _templateListState.asStateFlow()
+
+    private val _salaryTemplates = MutableStateFlow<List<SalaryTemplateDto>>(emptyList())
+    val salaryTemplates: StateFlow<List<SalaryTemplateDto>> = _salaryTemplates.asStateFlow()
+
+    private val _templateTotal = MutableStateFlow(0)
+    val templateTotal: StateFlow<Int> = _templateTotal.asStateFlow()
+
+    fun fetchSalaryTemplates(
+        page: Int = 1,
+        limit: Int = 20,
+        search: String? = null
+    ) {
+        launchState(
+            state = _templateListState,
+            onSuccess = { res ->
+                _salaryTemplates.value = res.data.data
+                _templateTotal.value = res.data.pagination?.total ?: res.data.data.size
+            }
+        ) {
+            repo.request<SalaryTemplateListResponse> {
+                get(
+                    "$TEMPLATE_BASE/view-all",
+                    repo.query(
+                        "page" to page,
+                        "limit" to limit,
+                        "search" to search
+                    )
+                )
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // SALARY TEMPLATE DETAIL (VIEW ONE)
+    // ─────────────────────────────────────────────
+    private val _templateDetailState = MutableStateFlow<UiState<SalaryTemplateSingleResponse>>(UiState.Idle)
+    val templateDetailState: StateFlow<UiState<SalaryTemplateSingleResponse>> = _templateDetailState.asStateFlow()
+
+    fun fetchSalaryTemplateDetail(templateId: String) {
+        launchState(_templateDetailState) {
+            repo.request<SalaryTemplateSingleResponse> {
+                get("$TEMPLATE_BASE/view-one/$templateId")
+            }
+        }
+    }
+
+    fun clearTemplateDetail() {
+        _templateDetailState.value = UiState.Idle
+    }
+
+    // ─────────────────────────────────────────────
+    // CREATE / UPDATE / DELETE SALARY TEMPLATE
+    // ─────────────────────────────────────────────
+    private val _saveTemplateState = MutableStateFlow<UiState<SalaryTemplateSingleResponse>>(UiState.Idle)
+    val saveTemplateState: StateFlow<UiState<SalaryTemplateSingleResponse>> = _saveTemplateState.asStateFlow()
+
+    fun createSalaryTemplate(
+        request: SaveSalaryTemplateRequest,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        launchState(
+            state = _saveTemplateState,
+            onSuccess = {
+                fetchSalaryTemplates()
+                onSuccess()
+            },
+            onError = onError
+        ) {
+            repo.request<SalaryTemplateSingleResponse> {
+                post("$TEMPLATE_BASE/create", request)
+            }
+        }
+    }
+
+    fun updateSalaryTemplate(
+        templateId: String,
+        request: SaveSalaryTemplateRequest,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        launchState(
+            state = _saveTemplateState,
+            onSuccess = {
+                fetchSalaryTemplates()
+                onSuccess()
+            },
+            onError = onError
+        ) {
+            repo.request<SalaryTemplateSingleResponse> {
+                put("$TEMPLATE_BASE/update/$templateId", request)
+            }
+        }
+    }
+
+    fun deleteSalaryTemplate(
+        templateId: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        launchState(
+            state = _saveTemplateState,
+            onSuccess = {
+                _salaryTemplates.value = _salaryTemplates.value.filter { it.id != templateId }
+                onSuccess()
+            },
+            onError = onError
+        ) {
+            repo.request<SalaryTemplateSingleResponse> {
+                delete("$TEMPLATE_BASE/delete/$templateId")
+            }
+        }
+    }
+
+    //TRAINING MANAGEMENT
+
+    // HrViewModel.kt - Add constant at top
+    private val TRAINING_PROGRAM_BASE = "/api/hr/training-program"
+
+// Add inside HrViewModel class:
+
+    // ─────────────────────────────────────────────
+    // TRAINING PROGRAM (VIEW ALL / VIEW ONE / CREATE / UPDATE / DELETE)
+    // ─────────────────────────────────────────────
+
+    private val _trainingListState = MutableStateFlow<UiState<TrainingProgramListResponse>>(UiState.Idle)
+    val trainingListState: StateFlow<UiState<TrainingProgramListResponse>> = _trainingListState.asStateFlow()
+
+    private val _trainingPrograms = MutableStateFlow<List<TrainingProgramDto>>(emptyList())
+    val trainingPrograms: StateFlow<List<TrainingProgramDto>> = _trainingPrograms.asStateFlow()
+
+    fun fetchTrainingPrograms(search: String? = null) {
+        launchState(
+            state = _trainingListState,
+            onSuccess = { res ->
+                _trainingPrograms.value = res.data
+            }
+        ) {
+            repo.request<TrainingProgramListResponse> {
+                get(
+                    "$TRAINING_PROGRAM_BASE/view-all",
+                    repo.query("search" to search)
+                )
+            }
+        }
+    }
+
+    private val _trainingDetailState = MutableStateFlow<UiState<TrainingProgramSingleResponse>>(UiState.Idle)
+    val trainingDetailState: StateFlow<UiState<TrainingProgramSingleResponse>> = _trainingDetailState.asStateFlow()
+
+    fun fetchTrainingProgramDetail(id: String) {
+        launchState(_trainingDetailState) {
+            repo.request<TrainingProgramSingleResponse> {
+                get("$TRAINING_PROGRAM_BASE/view-one/$id")
+            }
+        }
+    }
+
+    fun clearTrainingProgramDetail() {
+        _trainingDetailState.value = UiState.Idle
+    }
+
+    private val _saveTrainingState = MutableStateFlow<UiState<TrainingProgramSingleResponse>>(UiState.Idle)
+    val saveTrainingState: StateFlow<UiState<TrainingProgramSingleResponse>> = _saveTrainingState.asStateFlow()
+
+    fun createTrainingProgram(
+        request: SaveTrainingProgramRequest,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        launchState(
+            state = _saveTrainingState,
+            onSuccess = {
+                fetchTrainingPrograms()
+                onSuccess()
+            },
+            onError = onError
+        ) {
+            repo.request<TrainingProgramSingleResponse> {
+                post("$TRAINING_PROGRAM_BASE/create", request)
+            }
+        }
+    }
+
+    fun updateTrainingProgram(
+        id: String,
+        request: SaveTrainingProgramRequest,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        launchState(
+            state = _saveTrainingState,
+            onSuccess = {
+                fetchTrainingPrograms()
+                onSuccess()
+            },
+            onError = onError
+        ) {
+            repo.request<TrainingProgramSingleResponse> {
+                put("$TRAINING_PROGRAM_BASE/update/$id", request)
+            }
+        }
+    }
+
+    private val _deleteTrainingState = MutableStateFlow<UiState<SimpleActionResponse>>(UiState.Idle)
+    val deleteTrainingState: StateFlow<UiState<SimpleActionResponse>> = _deleteTrainingState.asStateFlow()
+
+    fun deleteTrainingProgram(
+        id: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        launchState(
+            state = _deleteTrainingState,
+            onSuccess = {
+                _trainingPrograms.value = _trainingPrograms.value.filter { it.id != id }
+                onSuccess()
+            },
+            onError = onError
+        ) {
+            repo.request<SimpleActionResponse> {
+                delete("$TRAINING_PROGRAM_BASE/delete/$id")
+            }
+        }
+    }
+
+    //ASSIGNED TRAINING
+
+    // HrViewModel.kt - Base path for assigned training endpoints
+    private val ASSIGNED_TRAINING_BASE = "/api/hr/assign-trainingprogram"
+
+// Add inside HrViewModel class:
+
+    // ─────────────────────────────────────────────
+    // ASSIGNED TRAINING PROGRAM (LIST, DETAIL, CREATE, UPDATE, DELETE)
+    // ─────────────────────────────────────────────
+
+    private val _assignedTrainingListState = MutableStateFlow<UiState<AssignedTrainingListResponse>>(UiState.Idle)
+    val assignedTrainingListState: StateFlow<UiState<AssignedTrainingListResponse>> = _assignedTrainingListState.asStateFlow()
+
+    private val _assignedTrainingPrograms = MutableStateFlow<List<AssignedTrainingProgramDto>>(emptyList())
+    val assignedTrainingPrograms: StateFlow<List<AssignedTrainingProgramDto>> = _assignedTrainingPrograms.asStateFlow()
+
+    fun fetchAssignedTrainingPrograms(search: String? = null) {
+        launchState(
+            state = _assignedTrainingListState,
+            onSuccess = { res ->
+                _assignedTrainingPrograms.value = res.data
+            }
+        ) {
+            repo.request<AssignedTrainingListResponse> {
+                get(
+                    "$ASSIGNED_TRAINING_BASE/view-all",
+                    repo.query("search" to search)
+                )
+            }
+        }
+    }
+
+    private val _assignedTrainingDetailState = MutableStateFlow<UiState<AssignedTrainingSingleResponse>>(UiState.Idle)
+    val assignedTrainingDetailState: StateFlow<UiState<AssignedTrainingSingleResponse>> = _assignedTrainingDetailState.asStateFlow()
+
+    fun fetchAssignedTrainingDetail(id: String) {
+        launchState(_assignedTrainingDetailState) {
+            repo.request<AssignedTrainingSingleResponse> {
+                get("$ASSIGNED_TRAINING_BASE/view-one/$id")
+            }
+        }
+    }
+
+    fun clearAssignedTrainingDetail() {
+        _assignedTrainingDetailState.value = UiState.Idle
+    }
+
+    private val _saveAssignedTrainingState = MutableStateFlow<UiState<AssignedTrainingSingleResponse>>(UiState.Idle)
+    val saveAssignedTrainingState: StateFlow<UiState<AssignedTrainingSingleResponse>> = _saveAssignedTrainingState.asStateFlow()
+
+    fun createAssignedTraining(
+        request: SaveAssignedTrainingRequest,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        launchState(
+            state = _saveAssignedTrainingState,
+            onSuccess = {
+                fetchAssignedTrainingPrograms()
+                onSuccess()
+            },
+            onError = onError
+        ) {
+            repo.request<AssignedTrainingSingleResponse> {
+                post("$ASSIGNED_TRAINING_BASE/create", request)
+            }
+        }
+    }
+
+    fun updateAssignedTraining(
+        id: String,
+        request: SaveAssignedTrainingRequest,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        launchState(
+            state = _saveAssignedTrainingState,
+            onSuccess = {
+                fetchAssignedTrainingPrograms()
+                onSuccess()
+            },
+            onError = onError
+        ) {
+            repo.request<AssignedTrainingSingleResponse> {
+                put("$ASSIGNED_TRAINING_BASE/update/$id", request)
+            }
+        }
+    }
+
+    private val _deleteAssignedTrainingState = MutableStateFlow<UiState<SimpleActionResponse>>(UiState.Idle)
+    val deleteAssignedTrainingState: StateFlow<UiState<SimpleActionResponse>> = _deleteAssignedTrainingState.asStateFlow()
+
+    fun deleteAssignedTraining(
+        id: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        launchState(
+            state = _deleteAssignedTrainingState,
+            onSuccess = {
+                _assignedTrainingPrograms.value = _assignedTrainingPrograms.value.filter { it.id != id }
+                onSuccess()
+            },
+            onError = onError
+        ) {
+            repo.request<SimpleActionResponse> {
+                delete("$ASSIGNED_TRAINING_BASE/delete/$id")
+            }
+        }
+    }
     sealed class UploadPictureState {
         object Idle : UploadPictureState()
         object Loading : UploadPictureState()

@@ -595,9 +595,9 @@ fun <T> DataCard(
                         } else if (trailingText != null) {
                             Text(
                                 text = trailingText,
-                                fontSize = tokens.bodyLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF111827)
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = TextSecondary
                             )
                         }
                     }

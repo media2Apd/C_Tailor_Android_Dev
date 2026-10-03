@@ -262,7 +262,7 @@ fun CustomerScreen(
                     .background(Color.Transparent)
             ) {
                 // Fixed top TitleBar: Never obscured by FilterDrawer
-                TitleBar(title = "Sales & Order Reports", onClose = onClose)
+                TitleBar(title = "Customers", onClose = onClose)
 
                 HorizontalDivider(color = title_border)
 

@@ -58,6 +58,14 @@ import com.cuso.tailor.view.home.hr.attendance_management.shift.CreateNewListScr
 import com.cuso.tailor.view.home.hr.attendance_management.shift.ShiftListOverviewScreen
 import com.cuso.tailor.view.home.hr.leave_management.leave_approval.LeaveApprovalScreen
 import com.cuso.tailor.view.home.hr.leave_management.apply_leave.ApplyLeaveScreen
+import com.cuso.tailor.view.home.hr.payroll_management.salary_components.SalaryComponentFormScreen
+import com.cuso.tailor.view.home.hr.payroll_management.salary_components.SalaryComponentListScreen
+import com.cuso.tailor.view.home.hr.payroll_management.salary_template.SalaryTemplateFormScreen
+import com.cuso.tailor.view.home.hr.payroll_management.salary_template.SalaryTemplateListScreen
+import com.cuso.tailor.view.home.hr.training_management.assign_training.AssignTrainingScreen
+import com.cuso.tailor.view.home.hr.training_management.assign_training.TrainingAssignmentListScreen
+import com.cuso.tailor.view.home.hr.training_management.training_program.AddEditProgramScreen
+import com.cuso.tailor.view.home.hr.training_management.training_program.TrainingProgramListScreen
 import com.cuso.tailor.view.home.inventory.approval.ApprovalDetailScreen
 import com.cuso.tailor.view.home.inventory.approval.ApprovalsListScreen
 import com.cuso.tailor.view.home.inventory.auto_reorder.AutoReorderScreen
@@ -170,6 +178,14 @@ import com.cuso.tailor.viewmodel.*
 fun HomeScreenRouter(
     screen: String,
     selectedCategoryIdForEdit: String? = null,
+    selectedSalaryComponentId: String? = null,
+    selectedTrainingProgramId: String? = null,
+    onTrainingProgramIdSelected: (String?) -> Unit = {},
+    selectedTrainingAssignmentId: String? = null,
+    onTrainingAssignmentIdSelected: (String?) -> Unit = {},
+    selectedSalaryTemplateId: String? = null,
+    onSalaryTemplateIdSelected: (String?) -> Unit = {},
+    onSalaryComponentIdSelected: (String?) -> Unit = {},
     onCategoryIdForEditSelected: (String?) -> Unit = {},
     selectedApprovalId: String? = null,
     onApprovalIdSelected: (String?) -> Unit = {},
@@ -448,18 +464,31 @@ fun HomeScreenRouter(
 
         "hr_all_employees", "hr_employee_onboarding", "hr_attendance",
         "hr_attendance_detail", "hr_monthly_attendance", "hr_daily_attendance",
-        "hr_attendance_manual_entry", "hr_attendance_shift_management",
+        "hr_attendance_manual_entry", "hr_attendance_shift_management","hr_payroll_salary_structure",
+        "hr_payroll_salary_components",
         "hr_shift_list",
-        "hr_create_shift",
+        "hr_create_shift","hr_payroll_salary_components_create",
         "hr_leave_approval",
-        "hr_apply_leave"   -> {
+        "hr_apply_leave",
+        "hr_payroll_salary_templates",
+        "hr_payroll_salary_templates_form",
+        "hr_training_management", "hr_add_edit_program",
+        "hr_training_assignment_list", "hr_assign_training_form"  -> {
             HrRouter(
                 screen = screen,
                 hrViewModel = hrViewModel,
                 employeeScreenMode = employeeScreenMode,
                 onEmployeeScreenModeChange = onEmployeeScreenModeChange,
                 selectedEmployeeId = selectedEmployeeId,
+                selectedTrainingAssignmentId = selectedTrainingAssignmentId,
+                onTrainingAssignmentIdSelected = onTrainingAssignmentIdSelected,
+                selectedSalaryTemplateId = selectedSalaryTemplateId,
+                onSalaryTemplateIdSelected = onSalaryTemplateIdSelected,
+                selectedTrainingProgramId = selectedTrainingProgramId,
+                onTrainingProgramIdSelected = onTrainingProgramIdSelected,
                 onEmployeeIdSelected = onEmployeeIdSelected,
+                selectedSalaryComponentId = selectedSalaryComponentId,
+                onSalaryComponentIdSelected = onSalaryComponentIdSelected,
                 selectedAttendanceId = selectedAttendanceId,
                 onAttendanceIdSelected = onAttendanceIdSelected,
                 selectedShiftId = selectedShiftId,
@@ -2362,10 +2391,18 @@ private fun InventoryProcurementRouter(
 private fun HrRouter(
     screen: String,
     hrViewModel: HrViewModel,
+    selectedSalaryTemplateId: String? = null,
+    onSalaryTemplateIdSelected: (String?) -> Unit = {},
     employeeScreenMode: ScreenMode,
     onEmployeeScreenModeChange: (ScreenMode) -> Unit,
     selectedEmployeeId: String?,
+    selectedTrainingAssignmentId: String? = null,
+    onTrainingAssignmentIdSelected: (String?) -> Unit = {},
+    selectedTrainingProgramId: String? = null,
+    onTrainingProgramIdSelected: (String?) -> Unit = {},
     onEmployeeIdSelected: (String?) -> Unit,
+    selectedSalaryComponentId: String? = null,
+    onSalaryComponentIdSelected: (String?) -> Unit = {},
     selectedAttendanceId: String?,
     onAttendanceIdSelected: (String?) -> Unit,
     selectedShiftId: String?,
@@ -2479,7 +2516,139 @@ private fun HrRouter(
             onClose = onGoBack,
             viewModel = hrViewModel
         )
+
+        "hr_payroll_salary_structure", "hr_payroll_salary_components" -> SalaryComponentListScreen(
+            onClose = onGoBack,
+            viewModel = hrViewModel,
+            onCreateComponentClick = {
+                // Clear ID for Create Mode and navigate
+                onSalaryComponentIdSelected(null)
+                onNavigate("hr_payroll_salary_components_create")
+            },
+            onEditComponentClick = { componentId ->
+                // Set ID for Edit Mode (triggers view-one API and prefill)
+                onSalaryComponentIdSelected(componentId)
+                onNavigate("hr_payroll_salary_components_create")
+            },
+            onViewComponentClick = { componentId ->
+                // Set ID for View Mode
+                onSalaryComponentIdSelected(componentId)
+                onNavigate("hr_payroll_salary_components_create")
+            }
+        )
+
+        "hr_payroll_salary_components_create" -> SalaryComponentFormScreen(
+            componentId = selectedSalaryComponentId,
+            onClose = {
+                onSalaryComponentIdSelected(null)
+                onGoBack()
+            },
+            viewModel = hrViewModel
+        )
+
+        // ─────────────────────────────────────────────
+        // SALARY TEMPLATES LIST SCREEN
+        // ─────────────────────────────────────────────
+        "hr_payroll_salary_templates" -> SalaryTemplateListScreen(
+            viewModel = hrViewModel,
+            onClose = onGoBack,
+            onCreateTemplateClick = {
+                // Clear ID for create mode and navigate
+                onSalaryTemplateIdSelected(null)
+                onNavigate("hr_payroll_salary_templates_form")
+            },
+            onEditTemplateClick = { templateId ->
+                // Set ID for edit mode (triggers view-one API) and navigate
+                onSalaryTemplateIdSelected(templateId)
+                onNavigate("hr_payroll_salary_templates_form")
+            },
+            onViewTemplateClick = { templateId ->
+                // Set ID for view mode and navigate
+                onSalaryTemplateIdSelected(templateId)
+                onNavigate("hr_payroll_salary_templates_form")
+            }
+        )
+
+        // ─────────────────────────────────────────────
+        // SALARY TEMPLATE FORM SCREEN (CREATE / EDIT)
+        // ─────────────────────────────────────────────
+        "hr_payroll_salary_templates_form" -> SalaryTemplateFormScreen(
+            templateId = selectedSalaryTemplateId,
+            viewModel = hrViewModel,
+            onClose = {
+                onSalaryTemplateIdSelected(null)
+                onGoBack()
+            }
+        )
+
+        // ─────────────────────────────────────────────
+        // TRAINING PROGRAM LIST SCREEN (VIEW ALL & DELETE)
+        // ─────────────────────────────────────────────
+        "hr_training_management" -> TrainingProgramListScreen(
+            viewModel = hrViewModel,
+            onClose = onGoBack,
+            onAddProgramClick = {
+                // Clear selected program ID for create mode and navigate
+                onTrainingProgramIdSelected(null)
+                onNavigate("hr_add_edit_program")
+            },
+            onEditProgramClick = { programId ->
+                // Set selected program ID for edit mode (triggers view-one API) and navigate
+                onTrainingProgramIdSelected(programId)
+                onNavigate("hr_add_edit_program")
+            }
+        )
+
+        // ─────────────────────────────────────────────
+        // ADD / EDIT PROGRAM SCREEN (VIEW ONE / CREATE / UPDATE)
+        // ─────────────────────────────────────────────
+        "hr_add_edit_program" -> AddEditProgramScreen(
+            programId = selectedTrainingProgramId,
+            viewModel = hrViewModel,
+            onClose = {
+                onTrainingProgramIdSelected(null)
+                onGoBack()
+            },
+            onSaveSuccess = {
+                onTrainingProgramIdSelected(null)
+                onGoBack()
+            }
+        )
+
+        // ─────────────────────────────────────────────
+        // TRAINING ASSIGNMENT LIST SCREEN (VIEW ALL & DELETE)
+        // ─────────────────────────────────────────────
+        "hr_training_assignment_list" -> TrainingAssignmentListScreen(
+            viewModel = hrViewModel,
+            onClose = onGoBack,
+            onAssignTrainingClick = {
+                onTrainingAssignmentIdSelected(null)
+                onNavigate("hr_assign_training_form")
+            },
+            onEditAssignmentClick = { id ->
+                onTrainingAssignmentIdSelected(id)
+                onNavigate("hr_assign_training_form")
+            }
+        )
+
+        // ─────────────────────────────────────────────
+        // ASSIGN TRAINING SCREEN (VIEW ONE / CREATE / UPDATE)
+        // ─────────────────────────────────────────────
+        "hr_assign_training_form" -> AssignTrainingScreen(
+            assignmentId = selectedTrainingAssignmentId,
+            viewModel = hrViewModel,
+            onClose = {
+                onTrainingAssignmentIdSelected(null)
+                onGoBack()
+            },
+            onAssignSuccess = {
+                onTrainingAssignmentIdSelected(null)
+                onGoBack()
+            }
+        )
     }
+
+
 }
 
 @Composable

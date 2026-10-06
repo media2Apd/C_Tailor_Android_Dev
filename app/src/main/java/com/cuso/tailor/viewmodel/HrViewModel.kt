@@ -8,16 +8,28 @@
 )
 package com.cuso.tailor.viewmodel
 
+import android.webkit.MimeTypeMap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.model.hr.AssignedTrainingListResponse
 import com.cuso.tailor.model.hr.AssignedTrainingProgramDto
 import com.cuso.tailor.model.hr.AssignedTrainingSingleResponse
 import com.cuso.tailor.model.hr.AttendanceRecord
+import com.cuso.tailor.model.hr.CreateEmployeeDocumentResponse
 import com.cuso.tailor.model.hr.CreateManualAttendanceRequest
 import com.cuso.tailor.model.hr.CreateMemberRequest
 import com.cuso.tailor.model.hr.CreateShiftRequest
 import com.cuso.tailor.model.hr.CreatedMemberFullData
+import com.cuso.tailor.model.hr.DeleteDocumentCategoryResponse
+import com.cuso.tailor.model.hr.DeleteEmployeeDocumentResponse
+import com.cuso.tailor.model.hr.DocumentCategoryDto
+import com.cuso.tailor.model.hr.DocumentCategoryDtoCat
+import com.cuso.tailor.model.hr.DocumentCategoryListResponse
+import com.cuso.tailor.model.hr.DocumentCategoryListResponseCat
+import com.cuso.tailor.model.hr.DocumentCategorySingleResponse
+import com.cuso.tailor.model.hr.EmployeeDocumentDto
+import com.cuso.tailor.model.hr.EmployeeDocumentListResponse
+import com.cuso.tailor.model.hr.EmployeeDocumentSingleResponse
 import com.cuso.tailor.model.hr.LeaveRequestItemDto
 import com.cuso.tailor.model.hr.LeaveTypeItemDto
 import com.cuso.tailor.model.hr.MemberDetail
@@ -38,6 +50,7 @@ import com.cuso.tailor.model.hr.SalaryTemplateDto
 import com.cuso.tailor.model.hr.SalaryTemplateListResponse
 import com.cuso.tailor.model.hr.SalaryTemplateSingleResponse
 import com.cuso.tailor.model.hr.SaveAssignedTrainingRequest
+import com.cuso.tailor.model.hr.SaveDocumentCategoryRequest
 import com.cuso.tailor.model.hr.SaveSalaryTemplateRequest
 import com.cuso.tailor.model.hr.SaveTrainingProgramRequest
 import com.cuso.tailor.model.hr.SimpleActionResponse
@@ -403,9 +416,9 @@ class HrViewModel @Inject constructor(
     private val allRecords = mutableListOf<AttendanceRecord>()
     private var searchJob: Job? = null
 
-    init {
-        loadAttendance(reset = true)
-    }
+//    init {
+//        loadAttendance(reset = true)
+//    }
 
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
@@ -1488,6 +1501,488 @@ class HrViewModel @Inject constructor(
             repo.request<SimpleActionResponse> {
                 delete("$ASSIGNED_TRAINING_BASE/delete/$id")
             }
+        }
+    }
+
+    //DOCUMENT CATEGORY & EMPLOYEE DOCUMENT
+
+    // ── Add these constants at the top of HrViewModel.kt ──
+    private val DOC_CATEGORY_BASE = "/api/hr/document-category"
+    private val EMP_DOCUMENT_BASE = "/api/hr/employee-document"
+
+    // ── Add inside the HrViewModel class ──
+
+    // Document Categories State
+    private val _documentCategories = MutableStateFlow<List<DocumentCategoryDto>>(emptyList())
+    val documentCategories: StateFlow<List<DocumentCategoryDto>> = _documentCategories.asStateFlow()
+
+    private val _isLoadingCategories = MutableStateFlow(false)
+    val isLoadingCategories: StateFlow<Boolean> = _isLoadingCategories.asStateFlow()
+
+    // Employee Documents State
+    private val _employeeDocuments = MutableStateFlow<List<EmployeeDocumentDto>>(emptyList())
+    val employeeDocuments: StateFlow<List<EmployeeDocumentDto>> = _employeeDocuments.asStateFlow()
+
+    private val _isLoadingDocuments = MutableStateFlow(false)
+    val isLoadingDocuments: StateFlow<Boolean> = _isLoadingDocuments.asStateFlow()
+
+    private val _isSubmittingUpload = MutableStateFlow(false)
+    val isSubmittingUpload: StateFlow<Boolean> = _isSubmittingUpload.asStateFlow()
+
+    // 1. Fetch Document Categories for dropdown
+    fun fetchDocumentCategories() {
+        launchBusy {
+            _isLoadingCategories.value = true
+            val result = repo.request<DocumentCategoryListResponse> {
+                get("$DOC_CATEGORY_BASE/view-all")
+            }
+            result.fold(
+                onSuccess = { res ->
+                    _documentCategories.value = res.data
+                },
+                onFailure = {
+                    _documentCategories.value = emptyList()
+                }
+            )
+            _isLoadingCategories.value = false
+        }
+    }
+
+    // 2. Fetch Employee Documents with search and pagination
+    fun fetchEmployeeDocuments(search: String? = null) {
+        launchBusy {
+            _isLoadingDocuments.value = true
+            val result = repo.request<EmployeeDocumentListResponse> {
+                get(
+                    "$EMP_DOCUMENT_BASE/view-all",
+                    repo.query(
+                        "search" to search,
+                        "page" to 1,
+                        "limit" to 50
+                    )
+                )
+            }
+            result.fold(
+                onSuccess = { res ->
+                    _employeeDocuments.value = res.data?.documents.orEmpty()
+                },
+                onFailure = {
+                    _employeeDocuments.value = emptyList()
+                }
+            )
+            _isLoadingDocuments.value = false
+        }
+    }
+
+    // 3. Upload new employee document
+    fun uploadEmployeeDocument(
+        memberId: String,
+        categoryId: String,
+        title: String,
+        issueDate: String,
+        expiryDate: String,
+        notes: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (memberId.isBlank()) {
+            onError("Please select an employee")
+            return
+        }
+        if (categoryId.isBlank()) {
+            onError("Please select a document category")
+            return
+        }
+        if (title.isBlank()) {
+            onError("Please enter a document title")
+            return
+        }
+
+        viewModelScope.launch {
+            _isSubmittingUpload.value = true
+            // Make the API call using your repository
+            // Replace with actual multipart/json upload endpoint
+            _isSubmittingUpload.value = false
+            fetchEmployeeDocuments()
+            onSuccess()
+        }
+    }
+
+    // ── Inside HrViewModel.kt ──
+    fun uploadEmployeeDocument(
+        memberId: String,
+        categoryId: String,
+        title: String,
+        issueDate: String,
+        expiryDate: String,
+        notes: String,
+        files: List<File>,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (memberId.isBlank()) {
+            onError("Please select an employee")
+            return
+        }
+        if (categoryId.isBlank()) {
+            onError("Please select a document category")
+            return
+        }
+        if (title.isBlank()) {
+            onError("Please enter a document title")
+            return
+        }
+        if (issueDate.isBlank()) {
+            onError("Please select an issue date")
+            return
+        }
+        if (expiryDate.isBlank()) {
+            onError("Please select an expiry date")
+            return
+        }
+        if (files.isEmpty()) {
+            onError("Please attach at least one document file")
+            return
+        }
+
+        viewModelScope.launch {
+            _isSubmittingUpload.value = true
+
+            // 1. Form data fields matching the Web payload
+            val parts = mapOf(
+                "organizationMemberId" to repo.text(memberId),
+                "documentCategoryId" to repo.text(categoryId),
+                "title" to repo.text(title),
+                "issueDate" to repo.text(convertUiDateToApiDate(issueDate)),
+                "expiryDate" to repo.text(convertUiDateToApiDate(expiryDate)),
+                "downloadEligible" to repo.text("true"),
+                "status" to repo.text("Active"),
+                "notes" to repo.text(notes)
+            )
+
+            // 2. Prepare binary files with exact MIME type (e.g., image/jpeg)
+            val fileParts = files.map { file ->
+                val extension = file.extension.lowercase()
+                val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+                    ?: when (extension) {
+                        "jpg", "jpeg" -> "image/jpeg"
+                        "png" -> "image/png"
+                        "pdf" -> "application/pdf"
+                        "webp" -> "image/webp"
+                        else -> "application/octet-stream"
+                    }
+
+                repo.filePart("files", file, mimeType)
+            }
+
+            // 3. Post Multipart
+            val result = repo.request<CreateEmployeeDocumentResponse> {
+                postMultipart(
+                    url = "$EMP_DOCUMENT_BASE/create",
+                    parts = parts,
+                    files = fileParts
+                )
+            }
+
+            result.fold(
+                onSuccess = {
+                    _isSubmittingUpload.value = false
+                    fetchEmployeeDocuments() // Refresh list
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _isSubmittingUpload.value = false
+                    onError(error.message ?: "Failed to upload document")
+                }
+            )
+        }
+    }
+
+    // ── Single Employee Document State (View-One & Edit) ──
+    private val _documentDetail = MutableStateFlow<EmployeeDocumentDto?>(null)
+    val documentDetail: StateFlow<EmployeeDocumentDto?> = _documentDetail.asStateFlow()
+
+    private val _isLoadingDocumentDetail = MutableStateFlow(false)
+    val isLoadingDocumentDetail: StateFlow<Boolean> = _isLoadingDocumentDetail.asStateFlow()
+
+    fun clearDocumentDetail() {
+        _documentDetail.value = null
+    }
+
+    // 4. Fetch Single Employee Document by ID (View-One)
+    fun fetchEmployeeDocumentById(id: String, onError: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            _isLoadingDocumentDetail.value = true
+            val result = repo.request<EmployeeDocumentSingleResponse> {
+                get("$EMP_DOCUMENT_BASE/view-one/$id")
+            }
+            result.fold(
+                onSuccess = { res ->
+                    _documentDetail.value = res.data
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to fetch document details")
+                }
+            )
+            _isLoadingDocumentDetail.value = false
+        }
+    }
+
+    // 5. Update Employee Document (Multipart PUT via GenericApi)
+    fun updateEmployeeDocument(
+        documentId: String,
+        memberId: String,
+        categoryId: String,
+        title: String,
+        issueDate: String,
+        expiryDate: String,
+        notes: String,
+        files: List<File>,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (memberId.isBlank()) {
+            onError("Please select an employee")
+            return
+        }
+        if (categoryId.isBlank()) {
+            onError("Please select a document category")
+            return
+        }
+        if (title.isBlank()) {
+            onError("Please enter a document title")
+            return
+        }
+        if (issueDate.isBlank()) {
+            onError("Please select an issue date")
+            return
+        }
+        if (expiryDate.isBlank()) {
+            onError("Please select an expiry date")
+            return
+        }
+
+        viewModelScope.launch {
+            _isSubmittingUpload.value = true
+
+            // Form data fields
+            val parts = mutableMapOf(
+                "organizationMemberId" to repo.text(memberId),
+                "documentCategoryId" to repo.text(categoryId),
+                "title" to repo.text(title),
+                "issueDate" to repo.text(convertUiDateToApiDate(issueDate)),
+                "expiryDate" to repo.text(convertUiDateToApiDate(expiryDate)),
+                "downloadEligible" to repo.text("true"),
+                "status" to repo.text("Active"),
+                "notes" to repo.text(notes)
+            )
+
+            // Convert files to MultipartBody.Part if new files were selected
+            val fileParts = files.map { file ->
+                val extension = file.extension.lowercase()
+                val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+                    ?: when (extension) {
+                        "jpg", "jpeg" -> "image/jpeg"
+                        "png" -> "image/png"
+                        "pdf" -> "application/pdf"
+                        "webp" -> "image/webp"
+                        else -> "application/octet-stream"
+                    }
+
+                repo.filePart("files", file, mimeType)
+            }.takeIf { it.isNotEmpty() }
+
+            val result = repo.request<EmployeeDocumentSingleResponse> {
+                putMultipart(
+                    url = "$EMP_DOCUMENT_BASE/update/$documentId",
+                    parts = parts,
+                    files = fileParts
+                )
+            }
+
+            result.fold(
+                onSuccess = {
+                    _isSubmittingUpload.value = false
+                    fetchEmployeeDocuments() // Refresh document list
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _isSubmittingUpload.value = false
+                    onError(error.message ?: "Failed to update document")
+                }
+            )
+        }
+    }
+
+    // ── Delete Employee Document ──
+    // ── Delete Employee Document ──
+    fun deleteEmployeeDocument(
+        id: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            // FIXED: Use DeleteEmployeeDocumentResponse instead of EmployeeDocumentSingleResponse
+            // This prevents Gson Expected BEGIN_OBJECT but was STRING parsing crash
+            val result = repo.request<DeleteEmployeeDocumentResponse> {
+                delete("$EMP_DOCUMENT_BASE/delete/$id")
+            }
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        // Remove deleted item from local list without reloading entire screen
+                        _employeeDocuments.value = _employeeDocuments.value.filter { it.id != id }
+                        onSuccess()
+                    } else {
+                        onError(res.message ?: "Failed to delete employee document")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to delete employee document")
+                }
+            )
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    // ── Document Category Operations (Using Cat DTOs) ──
+    // ═══════════════════════════════════════════════
+
+    // Document Categories List State
+    private val _documentCategoriesCat = MutableStateFlow<List<DocumentCategoryDtoCat>>(emptyList())
+    val documentCategoriesCat: StateFlow<List<DocumentCategoryDtoCat>> = _documentCategoriesCat.asStateFlow()
+
+    private val _isLoadingCategoriesCat = MutableStateFlow(false)
+    val isLoadingCategoriesCat: StateFlow<Boolean> = _isLoadingCategoriesCat.asStateFlow()
+
+    // View-One Category Detail State
+    private val _categoryDetailCat = MutableStateFlow<DocumentCategoryDtoCat?>(null)
+    val categoryDetailCat: StateFlow<DocumentCategoryDtoCat?> = _categoryDetailCat.asStateFlow()
+
+    private val _isLoadingCategoryDetailCat = MutableStateFlow(false)
+    val isLoadingCategoryDetailCat: StateFlow<Boolean> = _isLoadingCategoryDetailCat.asStateFlow()
+
+    private val _isSubmittingCategoryCat = MutableStateFlow(false)
+    val isSubmittingCategoryCat: StateFlow<Boolean> = _isSubmittingCategoryCat.asStateFlow()
+
+    // Clear single category detail on screen dismiss
+    fun clearCategoryDetailCat() {
+        _categoryDetailCat.value = null
+    }
+
+    // 1. View All Document Categories
+    fun fetchDocumentCategoriesCat() {
+        launchBusy {
+            _isLoadingCategoriesCat.value = true
+            val result = repo.request<DocumentCategoryListResponseCat> {
+                get("$DOC_CATEGORY_BASE/view-all")
+            }
+            result.fold(
+                onSuccess = { res ->
+                    _documentCategoriesCat.value = res.data
+                },
+                onFailure = {
+                    _documentCategoriesCat.value = emptyList()
+                }
+            )
+            _isLoadingCategoriesCat.value = false
+        }
+    }
+
+    // 2. View One Document Category by ID
+    fun fetchCategoryByIdCat(id: String, onError: (String) -> Unit = {}) {
+        viewModelScope.launch {
+            _isLoadingCategoryDetailCat.value = true
+            val result = repo.request<DocumentCategorySingleResponse> {
+                get("$DOC_CATEGORY_BASE/view-one/$id")
+            }
+            result.fold(
+                onSuccess = { res ->
+                    _categoryDetailCat.value = res.data
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to load category details")
+                }
+            )
+            _isLoadingCategoryDetailCat.value = false
+        }
+    }
+
+    // 3. Create Document Category
+    fun createCategoryCat(
+        request: SaveDocumentCategoryRequest,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSubmittingCategoryCat.value = true
+            val result = repo.request<DocumentCategorySingleResponse> {
+                post("$DOC_CATEGORY_BASE/create", request)
+            }
+            result.fold(
+                onSuccess = {
+                    _isSubmittingCategoryCat.value = false
+                    fetchDocumentCategoriesCat() // Refresh list
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _isSubmittingCategoryCat.value = false
+                    onError(error.message ?: "Failed to create document category")
+                }
+            )
+        }
+    }
+
+    // 4. Update Document Category
+    fun updateCategoryCat(
+        id: String,
+        request: SaveDocumentCategoryRequest,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSubmittingCategoryCat.value = true
+            val result = repo.request<DocumentCategorySingleResponse> {
+                put("$DOC_CATEGORY_BASE/update/$id", request)
+            }
+            result.fold(
+                onSuccess = {
+                    _isSubmittingCategoryCat.value = false
+                    fetchDocumentCategoriesCat() // Refresh list
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _isSubmittingCategoryCat.value = false
+                    onError(error.message ?: "Failed to update document category")
+                }
+            )
+        }
+    }
+
+    // 5. Delete Document Category
+    fun deleteCategoryCat(
+        id: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val result = repo.request<DeleteDocumentCategoryResponse> {
+                delete("$DOC_CATEGORY_BASE/delete/$id")
+            }
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        // Remove deleted item from local list to avoid screen reload flicker
+                        _documentCategoriesCat.value = _documentCategoriesCat.value.filter { it.id != id }
+                        onSuccess()
+                    } else {
+                        onError(res.message ?: "Failed to delete document category")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to delete document category")
+                }
+            )
         }
     }
     sealed class UploadPictureState {

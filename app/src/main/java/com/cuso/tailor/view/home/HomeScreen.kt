@@ -230,6 +230,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedEmployeeId by remember { mutableStateOf<String?>(null) }
     var selectedAttendanceId by remember { mutableStateOf<String?>(null) }
     var selectedShiftId by remember { mutableStateOf<String?>(null) }
+    var selectedDocumentId by remember { mutableStateOf<String?>(null) }
+    var selectedDocumentCategoryId by remember { mutableStateOf<String?>(null) }
     var selectedSalaryComponentId by remember { mutableStateOf<String?>(null) }
     // HR Salary Template state
     var selectedSalaryTemplateId by remember { mutableStateOf<String?>(null) }
@@ -597,6 +599,14 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "hr_payroll_salary_templates",
             "hr_payroll_salary_templates_form",
 
+            "hr_document_categories",
+            "hr_employee_document_upload",
+            "hr_new_document_upload",
+
+            "hr_document_categories",
+            "hr_add_document_category",
+            "hr_add_document_category",
+
             // ── Logistics ──
             "logistics_delivery",
             "delivery_detail",
@@ -736,6 +746,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
+                "hr_new_document_upload" -> selectedDocumentId = null
+                "hr_add_document_category" -> selectedDocumentCategoryId = null
                 "hr_assign_training_form" -> selectedTrainingAssignmentId = null
                 "hr_add_edit_program" -> selectedTrainingProgramId = null
                 "hr_payroll_salary_templates_form" -> selectedSalaryTemplateId = null
@@ -924,6 +936,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+                            selectedDocumentCategoryId = selectedDocumentCategoryId,                 // <-- ADDED
+                            onDocumentCategoryIdSelected = { selectedDocumentCategoryId = it },
+                            selectedDocumentId = selectedDocumentId,                         // <-- Add
+                            onDocumentIdSelected = { selectedDocumentId = it },
                             selectedTrainingAssignmentId = selectedTrainingAssignmentId,
                             onTrainingAssignmentIdSelected = { selectedTrainingAssignmentId = it },
                             selectedTrainingProgramId = selectedTrainingProgramId,
@@ -2302,6 +2318,10 @@ fun normalizeRoute(rawKey: String): String {
         "hr_assign_management",
         "hr_assigning_management",
         "hr_training_assignment_list" -> "hr_training_assignment_list"
+
+        "hr_document_categories" -> "hr_document_categories"
+        "hr_employee_document_upload" -> "hr_employee_document_upload"
+        "hr_new_document_upload" -> "hr_new_document_upload"
 
         "reports_sales" -> "reports_sales"
         "reports_marketing" -> "reports_marketing"

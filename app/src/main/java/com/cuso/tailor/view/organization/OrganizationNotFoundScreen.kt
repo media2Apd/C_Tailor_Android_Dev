@@ -1,6 +1,7 @@
 package com.cuso.tailor.view.organization
 
 import android.content.Intent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,7 +36,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -45,7 +46,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.cuso.tailor.R
 import com.cuso.tailor.ui.theme.Primary
-import com.cuso.tailor.ui.theme.PrimaryBorder
 import androidx.core.net.toUri
 import com.cuso.tailor.ui.theme.blackTitle
 import com.cuso.tailor.ui.theme.grey_border
@@ -266,73 +266,82 @@ fun OrganizationNotFoundScreen(navController: NavController) {
         }
 
         // Bottom help footer
-        Box(
+        NeedHelpCard()
+    }
+}
+
+@Composable
+fun NeedHelpCard() {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        shape = RoundedCornerShape(12.dp), // Card Corner Radius
+        color = Color.White,
+        border = BorderStroke(1.dp, Color(0xFFE5E7EB)), // Subtle smooth border
+        shadowElevation = 2.dp // Clean modern elevation
+    ) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
+            // 1. Icon Container
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(58.dp)
-                    .shadow(
-                        elevation = 4.dp,
-                        shape = RoundedCornerShape(12.dp),
-                        ambientColor = blackTitle.copy(alpha = 0.1f),
-                        spotColor = blackTitle.copy(alpha = 0.1f)
-                    )
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(whiteBg)
-                    .border(1.dp, PrimaryBorder, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFEFF6FF)),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFEFF6FF)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.footer_person),
-                        contentDescription = null,
-                        modifier = Modifier.size(17.dp)
-                    )
-                }
+                Image(
+                    painter = painterResource(id = R.drawable.footer_person),
+                    contentDescription = "Help Icon",
+                    modifier = Modifier.size(20.dp)
+                )
+            }
 
-                Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Need help?",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = blackTitle
-                    )
-                    Text(
-                        text = "Contact our support team and we'll help you get started.",
-                        fontSize = 10.sp,
-                        color = Color(0xFF6B7280),
-                        lineHeight = 14.sp
-                    )
-                }
+            // 2. Texts (Title & Subtitle)
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "Need help?",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium, // SemiBold looks better for titles
+                    color = Color(0xFF1F2937)
+                )
+                Spacer(modifier = Modifier.height(2.dp)) // Spacing between texts
+                Text(
+                    text = "Contact our support team and we'll help you get started.",
+                    fontSize = 11.sp,
+                    color = Color(0xFF6B7280),
+                    lineHeight = 15.sp
+                )
+            }
 
-                Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
-                Box(
-                    Modifier
-                        .background(Color(0xFFEFF6FF), shape = RoundedCornerShape(5.dp))
-                        .padding(horizontal = 10 .dp, vertical = 2.dp )
-                ) {
-                    Text(
-                        text = "Contact Support",
-                        color = Primary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.clickable {  }
-                    )
-                }
+            // 3. Contact Support Button (Proper Clickable Pill)
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp)) // Smooth rounded button
+                    .background(Color(0xFFEFF6FF))
+                    .clickable {
+                        /* Click action */
+                    }
+                    .padding(horizontal = 10.dp, vertical = 8.dp), // Button touch target size
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Contact Support",
+                    color = Color(0xFF2563EB), // Primary Blue
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }

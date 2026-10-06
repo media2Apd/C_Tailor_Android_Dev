@@ -56,6 +56,10 @@ import com.cuso.tailor.view.home.hr.attendance_management.manual_entry.ManualAtt
 import com.cuso.tailor.view.home.hr.attendance_management.monthly_calendar.AttendanceCalendarScreen
 import com.cuso.tailor.view.home.hr.attendance_management.shift.CreateNewListScreen
 import com.cuso.tailor.view.home.hr.attendance_management.shift.ShiftListOverviewScreen
+import com.cuso.tailor.view.home.hr.document_management.document_category.AddDocumentCategoryScreen
+import com.cuso.tailor.view.home.hr.document_management.document_category.DocumentCategoryListScreen
+import com.cuso.tailor.view.home.hr.document_management.employee_document.EmployeeDocumentListScreen
+import com.cuso.tailor.view.home.hr.document_management.employee_document.EmployeeDocumentUploadScreen
 import com.cuso.tailor.view.home.hr.leave_management.leave_approval.LeaveApprovalScreen
 import com.cuso.tailor.view.home.hr.leave_management.apply_leave.ApplyLeaveScreen
 import com.cuso.tailor.view.home.hr.payroll_management.salary_components.SalaryComponentFormScreen
@@ -177,6 +181,10 @@ import com.cuso.tailor.viewmodel.*
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedDocumentCategoryId: String? = null,
+    onDocumentCategoryIdSelected: (String?) -> Unit = {},
+    selectedDocumentId: String? = null,
+    onDocumentIdSelected: (String?) -> Unit = {},
     selectedCategoryIdForEdit: String? = null,
     selectedSalaryComponentId: String? = null,
     selectedTrainingProgramId: String? = null,
@@ -473,9 +481,17 @@ fun HomeScreenRouter(
         "hr_payroll_salary_templates",
         "hr_payroll_salary_templates_form",
         "hr_training_management", "hr_add_edit_program",
-        "hr_training_assignment_list", "hr_assign_training_form"  -> {
+        "hr_training_assignment_list", "hr_assign_training_form",
+        "hr_document_categories",
+        "hr_add_document_category",
+        "hr_employee_document_upload",
+        "hr_new_document_upload" -> {
             HrRouter(
                 screen = screen,
+                selectedDocumentCategoryId = selectedDocumentCategoryId,
+                onDocumentCategoryIdSelected = onDocumentCategoryIdSelected,
+                selectedDocumentId = selectedDocumentId,
+                onDocumentIdSelected = onDocumentIdSelected,
                 hrViewModel = hrViewModel,
                 employeeScreenMode = employeeScreenMode,
                 onEmployeeScreenModeChange = onEmployeeScreenModeChange,
@@ -2391,6 +2407,10 @@ private fun InventoryProcurementRouter(
 private fun HrRouter(
     screen: String,
     hrViewModel: HrViewModel,
+    selectedDocumentCategoryId: String? = null,
+    onDocumentCategoryIdSelected: (String?) -> Unit = {},
+    selectedDocumentId: String? = null,
+    onDocumentIdSelected: (String?) -> Unit = {},
     selectedSalaryTemplateId: String? = null,
     onSalaryTemplateIdSelected: (String?) -> Unit = {},
     employeeScreenMode: ScreenMode,
@@ -2628,6 +2648,54 @@ private fun HrRouter(
             onEditAssignmentClick = { id ->
                 onTrainingAssignmentIdSelected(id)
                 onNavigate("hr_assign_training_form")
+            }
+        )
+
+        // ── Document Management Routes ──
+        "hr_employee_document_upload" -> EmployeeDocumentListScreen(
+            viewModel = hrViewModel,
+            onClose = onGoBack,
+            onNavigateToUpload = {
+                // Clear ID for Create Mode
+                onDocumentIdSelected(null)
+                onNavigate("hr_new_document_upload")
+            },
+            onEditDocument = { docId ->
+                // Set ID for Edit Mode (triggers view-one and prefill)
+                onDocumentIdSelected(docId)
+                onNavigate("hr_new_document_upload")
+            }
+        )
+
+        "hr_new_document_upload" -> EmployeeDocumentUploadScreen(
+            documentId = selectedDocumentId,
+            viewModel = hrViewModel,
+            onClose = {
+                onDocumentIdSelected(null)
+                onGoBack()
+            }
+        )
+
+        // ── Document Category Routes ──
+        "hr_document_categories" -> DocumentCategoryListScreen(
+            viewModel = hrViewModel,
+            onClose = onGoBack,
+            onNavigateToAddCategory = {
+                onDocumentCategoryIdSelected(null)
+                onNavigate("hr_add_document_category")
+            },
+            onEditCategory = { categoryId ->
+                onDocumentCategoryIdSelected(categoryId)
+                onNavigate("hr_add_document_category")
+            }
+        )
+
+        "hr_add_document_category" -> AddDocumentCategoryScreen(
+            categoryId = selectedDocumentCategoryId,
+            viewModel = hrViewModel,
+            onClose = {
+                onDocumentCategoryIdSelected(null)
+                onGoBack()
             }
         )
 

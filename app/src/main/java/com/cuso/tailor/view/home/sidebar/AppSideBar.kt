@@ -213,6 +213,9 @@ fun buildNavigationKey(menu: String, subItem: String): String {
             "Training Assignment"        -> "hr_training_assignment_list"
             "Document Management"        -> "hr_document_management"
             "Clearance"                  -> "hr_exit_clearance"
+            // ── Document Management Sub-Items ──
+            "Document Categories"        -> "hr_document_categories"
+            "Employee Document Upload"   -> "hr_employee_document_upload"
             else -> "hr_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }
     }
@@ -383,7 +386,7 @@ object SidebarConfig {
                     "Payroll Management" to listOf(
                         "Salary Templates",
                         "Salary Components",
-                        "Reimbrsements",
+                        "Reimbursements",
                         "Bonus & Incentive",
                         "Bonus Approval"
                     ),
@@ -396,6 +399,10 @@ object SidebarConfig {
                     "Training Management" to listOf(
                         "Training Program",
                         "Assign Management"
+                    ),
+                    "Document Management" to listOf(
+                        "Document Categories",
+                        "Employee Document Upload"
                     ),
                     "Exit Management" to listOf(
                         "Approvals",

@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Theme.CusoTailor" parent="android:Theme.Material.Light.NoActionBar" />
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme -->
+    <style name="Theme.CusoTailor" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Disables autofill highlight on API 26+ (Ignored safely on API 25 and below) -->
+        <item name="android:autofilledHighlight" tools:targetApi="o">@android:color/transparent</item>
+    </style>
 
+    <!-- Splash screen theme -->
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">#FFFFFF</item>
-
         <item name="windowSplashScreenAnimatedIcon">@drawable/cuso_logo</item>
-
         <item name="postSplashScreenTheme">@style/Theme.CusoTailor</item>
     </style>
 </resources>

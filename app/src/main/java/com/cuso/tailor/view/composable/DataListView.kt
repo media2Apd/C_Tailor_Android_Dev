@@ -18,9 +18,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,12 +25,10 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -49,16 +44,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.view.home.formatIndianNumber
-import com.cuso.tailor.viewmodel.InventoryViewModel
-import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.TimeZone
 
 // --- String Utilities ---
 
@@ -412,15 +400,31 @@ fun <T> DataCard(
                         )
                         Spacer(Modifier.height(2.dp))
                     }
-                    if (formattedTitle != null) {
-                        Text(
-                            text = formattedTitle,
-                            fontSize = 17.sp,
-                            fontWeight = titleFontWeight,
-                            color = titleColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (formattedTitle != null) {
+                            Text(
+                                text = formattedTitle,
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = titleFontWeight,
+                                color = titleColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        if (code != null) {
+                            Spacer(Modifier.width(5.dp))
+
+                            Text(
+                                text = "#$code",
+                                fontSize = tokens.caption,
+                                color = close_color,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
 
                     if (subtitle != null) {

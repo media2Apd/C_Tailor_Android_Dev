@@ -18,24 +18,19 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -55,25 +50,23 @@ import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.forgot_password.ForgotUserPassword
 import com.cuso.tailor.view.forgot_password.ResetPassword
 import com.cuso.tailor.view.forgot_password.VerifyForgotPassword
+import com.cuso.tailor.view.home.HomeScreen
+import com.cuso.tailor.view.home.OrderFlowNavigator
+import com.cuso.tailor.view.home.branch.BranchSettingsScreen
+import com.cuso.tailor.view.home.department.DepartmentSettingsScreen
+import com.cuso.tailor.view.home.profile_settings.setup_pages.SettingsScreen
+import com.cuso.tailor.view.home.sales.lead.LeadScreenContent
+import com.cuso.tailor.view.home.sales.sales_order.SalesOrderScreen
 import com.cuso.tailor.view.login.LoginOtpScreen
 import com.cuso.tailor.view.login.LoginScreen
-import com.cuso.tailor.view.organization.OrganizationProfile
-import com.cuso.tailor.view.home.HomeScreen
-import com.cuso.tailor.view.home.sales.lead.LeadScreenContent
-import com.cuso.tailor.view.home.OrderFlowNavigator
-import com.cuso.tailor.view.home.profile_settings.setup_pages.SettingsScreen
-import com.cuso.tailor.view.home.branch.BranchSettingsScreen
-import com.cuso.tailor.view.home.sales.sales_order.SalesOrderScreen
-import com.cuso.tailor.view.home.department.DepartmentSettingsScreen
 import com.cuso.tailor.view.organization.OrganizationNotFoundScreen
+import com.cuso.tailor.view.organization.OrganizationProfile
 import com.cuso.tailor.view.others.PrivacyPolicy
 import com.cuso.tailor.view.others.TermsConditions
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.ui.window.DialogProperties
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -81,48 +74,48 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var sessionManager: SessionManager
 
-    private var isLoggedIn: Boolean? = null
+    // Holds the authentication state
+    private var isLoggedInState by mutableStateOf<Boolean?>(null)
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
-        splashScreen.setKeepOnScreenCondition { isLoggedIn == null }
+        // Splash screen waits until authentication status is resolved
+        splashScreen.setKeepOnScreenCondition { isLoggedInState == null }
 
-        lifecycleScope.launch {
-            isLoggedIn = sessionManager.isLoggedIn()
-            enableEdgeToEdge()
+        // Immediately invoke setContent to prevent Window Timeout ANR
+        setContent {
+            // Check login state on background thread without blocking main thread
+            LaunchedEffect(Unit) {
+                val loggedIn = withContext(Dispatchers.IO) {
+                    sessionManager.isLoggedIn()
+                }
+                isLoggedInState = loggedIn
+            }
 
-            setContent {
+            // Render UI once authentication check is complete
+            isLoggedInState?.let { isLoggedIn ->
                 val windowSizeClass = calculateWindowSizeClass(this@MainActivity)
                 val tokens = getAdaptiveTokens(windowSizeClass.widthSizeClass)
                 val isAppBusy by AppLoadingManager.busyState.collectAsState()
 
-                // State holders for Global Dynamic Island notifications
                 var globalSuccessMessage by remember { mutableStateOf<String?>(null) }
                 var globalErrorMessage by remember { mutableStateOf<String?>(null) }
 
-                // 1. Listen for global API success messages
                 LaunchedEffect(Unit) {
                     DynamicIslandManager.successMessage.collect { message ->
                         globalSuccessMessage = message
                     }
                 }
 
-                // 2. Listen for global API error messages
                 LaunchedEffect(Unit) {
                     DynamicIslandManager.errorMessage.collect { message ->
                         globalErrorMessage = message
                     }
                 }
-
-//                // 3. Listen for session expired events
-//                LaunchedEffect(Unit) {
-//                    AuthEventManager.sessionExpiredEvent.collect { message ->
-//                        globalErrorMessage = message
-//                    }
-//                }
 
                 CompositionLocalProvider(
                     LocalAppTokens provides tokens,
@@ -143,18 +136,16 @@ class MainActivity : ComponentActivity() {
                                 Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
                                     AppNav(
                                         activity = this@MainActivity,
-                                        startLoggedIn = isLoggedIn == true,
+                                        startLoggedIn = isLoggedIn,
                                         widthSizeClass = windowSizeClass.widthSizeClass
                                     )
                                 }
 
-                                //  Global Dynamic Island Success Layer
                                 DynamicIslandSuccess(
                                     message = globalSuccessMessage,
                                     onDismiss = { globalSuccessMessage = null }
                                 )
 
-                                //  Global Dynamic Island Error Layer
                                 DynamicIslandError(
                                     message = globalErrorMessage,
                                     onDismiss = { globalErrorMessage = null }
@@ -176,38 +167,19 @@ fun AppNav(
 ) {
     val navController = rememberNavController()
     val startDestination = if (startLoggedIn) "home" else "login?message={message}"
-    // State to display the session timeout dialog
     var sessionExpiredMessage by remember { mutableStateOf<String?>(null) }
 
-//    // Handling session expired navigation redirection
-//    LaunchedEffect(Unit) {
-//        AuthEventManager.sessionExpiredEvent.collect { _ ->
-//            navController.navigate("login?message=") {
-//                popUpTo(0) { inclusive = true }
-//                launchSingleTop = true
-//            }
-//        }
-//    }
-
-
-
-    // Listen for session expiration events
     LaunchedEffect(Unit) {
         AuthEventManager.sessionExpiredEvent.collect { message ->
             sessionExpiredMessage = message.ifBlank { "Session timeout. Please relog." }
         }
     }
 
-    // Session Expired Alert Dialog
     if (sessionExpiredMessage != null) {
         AlertDialog(
-            onDismissRequest = { /* Non-dismissible by tapping outside */ },
-            title = {
-                Text(text = "Session Expired")
-            },
-            text = {
-                Text(text = sessionExpiredMessage ?: "Session timeout. Please relog.")
-            },
+            onDismissRequest = { },
+            title = { Text(text = "Session Expired") },
+            text = { Text(text = sessionExpiredMessage ?: "Session timeout. Please relog.") },
             confirmButton = {
                 TextButton(
                     onClick = {

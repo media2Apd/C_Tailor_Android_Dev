@@ -92,43 +92,43 @@ fun ProfileSettingsScreen(
         )
     )
 
-    val salesItems = listOf(
-        SettingsMenuItem(
-            icon = R.drawable.ic_shirts,
-            iconBg = Color(0xFFEDE9FE),
-            iconTint = Color(0xFF3B3BF9),
-            title = "Garment Type",
-            subtitle = "Select garment categories for sales operations",
-            onClick = onGarmentType
-        )
-    )
-
-    val managementItems = listOf(
-        SettingsMenuItem(
-            icon = R.drawable.ic_location,
-            iconBg = Color(0xFFDCEAFE),
-            iconTint = Color(0xFF3B82F6),
-            title = "Branch Management",
-            subtitle = "Add, edit and manage your branches",
-            onClick = onBranchManagement
-        ),
-        SettingsMenuItem(
-            icon = R.drawable.ic_building,
-            iconBg = Color(0xFFD1FAE5),
-            iconTint = Color(0xFF10B981),
-            title = "Department & Teams",
-            subtitle = "Manage departments in your organization",
-            onClick = onDepartment
-        ),
-        SettingsMenuItem(
-            icon = R.drawable.ic_code,
-            iconBg = Color(0xFFFFEDD5),
-            iconTint = Color(0xFFF97316),
-            title = "Designation",
-            subtitle = "Manage job titles and roles",
-            onClick = onDesignation
-        )
-    )
+//    val salesItems = listOf(
+//        SettingsMenuItem(
+//            icon = R.drawable.ic_shirts,
+//            iconBg = Color(0xFFEDE9FE),
+//            iconTint = Color(0xFF3B3BF9),
+//            title = "Garment Type",
+//            subtitle = "Select garment categories for sales operations",
+//            onClick = onGarmentType
+//        )
+//    )
+//
+//    val managementItems = listOf(
+//        SettingsMenuItem(
+//            icon = R.drawable.ic_location,
+//            iconBg = Color(0xFFDCEAFE),
+//            iconTint = Color(0xFF3B82F6),
+//            title = "Branch Management",
+//            subtitle = "Add, edit and manage your branches",
+//            onClick = onBranchManagement
+//        ),
+//        SettingsMenuItem(
+//            icon = R.drawable.ic_building,
+//            iconBg = Color(0xFFD1FAE5),
+//            iconTint = Color(0xFF10B981),
+//            title = "Department & Teams",
+//            subtitle = "Manage departments in your organization",
+//            onClick = onDepartment
+//        ),
+//        SettingsMenuItem(
+//            icon = R.drawable.ic_code,
+//            iconBg = Color(0xFFFFEDD5),
+//            iconTint = Color(0xFFF97316),
+//            title = "Designation",
+//            subtitle = "Manage job titles and roles",
+//            onClick = onDesignation
+//        )
+//    )
 
     val supportItems = listOf(
         SettingsMenuItem(
@@ -212,7 +212,7 @@ fun ProfileSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                Icons.Default.Person,
+                                painter =painterResource(R.drawable.ic_person),
                                 contentDescription = null,
                                 tint = Color(0xFF374151),
                                 modifier = Modifier.size(16.dp)
@@ -234,11 +234,11 @@ fun ProfileSettingsScreen(
             item { SettingsSectionLabel("ORGANIZATION") }
             item { SettingsCardGroup(organizationItems) }
 
-            item { SettingsSectionLabel("SALES") }
-            item { SettingsCardGroup(salesItems) }
-
-            item { SettingsSectionLabel("MANAGEMENT") }
-            item { SettingsCardGroup(managementItems) }
+//            item { SettingsSectionLabel("SALES") }
+//            item { SettingsCardGroup(salesItems) }
+//
+//            item { SettingsSectionLabel("MANAGEMENT") }
+//            item { SettingsCardGroup(managementItems) }
 
             item { SettingsSectionLabel("SUPPORT & HELP") }
             item { SettingsCardGroup(supportItems) }
@@ -324,7 +324,7 @@ private fun SettingsCardGroup(items: List<SettingsMenuItem>) {
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(item.title, fontSize = 14.sp, color = title_color)
-                    Text(item.subtitle, fontSize = 11.sp, color = TextSecondary)
+                    Text(item.subtitle, fontSize = 11.sp, color = TextSecondary, lineHeight = 18.sp)
                 }
                 Icon(
                     Icons.Default.ChevronRight,

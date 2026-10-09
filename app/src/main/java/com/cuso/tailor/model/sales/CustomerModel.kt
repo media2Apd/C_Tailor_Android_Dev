@@ -384,7 +384,9 @@ data class CustomerAddressV2(
     @SerializedName("area") val area: String? = null,
     @SerializedName("pincode") val pincode: String? = null,
     @SerializedName("state") val state: String? = null,
-    @SerializedName("street") val street: String? = null
+    @SerializedName("street") val street: String? = null,
+    @SerializedName("flatNo") val flatNo: String? = null,
+    @SerializedName("areaZone") val areaZone: String? = null
 )
 
 data class CustomerItemV2(
@@ -671,4 +673,44 @@ data class MeasurementGarmentRef(
     @SerializedName("displayName") val displayName: String? = null,
     @SerializedName("code") val code: String? = null,
     @SerializedName("imageUrl") val imageUrl: String? = null
+)
+
+
+data class CustomerOrdersResponse(
+    val success: Boolean = false,
+    val data: CustomerOrdersData? = null
+)
+
+data class CustomerOrdersData(
+    val orders: List<CustomerOrderItem> = emptyList(),
+    val payments: List<Any> = emptyList()
+)
+
+data class CustomerOrderItem(
+    val _id: String = "",
+    val orderCode: String? = null,
+    val orderDate: String? = null,
+    val dueDate: String? = null,
+    val customerId: String? = null,
+    val orderType: String? = null,
+    val priority: String? = null,
+    val items: List<CustomerOrderLineItem> = emptyList(),
+    val subtotal: Double? = 0.0,
+    val totalTax: Double? = 0.0,
+    val grandTotal: Double? = 0.0,
+    val advanceAmountPaid: Double? = 0.0,
+    val balanceAmount: Double? = 0.0,
+    val paymentStatus: String? = null,
+    val status: String? = null, // "In_Production", "Completed", etc.
+    val createdAt: String? = null
+)
+
+data class CustomerOrderLineItem(
+    val _id: String = "",
+    val lineType: String? = null,
+    val itemDescription: String? = null,
+    val quantity: Int? = 1,
+    val unit: String? = null,
+    val unitPrice: Double? = 0.0,
+    val lineTotal: Double? = 0.0
 )

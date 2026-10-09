@@ -116,7 +116,7 @@ import com.cuso.tailor.view.composable.blurScrim
 import com.cuso.tailor.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceItem
 import com.cuso.tailor.view.home.finance.account_payable.suppliers.SupplierRow
 import com.cuso.tailor.view.home.hr.attendance_management.employees.ScreenMode
-import com.cuso.tailor.view.home.sales.sales_order.OrderReviewData
+import com.cuso.tailor.model.sales.OrderReviewData
 import com.cuso.tailor.view.home.sales.sales_order.toOrderReviewData
 import com.cuso.tailor.view.home.sidebar.FullSideBar
 import com.cuso.tailor.view.home.sidebar.ModulesPanel
@@ -439,6 +439,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "create_opportunity",
             "opportunity_detail",
             "convert_lead_to_opportunity",
+            "view_quotation",
 
             // ── Finance ──
             "finance_sales_invoices",
@@ -2342,7 +2343,7 @@ fun menuForScreen(screen: String): String = when {
         "create_lead", "view_lead", "edit_lead",
         "create_order", "order_overview", "create_order_review",
         "view_customer", "edit_customer",
-        "create_quotation", "create_garment_pricing", "garment_pricing_list",
+        "create_quotation", "view_quotation","create_garment_pricing", "garment_pricing_list",
         "order_management_overview",
         "measurements_available_view",
         "measurement_management_view",

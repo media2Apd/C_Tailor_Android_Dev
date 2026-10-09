@@ -160,6 +160,13 @@ data class GarmentItem(
     val measurementFields: List<GarmentMeasurementFieldItem> = emptyList(),
     @SerializedName("baseStitchingCharge")
     val baseStitchingCharge: Double = 0.0,
+
+    // Production template can come as a plain id string or as a populated object
+    @SerializedName("productionTemplateId", alternate = ["productionTemplate"])
+    val productionTemplateRaw: JsonElement? = null,
+
+    @SerializedName("sacCode", alternate = ["hsnSacCode"])
+    val sacCode: String? = null,
     @SerializedName("isCustomStitchable")
     val isCustomStitchable: Boolean = true,
     @SerializedName("imageUrl")
@@ -182,7 +189,20 @@ data class GarmentItem(
     val updatedAt: String? = null,
     @SerializedName("__v")
     val v: Int? = null
-)
+) {
+    // Resolves the production template id from either a string or an object response
+    val productionTemplateId: String?
+        get() {
+            val element = productionTemplateRaw ?: return null
+            return when {
+                element.isJsonNull -> null
+                element.isJsonPrimitive -> element.asString
+                element.isJsonObject -> element.asJsonObject.get("_id")
+                    ?.takeIf { !it.isJsonNull }?.asString
+                else -> null
+            }
+        }
+}
 
 data class GarmentImageDto(
     @SerializedName("_id", alternate = ["id"])

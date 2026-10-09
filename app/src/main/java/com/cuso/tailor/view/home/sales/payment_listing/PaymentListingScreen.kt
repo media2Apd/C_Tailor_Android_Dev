@@ -1,16 +1,13 @@
-@file:Suppress("unused","unusedVariable")
+@file:Suppress("unused", "unusedVariable")
 
 package com.cuso.tailor.view.home.sales.payment_listing
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.*
@@ -20,294 +17,247 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.adaptive_screen.getAdaptiveTokens
-import com.cuso.tailor.view.composable.SearchFilterBar
-import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.ui.theme.BluePrimary
-import com.cuso.tailor.ui.theme.BorderGray
-import com.cuso.tailor.ui.theme.title_border
-import com.cuso.tailor.ui.theme.title_color
+import com.cuso.tailor.model.sales.BillingPaymentItemDto
+import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.view.home.formatIndianNumber
+import com.cuso.tailor.viewmodel.SalesViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
 
-// ─────────────────────────────────────────────────────────────
-// Local design tokens specific to this screen
-// (kept local since they are not part of the shared theme file)
-// ─────────────────────────────────────────────────────────────
-private val AvatarBg = Color(0xFFEDE9FE)
-private val AvatarText = Color(0xFF7C6FEA)
-
-private val PartialBg = Color(0xFFFFEDD5)
-private val PartialText = Color(0xFFC2410C)
-
-private val CompletedBg = Color(0xFFDCFCE7)
-private val CompletedText = Color(0xFF16A34A)
-
-private val PendingBg = Color(0xFFFEE2E2)
-private val PendingText = Color(0xFFB91C1C)
-
-private val AmountHighlight = Color(0xFFEA580C)
-
-private val LabelGray = Color(0xFF9CA3AF)
-private val PrimaryDark = Color(0xFF111827)
-private val DividerGray = title_border
-private val ChevronGray = Color(0xFFC4C4C4)
-
-// ─────────────────────────────────────────────────────────────
-// Data model
-// ─────────────────────────────────────────────────────────────
-enum class PaymentStatus { PARTIAL, COMPLETED, PENDING }
-enum class InvoiceState { GENERATED, PENDING }
-
-data class PaymentEntry(
-    val paymentId: String,
-    val orderId: String,
-    val customerInitials: String,
-    val customerName: String,
-    val paymentMethod: String,
-    val amount: String,
-    val balance: String,
-    val paymentType: String,
-    val status: PaymentStatus,
-    val invoiceState: InvoiceState
-)
-
-private fun samplePayments(): List<PaymentEntry> = listOf(
-    PaymentEntry("#PAY-1023", "#ORD-5518", "PS", "Priya Sharma", "Card", "₹22,000", "₹10,000", "Advance", PaymentStatus.PARTIAL, InvoiceState.GENERATED),
-    PaymentEntry("#PAY-1023", "#ORD-5518", "AV", "Amit Verma", "UPI", "₹22,000", "₹0", "Full Payment", PaymentStatus.COMPLETED, InvoiceState.GENERATED),
-    PaymentEntry("#PAY-1023", "#ORD-5518", "PS", "Priya Sharma", "Card", "₹22,000", "₹10,000", "Advance", PaymentStatus.PENDING, InvoiceState.PENDING),
-    PaymentEntry("#PAY-1023", "#ORD-5518", "AV", "Amit Verma", "UPI", "₹22,000", "₹0", "Full Payment", PaymentStatus.COMPLETED, InvoiceState.GENERATED),
-    PaymentEntry("#PAY-1023", "#ORD-5518", "PS", "Priya Sharma", "Card", "₹22,000", "₹10,000", "Advance", PaymentStatus.PARTIAL, InvoiceState.GENERATED)
-)
-
-// ─────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────
 @Composable
 fun PaymentListingScreen(
     navController: NavController,
     widthSizeClass: WindowWidthSizeClass,
     onBack: () -> Unit = {},
     onBreadCrumbClick: () -> Unit = {},
-    onPaymentClick: (PaymentEntry) -> Unit = {}
+    onPaymentClick: (String) -> Unit = {},
+    viewModel: SalesViewModel = hiltViewModel()
 ) {
     val tokens = getAdaptiveTokens(widthSizeClass)
 
-    CompositionLocalProvider(LocalAppTokens provides tokens) {
-        var searchQuery by remember { mutableStateOf("") }
-        val payments = remember { samplePayments() }
+    val payments by viewModel.billingPaymentsList.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingBillingPayments.collectAsStateWithLifecycle()
+    val isLoadingMore by viewModel.isLoadingMoreBillingPayments.collectAsStateWithLifecycle()
+    val canLoadMore by viewModel.canLoadMoreBillingPayments.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.billingPaymentsError.collectAsStateWithLifecycle()
 
+    val listState = rememberLazyListState()
+    var searchQuery by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        viewModel.fetchBillingPayments(page = 1)
+    }
+
+    // Infinite Scrolling
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val total = listState.layoutInfo.totalItemsCount
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total > 0 && lastVisible >= total - 3
+        }.collect { nearEnd ->
+            if (nearEnd && canLoadMore && !isLoadingMore && !isLoading) {
+                viewModel.loadMoreBillingPayments()
+            }
+        }
+    }
+
+    CompositionLocalProvider(LocalAppTokens provides tokens) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Transparent)
         ) {
-            Row(
-                Modifier.fillMaxWidth()
-            ) {
-                // ── Header ──
-                TitleBar(title ="All Orders", onClose = onBack)
+            // Header
+            Row(Modifier.fillMaxWidth()) {
+                TitleBar(title = "All Payments", onClose = onBack)
             }
 
-            // ── Breadcrumb + Search ──
+            // Search Bar
             Column(modifier = Modifier.fillMaxWidth()) {
-
                 SearchFilterBar(
                     query = searchQuery,
-                    onQueryChange = { searchQuery = it },
+                    onQueryChange = {
+                        searchQuery = it
+                        viewModel.onBillingSearchQueryChanged(it)
+                    },
                     placeholder = "Search Payment...",
                     accentColor = BluePrimary,
                     borderColor = BorderGray,
-                    textSecondaryColor = LabelGray,
-                    onFilterClick = { /* open filter drawer */ }
+                    textSecondaryColor = mutedText,
+                    onFilterClick = { }
                 )
             }
 
-            HorizontalDivider(color = DividerGray)
+            HorizontalDivider(color = title_border)
 
-            // ── Payment list ──
-            LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                items(payments) { entry ->
-                    PaymentCard(entry = entry, onClick = { onPaymentClick(entry) })
-                    HorizontalDivider(color = DividerGray)
+            // Content
+            when {
+                isLoading && payments.isEmpty() -> {
+                    ListSkeleton()
+                }
+
+                errorMessage != null && payments.isEmpty() -> {
+                    AppErrorState(
+                        title = "Failed to load payments",
+                        message = errorMessage ?: "Something went wrong",
+                        onRetry = { viewModel.fetchBillingPayments(page = 1) }
+                    )
+                }
+
+                payments.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No payments found",
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.Normal,
+                            color = mutedText
+                        )
+                    }
+                }
+
+                else -> {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxWidth().weight(1f)
+                    ) {
+                        items(payments, key = { it.id }) { item ->
+                            val customerName = item.customer?.name?.takeIf { it.isNotBlank() } ?: "Valued Customer"
+                            val billing = item.billing
+                            val balance = billing?.balanceDue ?: 0.0
+
+                            val paymentStatus = billing?.paymentStatus?.replace("_", " ") ?: "Pending"
+                            val (badgeBg, badgeText) = when (billing?.paymentStatus?.lowercase()) {
+                                "paid", "completed" -> greenBg to greentext
+                                "partially_paid", "partial" -> yellowBg to yellowText
+                                else -> redBg to redText
+                            }
+
+                            // ── Reusing DataCard Component ──
+                            DataCard(
+                                item = item,
+                                code = item.orderCode,
+                                dateText = formatDisplayDate(item.orderDate),
+                                title = customerName,
+                                titleFontWeight = FontWeight.Medium,
+                                titleColor = TextPrimary,
+                                subtitle = "Mode: ${billing?.paymentMode ?: "-"}",
+                                topBadgeText = paymentStatus,
+                                topBadgeBgColor = badgeBg,
+                                topBadgeTextColor = badgeText,
+                                topBadgeShowDot = true,
+                                topBadgeCornerRadius = 20.dp,
+                                showChevron = false,
+                                content = {
+                                    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                                        HorizontalDivider(
+                                            color = dividerColor,
+                                            thickness = 1.dp,
+                                            modifier = Modifier.padding(bottom = 8.dp)
+                                        )
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            // Amount Paid
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Amount Paid",
+                                                    color = mutedText,
+                                                    fontSize = tokens.caption,
+                                                    fontWeight = FontWeight.Normal
+                                                )
+                                                Spacer(Modifier.height(2.dp))
+                                                Text(
+                                                    text = "₹${formatIndianNumber(billing?.paidAmount ?: 0.0)}",
+                                                    color = TextPrimary,
+                                                    fontSize = tokens.bodyMedium,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                                Spacer(Modifier.height(2.dp))
+                                                Text(
+                                                    text = billing?.paymentType?.replace("_", " ") ?: "Advance",
+                                                    color = close_color,
+                                                    fontSize = tokens.caption,
+                                                    fontWeight = FontWeight.Normal
+                                                )
+                                            }
+
+                                            // Balance Due
+                                            Column(
+                                                modifier = Modifier.weight(1f),
+                                                horizontalAlignment = Alignment.End
+                                            ) {
+                                                Text(
+                                                    text = "Balance Due",
+                                                    color = mutedText,
+                                                    fontSize = tokens.caption,
+                                                    fontWeight = FontWeight.Normal
+                                                )
+                                                Spacer(Modifier.height(2.dp))
+                                                Text(
+                                                    text = "₹${formatIndianNumber(balance)}",
+                                                    color = if (balance <= 0.0) greentext else redText,
+                                                    fontSize = tokens.bodyMedium,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                                Spacer(Modifier.height(2.dp))
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(6.dp)
+                                                            .clip(CircleShape)
+                                                            .background(if (balance <= 0.0) greentext else yellowText)
+                                                    )
+                                                    Spacer(Modifier.width(4.dp))
+                                                    Text(
+                                                        text = if (balance <= 0.0) "Cleared" else "Due",
+                                                        color = close_color,
+                                                        fontSize = tokens.caption,
+                                                        fontWeight = FontWeight.Normal
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                onClick = { onPaymentClick(item.id) }
+                            )
+                        }
+
+                        if (isLoadingMore) {
+                            item {
+                                ThreeDotLoading()
+                            }
+                        }
+
+                        item { Spacer(Modifier.height(80.dp)) }
+                    }
                 }
             }
         }
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Payment Card
-// ─────────────────────────────────────────────────────────────
-@Composable
-private fun PaymentCard(
-    entry: PaymentEntry,
-    onClick: () -> Unit
-) {
-    val tokens = LocalAppTokens.current
-    val (badgeBg, badgeText, badgeLabel) = statusVisuals(entry.status)
-
-    // Row gaps scale relative to the compact baseline (10dp)
-    val gapScale = tokens.extraPadding.value / 10f
-    val gapTiny = (4 * gapScale).dp
-    val gapSmall = (6 * gapScale).dp
-    val gapMedium = (10 * gapScale).dp
-    val gapLarge = (12 * gapScale).dp
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding + 6.dp)
-    ) {
-        // ── Top row: id + status badge ──
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = entry.paymentId,
-                    color = PrimaryDark,
-                    fontSize = tokens.bodyMedium
-                )
-                Text(
-                    text = " / ${entry.orderId}",
-                    color = LabelGray,
-                    fontSize = tokens.bodySmall
-                )
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            StatusBadge(text = badgeLabel, bgColor = badgeBg, textColor = badgeText)
-            Spacer(modifier = Modifier.width(gapTiny))
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = ChevronGray,
-                modifier = Modifier.size(tokens.iconSize)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(gapMedium))
-
-        // ── Customer row ──
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            InitialsAvatar(entry.customerInitials)
-            Spacer(modifier = Modifier.width(gapMedium))
-            Column {
-                Text(
-                    text = entry.customerName,
-                    color = PrimaryDark,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = tokens.bodyMedium
-                )
-                Text(
-                    text = entry.paymentMethod,
-                    color = LabelGray,
-                    fontSize = tokens.bodySmall
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(gapLarge))
-
-        // ── Amount / Balance / Type / Invoice — single 2-column block ──
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = "Amount", color = LabelGray, fontSize = tokens.bodySmall)
-                Spacer(modifier = Modifier.height(gapTiny))
-                Text(
-                    text = entry.amount,
-                    color = PrimaryDark,
-                    fontSize = tokens.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(gapTiny))
-                Text(text = entry.paymentType, color = title_color, fontSize = tokens.bodySmall)
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = "Balance", color = LabelGray, fontSize = tokens.bodySmall)
-                Spacer(modifier = Modifier.height(gapTiny))
-                Text(
-                    text = entry.balance,
-                    color = when {
-                        entry.balance == "₹0" -> PrimaryDark
-                        entry.status == PaymentStatus.PENDING -> PendingText
-                        else -> AmountHighlight
-                    },
-                    fontSize = tokens.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(gapTiny))
-                InvoiceIndicator(entry.invoiceState)
-            }
-        }
+private fun formatDisplayDate(raw: String?): String {
+    if (raw.isNullOrBlank()) return "—"
+    return try {
+        val parser = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val date = parser.parse(raw.take(10)) ?: return raw.take(10)
+        SimpleDateFormat("dd MMM yyyy", Locale.US).format(date)
+    } catch (_: Exception) {
+        raw.take(10)
     }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Small pieces
-// ─────────────────────────────────────────────────────────────
-@Composable
-private fun InitialsAvatar(initials: String) {
-    val tokens = LocalAppTokens.current
-    val avatarSize = tokens.iconSize + 16.dp
-
-    Box(
-        modifier = Modifier
-            .size(avatarSize)
-            .clip(CircleShape)
-            .background(AvatarBg),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = initials,
-            color = AvatarText,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = tokens.caption
-        )
-    }
-}
-
-@Composable
-private fun StatusBadge(text: String, bgColor: Color, textColor: Color) {
-    val tokens = LocalAppTokens.current
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(bgColor)
-            .padding(horizontal = tokens.extraPadding + 2.dp, vertical = 5.dp)
-    ) {
-        Text(text = text, color = textColor, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
-private fun InvoiceIndicator(state: InvoiceState) {
-    val tokens = LocalAppTokens.current
-    val (dotColor, label) = when (state) {
-        InvoiceState.GENERATED -> CompletedText to "Invoice Generated"
-        InvoiceState.PENDING -> LabelGray to "Invoice Pending"
-    }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(CircleShape)
-                .background(dotColor)
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(text = label, color = dotColor, fontSize = tokens.bodySmall)
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Status -> visuals mapping
-// ─────────────────────────────────────────────────────────────
-private data class StatusVisual(val bg: Color, val text: Color, val label: String)
-
-private fun statusVisuals(status: PaymentStatus): StatusVisual = when (status) {
-    PaymentStatus.PARTIAL -> StatusVisual(PartialBg, PartialText, "Partial")
-    PaymentStatus.COMPLETED -> StatusVisual(CompletedBg, CompletedText, "Completed")
-    PaymentStatus.PENDING -> StatusVisual(PendingBg, PendingText, "Pending")
 }

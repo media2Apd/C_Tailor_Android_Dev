@@ -1,3 +1,14 @@
+@file:Suppress(
+    "UNUSED_VALUE",
+    "SpellCheckingInspection",
+    "GrazieInspection",
+    "AssignedValueIsNeverRead",
+    "unused_variable",
+    "unused_parameter",
+    "UnusedMaterial3ScaffoldPaddingParameter",
+    "VariableNeverRead"
+)
+
 package com.cuso.tailor.view.home.sales.sales_order
 
 import androidx.compose.animation.AnimatedVisibility
@@ -30,22 +41,47 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.sales.OrderReviewData
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
-
+data class OrderConfirmData(
+    val paymentAmountReceived: Double = 0.0,
+    val paymentMode: String = "Cash",
+    val isFullPayment: Boolean = false,
+    val collectedBy: String = "",
+    val orderNotes: String = ""
+)
 @Composable
 fun OrderPreviewScreen(
     orderData: OrderReviewData,
     onClose: () -> Unit = {},
-    onConfirmOrder: () -> Unit = {},
+    onConfirmOrder: (OrderConfirmData) -> Unit = {},
     onCancel: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
     val scrollState = rememberScrollState()
+
+    // ── Flow state saved by Create Order and Measurement Entry ──
+    val draft = OrderFlowStore.draft
+    val measurementList = OrderFlowStore.measurements.values.toList()
+    val pricing = draft?.pricing ?: OrderPricingResult()
+
+    // Edit mode: order already has a backend id (not just a typed order code)
+    val isEditMode = !orderData.editOrderId.isNullOrBlank()
+    // ── Resolved display values (draft first, then orderData as fallback) ──
+    val customerName = (draft?.customerName ?: "").ifBlank { orderData.fullName }
+    val customerPhone = (draft?.phone ?: "").ifBlank { orderData.phone }
+    val customerAddress = (draft?.address ?: "").ifBlank { orderData.address }
+    val resolvedOrderId = (draft?.orderId ?: "").ifBlank { orderData.orderId ?: "" }
+    val resolvedOrderDate = (draft?.orderDate ?: "").ifBlank { orderData.orderDate }
+    val resolvedDelivery = (draft?.expectedDeliveryDate ?: "").ifBlank { orderData.deliveryDate }
+    val garmentTitles = pricing.lines.filter { it.type == "Garment" }.joinToString(", ") { it.title }
+        .ifBlank { orderData.garments.firstOrNull()?.categoryName ?: "" }
 
     // ── Side Attached Share Menu State ──
     var isShareMenuExpanded by rememberSaveable { mutableStateOf(false) }
@@ -59,26 +95,59 @@ fun OrderPreviewScreen(
     var paymentStatusExpanded by rememberSaveable { mutableStateOf(true) }
     var additionalNotesExpanded by rememberSaveable { mutableStateOf(true) }
 
-    // ── Form & Payment States ──
-    var collectedBy by rememberSaveable { mutableStateOf("Store Associate A") }
+    val savedPreview = remember { OrderFlowStore.previewPayment }
+
+    var collectedBy by rememberSaveable { mutableStateOf(savedPreview?.collectedBy ?: "Store Associate A") }
     var collectedByExpanded by remember { mutableStateOf(false) }
 
-    var isFullAdvance by rememberSaveable { mutableStateOf(false) }
-    var paymentAmountReceived by rememberSaveable { mutableStateOf("0") }
-    var operationalNotes by rememberSaveable { mutableStateOf("") }
+    val advanceFromCreateOrder = remember(draft, orderData) {
+        val fromDraft = draft?.advanceAmount?.toDoubleOrNull()
+        val value = fromDraft ?: orderData.paidSoFar
+        if (value > 0.0) value.toInt().toString() else "0"
+    }
 
-    // ── Financial Totals ──
-    val subtotal = 6200.0
-    val discountAmount = 620.0
-    val taxAmount = 1004.40
-    val grandTotal = subtotal - discountAmount + taxAmount
-    val advancePaid = 2000.0
-    val balanceDue = grandTotal - advancePaid
+    var isFullAdvance by rememberSaveable {
+        mutableStateOf(savedPreview?.isFullAdvance ?: (draft?.paymentType == "Full Payment"))
+    }
+    var paymentAmountReceived by rememberSaveable {
+        mutableStateOf(savedPreview?.paymentAmountReceived ?: advanceFromCreateOrder)
+    }
+    var operationalNotes by rememberSaveable { mutableStateOf(savedPreview?.orderNotes ?: "") }
+    var showDiscardDialog by remember { mutableStateOf(false) }
+
+    // Ovvoru maatramum store-la save: back panna vandhaalum irukkum
+    LaunchedEffect(collectedBy, isFullAdvance, paymentAmountReceived, operationalNotes) {
+        OrderFlowStore.previewPayment = PreviewPaymentState(
+            collectedBy = collectedBy,
+            isFullAdvance = isFullAdvance,
+            paymentAmountReceived = paymentAmountReceived,
+            orderNotes = operationalNotes
+        )
+    }
+
+    if (showDiscardDialog) {
+        DiscardOrderConfirmDialog(
+            onConfirmDiscard = {
+                showDiscardDialog = false
+                OrderFlowStore.clear()
+                onCancel()
+            },
+            onDismiss = { showDiscardDialog = false }
+        )
+    }
+
+    // ── Financial Totals (all derived from the saved order flow) ──
+    val subtotal = pricing.subtotal
+    val discountAmount = pricing.discount
+    val taxAmount = pricing.tax
+    val grandTotal = pricing.grandTotal
+    val advancePaid = paymentAmountReceived.toDoubleOrNull() ?: 0.0
+    val balanceDue = (grandTotal - advancePaid).coerceAtLeast(0.0)
 
     Scaffold(
         topBar = {
             TitleBar(
-                title = "Order Preview",
+                title = if (isEditMode) "Update Order Preview" else "Order Preview",
                 onClose = onClose
             )
         },
@@ -106,7 +175,7 @@ fun OrderPreviewScreen(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "Please review the order details and invoice summary below for ${orderData.fullName.ifBlank { "Rajesh Mehta" }}.",
+                        text = "Please review the order details and invoice summary below for ${customerName.ifBlank { "the customer" }}.",
                         fontSize = tokens.caption,
                         color = headerGrey
                     )
@@ -122,12 +191,16 @@ fun OrderPreviewScreen(
                     expanded = customerDetailsExpanded,
                     onHeaderClick = { customerDetailsExpanded = !customerDetailsExpanded }
                 ) {
-                    KeyValueRow(label = "Customer Name", value = orderData.fullName.ifBlank { "Rajesh Mehta" })
-                    KeyValueRow(label = "Mobile", value = orderData.phone.ifBlank { "+91 98524 68719" })
-                    KeyValueRow(label = "Email", value = "rajesh.mehta@example.com")
-                    KeyValueRow(label = "Address", value = orderData.address.ifBlank { "Murai Mal No 8 Bakki-II" })
-                    KeyValueRow(label = "Customer Type", value = "Individual")
-                    KeyValueRow(label = "Garment Type", value = orderData.garments.firstOrNull()?.categoryName ?: "Wedding Shirt")
+                    KeyValueRow(label = "Customer Name", value = customerName.ifBlank { "-" })
+                    KeyValueRow(label = "Mobile", value = customerPhone.ifBlank { "-" })
+                    KeyValueRow(label = "Email", value = (draft?.email ?: "").ifBlank { "-" })
+                    KeyValueRow(label = "Address", value = customerAddress.ifBlank { "-" })
+                    KeyValueRow(
+                        label = "Customer Type",
+                        value = (draft?.customerType ?: "").ifBlank { orderData.dressFor.ifBlank { "Individual" } }
+                    )
+                    KeyValueRow(label = "Branch", value = (draft?.branchName ?: "").ifBlank { "-" })
+                    KeyValueRow(label = "Garment Type", value = garmentTitles.ifBlank { "-" })
                 }
 
                 // ─────────────────────────────────────────────────────────────
@@ -138,84 +211,177 @@ fun OrderPreviewScreen(
                     expanded = orderInfoExpanded,
                     onHeaderClick = { orderInfoExpanded = !orderInfoExpanded }
                 ) {
-                    KeyValueRow(label = "Order ID", value = orderData.orderId ?: "ORD-1001", isValuePrimary = true)
-                    KeyValueRow(label = "Order Date", value = orderData.orderDate.ifBlank { "15 Oct 2025" })
-                    KeyValueRow(label = "Description", value = "Mens Wedding Attire Set")
-                    KeyValueRow(label = "Order Type", value = "New Stitching")
-                    KeyValueRow(label = "Brand", value = "Raymond")
-                    KeyValueRow(label = "Priority", value = "Normal")
-                    KeyValueRow(label = "Expected Delivery", value = orderData.deliveryDate.ifBlank { "30 Dec 2025" })
-                    KeyValueRow(label = "Delivery Method", value = "Store Pickup")
+                    KeyValueRow(
+                        label = "Order ID",
+                        value = resolvedOrderId.ifBlank { "Auto-generated" },
+                        isValuePrimary = true
+                    )
+                    KeyValueRow(label = "Order Date", value = resolvedOrderDate.ifBlank { "-" })
+                    KeyValueRow(label = "Order Type", value = (draft?.orderType ?: "").ifBlank { "New Stitching" })
+                    KeyValueRow(
+                        label = "Priority",
+                        value = orderData.garments.firstOrNull()?.priority?.ifBlank { "Medium" } ?: "Medium"
+                    )
+                    KeyValueRow(label = "Expected Delivery", value = resolvedDelivery.ifBlank { "-" })
+                    KeyValueRow(label = "Total Items", value = pricing.lines.size.toString())
                 }
 
                 // ─────────────────────────────────────────────────────────────
-                // 3. MEASUREMENTS SUMMARY
+                // 3. MEASUREMENTS SUMMARY (from Measurement Entry + category API fields)
                 // ─────────────────────────────────────────────────────────────
                 AccordionSection(
                     title = "Measurements Summary",
                     expanded = measurementsSummaryExpanded,
                     onHeaderClick = { measurementsSummaryExpanded = !measurementsSummaryExpanded }
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        ProfileBadge(label = "Profile: Wedding Shirt", isPrimary = true)
-                        ProfileBadge(label = "Unit: Inches", isPrimary = false)
-                        ProfileBadge(label = "Fit: Regular Fit", isPrimary = false)
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-
-                    MeasurementPillsGrid(
-                        measurements = listOf(
-                            "Chest" to "42", "Waist" to "38", "Seat/Hip" to "40",
-                            "Shoulder" to "18", "Back W" to "16", "Across Sh" to "17.5",
-                            "Shirt L" to "30", "Sleeve" to "24", "Bicep" to "14",
-                            "Wrist" to "7", "Collar" to "16", "Fr Chest" to "21"
-                        )
-                    )
-
-                    Spacer(Modifier.height(12.dp))
-
-                    FormLabel("Special Instructions")
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFFFAFAFA))
-                            .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
+                    if (measurementList.isEmpty()) {
                         Text(
-                            text = "None provided",
-                            fontSize = 13.sp,
-                            color = Color(0xFF334155)
+                            text = "No measurements recorded for this order.",
+                            fontSize = tokens.bodySmall,
+                            color = headerGrey
                         )
+                    } else {
+                        measurementList.forEachIndexed { snapshotIndex, snapshot ->
+                            val garmentHeader = if (snapshot.garmentCategory.isNotBlank()) {
+                                "${snapshot.garmentType} – ${snapshot.garmentCategory}"
+                            } else {
+                                snapshot.garmentType
+                            }
+
+                            Text(
+                                text = garmentHeader,
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = title_color
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                ProfileBadge(label = "Profile: ${snapshot.profileName.ifBlank { "-" }}", isPrimary = true)
+                                ProfileBadge(label = "Unit: ${snapshot.unit}", isPrimary = false)
+                                ProfileBadge(label = snapshot.fitType, isPrimary = false)
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            if (snapshot.measurementDate.isNotBlank()) {
+                                KeyValueRow(label = "Measured On", value = snapshot.measurementDate)
+                            }
+                            if (snapshot.takenBy.isNotBlank()) {
+                                KeyValueRow(label = "Taken By", value = snapshot.takenBy)
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            if (snapshot.fields.isEmpty()) {
+                                Text(
+                                    text = "No measurement fields available.",
+                                    fontSize = tokens.caption,
+                                    color = headerGrey
+                                )
+                            } else {
+                                snapshot.fields.groupBy { it.group }.forEach { (groupName, groupFields) ->
+                                    Text(
+                                        text = groupName.uppercase(),
+                                        fontSize = tokens.label,
+                                        fontWeight = FontWeight.Medium,
+                                        color = title_color,
+                                        modifier = Modifier.padding(top = 6.dp, bottom = 8.dp)
+                                    )
+                                    MeasurementPillsGrid(
+                                        measurements = groupFields.map { field ->
+                                            field.label to "${formatMeasurementValue(field.value)} ${field.unit}"
+                                        }
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(12.dp))
+
+                            FormLabel("Special Instructions")
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 44.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFFAFAFA))
+                                    .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Text(
+                                    text = snapshot.specialInstructions.ifBlank { "None provided" },
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF334155)
+                                )
+                            }
+
+                            if (snapshotIndex < measurementList.lastIndex) {
+                                Spacer(Modifier.height(12.dp))
+                                HorizontalDivider(color = dividerColor)
+                                Spacer(Modifier.height(12.dp))
+                            }
+                        }
                     }
                 }
 
                 // ─────────────────────────────────────────────────────────────
-                // 4. ORDER ITEMS & PRICING
+                // 4. ORDER ITEMS AND PRICING
                 // ─────────────────────────────────────────────────────────────
                 AccordionSection(
                     title = "Order Items & Pricing",
                     expanded = itemsPricingExpanded,
                     onHeaderClick = { itemsPricingExpanded = !itemsPricingExpanded }
                 ) {
-                    PriceLineItem("Wedding Shirt (Raymond) x2", "₹3,000.00")
-                    PriceLineItem("Formal Trouser (Raymond) x1", "₹1,200.00")
-                    PriceLineItem("Waistcoat (Custom) x1", "₹2,000.00")
+                    if (pricing.lines.isEmpty()) {
+                        Text(
+                            text = "No items added to this order.",
+                            fontSize = tokens.bodySmall,
+                            color = headerGrey
+                        )
+                    } else {
+                        pricing.lines.forEachIndexed { lineIndex, line ->
+                            PriceLineItem(
+                                name = "#${line.itemNumber} ${line.title} x${line.quantity}",
+                                price = "₹${formatIndianNumber(line.total)}"
+                            )
+
+                            // Component breakdown for this item
+                            if (line.stitching > 0.0) {
+                                PriceBreakdownLine("Stitching", "₹${formatIndianNumber(line.stitching)}")
+                            }
+                            if (line.fabric > 0.0) {
+                                PriceBreakdownLine("Fabric", "₹${formatIndianNumber(line.fabric)}")
+                            }
+                            if (line.additionalWork > 0.0) {
+                                PriceBreakdownLine("Additional Work", "₹${formatIndianNumber(line.additionalWork)}")
+                            }
+                            PriceBreakdownLine("GST", "₹${formatIndianNumber(line.gst)}")
+
+                            // Item configuration details entered in Create Order
+                            line.details.forEach { (detailLabel, detailValue) ->
+                                PriceBreakdownLine(detailLabel, detailValue)
+                            }
+
+                            if (lineIndex < pricing.lines.lastIndex) {
+                                Spacer(Modifier.height(6.dp))
+                                HorizontalDivider(color = dividerColor)
+                                Spacer(Modifier.height(6.dp))
+                            }
+                        }
+                    }
 
                     Spacer(Modifier.height(8.dp))
                     HorizontalDivider(color = dividerColor)
                     Spacer(Modifier.height(8.dp))
 
                     PriceSummaryLine("Subtotal", "₹${formatIndianNumber(subtotal)}")
-                    PriceSummaryLine("Discount (10%)", "- ₹${formatIndianNumber(discountAmount)}", isRed = true)
-                    PriceSummaryLine("Tax (GST 18%)", "+ ₹${formatIndianNumber(taxAmount)}")
+                    PriceSummaryLine("Discount", "- ₹${formatIndianNumber(discountAmount)}", isRed = true)
+                    PriceSummaryLine("Tax (GST)", "+ ₹${formatIndianNumber(taxAmount)}")
 
                     Spacer(Modifier.height(6.dp))
                     HorizontalDivider(color = dividerColor)
@@ -232,7 +398,7 @@ fun OrderPreviewScreen(
                 }
 
                 // ─────────────────────────────────────────────────────────────
-                // 5. CHARGES & PAYMENT DETAILS
+                // 5. CHARGES AND PAYMENT DETAILS
                 // ─────────────────────────────────────────────────────────────
                 AccordionSection(
                     title = "Charges & Payment Details",
@@ -244,7 +410,7 @@ fun OrderPreviewScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text("+ Add Custom Charges", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Primary)
-                        Text("Discount: ₹0", fontSize = tokens.bodySmall, color = headerGrey)
+                        Text("Discount: ₹${formatIndianNumber(discountAmount)}", fontSize = tokens.bodySmall, color = headerGrey)
                     }
 
                     Spacer(Modifier.height(12.dp))
@@ -288,11 +454,17 @@ fun OrderPreviewScreen(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable { isFullAdvance = true }
+                            modifier = Modifier.clickable {
+                                isFullAdvance = true
+                                paymentAmountReceived = grandTotal.toInt().toString()
+                            }
                         ) {
                             AppRadioButton(
                                 selected = isFullAdvance,
-                                onClick = { isFullAdvance = true }
+                                onClick = {
+                                    isFullAdvance = true
+                                    paymentAmountReceived = grandTotal.toInt().toString()
+                                }
                             )
                             Text("Full Advance", fontSize = 13.sp, color = Color(0xFF334155))
                         }
@@ -318,7 +490,16 @@ fun OrderPreviewScreen(
                         placeholder = "₹ 0",
                         keyboardType = KeyboardType.Number
                     )
-                    Text("* No payment collected right now.", fontSize = 11.sp, color = headerGrey, modifier = Modifier.padding(top = 4.dp))
+                    Text(
+                        text = if (advancePaid > 0.0) {
+                            "* Payment of ₹${formatIndianNumber(advancePaid)} will be recorded with this order."
+                        } else {
+                            "* No payment collected right now."
+                        },
+                        fontSize = 11.sp,
+                        color = headerGrey,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
 
                     Spacer(Modifier.height(14.dp))
 
@@ -331,7 +512,7 @@ fun OrderPreviewScreen(
                 }
 
                 // ─────────────────────────────────────────────────────────────
-                // 6. PAYMENT & INVOICE STATUS
+                // 6. PAYMENT AND INVOICE STATUS
                 // ─────────────────────────────────────────────────────────────
                 AccordionSection(
                     title = "Payment & Invoice Status",
@@ -370,7 +551,7 @@ fun OrderPreviewScreen(
                     Spacer(Modifier.height(12.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Payment Mode:", fontSize = 12.sp, color = headerGrey)
+                        Text("Payment Type:", fontSize = 12.sp, color = headerGrey)
                         Spacer(Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
@@ -378,7 +559,12 @@ fun OrderPreviewScreen(
                                 .background(grey_border)
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
-                            Text("UPI (GPay)", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Color(0xFF334155))
+                            Text(
+                                text = (draft?.paymentType ?: "").ifBlank { "Advance" },
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF334155)
+                            )
                         }
                     }
 
@@ -393,13 +579,29 @@ fun OrderPreviewScreen(
                 }
 
                 // ─────────────────────────────────────────────────────────────
-                // 7. ADDITIONAL NOTES
+                // 7. ADDITIONAL NOTES (collected from items, measurements and this screen)
                 // ─────────────────────────────────────────────────────────────
                 AccordionSection(
                     title = "Additional Notes",
                     expanded = additionalNotesExpanded,
                     onHeaderClick = { additionalNotesExpanded = !additionalNotesExpanded }
                 ) {
+                    val notes = buildList {
+                        pricing.lines.forEach { line ->
+                            line.details.firstOrNull { it.first == "Instructions" }?.let { instruction ->
+                                add("Item #${line.itemNumber} (${line.title}): ${instruction.second}")
+                            }
+                        }
+                        measurementList.forEach { snapshot ->
+                            if (snapshot.specialInstructions.isNotBlank()) {
+                                add("Measurement (${snapshot.garmentType}): ${snapshot.specialInstructions}")
+                            }
+                        }
+                        if (operationalNotes.isNotBlank()) {
+                            add("Order note: $operationalNotes")
+                        }
+                    }
+
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp),
@@ -407,9 +609,25 @@ fun OrderPreviewScreen(
                         border = BorderStroke(1.dp, Color(0xFFFDE68A))
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
-                            Text("1. Customer prefers slim fit adjustments on shirt collar.", fontSize = 12.sp, color = Color(0xFF92400E), lineHeight = 18.sp)
-                            Spacer(Modifier.height(4.dp))
-                            Text("2. Double-check measurements before cutting.", fontSize = 12.sp, color = Color(0xFF92400E), lineHeight = 18.sp)
+                            if (notes.isEmpty()) {
+                                Text(
+                                    text = "No additional notes.",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF92400E)
+                                )
+                            } else {
+                                notes.forEachIndexed { noteIndex, note ->
+                                    Text(
+                                        text = "${noteIndex + 1}. $note",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF92400E),
+                                        lineHeight = 18.sp
+                                    )
+                                    if (noteIndex < notes.lastIndex) {
+                                        Spacer(Modifier.height(4.dp))
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -441,7 +659,7 @@ fun OrderPreviewScreen(
                         )
                         .padding(horizontal = 6.dp, vertical = 6.dp)
                 ) {
-                    // Expanding Action Buttons (Slides from Right to Left)
+                    // Expanding action buttons (slides from right to left)
                     AnimatedVisibility(
                         visible = isShareMenuExpanded,
                         enter = expandHorizontally(expandFrom = Alignment.End) + fadeIn(),
@@ -467,7 +685,7 @@ fun OrderPreviewScreen(
                         }
                     }
 
-                    // Circular Toggle Button with 180° Rotation
+                    // Circular toggle button with 180 degree rotation
                     Surface(
                         onClick = { isShareMenuExpanded = !isShareMenuExpanded },
                         shape = CircleShape,
@@ -482,7 +700,7 @@ fun OrderPreviewScreen(
                                 modifier = Modifier
                                     .size(16.dp)
                                     .padding(start = if (isShareMenuExpanded) 0.dp else 2.dp)
-                                    .graphicsLayer { rotationZ = arrowRotation } // Smooth 180 degree rotation
+                                    .graphicsLayer { rotationZ = arrowRotation }
                             )
                         }
                     }
@@ -500,18 +718,29 @@ fun OrderPreviewScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back / Cancel Button on Left
+                // Cancel button on the left: also clears the saved flow state
                 BackFabButton(
                     showArrow = false,
-                    onClick = onCancel,
+                    onClick = { showDiscardDialog = true },
                     label = "Cancel"
                 )
 
-                // Trailing FAB (Confirm and Finalize) on Right
+                // Trailing FAB (confirm and finalize) on the right
+                // Bottom FAB  (Before: onClick = onConfirmOrder)
                 TrailingFabButton(
                     action = TrailingFabAction.Next(
-                        label = "Confirm and Finalize Order",
-                        onClick = onConfirmOrder
+                        label = if (isEditMode) "Update Order" else "Confirm and Finalize Order",
+                        onClick = {
+                            onConfirmOrder(
+                                OrderConfirmData(
+                                    paymentAmountReceived = advancePaid,
+                                    paymentMode = "Cash",
+                                    isFullPayment = isFullAdvance,
+                                    collectedBy = collectedBy,
+                                    orderNotes = operationalNotes
+                                )
+                            )
+                        }
                     )
                 )
             }
@@ -533,11 +762,13 @@ private fun KeyValueRow(label: String, value: String, isValuePrimary: Boolean = 
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text = label, fontSize = tokens.bodySmall, color = headerGrey)
+        Spacer(Modifier.width(12.dp))
         Text(
             text = value,
             fontSize = tokens.bodySmall,
             fontWeight = if (isValuePrimary) FontWeight.Bold else FontWeight.Medium,
-            color = if (isValuePrimary) Primary else title_color
+            color = if (isValuePrimary) Primary else title_color,
+            modifier = Modifier.weight(1f, fill = false)
         )
     }
 }
@@ -554,38 +785,56 @@ private fun ProfileBadge(label: String, isPrimary: Boolean) {
             text = label,
             fontSize = 11.sp,
             fontWeight = if (isPrimary) FontWeight.SemiBold else FontWeight.Medium,
-            color = if (isPrimary) Primary else headerGrey
+            color = if (isPrimary) Primary else headerGrey,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
 
+/** Two pills per row so long field names from the API stay readable. */
 @Composable
 private fun MeasurementPillsGrid(measurements: List<Pair<String, String>>) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        measurements.chunked(3).forEach { rowItems ->
+        measurements.chunked(2).forEach { rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 rowItems.forEach { (label, value) ->
-                    Box(
+                    Row(
                         modifier = Modifier
                             .weight(1f)
-                            .height(38.dp)
+                            .heightIn(min = 38.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(badgeGrey)
-                            .border(1.dp, sectionBorder, RoundedCornerShape(8.dp)),
-                        contentAlignment = Alignment.Center
+                            .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Text(text = label, fontSize = 11.sp, color = headerGrey)
-                            Spacer(Modifier.width(6.dp))
-                            Text(text = value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = title_color)
-                        }
+                        Text(
+                            text = label,
+                            fontSize = 11.sp,
+                            color = headerGrey,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = value,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = title_color,
+                            maxLines = 1
+                        )
                     }
+                }
+
+                // Keep the last odd pill at half width
+                if (rowItems.size == 1) {
+                    Spacer(Modifier.weight(1f))
                 }
             }
         }
@@ -600,8 +849,35 @@ private fun PriceLineItem(name: String, price: String) {
             .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = name, fontSize = 13.sp, color = Color(0xFF334155))
+        Text(
+            text = name,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF334155),
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(Modifier.width(8.dp))
         Text(text = price, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = title_color)
+    }
+}
+
+/** Small secondary line shown under an item (component price or configuration detail). */
+@Composable
+private fun PriceBreakdownLine(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 10.dp, top = 1.dp, bottom = 1.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = label, fontSize = 11.sp, color = headerGrey)
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = value,
+            fontSize = 11.sp,
+            color = Color(0xFF334155),
+            modifier = Modifier.weight(1f, fill = false)
+        )
     }
 }
 

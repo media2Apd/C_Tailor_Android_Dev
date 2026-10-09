@@ -60,7 +60,7 @@ import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.view.home.formatLeadDate
-import com.cuso.tailor.view.home.sales.sales_order.OrderReviewData
+import com.cuso.tailor.model.sales.OrderReviewData
 import com.cuso.tailor.view.home.toIsoDate
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel

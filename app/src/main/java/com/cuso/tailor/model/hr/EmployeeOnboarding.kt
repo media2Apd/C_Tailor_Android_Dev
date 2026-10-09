@@ -13,6 +13,7 @@ package com.cuso.tailor.model.hr
 
 import com.google.gson.*
 import com.google.gson.annotations.JsonAdapter
+import com.google.gson.annotations.SerializedName
 import java.lang.reflect.Type
 
 // ═══════════════════════════════════════════════════════════
@@ -202,38 +203,19 @@ fun MemberItem.displayStatus(): String =
     status?.replaceFirstChar { it.uppercase() } ?: "—"
 
 // ═══════════════════════════════════════════════════════════
-// ── Shifts: GET /api/shifts/view-all ──
+// ── Shifts ──
 // ═══════════════════════════════════════════════════════════
 
-//data class ShiftListResponse(
-//    val success: Boolean,
-//    val data: List<ShiftItem> = emptyList()
-//)
-//
-//data class ShiftDto(
-//    @SerializedName("_id") val id: String,
-//    @SerializedName("name") val name: String?,
-//    @SerializedName("shiftId") val shiftId: String?,
-//    @SerializedName("startTime") val startTime: String?,
-//    @SerializedName("endTime") val endTime: String?
-//)
-//
-//data class ShiftItem(
-//    val _id: String,
-//    val name: String,
-//    val shiftId: String? = null,
-//    val startTime: String? = null,
-//    val endTime: String? = null,
-//    val organizationId: String? = null,
-//    val description: String? = null,
-//    val status: Boolean = true,
-//    val isDefault: Boolean = false,
-//    val customWorkingDays: List<String> = emptyList(),
-//    val isDeleted: Boolean = false,
-//    val deletedAt: String? = null,
-//    val createdAt: String? = null,
-//    val updatedAt: String? = null
-//)
+data class ShiftItemEmployee(
+    val _id: String = "",
+    val title: String = "",
+    val shiftId: String? = null,
+    val startTime: String = "",
+    val endTime: String = "",
+    val status: Boolean = true
+) {
+    val id: String get() = _id
+}
 
 fun ShiftItem.displayTimeRange(): String {
     if (startTime.isBlank() || endTime.isBlank()) return "—"
@@ -241,7 +223,7 @@ fun ShiftItem.displayTimeRange(): String {
 }
 
 // ═══════════════════════════════════════════════════════════
-// ── Create & Update Request Models (Matching Exact Payload) ──
+// ── Create & Update Request Models ──
 // ═══════════════════════════════════════════════════════════
 
 data class AddressRequest(
@@ -324,7 +306,7 @@ data class CreateMemberRequest(
     val education: List<EducationRequestItem> = emptyList(),
     val workExperience: List<WorkExperienceRequestItem> = emptyList(),
     val pfGratuityNominees: List<NomineeRequestItem> = emptyList()
-){
+) {
     val email: String get() = personalMail
     val personalEmail: String get() = personalMail
     val personalMobile: String get() = emergencyContactMobile
@@ -443,22 +425,24 @@ data class CreatedMemberFullData(
 // ── Member Detail: GET /api/members/{id} ──
 // ═══════════════════════════════════════════════════════════
 
-data class MemberDetailResponse(
-    val success: Boolean,
-    val member: MemberDetail? = null
-)
-
-data class OrgSettings(
-    val portalName: String? = null
-)
-
-data class MemberOrganizationRef(
-    val _id: String? = null,
-    val businessId: String? = null,
-    val name: String? = null,
-    val organizationPicture: String? = null,
-    val settings: OrgSettings? = null
-)
+//data class MemberDetailResponse(
+//    val success: Boolean = false,
+//    @SerializedName("data", alternate = ["member"])
+//    val data: MemberDetail? = null
+//) {
+//    val member: MemberDetail? get() = data
+////}
+//data class OrgSettings(
+//    val portalName: String? = null
+//)
+//
+//data class MemberOrganizationRef(
+//    val _id: String? = null,
+//    val businessId: String? = null,
+//    val name: String? = null,
+//    val organizationPicture: String? = null,
+//    val settings: OrgSettings? = null
+//)
 
 data class MemberCustomRoleRef(
     val _id: String? = null,
@@ -474,30 +458,63 @@ data class MemberDepartmentDetailRef(
     val _id: String? = null,
     val name: String? = null
 )
-
-data class MemberAddress(
-    val flatNo: String? = null,
-    val street: String? = null,
-    val areaZone: String? = null,
-    val city: String? = null,
-    val pincode: String? = null,
-    val countryCode: String? = null,
-    val countryName: String? = null,
-    val subdivisionCode: String? = null,
-    val subdivisionName: String? = null
-)
-
+//
+//data class MemberAddress(
+//    val flatNo: String? = null,
+//    val street: String? = null,
+//    val areaZone: String? = null,
+//    val city: String? = null,
+//    @SerializedName("pincode", alternate = ["postalCode"])
+//    val pincode: String? = null,
+//    val countryCode: String? = null,
+//    @SerializedName("countryName", alternate = ["country"])
+//    val countryName: String? = null,
+//    val subdivisionCode: String? = null,
+//    @SerializedName("subdivisionName", alternate = ["state"])
+//    val subdivisionName: String? = null
+//) {
+//    val state: String? get() = subdivisionName
+//    val country: String? get() = countryName
+//    val postalCode: String? get() = pincode
+//}
+//data class UploadProfilePictureResponse(
+//    val message: String?,
+//    val member: UploadedMemberInfo
+//)
+//
+//data class DeleteProfilePictureResponse(
+//    val message: String?,
+//    val member: UploadedMemberInfo
+//)
+//
+//data class UploadedMemberInfo(
+//    val _id: String?,
+//    val profilePicture: String?,
+//    val profilePictureId: String?
+//)
+//
+//data class MemberNomineeDetail(
+//    val name: String? = null,
+//    val relationship: String? = null,
+//    val share: Any? = null,
+//    val _id: String? = null
+//)
+//
 //data class MemberEducationDetail(
 //    val instituteName: String? = null,
 //    val degree: String? = null,
 //    val specialization: String? = null,
+//    val startDate: String? = null,
 //    val completionDate: String? = null,
+//    val cgpa: Any? = null,
 //    val _id: String? = null
 //)
 //
 //data class MemberWorkExperienceDetail(
 //    val companyName: String? = null,
 //    val jobTitle: String? = null,
+//    val employmentType: String? = null,
+//    val location: String? = null,
 //    val fromDate: String? = null,
 //    val toDate: String? = null,
 //    val jobDescription: String? = null,
@@ -506,47 +523,206 @@ data class MemberAddress(
 //)
 //
 //data class MemberDetail(
-//    val _id: String,
+//    val _id: String = "",
 //    val userId: MemberUserRef? = null,
 //    val organizationId: MemberOrganizationRef? = null,
 //    val role: String? = null,
-//    val branchId: MemberBranchDetailRef? = null,
+//    val branchId: MemberBranchRef? = null,
 //    val workingBranchId: String? = null,
-//    val departmentId: MemberDepartmentDetailRef? = null,
+//    val departmentId: MemberDepartmentRef? = null,
 //    val designationId: MemberDesignationRef? = null,
 //    val shiftId: String? = null,
 //    val firstName: String? = null,
 //    val lastName: String? = null,
 //    val email: String? = null,
+//    val personalMail: String? = null,
 //    val workMobile: String? = null,
 //    val personalMobile: String? = null,
 //    val profilePicture: String? = null,
 //    val profilePictureId: String? = null,
-//    val hasTemporaryAddress: Boolean = false,
+//    val emergencyContactName: String? = null,
+//    val emergencyContactMobile: String? = null,
+//    val dob: String? = null,
+//    val doj: String? = null,
+//    val gender: String? = null,
+//    val martialStatus: String? = null,
+//    val uanNo: String? = null,
+//    val panNo: String? = null,
+//    val aadhaarNo: String? = null,
+//    val passportNo: String? = null,
+//    val bloodGroup: String? = null,
+//    val esicNumber: String? = null,
+//    val pfAccountNo: String? = null,
+//    val payFrequency: String? = null,
+//    val accountHolderName: String? = null,
+//    val accountNumber: String? = null,
+//    val ifscCode: String? = null,
+//    val bankName: String? = null,
+//    val branchName: String? = null,
+//    val workingDistrict: String? = null,
 //    val employmentType: String? = null,
+//    val reportingTo: String? = null,
+//    val secondaryReportingTo: String? = null,
 //    val status: String? = null,
+//    val permanentAddress: MemberAddress? = null,
+//    val hasTemporaryAddress: Boolean = false,
+//    val temporaryAddress: MemberAddress? = null,
+//    val pfGratuityNominees: List<MemberNomineeDetail> = emptyList(),
+//    val education: List<MemberEducationDetail> = emptyList(),
+//    val workExperience: List<MemberWorkExperienceDetail> = emptyList(),
 //    val joinedAt: String? = null,
 //    val isDeleted: Boolean = false,
 //    val createdBy: String? = null,
 //    val termsAccepted: Boolean = false,
-//    val doj: String? = null,
-//    val dob: String? = null,
-//    val permanentAddress: MemberAddress? = null,
-//    val temporaryAddress: MemberAddress? = null,
-//    val martialStatus: String? = null,
-//    val gender: String? = null,
-//    val workingDistrict: String? = null,
-//    val reportingTo: String? = null,
-//    val secondaryReportingTo: String? = null,
-//    val education: List<MemberEducationDetail> = emptyList(),
-//    val workExperience: List<MemberWorkExperienceDetail> = emptyList(),
 //    val createdAt: String? = null,
 //    val updatedAt: String? = null,
 //    val memberId: String? = null,
-//    val customRoleId: MemberCustomRoleRef? = null,
+//    val customRoleId: MemberCustomRoleRefList? = null,
 //    val permissions: Map<String, Any>? = null,
 //    val __v: Int? = null
 //)
+
+data class UpdateMemberResponse(
+    val message: String? = null,
+    val success: Boolean? = true,
+    @SerializedName("data", alternate = ["member"])
+    val member: MemberDetail? = null
+) {
+    val data: MemberDetail? get() = member
+}
+//
+//// ═══════════════════════════════════════════════════════════
+//// ── Member Detail: GET /api/members/{id} ──
+//// ═══════════════════════════════════════════════════════════
+//
+//data class MemberDetailResponse(
+//    val success: Boolean = false,
+//    @SerializedName("data", alternate = ["member"])
+//    val data: MemberDetail? = null
+//) {
+//    val member: MemberDetail? get() = data
+//}
+//
+//data class MemberDetail(
+//    val _id: String = "",
+//    val userId: MemberUserRef? = null,
+//    val organizationId: MemberOrganizationRef? = null,
+//    val role: String? = null,
+//    val branchId: MemberBranchRef? = null,
+//    val workingBranchId: String? = null,
+//    val departmentId: MemberDepartmentRef? = null,
+//    val designationId: MemberDesignationRef? = null,
+//    val shiftId: String? = null,
+//    val firstName: String? = null,
+//    val lastName: String? = null,
+//    val email: String? = null,
+//    val personalMail: String? = null,
+//    val workMobile: String? = null,
+//    val personalMobile: String? = null,
+//    val profilePicture: String? = null,
+//    val profilePictureId: String? = null,
+//    val emergencyContactName: String? = null,
+//    val emergencyContactMobile: String? = null,
+//    val dob: String? = null,
+//    val doj: String? = null,
+//    val gender: String? = null,
+//    val martialStatus: String? = null,
+//    val uanNo: String? = null,
+//    val panNo: String? = null,
+//    val aadhaarNo: String? = null,
+//    val passportNo: String? = null,
+//    val bloodGroup: String? = null,
+//    val esicNumber: String? = null,
+//    val pfAccountNo: String? = null,
+//    val payFrequency: String? = null,
+//    val accountHolderName: String? = null,
+//    val accountNumber: String? = null,
+//    val ifscCode: String? = null,
+//    val bankName: String? = null,
+//    val branchName: String? = null,
+//    val workingDistrict: String? = null,
+//    val employmentType: String? = null,
+//    val reportingTo: String? = null,
+//    val secondaryReportingTo: String? = null,
+//    val status: String? = null,
+//    val loginEnabled: Boolean? = false,
+//    val employeeCode: String? = null,
+//    val permanentAddress: MemberAddress? = null,
+//    val hasTemporaryAddress: Boolean = false,
+//    val temporaryAddress: MemberAddress? = null,
+//    val pfGratuityNominees: List<MemberNomineeDetail> = emptyList(),
+//    val education: List<MemberEducationDetail> = emptyList(),
+//    val workExperience: List<MemberWorkExperienceDetail> = emptyList(),
+//    val joinedAt: String? = null,
+//    val isDeleted: Boolean = false,
+//    val createdBy: String? = null,
+//    val termsAccepted: Boolean = false,
+//    val createdAt: String? = null,
+//    val updatedAt: String? = null,
+//    val memberId: String? = null,
+//    val customRoleId: MemberCustomRoleRefList? = null,
+//    val permissions: Map<String, Any>? = null,
+//    val __v: Int? = null
+//)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ═══════════════════════════════════════════════════════════
+// ── Member Detail: GET /api/members/{id} ──
+// ═══════════════════════════════════════════════════════════
+
+data class MemberDetailResponse(
+    val success: Boolean = false,
+    @SerializedName("data", alternate = ["member"])
+    val data: MemberDetail? = null
+) {
+    val member: MemberDetail? get() = data
+}
+
+data class OrgSettings(
+    val portalName: String? = null
+)
+
+data class MemberOrganizationRef(
+    val _id: String? = null,
+    val businessId: String? = null,
+    val name: String? = null,
+    val organizationPicture: String? = null,
+    val settings: OrgSettings? = null
+)
+
+data class MemberAddress(
+    val flatNo: String? = null,
+    val street: String? = null,
+    val areaZone: String? = null,
+    val city: String? = null,
+    @SerializedName("pincode", alternate = ["postalCode"])
+    val pincode: String? = null,
+    val countryCode: String? = null,
+    @SerializedName("countryName", alternate = ["country"])
+    val countryName: String? = null,
+    val subdivisionCode: String? = null,
+    @SerializedName("subdivisionName", alternate = ["state"])
+    val subdivisionName: String? = null
+) {
+    val state: String? get() = subdivisionName
+    val country: String? get() = countryName
+    val postalCode: String? get() = pincode
+}
 
 data class UploadProfilePictureResponse(
     val message: String?,
@@ -564,11 +740,10 @@ data class UploadedMemberInfo(
     val profilePictureId: String?
 )
 
-
 data class MemberNomineeDetail(
     val name: String? = null,
     val relationship: String? = null,
-    val share: Any? = null, // Can be String or Int (e.g. 100)
+    val share: Any? = null,
     val _id: String? = null
 )
 
@@ -578,7 +753,7 @@ data class MemberEducationDetail(
     val specialization: String? = null,
     val startDate: String? = null,
     val completionDate: String? = null,
-    val cgpa: Any? = null, // Can be Double, Int or String
+    val cgpa: Any? = null,
     val _id: String? = null
 )
 
@@ -595,14 +770,14 @@ data class MemberWorkExperienceDetail(
 )
 
 data class MemberDetail(
-    val _id: String,
+    val _id: String = "",
     val userId: MemberUserRef? = null,
     val organizationId: MemberOrganizationRef? = null,
     val role: String? = null,
-    val branchId: MemberBranchDetailRef? = null,
+    val branchId: MemberBranchRef? = null,
     val workingBranchId: String? = null,
-    val departmentId: MemberDepartmentDetailRef? = null,
-    val designationId: Any? = null, // String id or Object
+    val departmentId: MemberDepartmentRef? = null,
+    val designationId: MemberDesignationRef? = null,
     val shiftId: String? = null,
     val firstName: String? = null,
     val lastName: String? = null,
@@ -636,6 +811,8 @@ data class MemberDetail(
     val reportingTo: String? = null,
     val secondaryReportingTo: String? = null,
     val status: String? = null,
+    val loginEnabled: Boolean? = false,
+    val employeeCode: String? = null,
     val permanentAddress: MemberAddress? = null,
     val hasTemporaryAddress: Boolean = false,
     val temporaryAddress: MemberAddress? = null,
@@ -649,13 +826,7 @@ data class MemberDetail(
     val createdAt: String? = null,
     val updatedAt: String? = null,
     val memberId: String? = null,
-    val customRoleId: MemberCustomRoleRef? = null,
+    val customRoleId: MemberCustomRoleRefList? = null,
     val permissions: Map<String, Any>? = null,
     val __v: Int? = null
-)
-
-data class UpdateMemberResponse(
-    val message: String? = null,
-    val success: Boolean? = true,
-    val member: MemberDetail? = null
 )

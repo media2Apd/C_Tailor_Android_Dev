@@ -158,6 +158,31 @@ class InventoryRepository @Inject constructor(
         }
     }
 
+    suspend fun getFabricItemList(
+        fabric: Boolean,
+        paginate: Boolean = false,
+        status: String = "Active"
+    ): Result<List<InventoryItem>> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val response = inventoryApi.getFabricItemList(
+                token = accessToken,
+                csrfToken = csrfToken,
+                fabricHeader = fabric,
+                paginate = paginate,
+                status = status,
+                fabric = fabric
+            )
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.success(response.body()!!.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to fetch items")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     suspend fun getInventoryItemById(id: String): Result<InventoryItem> = withContext(Dispatchers.IO) {
         try {
             val (accessToken, csrfToken) = getAuthHeaders()

@@ -96,6 +96,7 @@ import com.cuso.tailor.network.sales.SalesMeasurementsApiService
 import com.cuso.tailor.network.sales.SalesOppertunitiesApiService
 import com.cuso.tailor.network.sales.SalesOrderApiService
 import com.cuso.tailor.network.sales.SalesPricingApiService
+import com.cuso.tailor.view.home.sales.sales_order.toTextParts
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -508,46 +509,23 @@ class SalesRepository @Inject constructor(
     /**
      * Creates a new order with multipart support (images & voice notes).
      */
-    suspend fun createOrder(
-        request: CreateOrderRequest,
+    suspend fun createSalesOrder(
+        fields: Map<String, String>,
         imageParts: List<MultipartBody.Part> = emptyList(),
         voiceNotePart: MultipartBody.Part? = null
     ): Result<OrderItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val gson = Gson()
-
-            val leadIdBody = request.leadId?.asTextBody()
-
             val response = salesOrderApi.createOrder(
-                token = accessToken,
-                csrfToken = csrfToken,
-                leadId = leadIdBody,
-                customer = gson.toJson(request.customer).asTextBody(),
-                branch = request.branch.asTextBody(),
-                wearerType = request.wearerType?.asTextBody(),
-                source = request.source?.asTextBody(),
-                orderType = request.orderType?.asTextBody(),
-                garments = gson.toJson(request.garments).asTextBody(),
-                paymentDetails = gson.toJson(request.paymentDetails).asTextBody(),
-                orderDate = request.orderDate.asTextBody(),
-                trialDate = request.trialDate?.asTextBody(),
-                deliveryDate = request.deliveryDate?.asTextBody(),
-                totalAmount = request.totalAmount.toString().asTextBody(),
-                status = request.status?.asTextBody(),
-                designImages = imageParts,
-                voiceNote = voiceNotePart
+                token = accessToken, csrfToken = csrfToken,
+                fields = fields.toTextParts(),
+                designImages = imageParts, voiceNote = voiceNotePart
             )
-
             if (response.isSuccessful && response.body()?.success == true) {
-                val apiResponse = response.body()?.data
-                    ?: return Result.failure(Exception("Order data is null"))
-                Result.success(apiResponse.toOrderItem())
+                val data = response.body()?.data ?: return Result.failure(Exception("Order data is null"))
+                Result.success(data.toOrderItem())
             } else {
-                val errorMsg = response.errorBody()?.string()
-                    ?: response.message()
-                    ?: "Failed to create order"
-                Result.failure(Exception(errorMsg))
+                Result.failure(Exception(response.errorBody()?.string() ?: response.message() ?: "Failed to create order"))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -555,48 +533,35 @@ class SalesRepository @Inject constructor(
     }
 
     /**
-     * Updates an existing order with multipart attachments.
+     * Updates an existing order. Same payload fields as create + existingImages.
      */
-    suspend fun updateOrder(
+    suspend fun updateSalesOrder(
         orderId: String,
-        request: CreateOrderRequest,
+        fields: Map<String, String>,
         existingImages: List<String> = emptyList(),
         imageParts: List<MultipartBody.Part> = emptyList(),
         voiceNotePart: MultipartBody.Part? = null
     ): Result<OrderItem> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val gson = Gson()
+            val allFields = fields + ("existingImages" to Gson().toJson(existingImages))
 
             val response = salesOrderApi.updateOrder(
                 token = accessToken,
                 csrfToken = csrfToken,
                 orderId = orderId,
-                customer = gson.toJson(request.customer).asTextBody(),
-                branch = request.branch.asTextBody(),
-                wearerType = request.wearerType?.asTextBody(),
-                source = request.source?.asTextBody(),
-                orderType = request.orderType?.asTextBody(),
-                garments = gson.toJson(request.garments).asTextBody(),
-                paymentDetails = gson.toJson(request.paymentDetails).asTextBody(),
-                orderDate = request.orderDate.asTextBody(),
-                trialDate = request.trialDate?.asTextBody(),
-                deliveryDate = request.deliveryDate?.asTextBody(),
-                totalAmount = request.totalAmount.toString().asTextBody(),
-                existingImages = gson.toJson(existingImages).asTextBody(),
+                fields = allFields.toTextParts(),
                 designImages = imageParts,
                 voiceNote = voiceNotePart
             )
-
             if (response.isSuccessful && response.body()?.success == true) {
-                val apiResponse = response.body()?.data
+                val data = response.body()?.data
                     ?: return Result.failure(Exception("Order data is null"))
-                Result.success(apiResponse.toOrderItem())
+                Result.success(data.toOrderItem())
             } else {
-                val errorMsg = response.errorBody()?.string()
-                    ?: response.message()
-                    ?: "Failed to update order"
-                Result.failure(Exception(errorMsg))
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: response.message() ?: "Failed to update order")
+                )
             }
         } catch (e: Exception) {
             Result.failure(e)

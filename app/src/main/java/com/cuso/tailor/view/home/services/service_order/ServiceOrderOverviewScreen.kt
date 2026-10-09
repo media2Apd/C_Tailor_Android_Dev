@@ -79,7 +79,7 @@ import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.view.composable.blurScrim
 import com.cuso.tailor.view.composable.AppUnderlineTabRow
 import com.cuso.tailor.view.home.pdfgenerator.OrderReceiptPdfGenerator
-import com.cuso.tailor.view.home.sales.sales_order.OrderReviewData
+import com.cuso.tailor.model.sales.OrderReviewData
 import com.cuso.tailor.view.home.sales.sales_order.toOrderReviewData
 import com.cuso.tailor.viewmodel.AssignWorkersState
 import com.cuso.tailor.viewmodel.ConvertToInvoiceState

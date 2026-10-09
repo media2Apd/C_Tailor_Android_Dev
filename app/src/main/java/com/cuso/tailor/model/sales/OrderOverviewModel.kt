@@ -437,7 +437,8 @@ data class OrderOverviewData(
     @SerializedName("orderCode") val orderCode: String? = null,
     @SerializedName("orderNumber") val orderNumberLegacy: String? = null,
     @SerializedName("organizationId") val organizationId: String? = null,
-    @SerializedName("branchId") val branchId: String? = null,
+
+    @SerializedName("branchId") val branchId: OrderOverviewBranch? = null,
     @SerializedName("warehouseId") val warehouseId: String? = null,
     @SerializedName("orderDate") val orderDate: String? = null,
     @SerializedName("dueDate") val dueDate: String? = null,
@@ -465,7 +466,8 @@ data class OrderOverviewData(
     @SerializedName("status") val status: String? = null,
     @SerializedName("createdAt") val createdAt: String? = null,
     @SerializedName("updatedAt") val updatedAt: String? = null,
-
+    @SerializedName("attachments") val attachments: List<OrderOverviewAttachment>? = null,
+    @SerializedName("voiceNoteUrl") val voiceNoteUrl: String? = null,
     // Workflow Stages, Payments, and Delivery
     @SerializedName("stages") val stages: List<OrderOverviewStage> = emptyList(),
     @SerializedName("delivery") val delivery: OrderOverviewDelivery? = null,
@@ -473,6 +475,7 @@ data class OrderOverviewData(
 
     // Legacy fallback mapping
     @SerializedName("order") private val _legacyOrder: OrderOverviewOrder? = null
+
 ) {
     /**
      * Synthesizes payments from advance/balance fields if explicit payment array is omitted.
@@ -583,10 +586,12 @@ data class OrderPaymentTerm(
 // Item & Fabric Details
 // ─────────────────────────────────────────────────────────────
 
+// ── OrderOverviewItem — ADD parentLineId, addonWork, productionTemplateId, sacCode, taxGroupId ──
 data class OrderOverviewItem(
     @SerializedName("_id") val _id: String = "",
     @SerializedName("itemDescription") val itemDescription: String? = null,
     @SerializedName("lineType") val lineType: String? = null,
+    @SerializedName("parentLineId") val parentLineId: String? = null,           // ← NEW
     @SerializedName("quantity") val quantityNumber: Double? = 1.0,
     @SerializedName("unit") val unit: String? = null,
     @SerializedName("unitPrice") val unitPrice: Double? = 0.0,
@@ -596,14 +601,20 @@ data class OrderOverviewItem(
     @SerializedName("lineTotal") val lineTotal: Double? = 0.0,
     @SerializedName("productionState") val productionState: String? = null,
     @SerializedName("currentProductionStageName") val currentProductionStageName: String? = null,
+    @SerializedName("productionTemplateId") val productionTemplateId: String? = null,  // ← NEW
+    @SerializedName("sacCode") val sacCode: String? = null,                            // ← NEW
     @SerializedName("customGarment") val customGarment: OrderOverviewCustomGarment? = null,
+    @SerializedName("addonWork") val addonWork: OrderOverviewAddonWork? = null,        // ← NEW
+    @SerializedName("taxGroupId") val taxGroupId: OrderOverviewTaxGroup? = null,       // ← NEW
     @SerializedName("categoryName") private val _categoryName: String? = null,
     @SerializedName("stitchingCharge") private val _stitchingCharge: Double? = null,
     @SerializedName("priority") val priority: String = "Medium",
     @SerializedName("trialRequired") val trialRequired: Boolean = false,
     @SerializedName("additionalCharges") val additionalCharges: List<OrderOverviewCharge> = emptyList(),
-    @SerializedName("fabricDetails") private val _fabricDetails: OrderOverviewFabricDetails? = null
-) {
+    @SerializedName("fabricDetails") private val _fabricDetails: OrderOverviewFabricDetails? = null,
+    @SerializedName("measurements")
+    val measurements: List<OrderOverviewMeasurement> = emptyList()
+)  {
     val quantity: Int
         get() = quantityNumber?.toInt() ?: 1
 
@@ -631,16 +642,129 @@ data class OrderOverviewItem(
         }
 }
 
+data class OrderOverviewMeasurement(
+    @SerializedName("fieldId")
+    val fieldId: OrderOverviewMeasurementField? = null,
+
+    @SerializedName("fieldName")
+    val fieldName: String? = null,
+
+    @SerializedName("entries")
+    val entries: List<OrderOverviewMeasurementEntry> = emptyList(),
+
+    @SerializedName("fitAllowance")
+    val fitAllowance: Double = 0.0
+)
+
+data class OrderOverviewMeasurementField(
+    @SerializedName("_id")
+    val id: String = "",
+
+    @SerializedName("name")
+    val name: String? = null,
+
+    @SerializedName("displayName")
+    val displayName: String? = null,
+
+    @SerializedName("inputType")
+    val inputType: String? = null,
+
+    @SerializedName("unit")
+    val unit: String? = null,
+
+    @SerializedName("options")
+    val options: List<String> = emptyList()
+)
+
+data class OrderOverviewMeasurementEntry(
+    @SerializedName("subLabel")
+    val subLabel: String? = null,
+
+    @SerializedName("value")
+    val value: Double? = null
+)
+//data class OrderOverviewAddonWork(
+//    @SerializedName("workPricingId") val workPricingId: OrderOverviewWorkPricing? = null,
+//    @SerializedName("workType") val workType: String? = null,
+//    @SerializedName("designId") val designId: String? = null,
+//    @SerializedName("specialInstructions") val specialInstructions: String? = null
+//)
+//
+//data class OrderOverviewWorkPricing(
+//    @SerializedName("_id") val id: String = "",
+//    @SerializedName("workType") val workType: String? = null,
+//    @SerializedName("unit") val unit: String? = null,
+//    @SerializedName("basePrice") val basePrice: Double? = 0.0
+//)
+//
+//data class OrderOverviewTaxGroup(
+//    @SerializedName("_id") val id: String = "",
+//    @SerializedName("name") val name: String? = null,
+//    @SerializedName("totalRate") val totalRate: Double = 0.0,
+//    @SerializedName("isCompound") val isCompound: Boolean = false
+//)
+
 data class OrderOverviewCustomGarment(
+    @SerializedName("segmentId") val segmentId: OrderOverviewIdName? = null,
     @SerializedName("segmentName") val segmentName: String? = null,
+    @SerializedName("garmentId") val garmentId: OrderOverviewIdName? = null,
     @SerializedName("garmentName") val garmentName: String? = null,
+    @SerializedName("garmentCategoryId") val garmentCategoryId: OrderOverviewIdName? = null,
     @SerializedName("categoryDisplayName") val categoryDisplayName: String? = null,
+    @SerializedName("designId") val designId: OrderOverviewDesignRef? = null,
     @SerializedName("designName") val designName: String? = null,
+    @SerializedName("colorAccent") val colorAccent: String? = null,
+    @SerializedName("sizeStandard") val sizeStandard: String? = null,
     @SerializedName("stitchingType") val stitchingType: String? = null,
     @SerializedName("fabricSource") val fabricSource: String? = null,
     @SerializedName("fabricNotes") val fabricNotes: String? = null,
-    @SerializedName("colorAccent") val colorAccent: String? = null
+    @SerializedName("specialInstructions") val specialInstructions: String? = null
 )
+
+
+// ── NEW nested types ──
+data class OrderOverviewAddonWork(
+    @SerializedName("workPricingId") val workPricingId: OrderOverviewWorkPricing? = null,
+    @SerializedName("workType") val workType: String? = null,
+    @SerializedName("designId") val designId: String? = null,
+    @SerializedName("specialInstructions") val specialInstructions: String? = null
+)
+
+data class OrderOverviewWorkPricing(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("workType") val workType: String? = null,
+    @SerializedName("unit") val unit: String? = null,
+    @SerializedName("basePrice") val basePrice: Double? = 0.0
+)
+
+data class OrderOverviewTaxGroup(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("totalRate") val totalRate: Double = 0.0,
+    @SerializedName("isCompound") val isCompound: Boolean = false
+)
+
+data class OrderOverviewAttachment(
+    @SerializedName("url") val url: String? = null,
+    @SerializedName("publicId") val publicId: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("uploadedAt") val uploadedAt: String? = null
+)
+
+data class OrderOverviewIdName(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("displayName") val displayName: String? = null,
+    @SerializedName("sku") val sku: String? = null
+)
+
+data class OrderOverviewDesignRef(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("code") val code: String? = null
+)
+
+
 
 data class OrderOverviewFabricDetails(
     val fabricSource: String? = null,
@@ -724,8 +848,8 @@ data class OrderOverviewAddress(
 )
 
 data class OrderOverviewBranch(
-    val _id: String,
-    val name: String
+    @SerializedName("_id") val _id: String = "",
+    @SerializedName("name") val name: String = ""
 )
 
 data class OrderOverviewCharge(

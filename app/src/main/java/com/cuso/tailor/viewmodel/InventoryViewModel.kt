@@ -73,6 +73,9 @@ import com.cuso.tailor.model.inventory.VoidPaymentRequest
 import com.cuso.tailor.model.inventory.WarehouseAddress
 import com.cuso.tailor.model.inventory.WarehouseDropdownItem
 import com.cuso.tailor.model.inventory.WarehouseItem
+import com.cuso.tailor.model.sales.ProductionTemplateItem
+import com.cuso.tailor.model.sales.ProductionTemplateResponse
+import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.InventoryRepository
 import com.cuso.tailor.utils.launchBusy
 import com.google.gson.Gson
@@ -200,6 +203,7 @@ data class WarehouseFormState(
 @HiltViewModel
 class InventoryViewModel @Inject constructor(
     private val inventoryRepository: InventoryRepository,
+    private val apiRepository: ApiRepository,
 ) : ViewModel() {
 
     private val gson = Gson()
@@ -879,6 +883,39 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
+    // =========================================================================
+    // PRODUCTION WORKFLOW TEMPLATES
+    // =========================================================================
+    private val _productionTemplates = MutableStateFlow<List<ProductionTemplateItem>>(emptyList())
+    val productionTemplates: StateFlow<List<ProductionTemplateItem>> = _productionTemplates.asStateFlow()
+
+    private val _isLoadingProductionTemplates = MutableStateFlow(false)
+    val isLoadingProductionTemplates: StateFlow<Boolean> = _isLoadingProductionTemplates.asStateFlow()
+
+    private val _productionTemplatesError = MutableStateFlow<String?>(null)
+    val productionTemplatesError: StateFlow<String?> = _productionTemplatesError.asStateFlow()
+
+    fun fetchProductionTemplates() {
+        viewModelScope.launch {
+            _isLoadingProductionTemplates.value = true
+            _productionTemplatesError.value = null
+
+            apiRepository.request<ProductionTemplateResponse> {
+                get("/api/services/settings/production-templates/view-all", apiRepository.query("status" to "Active"))
+            }.fold(
+                onSuccess = { response ->
+                    _productionTemplates.value = response.data
+                },
+                onFailure = { error ->
+                    _productionTemplatesError.value = extractErrorMessage(error.message)
+                }
+            )
+
+            _isLoadingProductionTemplates.value = false
+        }
+    }
+
+
     fun clearPurchaseOrderDetail() {
         _purchaseOrderDetail.value = null
         _poDetailError.value = null
@@ -894,6 +931,7 @@ class InventoryViewModel @Inject constructor(
         fetchSuppliers()
         fetchSupplierDropdown()
         fetchValidAdjustmentReasons()
+        fetchProductionTemplates()
     }
 
     // =========================================================================
@@ -1179,6 +1217,44 @@ class InventoryViewModel @Inject constructor(
                 }
             )
             _isLoadingInventoryItems.value = false
+        }
+    }
+
+    // ── Fabric Items State (fabric=true) ──
+    private val _fabricItemList = MutableStateFlow<List<InventoryItem>>(emptyList())
+    val fabricItemList: StateFlow<List<InventoryItem>> = _fabricItemList.asStateFlow()
+
+    // ── Accessory Items State (fabric=false) ──
+    private val _accessoryItemList = MutableStateFlow<List<InventoryItem>>(emptyList())
+    val accessoryItemList: StateFlow<List<InventoryItem>> = _accessoryItemList.asStateFlow()
+
+    /**
+     * /api/inventory/item/fabric-list?paginate=false&status=Active&fabric=true
+     */
+    fun fetchFabricList() {
+        viewModelScope.launch {
+            inventoryRepository.getFabricItemList(
+                fabric = true,
+                paginate = false,
+                status = "Active"
+            ).onSuccess { list ->
+                _fabricItemList.value = list
+            }
+        }
+    }
+
+    /**
+     * /api/inventory/item/fabric-list?paginate=false&status=Active&fabric=false
+     */
+    fun fetchAccessoryList() {
+        viewModelScope.launch {
+            inventoryRepository.getFabricItemList(
+                fabric = false,
+                paginate = false,
+                status = "Active"
+            ).onSuccess { list ->
+                _accessoryItemList.value = list
+            }
         }
     }
 

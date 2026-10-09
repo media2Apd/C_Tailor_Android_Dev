@@ -5,8 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.model.sales.CreateQuotationRequest
 import com.cuso.tailor.model.sales.QuotationCreatedData
 import com.cuso.tailor.model.sales.QuotationItemDto
+import com.cuso.tailor.model.sales.UpdateQuotationResponse
+import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.SalesRepository
 import com.cuso.tailor.utils.launchBusy
+import com.google.gson.JsonParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,7 +51,8 @@ sealed class QuotationDetailUiState {
 
 @HiltViewModel
 class QuotationViewModel @Inject constructor(
-    private val salesRepository: SalesRepository
+    private val salesRepository: SalesRepository,
+    private val apiRepository: ApiRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<QuotationUiState>(QuotationUiState.Loading)
@@ -220,6 +224,83 @@ class QuotationViewModel @Inject constructor(
                     _detailState.value = QuotationDetailUiState.Error(e.message ?: "Failed to load quotation")
                 }
         }
+    }
+
+    // =========================================================================
+    // UPDATE QUOTATION STATES (INVENTORY VIEWMODEL PATTERN)
+    // =========================================================================
+    private val _isUpdatingQuotation = MutableStateFlow(false)
+    val isUpdatingQuotation: StateFlow<Boolean> = _isUpdatingQuotation.asStateFlow()
+
+    private val _updateQuotationSuccess = MutableStateFlow<String?>(null)
+    val updateQuotationSuccess: StateFlow<String?> = _updateQuotationSuccess.asStateFlow()
+
+    private val _updateQuotationError = MutableStateFlow<String?>(null)
+    val updateQuotationError: StateFlow<String?> = _updateQuotationError.asStateFlow()
+
+    /**
+     * Updates an existing quotation.
+     * PUT /api/sales/quotations/update-one/{id}
+     */
+    fun updateQuotation(
+        id: String,
+        request: CreateQuotationRequest,
+        onSuccess: (QuotationItemDto) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isUpdatingQuotation.value = true
+            _updateQuotationError.value = null
+            _updateQuotationSuccess.value = null
+
+            // ApiRepository generic call
+            val result = apiRepository.request<UpdateQuotationResponse> {
+                put("/api/sales/quotations/update-one/$id", request)
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success && response.data != null) {
+                        _updateQuotationSuccess.value = response.message ?: "Quotation updated successfully."
+                        onSuccess(response.data)
+                    } else {
+                        _updateQuotationError.value = response.message ?: "Failed to update quotation"
+                    }
+                },
+                onFailure = { error ->
+                    _updateQuotationError.value = extractErrorMessage(error.message)
+                }
+            )
+
+            _isUpdatingQuotation.value = false
+        }
+    }
+
+    fun clearUpdateQuotationAlerts() {
+        _updateQuotationSuccess.value = null
+        _updateQuotationError.value = null
+    }
+
+    // =========================================================================
+    // PRIVATE UTILITY (INVENTORY VIEWMODEL ERROR EXTRACTOR)
+    // =========================================================================
+    private fun extractErrorMessage(raw: String?): String {
+        if (raw.isNullOrBlank()) return "An unexpected error occurred"
+        val trimmed = raw.trim()
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            try {
+                val json = JsonParser.parseString(trimmed)
+                if (json.isJsonObject) {
+                    val obj = json.asJsonObject
+                    if (obj.has("message") && !obj.get("message").isJsonNull) {
+                        return obj.get("message").asString
+                    }
+                    if (obj.has("error") && !obj.get("error").isJsonNull) {
+                        return obj.get("error").asString
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+        return trimmed
     }
 }
 

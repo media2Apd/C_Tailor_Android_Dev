@@ -78,7 +78,8 @@ data class WorkPricingItem(
     @SerializedName("isTaxable") val isTaxable: Boolean,
     @SerializedName("segmentId") val segmentId: WorkPricingSegment?,
     @SerializedName("garmentId") val garment: WorkPricingGarment?,
-    @SerializedName("taxGroupId") val taxGroup: WorkPricingTaxGroup?
+    @SerializedName("taxGroupId") val taxGroup: WorkPricingTaxGroup?,
+    @SerializedName("sacCode", alternate = ["hsnSacCode"]) val sacCode: String? = null
 )
 
 data class WorkPricingSegment(

@@ -42,8 +42,6 @@ import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DeleteModel
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.ListSkeleton
@@ -55,6 +53,12 @@ import com.cuso.tailor.viewmodel.QuotationUiState
 import com.cuso.tailor.viewmodel.QuotationViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import com.cuso.tailor.ui.theme.TextPrimary
+import com.cuso.tailor.ui.theme.mutedText
+import com.cuso.tailor.ui.theme.primary_light
+import com.cuso.tailor.ui.theme.yellowBg
+import com.cuso.tailor.ui.theme.yellowText
+import com.cuso.tailor.view.composable.ThreeDotLoading
 
 // -------------------------------------------------------------
 // UI Model for Quotation item
@@ -225,14 +229,23 @@ fun QuotationScreen(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(items, key = { it.id }) { item ->
+                                // Status-க்கு தகுந்த Badge colors & Dot color mapping
+                                val (badgeBg, badgeText) = when (item.status.lowercase()) {
+                                    "accepted", "approved" -> greenBg to greentext
+                                    "rejected", "cancelled" -> redBg to redText
+                                    "sent" -> primary_light to BluePrimary
+                                    "draft" -> yellowBg to yellowText
+                                    else -> primary_light to BluePrimary
+                                }
+
                                 val menuActions = listOf(
                                     MenuAction("View", Icons.Default.Visibility, onClick = { onView(item.id) }),
                                     MenuAction("Edit", Icons.Default.Edit, onClick = { onEdit(item.id) }),
                                     MenuAction(
                                         "Delete",
                                         Icons.Default.Delete,
-                                        tint = Color(0xFFDC2626),
-                                        textColor = Color(0xFFDC2626),
+                                        tint = redText,
+                                        textColor = redText,
                                         onClick = { quotationToDelete = item }
                                     )
                                 )
@@ -241,11 +254,11 @@ fun QuotationScreen(
                                     item = item,
                                     topBadgeText = item.status,
                                     showActionsInHeader = true,
-                                    topBadgeTextColor = if (item.isActive) greentext else redText,
-                                    topBadgeBgColor = if (item.isActive) greenBg else redBg,
+                                    topBadgeTextColor = badgeText,
+                                    topBadgeBgColor = badgeBg,
                                     topBadgeCornerRadius = 20.dp,
                                     topBadgeInline = true,
-                                    topBadgeShowDot = false,
+                                    topBadgeShowDot = true, // <-- படத்தில் உள்ளது போல் Dot (•) வர true
                                     title = item.title,
                                     content = {
                                         val tokens = LocalAppTokens.current
@@ -258,7 +271,7 @@ fun QuotationScreen(
                                                 Text(
                                                     text = item.price,
                                                     fontSize = tokens.bodySmall,
-                                                    color = Color(0xFF111827)
+                                                    color = TextPrimary
                                                 )
                                                 ActionDropdownMenu(icon = Icons.Default.MoreVert, actions = menuActions)
                                             }
@@ -266,13 +279,13 @@ fun QuotationScreen(
                                             Text(
                                                 text = item.applicableGarmentLabel,
                                                 fontSize = tokens.bodySmall,
-                                                color = Color(0xFF9CA3AF)
+                                                color = mutedText
                                             )
                                             Spacer(Modifier.height(2.dp))
                                             Text(
                                                 text = item.applicableGarmentValue,
                                                 fontSize = tokens.bodySmall,
-                                                color = Color(0xFF111827)
+                                                color = TextPrimary
                                             )
                                         }
                                     },
@@ -283,14 +296,7 @@ fun QuotationScreen(
                             // Bottom loader for infinite scroll
                             if (isLoadingMore) {
                                 item {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CirculerProgressIndicatorSmall()
-                                    }
+                                    ThreeDotLoading()
                                 }
                             }
 
@@ -316,17 +322,17 @@ fun QuotationScreen(
             )
         }
 
-        // Dynamic Island Overlay
-        DynamicIslandSuccess(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = successMsg,
-            onDismiss = { successMsg = null }
-        )
-
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = errorMsg,
-            onDismiss = { errorMsg = null }
-        )
+//        // Dynamic Island Overlay
+//        DynamicIslandSuccess(
+//            modifier = Modifier.align(Alignment.TopCenter),
+//            message = successMsg,
+//            onDismiss = { successMsg = null }
+//        )
+//
+//        DynamicIslandError(
+//            modifier = Modifier.align(Alignment.TopCenter),
+//            message = errorMsg,
+//            onDismiss = { errorMsg = null }
+//        )
     }
 }

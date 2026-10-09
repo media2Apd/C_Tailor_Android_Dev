@@ -5,6 +5,8 @@ core = "3.5.4"
 espressoCore = "3.7.0"
 itextCore = "9.7.0"
 junit = "4.13.2"
+credentials = "1.5.0"
+googleid = "1.1.1"
 junitVersion = "1.3.0"
 print = "1.1.0"
 runner = "1.7.0"
@@ -58,6 +60,9 @@ foundationLayoutVersion = "1.12.1"   # check latest version below
 
 
 [libraries]
+androidx-credentials-core = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
+androidx-credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
+googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
 androidx-compose-material3-window-size-class1 = { module = "androidx.compose.material3:material3-window-size-class" }
 androidx-transition = { module = "androidx.transition:transition", version.ref = "transition" }
 core = { module = "com.google.zxing:core", version.ref = "core" }
@@ -116,7 +121,7 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 
 androidx-room3-common-jvm = { group = "androidx.room3", name = "room3-common-jvm", version.ref = "room3CommonJvm" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
-androidx-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "composeMaterial" }
+androidx-compose-material = { group = "androidx.compose.material", name = "material" }
 androidx-compose-material3-lint = { group = "androidx.compose.material3", name = "material3-lint", version.ref = "material3Lint" }
 androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
 volley = { group = "com.android.volley", name = "volley", version.ref = "volley" }

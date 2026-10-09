@@ -3,6 +3,7 @@ package com.cuso.tailor.view.home.sales.sales_order
 
 import com.cuso.tailor.database.entities.SelectedGarment
 import com.cuso.tailor.model.sales.OrderOverviewData
+import com.cuso.tailor.model.sales.OrderReviewData
 
 fun OrderOverviewData.toOrderReviewData(): OrderReviewData {
     val order = this.order
@@ -46,6 +47,8 @@ fun OrderOverviewData.toOrderReviewData(): OrderReviewData {
         existingImageUrls = emptyList()
     )
 }
+
+
 private fun flipToDdMmYyyy(isoDate: String): String {
     val parts = isoDate.split("-")
     return if (parts.size == 3) "${parts[2]}-${parts[1]}-${parts[0]}" else isoDate

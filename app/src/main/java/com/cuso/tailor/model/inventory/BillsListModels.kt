@@ -220,6 +220,7 @@ data class SendBillResponse(
 
 //record payment
 data class RecordPaymentRequest(
+    @Transient val orderId: String = "",
     @SerializedName("branchId") val branchId: String? = null,
     @SerializedName("billId") val billId: String,
     @SerializedName("paymentDate") val paymentDate: String, // Format: yyyy-MM-dd

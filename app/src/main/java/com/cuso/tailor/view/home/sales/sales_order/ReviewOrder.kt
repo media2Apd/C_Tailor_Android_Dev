@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.WarehouseDropdownItem
 import com.cuso.tailor.model.sales.OrderOverviewData
+import com.cuso.tailor.model.sales.OrderReviewData
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.tailor.view.composable.DynamicIslandError
@@ -403,9 +404,10 @@ private fun OrderOverviewContent(
         // --- 5. Shipping Details ---
         SectionContainer(title = "Shipping Details") {
             val targetWarehouseId = orderData.warehouseId?.takeIf { it.isNotBlank() }
-                ?: orderData.branchId?.takeIf { it.isNotBlank() }
+                ?: orderData.branchId?._id?.takeIf { it.isNotBlank() }
 
             val warehouseLabel = warehouseList.firstOrNull { it.value == targetWarehouseId }?.label
+                ?: orderData.branchId?.name
                 ?: orderData.order.branch?.name
                 ?: " - "
 

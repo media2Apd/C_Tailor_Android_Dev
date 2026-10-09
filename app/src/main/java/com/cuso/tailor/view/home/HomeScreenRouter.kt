@@ -4,14 +4,20 @@ package com.cuso.tailor.view.home
 
 import android.annotation.SuppressLint
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.cuso.tailor.model.inventory.LowStockItemDto
@@ -19,8 +25,10 @@ import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.inventory.StockLocationItemDto
 import com.cuso.tailor.model.sales.CustomerItem
 import com.cuso.tailor.model.sales.MeasurementItem
+import com.cuso.tailor.model.sales.OrderReviewData
 import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.model.settings.SegmentItem
+import com.cuso.tailor.utils.uriToMultipartPart
 import com.cuso.tailor.view.home.hr.attendance_management.attendance.AttendanceListScreen
 import com.cuso.tailor.view.home.branch.BranchSettingsScreen
 import com.cuso.tailor.view.home.department.DepartmentSettingsScreen
@@ -176,6 +184,8 @@ import com.cuso.tailor.view.home.subscriptions.SubscriptionFlowContainer
 import com.cuso.tailor.view.home.warehouse.WarehouseSettingsScreen
 import com.cuso.tailor.viewmodel.*
 
+// TEMPORARY: payment term source innum illa
+private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("FlowOperatorInvokedInComposition")
 @Composable
@@ -319,7 +329,7 @@ fun HomeScreenRouter(
         "measurement_fields_config", "sales_sales_orders", "create_order",
         "measurement_entry", "order_preview", "create_order_review", "order_overview",
         "sales_pricing_overview", "garment_pricing_list", "create_garment_pricing",
-        "sales_pricing_quotation", "create_quotation", "sales_payment_and_billing",
+        "sales_pricing_quotation", "create_quotation","view_quotation", "sales_payment_and_billing",
         "payment_detail", "sales_settings", "sales_category_detail", "sales_add_segment",
         "sales_garment_type", "sales_garment_profile", "sales_configuration_preview",
         "sales_add_existing_field", "sales_create_measurement_field", "sales_add_garment",
@@ -746,6 +756,7 @@ private fun InventoryStructureRouter(
     onGoBack: () -> Unit,
     onShowComingSoon: (String) -> Unit
 ) {
+
     when (screen) {
         "inventory_allocation_rules" -> AllocationRulesScreen(
             onClose = onGoBack,
@@ -922,6 +933,41 @@ private fun SalesRouter(
 ) {
     var isGarmentActive by remember { mutableStateOf(false) }
     var selectedSegmentForEdit by remember { mutableStateOf<SegmentItem?>(null) }
+    var measurementIndex by remember { mutableIntStateOf(0) }
+
+    // order_preview-ku thevai
+    val context = LocalContext.current
+    val salesOrderViewModel: SalesOrderViewModel = hiltViewModel()
+    val orderActionState by salesOrderViewModel.actionState.collectAsState()
+    val updateOrderState by salesOrderViewModel.updateOrderState.collectAsState()
+
+    LaunchedEffect(orderActionState) {
+        val state = orderActionState
+        if (state is OrderActionState.Error) {
+            Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+            salesOrderViewModel.resetActionState()
+        }
+    }
+
+// Update success / error handling
+    LaunchedEffect(updateOrderState) {
+        when (val state = updateOrderState) {
+            is UpdateOrderState.Success -> {
+                Toast.makeText(context, "Order updated successfully!", Toast.LENGTH_SHORT).show()
+                OrderFlowStore.clear()
+                measurementIndex = 0
+                onPendingOrderReviewDataChange(null)
+                onOrderSavedSuccessfully(state.order.id)   // adjust to your UpdateOrderState.Success field
+                onNavigate("sales_sales_orders")
+                salesOrderViewModel.resetUpdateOrderState()
+            }
+            is UpdateOrderState.Error -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                salesOrderViewModel.resetUpdateOrderState()
+            }
+            else -> Unit
+        }
+    }
 
     when (screen) {
         "sales_lead" -> LeadScreenContent(
@@ -1109,23 +1155,41 @@ private fun SalesRouter(
             },
             onBreadCrumbClick = { onOpenModulesPanel("Sales") }
         )
-
         "measurement_entry" -> {
-            // FIXED: Removed the hard null check on pendingOrderReviewData so it opens directly from measurements
-            MeasurementEntryScreen(
-                garmentType = pendingOrderReviewData?.garments?.firstOrNull()?.categoryName ?: "Shirt",
-                customerName = pendingOrderReviewData?.fullName ?: "",
-                customerPhone = pendingOrderReviewData?.phone ?: "",
-                onClose = onGoBack,
-                onSaveMeasurement = {
-                    if (pendingOrderReviewData != null) {
-                        onNavigate("order_preview")
-                    } else {
-                        // When opened standalone from Measurements screen, navigate back after saving
-                        onGoBack()
-                    }
+            val draft = OrderFlowStore.draft
+            val garmentItems = draft?.items?.filterIsInstance<DynamicGarmentItem>().orEmpty()
+
+            if (draft != null && pendingOrderReviewData != null && garmentItems.isNotEmpty()) {
+                val index = measurementIndex.coerceIn(0, garmentItems.lastIndex)
+                val garment = garmentItems[index]
+                val cfg = garment.config
+
+                key(garment.id) {
+                    MeasurementEntryScreen(
+                        garmentType = cfg.garmentType,
+                        garmentCategory = cfg.garmentCategory.takeIf { it != "Select Category" }.orEmpty(),
+                        garmentCategoryId = cfg.garmentCategoryId,
+                        orderItemId = garment.id,
+                        customerName = draft.customerName,
+                        customerPhone = draft.phone,
+                        initialMeasurements = emptyMap(),
+                        onClose = {
+                            if (index > 0) measurementIndex = index - 1
+                            else onGoBack()
+                        },
+                        onSaveMeasurement = {
+                            if (index < garmentItems.lastIndex) measurementIndex = index + 1
+                            else onNavigate("order_preview")
+                        }
+                    )
                 }
-            )
+            } else {
+                MeasurementEntryScreen(
+                    garmentType = "Shirt",
+                    onClose = onGoBack,
+                    onSaveMeasurement = { onGoBack() }
+                )
+            }
         }
 
         "measurements_available_view" -> {
@@ -1188,6 +1252,7 @@ private fun SalesRouter(
             },
             onNextStep = { orderReviewData ->
                 onPendingOrderReviewDataChange(orderReviewData)
+                measurementIndex = 0
                 onNavigate("measurement_entry")
             }
         )
@@ -1195,33 +1260,94 @@ private fun SalesRouter(
             pendingOrderReviewData?.let { data ->
                 OrderPreviewScreen(
                     orderData = data,
-                    onClose = onGoBack,
-                    onConfirmOrder = {
-                        onOrderSavedSuccessfully(data.orderId)
+                    onClose = {
+                        onGoBack()
+                    },
+                    onConfirmOrder = { confirm ->
+                        val draft = OrderFlowStore.draft
+                        if (draft == null) {
+                            Toast.makeText(context, "Order data missing, please start again", Toast.LENGTH_LONG).show()
+                        } else if (orderActionState is OrderActionState.Loading ||
+                            updateOrderState is UpdateOrderState.Loading
+                        ) {
+                            // double tap block
+                        } else {
+                            val built = buildCreateOrderFields(
+                                draft = draft,
+                                measurements = OrderFlowStore.measurements,
+                                salespersonId = draft.salespersonId,
+                                paymentTermId = TEMP_PAYMENT_TERM_ID,
+                                paymentMode = confirm.paymentMode,
+                                advanceAmountPaid = confirm.paymentAmountReceived,
+                                isFullPayment = confirm.isFullPayment,
+                                orderNotes = confirm.orderNotes
+                            )
+
+                            if (built.errors.isNotEmpty()) {
+                                Toast.makeText(context, built.errors.first(), Toast.LENGTH_LONG).show()
+                            } else {
+                                val binaryImageParts = data.designImages.mapNotNull { uri ->
+                                    uriToMultipartPart(context, uri, "attachments")
+                                }
+
+                                // If orderId is the 24-character MongoDB hex ID, use it:
+                                val editId = when {
+                                    !data.orderId.isNullOrBlank() && !data.orderId.startsWith("ORD") -> data.orderId
+                                    !data.editOrderId.isNullOrBlank() && !data.editOrderId.startsWith("ORD") -> data.editOrderId
+                                    else -> data.orderId ?: data.editOrderId
+                                }
+
+                                if (!editId.isNullOrBlank()) {
+                                    // EDIT MODE: same payload, update API
+                                    salesOrderViewModel.updateOrder(
+                                        orderId = editId,
+                                        fields = built.fields,
+                                        existingImages = data.existingImageUrls,
+                                        imageParts = binaryImageParts,
+                                        voiceNotePart = null
+                                    )
+                                } else {
+                                    // CREATE MODE
+                                    salesOrderViewModel.createSalesOrder(
+                                        fields = built.fields,
+                                        imageParts = binaryImageParts,
+                                        voiceNotePart = null
+                                    ) { savedOrder ->
+                                        Toast.makeText(context, "Order created successfully!", Toast.LENGTH_SHORT).show()
+                                        OrderFlowStore.clear()
+                                        measurementIndex = 0
+                                        onPendingOrderReviewDataChange(null)
+                                        onOrderSavedSuccessfully(savedOrder.id)
+                                        onNavigate("sales_sales_orders")
+                                    }
+                                }
+                            }
+                        }
                     },
                     onCancel = {
-                        onPendingOrderReviewDataChange(null)
-                        onGoBack()
+                        OrderFlowStore.clear()
+                        measurementIndex = 0
+//                        onPendingOrderReviewDataChange(null)
+                        onNavigate("sales_sales_orders")
                     }
                 )
             } ?: run { onGoBack() }
         }
-
-        "create_order_review" -> {
-            pendingOrderReviewData?.let { data ->
-                CreateOrderNextStep(
-                    orderData = data,
-                    onBack = { updatedData ->
-                        onPendingOrderReviewDataChange(updatedData)
-                        onGoBack()
-                    },
-                    onClose = onGoBack,
-                    onSaveOrder = { _, savedOrderId ->
-                        onOrderSavedSuccessfully(savedOrderId)
-                    }
-                )
-            } ?: run { onGoBack() }
-        }
+//        "create_order_review" -> {
+//            pendingOrderReviewData?.let { data ->
+//                CreateOrderNextStep(
+//                    orderData = data,
+//                    onBack = { updatedData ->
+//                        onPendingOrderReviewDataChange(updatedData)
+//                        onGoBack()
+//                    },
+//                    onClose = onGoBack,
+//                    onSaveOrder = { _, savedOrderId ->
+//                        onOrderSavedSuccessfully(savedOrderId)
+//                    }
+//                )
+//            } ?: run { onGoBack() }
+//        }
 
         "order_overview" -> {
             selectedOrderId?.let { id ->
@@ -1288,8 +1414,7 @@ private fun SalesRouter(
             },
             onView = { id ->
                 onEditingPricingIdChange(id)
-                onQuotationScreenModeChange("view")
-                onNavigate("create_quotation")
+                onNavigate("view_quotation") // <-- DIRECT TO VIEW SCREEN
             },
             onEdit = { id ->
                 onEditingPricingIdChange(id)
@@ -1297,6 +1422,19 @@ private fun SalesRouter(
                 onNavigate("create_quotation")
             },
             onBreadCrumbClick = { onOpenModulesPanel("Sales") }
+        )
+
+        // ADD THIS ROUTE:
+        "view_quotation" -> QuotationViewScreen(
+            quotationId = editingPricingId.orEmpty(),
+            onClose = {
+                onEditingPricingIdChange(null)
+                onGoBack()
+            },
+            onEdit = {
+                onQuotationScreenModeChange("edit")
+                onNavigate("create_quotation")
+            }
         )
 
         "create_quotation" -> CreateQuotationScreen(
@@ -1315,10 +1453,16 @@ private fun SalesRouter(
                 onGoBack()
             },
             onBreadCrumbClick = { onOpenModulesPanel("Sales") },
-            onPaymentClick = { onNavigate("payment_detail") }
+            onPaymentClick = { orderId ->
+                onOrderIdSelected(orderId)
+                onNavigate("payment_detail")
+            }
         )
 
-        "payment_detail" -> PaymentInformationScreen(onClose = onGoBack)
+        "payment_detail" -> PaymentInformationScreen(
+            orderId = selectedOrderId.orEmpty(),
+            onClose = onGoBack
+        )
 
         "sales_settings" -> SalesSettingsScreen(
             navController = navController,

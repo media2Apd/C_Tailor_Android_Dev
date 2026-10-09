@@ -35,23 +35,11 @@ interface SalesOrderApiService {
     ): Response<OrderDetailResponse>
 
     @Multipart
-    @POST("/api/sales/orders/create-direct")
+    @POST("/api/sales/orders/create")
     suspend fun createOrder(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
-        @Part("leadId") leadId: RequestBody? = null,
-        @Part("customer") customer: RequestBody,
-        @Part("branch") branch: RequestBody,
-        @Part("wearerType") wearerType: RequestBody? = null,
-        @Part("source") source: RequestBody? = null,
-        @Part("orderType") orderType: RequestBody? = null,
-        @Part("garments") garments: RequestBody,
-        @Part("paymentDetails") paymentDetails: RequestBody,
-        @Part("orderDate") orderDate: RequestBody,
-        @Part("trialDate") trialDate: RequestBody? = null,
-        @Part("deliveryDate") deliveryDate: RequestBody? = null,
-        @Part("totalAmount") totalAmount: RequestBody,
-        @Part("status") status: RequestBody? = null,
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
         @Part designImages: List<MultipartBody.Part>,
         @Part voiceNote: MultipartBody.Part?
     ): Response<CreateOrderResponse>
@@ -62,18 +50,7 @@ interface SalesOrderApiService {
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("orderId") orderId: String,
-        @Part("customer") customer: RequestBody,
-        @Part("branch") branch: RequestBody,
-        @Part("wearerType") wearerType: RequestBody? = null,
-        @Part("source") source: RequestBody? = null,
-        @Part("orderType") orderType: RequestBody? = null,
-        @Part("garments") garments: RequestBody,
-        @Part("paymentDetails") paymentDetails: RequestBody,
-        @Part("orderDate") orderDate: RequestBody,
-        @Part("trialDate") trialDate: RequestBody? = null,
-        @Part("deliveryDate") deliveryDate: RequestBody? = null,
-        @Part("totalAmount") totalAmount: RequestBody,
-        @Part("existingImages") existingImages: RequestBody,
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
         @Part designImages: List<MultipartBody.Part>,
         @Part voiceNote: MultipartBody.Part?
     ): Response<CreateOrderResponse>

@@ -131,6 +131,19 @@ interface InventoryApiService {
     ): Response<InventoryItemListResponse>
 
     /**
+     * Fabric List / Accessory List Endpoint
+     */
+    @GET("/api/inventory/item/fabric-list")
+    suspend fun getFabricItemList(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Header("fabric") fabricHeader: Boolean? = null,
+        @Query("paginate") paginate: Boolean = false,
+        @Query("status") status: String = "Active",
+        @Query("fabric") fabric: Boolean
+    ): Response<InventoryItemListResponse>
+
+    /**
      * Get recently added inventory items.
      */
     @GET("/api/inventory/item/recent")

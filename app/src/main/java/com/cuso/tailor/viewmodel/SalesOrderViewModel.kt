@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.model.sales.CreateOrderRequest
 import com.cuso.tailor.model.sales.OrderItem
+import com.cuso.tailor.model.sales.SoftDeleteOrderResponse
 import com.cuso.tailor.model.sales.toOrderItem
+import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.SalesRepository
 import com.cuso.tailor.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import okhttp3.MultipartBody
 import javax.inject.Inject
 
 // -------------------------------------------------------------
@@ -30,6 +33,13 @@ sealed class OrderUiState {
     data class Error(val message: String) : OrderUiState()
 }
 
+sealed class UpdateOrderState {
+    object Idle : UpdateOrderState()
+    object Loading : UpdateOrderState()
+    data class Success(val order: OrderItem) : UpdateOrderState()
+    data class Error(val message: String) : UpdateOrderState()
+}
+
 sealed class OrderActionState {
     data object Idle : OrderActionState()
     data object Loading : OrderActionState()
@@ -43,7 +53,8 @@ sealed class OrderActionState {
 @Suppress("UNUSED_PARAMETER")
 @HiltViewModel
 class SalesOrderViewModel @Inject constructor(
-    private val repository: SalesRepository
+    private val repository: SalesRepository,
+    private val apiRepository: ApiRepository
 ) : ViewModel() {
 
     private val _orderState = MutableStateFlow<OrderUiState>(OrderUiState.Loading)
@@ -233,15 +244,15 @@ class SalesOrderViewModel @Inject constructor(
     // Create Order
     // ---------------------------------------------------------
 
-    fun createOrder(
-        request: CreateOrderRequest,
+    fun createSalesOrder(
+        fields: Map<String, String>,
         imageParts: List<okhttp3.MultipartBody.Part> = emptyList(),
         voiceNotePart: okhttp3.MultipartBody.Part? = null,
         onSuccess: (OrderItem) -> Unit
     ) {
         launchBusy {
             _actionState.value = OrderActionState.Loading
-            val result = repository.createOrder(request, imageParts, voiceNotePart)
+            val result = repository.createSalesOrder(fields, imageParts, voiceNotePart)
             if (result.isSuccess) {
                 _actionState.value = OrderActionState.Success("Order created successfully")
                 result.getOrNull()?.let { onSuccess(it) }
@@ -257,28 +268,50 @@ class SalesOrderViewModel @Inject constructor(
     // Update Order
     // ---------------------------------------------------------
 
+    private val _updateOrderState = MutableStateFlow<UpdateOrderState>(UpdateOrderState.Idle)
+    val updateOrderState: StateFlow<UpdateOrderState> = _updateOrderState.asStateFlow()
+
     fun updateOrder(
         orderId: String,
-        request: CreateOrderRequest,
+        fields: Map<String, String>,
         existingImages: List<String> = emptyList(),
-        imageParts: List<okhttp3.MultipartBody.Part> = emptyList(),
-        voiceNotePart: okhttp3.MultipartBody.Part? = null,
-        onSuccess: (OrderItem) -> Unit
+        imageParts: List<MultipartBody.Part> = emptyList(),
+        voiceNotePart: MultipartBody.Part? = null
     ) {
         launchBusy {
-            _actionState.value = OrderActionState.Loading
-            val result = repository.updateOrder(orderId, request, existingImages, imageParts, voiceNotePart)
-            if (result.isSuccess) {
-                _actionState.value = OrderActionState.Success("Order updated successfully")
-                result.getOrNull()?.let { onSuccess(it) }
-            } else {
-                _actionState.value = OrderActionState.Error(
-                    result.exceptionOrNull()?.message ?: "Failed to update order"
-                )
-            }
+            _updateOrderState.value = UpdateOrderState.Loading
+            repository.updateSalesOrder(orderId, fields, existingImages, imageParts, voiceNotePart)
+                .onSuccess { _updateOrderState.value = UpdateOrderState.Success(it) }
+                .onFailure { _updateOrderState.value = UpdateOrderState.Error(it.message ?: "Failed to update order") }
         }
     }
+    fun resetUpdateOrderState() {
+        _updateOrderState.value = UpdateOrderState.Idle
+    }
+    fun deleteOrder(orderId: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _actionState.value = OrderActionState.Loading
 
+            // DELETE /api/sales/orders/delete-one/{id}
+            apiRepository.request<SoftDeleteOrderResponse> {
+                delete("/api/sales/orders/delete-one/$orderId")
+            }.fold(
+                onSuccess = { response ->
+                    _actionState.value = OrderActionState.Success(
+                        response.message.ifBlank { "Order successfully deleted." }
+                    )
+                    // Delete ஆனவுடன் List-ஐ மீண்டும் புதுப்பிக்கிறோம் (Refresh)
+                    fetchOrders(page = 1, limit = 10)
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _actionState.value = OrderActionState.Error(
+                        error.message ?: "Failed to delete order"
+                    )
+                }
+            )
+        }
+    }
     // ---------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------

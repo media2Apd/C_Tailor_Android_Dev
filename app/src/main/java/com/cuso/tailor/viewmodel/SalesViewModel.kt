@@ -11,6 +11,10 @@ import com.cuso.tailor.database.entities.SelectedGarment
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.AddOrgGarmentResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.OrgGarmentCategory
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.RemoveOrgGarmentResponse
+import com.cuso.tailor.model.sales.BillingPaymentDetailData
+import com.cuso.tailor.model.sales.BillingPaymentDetailResponse
+import com.cuso.tailor.model.sales.BillingPaymentItemDto
+import com.cuso.tailor.model.sales.BillingPaymentListResponse
 import com.cuso.tailor.model.sales.CategoryItem
 import com.cuso.tailor.model.sales.ConvertLeadToOpportunityRequest
 import com.cuso.tailor.model.sales.ConvertToOrderData
@@ -20,8 +24,11 @@ import com.cuso.tailor.model.sales.GarmentCategoryDto
 import com.cuso.tailor.model.sales.LeadData
 import com.cuso.tailor.model.sales.LeadTableItem
 import com.cuso.tailor.model.sales.OrderItem
+import com.cuso.tailor.model.sales.RecordOrderPaymentRequest
+import com.cuso.tailor.model.sales.RecordOrderPaymentResponse
 import com.cuso.tailor.model.sales.StaffDto
 import com.cuso.tailor.model.sales.ViewOneLeadData
+import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.SalesRepository
 import com.cuso.tailor.repository.SettingsRepository
 import com.cuso.tailor.utils.launchBusy
@@ -33,6 +40,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
@@ -48,7 +56,8 @@ private const val TAG = "SalesViewModel"
 class SalesViewModel @Inject constructor(
     private val repository: SalesRepository,
     private val settingsRepository: SettingsRepository,
-    private val selectedGarmentDao: SelectedGarmentDao
+    private val selectedGarmentDao: SelectedGarmentDao,
+    private val apiRepository: ApiRepository
 ) : ViewModel() {
 
     // =============================================================
@@ -743,6 +752,189 @@ class SalesViewModel @Inject constructor(
                 Log.e(TAG, "Failed to clear garments session: ${e.message}")
             }
         }
+    }
+
+    // =============================================================
+    // Payment & Billing
+    // =============================================================
+    // =============================================================
+    // BILLING & PAYMENTS STATES (ApiRepository Pattern)
+    // =============================================================
+    private val _billingPaymentsList = MutableStateFlow<List<BillingPaymentItemDto>>(emptyList())
+    val billingPaymentsList: StateFlow<List<BillingPaymentItemDto>> = _billingPaymentsList.asStateFlow()
+
+    private val _isLoadingBillingPayments = MutableStateFlow(false)
+    val isLoadingBillingPayments: StateFlow<Boolean> = _isLoadingBillingPayments.asStateFlow()
+
+    private val _isLoadingMoreBillingPayments = MutableStateFlow(false)
+    val isLoadingMoreBillingPayments: StateFlow<Boolean> = _isLoadingMoreBillingPayments.asStateFlow()
+
+    private val _canLoadMoreBillingPayments = MutableStateFlow(true)
+    val canLoadMoreBillingPayments: StateFlow<Boolean> = _canLoadMoreBillingPayments.asStateFlow()
+
+    private val _currentBillingPage = MutableStateFlow(1)
+    val currentBillingPage: StateFlow<Int> = _currentBillingPage.asStateFlow()
+
+    private val _billingPaymentsError = MutableStateFlow<String?>(null)
+    val billingPaymentsError: StateFlow<String?> = _billingPaymentsError.asStateFlow()
+
+    private var activeBillingSearch: String? = null
+    private var billingSearchJob: Job? = null
+
+    // ── View One State ──
+    private val _selectedBillingDetail = MutableStateFlow<BillingPaymentDetailData?>(null)
+    val selectedBillingDetail: StateFlow<BillingPaymentDetailData?> = _selectedBillingDetail.asStateFlow()
+
+    private val _isLoadingBillingDetail = MutableStateFlow(false)
+    val isLoadingBillingDetail: StateFlow<Boolean> = _isLoadingBillingDetail.asStateFlow()
+
+    private val _billingDetailError = MutableStateFlow<String?>(null)
+    val billingDetailError: StateFlow<String?> = _billingDetailError.asStateFlow()
+
+    // ── Record Payment State ──
+    private val _isRecordingPayment = MutableStateFlow(false)
+    val isRecordingPayment: StateFlow<Boolean> = _isRecordingPayment.asStateFlow()
+
+    private val _recordPaymentSuccess = MutableStateFlow<String?>(null)
+    val recordPaymentSuccess: StateFlow<String?> = _recordPaymentSuccess.asStateFlow()
+
+    private val _recordPaymentError = MutableStateFlow<String?>(null)
+    val recordPaymentError: StateFlow<String?> = _recordPaymentError.asStateFlow()
+
+    // ─────────────────────────────────────────────────────────────
+    // Fetch Billing Payments (View-All with Pagination)
+    // ─────────────────────────────────────────────────────────────
+    fun fetchBillingPayments(page: Int = 1, limit: Int = 10, search: String? = null) {
+        viewModelScope.launch {
+            _isLoadingBillingPayments.value = true
+            _billingPaymentsError.value = null
+            _currentBillingPage.value = page
+            _canLoadMoreBillingPayments.value = true
+            activeBillingSearch = search
+
+            apiRepository.request<BillingPaymentListResponse> {
+                get(
+                    "/api/sales/orders/billing/list",
+                    apiRepository.query("page" to page, "limit" to limit, "search" to search)
+                )
+            }.fold(
+                onSuccess = { response ->
+                    _billingPaymentsList.value = response.data
+                    val totalPages = response.pagination?.totalPages ?: 1
+                    _canLoadMoreBillingPayments.value = page < totalPages && response.data.isNotEmpty()
+                },
+                onFailure = { error ->
+                    _billingPaymentsError.value = error.message ?: "Failed to fetch payments"
+                }
+            )
+
+            _isLoadingBillingPayments.value = false
+        }
+    }
+
+    fun loadMoreBillingPayments(limit: Int = 10) {
+        if (_isLoadingMoreBillingPayments.value || _isLoadingBillingPayments.value || !_canLoadMoreBillingPayments.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreBillingPayments.value = true
+            val nextPage = _currentBillingPage.value + 1
+
+            apiRepository.request<BillingPaymentListResponse> {
+                get(
+                    "/api/sales/orders/billing/list",
+                    apiRepository.query("page" to nextPage, "limit" to limit, "search" to activeBillingSearch)
+                )
+            }.fold(
+                onSuccess = { response ->
+                    val newItems = response.data
+                    if (newItems.isNotEmpty()) {
+                        _billingPaymentsList.update { (it + newItems).distinctBy { item -> item.id } }
+                        _currentBillingPage.value = nextPage
+                        val totalPages = response.pagination?.totalPages ?: nextPage
+                        _canLoadMoreBillingPayments.value = nextPage < totalPages
+                    } else {
+                        _canLoadMoreBillingPayments.value = false
+                    }
+                },
+                onFailure = {
+                    _canLoadMoreBillingPayments.value = false
+                }
+            )
+
+            _isLoadingMoreBillingPayments.value = false
+        }
+    }
+
+    fun onBillingSearchQueryChanged(newQuery: String) {
+        billingSearchJob?.cancel()
+        billingSearchJob = viewModelScope.launch {
+            delay(400)
+            fetchBillingPayments(page = 1, search = newQuery.takeIf { it.isNotBlank() })
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Fetch Billing Detail (View-One)
+    // ─────────────────────────────────────────────────────────────
+    fun fetchBillingPaymentDetail(orderId: String) {
+        if (orderId.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingBillingDetail.value = true
+            _billingDetailError.value = null
+
+            apiRepository.request<BillingPaymentDetailResponse> {
+                get("/api/sales/orders/billing/view/$orderId")
+            }.fold(
+                onSuccess = { response ->
+                    _selectedBillingDetail.value = response.data
+                },
+                onFailure = { error ->
+                    _billingDetailError.value = error.message ?: "Failed to fetch payment details"
+                }
+            )
+
+            _isLoadingBillingDetail.value = false
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Record Payment (POST)
+    // ─────────────────────────────────────────────────────────────
+    fun recordOrderPayment(
+        orderId: String,
+        request: RecordOrderPaymentRequest,
+        onSuccess: () -> Unit = {}
+    ) {
+        if (orderId.isBlank()) return
+
+        viewModelScope.launch {
+            _isRecordingPayment.value = true
+            _recordPaymentError.value = null
+            _recordPaymentSuccess.value = null
+
+            apiRepository.request<RecordOrderPaymentResponse> {
+                post("/api/sales/orders/billing/record-payment/$orderId", request)
+            }.fold(
+                onSuccess = { response ->
+                    _recordPaymentSuccess.value = response.message ?: "Payment recorded successfully"
+                    fetchBillingPaymentDetail(orderId)
+                    fetchBillingPayments(page = 1)
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _recordPaymentError.value = error.message ?: "Failed to record payment"
+                }
+            )
+
+            _isRecordingPayment.value = false
+        }
+    }
+
+
+    fun clearBillingAlerts() {
+        _billingPaymentsError.value = null
+        _recordPaymentSuccess.value = null
+        _recordPaymentError.value = null
     }
 
     // =============================================================

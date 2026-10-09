@@ -33,6 +33,7 @@ import com.cuso.tailor.model.hr.EmployeeDocumentSingleResponse
 import com.cuso.tailor.model.hr.LeaveRequestItemDto
 import com.cuso.tailor.model.hr.LeaveTypeItemDto
 import com.cuso.tailor.model.hr.MemberDetail
+import com.cuso.tailor.model.hr.MemberDetailResponse
 import com.cuso.tailor.model.hr.MemberItem
 import com.cuso.tailor.model.hr.MonthlyAttendanceItem
 import com.cuso.tailor.model.hr.RoleItem
@@ -265,14 +266,14 @@ class HrViewModel @Inject constructor(
     // ═══════════════════════════════════════════════
     // ── Member Detail (VIEW / EDIT prefill) ──
     // ═══════════════════════════════════════════════
-    private val _memberDetail = MutableStateFlow<MemberDetail?>(null)
-    val memberDetail: StateFlow<MemberDetail?> = _memberDetail.asStateFlow()
-
-    private val _isLoadingMemberDetail = MutableStateFlow(false)
-    val isLoadingMemberDetail: StateFlow<Boolean> = _isLoadingMemberDetail.asStateFlow()
-
-    private val _memberDetailError = MutableStateFlow<String?>(null)
-    val memberDetailError: StateFlow<String?> = _memberDetailError.asStateFlow()
+//    private val _memberDetail = MutableStateFlow<MemberDetail?>(null)
+//    val memberDetail: StateFlow<MemberDetail?> = _memberDetail.asStateFlow()
+//
+//    private val _isLoadingMemberDetail = MutableStateFlow(false)
+//    val isLoadingMemberDetail: StateFlow<Boolean> = _isLoadingMemberDetail.asStateFlow()
+//
+//    private val _memberDetailError = MutableStateFlow<String?>(null)
+//    val memberDetailError: StateFlow<String?> = _memberDetailError.asStateFlow()
 
     private val _uploadPictureState = MutableStateFlow<UploadPictureState>(UploadPictureState.Idle)
     val uploadPictureState: StateFlow<UploadPictureState> = _uploadPictureState.asStateFlow()
@@ -313,14 +314,40 @@ class HrViewModel @Inject constructor(
         _deletePictureState.value = DeletePictureState.Idle
     }
 
+    // ═══════════════════════════════════════════════
+    // ── Member Detail (VIEW ONE) ──
+    // ═══════════════════════════════════════════════
+    private val _memberDetail = MutableStateFlow<MemberDetail?>(null)
+    val memberDetail: StateFlow<MemberDetail?> = _memberDetail.asStateFlow()
+
+    private val _isLoadingMemberDetail = MutableStateFlow(false)
+    val isLoadingMemberDetail: StateFlow<Boolean> = _isLoadingMemberDetail.asStateFlow()
+
+    private val _memberDetailError = MutableStateFlow<String?>(null)
+    val memberDetailError: StateFlow<String?> = _memberDetailError.asStateFlow()
+
     fun fetchMemberDetail(memberId: String) {
-        launchBusy {
+        viewModelScope.launch {
             _isLoadingMemberDetail.value = true
             _memberDetailError.value = null
-            val result = hrRepository.getMemberDetail(memberId)
+
+            // Direct generic API call to GET /api/members/{memberId}
+            val result = repo.request<MemberDetailResponse> {
+                get("/api/members/view-one/$memberId")
+            }
+
             result.fold(
-                onSuccess = { _memberDetail.value = it },
-                onFailure = { e -> _memberDetailError.value = e.message ?: "Failed to fetch employee detail" }
+                onSuccess = { response ->
+                    _memberDetail.value = response.data ?: response.member
+                },
+                onFailure = { error ->
+                    // Fallback to hrRepository if available
+                    val fallback = hrRepository.getMemberDetail(memberId)
+                    fallback.fold(
+                        onSuccess = { detail -> _memberDetail.value = detail },
+                        onFailure = { _memberDetailError.value = error.message ?: "Failed to fetch employee detail" }
+                    )
+                }
             )
             _isLoadingMemberDetail.value = false
         }
@@ -328,7 +355,12 @@ class HrViewModel @Inject constructor(
 
     fun clearMemberDetail() {
         _memberDetail.value = null
+        _memberDetailError.value = null
     }
+
+//    fun clearMemberDetail() {
+//        _memberDetail.value = null
+//    }
 
     // ═══════════════════════════════════════════════
     // ── Create / Update Member ──

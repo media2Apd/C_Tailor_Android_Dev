@@ -227,7 +227,7 @@ private fun CustomerCardItem(
         topBadgeTextColor = badgeColor,
         topBadgeBgColor = badgeColor.copy(alpha = 0.14f),
         topBadgeInline = true,
-        title = customer.name.ifBlank { "Walk-in Customer" },
+        title = customer.name.ifBlank { "-" },
         footerFields = listOf(
             DataCardField(
                 icon = Icons.Default.Phone,

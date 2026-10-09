@@ -22,8 +22,11 @@ import com.cuso.tailor.model.finance.JournalEntryPagination
 import com.cuso.tailor.model.finance.LedgerItem
 import com.cuso.tailor.model.finance.TrialBalanceItem
 import com.cuso.tailor.model.sales.CustomerListResponseV2
+import com.cuso.tailor.model.sales.CustomerOrderItem
+import com.cuso.tailor.model.sales.CustomerOrdersResponse
 import com.cuso.tailor.model.sales.FinanceCustomerViewOneData
 import com.cuso.tailor.model.sales.PaginationInfo
+import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.FinanceRepository
 import com.cuso.tailor.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -86,7 +89,8 @@ sealed class DeleteJournalState {
 
 @HiltViewModel
 class FinanceViewModel @Inject constructor(
-    private val financeRepository: FinanceRepository
+    private val financeRepository: FinanceRepository,
+    private val repo: ApiRepository
 ) : ViewModel() {
 
     private fun extractErrorMessage(throwable: Throwable?, fallback: String): String {
@@ -318,6 +322,46 @@ class FinanceViewModel @Inject constructor(
         fetchInvoices(page = 1, search = activeInvoiceSearch, status = activeInvoiceStatus)
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // ── CUSTOMER ORDERS & METRICS (API STATE) ──
+    // ─────────────────────────────────────────────────────────────
+    private val _customerOrders = MutableStateFlow<List<CustomerOrderItem>>(emptyList())
+    val customerOrders: StateFlow<List<CustomerOrderItem>> = _customerOrders.asStateFlow()
+
+    private val _isLoadingCustomerOrders = MutableStateFlow(false)
+    val isLoadingCustomerOrders: StateFlow<Boolean> = _isLoadingCustomerOrders.asStateFlow()
+
+    private val _customerOrdersError = MutableStateFlow<String?>(null)
+    val customerOrdersError: StateFlow<String?> = _customerOrdersError.asStateFlow()
+
+    fun fetchCustomerOrders(customerId: String) {
+        if (customerId.isBlank()) return
+
+        launchBusy {
+            _isLoadingCustomerOrders.value = true
+            _customerOrdersError.value = null
+
+            val result = repo.request<CustomerOrdersResponse> {
+                get("/api/finance/customers/view-transactions/$customerId")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _customerOrders.value = res.data?.orders.orEmpty()
+                },
+                onFailure = { error ->
+                    _customerOrders.value = emptyList()
+                    _customerOrdersError.value = error.message ?: "Failed to load orders"
+                }
+            )
+            _isLoadingCustomerOrders.value = false
+        }
+    }
+
+    fun clearCustomerOrders() {
+        _customerOrders.value = emptyList()
+        _customerOrdersError.value = null
+    }
     // ─────────────────────────────────────────────────────────────
     // ── 3. FINANCE CUSTOMERS: Pagination & State ──
     // ─────────────────────────────────────────────────────────────

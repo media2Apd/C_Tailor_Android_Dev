@@ -69,3 +69,9 @@ data class GarmentModel(
     @SerializedName("modelIcon")  val modelIcon:  String? = null,
     @SerializedName("_id")        val id:         String
 )
+
+data class SoftDeleteOrderResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("message") val message: String = "Order successfully soft-deleted.",
+    @SerializedName("data") val data: Any? = null
+)

@@ -7,8 +7,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.tailor.view.home.sales.sales_order.CreateOrderScreen
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.SalesViewModel
-import com.cuso.tailor.view.home.sales.sales_order.CreateOrderNextStep
-import com.cuso.tailor.view.home.sales.sales_order.OrderReviewData
+import com.cuso.tailor.model.sales.OrderReviewData
 
 /**
  * This wraps BOTH screens and holds the data that needs to flow
@@ -49,18 +48,18 @@ fun OrderFlowNavigator(
             )
         }
 
-        1 -> {
-            // reviewData CANNOT be null here because we only set step=1
-            // right after setting it. The '!!' is safe in this flow.
-            CreateOrderNextStep(
-                orderData = reviewData!!,
-                onBack = { step = 0 },              // go back to edit
-                onSaveOrder = { _, savedOrderId ->
-                    // Forward the saved order id to the caller so it can
-                    // navigate to the Order Overview screen for this order.
-                    onFinish(savedOrderId)
-                }
-            )
-        }
+//        1 -> {
+//            // reviewData CANNOT be null here because we only set step=1
+//            // right after setting it. The '!!' is safe in this flow.
+//            CreateOrderNextStep(
+//                orderData = reviewData!!,
+//                onBack = { step = 0 },              // go back to edit
+//                onSaveOrder = { _, savedOrderId ->
+//                    // Forward the saved order id to the caller so it can
+//                    // navigate to the Order Overview screen for this order.
+//                    onFinish(savedOrderId)
+//                }
+//            )
+//        }
     }
 }

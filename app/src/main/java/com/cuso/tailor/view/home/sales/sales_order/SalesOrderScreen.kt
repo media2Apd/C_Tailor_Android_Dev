@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,23 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.view.composable.AppErrorState
-import com.cuso.tailor.view.composable.CirculerProgressIndicatorSmall
-import com.cuso.tailor.view.composable.DataCard
-import com.cuso.tailor.view.composable.DataCardField
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
-import com.cuso.tailor.view.composable.ErrorMapper
-import com.cuso.tailor.view.composable.FabConfig
-import com.cuso.tailor.view.composable.FabScaffold
-import com.cuso.tailor.view.composable.FilterDrawer
-import com.cuso.tailor.view.composable.FilterOption
-import com.cuso.tailor.view.composable.FilterSection
-import com.cuso.tailor.view.composable.ListSkeleton
-import com.cuso.tailor.view.composable.MenuAction
-import com.cuso.tailor.view.composable.SearchFilterBar
-import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.rememberFilterDrawerState
+import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.viewmodel.OrderActionState
 import com.cuso.tailor.viewmodel.OrderUiState
@@ -119,6 +104,9 @@ fun SalesOrderScreen(
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // ── DELETE DIALOG STATE ──
+    var orderToDeleteId by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(listState) {
         snapshotFlow {
             val info = listState.layoutInfo
@@ -153,7 +141,7 @@ fun SalesOrderScreen(
     LaunchedEffect(actionState) {
         when (val s = actionState) {
             is OrderActionState.Success -> {
-                successMessage = s.message.ifBlank { "Order created successfully" }
+                successMessage = s.message.ifBlank { "Order action successful" }
                 viewModel.resetActionState()
             }
             is OrderActionState.Error -> {
@@ -164,7 +152,6 @@ fun SalesOrderScreen(
         }
     }
 
-    // Active filter counter for the badge on the filter button
     val activeFilterCount by remember(filterSections) {
         derivedStateOf {
             filterSections.sumOf { section ->
@@ -176,7 +163,6 @@ fun SalesOrderScreen(
     val isLoading = orderState is OrderUiState.Loading
     val orders = (orderState as? OrderUiState.Success)?.orders ?: emptyList()
 
-    // Filter orders locally by selected Order Status, Priority, and Payment Status
     val filteredOrders by remember(orders, searchQuery, filterSections) {
         derivedStateOf {
             val selectedStatuses = filterSections.find { it.title == "Order Status" }
@@ -225,7 +211,7 @@ fun SalesOrderScreen(
             Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
                 // Top Bar
-                TitleBar(title ="All Orders", onClose = onBack)
+                TitleBar(title = "All Orders", onClose = onBack)
 
                 HorizontalDivider(color = dividerColor)
 
@@ -326,9 +312,13 @@ fun SalesOrderScreen(
                                                         asColumn = true
                                                     )
                                                 ),
+                                                // ── ACTIONS LIST: VIEW, EDIT, AND DELETE ──
                                                 actions = listOf(
-                                                    MenuAction("View", Icons.Default.Visibility) { onViewOrder(order.id) },
-                                                    MenuAction("Edit", Icons.Default.Edit) { onEditOrder(order.id) }
+                                                    MenuAction("View") { onViewOrder(order.id) },
+                                                    MenuAction("Edit") { onEditOrder(order.id) },
+                                                    MenuAction("Delete") {
+                                                        orderToDeleteId = order.id
+                                                    }
                                                 ),
                                                 onClick = { onViewOrder(order.id) }
                                             )
@@ -352,7 +342,7 @@ fun SalesOrderScreen(
                         }
                     }
 
-                    // FilterDrawer overlay rendered strictly below TitleBar
+                    // FilterDrawer
                     FilterDrawer(
                         state = filterDrawerState,
                         title = "Filter Orders",
@@ -367,18 +357,32 @@ fun SalesOrderScreen(
                 }
             }
 
-            // Dynamic Island Notifications
-            DynamicIslandSuccess(
-                modifier = Modifier.align(Alignment.TopCenter),
-                message = successMessage,
-                onDismiss = { successMessage = null }
-            )
+            // ── DELETE CONFIRMATION DIALOG (DeleteModel) ──
+            if (orderToDeleteId != null) {
+                DeleteModel(
+                    title = "Delete Order?",
+                    message = "Are you sure you want to delete this order? This will cancel and soft-delete the order.",
+                    onDismiss = { orderToDeleteId = null },
+                    onDelete = {
+                        val id = orderToDeleteId!!
+                        orderToDeleteId = null
+                        viewModel.deleteOrder(id)
+                    }
+                )
+            }
 
-            DynamicIslandError(
-                modifier = Modifier.align(Alignment.TopCenter),
-                message = errorMessage,
-                onDismiss = { errorMessage = null }
-            )
+//            // Dynamic Island Notifications
+//            DynamicIslandSuccess(
+//                modifier = Modifier.align(Alignment.TopCenter),
+//                message = successMessage,
+//                onDismiss = { successMessage = null }
+//            )
+//
+//            DynamicIslandError(
+//                modifier = Modifier.align(Alignment.TopCenter),
+//                message = errorMessage,
+//                onDismiss = { errorMessage = null }
+//            )
         }
     }
 }

@@ -1,15 +1,19 @@
-@file:Suppress("SameParameterValue", "SameParameterValue","unused","unusedVariable")
+@file:Suppress("SameParameterValue", "unused", "unusedVariable")
 
 package com.cuso.tailor.view.home.sales.payment_listing
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,95 +24,73 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.view.composable.DatePickerField
-import com.cuso.tailor.view.composable.SheetValue
-import com.cuso.tailor.view.composable.SmoothBottomSheet
-import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.blurScrim
-import com.cuso.tailor.view.composable.FormDropdown
-import com.cuso.tailor.view.composable.FormLabel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.view.composable.FormTextArea
-import com.cuso.tailor.view.composable.FormTextField
+import com.cuso.tailor.model.sales.*
+import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.view.composable.SheetValue
+import com.cuso.tailor.view.home.formatIndianNumber
+import com.cuso.tailor.viewmodel.SalesViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
-// ─────────────────────────────────────────────────────────────────────────
-// ADDITIONAL COLORS
-// Existing theme colors (Primary, TextPrimary, mutedText, BorderGray,
-// PanelBg, greentext/greenBg, redText/redBg, yellowText/yellowBg, whiteBg,
-// close_color, title_color, title_font, blackTitle) are reused as-is from
-// the theme file. Only the few tokens missing from the theme are added below.
-// ─────────────────────────────────────────────────────────────────────────
-
-private val LinkChipBg = Color(0xFFF0FDF4)
-private val UpiChipBg = Color(0xFFDBEAFE)
-private val UpiChipText = Color(0xFF1654E7)
-
-// ─────────────────────────────────────────────────────────────────────────
-// SAMPLE DATA MODELS (design-only placeholders)
-// ─────────────────────────────────────────────────────────────────────────
-private data class OrderLineItem(
-    val name: String,
-    val qty: Int,
-    val rate: Int,
-    val amount: Int
-)
-
-private data class PaymentHistoryEntry(
-    val date: String,
-    val method: String,
-    val refId: String,
-    val amount: Int
-)
-
-private val sampleLineItems = listOf(
-    OrderLineItem("Cotton Saree", 3, 1200, 3600),
-    OrderLineItem("Blouse Stitching", 3, 250, 750)
-)
-
-private val sampleHistory = listOf(
-    PaymentHistoryEntry("12/02/2026", "UPI", "UPI452190", 1000),
-    PaymentHistoryEntry("14/02/2026", "CASH", "CASH7712", 1000)
-)
-
-// ─────────────────────────────────────────────────────────────────────────
-// PAYMENT INFORMATION SCREEN
-// Scaffold's topBar reuses the shared TitleBar composable. The order
-// reference / phone / date row sits inside the scrollable content.
-// The inline Receive Payment card stays exactly as it was — its button
-// now ALSO opens the ReceivePaymentSheet (SmoothBottomSheet) shown at the
-// bottom of this file. Nothing existing was removed.
-// ─────────────────────────────────────────────────────────────────────────
 @Composable
 fun PaymentInformationScreen(
-    onClose: () -> Unit = {}
+    orderId: String,
+    onClose: () -> Unit = {},
+    viewModel: SalesViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
+    val context = LocalContext.current
 
-    val subtotal = sampleLineItems.sumOf { it.amount }
-    val tax = 0
-    val totalAmount = subtotal + tax
-    val amountPaid = 2000
-    val balanceDue = totalAmount - amountPaid
+    val detailData by viewModel.selectedBillingDetail.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingBillingDetail.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.billingDetailError.collectAsStateWithLifecycle()
 
-    // ── NEW — bottom sheet state for the Receive Payment sheet ──
+    val recordSuccess by viewModel.recordPaymentSuccess.collectAsStateWithLifecycle()
+    val recordError by viewModel.recordPaymentError.collectAsStateWithLifecycle()
+    val isRecordingPayment by viewModel.isRecordingPayment.collectAsStateWithLifecycle()
+
     var receiveSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var sheetBlur by remember { mutableStateOf(0.dp) }
 
+    LaunchedEffect(orderId) {
+        if (orderId.isNotBlank()) {
+            viewModel.fetchBillingPaymentDetail(orderId)
+        }
+    }
+
+    LaunchedEffect(recordSuccess) {
+        recordSuccess?.let { msg ->
+            DynamicIslandManager.showSuccess(msg)
+            viewModel.clearBillingAlerts()
+            receiveSheetState = SheetValue.Hidden
+        }
+    }
+
+    LaunchedEffect(recordError) {
+        recordError?.let { err ->
+            DynamicIslandManager.showError(err)
+            viewModel.clearBillingAlerts()
+        }
+    }
+
     Scaffold(
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-
-            ) {
-                TitleBar(title ="Payment Information", onClose = onClose)
+            Row(modifier = Modifier.fillMaxWidth()) {
+                TitleBar(title = "Payment Information", onClose = onClose)
             }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -119,72 +101,174 @@ fun PaymentInformationScreen(
                 .fillMaxSize()
                 .background(Color.Transparent)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .blurScrim(sheetBlur)
-                    .verticalScroll(rememberScrollState())
-                    .padding(vertical = 16.dp)
-            ) {
-                OrderReferenceRow(
-                    orderRef = "ORD014 / Meena Textiles",
-                    phone = "+91 98452 77654",
-                    orderDate = "12/02/2026",
-                    deliveryDate = "22/02/2026"
-                )
+            when {
+                isLoading && detailData == null -> {
+                    ListSkeleton()
+                }
 
-                Spacer(Modifier.height(16.dp))
+                errorMessage != null && detailData == null -> {
+                    AppErrorState(
+                        title = "Failed to load payment details",
+                        message = errorMessage ?: "Something went wrong",
+                        onRetry = { viewModel.fetchBillingPaymentDetail(orderId) }
+                    )
+                }
 
-                OrderSummaryCard(
-                    items = sampleLineItems,
-                    subtotal = subtotal,
-                    tax = tax,
-                    totalAmount = totalAmount,
-                    amountPaid = amountPaid,
-                    balanceDue = balanceDue
-                )
+                detailData != null -> {
+                    val detail = detailData!!
+                    val orderHeader = detail.orderHeader
+                    val customer = detail.customer
+                    val billing = detail.billingSummary
+                    val items = detail.items
+                    val history = detail.paymentHistory
 
-                Spacer(Modifier.height(20.dp))
+                    val subtotal = billing?.subtotal ?: 0.0
+                    val tax = billing?.totalTax ?: 0.0
+                    val totalAmount = billing?.grandTotal ?: 0.0
+                    val amountPaid = billing?.paidAmount ?: 0.0
+                    val balanceDue = billing?.balanceDue ?: 0.0
 
-                SendPaymentLinkCard(
-                    balanceDue = balanceDue,
-                    lastSentLabel = "Today • 10:42 AM"
-                )
+                    val orderRefText = "${orderHeader?.orderCode ?: "ORD"} / ${customer?.name ?: "Customer"}"
+                    val phoneText = customer?.phone?.takeIf { it.isNotBlank() } ?: "N/A"
+                    val orderDateText = formatDisplayDate(orderHeader?.orderDate)
+                    val deliveryDateText = formatDisplayDate(orderHeader?.dueDate)
 
-                Spacer(Modifier.height(20.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                            .blurScrim(sheetBlur)
+                            .verticalScroll(rememberScrollState())
+                            .padding(vertical = 14.dp)
+                    ) {
+                        // 1. Order Reference Row
+                        OrderReferenceRow(
+                            orderRef = orderRefText,
+                            phone = phoneText,
+                            orderDate = orderDateText,
+                            deliveryDate = deliveryDateText
+                        )
 
-                // ── Existing inline card — untouched. Its button now also ──
-                // ── opens the ReceivePaymentSheet below.                  ──
-                ReceivePaymentCard(
-                    totalDue = balanceDue,
-                    onReceivePaymentClick = { receiveSheetState = SheetValue.Collapsed }
-                )
+                        Spacer(Modifier.height(14.dp))
 
-                Spacer(Modifier.height(24.dp))
+                        // 2. Order Summary Card
+                        OrderSummaryCard(
+                            items = items,
+                            subtotal = subtotal,
+                            tax = tax,
+                            deliveryCharge = billing?.deliveryCharge ?: 0.0,
+                            discount = billing?.totalDiscount ?: 0.0,
+                            totalAmount = totalAmount,
+                            amountPaid = amountPaid,
+                            balanceDue = balanceDue
+                        )
 
-                PaymentHistoryList(history = sampleHistory)
+                        Spacer(Modifier.height(18.dp))
 
-                Spacer(Modifier.height(24.dp))
+
+                        // 4. Inline Receive Payment Card
+                        if (balanceDue <= 0.0) {
+                            OrderFullyPaidCard()
+                        } else {
+                            // 3. Send Payment Link Card
+                            SendPaymentLinkCard(
+                                balanceDue = balanceDue,
+                                orderCode = orderHeader?.orderCode ?: "",
+                                customerPhone = phoneText
+                            )
+
+                            Spacer(Modifier.height(18.dp))
+
+                            // 4. Inline Receive Payment Card
+                            ReceivePaymentCard(
+                                totalDue = balanceDue,
+                                onReceivePaymentClick = { receiveSheetState = SheetValue.Collapsed }
+                            )
+                        }
+
+                        Spacer(Modifier.height(20.dp))
+
+                        // 5. Payment History List
+                        PaymentHistoryList(history = history)
+
+                        Spacer(Modifier.height(30.dp))
+                    }
+
+                    // Bottom Sheet: Receive Payment
+                    ReceivePaymentSheet(
+                        orderRef = orderHeader?.orderCode ?: "",
+                        totalDue = balanceDue,
+                        sheetState = receiveSheetState,
+                        isSubmitting = isRecordingPayment,
+                        onStateChange = { receiveSheetState = it },
+                        onBlurScrimChange = { r, _ -> sheetBlur = r },
+                        onDismiss = { receiveSheetState = SheetValue.Hidden },
+                        onConfirm = { req ->
+                            // ViewModel call
+                            viewModel.recordOrderPayment(
+                                orderId = orderId,
+                                request = req
+                            )
+                        }
+                    )
+                }
             }
         }
-
-        // ── NEW — Receive Payment bottom sheet, matches the screenshot ──
-        ReceivePaymentSheet(
-            orderRef = "ORD-88291",
-            totalDue = balanceDue,
-            sheetState = receiveSheetState,
-            onStateChange = { receiveSheetState = it },
-            onBlurScrimChange = { r, _ -> sheetBlur = r },
-            onDismiss = { receiveSheetState = SheetValue.Hidden },
-            onConfirm = { receiveSheetState = SheetValue.Hidden }
-        )
     }
 }
+@Composable
+private fun OrderFullyPaidCard() {
+    val tokens = LocalAppTokens.current
 
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = tokens.screenPadding),
+        shape = RoundedCornerShape(12.dp),
+        color = activity_green_bg, // Theme-ல் உள்ள Light Green Bg
+        border = BorderStroke(1.dp, greentext.copy(alpha = 0.5f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 20.dp, horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Green Check Icon
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = "Paid",
+                tint = greentext,
+                modifier = Modifier.size(tokens.iconSize * 1.5f)
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            // Title: Order Fully Paid
+            Text(
+                text = "Order Fully Paid",
+                fontSize = tokens.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = activity_green,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(4.dp))
+
+            // Subtitle
+            Text(
+                text = "No pending balance due for this sales order.",
+                fontSize = tokens.caption,
+                fontWeight = FontWeight.Normal,
+                color = TextSecondary,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
 // ─────────────────────────────────────────────────────────────────────────
-// SHARED SECTION HEADER
-// Used by Order Summary, Send Payment Link, Receive Payment, Payment History
+// SECTION HEADER
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
 private fun SectionHeader(title: String) {
@@ -196,9 +280,10 @@ private fun SectionHeader(title: String) {
             .padding(horizontal = tokens.screenPadding, vertical = 10.dp)
     ) {
         Text(
-            title,
-            fontSize = tokens.bodyLarge,
-            color = TextPrimary
+            text = title,
+            fontSize = tokens.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = title_color
         )
     }
 }
@@ -217,28 +302,25 @@ private fun OrderReferenceRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding * 0.5f)
+            .padding(horizontal = tokens.screenPadding)
     ) {
         Text(
-            orderRef,
+            text = orderRef,
             fontSize = tokens.bodyMedium,
-            color = TitleColor
+            fontWeight = FontWeight.Medium,
+            color = title_color
         )
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(14.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             HeaderInfoField("Phone", phone, Modifier.weight(1f))
-
             VerticalDivider()
-
             HeaderInfoField("Order Date", orderDate, Modifier.weight(1f))
-
             VerticalDivider()
-
             HeaderInfoField("Delivery Date", deliveryDate, Modifier.weight(1f))
         }
     }
@@ -249,7 +331,7 @@ private fun VerticalDivider() {
     Box(
         modifier = Modifier
             .width(1.dp)
-            .height(40.dp)
+            .height(36.dp)
             .background(BorderGray)
     )
 }
@@ -257,82 +339,83 @@ private fun VerticalDivider() {
 @Composable
 private fun HeaderInfoField(label: String, value: String, modifier: Modifier = Modifier) {
     val tokens = LocalAppTokens.current
-    Column(
-        modifier = modifier.padding(horizontal = tokens.screenPadding * 0.5f)
-    ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start
-        ) {
-            Text(label, fontSize = tokens.caption, color = mutedText)
-        }
-        Spacer(Modifier.height(4.dp))
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start
-        ) {
-            Text(value, fontSize = tokens.bodySmall, color = TextPrimary)
-        }
+    Column(modifier = modifier.padding(horizontal = 6.dp)) {
+        Text(label, fontSize = tokens.caption, color = mutedText)
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = value,
+            fontSize = tokens.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = TextPrimary
+        )
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// ORDER SUMMARY CARD
+// ORDER SUMMARY CARD (API DATA)
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
 private fun OrderSummaryCard(
-    items: List<OrderLineItem>,
-    subtotal: Int,
-    tax: Int,
-    totalAmount: Int,
-    amountPaid: Int,
-    balanceDue: Int
+    items: List<BillingLineItemDto>,
+    subtotal: Double,
+    tax: Double,
+    deliveryCharge: Double,
+    discount: Double,
+    totalAmount: Double,
+    amountPaid: Double,
+    balanceDue: Double
 ) {
     val tokens = LocalAppTokens.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-    ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         SectionHeader("Order Summary")
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = tokens.screenPadding)
         ) {
-            items.forEachIndexed { _, item ->
+            items.forEach { item ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(item.name, fontSize = tokens.bodyMedium, color = TextPrimary)
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Qty: ${item.qty} | Rate: ₹${item.rate}",
-                            fontSize = tokens.bodySmall,
+                            text = item.itemName,
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "Qty: ${item.quantity} ${item.unit} | Rate: ₹${formatIndianNumber(item.unitPrice)}",
+                            fontSize = tokens.caption,
                             color = mutedText
                         )
                     }
                     Text(
-                        "₹${formatAmount(item.amount)}",
+                        text = "₹${formatIndianNumber(item.lineTotal)}",
                         fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Medium,
                         color = TextPrimary
                     )
                 }
-                HorizontalDivider(color = BorderGray, modifier = Modifier.padding(vertical = 4.dp))
+                HorizontalDivider(color = dividerColor, modifier = Modifier.padding(vertical = 3.dp))
             }
 
-            SummaryRow("Subtotal", "₹${formatAmount(subtotal)}")
-            SummaryRow("Tax (0%)", "₹${formatAmount(tax)}")
+            SummaryRow("Subtotal", "₹${formatIndianNumber(subtotal)}")
+            if (tax > 0.0) SummaryRow("Total Tax", "₹${formatIndianNumber(tax)}")
+            if (discount > 0.0) SummaryRow("Discount", "-₹${formatIndianNumber(discount)}")
+            if (deliveryCharge > 0.0) SummaryRow("Delivery Charge", "₹${formatIndianNumber(deliveryCharge)}")
 
-            HorizontalDivider(color = BorderGray, modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(color = dividerColor, modifier = Modifier.padding(vertical = 6.dp))
 
-            SummaryRow("Total Amount", "₹${formatAmount(totalAmount)}", emphasize = true)
-            SummaryRow("Amount Paid", "₹${formatAmount(amountPaid)}", valueColor = greentext)
+            SummaryRow("Total Amount", "₹${formatIndianNumber(totalAmount)}", valueColor = Primary)
+            SummaryRow("Amount Paid", "₹${formatIndianNumber(amountPaid)}", valueColor = greentext)
 
             Spacer(Modifier.height(10.dp))
 
@@ -340,14 +423,15 @@ private fun OrderSummaryCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(redBg, RoundedCornerShape(10.dp))
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Balance Due", fontSize = tokens.bodyMedium, color = redText)
+                Text("Balance Due", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = redText)
                 Text(
-                    "₹${formatAmount(balanceDue)}",
-                    fontSize = tokens.bodyLarge,
+                    text = "₹${formatIndianNumber(balanceDue)}",
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
                     color = redText
                 )
             }
@@ -359,27 +443,17 @@ private fun OrderSummaryCard(
 private fun SummaryRow(
     label: String,
     value: String,
-    valueColor: Color = TextPrimary,
-    emphasize: Boolean = false
+    valueColor: Color = TextPrimary
 ) {
     val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            label,
-            fontSize = tokens.bodySmall,
-            color = if (emphasize) TextPrimary else mutedText
-        )
-        Text(
-            value,
-            fontSize = tokens.bodySmall,
-            fontWeight = if (emphasize) FontWeight.Bold else FontWeight.Normal,
-            color = valueColor
-        )
+        Text(label, fontSize = tokens.bodySmall, color = mutedText)
+        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = valueColor)
     }
 }
 
@@ -388,14 +462,14 @@ private fun SummaryRow(
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
 private fun SendPaymentLinkCard(
-    balanceDue: Int,
-    lastSentLabel: String
+    balanceDue: Double,
+    orderCode: String,
+    customerPhone: String
 ) {
     val tokens = LocalAppTokens.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-    ) {
+    val context = LocalContext.current
+
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -407,7 +481,7 @@ private fun SendPaymentLinkCard(
                 Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .background(primary_light)
-                    .padding(10.dp)
+                    .padding(8.dp)
             ) {
                 Icon(
                     painterResource(R.drawable.ic_link_chain),
@@ -416,16 +490,17 @@ private fun SendPaymentLinkCard(
                     modifier = Modifier.size(tokens.iconSize)
                 )
             }
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(10.dp))
             Column {
                 Text(
-                    "Send Payment Link",
+                    text = "Send Payment Link",
                     fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
                     color = Primary
                 )
                 Text(
-                    "Share a secure UPI payment link with your customer",
-                    fontSize = tokens.bodySmall,
+                    text = "Share secure UPI link with your customer",
+                    fontSize = tokens.caption,
                     color = mutedText
                 )
             }
@@ -436,176 +511,70 @@ private fun SendPaymentLinkCard(
                 .fillMaxWidth()
                 .padding(horizontal = tokens.screenPadding)
         ) {
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(LinkChipBg, RoundedCornerShape(10.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .background(greenBg, RoundedCornerShape(10.dp))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Balance Due", fontSize = tokens.bodySmall, color = mutedText)
+                    Text("Balance Due", fontSize = tokens.caption, color = TextSecondary)
                     Text(
-                        "₹${formatAmount(balanceDue)}",
+                        text = "₹${formatIndianNumber(balanceDue)}",
                         fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Medium,
                         color = redText
                     )
                 }
-                Column(horizontalAlignment = Alignment.Start) {
-                    Text("Last Sent:", fontSize = tokens.bodySmall, color = greentext)
-                    Text(lastSentLabel, fontSize = tokens.bodySmall, color = greentext)
-                }
+                Text("Ready to Send", fontSize = tokens.caption, color = greentext)
             }
-
-            Spacer(Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Button(
-                    onClick = { },
-                    modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor =darkGreenBg)
-                ) {
-                    Icon(painter = painterResource(R.drawable.ic_whatsapp), contentDescription = null, tint = whiteBg, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("WhatsApp", color = whiteBg, fontSize = tokens.bodySmall)
-                }
-                Button(
-                    onClick = { },
-                    modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                ) {
-                    Icon(painter = painterResource(R.drawable.ic_mail), contentDescription = null, tint = whiteBg, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Send via Email", color = whiteBg, fontSize = tokens.bodySmall)
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            Text(
-                "or",
-                fontSize = tokens.caption,
-                color = mutedText,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
 
             Spacer(Modifier.height(10.dp))
 
             OutlinedButton(
-                onClick = { },
-                modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight),
+                onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Order Link", "https://nexus.pay/order/$orderCode"))
+                    Toast.makeText(context, "Payment link copied!", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(tokens.buttonHeight),
                 shape = RoundedCornerShape(10.dp),
                 border = BorderStroke(1.dp, Primary)
             ) {
                 Icon(Icons.Default.ContentCopy, contentDescription = null, tint = Primary, modifier = Modifier.size(15.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Copy Link", color = Primary, fontSize = tokens.bodySmall)
+                Text("Copy Payment Link", color = Primary, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium)
             }
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// RECEIVE PAYMENT — INLINE CARD (UNCHANGED from before — same fields,
-// same layout, same tokens. Only new bit: accepts onReceivePaymentClick
-// so its existing button can also trigger the new bottom sheet below.)
+// RECEIVE PAYMENT INLINE CARD
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
 private fun ReceivePaymentCard(
-    totalDue: Int,
+    totalDue: Double,
     onReceivePaymentClick: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    var amountText by remember { mutableStateOf("$totalDue.00") }
-    var paymentMode by remember { mutableStateOf("UPI") }
-    var paymentModeExpanded by remember { mutableStateOf(false) }
-    var referenceNo by remember { mutableStateOf("") }
-    var transactionDate by remember { mutableStateOf("") }
-    var notes by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         SectionHeader("Receive Payment")
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = tokens.screenPadding),
-            verticalArrangement = Arrangement.Center
+                .padding(horizontal = tokens.screenPadding)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    FormLabel("Amount Received (₹)")
-                    Spacer(Modifier.height(6.dp))
-                    FormTextField(
-                        value = amountText,
-                        onValueChange = { amountText = it }
-                    )
-                }
-                Column(Modifier.weight(1f)) {
-                    FormLabel("Payment Mode")
-                    FormDropdown(
-                        value = paymentMode,
-                        options = listOf("Cash", "UPI", "Card"),
-                        expanded = paymentModeExpanded,
-                        onExpandChange = { paymentModeExpanded = it },
-                        onOptionSelected = { paymentMode = it; paymentModeExpanded = false }
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(14.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    FormLabel("Reference No.")
-                    Spacer(Modifier.height(6.dp))
-
-                    FormTextField(
-                        value = referenceNo,
-                        onValueChange = { referenceNo = it },
-                        placeholder = "UPI875421",
-                    )
-                }
-                Column(Modifier.weight(1f)) {
-                    FormLabel("Transaction Date")
-                    Spacer(Modifier.height(6.dp))
-                    DatePickerField(
-                        value = transactionDate,
-                        onDateSelected = { transactionDate = it }
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(14.dp))
-
-            FormLabel("Notes")
-            Spacer(Modifier.height(6.dp))
-            FormTextArea(
-                value = notes,
-                onValueChange = { notes = it },
-                placeholder = "Final balance cleared"
-            )
-
-            Spacer(Modifier.height(18.dp))
-
             Button(
                 onClick = onReceivePaymentClick,
                 modifier = Modifier
@@ -615,9 +584,10 @@ private fun ReceivePaymentCard(
                 colors = ButtonDefaults.buttonColors(containerColor = Primary)
             ) {
                 Text(
-                    "Receive Payment",
+                    text = "Record Payment (₹${formatIndianNumber(totalDue)})",
                     color = whiteBg,
-                    fontSize = tokens.bodyMedium
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -625,63 +595,88 @@ private fun ReceivePaymentCard(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// PAYMENT HISTORY LIST
+// PAYMENT HISTORY LIST (API DATA)
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
-private fun PaymentHistoryList(history: List<PaymentHistoryEntry>) {
+private fun PaymentHistoryList(history: List<BillingHistoryItemDto>) {
     val tokens = LocalAppTokens.current
+
     Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            Modifier.fillMaxWidth()
-                .background(whiteBg)
-        ) {
-            SectionHeader("Payment History")
-        }
+        SectionHeader("Payment History (${history.size})")
 
         Spacer(Modifier.height(10.dp))
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            history.forEachIndexed { idx, entry ->
-                PaymentHistoryRow(entry)
-                if (idx != history.lastIndex) HorizontalDivider(color = BorderGray)
+        if (history.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(tokens.screenPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = "No payment records found", fontSize = tokens.bodySmall, color = mutedText)
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = tokens.screenPadding)
+            ) {
+                history.forEachIndexed { idx, entry ->
+                    PaymentHistoryRow(entry)
+                    if (idx != history.lastIndex) HorizontalDivider(color = dividerColor)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun PaymentHistoryRow(entry: PaymentHistoryEntry) {
+private fun PaymentHistoryRow(entry: BillingHistoryItemDto) {
     val tokens = LocalAppTokens.current
-    val (chipBg, chipText) = if (entry.method == "UPI") UpiChipBg to UpiChipText else yellowBg to yellowText
+
+    val (chipBg, chipText) = when (entry.paymentMode.lowercase()) {
+        "cash" -> greenBg to greentext
+        "upi" -> primary_light to Primary
+        else -> yellowBg to yellowText
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text(entry.date, fontSize = tokens.bodySmall, color = TextPrimary)
+            Text(
+                text = formatDisplayDate(entry.paymentDate),
+                fontSize = tokens.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = TextPrimary
+            )
             Spacer(Modifier.height(2.dp))
-            Text("ID: ${entry.refId}", fontSize = tokens.caption, color = mutedText)
+            Text(
+                text = entry.paymentNumber.ifBlank { entry.referenceNumber ?: "N/A" },
+                fontSize = tokens.caption,
+                color = mutedText
+            )
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .background(chipBg, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-            ) {
-                Text(entry.method, fontSize = tokens.label, color = chipText)
+            Surface(shape = RoundedCornerShape(8.dp), color = chipBg) {
+                Text(
+                    text = entry.paymentMode,
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Medium,
+                    color = chipText,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
             }
             Spacer(Modifier.width(10.dp))
             Text(
-                "₹${formatAmount(entry.amount)}",
+                text = "₹${formatIndianNumber(entry.amount)}",
                 fontSize = tokens.bodyMedium,
+                fontWeight = FontWeight.Medium,
                 color = TextPrimary
             )
         }
@@ -689,37 +684,40 @@ private fun PaymentHistoryRow(entry: PaymentHistoryEntry) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// NEW — RECEIVE PAYMENT BOTTOM SHEET (matches the screenshot)
-// Purely additive: SmoothBottomSheet with Total card, Payment Type toggle,
-// Amount field, Payment Method icon row, Reference/Completion Date, Notes,
-// Cancel / Confirm Payment. Nothing above this was removed to add it.
+// RECEIVE PAYMENT BOTTOM SHEET (WITH API SUBMIT)
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
 fun ReceivePaymentSheet(
     orderRef: String,
-    totalDue: Int,
+    totalDue: Double,
     sheetState: SheetValue,
+    isSubmitting: Boolean = false,
     onStateChange: (SheetValue) -> Unit,
     onBlurScrimChange: (radius: androidx.compose.ui.unit.Dp, scrim: Float) -> Unit = { _, _ -> },
     onDismiss: () -> Unit,
-    onConfirm: () -> Unit
+    onConfirm: (RecordOrderPaymentRequest) -> Unit
 ) {
     val tokens = LocalAppTokens.current
     var isFullAmount by remember { mutableStateOf(true) }
-    var amountText by remember { mutableStateOf("$totalDue.00") }
+    var amountText by remember { mutableStateOf(totalDue.toInt().toString()) }
     var selectedMethod by remember { mutableStateOf("Cash") }
     var referenceNo by remember { mutableStateOf("") }
-    var completionDate by remember { mutableStateOf("06-07-2026") }
+    val defaultDate = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
+    var completionDate by remember { mutableStateOf(defaultDate) }
     var notes by remember { mutableStateOf("") }
 
+    LaunchedEffect(totalDue) {
+        amountText = totalDue.toInt().toString()
+    }
+
     LaunchedEffect(isFullAmount) {
-        if (isFullAmount) amountText = "$totalDue.00"
+        if (isFullAmount) amountText = totalDue.toInt().toString()
     }
 
     SmoothBottomSheet(
         state = sheetState,
         onStateChange = onStateChange,
-        collapsedFraction = 0.55f,
+        collapsedFraction = 0.60f,
         topInset = 66.dp,
         onDismissRequest = onDismiss,
         onBlurScrimChange = onBlurScrimChange
@@ -730,43 +728,42 @@ fun ReceivePaymentSheet(
                 .padding(horizontal = tokens.screenPadding, vertical = 8.dp)
         ) {
             Text(
-                "RECEIVE PAYMENT",
+                text = "RECEIVE PAYMENT",
                 fontSize = tokens.bodyMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Medium,
                 color = TextPrimary,
-                letterSpacing = 0.5.sp,
                 modifier = Modifier.fillMaxWidth(),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(14.dp))
 
-            // Total card
+            // Total Card
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(light_blue, RoundedCornerShape(tokens.cardCornerRadius * 0.8f))
                     .border(1.dp, light_blue_border, RoundedCornerShape(tokens.cardCornerRadius * 0.8f))
-                    .padding(14.dp),
+                    .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Total", fontSize = tokens.bodyMedium, color = TitleColor)
+                    Text("Total Due", fontSize = tokens.bodySmall, color = title_color)
                     Text("For Order #$orderRef", fontSize = tokens.caption, color = mutedText)
                 }
                 Text(
-                    "₹${formatAmount(totalDue)}",
-                    fontSize = tokens.h2,
-                    fontWeight = FontWeight.Bold,
+                    text = "₹${formatIndianNumber(totalDue)}",
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
                     color = Primary
                 )
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(14.dp))
 
             FormLabel("Payment Type")
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 PaymentTypeToggle(
                     label = "Full Amount",
@@ -780,70 +777,71 @@ fun ReceivePaymentSheet(
                 ) { isFullAmount = false }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             FormLabel("Amount (₹)")
-            Spacer(Modifier.height(6.dp))
-            OutlinedTextField(
+            Spacer(Modifier.height(4.dp))
+//            OutlinedTextField(
+//                value = amountText,
+//                onValueChange = { if (!isFullAmount) amountText = it.filter { c -> c.isDigit() } },
+//                readOnly = isFullAmount,
+//                singleLine = true,
+//                textStyle = LocalTextStyle.current.copy(fontSize = tokens.bodySmall),
+//                modifier = Modifier.fillMaxWidth().height(tokens.fieldHeight),
+//                shape = RoundedCornerShape(8.dp),
+//                colors = OutlinedTextFieldDefaults.colors(
+//                    unfocusedBorderColor = BorderGray,
+//                    focusedBorderColor = Primary
+//                )
+//            )
+            FormTextField(
                 value = amountText,
-                onValueChange = { if (!isFullAmount) amountText = it },
-                readOnly = isFullAmount,
-                singleLine = true,
-                textStyle = androidx.compose.ui.text.TextStyle(fontSize = tokens.bodySmall),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = BorderGray,
-                    focusedBorderColor = Primary,
-                    disabledBorderColor = BorderGray,
-                    disabledTextColor = TextPrimary,
-                    disabledContainerColor = PanelBg
-                )
+                onValueChange = { if (!isFullAmount) amountText = it.filter { c -> c.isDigit() } },
+                enabled = isFullAmount
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             FormLabel("Payment Method")
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PaymentMethodOption(
-                    label = "Cash",
-                    icon = R.drawable.revenue,
-                    selected = selectedMethod == "Cash",
-                    modifier = Modifier.weight(1f)
-                ) { selectedMethod = "Cash" }
-                PaymentMethodOption(
-                    label = "UPI",
-                    icon = R.drawable.ic_qr,
-                    selected = selectedMethod == "UPI",
-                    modifier = Modifier.weight(1f)
-                ) { selectedMethod = "UPI" }
-                PaymentMethodOption(
-                    label = "Card",
-                    icon = R.drawable.ic_credit,
-                    selected = selectedMethod == "Card",
-                    modifier = Modifier.weight(1f)
-                ) { selectedMethod = "Card" }
+                listOf("Cash", "UPI", "Card").forEach { method ->
+                    val isSelected = selectedMethod == method
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(1.dp, if (isSelected) Primary else BorderGray, RoundedCornerShape(8.dp))
+                            .background(if (isSelected) primary_light else whiteBg)
+                            .clickable { selectedMethod = method }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = method,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isSelected) Primary else TextPrimary
+                        )
+                    }
+                }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Column(Modifier.weight(1f)) {
-                    FormLabel("Reference No. (Opt)")
-                    Spacer(Modifier.height(6.dp))
+                    FormLabel("Reference No.")
+                    Spacer(Modifier.height(4.dp))
                     FormTextField(
                         value = referenceNo,
                         onValueChange = { referenceNo = it },
-                        placeholder = "UPI875421",
+                        placeholder = "e.g. UPI875421"
                     )
                 }
                 Column(Modifier.weight(1f)) {
-                    FormLabel("Completion Date")
-                    Spacer(Modifier.height(6.dp))
+                    FormLabel("Transaction Date")
+                    Spacer(Modifier.height(4.dp))
                     DatePickerField(
                         value = completionDate,
                         onDateSelected = { completionDate = it }
@@ -851,47 +849,76 @@ fun ReceivePaymentSheet(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             FormLabel("Notes")
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
             FormTextArea(
                 value = notes,
                 onValueChange = { notes = it },
-                placeholder = "Add internal remarks about this transaction"
+                placeholder = "Remarks about this payment"
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(18.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f).height(tokens.buttonHeight),
                     shape = RoundedCornerShape(10.dp),
                     border = BorderStroke(1.dp, BorderGray)
                 ) {
-                    Text("Cancel", color = TextPrimary, fontSize = tokens.bodyMedium)
+                    Text("Cancel", color = TextPrimary, fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium)
                 }
                 Button(
-                    onClick = onConfirm,
+                    onClick = {
+                        val enteredAmount = amountText.toDoubleOrNull() ?: totalDue
+                        val defaultNotes = "Balance payment received for order $orderRef"
+                        val finalNotes = notes.trim().ifBlank { defaultNotes }
+                        val isoDate = toIsoUtcDate(completionDate)
+
+                        onConfirm(
+                            RecordOrderPaymentRequest(
+                                amount = enteredAmount,
+                                notes = finalNotes,
+                                paymentDate = isoDate,
+                                paymentMode = selectedMethod
+                            )
+                        )
+                    },
+                    enabled = !isSubmitting,
                     modifier = Modifier.weight(1f).height(tokens.buttonHeight),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Primary)
                 ) {
-                    Icon(painterResource(R.drawable.ic_tick), contentDescription = null, tint = whiteBg, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Confirm Payment", color = whiteBg, fontSize = tokens.bodySmall)
+                    Text(
+                        text = if (isSubmitting) "Saving..." else "Confirm Payment",
+                        color = whiteBg,
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(14.dp))
         }
     }
 }
-
+private fun toIsoUtcDate(rawDate: String): String {
+    return try {
+        val parser = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val date = parser.parse(rawDate.take(10)) ?: Date()
+        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'00:00:00.000'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        isoFormat.format(date)
+    } catch (_: Exception) {
+        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'00:00:00.000'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+        isoFormat.format(Date())
+    }
+}
 @Composable
 private fun PaymentTypeToggle(
     label: String,
@@ -902,63 +929,15 @@ private fun PaymentTypeToggle(
     val tokens = LocalAppTokens.current
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .border(
-                width = 1.dp,
-                color = if (selected) Primary else BorderGray,
-                shape = RoundedCornerShape(10.dp)
-            )
-            .background(if (selected) light_blue else whiteBg)
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) { onClick() }
-            .padding(vertical = 12.dp),
+            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, if (selected) Primary else BorderGray, RoundedCornerShape(8.dp))
+            .background(if (selected) primary_light else whiteBg)
+            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { onClick() }
+            .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
-            label,
-            fontSize = tokens.bodySmall,
-            color = if (selected) Primary else TextPrimary
-        )
-    }
-}
-
-@Composable
-private fun PaymentMethodOption(
-    label: String,
-    icon: Int,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val tokens = LocalAppTokens.current
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .border(
-                width = 1.dp ,
-                color = if (selected) Primary else BorderGray,
-                shape = RoundedCornerShape(10.dp)
-            )
-            .background(if (selected) light_blue else whiteBg)
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) { onClick() }
-            .padding(vertical = 14.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = null,
-            tint = if (selected) Primary else mutedText,
-            modifier = Modifier.size(tokens.iconSize)
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-            label,
+            text = label,
             fontSize = tokens.bodySmall,
             fontWeight = FontWeight.Medium,
             color = if (selected) Primary else TextPrimary
@@ -966,23 +945,13 @@ private fun PaymentMethodOption(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────────────────
-private fun formatAmount(value: Int): String {
-    val s = value.toString()
-    if (s.length <= 3) return s
-    val last3 = s.takeLast(3)
-    val rest = s.dropLast(3)
-    val grouped = rest.reversed().chunked(2).joinToString(",").reversed()
-    return "$grouped,$last3"
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// PREVIEW
-// ─────────────────────────────────────────────────────────────────────────
-@Preview(showBackground = true, heightDp = 900)
-@Composable
-private fun PaymentInformationScreenPreview() {
-    PaymentInformationScreen()
+private fun formatDisplayDate(raw: String?): String {
+    if (raw.isNullOrBlank()) return "—"
+    return try {
+        val parser = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val date = parser.parse(raw.take(10)) ?: return raw.take(10)
+        SimpleDateFormat("dd/MM/yyyy", Locale.US).format(date)
+    } catch (_: Exception) {
+        raw.take(10)
+    }
 }

@@ -202,8 +202,13 @@ class HrRepository @Inject constructor(
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = hrApi.getMemberViewOne(accessToken, csrfToken, memberId)
             if (response.isSuccessful && response.body()?.success == true) {
-                response.body()?.member?.let { Result.success(it) }
-                    ?: Result.failure(Exception("Empty member detail"))
+                val body = response.body()
+                val detail = body?.data ?: body?.member
+                if (detail != null) {
+                    Result.success(detail)
+                } else {
+                    Result.failure(Exception("Empty member detail"))
+                }
             } else {
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to fetch employee detail: ${response.code()}")

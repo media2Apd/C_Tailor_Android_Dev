@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Edit
@@ -63,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.AppDesignTokens
@@ -72,6 +74,7 @@ import com.cuso.tailor.model.sales.Country
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.greenBg
 import com.cuso.tailor.ui.theme.greentext
+import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
@@ -85,6 +88,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.UUID
 import java.util.regex.Pattern
+import com.cuso.tailor.ui.theme.*
 
 // Shared Design Tokens
 private val AccentColor = Primary
@@ -554,11 +558,7 @@ fun EmployeeOnboardingScreen(
         selectedDepartmentId = m.departmentId?._id
         department = departmentList.find { it._id == selectedDepartmentId }?.name ?: m.departmentId?.name.orEmpty()
 
-        val desigId = when (val d = m.designationId) {
-            is String -> d
-            is MemberDesignationRef -> d._id
-            else -> null
-        }
+        val desigId = m.designationId?._id
         selectedDesignationId = desigId
         designation = designationList.find { it.id == desigId }?.name.orEmpty()
 
@@ -2140,13 +2140,18 @@ fun EmployeeProfileViewScreen(
 ) {
     val tokens = LocalAppTokens.current
     val context = LocalContext.current
-    val memberDetail by hrViewModel.memberDetail.collectAsState()
-    val departmentUiState by departmentViewModel.uiState.collectAsState()
-    val designationUiState by designationViewModel.uiState.collectAsState()
+
+    val memberDetail by hrViewModel.memberDetail.collectAsStateWithLifecycle()
+    val isLoading by hrViewModel.isLoadingMemberDetail.collectAsStateWithLifecycle()
+    val errorMessage by hrViewModel.memberDetailError.collectAsStateWithLifecycle()
+
+    val departmentUiState by departmentViewModel.uiState.collectAsStateWithLifecycle()
+    val designationUiState by designationViewModel.uiState.collectAsStateWithLifecycle()
 
     val departmentList = (departmentUiState as? DepartmentUiState.Success)?.departments ?: emptyList()
     val designationList = (designationUiState as? DesignationUiState.Success)?.items ?: emptyList()
 
+    // Screen திறக்கும் போது API Request Trigger செய்தல்
     LaunchedEffect(memberId) {
         if (!memberId.isNullOrBlank()) {
             hrViewModel.fetchMemberDetail(memberId)
@@ -2155,720 +2160,561 @@ fun EmployeeProfileViewScreen(
         designationViewModel.loadDesignations()
     }
 
+    // Screen dismiss ஆகும் போது State reset செய்தல்
+    DisposableEffect(Unit) {
+        onDispose {
+            hrViewModel.clearMemberDetail()
+        }
+    }
+
     val m = memberDetail
-
-    val fullName = remember(m) {
-        listOfNotNull(m?.firstName?.takeIf { it.isNotBlank() }, m?.lastName?.takeIf { it.isNotBlank() })
-            .joinToString(" ")
-    }
-
-    // Dynamic resolution matching the API payload structure
-    val designationName = remember(m, designationList) {
-        val desigId = when (val d = m?.designationId) {
-            is String -> d
-            is MemberDesignationRef -> d._id
-            else -> null
-        }
-        val foundName = designationList.find { it.id == desigId }?.name
-        when {
-            !foundName.isNullOrBlank() -> foundName
-            m?.designationId is MemberDesignationRef -> m.designationId.name.orEmpty()
-            else -> ""
-        }
-    }
-
-    val departmentName = remember(m, departmentList) {
-        val fromList = departmentList.find { it._id == m?.departmentId?._id }?.name
-        when {
-            !fromList.isNullOrBlank() -> fromList
-            !m?.departmentId?.name.isNullOrBlank() -> m.departmentId.name
-            else -> ""
-        }
-    }
-
-    // 1. API data-vil irundhu valid URL ulla documents mattum filter seiyyum logic:
-    val validDocumentList = remember(memberDetail) {
-        val list = mutableListOf<Pair<String, String>>()
-        if (!memberDetail?.profilePicture.isNullOrBlank()) {
-            list.add("Profile_Picture.jpg" to memberDetail!!.profilePicture!!) // <-- 'list.add' use pannunga
-        }
-        list
-    }
-
-    val fullAddress = remember(m) {
-        val addr = m?.permanentAddress
-        if (addr != null) {
-            listOfNotNull(
-                addr.flatNo?.takeIf { it.isNotBlank() },
-                addr.street?.takeIf { it.isNotBlank() },
-                addr.areaZone?.takeIf { it.isNotBlank() },
-                addr.city?.takeIf { it.isNotBlank() },
-                addr.subdivisionName?.takeIf { it.isNotBlank() },
-                addr.countryName?.takeIf { it.isNotBlank() },
-                addr.pincode?.takeIf { it.isNotBlank() }
-            ).joinToString(", ")
-        } else ""
-    }
-
-    fun formatDisplayDate(dateStr: String?): String {
-        if (dateStr.isNullOrBlank()) return ""
-        return try {
-            val input = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-            val output = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-            output.format(input.parse(dateStr)!!)
-        } catch (_: Exception) {
-            try {
-                val input = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val output = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-                output.format(input.parse(dateStr)!!)
-            } catch (_: Exception) {
-                dateStr
-            }
-        }
-    }
-
-    fun formatYearOnly(dateStr: String?): String {
-        if (dateStr.isNullOrBlank()) return ""
-        return try {
-            val input = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-            val output = SimpleDateFormat("yyyy", Locale.getDefault())
-            output.format(input.parse(dateStr)!!)
-        } catch (_: Exception) {
-            try {
-                val input = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                val output = SimpleDateFormat("yyyy", Locale.getDefault())
-                output.format(input.parse(dateStr)!!)
-            } catch (_: Exception) {
-                dateStr.take(4)
-            }
-        }
-    }
-
-    fun maskAadhaar(number: String?): String {
-        if (number.isNullOrBlank()) return ""
-        val digits = number.filter { it.isDigit() }
-        return if (digits.length >= 4) {
-            "**** **** " + digits.takeLast(4)
-        } else {
-            digits
-        }
-    }
 
     Scaffold(
         containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0,0,0,0),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
+            Row(modifier = Modifier.fillMaxWidth()) {
                 TitleBar(title = "Employee Profile", onClose = onDismiss)
             }
         }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = tokens.screenPadding, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(tokens.screenPadding)
-        ) {
-            // Profile Main Card
-            Card(
-                shape = RoundedCornerShape(tokens.cardCornerRadius),
-                colors = CardDefaults.cardColors(containerColor = whiteBg),
-                modifier = Modifier.fillMaxWidth()
-            ) {
+        when {
+            // Loading State
+            isLoading && m == null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CirculerProgressIndicatorReuse()
+                }
+            }
+
+            // Error State
+            errorMessage != null && m == null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AppErrorState(
+                        title = "Failed to load employee profile",
+                        message = errorMessage ?: "Unknown error",
+                        onRetry = {
+                            if (!memberId.isNullOrBlank()) {
+                                hrViewModel.fetchMemberDetail(memberId)
+                            }
+                        }
+                    )
+                }
+            }
+
+            // Data Rendered State
+            m != null -> {
+                val fullName = listOfNotNull(
+                    m.firstName?.takeIf { it.isNotBlank() },
+                    m.lastName?.takeIf { it.isNotBlank() }
+                ).joinToString(" ").ifBlank { "Employee" }
+
+                // Designation Name (API Response object அல்லது master list-லிருந்து பெறுகிறது)
+                val designationName = remember(m, designationList) {
+                    when {
+                        !m.designationId?.name.isNullOrBlank() -> m.designationId.name.orEmpty()
+                        else -> designationList.find { it.id == m.designationId?._id }?.name.orEmpty()
+                    }
+                }
+
+                // Department Name
+                val departmentName = remember(m, departmentList) {
+                    when {
+                        !m.departmentId?.name.isNullOrBlank() -> m.departmentId.name.orEmpty()
+                        else -> departmentList.find { it._id == m.departmentId?._id }?.name.orEmpty()
+                    }
+                }
+
+                // Branch Name
+                val branchName = m.branchId?.name.orEmpty()
+
+                // Address Format
+                val fullAddress = remember(m) {
+                    val addr = m.permanentAddress
+                    if (addr != null) {
+                        listOfNotNull(
+                            addr.flatNo?.takeIf { it.isNotBlank() },
+                            addr.street?.takeIf { it.isNotBlank() },
+                            addr.areaZone?.takeIf { it.isNotBlank() },
+                            addr.city?.takeIf { it.isNotBlank() },
+                            (addr.subdivisionName?.takeIf { it.isNotBlank() } ?: addr.state?.takeIf { it.isNotBlank() }),
+                            (addr.countryName?.takeIf { it.isNotBlank() } ?: addr.country?.takeIf { it.isNotBlank() }),
+                            (addr.pincode?.takeIf { it.isNotBlank() } ?: addr.postalCode?.takeIf { it.isNotBlank() })
+                        ).joinToString(", ")
+                    } else ""
+                }
+
+                // Contact and Dates
+                val email = m.personalMail ?: m.email ?: m.userId?.email.orEmpty()
+                val phone = m.workMobile ?: m.personalMobile ?: m.userId?.mobile.orEmpty()
+                val empCode = m.employeeCode ?: m.memberId.orEmpty()
+                val joined = formatDisplayDate(m.doj ?: m.joinedAt)
+
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(tokens.screenPadding),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = tokens.screenPadding, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(tokens.screenPadding)
                 ) {
-                    // Profile Image with Active Dot
-                    Box(
-                        modifier = Modifier.size(80.dp),
-                        contentAlignment = Alignment.BottomEnd
+                    // Profile Header Card
+                    Card(
+                        shape = RoundedCornerShape(tokens.cardCornerRadius),
+                        colors = CardDefaults.cardColors(containerColor = whiteBg),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        if (!m?.profilePicture.isNullOrBlank()) {
-                            AsyncImage(
-                                model = m.profilePicture,
-                                contentDescription = fullName,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            val initials = remember(fullName) {
-                                fullName.split(" ").filter { it.isNotBlank() }
-                                    .mapNotNull { it.firstOrNull()?.uppercaseChar() }
-                                    .take(2).joinToString("")
-                                    .ifBlank { "?" }
-                            }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(tokens.screenPadding),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // Avatar Box
                             Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape)
-                                    .background(BorderColor),
-                                contentAlignment = Alignment.Center
+                                modifier = Modifier.size(80.dp),
+                                contentAlignment = Alignment.BottomEnd
+                            ) {
+                                if (!m.profilePicture.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = m.profilePicture,
+                                        contentDescription = fullName,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    val initials = fullName.split(" ")
+                                        .filter { it.isNotBlank() }
+                                        .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+                                        .take(2).joinToString("")
+                                        .ifBlank { "?" }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(CircleShape)
+                                            .background(BorderGray),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = initials,
+                                            fontSize = tokens.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = title_color
+                                        )
+                                    }
+                                }
+
+                                // Status Dot
+                                val status = m.status?.takeIf { it.isNotBlank() }
+                                if (status != null) {
+                                    val isCurrentlyActive = status.equals("active", ignoreCase = true)
+                                    Box(
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isCurrentlyActive) greentext else redText)
+                                            .border(2.dp, whiteBg, CircleShape)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Name and Status Pill
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = initials,
+                                    text = fullName,
                                     fontSize = tokens.bodyMedium,
                                     fontWeight = FontWeight.Medium,
-                                    color = TitleColor
+                                    color = title_color
                                 )
+
+                                val status = m.status?.takeIf { it.isNotBlank() }
+                                if (status != null) {
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = greenBg
+                                    ) {
+                                        Text(
+                                            text = status.replaceFirstChar { it.uppercase() },
+                                            color = greentext,
+                                            fontSize = tokens.caption,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
                             }
-                        }
 
-                        // Online / Status Badge Indicator (Render only when status is available)
-                        val status = m?.status?.takeIf { it.isNotBlank() }
-                        if (status != null) {
-                            val isCurrentlyActive = status.equals("active", ignoreCase = true)
-                            Box(
-                                modifier = Modifier
-                                    .size(14.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isCurrentlyActive) greentext else redText)
-                                    .border(2.dp, whiteBg, CircleShape)
-                            )
-                        }
-                    }
+                            // Subtitle (Designation & Department)
+                            val subTitle = listOfNotNull(
+                                designationName.takeIf { it.isNotBlank() },
+                                departmentName.takeIf { it.isNotBlank() }
+                            ).joinToString(" • ")
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Name and Status Chip
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (fullName.isNotBlank()) {
-                            Text(
-                                text = fullName,
-                                fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = TitleColor
-                            )
-                        }
-                        val status = m?.status?.takeIf { it.isNotBlank() }
-                        if (status != null) {
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = greenBg
-                            ) {
+                            if (subTitle.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = status.replaceFirstChar { it.uppercase() },
-                                    color = greentext,
-                                    fontSize = tokens.caption,
+                                    text = subTitle,
+                                    fontSize = tokens.bodySmall,
                                     fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 0.dp)
+                                    color = Primary
                                 )
+                            }
+
+                            // Meta Information
+                            val hasMetaInfo = email.isNotBlank() || phone.isNotBlank() || joined.isNotBlank()
+                            if (hasMetaInfo) {
+                                Spacer(modifier = Modifier.height(tokens.screenPadding * 0.75f))
+                                HorizontalDivider(color = BorderGray)
+                                Spacer(modifier = Modifier.height(tokens.screenPadding * 0.75f))
+
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    if (empCode.isNotBlank()) {
+                                        ProfileDetailRow(icon = Icons.Outlined.Badge, text = "Employee ID: $empCode", tokens = tokens)
+                                    }
+                                    if (email.isNotBlank()) {
+                                        ProfileDetailRow(icon = Icons.Outlined.Mail, text = email, tokens = tokens)
+                                    }
+                                    if (phone.isNotBlank()) {
+                                        ProfileDetailRow(icon = Icons.Outlined.Phone, text = phone, tokens = tokens)
+                                    }
+                                    if (joined.isNotBlank()) {
+                                        ProfileDetailRow(icon = Icons.Outlined.DateRange, text = "Joined: $joined", tokens = tokens)
+                                    }
+                                }
                             }
                         }
                     }
 
-                    // Designation & Department
-                    val subTitle = listOfNotNull(
-                        designationName.takeIf { it.isNotBlank() },
-                        departmentName.takeIf { it.isNotBlank() }
-                    ).joinToString(" • ")
+                    // Action Buttons (Edit and Generate Docs)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.5f)
+                    ) {
+                        OutlinedButton(
+                            onClick = onEdit,
+                            modifier = Modifier.weight(1f).height(tokens.buttonHeight),
+                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
+                            border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(Primary)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Edit,
+                                contentDescription = "Edit Employee",
+                                modifier = Modifier.size(tokens.iconSize)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Edit Employee",
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
 
-                    if (subTitle.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = subTitle,
-                            fontSize = tokens.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = AccentColor
-                        )
+                        OutlinedButton(
+                            onClick = {},
+                            modifier = Modifier.weight(1f).height(tokens.buttonHeight),
+                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
+                            border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(BorderGray)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = title_color)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Description,
+                                contentDescription = "Generate Docs",
+                                modifier = Modifier.size(tokens.iconSize),
+                                tint = mutedText
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Generate Docs",
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = mutedText
+                            )
+                        }
                     }
 
-                    val email = m?.personalMail ?: m?.email ?: m?.userId?.email.orEmpty()
-                    val phone = m?.workMobile ?: m?.personalMobile ?: m?.userId?.mobile.orEmpty()
-                    val loc = listOfNotNull(
-                        m?.permanentAddress?.city?.takeIf { it.isNotBlank() },
-                        m?.permanentAddress?.subdivisionName?.takeIf { it.isNotBlank() }
-                            ?: m?.permanentAddress?.countryName?.takeIf { it.isNotBlank() }
-                    ).joinToString(", ")
-                    val joined = formatDisplayDate(m?.doj)
-
-                    val hasMetaInfo = email.isNotBlank() || phone.isNotBlank() || loc.isNotBlank() || joined.isNotBlank()
-
-                    if (hasMetaInfo) {
-                        Spacer(modifier = Modifier.height(tokens.screenPadding * 0.75f))
-                        HorizontalDivider(color = BorderColor)
-                        Spacer(modifier = Modifier.height(tokens.screenPadding * 0.75f))
-
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
+                    // Personal Information Card
+                    val formattedDob = formatDisplayDate(m.dob)
+                    ProfileInfoCard(
+                        icon = R.drawable.person,
+                        title = "Personal Information",
+                        tokens = tokens
+                    ) {
+                        ProfileGrid(tokens = tokens) {
+                            if (!m.firstName.isNullOrBlank()) {
+                                ProfileGridItem(label = "First Name", value = m.firstName, tokens = tokens)
+                            }
+                            if (!m.lastName.isNullOrBlank()) {
+                                ProfileGridItem(label = "Last Name", value = m.lastName, tokens = tokens)
+                            }
                             if (email.isNotBlank()) {
-                                ProfileDetailRow(
-                                    icon = Icons.Outlined.Mail,
-                                    text = email,
-                                    tokens = tokens
-                                )
+                                ProfileGridItem(label = "Email Address", value = email, tokens = tokens)
                             }
                             if (phone.isNotBlank()) {
-                                ProfileDetailRow(
-                                    icon = Icons.Outlined.Phone,
-                                    text = phone,
-                                    tokens = tokens
-                                )
+                                ProfileGridItem(label = "Phone Number", value = phone, tokens = tokens)
                             }
-                            if (loc.isNotBlank()) {
-                                ProfileDetailRow(
-                                    icon = Icons.Outlined.LocationOn,
-                                    text = loc,
-                                    tokens = tokens
-                                )
+                            if (formattedDob.isNotBlank()) {
+                                ProfileGridItem(label = "Date of Birth", value = formattedDob, tokens = tokens)
                             }
-                            if (joined.isNotBlank()) {
-                                ProfileDetailRow(
-                                    icon = Icons.Outlined.DateRange,
-                                    text = "Joined: $joined",
-                                    tokens = tokens
-                                )
+                            if (!m.gender.isNullOrBlank()) {
+                                ProfileGridItem(label = "Gender", value = m.gender.replaceFirstChar { it.uppercase() }, tokens = tokens)
                             }
                         }
-                    }
-                }
-            }
 
-            // Quick Actions: Edit and Generate Docs Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.5f)
-            ) {
-                OutlinedButton(
-                    onClick = onEdit,
-                    modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(AccentColor)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentColor)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Edit,
-                        contentDescription = "Edit Employee",
-                        modifier = Modifier.size(tokens.iconSize)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Edit Employee",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-
-                OutlinedButton(
-                    onClick = {},
-                    modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
-                    border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(BorderColor)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TitleColor)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Description,
-                        contentDescription = "Generate Docs",
-                        modifier = Modifier.size(tokens.iconSize),
-                        tint = LabelColor
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Generate Docs",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = LabelColor
-                    )
-                }
-            }
-
-            // Personal Information Card
-            val email = m?.personalMail ?: m?.email ?: m?.userId?.email.orEmpty()
-            val phone = m?.workMobile ?: m?.personalMobile ?: m?.userId?.mobile.orEmpty()
-            val formattedDob = formatDisplayDate(m?.dob)
-            val hasPersonalInfo = !m?.firstName.isNullOrBlank() || !m?.lastName.isNullOrBlank() || email.isNotBlank() || phone.isNotBlank() || formattedDob.isNotBlank() || !m?.gender.isNullOrBlank() || fullAddress.isNotBlank()
-
-            if (hasPersonalInfo) {
-                ProfileInfoCard(
-                    icon = R.drawable.person,
-                    title = "Personal Information",
-                    tokens = tokens
-                ) {
-                    ProfileGrid(tokens = tokens) {
-                        if (!m?.firstName.isNullOrBlank()) {
-                            ProfileGridItem(label = "First Name", value = m.firstName, tokens = tokens)
-                        }
-                        if (!m?.lastName.isNullOrBlank()) {
-                            ProfileGridItem(label = "Last Name", value = m.lastName, tokens = tokens)
-                        }
-                        if (email.isNotBlank()) {
-                            ProfileGridItem(label = "Email Address", value = email, tokens = tokens)
-                        }
-                        if (phone.isNotBlank()) {
-                            ProfileGridItem(label = "Phone Number", value = phone, tokens = tokens)
-                        }
-                        if (formattedDob.isNotBlank()) {
-                            ProfileGridItem(label = "Date of Birth", value = formattedDob, tokens = tokens)
-                        }
-                        if (!m?.gender.isNullOrBlank()) {
-                            ProfileGridItem(label = "Gender", value = m.gender.replaceFirstChar { it.uppercase() }, tokens = tokens)
-                        }
-                    }
-
-                    if (fullAddress.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "Residential Address",
-                            fontSize = tokens.caption,
-                            fontWeight = FontWeight.Medium,
-                            color = LabelColor
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = fullAddress,
-                            fontSize = tokens.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = TitleColor
-                        )
-                    }
-                }
-            }
-
-            // Job Details Card
-            val employmentType = m?.employmentType?.takeIf { it.isNotBlank() }
-            val workLocation = m?.workingDistrict?.takeIf { it.isNotBlank() }
-            val hasJobDetails = departmentName.isNotBlank() || designationName.isNotBlank() || employmentType != null || workLocation != null
-
-            if (hasJobDetails) {
-                ProfileInfoCard(
-                    icon = R.drawable.ic_breifcase,
-                    title = "Job Details",
-                    tokens = tokens
-                ) {
-                    ProfileGrid(tokens = tokens) {
-                        if (departmentName.isNotBlank()) {
-                            ProfileGridItem(label = "Department", value = departmentName, tokens = tokens)
-                        }
-                        if (designationName.isNotBlank()) {
-                            ProfileGridItem(label = "Designation", value = designationName, tokens = tokens)
-                        }
-                        if (employmentType != null) {
-                            ProfileGridItem(
-                                label = "Employment Type",
-                                value = employmentType.replace("-", " ").split(" ")
-                                    .joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } },
-                                tokens = tokens
+                        if (fullAddress.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "Residential Address",
+                                fontSize = tokens.caption,
+                                fontWeight = FontWeight.Medium,
+                                color = mutedText
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = fullAddress,
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = title_color
                             )
                         }
-                        if (workLocation != null) {
-                            ProfileGridItem(label = "Work Location", value = workLocation, tokens = tokens)
+                    }
+
+                    // Job Details Card
+                    val employmentType = m.employmentType?.takeIf { it.isNotBlank() }
+                    val roleName = m.role?.takeIf { it.isNotBlank() } ?: m.customRoleId?.name
+
+                    ProfileInfoCard(
+                        icon = R.drawable.ic_breifcase,
+                        title = "Job Details",
+                        tokens = tokens
+                    ) {
+                        ProfileGrid(tokens = tokens) {
+                            if (branchName.isNotBlank()) {
+                                ProfileGridItem(label = "Branch", value = branchName, tokens = tokens)
+                            }
+                            if (departmentName.isNotBlank()) {
+                                ProfileGridItem(label = "Department", value = departmentName, tokens = tokens)
+                            }
+                            if (designationName.isNotBlank()) {
+                                ProfileGridItem(label = "Designation", value = designationName, tokens = tokens)
+                            }
+                            if (!roleName.isNullOrBlank()) {
+                                ProfileGridItem(label = "Role", value = roleName.replaceFirstChar { it.uppercase() }, tokens = tokens)
+                            }
+                            if (employmentType != null) {
+                                ProfileGridItem(
+                                    label = "Employment Type",
+                                    value = employmentType.replace("-", " ").split(" ")
+                                        .joinToString(" ") { it.replaceFirstChar { char -> char.uppercase() } },
+                                    tokens = tokens
+                                )
+                            }
                         }
                     }
-                }
-            }
 
-            // Work Experience Card
-            if (!m?.workExperience.isNullOrEmpty()) {
-                ProfileInfoCard(
-                    icon = R.drawable.ic_breifcase,
-                    title = "Work Experience",
-                    tokens = tokens
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.6f)) {
-                        m.workExperience.forEach { exp ->
-                            Card(
-                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.75f),
-                                colors = CardDefaults.cardColors(containerColor = whiteBg),
-                                border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(BorderColor)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(tokens.screenPadding * 0.75f)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.Top
+                    // Work Experience Card
+                    if (m.workExperience.isNotEmpty()) {
+                        ProfileInfoCard(
+                            icon = R.drawable.ic_breifcase,
+                            title = "Work Experience",
+                            tokens = tokens
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.6f)) {
+                                m.workExperience.forEach { exp ->
+                                    Card(
+                                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.75f),
+                                        colors = CardDefaults.cardColors(containerColor = whiteBg),
+                                        border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(BorderGray)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(tokens.screenPadding * 0.75f)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.Top
+                                            ) {
+                                                Row(
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(36.dp)
+                                                            .clip(RoundedCornerShape(8.dp))
+                                                            .background(Primary.copy(alpha = 0.08f)),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Outlined.LocationCity,
+                                                            contentDescription = null,
+                                                            tint = Primary,
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                    }
+                                                    Column {
+                                                        if (!exp.companyName.isNullOrBlank()) {
+                                                            Text(
+                                                                text = exp.companyName,
+                                                                fontSize = tokens.bodySmall,
+                                                                fontWeight = FontWeight.Medium,
+                                                                color = title_color
+                                                            )
+                                                        }
+                                                        if (!exp.jobTitle.isNullOrBlank()) {
+                                                            Text(
+                                                                text = exp.jobTitle,
+                                                                fontSize = tokens.caption,
+                                                                color = mutedText
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                val startYear = formatYearOnly(exp.fromDate)
+                                                val endYear = if (exp.isRelevant) "Present" else formatYearOnly(exp.toDate)
+                                                val duration = listOfNotNull(startYear.takeIf { it.isNotBlank() }, endYear.takeIf { it.isNotBlank() }).joinToString(" — ")
+                                                if (duration.isNotBlank()) {
+                                                    Text(
+                                                        text = duration,
+                                                        fontSize = tokens.caption,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = Primary
+                                                    )
+                                                }
+                                            }
+
+                                            if (!exp.jobDescription.isNullOrBlank()) {
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                                Text(
+                                                    text = exp.jobDescription,
+                                                    fontSize = tokens.caption,
+                                                    color = mutedText,
+                                                    lineHeight = tokens.caption * 1.35f
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Education Details Card
+                    if (m.education.isNotEmpty()) {
+                        ProfileInfoCard(
+                            icon = R.drawable.ic_education,
+                            title = "Education Details",
+                            tokens = tokens
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.6f)) {
+                                m.education.forEach { edu ->
+                                    Card(
+                                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.75f),
+                                        colors = CardDefaults.cardColors(containerColor = whiteBg),
+                                        border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(BorderGray)),
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Row(
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(tokens.screenPadding * 0.75f),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(36.dp)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .background(AccentColor.copy(alpha = 0.08f)),
-                                                contentAlignment = Alignment.Center
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.weight(1f)
                                             ) {
-                                                Icon(
-                                                    imageVector = Icons.Outlined.LocationCity,
-                                                    contentDescription = null,
-                                                    tint = AccentColor,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(36.dp)
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(Primary.copy(alpha = 0.08f)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.School,
+                                                        contentDescription = null,
+                                                        tint = Primary,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                                Column {
+                                                    val degreeLine = listOfNotNull(edu.degree?.takeIf { it.isNotBlank() }, edu.specialization?.takeIf { it.isNotBlank() }).joinToString(" in ")
+                                                    if (degreeLine.isNotBlank()) {
+                                                        Text(
+                                                            text = degreeLine,
+                                                            fontSize = tokens.bodySmall,
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = title_color
+                                                        )
+                                                    }
+
+                                                    val startYear = formatYearOnly(edu.startDate)
+                                                    val endYear = formatYearOnly(edu.completionDate)
+                                                    val yearSpan = listOfNotNull(startYear.takeIf { it.isNotBlank() }, endYear.takeIf { it.isNotBlank() }).joinToString(" — ")
+                                                    val subLine = listOfNotNull(edu.instituteName?.takeIf { it.isNotBlank() }, yearSpan.takeIf { it.isNotBlank() }).joinToString(" • ")
+
+                                                    if (subLine.isNotBlank()) {
+                                                        Text(
+                                                            text = subLine,
+                                                            fontSize = tokens.caption,
+                                                            color = mutedText
+                                                        )
+                                                    }
+                                                }
                                             }
-                                            Column {
-                                                if (!exp.companyName.isNullOrBlank()) {
+
+                                            if (edu.cgpa != null) {
+                                                Column(horizontalAlignment = Alignment.End) {
                                                     Text(
-                                                        text = exp.companyName,
+                                                        text = "Grade",
+                                                        fontSize = tokens.caption,
+                                                        color = mutedText
+                                                    )
+                                                    Text(
+                                                        text = "${edu.cgpa} GPA",
                                                         fontSize = tokens.bodySmall,
                                                         fontWeight = FontWeight.Medium,
-                                                        color = TitleColor
-                                                    )
-                                                }
-                                                if (!exp.jobTitle.isNullOrBlank()) {
-                                                    Text(
-                                                        text = exp.jobTitle,
-                                                        fontSize = tokens.caption,
-                                                        color = LabelColor
+                                                        color = Primary
                                                     )
                                                 }
                                             }
                                         }
-
-                                        val startYear = formatYearOnly(exp.fromDate)
-                                        val endYear = if (exp.isRelevant) "Present" else formatYearOnly(exp.toDate)
-                                        val duration = listOfNotNull(startYear.takeIf { it.isNotBlank() }, endYear.takeIf { it.isNotBlank() }).joinToString(" — ")
-                                        if (duration.isNotBlank()) {
-                                            Text(
-                                                text = duration,
-                                                fontSize = tokens.caption,
-                                                fontWeight = FontWeight.Medium,
-                                                color = AccentColor
-                                            )
-                                        }
-                                    }
-
-                                    if (!exp.jobDescription.isNullOrBlank()) {
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = exp.jobDescription,
-                                            fontSize = tokens.caption,
-                                            color = LabelColor,
-                                            lineHeight = tokens.caption * 1.35f
-                                        )
                                     }
                                 }
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(tokens.screenPadding))
                 }
             }
-
-            // Education Details Card
-            if (!m?.education.isNullOrEmpty()) {
-                ProfileInfoCard(
-                    icon = R.drawable.ic_education,
-                    title = "Education Details",
-                    tokens = tokens
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.6f)) {
-                        m.education.forEach { edu ->
-                            Card(
-                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.75f),
-                                colors = CardDefaults.cardColors(containerColor = whiteBg),
-                                border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(BorderColor)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(tokens.screenPadding * 0.75f),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(36.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                                .background(AccentColor.copy(alpha = 0.08f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.School,
-                                                contentDescription = null,
-                                                tint = AccentColor,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                        Column {
-                                            val degreeLine = listOfNotNull(edu.degree?.takeIf { it.isNotBlank() }, edu.specialization?.takeIf { it.isNotBlank() }).joinToString(" in ")
-                                            if (degreeLine.isNotBlank()) {
-                                                Text(
-                                                    text = degreeLine,
-                                                    fontSize = tokens.bodySmall,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = TitleColor
-                                                )
-                                            }
-
-                                            val startYear = formatYearOnly(edu.startDate)
-                                            val endYear = formatYearOnly(edu.completionDate)
-                                            val yearSpan = listOfNotNull(startYear.takeIf { it.isNotBlank() }, endYear.takeIf { it.isNotBlank() }).joinToString(" — ")
-                                            val subLine = listOfNotNull(edu.instituteName?.takeIf { it.isNotBlank() }, yearSpan.takeIf { it.isNotBlank() }).joinToString(" • ")
-
-                                            if (subLine.isNotBlank()) {
-                                                Text(
-                                                    text = subLine,
-                                                    fontSize = tokens.caption,
-                                                    color = LabelColor
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    if (edu.cgpa != null) {
-                                        Column(horizontalAlignment = Alignment.End) {
-                                            Text(
-                                                text = "Grade",
-                                                fontSize = tokens.caption,
-                                                color = LabelColor
-                                            )
-                                            Text(
-                                                text = "${edu.cgpa} GPA",
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = AccentColor
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Identity Details Card
-            val maskedAadhaar = maskAadhaar(m?.aadhaarNo)
-            val nationality = m?.permanentAddress?.countryName?.takeIf { it.isNotBlank() }
-            val hasIdentityDetails = !m?.panNo.isNullOrBlank() || maskedAadhaar.isNotBlank() || !m?.passportNo.isNullOrBlank() || nationality != null || !m?.martialStatus.isNullOrBlank() || !m?.bloodGroup.isNullOrBlank()
-
-            if (hasIdentityDetails) {
-                ProfileInfoCard(
-                    icon = R.drawable.ic_credit,
-                    title = "Identity Details",
-                    tokens = tokens
-                ) {
-                    ProfileGrid(tokens = tokens) {
-                        if (!m?.panNo.isNullOrBlank()) {
-                            ProfileGridItem(label = "PAN Number", value = m.panNo, tokens = tokens)
-                        }
-                        if (maskedAadhaar.isNotBlank()) {
-                            ProfileGridItem(label = "Aadhaar Number", value = maskedAadhaar, tokens = tokens)
-                        }
-                        if (!m?.passportNo.isNullOrBlank()) {
-                            ProfileGridItem(label = "Passport Number", value = m.passportNo, tokens = tokens)
-                        }
-                        if (nationality != null) {
-                            ProfileGridItem(label = "Nationality", value = nationality, tokens = tokens)
-                        }
-                        if (!m?.martialStatus.isNullOrBlank()) {
-                            ProfileGridItem(label = "Marital Status", value = m.martialStatus.replaceFirstChar { it.uppercase() }, tokens = tokens)
-                        }
-                        if (!m?.bloodGroup.isNullOrBlank()) {
-                            ProfileGridItem(label = "Blood Group", value = m.bloodGroup, tokens = tokens)
-                        }
-                    }
-                }
-            }
-
-            // Employee Documents Card (Only render if at least one document exists)
-            val documentList = listOfNotNull(
-                m?.memberId?.takeIf { it.isNotBlank() }?.let { "Resume_${fullName.replace(" ", "_")}.pdf" },
-                "Offer_Letter.pdf".takeIf { !m?.doj.isNullOrBlank() },
-                "ID_Proof.pdf".takeIf { !m?.aadhaarNo.isNullOrBlank() || !m?.panNo.isNullOrBlank() }
-            )
-
-            // 2. Document link vantha mattum show aagura Card block:
-            // Employee Documents Card (Only render if at least one valid document link exists)
-            if (validDocumentList.isNotEmpty()) {
-                ProfileInfoCard(
-                    icon = R.drawable.ic_folder,
-                    title = "Employee Documents",
-                    tokens = tokens
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        validDocumentList.forEach { (docName, docUrl) ->
-                            Card(
-                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.75f),
-                                colors = CardDefaults.cardColors(containerColor = whiteBg),
-                                border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(BorderColor)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = tokens.screenPadding * 0.75f, vertical = 10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(32.dp)
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(Color(0xFFFEE2E2)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Description,
-                                                contentDescription = null,
-                                                tint = redText,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                        Text(
-                                            text = docName,
-                                            fontSize = tokens.bodySmall,
-                                            fontWeight = FontWeight.Medium,
-                                            color = TitleColor,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-
-                                    IconButton(
-                                        onClick = {
-                                            try {
-                                                val intent =
-                                                    Intent(Intent.ACTION_VIEW, docUrl.toUri())
-                                                context.startActivity(intent)
-                                            } catch (_: Exception) {}
-                                        },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Outlined.FileDownload,
-                                            contentDescription = "Download",
-                                            tint = LabelColor,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(tokens.screenPadding))
         }
     }
 }
@@ -2876,6 +2722,7 @@ fun EmployeeProfileViewScreen(
 // ─────────────────────────────────────────────────────────────
 // Reusable profile view components
 // ─────────────────────────────────────────────────────────────
+
 @Composable
 private fun ProfileDetailRow(
     icon: ImageVector,
@@ -2889,13 +2736,13 @@ private fun ProfileDetailRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = LabelColor,
+            tint = mutedText,
             modifier = Modifier.size(tokens.iconSize * 0.9f)
         )
         Text(
             text = text,
             fontSize = tokens.bodySmall,
-            color = LabelColor,
+            color = mutedText,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -2926,18 +2773,18 @@ private fun ProfileInfoCard(
                 Icon(
                     painter = painterResource(icon),
                     contentDescription = null,
-                    tint = AccentColor,
+                    tint = Primary,
                     modifier = Modifier.size(tokens.iconSize)
                 )
                 Text(
                     text = title,
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    color = TitleColor
+                    color = title_color
                 )
             }
             Spacer(modifier = Modifier.height(tokens.screenPadding * 0.75f))
-            HorizontalDivider(color = BorderColor)
+            HorizontalDivider(color = BorderGray)
             Spacer(modifier = Modifier.height(tokens.screenPadding * 0.75f))
             content()
         }
@@ -2949,9 +2796,7 @@ private fun ProfileGrid(
     tokens: AppDesignTokens,
     content: @Composable () -> Unit
 ) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         content()
     }
 }
@@ -2971,16 +2816,60 @@ private fun ProfileGridItem(
                 text = label,
                 fontSize = tokens.caption,
                 fontWeight = FontWeight.Medium,
-                color = LabelColor
+                color = mutedText
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = value,
                 fontSize = tokens.bodySmall,
                 fontWeight = FontWeight.Medium,
-                color = TitleColor
+                color = title_color
             )
         }
+    }
+}
+
+private fun formatDisplayDate(dateStr: String?): String {
+    if (dateStr.isNullOrBlank()) return ""
+    return try {
+        val input = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        val output = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+        output.format(input.parse(dateStr)!!)
+    } catch (_: Exception) {
+        try {
+            val input = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val output = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+            output.format(input.parse(dateStr)!!)
+        } catch (_: Exception) {
+            dateStr
+        }
+    }
+}
+
+private fun formatYearOnly(dateStr: String?): String {
+    if (dateStr.isNullOrBlank()) return ""
+    return try {
+        val input = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        val output = SimpleDateFormat("yyyy", Locale.getDefault())
+        output.format(input.parse(dateStr)!!)
+    } catch (_: Exception) {
+        try {
+            val input = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val output = SimpleDateFormat("yyyy", Locale.getDefault())
+            output.format(input.parse(dateStr)!!)
+        } catch (_: Exception) {
+            dateStr.take(4)
+        }
+    }
+}
+
+private fun maskAadhaar(number: String?): String {
+    if (number.isNullOrBlank()) return ""
+    val digits = number.filter { it.isDigit() }
+    return if (digits.length >= 4) {
+        "**** **** " + digits.takeLast(4)
+    } else {
+        digits
     }
 }
 

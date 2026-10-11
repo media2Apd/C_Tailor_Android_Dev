@@ -40,13 +40,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -60,18 +56,12 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -80,12 +70,10 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.cuso.tailor.R
-import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.adaptive_screen.getAdaptiveTokens
 import com.cuso.tailor.database.entities.SalesStatusEntity
 import com.cuso.tailor.model.inventory.LowStockItemDto
-import com.cuso.tailor.model.sales.DashboardStatDto
 import com.cuso.tailor.model.sales.OperationItem
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Organization
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Settings
@@ -96,18 +84,10 @@ import com.cuso.tailor.model.sales.CustomerItem
 import com.cuso.tailor.model.sales.StaffDto
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.Primary_background
-import com.cuso.tailor.ui.theme.TextSecondary
-import com.cuso.tailor.ui.theme.blackTitle
 import com.cuso.tailor.ui.theme.light_blue_border
-import com.cuso.tailor.ui.theme.modelBg
-import com.cuso.tailor.ui.theme.modelBorder
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.redText
-import com.cuso.tailor.ui.theme.statLogoBg
 import com.cuso.tailor.ui.theme.whiteBg
-import com.cuso.tailor.view.composable.AppErrorState
-import com.cuso.tailor.view.composable.CirculerProgressIndicatorReuse
-import com.cuso.tailor.view.composable.DashboardSkeleton
 import com.cuso.tailor.view.composable.ExitAppDialog
 import com.cuso.tailor.view.composable.FilterOption
 import com.cuso.tailor.view.composable.FilterSection
@@ -127,8 +107,6 @@ import com.cuso.tailor.view.home.sidebar.buildNavigationKey
 import com.cuso.tailor.viewmodel.Authenticate
 import com.cuso.tailor.viewmodel.CustomerDeleteState
 import com.cuso.tailor.viewmodel.CustomerViewModel
-import com.cuso.tailor.viewmodel.DashboardUiState
-import com.cuso.tailor.viewmodel.DashboardViewModel
 import com.cuso.tailor.viewmodel.HomeViewModel
 import com.cuso.tailor.viewmodel.HrViewModel
 import com.cuso.tailor.viewmodel.OrderOverviewState
@@ -140,7 +118,6 @@ import com.cuso.tailor.model.sales.MeasurementItem
 import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.viewmodel.InventoryViewModel
-import java.time.LocalTime
 
 val LeadPrimary = Primary
 val LeadPrimarySoft = light_blue_border
@@ -461,6 +438,22 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "finance_gst_settings",
             "finance_tax_rates",
             "finance_add_tax_group",
+            "finance_create_customer",
+            "finance_suppliers",
+            "finance_supplier_detail",
+            "finance_suppliers",
+            "finance_supplier_detail",
+            "finance_create_supplier",
+            // Inside HomeScreen.kt -> implementedRoutes:
+            "finance_purchase_orders",
+            "finance_purchase_receive",
+            "finance_bills_list",
+            "finance_payments_made",
+
+            // ── Inventory ──
+            "inventory_suppliers",
+            "inventory_supplier_detail",
+            "inventory_create_supplier",
 
             // ── Inventory Core & Structure ──
             "inventory_items",
@@ -1632,504 +1625,19 @@ fun HomeScreenContent(
     onNavigate: (String) -> Unit = {},
     onCustomerClick: (String) -> Unit = {}
 ) {
-    val designTokens = getAdaptiveTokens(widthSizeClass)
-    val baseDensity = LocalDensity.current
-    CompositionLocalProvider(
-        LocalDensity provides Density(density = baseDensity.density, fontScale = 1f)
-    ) {
-        HomeScreenContentBody(
-            navController = navController,
-            onNavigate = onNavigate,
-            onCustomerClick = onCustomerClick,
-            designTokens = designTokens
-        )
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-@Composable
-private fun HomeScreenContentBody(
-    navController: NavHostController,
-    onNavigate: (String) -> Unit,
-    onCustomerClick: (String) -> Unit,
-    designTokens: AppDesignTokens
-) {
-    val dashboardViewModel: DashboardViewModel = hiltViewModel()
-    val uiState by dashboardViewModel.uiState.collectAsStateWithLifecycle()
-
     val authViewModel: Authenticate = hiltViewModel()
     val userEntity by authViewModel.user.collectAsStateWithLifecycle()
     val adminName = userEntity?.firstName?.takeIf { it.isNotBlank() } ?: "Admin"
 
-    val quickModules = remember {
-        listOf(
-            QuickModule("Contacts", R.drawable.ic_contact),
-            QuickModule("Leads", R.drawable.ic_lead),
-            QuickModule("Deals", R.drawable.ic_speaker),
-            QuickModule("Tickets", R.drawable.ic_ticket),
-            QuickModule("Email", R.drawable.ic_mail),
-            QuickModule("Calendar", R.drawable.ic_calendar),
-            QuickModule("Orders", R.drawable.box),
-            QuickModule("Reports", R.drawable.ic_report),
-            QuickModule("Customer feedback", R.drawable.ic_document),
-            QuickModule("Quotation Screen", R.drawable.ic_file)
-        )
-    }
-
-    when (val state = uiState) {
-        is DashboardUiState.Loading -> {
-            DashboardSkeleton()
-        }
-        // ── Replace the old Error block with this: ──
-        is DashboardUiState.Error -> {
-            AppErrorState(
-                title = "Failed to load dashboard",
-                message = "Something went wrong. Please check your connection and try again.",
-                onRetry = { dashboardViewModel.loadDashboard() }
-            )
-        }
-        is DashboardUiState.Success -> {
-            val data = state.data
-            val stats = remember(data) { mapApiStatsToUi(data.stats) }
-            val customers = remember(data) { mapOperationsToCustomers(data.operations) }
-            val newLeadsCount = remember(data) {
-                data.leadChart.find { it.name.equals("New Enquiry", ignoreCase = true) }?.count ?: 0
-            }
-
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Transparent),
-                contentPadding = PaddingValues(
-                    horizontal = designTokens.screenPadding,
-                    vertical = designTokens.screenPadding
-                ),
-                verticalArrangement = Arrangement.spacedBy(designTokens.screenPadding * 1.25f)
-            ) {
-                item {
-                    GreetingCard(
-                        userName = adminName,
-                        newLeadsCount = newLeadsCount,
-                        onNavigate = onNavigate
-                    )
-                }
-                item { StatsGrid(stats, designTokens) }
-                item {
-                    QuickModulesSection(
-                        modules = quickModules,
-                        onNavigate = onNavigate
-                    )
-                }
-                item {
-                    RecentActivitySection(onNavigate = onNavigate)
-                }
-                if (customers.isNotEmpty()) {
-                    item {
-                        RecentCustomersSection(
-                            customers = customers,
-                            onCustomerClick = onCustomerClick
-                        )
-                    }
-                }
-                item { Spacer(Modifier.height(designTokens.screenPadding * 0.5f)) }
-            }
-        }
-        else -> {
-            CirculerProgressIndicatorReuse()
-        }
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.O)
-@Composable
-private fun GreetingCard(
-    userName: String,
-    newLeadsCount: Int,
-    onNavigate: (String) -> Unit
-) {
-    val tokens = LocalAppTokens.current
-    val greeting = remember {
-        val hour = LocalTime.now().hour
-        when (hour) {
-            in 5..11 -> "Good Morning"
-            in 12..16 -> "Good Afternoon"
-            else -> "Good Evening"
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(tokens.cardHeight)
-            .clip(RoundedCornerShape(tokens.cardCornerRadius * 1.6f))
-            .background(Color(0xFF2F27CE))
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) { onNavigate("sales_lead") }
-    ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-            contentDescription = null,
-            tint = Color(0xFFF8F7FF).copy(alpha = 0.25f),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .size(tokens.iconSize * 5f)
-                .offset(x = -(1).dp, y = 25.dp)
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxHeight()
-                .padding(tokens.screenPadding),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                "$greeting, $userName",
-                color = whiteBg,
-                fontSize = tokens.h1,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(tokens.screenPadding * 0.375f))
-            Text(
-                "You have $newLeadsCount new leads to review today.",
-                color = Color(0xFFF8F7FF).copy(alpha = 0.85f),
-                fontSize = tokens.bodyMedium,
-                fontWeight = FontWeight.Normal
-            )
-        }
-    }
-}
-
-@Composable
-private fun StatsGrid(stats: List<DashboardStat>, tokens: AppDesignTokens) {
-    Column(verticalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.75f)) {
-        stats.chunked(tokens.gridColumns).forEach { rowStats ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.75f)
-            ) {
-                rowStats.forEach { stat ->
-                    DashboardStatCard(
-                        stat = stat,
-                        tokens = tokens,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                if (rowStats.size < tokens.gridColumns) {
-                    repeat(tokens.gridColumns - rowStats.size) {
-                        Spacer(Modifier.weight(1f))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DashboardStatCard(stat: DashboardStat, tokens: AppDesignTokens, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .background(Color(0xFFF8F9FF), RoundedCornerShape(tokens.cardCornerRadius * 1.6f))
-            .border(1.dp, Color(0xFFE8EAF4), RoundedCornerShape(tokens.cardCornerRadius * 1.6f))
-            .padding(tokens.cardPadding * 0.7f)
-    ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Start
-        ) {
-            Image(
-                painter = painterResource(id = stat.icon),
-                contentDescription = null,
-                colorFilter = ColorFilter.tint(stat.iconTint),
-                modifier = Modifier.size(tokens.iconSize)
-            )
-            Spacer(Modifier.width(tokens.screenPadding * 0.3f))
-            Text(
-                stat.label,
-                fontSize = tokens.bodySmall,
-                color = statLogoBg,
-                fontWeight = FontWeight.Medium
-            )
-        }
-        Spacer(Modifier.height(tokens.screenPadding * 0.7f))
-        Text(
-            stat.value,
-            fontSize = tokens.h2,
-            color = if (stat.label == "Revenue" || stat.label == "Pending") Color(0xFF2F27CE) else Color(0xFF0B1C30),
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(Modifier.height(tokens.screenPadding * 0.25f))
-        when (stat.trendUp) {
-            true -> TrendRow(icon = Icons.Default.ArrowUpward, text = stat.trendText, color = Color(0xFF16A34A), tokens = tokens)
-            false -> TrendRow(icon = Icons.Default.ArrowDownward, text = stat.trendText, color = redText, tokens = tokens)
-            null -> Text(stat.trendText, fontSize = tokens.label, color = Color(0xFF9CA3AF))
-        }
-    }
-}
-
-@Composable
-private fun TrendRow(icon: ImageVector, text: String, color: Color, tokens: AppDesignTokens) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(tokens.iconSize * 0.65f))
-        Spacer(Modifier.width(2.dp))
-        Text(text, fontSize = tokens.caption, color = color, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun QuickModulesSection(
-    modules: List<QuickModule>,
-    onNavigate: (String) -> Unit
-) {
-    val tokens = LocalAppTokens.current
-    Column {
-        Text("Quick Modules", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-        Spacer(Modifier.height(tokens.screenPadding * 0.75f))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding)) {
-            items(modules) { module ->
-                Column(
-                    modifier = Modifier
-                        .width(tokens.buttonHeight * 1.45f)
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) {
-                            val route = when (module.label) {
-                                "Contacts" -> "sales_customers"
-                                "Leads" -> "sales_lead"
-                                "Deals" -> "sales_sales_orders"
-                                "Orders"->"sales_sales_orders"
-                                "Reports"->"sales_reports"
-                                "Customer feedback"->""
-                                "Quotation Screen"->""
-                                else -> null
-                            }
-                            route?.let { onNavigate(it) }
-                        },
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(tokens.buttonHeight * 1.27f)
-                            .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                            .background(Color(0xFFDCE9FF)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painterResource(module.icon),
-                            contentDescription = module.label,
-                            tint = Color(0xFF2F27CE),
-                            modifier = Modifier.size(tokens.iconSize * 1.3f)
-                        )
-                    }
-                    Spacer(Modifier.height(tokens.screenPadding * 0.375f))
-                    Text(
-                        module.label,
-                        fontSize = tokens.caption,
-                        color = blackTitle,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-        }
-    }
-}
-
-private fun statVisualsFor(title: String): Triple<Int, Color, Color> {
-    return when {
-        title.contains("Revenue", true) -> Triple(R.drawable.revenue, Color(0xFFEDE9FE), statLogoBg)
-        title.contains("Order", true) -> Triple(R.drawable.cart, Color(0xFFEDE9FE), statLogoBg)
-        title.contains("Measurement", true) -> Triple(R.drawable.customer, Color(0xFFEDE9FE), statLogoBg)
-        title.contains("Pending", true) || title.contains("Payment", true) -> Triple(R.drawable.pending, Color(0xFFEDE9FE), statLogoBg)
-        else -> Triple(R.drawable.cart, Color(0xFFEDE9FE), Color(0xFF7C3AED))
-    }
-}
-
-private fun shortStatLabel(title: String): String {
-    return when {
-        title.contains("Revenue", true) -> "Revenue"
-        title.contains("Order", true) -> "Orders"
-        title.contains("Measurement", true) -> "Customers"
-        title.contains("Pending", true) || title.contains("Payment", true) -> "Pending"
-        else -> title
-    }
-}
-
-private fun mapApiStatsToUi(stats: List<DashboardStatDto>): List<DashboardStat> {
-    return stats.map { stat ->
-        val (icon, iconBg, iconTint) = statVisualsFor(stat.title)
-        val trendUp: Boolean? = when (stat.color.lowercase()) {
-            "green" -> true
-            "red" -> false
-            else -> null
-        }
-        val valueText = if (stat.type == "currency") {
-            "₹${formatIndianNumber(stat.value)}"
-        } else {
-            formatIndianNumber(stat.value.toInt())
-        }
-        val trendText = "${stat.change.toInt()}%"
-        DashboardStat(shortStatLabel(stat.title), valueText, icon, iconBg, iconTint, trendText, trendUp)
-    }
-}
-
-@Composable
-private fun RecentActivitySection(onNavigate: (String) -> Unit) {
-    val tokens = LocalAppTokens.current
-    val activities = listOf(
-        ActivityCardItem(
-            icon = painterResource(R.drawable.ic_handshake),
-            iconBg = Color(0xFFE4E7FF),
-            iconTint = Color(0xFF4F46E5),
-            title = "Sarah Chen closed the Global Logistics deal.",
-            timeAgo = "2 hours ago",
-            amount = "+$4,200"
-        ),
-        ActivityCardItem(
-            icon = painterResource(R.drawable.person),
-            iconBg = Color(0xFFE4E7FF),
-            iconTint = Color(0xFF4F46E5),
-            title = "New lead assigned: Alex Riviera from TechNova.",
-            timeAgo = "5 hours ago",
-            amount = null
-        )
+    // Directly calls the separated HomeDashboardScreen without any API dependency
+    HomeDashboardScreen(
+        widthSizeClass = widthSizeClass,
+        adminName = adminName,
+        onNavigate = onNavigate
     )
-
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Recent Activity", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-            Text(
-                text = "View All",
-                fontSize = tokens.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = Primary,
-                modifier = Modifier.clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) { onNavigate("sales_sales_orders") }
-            )
-        }
-
-        Spacer(Modifier.height(tokens.screenPadding * 0.875f))
-
-        Column(verticalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.75f)) {
-            activities.forEach { activity ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(modelBg, RoundedCornerShape(tokens.cardCornerRadius))
-                        .border(1.dp, modelBorder, RoundedCornerShape(tokens.cardCornerRadius))
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) { onNavigate("sales_sales_orders") }
-                        .padding(tokens.cardPadding * 0.7f),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(tokens.buttonHeight)
-                            .background(activity.iconBg, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = activity.icon,
-                            contentDescription = null,
-                            tint = activity.iconTint,
-                            modifier = Modifier.size(tokens.iconSize)
-                        )
-                    }
-                    Spacer(Modifier.width(tokens.screenPadding * 0.75f))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            activity.title,
-                            fontSize = tokens.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF111827),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            lineHeight = (tokens.bodyLarge.value * 1.25f).sp
-                        )
-                        Spacer(Modifier.height(tokens.screenPadding * 0.375f))
-                        Text(activity.timeAgo, fontSize = tokens.caption, color = TextSecondary)
-                    }
-                    if (activity.amount != null) {
-                        Spacer(Modifier.width(tokens.screenPadding * 0.5f))
-                        Text(activity.amount, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF16A34A))
-                    }
-                }
-            }
-        }
-    }
 }
 
-@Composable
-private fun RecentCustomersSection(
-    customers: List<RecentCustomer>,
-    onCustomerClick: (String) -> Unit
-) {
-    val tokens = LocalAppTokens.current
-    Column {
-        Text("Recent Customers", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
-        Spacer(Modifier.height(tokens.screenPadding * 0.75f))
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(modelBg, RoundedCornerShape(tokens.cardCornerRadius))
-                .border(1.dp, modelBorder, RoundedCornerShape(tokens.cardCornerRadius))
-        ) {
-            customers.forEachIndexed { index, customer ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            indication = null,
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) { onCustomerClick(customer.id) }
-                        .padding(
-                            horizontal = tokens.cardPadding * 0.7f,
-                            vertical = tokens.cardPadding * 0.6f
-                        ),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(tokens.buttonHeight)
-                            .clip(CircleShape)
-                            .background(customer.avatarColor.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(customer.initials, color = customer.avatarColor, fontWeight = FontWeight.Bold, fontSize = tokens.bodySmall)
-                    }
-                    Spacer(Modifier.width(tokens.screenPadding * 0.75f))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(customer.name, fontSize = tokens.bodyMedium, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
-                        Text(customer.role, fontSize = tokens.caption, color = Color(0xFF9CA3AF))
-                    }
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFF9CA3AF), modifier = Modifier.size(tokens.iconSize * 1.4f))
-                }
-
-                if (index != customers.lastIndex) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(start = tokens.cardPadding * 0.7f, end = tokens.cardPadding * 0.7f),
-                        thickness = 2.dp,
-                        color = modelBorder
-                    )
-                }
-            }
-        }
-    }
-}
 
 fun buildFilterSections(
     previous: List<FilterSection>,
@@ -2239,6 +1747,7 @@ fun normalizeRoute(rawKey: String): String {
         "finance_customers" -> "finance_customers"
         "finance_payments_received" -> "finance_payments_received"
         "finance_suppliers" -> "finance_suppliers"
+        "inventory_suppliers" -> "inventory_suppliers"
         "finance_expenses" -> "finance_expenses"
         "finance_chart_of_accounts" -> "finance_chart_of_accounts"
         "finance_journal_entries" -> "finance_journal_screen"

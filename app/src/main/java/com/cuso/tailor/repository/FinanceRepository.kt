@@ -28,6 +28,7 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 
 @Singleton
 class FinanceRepository @Inject constructor(
@@ -58,16 +59,21 @@ class FinanceRepository @Inject constructor(
                 csrfToken = csrfToken,
                 page = page,
                 limit = limit,
-                search = search,
-                type = type
+                search = search?.takeIf { it.isNotBlank() },
+                type = type?.takeIf { it.isNotBlank() }
             )
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!)
+
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.success(body)
             } else {
-                Result.failure(
-                    Exception(response.errorBody()?.string() ?: "Failed to fetch customers: ${response.code()}")
-                )
+                val errorMsg = response.errorBody()?.string()
+                    ?: "Failed to fetch customers: ${response.code()}"
+                Result.failure(Exception(errorMsg))
             }
+        } catch (e: CancellationException) {
+            // Never swallow coroutine cancellation
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -2482,7 +2482,8 @@ class InventoryViewModel @Inject constructor(
 
     fun fetchAllPurchaseOrders(
         search: String? = null,
-        status: String? = null
+        status: String? = null,
+        supplierId: String? = null // <-- Added supplierId
     ) {
         viewModelScope.launch {
             _isLoadingPurchaseOrders.value = true
@@ -2492,7 +2493,13 @@ class InventoryViewModel @Inject constructor(
             activePOSearch = search
             activePOStatus = status
 
-            inventoryRepository.getAllPurchaseOrders(page = 1, limit = PO_PAGE_SIZE, search = search, status = status)
+            inventoryRepository.getAllPurchaseOrders(
+                page = 1,
+                limit = PO_PAGE_SIZE,
+                search = search,
+                status = status,
+                supplierId = supplierId // <-- Passed here
+            )
                 .onSuccess { list ->
                     _purchaseOrdersList.value = list
                     _canLoadMorePurchaseOrders.value = list.size >= PO_PAGE_SIZE

@@ -38,9 +38,9 @@ import com.cuso.tailor.view.home.finance.account_payable.payment_mode.PaymentDet
 import com.cuso.tailor.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceDetailScreen
 import com.cuso.tailor.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceItem
 import com.cuso.tailor.view.home.finance.account_payable.purchase_invoices.PurchaseInvoiceScreen
-import com.cuso.tailor.view.home.finance.account_payable.suppliers.FinanceSuppliersScreen
-import com.cuso.tailor.view.home.finance.account_payable.suppliers.SupplierDetailScreen
+import com.cuso.tailor.view.home.finance.account_payable.suppliers.FinanceSupplierDetailScreen
 import com.cuso.tailor.view.home.finance.account_payable.suppliers.SupplierRow
+import com.cuso.tailor.view.home.finance.account_receivable.customers.CreateCustomerScreen
 import com.cuso.tailor.view.home.finance.account_receivable.customers.CustomerDetailViewScreen
 import com.cuso.tailor.view.home.finance.account_receivable.customers.FinanceCustomerScreen
 import com.cuso.tailor.view.home.finance.account_receivable.payment_received.AllPaymentScreen
@@ -126,8 +126,8 @@ import com.cuso.tailor.view.home.inventory.procurement.requisitions.AllRequisiti
 import com.cuso.tailor.view.home.inventory.procurement.requisitions.CreateRequisitionScreen
 import com.cuso.tailor.view.home.inventory.procurement.requisitions.RequisitionDetailScreen
 import com.cuso.tailor.view.home.inventory.procurement.returns.AllReturnsScreen
+import com.cuso.tailor.view.home.inventory.procurement.suppliers.InventorySupplierDetailScreen
 import com.cuso.tailor.view.home.inventory.procurement.suppliers.InventorySuppliersScreen
-import com.cuso.tailor.view.home.inventory.procurement.suppliers.SupplierDetailScreen
 import com.cuso.tailor.view.home.inventory.safety_stock.SafetyStockScreen
 import com.cuso.tailor.view.home.inventory.settings.*
 import com.cuso.tailor.view.home.logistics.delivery.DeliveryDetailScreen
@@ -377,11 +377,14 @@ fun HomeScreenRouter(
         "finance_chart_of_accounts", "finance_journal_screen", "finance_trial_balance",
         "finance_ledger", "finance_payments_received", "payment_detail_screen",
         "finance_payments_mode", "payment_mode_detail", "finance_gst_settings",
-        "finance_add_gst", "finance_tax_rates", "finance_add_tax_group" -> {
+        "finance_create_customer",
+        "finance_add_gst", "finance_tax_rates", "finance_add_tax_group",
+        "finance_purchase_orders", "finance_purchase_receive", "finance_bills_list", "finance_payments_made"  -> {
             FinanceRouter(
                 screen = screen,
                 token = token,
                 selectedSupplier = selectedSupplier,
+                inventoryViewModel = inventoryViewModel,
                 selectedLedgerAccountId = selectedLedgerAccountId,
                 selectedLedgerAccountName = selectedLedgerAccountName,
                 onLedgerAccountSelected = onLedgerAccountSelected,
@@ -395,6 +398,10 @@ fun HomeScreenRouter(
                 onPurchaseInvoiceSelected = onPurchaseInvoiceSelected,
                 selectedRecentCustomerId = selectedRecentCustomerId,
                 onRecentCustomerIdSelected = onRecentCustomerIdSelected,
+                selectedReceivePoId = selectedReceivePoId,
+                onReceivePoIdSelected = onReceivePoIdSelected,
+                selectedPurchaseOrderForDetail = selectedPurchaseOrderForDetail,
+                onPurchaseOrderForDetailSelected = onPurchaseOrderForDetailSelected,
                 onNavigate = onNavigate,
                 onGoBack = onGoBack,
                 onOpenModulesPanel = onOpenModulesPanel
@@ -1661,10 +1668,16 @@ private fun FinanceRouter(
     onPurchaseInvoiceSelected: (PurchaseInvoiceItem?) -> Unit,
     selectedRecentCustomerId: String?,
     onRecentCustomerIdSelected: (String?) -> Unit,
+    inventoryViewModel: InventoryViewModel,
+    selectedReceivePoId: String? = null,
+    onReceivePoIdSelected: (String?) -> Unit = {},
+    selectedPurchaseOrderForDetail: PurchaseOrder? = null,
+    onPurchaseOrderForDetailSelected: (PurchaseOrder?) -> Unit = {},
     onNavigate: (String) -> Unit,
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit
 ) {
+    var selectedPurchaseOrderForEdit by remember { mutableStateOf<PurchaseOrder?>(null) }
     when (screen) {
         "finance_sales_invoices" -> FinanceInvoiceScreen(
             onClose = onGoBack,
@@ -1705,7 +1718,61 @@ private fun FinanceRouter(
                 )
             } ?: run { onGoBack() }
         }
+        "finance_purchase_orders" -> {
+            POListScreen(
+                viewModel = inventoryViewModel,
+                onNavigateToCreate = {
+                    selectedPurchaseOrderForEdit = null
+                    onNavigate("inventory_create_purchase_order_flow")
+                },
+                onNavigateToDetail = { po ->
+                    onPurchaseOrderForDetailSelected(po)
+                    onNavigate("inventory_purchase_order_detail_flow")
+                },
+                onClose = onGoBack
+            )
+        }
 
+        // 2. Purchase Receive -> Inventory Purchase Receive Screen
+        "finance_purchase_receive" -> {
+            AllOrdersScreen(
+                onClose = onGoBack,
+                onCreateOrderClick = { onNavigate("inventory_create_purchase_order") },
+                onOrderClick = { poId, _ ->
+                    onReceivePoIdSelected(poId)
+                    onNavigate("inventory_purchase_receive_detail")
+                }
+            )
+        }
+
+        // 3. Purchase Bills -> Inventory Bills List Screen
+        "finance_bills_list" -> {
+            AllBillListScreen(
+                onClose = onGoBack,
+                onCreateOrder = { onNavigate("inventory_create_purchase_order") },
+                onInvoiceClick = { billItem ->
+                    if (billItem.id.isNotBlank()) {
+                        onInvoiceSelected(billItem.id)
+                        onNavigate("inventory_payable_purchase_detail")
+                    }
+                },
+                onOptionsClick = { }
+            )
+        }
+
+        // 4. Payments Made -> Inventory Payments Made Screen
+        "finance_payments_made" -> {
+            AllInventoryPaymentScreen(
+                onClose = onGoBack,
+                onPaymentSelect = { paymentId ->
+                    if (paymentId.isNotBlank()) {
+                        onPaymentModeSelected(paymentId)
+                        onNavigate("inventory_payment_overview_detail")
+                    }
+                },
+                onFilterClick = { }
+            )
+        }
         "finance_customers" -> FinanceCustomerScreen(
             onClose = onGoBack,
             onCustomerEdit = { customerId ->
@@ -1716,7 +1783,13 @@ private fun FinanceRouter(
                 onRecentCustomerIdSelected(customerId)
                 onNavigate("finance_customer_detail")
             },
+            onAddCustomer = { onNavigate("finance_create_customer") },
             onBreadCrumbClick = { onOpenModulesPanel("Finance") }
+        )
+
+        "finance_create_customer" -> CreateCustomerScreen(
+            onClose = onGoBack,
+            onCustomerCreated = { onGoBack() }
         )
 
         "finance_customer_detail" -> {
@@ -1731,26 +1804,34 @@ private fun FinanceRouter(
             } ?: run { onGoBack() }
         }
 
-        "finance_suppliers" -> FinanceSuppliersScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Finance") },
-            onSupplierClick = { supplier ->
-                onSupplierSelected(supplier.code)
-                onNavigate("finance_supplier_detail")
-            }
-        )
+        // ── FINANCE SUPPLIERS LIST (Uses InventorySuppliersScreen UI, but navigates to Finance Detail) ──
+        // ── FINANCE SUPPLIERS LIST ──
+        "finance_suppliers" -> {
+            InventorySuppliersScreen(
+                onClose = onGoBack,
+                onBreadCrumbClick = { onOpenModulesPanel("Finance") },
+                onSupplierClick = { supplierDto ->
+                    onSupplierSelected(supplierDto.id)
+                    onNavigate("finance_supplier_detail")
+                }
+            )
+        }
 
+        // ── FINANCE SUPPLIER DETAIL ──
         "finance_supplier_detail" -> {
-            selectedSupplier?.let { supplier ->
-                SupplierDetailScreen(
-                    supplier = supplier,
-                    onClose = {
-                        onSupplierSelected(null)
-                        onGoBack()
-                    },
-                    onBreadcrumbClick = { onOpenModulesPanel("Finance") }
-                )
-            } ?: run { onGoBack() }
+            FinanceSupplierDetailScreen(
+                supplier = selectedSupplier ?: SupplierRow(id = selectedSupplierId.orEmpty()),
+                supplierId = selectedSupplierId.orEmpty(),
+                onNewOrder = {
+                    // Navigate to Create Purchase Order screen
+                    onNavigate("inventory_create_purchase_order_flow")
+                },
+                onClose = {
+                    onSupplierSelected(null)
+                    onGoBack()
+                },
+                onBreadcrumbClick = { onOpenModulesPanel("Finance") }
+            )
         }
 
         "finance_expenses" -> ExpensesScreen(
@@ -2238,24 +2319,28 @@ private fun InventoryProcurementRouter(
     var selectedPurchaseOrderForEdit by remember { mutableStateOf<PurchaseOrder?>(null) }
 
     when (screen) {
-        "inventory_suppliers" -> InventorySuppliersScreen(
-            onClose = onGoBack,
-            onSupplierClick = { supplier ->
-                onSupplierSelected(supplier.id)
-                onNavigate("inventory_supplier_detail")
-            }
-        )
+        // ── INVENTORY SUPPLIERS (Only Inventory navigation) ──
+        "inventory_suppliers" -> {
+            InventorySuppliersScreen(
+                onClose = onGoBack,
+                onBreadCrumbClick = { onOpenModulesPanel("Inventory") },
+                onSupplierClick = { supplier ->
+                    onSupplierSelected(supplier.id)
+                    onNavigate("inventory_supplier_detail") // <-- Goes to Inventory Supplier Detail!
+                }
+            )
+        }
 
+        // ── INVENTORY SUPPLIER DETAIL ──
         "inventory_supplier_detail" -> {
             selectedSupplierId?.let { id ->
-                SupplierDetailScreen(
+                InventorySupplierDetailScreen(
                     supplierId = id,
                     onClose = {
                         onSupplierSelected(null)
                         onGoBack()
                     },
-                    onEditSupplier = { },
-                    onBreadcrumbClick = { onOpenModulesPanel("Finance") }
+                    onBreadcrumbClick = { onOpenModulesPanel("Inventory") }
                 )
             } ?: run { onGoBack() }
         }
@@ -2381,12 +2466,9 @@ private fun InventoryProcurementRouter(
             onClose = onGoBack,
             onCreateOrder = { onNavigate("inventory_create_purchase_order") },
             onInvoiceClick = { billItem ->
-                android.util.Log.d("BillNavigation", "Clicked Bill Item: id='${billItem.id}', billNo='${billItem.billNo}'")
                 if (billItem.id.isNotBlank()) {
                     onInvoiceSelected(billItem.id)
                     onNavigate("inventory_payable_purchase_detail")
-                } else {
-                    android.util.Log.e("BillNavigation", "Clicked bill has empty ID! Cannot navigate.")
                 }
             },
             onOptionsClick = { }
@@ -2486,12 +2568,9 @@ private fun InventoryProcurementRouter(
         "inventory_payments_made" -> AllInventoryPaymentScreen(
             onClose = onGoBack,
             onPaymentSelect = { paymentId ->
-                android.util.Log.d("PAYMENT_NAV", "Navigating with Payment ID: $paymentId")
                 if (paymentId.isNotBlank()) {
                     onPaymentModeSelected(paymentId)
                     onNavigate("inventory_payment_overview_detail")
-                } else {
-                    android.util.Log.e("PAYMENT_NAV", "Payment ID is null or blank!")
                 }
             },
             onFilterClick = { }
@@ -2499,8 +2578,8 @@ private fun InventoryProcurementRouter(
 
         "inventory_payment_overview_detail" -> {
             PaymentOverviewDetailScreen(
-                paymentId = selectedPaymentModeId.orEmpty(), // <--- PASS THE SELECTED ID HERE
-                viewModel = inventoryViewModel,             // <--- SHARE THE INVENTORY VIEW MODEL
+                paymentId = selectedPaymentModeId.orEmpty(),
+                viewModel = inventoryViewModel,
                 onClose = {
                     onPaymentModeSelected(null)
                     onGoBack()

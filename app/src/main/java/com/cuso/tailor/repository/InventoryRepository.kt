@@ -1265,11 +1265,20 @@ class InventoryRepository @Inject constructor(
         page: Int? = null,
         limit: Int? = null,
         search: String? = null,
-        status: String? = null
+        status: String? = null,
+        supplierId: String? = null // <-- Added supplierId parameter
     ): Result<List<PurchaseOrder>> = withContext(Dispatchers.IO) {
         try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = inventoryApi.getAllPurchaseOrdersList(accessToken, csrfToken, page, limit, search, status)
+            val response = inventoryApi.getAllPurchaseOrdersList(
+                accessToken,
+                csrfToken,
+                page,
+                limit,
+                search,
+                status,
+                supplierId // <-- Passed here
+            )
             val body = response.body()
 
             if (response.isSuccessful && body?.success == true) {

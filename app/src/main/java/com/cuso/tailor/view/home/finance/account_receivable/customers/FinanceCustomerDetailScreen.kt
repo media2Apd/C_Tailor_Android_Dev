@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_PARAMETER", "UNUSED", "RedundantSuppression", "unused")
+
 package com.cuso.tailor.view.home.finance.account_receivable.customers
 
 import androidx.compose.foundation.BorderStroke
@@ -12,7 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.outlined.Label
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dashboard
@@ -36,6 +38,11 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.sales.*
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.CirculerProgressIndicatorSmall
+import com.cuso.tailor.view.composable.DataCard
+import com.cuso.tailor.view.composable.DataCardField
+import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.viewmodel.FinanceViewModel
@@ -58,7 +65,7 @@ fun CustomerDetailViewScreen(
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
-    // Screen திறக்கும் போது இந்த customer-ன் orders-ஐ fetch செய்கிறோம்
+    // Fetch live orders for this customer upon opening
     LaunchedEffect(customerId) {
         if (customerId.isNotBlank()) {
             viewModel.fetchCustomerOrders(customerId)
@@ -76,24 +83,19 @@ fun CustomerDetailViewScreen(
         "Purchase Orders" to Icons.Outlined.ShoppingCart,
         "Transactions" to Icons.AutoMirrored.Filled.ReceiptLong,
         "Preferences" to Icons.Outlined.Tune,
-        "Notes & Tags" to Icons.Outlined.Label
+        "Notes & Tags" to Icons.AutoMirrored.Outlined.Label
     )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF9FAFC))
+            .background(Color.Transparent)
     ) {
         TitleBar(title = "All Customers", onClose = onClose)
         HorizontalDivider(color = dividerColor)
 
         if (customer == null && isLoading) {
-            Box(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                CirculerProgressIndicatorSmall()
-            }
+            ListSkeleton()
             return
         }
 
@@ -110,8 +112,8 @@ fun CustomerDetailViewScreen(
             }
             return
         }
-
-        // Header Info
+        Spacer(Modifier.padding(top = 10.dp))
+        // Header Info Section
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -121,7 +123,7 @@ fun CustomerDetailViewScreen(
             Text(
                 text = customer.name,
                 fontSize = tokens.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
                 color = title_color
             )
 
@@ -140,7 +142,7 @@ fun CustomerDetailViewScreen(
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        text = customer.mobile.ifBlank { "N/A" },
+                        text = customer.mobile,
                         fontSize = tokens.bodySmall,
                         color = close_color
                     )
@@ -164,8 +166,10 @@ fun CustomerDetailViewScreen(
         }
 
         HorizontalDivider(color = dividerColor)
+        Spacer(Modifier.padding(top = 10.dp))
 
-        // Scrollable Tabs
+
+        // Scrollable Tab Row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -177,9 +181,9 @@ fun CustomerDetailViewScreen(
             tabs.forEachIndexed { index, tab ->
                 val isSelected = selectedTabIndex == index
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius),
                     color = if (isSelected) Primary else Color.Transparent,
-                    border = if (isSelected) null else BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    border = if (isSelected) null else BorderStroke(1.dp, BorderGray),
                     modifier = Modifier.clickable { selectedTabIndex = index }
                 ) {
                     Row(
@@ -190,14 +194,14 @@ fun CustomerDetailViewScreen(
                         Icon(
                             imageVector = tab.second,
                             contentDescription = tab.first,
-                            tint = if (isSelected) Color.White else iconMuted,
+                            tint = if (isSelected) whiteBg else iconMuted,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
                             text = tab.first,
-                            color = if (isSelected) Color.White else title_color,
-                            fontSize = 13.sp,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                            color = if (isSelected) whiteBg else title_color,
+                            fontSize = tokens.caption,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
@@ -205,8 +209,10 @@ fun CustomerDetailViewScreen(
         }
 
         HorizontalDivider(color = dividerColor)
+        Spacer(Modifier.padding(top = 10.dp))
 
-        // Tab Body Content
+
+        // Dynamic Tab Body Content
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -215,7 +221,7 @@ fun CustomerDetailViewScreen(
             when (selectedTabIndex) {
                 0 -> CustomerOverviewTab(customer = customer)
                 1 -> CustomerPurchaseOrdersTab(viewModel = viewModel)
-                2 -> CustomerTransactionsTab()
+                2 -> CustomerTransactionsTab(viewModel = viewModel)
                 3 -> CustomerPreferencesTab(customer = customer)
                 4 -> CustomerNotesAndTagsTab(customer = customer)
             }
@@ -224,438 +230,7 @@ fun CustomerDetailViewScreen(
 }
 
 // ─────────────────────────────────────────────────────────────
-// 2. PURCHASE ORDERS TAB (Live API Data)
-// ─────────────────────────────────────────────────────────────
-@Composable
-private fun CustomerPurchaseOrdersTab(viewModel: FinanceViewModel) {
-    val tokens = LocalAppTokens.current
-    var searchQuery by remember { mutableStateOf("") }
-
-    val orders by viewModel.customerOrders.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingCustomerOrders.collectAsStateWithLifecycle()
-    val errorMsg by viewModel.customerOrdersError.collectAsStateWithLifecycle()
-
-    // Real-time Metrics Calculation from API
-    val totalOrdersCount = orders.size
-    val openOrdersCount = orders.count { !it.status.equals("Delivered", true) && !it.status.equals("Cancelled", true) }
-    val completedCount = orders.count { it.status.equals("Delivered", true) || it.status.equals("Completed", true) }
-    val totalInvoicedValue = orders.sumOf { it.grandTotal ?: 0.0 }
-
-    // Search Filtering
-    val filteredOrders = remember(orders, searchQuery) {
-        if (searchQuery.isBlank()) orders
-        else {
-            orders.filter {
-                (it.orderCode ?: "").contains(searchQuery, ignoreCase = true) ||
-                        it.items.any { item -> (item.itemDescription ?: "").contains(searchQuery, ignoreCase = true) }
-            }
-        }
-    }
-
-    if (isLoading && orders.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CirculerProgressIndicatorSmall()
-        }
-        return
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(tokens.screenPadding),
-        verticalArrangement = Arrangement.spacedBy(tokens.screenPadding)
-    ) {
-        // --- 4 Metrics Summary Cards Grid ---
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            SummaryMetricCard(
-                modifier = Modifier.weight(1f),
-                title = "TOTAL ORDERS",
-                value = "$totalOrdersCount",
-                subtitle = "All time customer orders",
-                icon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Description,
-                        contentDescription = null,
-                        tint = Color(0xFF64748B),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            )
-
-            SummaryMetricCard(
-                modifier = Modifier.weight(1f),
-                title = "OPEN ORDERS",
-                value = "$openOrdersCount",
-                subtitle = "Awaiting dispatch/bill",
-                icon = {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF2563EB))
-                    )
-                }
-            )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            SummaryMetricCard(
-                modifier = Modifier.weight(1f),
-                title = "COMPLETED",
-                value = "$completedCount",
-                subtitle = "Successfully settled",
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color(0xFF10B981),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            )
-
-            SummaryMetricCard(
-                modifier = Modifier.weight(1f),
-                title = "TOTAL VALUE",
-                value = "₹${formatIndianNumber(totalInvoicedValue)}",
-                subtitle = "Net invoiced (YTD)",
-                icon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Paid,
-                        contentDescription = null,
-                        tint = Color(0xFF6366F1),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            )
-        }
-
-        // --- Search & Filter Row ---
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-                placeholder = {
-                    Text(
-                        text = "Search SO number, customer...",
-                        fontSize = 13.sp,
-                        color = Color(0xFF94A3B8)
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Search,
-                        contentDescription = "Search",
-                        tint = Color(0xFF94A3B8),
-                        modifier = Modifier.size(20.dp)
-                    )
-                },
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = whiteBg,
-                    focusedContainerColor = whiteBg,
-                    unfocusedBorderColor = Color(0xFFE2E8F0),
-                    focusedBorderColor = Primary
-                ),
-                singleLine = true
-            )
-
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = whiteBg,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                modifier = Modifier
-                    .size(48.dp)
-                    .clickable { /* Filter Action */ }
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Outlined.FilterList,
-                        contentDescription = "Filter",
-                        tint = title_color,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-            }
-        }
-
-        // --- Header Section ---
-        Text(
-            text = "ORDERS HISTORY",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF3B82F6),
-            letterSpacing = 0.5.sp
-        )
-
-        if (filteredOrders.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (errorMsg != null) errorMsg!! else "No orders found for this customer",
-                    color = Color(0xFF64748B),
-                    fontSize = 14.sp
-                )
-            }
-        } else {
-            filteredOrders.forEach { order ->
-                CustomerOrderCardItem(order = order)
-            }
-        }
-
-        Spacer(Modifier.height(tokens.screenPadding * 2))
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Order Card Connected to API DTO
-// ─────────────────────────────────────────────────────────────
-@Composable
-private fun CustomerOrderCardItem(order: CustomerOrderItem) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = whiteBg),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            // Header: Code, Date & Status
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = order.orderCode ?: "ORD-N/A",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = title_color
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = formatCustomerDate(order.orderDate ?: order.createdAt),
-                        fontSize = 12.sp,
-                        color = Color(0xFF64748B)
-                    )
-                }
-
-                // Dynamic Status Badge
-                val statusText = (order.status ?: "Pending").replace("_", " ")
-                val isCompleted = statusText.contains("Delivered", true) || statusText.contains("Completed", true)
-                val badgeBg = if (isCompleted) Color(0xFFE6F4EA) else Color(0xFFEFF6FF)
-                val badgeText = if (isCompleted) Color(0xFF137333) else Color(0xFF1D4ED8)
-
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = badgeBg,
-                    border = BorderStroke(1.dp, badgeText.copy(alpha = 0.2f))
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(badgeText)
-                        )
-                        Text(
-                            text = statusText,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = badgeText
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = Color(0xFFF1F5F9))
-            Spacer(Modifier.height(10.dp))
-
-            // Items Summary text
-            val itemsSummary = remember(order.items) {
-                val count = order.items.size
-                val names = order.items.mapNotNull { it.itemDescription }.take(3).joinToString(", ")
-                if (count > 0) "$count items: $names" else "No items specified"
-            }
-
-            Text(
-                text = itemsSummary,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = title_color
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            // Order Value & Balance Due Block
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // ORDER VALUE
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .background(Color(0xFFF8FAFC), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 12.dp, vertical = 10.dp)
-                ) {
-                    Column {
-                        Text(
-                            text = "ORDER VALUE",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF64748B)
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = "₹${formatIndianNumber(order.grandTotal ?: 0.0)}",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = title_color
-                        )
-                    }
-                }
-
-                // BALANCE DUE
-                val balanceDue = order.balanceAmount ?: 0.0
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .background(Color(0xFFF8FAFC), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 12.dp, vertical = 10.dp)
-                ) {
-                    Column {
-                        Text(
-                            text = "BALANCE DUE",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF64748B)
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        val isZero = balanceDue == 0.0
-                        Text(
-                            text = "₹${formatIndianNumber(balanceDue)}",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isZero) Color(0xFF10B981) else Color(0xFF2563EB)
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(14.dp))
-
-            // View Details Action
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { /* Navigate to Order Detail */ },
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "View Details",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF2563EB)
-                )
-                Spacer(Modifier.width(4.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
-                    contentDescription = null,
-                    tint = Color(0xFF2563EB),
-                    modifier = Modifier.size(11.dp)
-                )
-            }
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// Summary Metric Card Component
-// ─────────────────────────────────────────────────────────────
-@Composable
-private fun SummaryMetricCard(
-    title: String,
-    value: String,
-    subtitle: String,
-    icon: @Composable () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = whiteBg),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-        modifier = modifier
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = title,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF64748B)
-                )
-                icon()
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                text = value,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = title_color
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            Text(
-                text = subtitle,
-                fontSize = 11.sp,
-                color = Color(0xFF94A3B8)
-            )
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// 1. OVERVIEW TAB
+// 1. OVERVIEW TAB (Connected to live Customer Data)
 // ─────────────────────────────────────────────────────────────
 @Composable
 private fun CustomerOverviewTab(customer: CustomerItemV2) {
@@ -681,7 +256,7 @@ private fun CustomerOverviewTab(customer: CustomerItemV2) {
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "₹ ${formatIndianNumber(customer.outstanding ?: 0.0)}",
+                    text = "₹${formatIndianNumber(customer.outstanding ?: 0.0)}",
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = title_color
@@ -699,16 +274,16 @@ private fun CustomerOverviewTab(customer: CustomerItemV2) {
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Unused Credits",
+                    text = "Total Paid",
                     fontSize = tokens.caption,
                     color = close_color
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "₹ 0",
+                    text = "₹${formatIndianNumber(customer.totalPaid ?: 0.0)}",
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    color = title_color
+                    color = greentext
                 )
             }
         }
@@ -738,10 +313,13 @@ private fun CustomerOverviewTab(customer: CustomerItemV2) {
                 .background(cardBgLight)
                 .padding(horizontal = tokens.screenPadding)
         ) {
+            DetailInfoRow(label = "Customer Code", value = customer.customerCode ?: "N/A")
+            HorizontalDivider(color = dividerColor)
+
             DetailInfoRow(label = "Name", value = customer.name)
             HorizontalDivider(color = dividerColor)
 
-            DetailInfoRow(label = "Phone", value = customer.mobile.ifBlank { "N/A" })
+            DetailInfoRow(label = "Phone", value = customer.mobile)
             HorizontalDivider(color = dividerColor)
 
             DetailInfoRow(
@@ -752,7 +330,7 @@ private fun CustomerOverviewTab(customer: CustomerItemV2) {
 
             DetailInfoRow(
                 label = "Type",
-                value = customer.type.replaceFirstChar { it.uppercase() }
+                value = customer.type.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
             )
             HorizontalDivider(color = dividerColor)
 
@@ -788,7 +366,11 @@ private fun CustomerOverviewTab(customer: CustomerItemV2) {
                 .padding(horizontal = tokens.screenPadding)
         ) {
             val billingAddressText = formatFullAddress(customer.billingAddress ?: customer.address)
-            val shippingAddressText = formatFullAddress(customer.address ?: customer.billingAddress)
+            val shippingAddressText = if (customer.sameAsBillingAddress == true) {
+                billingAddressText
+            } else {
+                formatFullAddress(customer.shippingAddress ?: customer.address)
+            }
 
             AddressInfoRow(label = "Billing Address", address = billingAddressText)
             HorizontalDivider(color = dividerColor)
@@ -801,27 +383,207 @@ private fun CustomerOverviewTab(customer: CustomerItemV2) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 3. TRANSACTIONS TAB
+// 2. PURCHASE ORDERS TAB (Live Orders using DataCard & SearchFilterBar)
 // ─────────────────────────────────────────────────────────────
 @Composable
-private fun CustomerTransactionsTab() {
+private fun CustomerPurchaseOrdersTab(
+    viewModel: FinanceViewModel,
+    onOrderClick: (String) -> Unit = {}
+) {
     val tokens = LocalAppTokens.current
+    var searchQuery by remember { mutableStateOf("") }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = "Transaction History",
-            fontSize = tokens.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = title_color,
-            modifier = Modifier.padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding)
+    val orders by viewModel.customerOrders.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingCustomerOrders.collectAsStateWithLifecycle()
+    val errorMsg by viewModel.customerOrdersError.collectAsStateWithLifecycle()
+
+    val totalOrdersCount = orders.size
+    val openOrdersCount = orders.count {
+        !it.status.equals("Delivered", ignoreCase = true) &&
+                !it.status.equals("Cancelled", ignoreCase = true)
+    }
+    val completedCount = orders.count {
+        it.status.equals("Delivered", ignoreCase = true) ||
+                it.status.equals("Completed", ignoreCase = true)
+    }
+    val totalInvoicedValue = orders.sumOf { it.grandTotal ?: 0.0 }
+
+    val filteredOrders = remember(orders, searchQuery) {
+        if (searchQuery.isBlank()) orders
+        else {
+            orders.filter { order ->
+                (order.orderCode ?: "").contains(searchQuery, ignoreCase = true) ||
+                        order.items.any { item ->
+                            (item.itemDescription ?: "").contains(searchQuery, ignoreCase = true)
+                        }
+            }
+        }
+    }
+
+    if (isLoading && orders.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CirculerProgressIndicatorSmall()
+        }
+        return
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        SearchFilterBar(
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            placeholder = "Search order number, items...",
+            accentColor = BluePrimary,
+            borderColor = BorderGray,
+            textSecondaryColor = TextSecondary,
+            onFilterClick = { }
         )
 
         HorizontalDivider(color = dividerColor)
 
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
+            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+            ) {
+                SummaryMetricCard(
+                    modifier = Modifier.weight(1f),
+                    title = "TOTAL ORDERS",
+                    value = "$totalOrdersCount",
+                    subtitle = "All time customer orders",
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Description,
+                            contentDescription = null,
+                            tint = TextSecondary,
+                            modifier = Modifier.size(tokens.iconSize)
+                        )
+                    }
+                )
+
+                SummaryMetricCard(
+                    modifier = Modifier.weight(1f),
+                    title = "OPEN ORDERS",
+                    value = "$openOrdersCount",
+                    subtitle = "Awaiting dispatch/bill",
+                    icon = {
+                        Box(
+                            modifier = Modifier
+                                .size(tokens.iconSize * 0.5f)
+                                .clip(CircleShape)
+                                .background(BluePrimary)
+                        )
+                    }
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+            ) {
+                SummaryMetricCard(
+                    modifier = Modifier.weight(1f),
+                    title = "COMPLETED",
+                    value = "$completedCount",
+                    subtitle = "Successfully settled",
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = greentext,
+                            modifier = Modifier.size(tokens.iconSize)
+                        )
+                    }
+                )
+
+                SummaryMetricCard(
+                    modifier = Modifier.weight(1f),
+                    title = "TOTAL VALUE",
+                    value = "₹${formatIndianNumber(totalInvoicedValue)}",
+                    subtitle = "Net invoiced value",
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Paid,
+                            contentDescription = null,
+                            tint = BluePrimary,
+                            modifier = Modifier.size(tokens.iconSize)
+                        )
+                    }
+                )
+            }
+
+            Text(
+                text = "ORDERS HISTORY",
+                fontSize = tokens.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = BluePrimary
+            )
+        }
+
+        if (filteredOrders.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = tokens.screenPadding * 2),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = errorMsg ?: if (searchQuery.isNotBlank()) "No matching orders found" else "No orders found for this customer",
+                    color = mutedText,
+                    fontSize = tokens.bodySmall,
+                    fontWeight = FontWeight.Normal
+                )
+            }
+        } else {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                filteredOrders.forEach { order ->
+                    CustomerOrderDataCard(
+                        order = order,
+                        onClick = { onOrderClick(order._id) }
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(tokens.screenPadding * 2))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 3. TRANSACTIONS TAB (Live Payment Transactions from Orders)
+// ─────────────────────────────────────────────────────────────
+@Composable
+private fun CustomerTransactionsTab(viewModel: FinanceViewModel) {
+    val tokens = LocalAppTokens.current
+    val orders by viewModel.customerOrders.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingCustomerOrders.collectAsStateWithLifecycle()
+
+    // Extract real paid transactions from customer orders
+    val transactions = remember(orders) {
+        orders.filter { (it.advanceAmountPaid ?: 0.0) > 0.0 || it.paymentStatus == "Paid" }
+    }
+
+    if (isLoading && orders.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CirculerProgressIndicatorSmall()
+        }
+        return
+    }
+
+    if (transactions.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -852,11 +614,55 @@ private fun CustomerTransactionsTab() {
                 )
             }
         }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = tokens.extraPadding)
+        ) {
+            Text(
+                text = "Transaction History (${transactions.size})",
+                fontSize = tokens.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = title_color,
+                modifier = Modifier.padding(horizontal = tokens.screenPadding)
+            )
+
+            Spacer(Modifier.height(tokens.extraPadding))
+            HorizontalDivider(color = dividerColor)
+
+            transactions.forEach { order ->
+                val amount = order.advanceAmountPaid ?: order.grandTotal ?: 0.0
+                val dateStr = formatCustomerDate(order.orderDate ?: order.createdAt)
+                val statusText = order.paymentStatus ?: "Completed"
+
+                DataCard(
+                    item = order,
+                    topBadgeText = statusText,
+                    topBadgeTextColor = greentext,
+                    topBadgeBgColor = greenBg,
+                    topBadgeInline = true,
+                    title = "Order Payment #${order.orderCode ?: "ORD"}",
+                    footerFields = listOf(
+                        DataCardField(
+                            icon = Icons.Default.CalendarMonth,
+                            text = dateStr
+                        ),
+                        DataCardField(
+                            text = "Amount: ₹${formatIndianNumber(amount)}"
+                        )
+                    )
+                )
+            }
+
+            Spacer(Modifier.height(tokens.screenPadding * 2))
+        }
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// 4. PREFERENCES TAB
+// 4. PREFERENCES TAB (Live API Data)
 // ─────────────────────────────────────────────────────────────
 @Composable
 private fun CustomerPreferencesTab(customer: CustomerItemV2) {
@@ -869,27 +675,27 @@ private fun CustomerPreferencesTab(customer: CustomerItemV2) {
             .padding(tokens.screenPadding)
     ) {
         Card(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(tokens.cardCornerRadius),
             colors = CardDefaults.cardColors(containerColor = whiteBg),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+            border = BorderStroke(1.dp, BorderGray),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .padding(tokens.screenPadding)
             ) {
                 Text(
                     text = "CUSTOMER PREFERENCES & TERMS",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E293B),
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Medium,
+                    color = Primary,
                     letterSpacing = 0.5.sp
                 )
 
-                Spacer(Modifier.height(14.dp))
-                HorizontalDivider(color = Color(0xFFF1F5F9))
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(tokens.extraPadding))
+                HorizontalDivider(color = grey_border)
+                Spacer(Modifier.height(tokens.extraPadding))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -897,35 +703,35 @@ private fun CustomerPreferencesTab(customer: CustomerItemV2) {
                 ) {
                     PreferenceColumnItem(
                         label = "Customer Level",
-                        value = "Regular",
+                        value = customer.customerLevel?.takeIf { it.isNotBlank() } ?: "Regular",
                         modifier = Modifier.weight(1f)
                     )
                     PreferenceColumnItem(
                         label = "Preferred Contact Method",
-                        value = "Whatsapp",
+                        value = customer.preferredContactMethod?.takeIf { it.isNotBlank() } ?: "Whatsapp",
                         modifier = Modifier.weight(1f)
                     )
                 }
 
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(tokens.extraPadding))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     PreferenceColumnItem(
-                        label = "Language",
-                        value = "English",
+                        label = "Preferred Language",
+                        value = customer.preferredLanguage?.takeIf { it.isNotBlank() } ?: "English",
                         modifier = Modifier.weight(1f)
                     )
                     PreferenceColumnItem(
                         label = "Credit Limit",
-                        value = "₹0",
+                        value = "₹${formatIndianNumber(customer.creditLimit ?: 0.0)}",
                         modifier = Modifier.weight(1f)
                     )
                 }
 
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(tokens.extraPadding))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -933,13 +739,13 @@ private fun CustomerPreferencesTab(customer: CustomerItemV2) {
                 ) {
                     PreferenceColumnItem(
                         label = "Credit Period",
-                        value = "0 Days",
+                        value = "${customer.creditPeriodDays ?: 0} Days",
                         modifier = Modifier.weight(1f)
                     )
                     PreferenceColumnItem(
                         label = "Account Status",
                         value = customer.status?.takeIf { it.isNotBlank() } ?: "Active",
-                        valueColor = Color(0xFF137333),
+                        valueColor = if (customer.status.equals("Active", true)) greentext else redText,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -950,36 +756,16 @@ private fun CustomerPreferencesTab(customer: CustomerItemV2) {
     }
 }
 
-@Composable
-private fun PreferenceColumnItem(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-    valueColor: Color = title_color
-) {
-    Column(modifier = modifier) {
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            color = Color(0xFF94A3B8),
-            fontWeight = FontWeight.Medium
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = value,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = valueColor
-        )
-    }
-}
-
 // ─────────────────────────────────────────────────────────────
-// 5. NOTES & TAGS TAB
+// 5. NOTES & TAGS TAB (Live API Data)
 // ─────────────────────────────────────────────────────────────
 @Composable
 private fun CustomerNotesAndTagsTab(customer: CustomerItemV2) {
     val tokens = LocalAppTokens.current
+    val customFields = customer.customFields
+    val notes = customFields?.notes?.takeIf { it.isNotBlank() }
+    val internalNotes = customFields?.internalNotes?.takeIf { it.isNotBlank() }
+    val tags = customFields?.tags.orEmpty().filter { it.isNotBlank() }
 
     Column(
         modifier = Modifier
@@ -989,31 +775,107 @@ private fun CustomerNotesAndTagsTab(customer: CustomerItemV2) {
     ) {
         Text(
             text = "Customer Notes & Tags",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1E293B)
+            fontSize = tokens.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = title_color
         )
 
         Spacer(Modifier.height(4.dp))
 
         Text(
             text = "Manage internal remarks, bespoke logs, and segmentation.",
-            fontSize = 13.sp,
-            color = Color(0xFF64748B),
+            fontSize = tokens.caption,
+            color = TextSecondary,
             fontWeight = FontWeight.Normal
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(tokens.extraPadding))
 
         Card(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(tokens.cardCornerRadius),
             colors = CardDefaults.cardColors(containerColor = whiteBg),
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(160.dp)
+            border = BorderStroke(1.dp, BorderGray),
+            modifier = Modifier.fillMaxWidth()
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(tokens.screenPadding)
+            ) {
+                Text(
+                    text = "Customer Notes",
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Medium,
+                    color = TextSecondary
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = notes ?: "No customer notes recorded.",
+                    fontSize = tokens.bodySmall,
+                    color = if (notes != null) title_color else mutedText,
+                    fontWeight = FontWeight.Normal
+                )
 
+                Spacer(Modifier.height(tokens.extraPadding))
+                HorizontalDivider(color = grey_border)
+                Spacer(Modifier.height(tokens.extraPadding))
+
+                Text(
+                    text = "Internal Notes",
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Medium,
+                    color = TextSecondary
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = internalNotes ?: "No internal notes recorded.",
+                    fontSize = tokens.bodySmall,
+                    color = if (internalNotes != null) title_color else mutedText,
+                    fontWeight = FontWeight.Normal
+                )
+
+                Spacer(Modifier.height(tokens.extraPadding))
+                HorizontalDivider(color = grey_border)
+                Spacer(Modifier.height(tokens.extraPadding))
+
+                Text(
+                    text = "Tags",
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Medium,
+                    color = TextSecondary
+                )
+                Spacer(Modifier.height(8.dp))
+
+                if (tags.isEmpty()) {
+                    Text(
+                        text = "No tags assigned.",
+                        fontSize = tokens.bodySmall,
+                        color = mutedText,
+                        fontWeight = FontWeight.Normal
+                    )
+                } else {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        tags.forEach { tag ->
+                            Surface(
+                                shape = RoundedCornerShape(tokens.cardCornerRadius),
+                                color = primary_light,
+                                border = BorderStroke(1.dp, BorderGray)
+                            ) {
+                                Text(
+                                    text = tag,
+                                    fontSize = tokens.caption,
+                                    fontWeight = FontWeight.Medium,
+                                    color = BluePrimary,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         Spacer(Modifier.height(tokens.screenPadding * 2))
@@ -1021,8 +883,143 @@ private fun CustomerNotesAndTagsTab(customer: CustomerItemV2) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Helper Row Components & Formatters
+// Subcomponents & Helpers
 // ─────────────────────────────────────────────────────────────
+@Composable
+private fun CustomerOrderDataCard(
+    order: CustomerOrderItem,
+    onClick: () -> Unit
+) {
+    val rawStatus = (order.status ?: "Pending").replace("_", " ")
+    val (statusLabel, statusColors) = orderStatusColors(rawStatus)
+    val (statusTextColor, statusBgColor) = statusColors
+
+    val itemsSummary = remember(order.items) {
+        val count = order.items.size
+        val descriptions = order.items.mapNotNull { it.itemDescription }.take(2).joinToString(", ")
+        if (count > 0 && descriptions.isNotBlank()) {
+            "$count Items • $descriptions"
+        } else if (count > 0) {
+            "$count Items"
+        } else {
+            "No Items Specified"
+        }
+    }
+
+    val dateFormatted = formatCustomerDate(order.orderDate ?: order.createdAt)
+    val balance = order.balanceAmount ?: 0.0
+    val grandTotal = order.grandTotal ?: 0.0
+
+    DataCard(
+        item = order,
+        topBadgeText = statusLabel,
+        topBadgeTextColor = statusTextColor,
+        topBadgeBgColor = statusBgColor,
+        topBadgeInline = true,
+        title = order.orderCode ?: "ORD-N/A",
+        footerFields = listOf(
+            DataCardField(
+                icon = Icons.Default.CalendarMonth,
+                text = dateFormatted
+            ),
+            DataCardField(
+                text = itemsSummary
+            ),
+            DataCardField(
+                text = "Total: ₹${formatIndianNumber(grandTotal)} | Balance: ₹${formatIndianNumber(balance)}"
+            )
+        ),
+        actions = listOf(
+            MenuAction(
+                label = "View Details",
+                onClick = onClick
+            )
+        ),
+        onClick = { onClick() }
+    )
+}
+
+@Composable
+private fun SummaryMetricCard(
+    title: String,
+    value: String,
+    subtitle: String,
+    icon: @Composable () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val tokens = LocalAppTokens.current
+
+    Card(
+        shape = RoundedCornerShape(tokens.cardCornerRadius),
+        colors = CardDefaults.cardColors(containerColor = whiteBg),
+        border = BorderStroke(1.dp, BorderGray),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(tokens.extraPadding)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Medium,
+                    color = TextSecondary
+                )
+                icon()
+            }
+
+            Spacer(Modifier.height(tokens.extraPadding / 2))
+
+            Text(
+                text = value,
+                fontSize = tokens.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = title_color
+            )
+
+            Spacer(Modifier.height(4.dp))
+
+            Text(
+                text = subtitle,
+                fontSize = tokens.caption,
+                fontWeight = FontWeight.Normal,
+                color = mutedText
+            )
+        }
+    }
+}
+
+@Composable
+private fun PreferenceColumnItem(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = title_color
+) {
+    val tokens = LocalAppTokens.current
+    Column(modifier = modifier) {
+        Text(
+            text = label,
+            fontSize = tokens.caption,
+            color = mutedText,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = value,
+            fontSize = tokens.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = valueColor
+        )
+    }
+}
+
 private fun formatFullAddress(addr: CustomerAddressV2?): String {
     if (addr == null) return "N/A"
     val parts = linkedSetOf<String>()
@@ -1030,9 +1027,8 @@ private fun formatFullAddress(addr: CustomerAddressV2?): String {
     addr.street?.takeIf { it.isNotBlank() }?.let { parts.add(it.trim()) }
     addr.areaZone?.takeIf { it.isNotBlank() }?.let { parts.add(it.trim()) }
     addr.addressLine?.takeIf { it.isNotBlank() }?.let { parts.add(it.trim()) }
-    addr.area?.takeIf { it.isNotBlank() }?.let { parts.add(it.trim()) }
     addr.city?.takeIf { it.isNotBlank() }?.let { parts.add(it.trim()) }
-    addr.state?.takeIf { it.isNotBlank() }?.let { parts.add(it.trim()) }
+    addr.subdivisionName?.takeIf { it.isNotBlank() }?.let { parts.add(it.trim()) }
     addr.pincode?.takeIf { it.isNotBlank() }?.let { parts.add("PIN: ${it.trim()}") }
 
     return if (parts.isEmpty()) "N/A" else parts.joinToString(", ")
@@ -1104,9 +1100,26 @@ private fun AddressInfoRow(label: String, address: String) {
                 text = address,
                 fontSize = tokens.bodySmall,
                 color = textSubdued,
-                fontWeight = FontWeight.Medium,
-                lineHeight = tokens.bodyMedium.value.dp.value.let { tokens.bodySmall * 1.35f }
+                fontWeight = FontWeight.Medium
             )
+        }
+    }
+}
+
+private fun orderStatusColors(status: String): Pair<String, Pair<Color, Color>> {
+    val normalized = status.lowercase()
+    return when {
+        normalized.contains("deliver") || normalized.contains("complete") -> {
+            status to (greentext to greenBg)
+        }
+        normalized.contains("cancel") -> {
+            status to (redText to redBg)
+        }
+        normalized.contains("progress") || normalized.contains("production") -> {
+            status to (yellowText to yellowBg)
+        }
+        else -> {
+            status to (BluePrimary to primary_light)
         }
     }
 }

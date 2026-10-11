@@ -3,27 +3,25 @@
 package com.cuso.tailor.view.home.inventory.procurement.suppliers
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.SupplierDto
 import com.cuso.tailor.ui.theme.*
@@ -36,6 +34,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun InventorySuppliersScreen(
     onClose: () -> Unit,
     onSupplierClick: (SupplierDto) -> Unit,
+    onAddSupplier: () -> Unit = {},
+    onEditSupplier: (SupplierDto) -> Unit = onSupplierClick,
     onBreadCrumbClick: () -> Unit = {},
     viewModel: InventoryViewModel = hiltViewModel()
 ) {
@@ -46,7 +46,6 @@ fun InventorySuppliersScreen(
     val isLoadingMore by viewModel.isLoadingMoreSuppliers.collectAsStateWithLifecycle()
     val canLoadMore by viewModel.canLoadMoreSuppliers.collectAsStateWithLifecycle()
     val errorMsg by viewModel.suppliersError.collectAsStateWithLifecycle()
-    val successMsg by viewModel.successMessage.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedSupplierToDelete by remember { mutableStateOf<SupplierDto?>(null) }
@@ -97,7 +96,7 @@ fun InventorySuppliersScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Primary_background)) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         Scaffold(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -113,6 +112,7 @@ fun InventorySuppliersScreen(
                     .fillMaxSize()
                     .padding(padding)
             ) {
+                Spacer(Modifier.padding(top = 10.dp))
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
@@ -121,6 +121,8 @@ fun InventorySuppliersScreen(
                     onFilterClick = { },
                     height = tokens.fieldHeight * 1.1f
                 )
+                Spacer(Modifier.padding(top = 10.dp))
+
 
                 HorizontalDivider(color = grey_border)
 
@@ -155,19 +157,17 @@ fun InventorySuppliersScreen(
                     else -> {
                         LazyColumn(
                             state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = tokens.extraPadding),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier.fillMaxSize()
                         ) {
                             items(
                                 items = filteredList,
                                 key = { it.id.ifBlank { it.hashCode().toString() } }
                             ) { supplier ->
-                                SupplierCardItem(
+                                SupplierDataCardItem(
                                     supplier = supplier,
-                                    tokens = tokens,
                                     onClick = { onSupplierClick(supplier) },
-                                    onDeleteClick = { selectedSupplierToDelete = supplier }
+                                    onEdit = { onEditSupplier(supplier) },
+                                    onDelete = { selectedSupplierToDelete = supplier }
                                 )
                             }
 
@@ -202,218 +202,120 @@ fun InventorySuppliersScreen(
                 }
             )
         }
-
-        DynamicIslandSuccess(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = successMsg,
-            onDismiss = { viewModel.clearAlerts() }
-        )
-
-        DynamicIslandError(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = errorMsg?.takeIf { suppliers.isNotEmpty() }?.let { ErrorMapper.map(it) },
-            onDismiss = { viewModel.clearAlerts() }
-        )
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// SUPPLIER CARD ITEM
+// Reusable Supplier Card Using DataCard
 // ─────────────────────────────────────────────────────────────
 
 @Composable
-private fun SupplierCardItem(
+private fun SupplierDataCardItem(
     supplier: SupplierDto,
-    tokens: AppDesignTokens,
     onClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
-    var isChecked by remember { mutableStateOf(false) }
-    val categoryTag = supplier.category.ifBlank { "FABRIC" }.uppercase()
-    val code = supplier.supplierCode.ifBlank { "SUP-001" }
-    val contactName = supplier.contact?.contactName?.ifBlank { "Contact Person" } ?: "Contact Person"
-    val phone = supplier.contact?.phone?.ifBlank { "—" } ?: "—"
+    val tokens = LocalAppTokens.current
+
+    val isActive = supplier.status.equals("active", ignoreCase = true)
+    val isVerified = supplier.complianceStatus.equals("Verified", ignoreCase = true) ||
+            supplier.complianceStatus.equals("Completed", ignoreCase = true)
+
+    val category = supplier.category.ifBlank { "FABRIC" }.uppercase()
+    val supplierCode = supplier.supplierCode.ifBlank { "SUP-001" }
+    val supplierName = supplier.name.ifBlank { "Unknown Supplier" }
+    val contactName = supplier.contact?.contactName.orEmpty()
+    val phone = supplier.contact?.phone.orEmpty()
     val city = supplier.address?.billing?.city?.ifBlank { "Chennai" } ?: "Chennai"
-    val isVerified = supplier.complianceStatus.equals("Verified", true) || supplier.complianceStatus.equals("Completed", true)
-    val isActive = supplier.status.equals("active", true)
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(0.dp),
-        colors = CardDefaults.cardColors(containerColor = whiteBg),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AppCheckbox(
-                    checked = isChecked,
-                    onCheckedChange = { isChecked = it }
-                )
+    val contactDetails = remember(contactName, phone) {
+        when {
+            contactName.isNotBlank() && phone.isNotBlank() -> "$contactName • $phone"
+            contactName.isNotBlank() -> contactName
+            phone.isNotBlank() -> phone
+            else -> "—"
+        }
+    }
 
-                Spacer(Modifier.width(10.dp))
+    val actions = remember {
+        listOf(
+            MenuAction(label = "View", icon = Icons.Default.Visibility, onClick = onClick),
+            MenuAction(label = "Edit", icon = Icons.Default.Edit, onClick = onEdit),
+            MenuAction(label = "Delete", icon = Icons.Default.Delete, textColor = redText, onClick = onDelete)
+        )
+    }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(primary_light)
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = categoryTag,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Primary
-                    )
-                }
+    DataCard(
+        item = supplier,
+        onClick = { onClick() },
+        showDivider = true,
 
-                Spacer(Modifier.width(8.dp))
-
-                Text(
-                    text = code,
-                    fontSize = tokens.caption,
-                    color = mutedText,
-                    fontWeight = FontWeight.Medium
-                )
-
-                Spacer(Modifier.weight(1f))
-
-                IconButton(
-                    onClick = onDeleteClick,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
-                        tint = mutedText,
-                        modifier = Modifier.size(tokens.iconSize * 0.9f)
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = supplier.name.ifBlank { "Unnamed Supplier" },
-                        fontSize = tokens.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = title_color
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "$contactName • $phone",
-                        fontSize = tokens.bodySmall,
-                        color = textSubdued
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = city,
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = title_color
-                    )
-                    Text(
-                        text = "Location",
-                        fontSize = tokens.caption,
-                        color = mutedText
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(color = grey_border.copy(alpha = 0.5f))
-            Spacer(Modifier.height(10.dp))
-
+        // 1. TOP ROW: Category Pill (Left) + Code & 3-Dots (Right)
+        headerContent = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MiniDotBadge(
-                        text = if (isVerified) "Verified" else "Pending",
-                        bgColor = if (isVerified) greenBg else light_blue,
-                        textColor = if (isVerified) greentext else Primary,
-                        dotColor = if (isVerified) greentext else Primary
-                    )
-
-                    MiniDotBadge(
-                        text = if (isActive) "Active" else "Inactive",
-                        bgColor = if (isActive) greenBg else redBg,
-                        textColor = if (isActive) greentext else redText,
-                        dotColor = if (isActive) greentext else redText
-                    )
-                }
-
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { onClick() }
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = background_light_purple
+                    ) {
+                        Text(
+                            text = category,
+                            fontSize = tokens.label,
+                            fontWeight = FontWeight.Medium,
+                            color = Primary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+
                     Text(
-                        text = "View Details",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Primary
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = Primary,
-                        modifier = Modifier.size(14.dp)
+                        text = "#$supplierCode",
+                        fontSize = tokens.caption,
+                        color = mutedText,
+                        fontWeight = FontWeight.Normal
                     )
                 }
-            }
-        }
-    }
-}
 
-@Composable
-private fun MiniDotBadge(
-    text: String,
-    bgColor: Color,
-    textColor: Color,
-    dotColor: Color
-) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(bgColor)
-            .padding(horizontal = 10.dp, vertical = 0.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(dotColor)
+                ActionDropdownMenu(
+                    actions = actions,
+                    icon = Icons.Default.MoreHoriz
+                )
+            }
+        },
+        title = supplierName,
+        subtitle = contactDetails,
+        // 2. MIDDLE ROW: Left (Supplier Name + Contact) & Right (City + Location)
+        footerAsRows = true,
+        footerFields = listOf(
+//            DataCardField(
+//                text = supplierName,
+//                label = contactDetails,
+//                asColumn = true,
+//                textColor = TextPrimary,
+//                labelColor = headerGrey,
+//                valueFontWeight = FontWeight.Medium
+//            ),
+            DataCardField(
+                text = city,
+                label = "Location",
+                textColor = title_color,
+                labelColor = mutedText,
+                valueFontWeight = FontWeight.Medium
             )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                text = text,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = textColor
-            )
-        }
-    }
+        ),
+
+        // 3. BOTTOM ROW: Status Badges (Left) & "View Details →" (Right)
+        footerTags = listOf(
+            if (isVerified) "Verified" else "Pending",
+            if (isActive) "Active" else "Inactive"
+        ),
+        trailingText = "View Details →"
+    )
 }

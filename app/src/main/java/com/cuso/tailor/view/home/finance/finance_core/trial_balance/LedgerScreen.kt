@@ -35,11 +35,28 @@ import com.cuso.tailor.view.composable.DataCardField
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.home.finance.account_receivable.customers.formatDate
 import com.cuso.tailor.viewmodel.FinanceViewModel
 import kotlinx.coroutines.delay
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
 import java.util.Locale
+
+private fun formatDateForDisplay(isoDate: String): String {
+    if (isoDate.isBlank()) return ""
+    return try {
+        val input = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        val output = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
+        output.format(input.parse(isoDate)!!)
+    } catch (_: Exception) {
+        try {
+            val input = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val output = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
+            output.format(input.parse(isoDate)!!)
+        } catch (_: Exception) {
+            isoDate
+        }
+    }
+}
 
 private fun formatLedgerAmount(value: Double): String {
     val nf = NumberFormat.getNumberInstance(Locale.Builder().setLanguage("en").setRegion("IN").build())
@@ -143,7 +160,7 @@ fun LedgerScreen(
                     items(filteredItems, key = { it.id }) { entry ->
                         DataCard(
                             item = entry,
-                            title = entry.date?.let{formatDate(it)}?.ifBlank { entry.journalNumber }
+                            title = entry.date?.let{formatDateForDisplay(it)}?.ifBlank { entry.journalNumber }
                                 ?: "-",
                             titleColor = TextPrimary,
                             subtitle = "${entry.code ?: "-"} • ${if (entry.credit > 0) "Credit" else "Debit"}",

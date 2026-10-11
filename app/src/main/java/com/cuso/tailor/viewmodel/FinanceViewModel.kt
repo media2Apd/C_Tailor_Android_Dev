@@ -9,8 +9,12 @@
 package com.cuso.tailor.viewmodel
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.model.finance.AccountDropdownItem
 import com.cuso.tailor.model.finance.ChartOfAccountItem
+import com.cuso.tailor.model.finance.CreateCustomerApiResponse
+import com.cuso.tailor.model.finance.CreateCustomerPayload
+import com.cuso.tailor.model.finance.CreatedCustomerData
 import com.cuso.tailor.model.finance.ExpenseItem
 import com.cuso.tailor.model.finance.ExpensePagination
 import com.cuso.tailor.model.finance.InvoiceItem
@@ -20,6 +24,8 @@ import com.cuso.tailor.model.finance.JournalEntryItem
 import com.cuso.tailor.model.finance.JournalEntryLineRequest
 import com.cuso.tailor.model.finance.JournalEntryPagination
 import com.cuso.tailor.model.finance.LedgerItem
+import com.cuso.tailor.model.finance.SupplierOverviewApiResponse
+import com.cuso.tailor.model.finance.SupplierOverviewData
 import com.cuso.tailor.model.finance.TrialBalanceItem
 import com.cuso.tailor.model.sales.CustomerListResponseV2
 import com.cuso.tailor.model.sales.CustomerOrderItem
@@ -35,6 +41,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import javax.inject.Inject
 
@@ -85,6 +92,16 @@ sealed class DeleteJournalState {
     object Loading : DeleteJournalState()
     data class Success(val message: String) : DeleteJournalState()
     data class Error(val message: String) : DeleteJournalState()
+}
+
+// ─────────────────────────────────────────────────────────────
+// Create Customer State
+// ─────────────────────────────────────────────────────────────
+sealed class CreateCustomerState {
+    object Idle : CreateCustomerState()
+    object Loading : CreateCustomerState()
+    data class Success(val message: String, val customer: CreatedCustomerData?) : CreateCustomerState()
+    data class Error(val message: String) : CreateCustomerState()
 }
 
 @HiltViewModel
@@ -358,6 +375,52 @@ class FinanceViewModel @Inject constructor(
         }
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // ── CREATE CUSTOMER VIA API REPOSITORY ──
+    // ─────────────────────────────────────────────────────────────
+    private val _createCustomerState = MutableStateFlow<CreateCustomerState>(CreateCustomerState.Idle)
+    val createCustomerState: StateFlow<CreateCustomerState> = _createCustomerState.asStateFlow()
+
+    fun createCustomer(
+        payload: CreateCustomerPayload,
+        onSuccessCallback: () -> Unit = {}
+    ) {
+        launchBusy {
+            _createCustomerState.value = CreateCustomerState.Loading
+
+            val result = repo.request<CreateCustomerApiResponse> {
+                post("/api/sales/customers/create", payload)
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        _createCustomerState.value = CreateCustomerState.Success(
+                            message = response.message,
+                            customer = response.data
+                        )
+                        // Reload first page of customers list automatically
+                        fetchCustomerForFinance(page = 1)
+                        onSuccessCallback()
+                    } else {
+                        _createCustomerState.value = CreateCustomerState.Error(
+                            response.message.ifBlank { "Failed to create customer" }
+                        )
+                    }
+                },
+                onFailure = { throwable ->
+                    _createCustomerState.value = CreateCustomerState.Error(
+                        extractErrorMessage(throwable, "Failed to create customer")
+                    )
+                }
+            )
+        }
+    }
+
+    fun resetCreateCustomerState() {
+        _createCustomerState.value = CreateCustomerState.Idle
+    }
+
     fun clearCustomerOrders() {
         _customerOrders.value = emptyList()
         _customerOrdersError.value = null
@@ -365,109 +428,119 @@ class FinanceViewModel @Inject constructor(
     // ─────────────────────────────────────────────────────────────
     // ── 3. FINANCE CUSTOMERS: Pagination & State ──
     // ─────────────────────────────────────────────────────────────
+    // Latest page response (customers + pagination)
     private val _financeCustomerList = MutableStateFlow<CustomerListResponseV2?>(null)
-    val financeCustomerList: StateFlow<CustomerListResponseV2?> = _financeCustomerList.asStateFlow()
+    val financeCustomerList: StateFlow<CustomerListResponseV2?> = _financeCustomerList
 
     private val _isLoadingFinanceCustomers = MutableStateFlow(false)
-    val isLoadingFinanceCustomers: StateFlow<Boolean> = _isLoadingFinanceCustomers.asStateFlow()
+    val isLoadingFinanceCustomers: StateFlow<Boolean> = _isLoadingFinanceCustomers
 
     private val _isLoadingMoreFinanceCustomers = MutableStateFlow(false)
-    val isLoadingMoreFinanceCustomers: StateFlow<Boolean> = _isLoadingMoreFinanceCustomers.asStateFlow()
-
-    private val _canLoadMoreFinanceCustomers = MutableStateFlow(true)
-    val canLoadMoreFinanceCustomers: StateFlow<Boolean> = _canLoadMoreFinanceCustomers.asStateFlow()
-
-    private val _currentFinanceCustomerPage = MutableStateFlow(1)
-    val currentFinanceCustomerPage: StateFlow<Int> = _currentFinanceCustomerPage.asStateFlow()
+    val isLoadingMoreFinanceCustomers: StateFlow<Boolean> = _isLoadingMoreFinanceCustomers
 
     private val _financeCustomerError = MutableStateFlow<String?>(null)
-    val financeCustomerError: StateFlow<String?> = _financeCustomerError.asStateFlow()
+    val financeCustomerError: StateFlow<String?> = _financeCustomerError
 
-    private var activeFinanceCustomerSearch: String? = null
+    private val _currentFinanceCustomerPage = MutableStateFlow(1)
+    val currentFinanceCustomerPage: StateFlow<Int> = _currentFinanceCustomerPage
+
+    private val _canLoadMoreFinanceCustomers = MutableStateFlow(false)
+    val canLoadMoreFinanceCustomers: StateFlow<Boolean> = _canLoadMoreFinanceCustomers
+
     private var fetchFinanceCustomersJob: Job? = null
+    private var loadMoreFinanceCustomersJob: Job? = null
+    private var activeFinanceCustomerSearch: String? = null
+    private var activeFinanceCustomerType: String? = null
 
+    // Fetch the first page (or any page) and replace the current list
     fun fetchCustomerForFinance(
         page: Int = 1,
         limit: Int = 10,
-        search: String? = null
+        search: String? = null,
+        type: String? = null
     ) {
         fetchFinanceCustomersJob?.cancel()
-        fetchFinanceCustomersJob = launchBusy {
+        loadMoreFinanceCustomersJob?.cancel()
+
+        fetchFinanceCustomersJob = viewModelScope.launch {
             _isLoadingFinanceCustomers.value = true
             _financeCustomerError.value = null
             _currentFinanceCustomerPage.value = page
-            activeFinanceCustomerSearch = search
 
-            val result = financeRepository.getCustomerForFinance(page, limit, search)
-            when {
-                result.isSuccess -> {
-                    val response = result.getOrNull()
-                    val customers = response?.data ?: emptyList()
-                    val pagination = response?.pagination
+            activeFinanceCustomerSearch = search?.trim()?.ifBlank { null }
+            activeFinanceCustomerType = type?.trim()?.ifBlank { null }
 
+            val result = financeRepository.getCustomerForFinance(
+                page = page,
+                limit = limit,
+                search = activeFinanceCustomerSearch,
+                type = activeFinanceCustomerType
+            )
+
+            result
+                .onSuccess { response ->
                     _financeCustomerList.value = response
-
-                    val totalPages = pagination?.totalPages ?: 1
-                    _canLoadMoreFinanceCustomers.value = page < totalPages && customers.isNotEmpty()
+                    val totalPages = response.pagination?.totalPages ?: 1
+                    _canLoadMoreFinanceCustomers.value =
+                        page < totalPages && response.data.isNotEmpty()
                 }
-                result.isFailure -> {
-                    val e = result.exceptionOrNull()
+                .onFailure { e ->
                     if (e !is CancellationException) {
-                        _financeCustomerError.value = extractErrorMessage(e, "Failed to fetch customers")
+                        _financeCustomerError.value =
+                            extractErrorMessage(e, "Failed to fetch customers")
                     }
                 }
-            }
+
             _isLoadingFinanceCustomers.value = false
         }
     }
 
-    fun loadMoreCustomerForFinance(limit: Int = 10) {
-        if (_isLoadingMoreFinanceCustomers.value || _isLoadingFinanceCustomers.value || !_canLoadMoreFinanceCustomers.value) {
-            return
-        }
+    // Fetch the next page and append it to the current list
+    fun loadMoreFinanceCustomers(limit: Int = 10) {
+        if (_isLoadingFinanceCustomers.value || _isLoadingMoreFinanceCustomers.value) return
+        if (!_canLoadMoreFinanceCustomers.value) return
 
-        launchBusy {
+        val nextPage = _currentFinanceCustomerPage.value + 1
+
+        loadMoreFinanceCustomersJob = viewModelScope.launch {
             _isLoadingMoreFinanceCustomers.value = true
-            val nextPage = _currentFinanceCustomerPage.value + 1
 
             val result = financeRepository.getCustomerForFinance(
                 page = nextPage,
                 limit = limit,
-                search = activeFinanceCustomerSearch
+                search = activeFinanceCustomerSearch,
+                type = activeFinanceCustomerType
             )
 
-            when {
-                result.isSuccess -> {
-                    val newResponse = result.getOrNull()
-                    val newCustomers = newResponse?.data ?: emptyList()
-                    val pagination = newResponse?.pagination
+            result
+                .onSuccess { response ->
+                    val current = _financeCustomerList.value
+                    _financeCustomerList.value = response.copy(
+                        data = current?.data.orEmpty() + response.data
+                    )
+                    _currentFinanceCustomerPage.value = nextPage
 
-                    if (newCustomers.isNotEmpty()) {
-                        val currentCustomers = _financeCustomerList.value?.data ?: emptyList()
-                        _financeCustomerList.value = _financeCustomerList.value?.copy(
-                            data = currentCustomers + newCustomers,
-                            pagination = pagination
-                        ) ?: newResponse
-
-                        _currentFinanceCustomerPage.value = nextPage
-                        val totalPages = pagination?.totalPages ?: nextPage
-                        _canLoadMoreFinanceCustomers.value = nextPage < totalPages
-                    } else {
-                        _canLoadMoreFinanceCustomers.value = false
+                    val totalPages = response.pagination?.totalPages ?: 1
+                    _canLoadMoreFinanceCustomers.value =
+                        nextPage < totalPages && response.data.isNotEmpty()
+                }
+                .onFailure { e ->
+                    if (e !is CancellationException) {
+                        _financeCustomerError.value =
+                            extractErrorMessage(e, "Failed to load more customers")
                     }
                 }
-                result.isFailure -> {
-                    // Do not permanently lock pagination
-                }
-            }
+
             _isLoadingMoreFinanceCustomers.value = false
         }
     }
 
+    /**
+     * Refresh
+     */
     fun refreshCustomerForFinance() {
         fetchCustomerForFinance(page = 1, search = activeFinanceCustomerSearch)
     }
-
     // ─────────────────────────────────────────────────────────────
     // ── 4. JOURNAL ENTRIES: Pagination & State ──
     // ─────────────────────────────────────────────────────────────
@@ -1038,6 +1111,45 @@ class FinanceViewModel @Inject constructor(
         }
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // ── SUPPLIER OVERVIEW API VIA API REPOSITORY ──
+    // ─────────────────────────────────────────────────────────────
+    private val _supplierOverview = MutableStateFlow<SupplierOverviewData?>(null)
+    val supplierOverview: StateFlow<SupplierOverviewData?> = _supplierOverview.asStateFlow()
+
+    private val _isLoadingSupplierOverview = MutableStateFlow(false)
+    val isLoadingSupplierOverview: StateFlow<Boolean> = _isLoadingSupplierOverview.asStateFlow()
+
+    private val _supplierOverviewError = MutableStateFlow<String?>(null)
+    val supplierOverviewError: StateFlow<String?> = _supplierOverviewError.asStateFlow()
+
+    fun fetchSupplierOverview(supplierId: String) {
+        if (supplierId.isBlank()) return
+        launchBusy {
+            _isLoadingSupplierOverview.value = true
+            _supplierOverviewError.value = null
+
+            // Endpoint calling with GenericApi / ApiRepository
+            val result = repo.request<SupplierOverviewApiResponse> {
+                get("/api/inventory/supplier/$supplierId/overview")
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    _supplierOverview.value = response.data
+                },
+                onFailure = { error ->
+                    _supplierOverviewError.value = extractErrorMessage(error, "Failed to load supplier overview")
+                }
+            )
+            _isLoadingSupplierOverview.value = false
+        }
+    }
+
+    fun clearSupplierOverview() {
+        _supplierOverview.value = null
+        _supplierOverviewError.value = null
+    }
     fun clearJournalEntryDetail() {
         _journalEntryDetail.value = null
         _journalDetailError.value = null

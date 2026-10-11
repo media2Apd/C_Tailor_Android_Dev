@@ -123,6 +123,24 @@ fun buildNavigationKey(menu: String, subItem: String): String {
         }
     }
 
+    if (menu == "Finance") {
+        return when (subItem) {
+            "Customers"          -> "finance_customers"
+            "Orders"             -> "finance_sales_invoices"
+            "Suppliers"          -> "finance_suppliers"
+            "Purchase List"      -> "finance_purchase_orders"
+            "Purchase Receive"   -> "finance_purchase_receive"
+            "Purchase Bills"     -> "finance_bills_list"
+            "Payments Made"      -> "finance_payments_made"
+            "Expense Management" -> "finance_expenses"
+            "Chart Of Accounts",
+            "Chart of Accounts"  -> "finance_chart_of_accounts"
+            "Journal Entries"    -> "finance_journal_screen"
+            "Approvals"          -> "inventory_approvals"
+            else -> "finance_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
+        }
+    }
+
     if (menu == "Inventory") {
         return when (subItem) {
             "All Items"           -> "inventory_all_items"
@@ -135,7 +153,7 @@ fun buildNavigationKey(menu: String, subItem: String): String {
             "Billing", "Bills"    -> "inventory_billing"
 
             // Procurement sub-items: route Bill List to AllBillListScreen
-            "Suppliers"           -> "inventory_procurement_suppliers"
+            "Suppliers"           -> "inventory_suppliers"
             "Purchase Request"    -> "inventory_procurement_purchase_request"
             "Purchase Order"      -> "inventory_procurement_purchase_order"
             "Purchase Receive"    -> "inventory_procurement_purchase_receive"
@@ -269,16 +287,32 @@ object SidebarConfig {
                 )
             ),
             MenuItem(
-                R.drawable.finance, "Finance",
+                icon = R.drawable.finance,
+                label = "Finance",
                 isPanel = true,
                 categories = listOf(
-                    "Accounts Receivable", "Accounts Payable", "Expenses",
-                    "Finance Core"
+                    "Sales",
+                    "Purchase",
+                    "Expense Management",
+                    "General Ledger",
+                    "Approvals"
                 ),
                 subItems = mapOf(
-                    "Accounts Receivable" to listOf("Sales Invoices", "Customers", "Payments Received"),
-                    "Accounts Payable"    to listOf("Suppliers", "Purchase Invoices", "Payments Mode"),
-                    "Finance Core"        to listOf("Chart of Accounts", "Journal Entries", "Trial Balance")
+                    "Sales" to listOf(
+                        "Customers",
+                        "Orders"
+                    ),
+                    "Purchase" to listOf(
+                        "Suppliers",
+                        "Purchase List",
+                        "Purchase Receive",
+                        "Purchase Bills",
+                        "Payments Made"
+                    ),
+                    "General Ledger" to listOf(
+                        "Chart Of Accounts",
+                        "Journal Entries"
+                    )
                 )
             ),
             // Inside SidebarConfig.kt -> getFullMenuItems() -> Inventory item:

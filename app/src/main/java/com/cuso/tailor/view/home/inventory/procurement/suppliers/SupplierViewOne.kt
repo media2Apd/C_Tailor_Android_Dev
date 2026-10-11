@@ -52,7 +52,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun SupplierDetailScreen(
+fun InventorySupplierDetailScreen(
     supplierId: String,
     onClose: () -> Unit,
     onEditSupplier: (SupplierDto) -> Unit = {},

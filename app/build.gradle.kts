@@ -46,7 +46,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.7:5000/\""
+                "\"http://192.168.88.13:5000/\""
             )
         }
 
@@ -129,8 +129,11 @@ dependencies {
     // Google Auth
     //noinspection LoginCredentials
     implementation(libs.play.services.auth)
+    //noinspection LoginCredentials
     implementation(libs.androidx.credentials.core)
+    //noinspection LoginCredentials
     implementation(libs.androidx.credentials.play.services)
+    //noinspection LoginCredentials
     implementation(libs.googleid)
 
     implementation(libs.firebase.ai)

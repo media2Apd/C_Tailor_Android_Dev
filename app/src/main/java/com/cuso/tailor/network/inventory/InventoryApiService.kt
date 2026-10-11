@@ -640,7 +640,8 @@ interface InventoryApiService {
         @Query("page") page: Int? = null,
         @Query("limit") limit: Int? = null,
         @Query("search") search: String? = null,
-        @Query("status") status: String? = null
+        @Query("status") status: String? = null,
+        @Query("supplierId") supplierId: String? = null // <-- Query parameter for filtering by supplier
     ): Response<PurchaseOrderListResponse>
 
     @GET("/api/inventory/purchase-order/view-one/{id}")

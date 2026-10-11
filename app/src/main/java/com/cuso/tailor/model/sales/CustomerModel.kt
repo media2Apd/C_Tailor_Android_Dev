@@ -2,7 +2,11 @@
 
 package com.cuso.tailor.model.sales
 
+import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
 
 // ─────────────────────────────────────────────────────────────
 // Common Address Models
@@ -30,7 +34,6 @@ data class CustomerPreferences(
 // ─────────────────────────────────────────────────────────────
 // Customer API Response Models (v1)
 // ─────────────────────────────────────────────────────────────
-
 data class CustomerListResponse(
     val success: Boolean = false,
     val message: String? = null,
@@ -327,13 +330,13 @@ data class UpdateCustomerRequest(
     val dateOfBirth: String? = null,
 
     @SerializedName("preferredLanguage")
-    val preferredLanguage: String? = "English",
+    val preferredLanguage: String? = "-",
 
     @SerializedName("preferredContactMethod")
     val preferredContactMethod: String? = "Whatsapp",
 
     @SerializedName("customerLevel")
-    val customerLevel: String? = "Regular",
+    val customerLevel: String? = "-",
 
     @SerializedName("taxId")
     val taxId: String? = null,
@@ -348,7 +351,7 @@ data class UpdateCustomerRequest(
     val sameAsBillingAddress: Boolean = true,
 
     @SerializedName("status")
-    val status: String? = "Active"
+    val status: String? = ""
 )
 
 data class UpdateCustomerResponse(
@@ -366,93 +369,93 @@ data class DeleteCustomerResponse(
 // ─────────────────────────────────────────────────────────────
 
 data class CustomerListResponseV2(
-    val success: Boolean,
-    val pagination: PaginationInfo? = null,
-    val data: List<CustomerItemV2> = emptyList()
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("pagination") val pagination: PaginationInfo? = null,
+    @SerializedName("data") val data: List<CustomerItemV2> = emptyList()
 )
 
 data class PaginationInfo(
-    val page: Int,
-    val limit: Int,
-    val total: Int,
-    val totalPages: Int
+    @SerializedName("page") val page: Int = 1,
+    @SerializedName("limit") val limit: Int = 10,
+    @SerializedName("total") val total: Int = 0,
+    @SerializedName("totalPages") val totalPages: Int = 1
 )
 
 data class CustomerAddressV2(
-    @SerializedName("addressLine") val addressLine: String? = null,
-    @SerializedName("city") val city: String? = null,
-    @SerializedName("area") val area: String? = null,
-    @SerializedName("pincode") val pincode: String? = null,
-    @SerializedName("state") val state: String? = null,
-    @SerializedName("street") val street: String? = null,
     @SerializedName("flatNo") val flatNo: String? = null,
-    @SerializedName("areaZone") val areaZone: String? = null
+    @SerializedName("street") val street: String? = null,
+    @SerializedName("areaZone") val areaZone: String? = null,
+    @SerializedName("area") private val _area: String? = null,
+    @SerializedName("city") val city: String? = null,
+    @SerializedName("subdivisionCode") val subdivisionCode: String? = null,
+    @SerializedName("subdivisionName") val subdivisionName: String? = null,
+    @SerializedName("state") private val _state: String? = null,
+    @SerializedName("countryCode") val countryCode: String? = null,
+    @SerializedName("countryName") val countryName: String? = null,
+    @SerializedName("pincode") val pincode: String? = null,
+    @SerializedName("addressLine") val addressLine: String? = null
+) {
+    val area: String?
+        get() = _area?.ifBlank { null } ?: areaZone?.ifBlank { null }
+
+    val state: String?
+        get() = _state?.ifBlank { null } ?: subdivisionName?.ifBlank { null }
+}
+
+data class CustomFieldsDto(
+    @SerializedName("internalNotes") val internalNotes: String? = null,
+    @SerializedName("notes") val notes: String? = null,
+    @SerializedName("tags") val tags: List<String> = emptyList()
 )
 
 data class CustomerItemV2(
-    @SerializedName("_id")
-    val _id: String = "",
-
-    @SerializedName("profilePicture")
-    val profilePicture: ProfilePictureDto? = null,
-
-    @SerializedName("organizationId")
-    val organizationId: String? = null,
-
-    @SerializedName("name")
-    private val _name: String? = null,
-
-    @SerializedName("customerName")
-    private val _customerName: String? = null,
-
-    @SerializedName("mobile")
-    private val _mobile: String? = null,
-
-    @SerializedName("mobileNumber")
-    private val _mobileNumber: String? = null,
-
-    @SerializedName("email")
-    val email: String? = null,
-
-    @SerializedName("type")
-    private val _type: String? = null,
-
-    @SerializedName("customerType")
-    private val _customerType: String? = null,
-
-    @SerializedName("status")
-    val status: String? = "Active",
-
-    @SerializedName("outstanding")
-    val outstanding: Double? = 0.0,
-
-    @SerializedName("address")
-    val address: CustomerAddressV2? = null,
-
-    @SerializedName("billingAddress")
-    val billingAddress: CustomerAddressV2? = null,
-
-    @SerializedName("createdAt")
-    val createdAt: String? = "",
-
-    @SerializedName("updatedAt")
-    val updatedAt: String? = ""
+    @SerializedName("_id") val _id: String = "",
+    @SerializedName("organizationId") val organizationId: String? = null,
+    @SerializedName("profilePicture") val profilePicture: ProfilePictureDto? = null,
+    @SerializedName("customerCode") val customerCode: String? = null,
+    @SerializedName("fullName") private val _fullName: String? = null,
+    @SerializedName("name") private val _name: String? = null,
+    @SerializedName("mobileNumber") private val _mobileNumber: String? = null,
+    @SerializedName("mobile") private val _mobile: String? = null,
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("customerType") private val _customerType: String? = null,
+    @SerializedName("type") private val _type: String? = null,
+    @SerializedName("customerLevel") val customerLevel: String? = null,
+    @SerializedName("creditLimit") val creditLimit: Double? = 0.0,
+    @SerializedName("creditPeriodDays") val creditPeriodDays: Int? = 0,
+    @SerializedName("preferredLanguage") val preferredLanguage: String? = null,
+    @SerializedName("preferredContactMethod") val preferredContactMethod: String? = null,
+    @SerializedName("billingAddress") val billingAddress: CustomerAddressV2? = null,
+    @SerializedName("shippingAddress") val shippingAddress: CustomerAddressV2? = null,
+    @SerializedName("address") val address: CustomerAddressV2? = null,
+    @SerializedName("sameAsBillingAddress") val sameAsBillingAddress: Boolean? = true,
+    @SerializedName("customFields") val customFields: CustomFieldsDto? = null,
+    @SerializedName("status") val status: String? = "Active",
+    @SerializedName("outstanding") val outstanding: Double? = 0.0,
+    @SerializedName("lastInvoice") val lastInvoice: String? = null,
+    @SerializedName("totalPaid") val totalPaid: Double? = 0.0,
+    @SerializedName("createdAt") val createdAt: String? = "",
+    @SerializedName("updatedAt") val updatedAt: String? = ""
 ) {
     val name: String
-        get() = _name?.ifBlank { null } ?: _customerName?.ifBlank { null } ?: "Walk-in Customer"
+        get() = _fullName?.ifBlank { null } ?: _name?.ifBlank { null } ?: "Unnamed Customer"
 
     val mobile: String
-        get() = _mobile?.ifBlank { null } ?: _mobileNumber?.ifBlank { null } ?: "N/A"
+        get() = _mobileNumber?.ifBlank { null } ?: _mobile?.ifBlank { null } ?: "N/A"
 
     val type: String
-        get() = _type?.ifBlank { null } ?: _customerType?.ifBlank { null } ?: "Individual"
+        get() = _customerType?.ifBlank { null } ?: _type?.ifBlank { null } ?: "Individual"
 
     val displayAddress: String
-        get() = address?.addressLine?.takeIf { it.isNotBlank() }
-            ?: billingAddress?.addressLine?.takeIf { it.isNotBlank() }
-            ?: address?.city?.takeIf { it.isNotBlank() }
-            ?: billingAddress?.city?.takeIf { it.isNotBlank() }
-            ?: "N/A"
+        get() {
+            val addr = billingAddress ?: shippingAddress ?: address ?: return "N/A"
+            val parts = listOfNotNull(
+                addr.areaZone?.takeIf { it.isNotBlank() } ?: addr.area?.takeIf { it.isNotBlank() },
+                addr.city?.takeIf { it.isNotBlank() },
+                addr.pincode?.takeIf { it.isNotBlank() }
+            )
+            return if (parts.isNotEmpty()) parts.joinToString(", ") else "N/A"
+        }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -460,6 +463,7 @@ data class CustomerItemV2(
 // ─────────────────────────────────────────────────────────────
 
 fun CustomerItemV2.toCustomerItem(): CustomerItem {
+    val addr = this.billingAddress ?: this.address ?: this.shippingAddress
     return CustomerItem(
         id = this._id,
         organizationId = this.organizationId,
@@ -470,13 +474,28 @@ fun CustomerItemV2.toCustomerItem(): CustomerItem {
         profilePicture = this.profilePicture,
         gender = null,
         dateOfBirth = null,
-        address = this.address?.let {
+        address = addr?.let {
             CustomerAddressDetails(
-                addressLine = it.addressLine ?: "",
+                addressLine = it.addressLine ?: it.street ?: "",
                 city = it.city ?: "",
                 area = it.area ?: "",
                 pincode = it.pincode ?: "",
-                state = it.state ?: ""
+                state = it.state ?: "",
+                areaZone = it.areaZone,
+                subdivisionName = it.subdivisionName,
+                countryName = it.countryName
+            )
+        },
+        billingAddress = this.billingAddress?.let {
+            CustomerAddressDetails(
+                addressLine = it.addressLine ?: it.street ?: "",
+                city = it.city ?: "",
+                area = it.area ?: "",
+                pincode = it.pincode ?: "",
+                state = it.state ?: "",
+                areaZone = it.areaZone,
+                subdivisionName = it.subdivisionName,
+                countryName = it.countryName
             )
         },
         status = this.status,
@@ -531,7 +550,7 @@ data class CreateCustomerRequestV2(
     val name: String,
     val mobile: String,
     val address: CustomerAddressV2,
-    val status: String = "Active"
+    val status: String = ""
 )
 
 data class CreateCustomerResponseV2(
@@ -635,7 +654,7 @@ data class CustomerMeasurementRecord(
     @SerializedName("garmentCategoryId") val garmentCategory: MeasurementCategoryRef? = null,
     @SerializedName("customerId") val customer: MeasurementCustomerRef? = null,
     @SerializedName("garmentId") val garment: MeasurementGarmentRef? = null,
-    @SerializedName("status") val status: String? = "Active",
+    @SerializedName("status") val status: String? = "",
     @SerializedName("measuredAt") val measuredAt: String? = null,
     @SerializedName("createdAt") val createdAt: String? = null,
     @SerializedName("updatedAt") val updatedAt: String? = null
@@ -713,4 +732,104 @@ data class CustomerOrderLineItem(
     val unit: String? = null,
     val unitPrice: Double? = 0.0,
     val lineTotal: Double? = 0.0
+)
+
+
+
+
+// Pagination info returned with every list response
+@Serializable
+data class Pagination(
+    val page: Int,
+    val limit: Int,
+    val total: Int,
+    val totalPages: Int
+)
+
+// Single customer record
+@Serializable
+data class CustomerRecord(
+    // MongoDB document id
+    @SerialName("_id") val id: String,
+    val organizationId: String,
+    // Null when the customer is not tied to a branch
+    val branchId: String? = null,
+    val customerCode: String,
+    val fullName: String,
+    val mobileNumber: String,
+    val email: String,
+    // e.g. "Individual", "Corporate"
+    val customerType: String,
+    val gender: String,
+    // ISO-8601 date string, can be null
+    val dateOfBirth: String? = null,
+    val preferredLanguage: String,
+    // e.g. "Whatsapp", "Call"
+    val preferredContactMethod: String,
+    // e.g. "Regular", "VIP"
+    val customerLevel: String,
+    val creditLimit: Double,
+    val creditPeriodDays: Int,
+    val billingAddress: Address,
+    val sameAsBillingAddress: Boolean,
+    // Null when shipping address is the same as billing address
+    val shippingAddress: Address? = null,
+    // Encrypted tax id (e.g. GSTIN), null if not provided
+    val taxId: String? = null,
+    // e.g. "GSTIN", "Other"
+    val taxIdType: String,
+    val profilePicture: ProfilePicture,
+    // Attachment structure is unknown (always empty in the sample)
+    val attachments: List<JsonElement> = emptyList(),
+    // e.g. "Not_Required"
+    val approvalStatus: String,
+    // e.g. "Active"
+    val status: String,
+    // Can be an empty object, so every field is optional
+    val customFields: CustomFields = CustomFields(),
+    val createdBy: String,
+    // Null if the record was never updated
+    val updatedBy: String? = null,
+    // ISO-8601 timestamps
+    val createdAt: String,
+    val updatedAt: String,
+    // MongoDB version key
+    @SerialName("__v") val version: Int,
+    // Pending amount for the customer
+    val outstanding: Double,
+    // Null if no invoice has been created yet
+    val lastInvoice: String? = null,
+    val totalPaid: Double
+)
+
+// Used for both billing and shipping addresses
+@Serializable
+data class Address(
+    val flatNo: String = "",
+    val street: String = "",
+    val areaZone: String = "",
+    val city: String = "",
+    // State code, e.g. "TN"
+    val subdivisionCode: String = "",
+    // State name, e.g. "Tamil Nadu"
+    val subdivisionName: String = "",
+    // Country code, e.g. "IN"
+    val countryCode: String = "",
+    val countryName: String = "",
+    val pincode: String = ""
+)
+
+// Profile picture details, both values can be null
+@Serializable
+data class ProfilePicture(
+    val url: String? = null,
+    val publicId: String? = null
+)
+
+// Optional extra fields, may be missing or partially filled
+@Serializable
+data class CustomFields(
+    val internalNotes: String? = null,
+    val notes: String? = null,
+    val tags: List<String> = emptyList()
 )

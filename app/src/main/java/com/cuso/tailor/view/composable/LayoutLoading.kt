@@ -11,8 +11,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
@@ -73,51 +71,38 @@ fun ShimmerBox(
     )
 }
 
-// ── 100% Adaptive Dashboard Skeleton ──
+// ── 100% Adaptive Dashboard Skeleton (No Lazy Layouts) ──
 @Composable
 fun DashboardSkeleton() {
     val tokens = LocalAppTokens.current
     val shimmerBrush = rememberShimmerBrush()
 
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Transparent),
-        contentPadding = PaddingValues(
-            horizontal = tokens.screenPadding,
-            vertical = tokens.screenPadding
-        ),
-        verticalArrangement = Arrangement.spacedBy(tokens.screenPadding * 1.25f),
-        userScrollEnabled = false
+            .background(Color.Transparent)
+            .padding(
+                horizontal = tokens.screenPadding,
+                vertical = tokens.screenPadding
+            ),
+        verticalArrangement = Arrangement.spacedBy(tokens.screenPadding * 1.25f)
     ) {
         // 1. Adaptive Greeting Card Skeleton
-        item {
-            GreetingCardSkeleton(tokens = tokens, brush = shimmerBrush)
-        }
+        GreetingCardSkeleton(tokens = tokens, brush = shimmerBrush)
 
-        // 2. Adaptive Stats Grid Skeleton (2x2 on phone, 1x4 on tablet)
-        item {
-            AdaptiveStatsGridSkeleton(tokens = tokens, brush = shimmerBrush)
-        }
+        // 2. Adaptive Stats Grid Skeleton
+        AdaptiveStatsGridSkeleton(tokens = tokens, brush = shimmerBrush)
 
         // 3. Adaptive Quick Modules Section Skeleton
-        item {
-            QuickModulesSkeleton(tokens = tokens, brush = shimmerBrush)
-        }
+        QuickModulesSkeleton(tokens = tokens, brush = shimmerBrush)
 
         // 4. Adaptive Recent Activity Section Skeleton
-        item {
-            RecentActivitySkeleton(tokens = tokens, brush = shimmerBrush)
-        }
+        RecentActivitySkeleton(tokens = tokens, brush = shimmerBrush)
 
         // 5. Adaptive Recent Customers Section Skeleton
-        item {
-            RecentCustomersSkeleton(tokens = tokens, brush = shimmerBrush)
-        }
+        RecentCustomersSkeleton(tokens = tokens, brush = shimmerBrush)
 
-        item {
-            Spacer(Modifier.height(tokens.screenPadding * 0.5f))
-        }
+        Spacer(Modifier.height(tokens.screenPadding * 0.5f))
     }
 }
 
@@ -139,7 +124,6 @@ private fun GreetingCardSkeleton(tokens: AppDesignTokens, brush: Brush) {
                 .padding(tokens.screenPadding),
             verticalArrangement = Arrangement.Center
         ) {
-            // Title placeholder
             ShimmerBox(
                 modifier = Modifier
                     .fillMaxWidth(if (tokens.isTablet) 0.35f else 0.55f)
@@ -156,7 +140,6 @@ private fun GreetingCardSkeleton(tokens: AppDesignTokens, brush: Brush) {
 
             Spacer(Modifier.height(tokens.screenPadding * 0.375f))
 
-            // Subtitle placeholder
             ShimmerBox(
                 modifier = Modifier
                     .fillMaxWidth(if (tokens.isTablet) 0.45f else 0.75f)
@@ -174,10 +157,10 @@ private fun GreetingCardSkeleton(tokens: AppDesignTokens, brush: Brush) {
     }
 }
 
-// ── 2. Adaptive Stats Grid Skeleton (Responsive by gridColumns) ──
+// ── 2. Adaptive Stats Grid Skeleton ──
 @Composable
 private fun AdaptiveStatsGridSkeleton(tokens: AppDesignTokens, brush: Brush) {
-    val totalStats = 4 // Total 4 dashboard metrics: Revenue, Orders, Customers, Pending
+    val totalStats = 4
     val rows = (0 until totalStats).chunked(tokens.gridColumns)
 
     Column(verticalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.75f)) {
@@ -194,7 +177,6 @@ private fun AdaptiveStatsGridSkeleton(tokens: AppDesignTokens, brush: Brush) {
                     )
                 }
 
-                // Fill missing cells in last row if applicable
                 if (rowItems.size < tokens.gridColumns) {
                     repeat(tokens.gridColumns - rowItems.size) {
                         Spacer(Modifier.weight(1f))
@@ -219,7 +201,6 @@ private fun DashboardStatCardSkeleton(
             .border(1.dp, Color(0xFFE8EAF4), cardCorner)
             .padding(tokens.cardPadding * 0.7f)
     ) {
-        // Icon + Title Row
         Row(verticalAlignment = Alignment.CenterVertically) {
             ShimmerBox(
                 modifier = Modifier.size(tokens.iconSize),
@@ -238,7 +219,6 @@ private fun DashboardStatCardSkeleton(
 
         Spacer(Modifier.height(tokens.screenPadding * 0.7f))
 
-        // Large Number
         ShimmerBox(
             modifier = Modifier
                 .fillMaxWidth(0.65f)
@@ -249,7 +229,6 @@ private fun DashboardStatCardSkeleton(
 
         Spacer(Modifier.height(tokens.screenPadding * 0.25f))
 
-        // Trend Row
         Row(verticalAlignment = Alignment.CenterVertically) {
             ShimmerBox(
                 modifier = Modifier.size(tokens.iconSize * 0.65f),
@@ -284,11 +263,11 @@ private fun QuickModulesSkeleton(tokens: AppDesignTokens, brush: Brush) {
 
         Spacer(Modifier.height(tokens.screenPadding * 0.75f))
 
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding),
-            userScrollEnabled = false
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding)
         ) {
-            items(moduleCount) {
+            repeat(moduleCount) {
                 Column(
                     modifier = Modifier.width(tokens.buttonHeight * 1.45f),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -474,7 +453,7 @@ private fun RecentCustomersSkeleton(tokens: AppDesignTokens, brush: Brush) {
     }
 }
 
-// ── Lead & DataCard Exact Mirror Skeleton ──
+// ── Non-Lazy ListSkeleton (Safe for verticalScroll Parent) ──
 @Composable
 fun ListSkeleton(
     modifier: Modifier = Modifier,
@@ -484,23 +463,20 @@ fun ListSkeleton(
     val shimmerBrush = rememberShimmerBrush()
     val count = itemCount ?: if (tokens.isTablet) 7 else 5
 
-    LazyColumn(
+    // Replaced LazyColumn with simple Column to eliminate infinite height constraint crash
+    Column(
         modifier = modifier
-            .fillMaxSize()
-            .background(Color.Transparent),
-        contentPadding = PaddingValues(
-            horizontal = 0.dp,
-            vertical = tokens.extraPadding
-        ),
-        userScrollEnabled = false
+            .fillMaxWidth()
+            .background(Color.Transparent)
+            .padding(vertical = tokens.extraPadding),
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        items(count) { index ->
+        repeat(count) {
             DataCardItemSkeleton(
                 tokens = tokens,
                 brush = shimmerBrush
             )
 
-            // Divider matching DataCard showDivider
             HorizontalDivider(
                 color = BorderGray,
                 thickness = 2.dp
@@ -523,13 +499,11 @@ private fun DataCardItemSkeleton(
                 vertical = 14.dp
             )
     ) {
-        // --- 1. Top Row: Order ID (Left) & Status Badge + 3-Dots Menu (Right) ---
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // "Order ID: ..." metadata placeholder
             ShimmerBox(
                 modifier = Modifier
                     .width(if (tokens.isTablet) 180.dp else 130.dp)
@@ -539,7 +513,6 @@ private fun DataCardItemSkeleton(
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Top Status Badge placeholder
                 ShimmerBox(
                     modifier = Modifier
                         .width(if (tokens.isTablet) 110.dp else 90.dp)
@@ -550,7 +523,6 @@ private fun DataCardItemSkeleton(
 
                 Spacer(Modifier.width(8.dp))
 
-                // 3-Dots Action Menu Icon placeholder
                 ShimmerBox(
                     modifier = Modifier.size(if (tokens.isTablet) 24.dp else 20.dp),
                     shape = CircleShape,
@@ -561,9 +533,7 @@ private fun DataCardItemSkeleton(
 
         Spacer(Modifier.height(8.dp))
 
-        // --- 2. Main Row: Title (Customer Name) & Subtitle (Date • Garment • Qty) ---
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Customer Name / Lead Person Title
             ShimmerBox(
                 modifier = Modifier
                     .fillMaxWidth(if (tokens.isTablet) 0.35f else 0.48f)
@@ -574,7 +544,6 @@ private fun DataCardItemSkeleton(
 
             Spacer(Modifier.height(4.dp))
 
-            // Subtitle: "Date • Garment • Qty"
             ShimmerBox(
                 modifier = Modifier
                     .fillMaxWidth(if (tokens.isTablet) 0.55f else 0.78f)
@@ -586,21 +555,18 @@ private fun DataCardItemSkeleton(
 
         Spacer(Modifier.height(10.dp))
 
-        // --- 3. Footer Row: Budget / Amount Range Field ---
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Currency Icon Box placeholder
                 ShimmerBox(
                     modifier = Modifier.size(20.dp),
                     shape = RoundedCornerShape(4.dp),
                     brush = brush
                 )
                 Spacer(Modifier.width(6.dp))
-                // Budget Range text placeholder: "₹1,000 - ₹50,000"
                 ShimmerBox(
                     modifier = Modifier
                         .width(if (tokens.isTablet) 180.dp else 140.dp)

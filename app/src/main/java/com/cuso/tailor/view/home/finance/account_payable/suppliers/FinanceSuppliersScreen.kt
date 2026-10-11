@@ -22,14 +22,15 @@ import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
 
 // ── Static dummy model, matches the screenshot's row data ──
- data class SupplierRow(
-    val name: String,
-    val code: String,
-    val phone: String,
-    val city: String,
-    val outstanding: String,
-    val lastBill: String,
-    val isActive: Boolean
+data class SupplierRow(
+    val id: String = "",
+    val name: String = "",
+    val code: String = "",
+    val phone: String = "",
+    val city: String = "",
+    val outstanding: String = "",
+    val lastBill: String = "",
+    val isActive: Boolean = true
 )
 
 private val dummySuppliers = List(6) {

@@ -344,11 +344,11 @@ data class OrderItem(
 )
 
 data class Customer(
-    val id: String?,
-    val name: String?,
-    val mobile: String?,
-    val email: String?,
-    val code: String?
+    val id: String? = null,
+    val name: String? = null,
+    val mobile: String? = null,
+    val email: String? = null,
+    val code: String? = null
 )
 
 data class Garment(

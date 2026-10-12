@@ -624,8 +624,8 @@ fun CreateOrderScreen(
 
                         val amount = addon.unitPrice
                             ?: addon.addonWork
-                                ?.workPricingId
-                                ?.basePrice
+                                .workPricingId
+                                .basePrice
                             ?: 0.0
 
                         wpId to amount
@@ -668,7 +668,7 @@ fun CreateOrderScreen(
                     }
 
                     !cfg?.fabricSource.isNullOrBlank() -> {
-                        cfg?.fabricSource.orEmpty()
+                        cfg.fabricSource
                     }
 
                     else -> {
@@ -849,8 +849,6 @@ fun CreateOrderScreen(
 
     val fabricItemList by inventoryViewModel.fabricItemList.collectAsStateWithLifecycle()
     val accessoryItemList by inventoryViewModel.accessoryItemList.collectAsStateWithLifecycle()
-    val warehouseDropdownItems by inventoryViewModel.warehouseDropdown.collectAsStateWithLifecycle()
-    val binDropdownItems by inventoryViewModel.binDropdown.collectAsStateWithLifecycle()
     val productionTemplates by inventoryViewModel.productionTemplates.collectAsStateWithLifecycle()
 
     var showDiscardDialog by remember { mutableStateOf(false) }
@@ -909,7 +907,7 @@ fun CreateOrderScreen(
         settingsViewModel.fetchFabricPricing()
         settingsViewModel.fetchDesigns()
         inventoryViewModel.fetchTaxGroups()
-        inventoryViewModel.loadWarehouseDropdown()
+//        inventoryViewModel.loadWarehouseDropdown()
         inventoryViewModel.fetchFabricList()
         inventoryViewModel.fetchAccessoryList()
         inventoryViewModel.fetchProductionTemplates()
@@ -958,7 +956,7 @@ fun CreateOrderScreen(
     val totalDiscount = discountText.toDoubleOrNull() ?: 0.0
 
     var selectedImages by remember {
-        mutableStateOf<List<Uri>>(initialData?.designImages ?: emptyList())
+        mutableStateOf(initialData?.designImages ?: emptyList())
     }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -1539,7 +1537,7 @@ fun CreateOrderScreen(
                                                     value = currentTemplateDisplay,
                                                     expanded = templateOpen,
                                                     onExpandChange = { templateOpen = it },
-                                                    options = if (templateOptions.isEmpty()) listOf("Loading templates...") else templateOptions,
+                                                    options = templateOptions.ifEmpty { listOf("Loading templates...") },
                                                     onOptionSelected = { chosenName ->
                                                         val selectedTmpl = templateMap[chosenName]
                                                         val updated = currentGarment.copy(
@@ -1811,6 +1809,22 @@ fun CreateOrderScreen(
                                         }
 
                                         is DynamicFabricItem -> {
+                                            // Selected inventory item, used to read its own warehouses and bins
+                                            val selectedFabricInv = fabricItemList.find {
+                                                it._id == item.itemId || it.id == item.itemId
+                                            }
+
+                                            // Warehouses that belong to the selected fabric
+                                            val availableWarehouses = selectedFabricInv?.warehouses ?: emptyList()
+                                            val warehouseOptions = availableWarehouses.map { it.warehouseName }
+
+                                            // Bins that belong to the selected warehouse
+                                            val selectedWarehouseDto = availableWarehouses.find { it.warehouseId == item.warehouseId }
+                                            val availableBins = selectedWarehouseDto?.bins ?: emptyList()
+                                            val binOptions = availableBins.map { bin ->
+                                                "${bin.binName} (Available: ${bin.availableQuantity.toInt()})"
+                                            }
+
                                             Column(
                                                 modifier = Modifier.padding(top = 14.dp),
                                                 verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1884,13 +1898,22 @@ fun CreateOrderScreen(
                                                             options = fabricOptions.ifEmpty { listOf("Loading fabrics...") },
                                                             onOptionSelected = { chosenDisplay ->
                                                                 val selectedInv = fabricMap[chosenDisplay]
-                                                                val isOut = (selectedInv?.currentStock ?: 0.0) <= 0.0
+                                                                val availableStock = selectedInv?.availableStock ?: 0.0
+
+                                                                // Pre-select the first warehouse and its first bin
+                                                                val defaultWh = selectedInv?.warehouses?.firstOrNull()
+                                                                val defaultBin = defaultWh?.bins?.firstOrNull()
+
                                                                 val updated = item.copy(
-                                                                    itemId = selectedInv?.id ?: selectedInv?._id.orEmpty(),
+                                                                    itemId = selectedInv?._id.orEmpty(),
                                                                     selection = chosenDisplay,
-                                                                    stockCount = selectedInv?.currentStock ?: 0.0,
-                                                                    isOutOfStock = isOut,
-                                                                    unit = if (!selectedInv?.unit.isNullOrBlank()) "${selectedInv.unit} (m)" else item.unit
+                                                                    stockCount = availableStock,
+                                                                    isOutOfStock = availableStock <= 0.0,
+                                                                    unit = if (!selectedInv?.unit.isNullOrBlank()) "${selectedInv.unit} (m)" else item.unit,
+                                                                    warehouseId = defaultWh?.warehouseId.orEmpty(),
+                                                                    warehouseName = defaultWh?.warehouseName.orEmpty(),
+                                                                    binId = defaultBin?.binId.orEmpty(),
+                                                                    binName = defaultBin?.binName.orEmpty()
                                                                 )
                                                                 dynamicOrderItems = dynamicOrderItems.map {
                                                                     if (it.id == item.id) updated else it
@@ -1937,24 +1960,11 @@ fun CreateOrderScreen(
                                                     var whOpen by remember { mutableStateOf(false) }
                                                     var binOpen by remember { mutableStateOf(false) }
 
-                                                    val whOptions: List<String> = remember(warehouseDropdownItems) {
-                                                        warehouseDropdownItems.map { it.label }
-                                                    }
-                                                    val whMap = remember(warehouseDropdownItems) {
-                                                        warehouseDropdownItems.associateBy { it.label }
-                                                    }
-
-                                                    val binOptions: List<String> = remember(binDropdownItems) {
-                                                        binDropdownItems.map { it.name }
-                                                    }
-                                                    val binMap = remember(binDropdownItems) {
-                                                        binDropdownItems.associateBy { it.name }
-                                                    }
-
                                                     Row(
                                                         modifier = Modifier.fillMaxWidth(),
                                                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                                                     ) {
+                                                        // Warehouse dropdown
                                                         Column(modifier = Modifier.weight(1f)) {
                                                             val whDisplayValue = item.warehouseName.ifBlank { "Select Warehouse" }
                                                             FormDropdown(
@@ -1963,24 +1973,25 @@ fun CreateOrderScreen(
                                                                 value = whDisplayValue,
                                                                 expanded = whOpen,
                                                                 onExpandChange = { whOpen = it },
-                                                                options = whOptions.ifEmpty { listOf("Loading warehouses...") },
+                                                                options = warehouseOptions.ifEmpty { listOf("No warehouses assigned") },
                                                                 onOptionSelected = { chosenWhName ->
-                                                                    val wh = whMap[chosenWhName]
-                                                                    val whId = wh?.value.orEmpty()
-                                                                    if (whId.isNotBlank()) {
-                                                                        inventoryViewModel.loadBinDropdown(whId)
-                                                                    }
+                                                                    val chosenWh = availableWarehouses.find { it.warehouseName == chosenWhName }
+                                                                    val firstBin = chosenWh?.bins?.firstOrNull()
+
                                                                     val updated = item.copy(
-                                                                        warehouseId = whId,
-                                                                        warehouseName = chosenWhName,
-                                                                        binId = "",
-                                                                        binName = ""
+                                                                        warehouseId = chosenWh?.warehouseId.orEmpty(),
+                                                                        warehouseName = chosenWh?.warehouseName.orEmpty(),
+                                                                        binId = firstBin?.binId.orEmpty(),
+                                                                        binName = firstBin?.binName.orEmpty()
                                                                     )
-                                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                                    dynamicOrderItems = dynamicOrderItems.map {
+                                                                        if (it.id == item.id) updated else it
+                                                                    }
                                                                 }
                                                             )
                                                         }
 
+                                                        // Bin dropdown
                                                         Column(modifier = Modifier.weight(1f)) {
                                                             val binPlaceholder = if (item.warehouseId.isBlank()) "Select warehouse first" else "Select Bin"
                                                             val binDisplayValue = item.binName.ifBlank { binPlaceholder }
@@ -1995,16 +2006,20 @@ fun CreateOrderScreen(
                                                                 },
                                                                 options = if (item.warehouseId.isBlank()) {
                                                                     listOf("Select warehouse first")
-                                                                } else binOptions.ifEmpty {
-                                                                    listOf("No bins available")
+                                                                } else {
+                                                                    binOptions.ifEmpty { listOf("No bins available") }
                                                                 },
-                                                                onOptionSelected = { chosenBinName ->
-                                                                    val bin = binMap[chosenBinName]
+                                                                onOptionSelected = { chosenBinDisplay ->
+                                                                    val chosenBin = availableBins.find {
+                                                                        "${it.binName} (Available: ${it.availableQuantity.toInt()})" == chosenBinDisplay
+                                                                    }
                                                                     val updated = item.copy(
-                                                                        binId = bin?.name.orEmpty(),
-                                                                        binName = chosenBinName
+                                                                        binId = chosenBin?.binId.orEmpty(),
+                                                                        binName = chosenBin?.binName.orEmpty()
                                                                     )
-                                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                                    dynamicOrderItems = dynamicOrderItems.map {
+                                                                        if (it.id == item.id) updated else it
+                                                                    }
                                                                 }
                                                             )
                                                         }
@@ -2046,6 +2061,22 @@ fun CreateOrderScreen(
                                         }
 
                                         is DynamicAccessoryItem -> {
+                                            // Selected inventory item, used to read its own warehouses and bins
+                                            val selectedAccInv = accessoryItemList.find {
+                                                it._id == item.itemId || it.id == item.itemId
+                                            }
+
+                                            // Warehouses that belong to the selected accessory
+                                            val availableWarehouses = selectedAccInv?.warehouses ?: emptyList()
+                                            val warehouseOptions = availableWarehouses.map { it.warehouseName }
+
+                                            // Bins that belong to the selected warehouse
+                                            val selectedWarehouseDto = availableWarehouses.find { it.warehouseId == item.warehouseId }
+                                            val availableBins = selectedWarehouseDto?.bins ?: emptyList()
+                                            val binOptions = availableBins.map { bin ->
+                                                "${bin.binName} (Available: ${bin.availableQuantity.toInt()})"
+                                            }
+
                                             Column(
                                                 modifier = Modifier.padding(top = 14.dp),
                                                 verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -2070,18 +2101,34 @@ fun CreateOrderScreen(
                                                     Column(modifier = Modifier.weight(1.4f)) {
                                                         Row(Modifier.fillMaxWidth()) {
                                                             if (item.selection.isNotBlank()) {
-                                                                Surface(
-                                                                    shape = RoundedCornerShape(4.dp),
-                                                                    color = activity_green_bg,
-                                                                    border = BorderStroke(1.dp, greenBg)
-                                                                ) {
-                                                                    Text(
-                                                                        text = "In Stock: ${item.stockCount.toInt()} Pieces",
-                                                                        color = darkGreenBg,
-                                                                        fontSize = tokens.label,
-                                                                        fontWeight = FontWeight.Medium,
-                                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                                    )
+                                                                if (item.isOutOfStock) {
+                                                                    Surface(
+                                                                        shape = RoundedCornerShape(4.dp),
+                                                                        color = redText.copy(alpha = 0.1f),
+                                                                        border = BorderStroke(1.dp, redText.copy(alpha = 0.3f))
+                                                                    ) {
+                                                                        Text(
+                                                                            text = "Out of Stock",
+                                                                            color = redText,
+                                                                            fontSize = tokens.label,
+                                                                            fontWeight = FontWeight.Medium,
+                                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                        )
+                                                                    }
+                                                                } else {
+                                                                    Surface(
+                                                                        shape = RoundedCornerShape(4.dp),
+                                                                        color = activity_green_bg,
+                                                                        border = BorderStroke(1.dp, greenBg)
+                                                                    ) {
+                                                                        Text(
+                                                                            text = "In Stock: ${item.stockCount.toInt()} Pieces",
+                                                                            color = darkGreenBg,
+                                                                            fontSize = tokens.label,
+                                                                            fontWeight = FontWeight.Medium,
+                                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                        )
+                                                                    }
                                                                 }
                                                             }
                                                         }
@@ -2103,16 +2150,25 @@ fun CreateOrderScreen(
                                                             options = accessoryOptions.ifEmpty { listOf("Loading accessories...") },
                                                             onOptionSelected = { chosenDisplay ->
                                                                 val selectedInv = accessoryMap[chosenDisplay]
-                                                                val isOut = (selectedInv?.currentStock ?: 0.0) <= 0.0
+                                                                val availableStock = selectedInv?.availableStock ?: 0.0
+
+                                                                // Pre-select the first warehouse and its first bin
+                                                                val defaultWh = selectedInv?.warehouses?.firstOrNull()
+                                                                val defaultBin = defaultWh?.bins?.firstOrNull()
+
                                                                 val updated = item.copy(
-                                                                    itemId = selectedInv?.id ?: selectedInv?._id.orEmpty(),
+                                                                    itemId = selectedInv?._id.orEmpty(),
                                                                     selection = chosenDisplay,
-                                                                    stockCount = selectedInv?.currentStock ?: 0.0,
-                                                                    isOutOfStock = isOut,
-                                                                    unit = if (!selectedInv?.unit.isNullOrBlank()) "${selectedInv.unit} (Pcs)" else item.unit
+                                                                    stockCount = availableStock,
+                                                                    isOutOfStock = availableStock <= 0.0,
+                                                                    unit = if (!selectedInv?.unit.isNullOrBlank()) "${selectedInv.unit} (Pcs)" else item.unit,
+                                                                    warehouseId = defaultWh?.warehouseId.orEmpty(),
+                                                                    warehouseName = defaultWh?.warehouseName.orEmpty(),
+                                                                    binId = defaultBin?.binId.orEmpty(),
+                                                                    binName = defaultBin?.binName.orEmpty()
                                                                 )
-                                                                dynamicOrderItems = dynamicOrderItems.map { orderItem ->
-                                                                    if (orderItem.id == item.id) updated else orderItem
+                                                                dynamicOrderItems = dynamicOrderItems.map {
+                                                                    if (it.id == item.id) updated else it
                                                                 }
                                                             },
                                                             isRequired = true
@@ -2157,36 +2213,11 @@ fun CreateOrderScreen(
                                                     var whOpen by remember { mutableStateOf(false) }
                                                     var binOpen by remember { mutableStateOf(false) }
 
-                                                    val whOptions: List<String> = remember(warehouseDropdownItems) {
-                                                        warehouseDropdownItems.map { w ->
-                                                            val codeStr = w.value
-                                                            if (codeStr.isNotBlank()) "${w.label} ($codeStr)" else w.label
-                                                        }
-                                                    }
-                                                    val whMap = remember(warehouseDropdownItems) {
-                                                        warehouseDropdownItems.associateBy { w ->
-                                                            val codeStr = w.value
-                                                            if (codeStr.isNotBlank()) "${w.label} ($codeStr)" else w.label
-                                                        }
-                                                    }
-
-                                                    val binOptions: List<String> = remember(binDropdownItems) {
-                                                        binDropdownItems.map { b ->
-                                                            val codeStr = b.code
-                                                            if (codeStr.isNotBlank()) "${b.name} ($codeStr)" else b.name
-                                                        }
-                                                    }
-                                                    val binMap = remember(binDropdownItems) {
-                                                        binDropdownItems.associateBy { b ->
-                                                            val codeStr = b.code
-                                                            if (codeStr.isNotBlank()) "${b.name} ($codeStr)" else b.name
-                                                        }
-                                                    }
-
                                                     Row(
                                                         modifier = Modifier.fillMaxWidth(),
                                                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                                                     ) {
+                                                        // Warehouse dropdown
                                                         Column(modifier = Modifier.weight(1f)) {
                                                             val whDisplayValue = item.warehouseName.ifBlank { "Select Warehouse" }
                                                             FormDropdown(
@@ -2195,24 +2226,25 @@ fun CreateOrderScreen(
                                                                 value = whDisplayValue,
                                                                 expanded = whOpen,
                                                                 onExpandChange = { whOpen = it },
-                                                                options = whOptions.ifEmpty { listOf("Loading warehouses...") },
+                                                                options = warehouseOptions.ifEmpty { listOf("No warehouses assigned") },
                                                                 onOptionSelected = { chosenWhName ->
-                                                                    val wh = whMap[chosenWhName]
-                                                                    val whId = wh?.value.orEmpty()
-                                                                    if (whId.isNotBlank()) {
-                                                                        inventoryViewModel.loadBinDropdown(whId)
-                                                                    }
+                                                                    val chosenWh = availableWarehouses.find { it.warehouseName == chosenWhName }
+                                                                    val firstBin = chosenWh?.bins?.firstOrNull()
+
                                                                     val updated = item.copy(
-                                                                        warehouseId = whId,
-                                                                        warehouseName = chosenWhName,
-                                                                        binId = "",
-                                                                        binName = ""
+                                                                        warehouseId = chosenWh?.warehouseId.orEmpty(),
+                                                                        warehouseName = chosenWh?.warehouseName.orEmpty(),
+                                                                        binId = firstBin?.binId.orEmpty(),
+                                                                        binName = firstBin?.binName.orEmpty()
                                                                     )
-                                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                                    dynamicOrderItems = dynamicOrderItems.map {
+                                                                        if (it.id == item.id) updated else it
+                                                                    }
                                                                 }
                                                             )
                                                         }
 
+                                                        // Bin dropdown
                                                         Column(modifier = Modifier.weight(1f)) {
                                                             val binPlaceholder = if (item.warehouseId.isBlank()) "Select warehouse first" else "Select Bin"
                                                             val binDisplayValue = item.binName.ifBlank { binPlaceholder }
@@ -2227,16 +2259,20 @@ fun CreateOrderScreen(
                                                                 },
                                                                 options = if (item.warehouseId.isBlank()) {
                                                                     listOf("Select warehouse first")
-                                                                } else binOptions.ifEmpty {
-                                                                    listOf("No bins available")
+                                                                } else {
+                                                                    binOptions.ifEmpty { listOf("No bins available") }
                                                                 },
-                                                                onOptionSelected = { chosenBinName ->
-                                                                    val bin = binMap[chosenBinName]
+                                                                onOptionSelected = { chosenBinDisplay ->
+                                                                    val chosenBin = availableBins.find {
+                                                                        "${it.binName} (Available: ${it.availableQuantity.toInt()})" == chosenBinDisplay
+                                                                    }
                                                                     val updated = item.copy(
-                                                                        binId = bin?.id.orEmpty(),
-                                                                        binName = chosenBinName
+                                                                        binId = chosenBin?.binId.orEmpty(),
+                                                                        binName = chosenBin?.binName.orEmpty()
                                                                     )
-                                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                                    dynamicOrderItems = dynamicOrderItems.map {
+                                                                        if (it.id == item.id) updated else it
+                                                                    }
                                                                 }
                                                             )
                                                         }
@@ -2431,12 +2467,12 @@ fun CreateOrderScreen(
                             var dynamicSubtotal = 0.0
                             var dynamicTaxTotal = 0.0
 
-                            dynamicOrderItems.forEachIndexed { index, orderItem ->
+                            dynamicOrderItems.forEachIndexed { index, item ->
                                 val itemIndexNumber = index + 1
 
-                                when (orderItem) {
+                                when (item) {
                                     is DynamicGarmentItem -> {
-                                        val garmentConfig = orderItem.config
+                                        val garmentConfig = item.config
 
                                         val stitchingRate = garmentConfig.stitchingPrice
                                         val stitchingQty = garmentConfig.quantity
@@ -2466,7 +2502,7 @@ fun CreateOrderScreen(
                                         dynamicSubtotal += lineTotalBeforeTax
                                         dynamicTaxTotal += lineTotalTax
 
-                                        var isCardExpanded by rememberSaveable(orderItem.id) { mutableStateOf(true) }
+                                        var isCardExpanded by rememberSaveable(item.id) { mutableStateOf(true) }
 
                                         val rawGarmentName = garmentConfig.garmentCategory.ifBlank { garmentConfig.garmentType }
                                         val displayGarmentTitle = if (!tokens.isTablet && rawGarmentName.length > 15) {
@@ -2519,14 +2555,14 @@ fun CreateOrderScreen(
                                                                 if (garmentConfig.quantity > 1) {
                                                                     val updated = garmentConfig.copy(quantity = garmentConfig.quantity - 1)
                                                                     dynamicOrderItems = dynamicOrderItems.map {
-                                                                        if (it.id == orderItem.id) orderItem.copy(config = updated) else it
+                                                                        if (it.id == item.id) item.copy(config = updated) else it
                                                                     }
                                                                 }
                                                             },
                                                             onPlus = {
                                                                 val updated = garmentConfig.copy(quantity = garmentConfig.quantity + 1)
                                                                 dynamicOrderItems = dynamicOrderItems.map {
-                                                                    if (it.id == orderItem.id) orderItem.copy(config = updated) else it
+                                                                    if (it.id == item.id) item.copy(config = updated) else it
                                                                 }
                                                             }
                                                         )
@@ -2618,27 +2654,27 @@ fun CreateOrderScreen(
                                                                 onQtyChange = { input ->
                                                                     val parsedMeters = input.toDoubleOrNull() ?: 0.0
                                                                     val updated = garmentConfig.copy(fabricMeters = parsedMeters)
-                                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) orderItem.copy(config = updated) else it }
+                                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                                 },
                                                                 rateLabel = "Rate (₹/m)",
                                                                 rateValue = if (garmentConfig.fabricRate == 0.0) "" else garmentConfig.fabricRate.toInt().toString(),
                                                                 onRateChange = { input ->
                                                                     val parsedRate = input.toDoubleOrNull() ?: 0.0
                                                                     val updated = garmentConfig.copy(fabricRate = parsedRate)
-                                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) orderItem.copy(config = updated) else it }
+                                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                                 },
                                                                 selectedGstRate = garmentConfig.fabricGstRate,
                                                                 taxGroups = taxGroups,
                                                                 onGstRateChange = { parsedGst ->
                                                                     val updated = garmentConfig.copy(fabricGstRate = parsedGst)
-                                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) orderItem.copy(config = updated) else it }
+                                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                                 },
                                                                 onDropdownOpen = { inventoryViewModel.fetchTaxGroups() },
                                                                 gstComputed = "₹${fabricGstAmount.toInt()}",
                                                                 lineTotal = "₹${(fabricLineSubtotal + fabricGstAmount).toInt()}",
                                                                 onDelete = {
                                                                     val updated = garmentConfig.copy(fabricSource = "Customer Provided", fabricRate = 0.0)
-                                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) orderItem.copy(config = updated) else it }
+                                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                                 }
                                                             )
                                                         }
@@ -2651,27 +2687,27 @@ fun CreateOrderScreen(
                                                             onQtyChange = { input ->
                                                                 val parsedQty = input.filter { it.isDigit() }.toIntOrNull() ?: 1
                                                                 val updated = garmentConfig.copy(quantity = parsedQty)
-                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) orderItem.copy(config = updated) else it }
+                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                             },
                                                             rateLabel = "Rate (₹/pc)",
                                                             rateValue = if (garmentConfig.stitchingPrice == 0.0) "" else garmentConfig.stitchingPrice.toInt().toString(),
                                                             onRateChange = { input ->
                                                                 val parsedPrice = input.toDoubleOrNull() ?: 0.0
                                                                 val updated = garmentConfig.copy(stitchingPrice = parsedPrice)
-                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) orderItem.copy(config = updated) else it }
+                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                             },
                                                             selectedGstRate = garmentConfig.stitchingGstRate,
                                                             taxGroups = taxGroups,
                                                             onGstRateChange = { parsedGst ->
                                                                 val updated = garmentConfig.copy(stitchingGstRate = parsedGst)
-                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) orderItem.copy(config = updated) else it }
+                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                             },
                                                             onDropdownOpen = { inventoryViewModel.fetchTaxGroups() },
                                                             gstComputed = "₹${stitchingGstAmount.toInt()}",
                                                             lineTotal = "₹${(stitchingLineSubtotal + stitchingGstAmount).toInt()}",
                                                             onDelete = {
                                                                 val updated = garmentConfig.copy(stitchingPrice = 0.0)
-                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) orderItem.copy(config = updated) else it }
+                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                             }
                                                         )
 
@@ -2713,14 +2749,14 @@ fun CreateOrderScreen(
                                                                                 val parsedAmount = input.toDoubleOrNull() ?: 0.0
                                                                                 val updatedMap = garmentConfig.customWorkPrices + (workItem.id to parsedAmount)
                                                                                 val updated = garmentConfig.copy(customWorkPrices = updatedMap)
-                                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) orderItem.copy(config = updated) else it }
+                                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                                             },
                                                                             selectedGstRate = currentGstRate,
                                                                             taxGroups = taxGroups,
                                                                             onGstRateChange = { parsedGst ->
                                                                                 val updatedGstMap = garmentConfig.customWorkGstRates + (workItem.id to parsedGst)
                                                                                 val updated = garmentConfig.copy(customWorkGstRates = updatedGstMap)
-                                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) orderItem.copy(config = updated) else it }
+                                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                                             },
                                                                             onDropdownOpen = { inventoryViewModel.fetchTaxGroups() },
                                                                             gstComputed = "₹${workGst.toInt()}",
@@ -2728,7 +2764,7 @@ fun CreateOrderScreen(
                                                                             onDelete = {
                                                                                 val updatedIds = garmentConfig.selectedWorkPricingIds - workItem.id
                                                                                 val updated = garmentConfig.copy(selectedWorkPricingIds = updatedIds)
-                                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) orderItem.copy(config = updated) else it }
+                                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                                             }
                                                                         )
                                                                     }
@@ -2742,80 +2778,456 @@ fun CreateOrderScreen(
                                     }
 
                                     is DynamicFabricItem -> {
-                                        val fabricItem = fabricPricingList.find { it.name == orderItem.selection }
-                                        val unitPrice = fabricItem?.sellingPrice ?: 0.0
-                                        val qty = orderItem.quantity.toDoubleOrNull() ?: 1.0
-                                        val lineSubtotal = unitPrice * qty
-                                        val gstAmount = lineSubtotal * 0.05
-                                        val lineTotal = lineSubtotal + gstAmount
+                                        // Selected inventory item, used for its warehouses and bins
+                                        val selectedFabricInv = fabricItemList.find {
+                                            it._id == item.itemId || it.id == item.itemId
+                                        }
 
-                                        dynamicSubtotal += lineSubtotal
-                                        dynamicTaxTotal += gstAmount
+                                        // Warehouses that belong to the selected fabric
+                                        val availableWarehouses = selectedFabricInv?.warehouses ?: emptyList()
+                                        val warehouseOptions = availableWarehouses.map { it.warehouseName }
 
-                                        CollapsedPricingItemCardExact(
-                                            number = "#$itemIndexNumber",
-                                            title = orderItem.selection.ifBlank { "Fabric Material" },
-                                            quantity = qty.toInt().coerceAtLeast(1),
-                                            containerColor = whiteBg,
-                                            borderColor = BorderGray,
-                                            onMinus = {
-                                                if (qty > 1.0) {
-                                                    val updated = orderItem.copy(quantity = "${(qty - 1).toInt()}")
-                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) updated else it }
+                                        // Bins that belong to the selected warehouse
+                                        val selectedWarehouseDto = availableWarehouses.find { it.warehouseId == item.warehouseId }
+                                        val availableBins = selectedWarehouseDto?.bins ?: emptyList()
+                                        val binOptions = availableBins.map { bin ->
+                                            "${bin.binName} (Available: ${bin.availableQuantity.toInt()})"
+                                        }
+
+                                        Column(
+                                            modifier = Modifier.padding(top = 14.dp),
+                                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                val fabricOptions = remember(fabricItemList) {
+                                                    fabricItemList.map { inv ->
+                                                        if (inv.sku.isNotBlank()) "${inv.name} (${inv.sku})" else inv.name
+                                                    }
                                                 }
-                                            },
-                                            onPlus = {
-                                                val updated = orderItem.copy(quantity = "${(qty + 1).toInt()}")
-                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) updated else it }
-                                            },
-                                            price = "₹${String.format(Locale.US, "%.2f", lineTotal)}",
-                                            stitching = "₹0",
-                                            fabric = "₹${lineSubtotal.toInt()}",
-                                            addlWork = null,
-                                            gst = "₹${gstAmount.toInt()}",
-                                            onDelete = {
-                                                dynamicOrderItems = dynamicOrderItems.filterNot { it.id == orderItem.id }
+                                                val fabricMap = remember(fabricItemList) {
+                                                    fabricItemList.associateBy { inv ->
+                                                        if (inv.sku.isNotBlank()) "${inv.name} (${inv.sku})" else inv.name
+                                                    }
+                                                }
+
+                                                var fabSelectOpen by remember { mutableStateOf(false) }
+
+                                                Column(modifier = Modifier.weight(1.4f)) {
+                                                    if (item.selection.isNotBlank()) {
+                                                        if (item.isOutOfStock) {
+                                                            Surface(
+                                                                shape = RoundedCornerShape(4.dp),
+                                                                color = redText.copy(alpha = 0.1f),
+                                                                border = BorderStroke(1.dp, redText.copy(alpha = 0.3f))
+                                                            ) {
+                                                                Text(
+                                                                    text = "Out of Stock",
+                                                                    color = redText,
+                                                                    fontSize = tokens.label,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                )
+                                                            }
+                                                        } else {
+                                                            Surface(
+                                                                shape = RoundedCornerShape(4.dp),
+                                                                color = activity_green_bg,
+                                                                border = BorderStroke(1.dp, greenBg)
+                                                            ) {
+                                                                Text(
+                                                                    text = "In Stock: ${item.stockCount.toInt()} Meters",
+                                                                    color = darkGreenBg,
+                                                                    fontSize = tokens.label,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+
+                                                    FormLabel("Fabric Selection", isRequired = true)
+                                                    Spacer(Modifier.height(4.dp))
+
+                                                    FormDropdown(
+                                                        label = "",
+                                                        value = item.selection.ifBlank { "Select Fabric" },
+                                                        expanded = fabSelectOpen,
+                                                        onExpandChange = { fabSelectOpen = it },
+                                                        options = fabricOptions.ifEmpty { listOf("Loading fabrics...") },
+                                                        onOptionSelected = { chosenDisplay ->
+                                                            val selectedInv = fabricMap[chosenDisplay]
+                                                            val availableStock = selectedInv?.availableStock ?: selectedInv?.currentStock ?: 0.0
+
+                                                            // Pre-select the first warehouse and its first bin
+                                                            val defaultWh = selectedInv?.warehouses?.firstOrNull()
+                                                            val defaultBin = defaultWh?.bins?.firstOrNull()
+
+                                                            val updated = item.copy(
+                                                                itemId = selectedInv?._id.orEmpty(),
+                                                                selection = chosenDisplay,
+                                                                stockCount = availableStock,
+                                                                isOutOfStock = availableStock <= 0.0,
+                                                                unit = if (!selectedInv?.unit.isNullOrBlank()) "${selectedInv.unit} (m)" else item.unit,
+                                                                warehouseId = defaultWh?.warehouseId.orEmpty(),
+                                                                warehouseName = defaultWh?.warehouseName.orEmpty(),
+                                                                binId = defaultBin?.binId.orEmpty(),
+                                                                binName = defaultBin?.binName.orEmpty()
+                                                            )
+                                                            dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                        },
+                                                        isRequired = true
+                                                    )
+                                                }
+
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    FormLabel("Quantity", isRequired = true)
+                                                    FormTextField(
+                                                        value = item.quantity,
+                                                        onValueChange = { qty ->
+                                                            val updated = item.copy(quantity = qty)
+                                                            dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                        },
+                                                        placeholder = "1"
+                                                    )
+                                                }
+
+                                                var unitOpen by remember { mutableStateOf(false) }
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    FormDropdown(
+                                                        label = "Unit",
+                                                        value = item.unit.ifBlank { "Meters (m)" },
+                                                        expanded = unitOpen,
+                                                        onExpandChange = { unitOpen = it },
+                                                        options = listOf("Meters (m)", "Yards (yd)", "Pieces (pcs)"),
+                                                        onOptionSelected = { selectedUnit ->
+                                                            val updated = item.copy(unit = selectedUnit)
+                                                            dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                        },
+                                                        isRequired = true
+                                                    )
+                                                }
                                             }
-                                        )
-                                        Spacer(Modifier.height(10.dp))
+
+                                            if (item.selection.isNotBlank()) {
+                                                var whOpen by remember { mutableStateOf(false) }
+                                                var binOpen by remember { mutableStateOf(false) }
+
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        FormDropdown(
+                                                            label = "Pick Warehouse",
+                                                            isRequired = true,
+                                                            value = item.warehouseName.ifBlank { "Select Warehouse" },
+                                                            expanded = whOpen,
+                                                            onExpandChange = { whOpen = it },
+                                                            options = warehouseOptions.ifEmpty { listOf("No warehouses assigned") },
+                                                            onOptionSelected = { chosenWhName ->
+                                                                val chosenWh = availableWarehouses.find { it.warehouseName == chosenWhName }
+                                                                val firstBin = chosenWh?.bins?.firstOrNull()
+
+                                                                val updated = item.copy(
+                                                                    warehouseId = chosenWh?.warehouseId.orEmpty(),
+                                                                    warehouseName = chosenWh?.warehouseName.orEmpty(),
+                                                                    binId = firstBin?.binId.orEmpty(),
+                                                                    binName = firstBin?.binName.orEmpty()
+                                                                )
+                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                            }
+                                                        )
+                                                    }
+
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        val binPlaceholder = if (item.warehouseId.isBlank()) "Select warehouse first" else "Select Bin"
+
+                                                        FormDropdown(
+                                                            label = "Pick Bin",
+                                                            isRequired = true,
+                                                            value = item.binName.ifBlank { binPlaceholder },
+                                                            expanded = binOpen,
+                                                            onExpandChange = {
+                                                                if (item.warehouseId.isNotBlank()) binOpen = it
+                                                            },
+                                                            options = if (item.warehouseId.isBlank()) {
+                                                                listOf("Select warehouse first")
+                                                            } else {
+                                                                binOptions.ifEmpty { listOf("No bins available") }
+                                                            },
+                                                            onOptionSelected = { chosenBinDisplay ->
+                                                                val chosenBin = availableBins.find {
+                                                                    "${it.binName} (Available: ${it.availableQuantity.toInt()})" == chosenBinDisplay
+                                                                }
+                                                                val updated = item.copy(
+                                                                    binId = chosenBin?.binId.orEmpty(),
+                                                                    binName = chosenBin?.binName.orEmpty()
+                                                                )
+                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    FormLabel("Item Delivery Date")
+                                                    DatePickerField(
+                                                        value = item.deliveryDate,
+                                                        onDateSelected = { selectedDate ->
+                                                            val updated = item.copy(deliveryDate = selectedDate)
+                                                            dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                        }
+                                                    )
+                                                }
+
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    FormLabel("Fabric Instructions")
+                                                    FormTextField(
+                                                        value = item.instructions,
+                                                        onValueChange = { text ->
+                                                            val updated = item.copy(instructions = text)
+                                                            dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                        },
+                                                        placeholder = "Cut continuous meters from roll. Ensure edge selvedge is clean..."
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
 
                                     is DynamicAccessoryItem -> {
-                                        val unitPrice = 150.0
-                                        val qty = orderItem.quantity.toIntOrNull() ?: 1
-                                        val lineSubtotal = unitPrice * qty
-                                        val gstAmount = lineSubtotal * 0.05
-                                        val lineTotal = lineSubtotal + gstAmount
+                                        // Selected inventory item, used for its warehouses and bins
+                                        val selectedAccInv = accessoryItemList.find {
+                                            it._id == item.itemId || it.id == item.itemId
+                                        }
 
-                                        dynamicSubtotal += lineSubtotal
-                                        dynamicTaxTotal += gstAmount
+                                        // Warehouses that belong to the selected accessory
+                                        val availableWarehouses = selectedAccInv?.warehouses ?: emptyList()
+                                        val warehouseOptions = availableWarehouses.map { it.warehouseName }
 
-                                        CollapsedPricingItemCardExact(
-                                            number = "#$itemIndexNumber",
-                                            title = orderItem.selection.ifBlank { "Accessory Item" },
-                                            quantity = qty,
-                                            containerColor = whiteBg,
-                                            borderColor = BorderGray,
-                                            onMinus = {
-                                                if (qty > 1) {
-                                                    val updated = orderItem.copy(quantity = "${qty - 1}")
-                                                    dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) updated else it }
+                                        // Bins that belong to the selected warehouse
+                                        val selectedWarehouseDto = availableWarehouses.find { it.warehouseId == item.warehouseId }
+                                        val availableBins = selectedWarehouseDto?.bins ?: emptyList()
+                                        val binOptions = availableBins.map { bin ->
+                                            "${bin.binName} (Available: ${bin.availableQuantity.toInt()})"
+                                        }
+
+                                        Column(
+                                            modifier = Modifier.padding(top = 14.dp),
+                                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                val accessoryOptions = remember(accessoryItemList) {
+                                                    accessoryItemList.map { inv ->
+                                                        if (inv.sku.isNotBlank()) "${inv.name} (${inv.sku})" else inv.name
+                                                    }
                                                 }
-                                            },
-                                            onPlus = {
-                                                val updated = orderItem.copy(quantity = "${qty + 1}")
-                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == orderItem.id) updated else it }
-                                            },
-                                            price = "₹${String.format(Locale.US, "%.2f", lineTotal)}",
-                                            stitching = "₹${lineSubtotal.toInt()}",
-                                            fabric = "₹0",
-                                            addlWork = null,
-                                            gst = "₹${gstAmount.toInt()}",
-                                            onDelete = {
-                                                dynamicOrderItems = dynamicOrderItems.filterNot { it.id == orderItem.id }
+                                                val accessoryMap = remember(accessoryItemList) {
+                                                    accessoryItemList.associateBy { inv ->
+                                                        if (inv.sku.isNotBlank()) "${inv.name} (${inv.sku})" else inv.name
+                                                    }
+                                                }
+
+                                                var accSelectOpen by remember { mutableStateOf(false) }
+
+                                                Column(modifier = Modifier.weight(1.4f)) {
+                                                    if (item.selection.isNotBlank()) {
+                                                        if (item.isOutOfStock) {
+                                                            Surface(
+                                                                shape = RoundedCornerShape(4.dp),
+                                                                color = redText.copy(alpha = 0.1f),
+                                                                border = BorderStroke(1.dp, redText.copy(alpha = 0.3f))
+                                                            ) {
+                                                                Text(
+                                                                    text = "Out of Stock",
+                                                                    color = redText,
+                                                                    fontSize = tokens.label,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                )
+                                                            }
+                                                        } else {
+                                                            Surface(
+                                                                shape = RoundedCornerShape(4.dp),
+                                                                color = activity_green_bg,
+                                                                border = BorderStroke(1.dp, greenBg)
+                                                            ) {
+                                                                Text(
+                                                                    text = "In Stock: ${item.stockCount.toInt()} Pieces",
+                                                                    color = darkGreenBg,
+                                                                    fontSize = tokens.label,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+
+                                                    FormLabel("Item Selection", isRequired = true)
+                                                    Spacer(Modifier.height(4.dp))
+
+                                                    FormDropdown(
+                                                        label = "",
+                                                        value = item.selection.ifBlank { "Select Accessory" },
+                                                        expanded = accSelectOpen,
+                                                        onExpandChange = { accSelectOpen = it },
+                                                        options = accessoryOptions.ifEmpty { listOf("Loading accessories...") },
+                                                        onOptionSelected = { chosenDisplay ->
+                                                            val selectedInv = accessoryMap[chosenDisplay]
+                                                            val availableStock = selectedInv?.availableStock ?: selectedInv?.currentStock ?: 0.0
+
+                                                            // Pre-select the first warehouse and its first bin
+                                                            val defaultWh = selectedInv?.warehouses?.firstOrNull()
+                                                            val defaultBin = defaultWh?.bins?.firstOrNull()
+
+                                                            val updated = item.copy(
+                                                                itemId = selectedInv?._id.orEmpty(),
+                                                                selection = chosenDisplay,
+                                                                stockCount = availableStock,
+                                                                isOutOfStock = availableStock <= 0.0,
+                                                                unit = if (!selectedInv?.unit.isNullOrBlank()) "${selectedInv.unit} (Pcs)" else item.unit,
+                                                                warehouseId = defaultWh?.warehouseId.orEmpty(),
+                                                                warehouseName = defaultWh?.warehouseName.orEmpty(),
+                                                                binId = defaultBin?.binId.orEmpty(),
+                                                                binName = defaultBin?.binName.orEmpty()
+                                                            )
+                                                            dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                        },
+                                                        isRequired = true
+                                                    )
+                                                }
+
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    FormLabel("Quantity", isRequired = true)
+                                                    FormTextField(
+                                                        value = item.quantity,
+                                                        onValueChange = { qty ->
+                                                            val updated = item.copy(quantity = qty)
+                                                            dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                        },
+                                                        placeholder = "1",
+                                                        keyboardType = KeyboardType.Number
+                                                    )
+                                                }
+
+                                                var accUnitOpen by remember { mutableStateOf(false) }
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    FormDropdown(
+                                                        label = "Unit",
+                                                        isRequired = true,
+                                                        value = item.unit.ifBlank { "Pieces (Pcs)" },
+                                                        expanded = accUnitOpen,
+                                                        onExpandChange = { accUnitOpen = it },
+                                                        options = listOf("Pieces (Pcs)", "Spool", "Packet", "Set", "Meter (m)"),
+                                                        onOptionSelected = { selectedUnit ->
+                                                            val updated = item.copy(unit = selectedUnit)
+                                                            dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                        }
+                                                    )
+                                                }
                                             }
-                                        )
-                                        Spacer(Modifier.height(10.dp))
+
+                                            if (item.selection.isNotBlank()) {
+                                                var whOpen by remember { mutableStateOf(false) }
+                                                var binOpen by remember { mutableStateOf(false) }
+
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        FormDropdown(
+                                                            label = "Pick Warehouse",
+                                                            isRequired = true,
+                                                            value = item.warehouseName.ifBlank { "Select Warehouse" },
+                                                            expanded = whOpen,
+                                                            onExpandChange = { whOpen = it },
+                                                            options = warehouseOptions.ifEmpty { listOf("No warehouses assigned") },
+                                                            onOptionSelected = { chosenWhName ->
+                                                                val chosenWh = availableWarehouses.find { it.warehouseName == chosenWhName }
+                                                                val firstBin = chosenWh?.bins?.firstOrNull()
+
+                                                                val updated = item.copy(
+                                                                    warehouseId = chosenWh?.warehouseId.orEmpty(),
+                                                                    warehouseName = chosenWh?.warehouseName.orEmpty(),
+                                                                    binId = firstBin?.binId.orEmpty(),
+                                                                    binName = firstBin?.binName.orEmpty()
+                                                                )
+                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                            }
+                                                        )
+                                                    }
+
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        val binPlaceholder = if (item.warehouseId.isBlank()) "Select warehouse first" else "Select Bin"
+
+                                                        FormDropdown(
+                                                            label = "Pick Bin",
+                                                            isRequired = true,
+                                                            value = item.binName.ifBlank { binPlaceholder },
+                                                            expanded = binOpen,
+                                                            onExpandChange = {
+                                                                if (item.warehouseId.isNotBlank()) binOpen = it
+                                                            },
+                                                            options = if (item.warehouseId.isBlank()) {
+                                                                listOf("Select warehouse first")
+                                                            } else {
+                                                                binOptions.ifEmpty { listOf("No bins available") }
+                                                            },
+                                                            onOptionSelected = { chosenBinDisplay ->
+                                                                val chosenBin = availableBins.find {
+                                                                    "${it.binName} (Available: ${it.availableQuantity.toInt()})" == chosenBinDisplay
+                                                                }
+                                                                val updated = item.copy(
+                                                                    binId = chosenBin?.binId.orEmpty(),
+                                                                    binName = chosenBin?.binName.orEmpty()
+                                                                )
+                                                                dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    FormLabel("Item Delivery Date")
+                                                    DatePickerField(
+                                                        value = item.deliveryDate,
+                                                        onDateSelected = { selectedDate ->
+                                                            val updated = item.copy(deliveryDate = selectedDate)
+                                                            dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                        }
+                                                    )
+                                                }
+
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    FormLabel("Accessory Instructions")
+                                                    FormTextField(
+                                                        value = item.instructions,
+                                                        onValueChange = { text ->
+                                                            val updated = item.copy(instructions = text)
+                                                            dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) updated else it }
+                                                        },
+                                                        placeholder = "Matching thread for fabric roll #B-402 for collar..."
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -3001,7 +3413,7 @@ fun CreateOrderScreen(
                             val reviewData = OrderReviewData(
                                 leadId = initialData?.leadId,
                                 orderId = orderIdText.trim(),
-                                editOrderId = if (isEditMode) initialData?.orderId else null,
+                                editOrderId = if (isEditMode) initialData.orderId else null,
                                 customerId = customerId.ifBlank { initialData?.customerId ?: "" },
                                 branchId = selectedBranchId.ifBlank { initialData?.branchId ?: "" },
                                 fullName = fullName.trim(),

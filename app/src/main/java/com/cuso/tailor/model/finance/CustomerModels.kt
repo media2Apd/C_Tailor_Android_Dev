@@ -88,3 +88,69 @@ data class CreatedByRefDto(
     @SerializedName("firstName") val firstName: String = "",
     @SerializedName("lastName") val lastName: String = ""
 )
+
+data class CustomerFinancialProfileResponse(
+    val success: Boolean = false,
+    val message: String? = null,
+    val data: CustomerFinancialProfileData? = null
+)
+
+data class CustomerFinancialProfileData(
+    val customerHeader: CustomerHeaderData? = null,
+    val taxAndBilling: CustomerTaxAndBillingData? = null,
+    val creditManagement: CustomerCreditManagementData? = null,
+    val financialTotals: CustomerFinancialTotalsData? = null
+)
+
+data class CustomerHeaderData(
+    val _id: String = "",
+    val customerCode: String? = null,
+    val fullName: String? = null,
+    val mobileNumber: String? = null,
+    val email: String? = null,
+    val customerType: String? = null,
+    val customerLevel: String? = null,
+    val status: String? = null,
+    val branch: CustomerBranchData? = null,
+    val createdAt: String? = null
+)
+
+data class CustomerBranchData(
+    val _id: String = "",
+    val name: String? = null,
+    val code: String? = null
+)
+
+data class CustomerTaxAndBillingData(
+    val taxId: String? = null,
+    val taxIdType: String? = null,
+    val billingAddress: CustomerAddressData? = null,
+    val shippingAddress: CustomerAddressData? = null
+)
+
+data class CustomerAddressData(
+    val flatNo: String? = null,
+    val street: String? = null,
+    val areaZone: String? = null,
+    val city: String? = null,
+    val subdivisionCode: String? = null,
+    val subdivisionName: String? = null,
+    val countryCode: String? = null,
+    val countryName: String? = null,
+    val pincode: String? = null
+)
+
+data class CustomerCreditManagementData(
+    val creditLimit: Double? = 0.0,
+    val creditPeriodDays: Int? = 0,
+    val totalOutstandingReceivables: Double? = 0.0,
+    val availableCredit: Double? = 0.0,
+    val isCreditExceeded: Boolean? = false
+)
+
+data class CustomerFinancialTotalsData(
+    val totalOrdersCount: Int? = 0,
+    val totalBilledAmount: Double? = 0.0,
+    val totalPaidAmount: Double? = 0.0,
+    val totalOutstandingReceivables: Double? = 0.0
+)

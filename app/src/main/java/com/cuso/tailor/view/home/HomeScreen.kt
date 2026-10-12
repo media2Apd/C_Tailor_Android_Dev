@@ -419,6 +419,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "view_quotation",
 
             // ── Finance ──
+            "finance_sales_orders",
             "finance_sales_invoices",
             "finance_invoice_detail",
             "finance_purchase_invoices",
@@ -444,6 +445,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "finance_suppliers",
             "finance_supplier_detail",
             "finance_create_supplier",
+            "finance_create_sales_invoice",
             // Inside HomeScreen.kt -> implementedRoutes:
             "finance_purchase_orders",
             "finance_purchase_receive",
@@ -756,6 +758,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 "inventory_create_category" -> selectedCategoryIdForEdit = null
                 "create_order_review", "create_order" -> pendingOrderReviewData = null
                 "finance_invoice_detail", "inventory_payable_purchase_detail" -> selectedInvoiceId = null
+                "finance_create_customer" -> selectedRecentCustomerId = null
                 "measurements_available_view", "measurement_management_view" -> selectedMeasurementItem = null
                 "finance_ledger" -> selectedLedgerAccountId = null
                 "finance_supplier_detail" -> selectedSupplier = null
@@ -1744,6 +1747,7 @@ fun normalizeRoute(rawKey: String): String {
         "sales_opportunity" -> "sales_opportunities"
 
         "finance_sales_invoices" -> "finance_sales_invoices"
+        "finance_sales_orders" -> "finance_sales_orders"
         "finance_customers" -> "finance_customers"
         "finance_payments_received" -> "finance_payments_received"
         "finance_suppliers" -> "finance_suppliers"

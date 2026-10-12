@@ -1,4 +1,6 @@
-@file:Suppress("unused", "unusedVariable", "AssignedValueIsNeverRead", "SpellCheckingInspection")
+@file:Suppress("unused", "unusedVariable", "AssignedValueIsNeverRead", "SpellCheckingInspection", "VariableIsNeverRead",
+    "VariableNeverRead"
+)
 
 package com.cuso.tailor.view.home
 
@@ -45,6 +47,7 @@ import com.cuso.tailor.view.home.finance.account_receivable.customers.CustomerDe
 import com.cuso.tailor.view.home.finance.account_receivable.customers.FinanceCustomerScreen
 import com.cuso.tailor.view.home.finance.account_receivable.payment_received.AllPaymentScreen
 import com.cuso.tailor.view.home.finance.account_receivable.payment_received.PaymentDetailScreenAP
+import com.cuso.tailor.view.home.finance.account_receivable.sales_invoice.CreateSalesInvoiceScreen
 import com.cuso.tailor.view.home.finance.account_receivable.sales_invoice.FinanceInvoiceScreen
 import com.cuso.tailor.view.home.finance.account_receivable.sales_invoice.InvoiceDetailScreen
 import com.cuso.tailor.view.home.finance.expenses.ExpensesScreen
@@ -371,20 +374,18 @@ fun HomeScreenRouter(
             )
         }
 
-        "finance_sales_invoices", "finance_invoice_detail", "finance_purchase_invoices",
-        "finance_purchase_invoice_detail", "finance_customers", "finance_customer_detail",
-        "finance_suppliers", "finance_supplier_detail", "finance_expenses",
-        "finance_chart_of_accounts", "finance_journal_screen", "finance_trial_balance",
-        "finance_ledger", "finance_payments_received", "payment_detail_screen",
-        "finance_payments_mode", "payment_mode_detail", "finance_gst_settings",
-        "finance_create_customer",
-        "finance_add_gst", "finance_tax_rates", "finance_add_tax_group",
-        "finance_purchase_orders", "finance_purchase_receive", "finance_bills_list", "finance_payments_made"  -> {
+        "finance_sales_invoices", "finance_invoice_detail", "finance_purchase_invoices", "finance_purchase_invoice_detail",
+        "finance_customers", "finance_customer_detail", "finance_suppliers", "finance_supplier_detail", "finance_expenses",
+        "finance_chart_of_accounts", "finance_journal_screen", "finance_trial_balance", "finance_ledger", "finance_payments_received",
+        "payment_detail_screen", "finance_payments_mode", "payment_mode_detail", "finance_gst_settings", "finance_create_customer",
+        "finance_add_gst", "finance_tax_rates", "finance_add_tax_group", "finance_create_sales_invoice", "finance_purchase_orders",
+        "finance_purchase_receive", "finance_bills_list", "finance_payments_made" , "finance_sales_orders"  -> {
             FinanceRouter(
                 screen = screen,
                 token = token,
                 selectedSupplier = selectedSupplier,
                 inventoryViewModel = inventoryViewModel,
+                customerViewModel = customerViewModel,
                 selectedLedgerAccountId = selectedLedgerAccountId,
                 selectedLedgerAccountName = selectedLedgerAccountName,
                 onLedgerAccountSelected = onLedgerAccountSelected,
@@ -402,6 +403,11 @@ fun HomeScreenRouter(
                 onReceivePoIdSelected = onReceivePoIdSelected,
                 selectedPurchaseOrderForDetail = selectedPurchaseOrderForDetail,
                 onPurchaseOrderForDetailSelected = onPurchaseOrderForDetailSelected,
+                navController = navController,
+                onOpenDrawer = onOpenDrawer,
+                onPendingOrderReviewDataChange = onPendingOrderReviewDataChange,
+                onOrderIdSelected = onOrderIdSelected,
+                onEditOrderIdChange = onEditOrderIdChange,
                 onNavigate = onNavigate,
                 onGoBack = onGoBack,
                 onOpenModulesPanel = onOpenModulesPanel
@@ -1669,23 +1675,58 @@ private fun FinanceRouter(
     selectedRecentCustomerId: String?,
     onRecentCustomerIdSelected: (String?) -> Unit,
     inventoryViewModel: InventoryViewModel,
+    customerViewModel: CustomerViewModel, // <-- 2. ADD THIS PARAMETER
     selectedReceivePoId: String? = null,
     onReceivePoIdSelected: (String?) -> Unit = {},
     selectedPurchaseOrderForDetail: PurchaseOrder? = null,
     onPurchaseOrderForDetailSelected: (PurchaseOrder?) -> Unit = {},
+    navController: NavHostController,
+    onOpenDrawer: () -> Unit,
+    onPendingOrderReviewDataChange: (OrderReviewData?) -> Unit,
+    onOrderIdSelected: (String?) -> Unit,
+    onEditOrderIdChange: (String?) -> Unit,
     onNavigate: (String) -> Unit,
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit
 ) {
     var selectedPurchaseOrderForEdit by remember { mutableStateOf<PurchaseOrder?>(null) }
     when (screen) {
+        // ── Finance -> Sales -> Orders -> Opens SalesOrderScreen with Finance context ──
+        "finance_sales_orders" -> {
+            SalesOrderScreen(
+                navController = navController,
+                onMenuClick = onOpenDrawer,
+                onBack = onGoBack,
+                onCreateOrder = {
+                    onPendingOrderReviewDataChange(null)
+                    onNavigate("create_order")
+                },
+                onViewOrder = { orderId ->
+                    onOrderIdSelected(orderId)
+                    onNavigate("order_overview")
+                },
+                onEditOrder = { orderId -> onEditOrderIdChange(orderId) },
+                onBreadCrumbClick = { onOpenModulesPanel("Finance") } // Keep Module Context as Finance!
+            )
+        }
+
         "finance_sales_invoices" -> FinanceInvoiceScreen(
             onClose = onGoBack,
             onInvoiceClick = { invoice ->
                 onInvoiceSelected(invoice.id)
                 onNavigate("finance_invoice_detail")
             },
+            onCreateInvoice = {
+                onNavigate("finance_create_sales_invoice")
+            },
             onBreadCrumbClick = { onOpenModulesPanel("Finance") }
+        )
+
+        "finance_create_sales_invoice" -> CreateSalesInvoiceScreen(
+            onClose = onGoBack,
+            onInvoiceCreatedSuccessfully = { onGoBack() },
+            customerViewModel = customerViewModel,
+            inventoryViewModel = inventoryViewModel
         )
 
         "finance_invoice_detail" -> {
@@ -1775,21 +1816,32 @@ private fun FinanceRouter(
         }
         "finance_customers" -> FinanceCustomerScreen(
             onClose = onGoBack,
-            onCustomerEdit = { customerId ->
-                onRecentCustomerIdSelected(customerId)
-                onNavigate("finance_customer_detail")
-            },
             onCustomerClick = { customerId ->
                 onRecentCustomerIdSelected(customerId)
                 onNavigate("finance_customer_detail")
             },
-            onAddCustomer = { onNavigate("finance_create_customer") },
+            onCustomerEdit = { customerId ->
+                onRecentCustomerIdSelected(customerId)
+                onNavigate("finance_create_customer")
+            },
+            onAddCustomer = {
+                onRecentCustomerIdSelected(null)
+                onNavigate("finance_create_customer")
+            },
             onBreadCrumbClick = { onOpenModulesPanel("Finance") }
         )
 
+
         "finance_create_customer" -> CreateCustomerScreen(
-            onClose = onGoBack,
-            onCustomerCreated = { onGoBack() }
+            customerId = selectedRecentCustomerId,
+            onClose = {
+                onRecentCustomerIdSelected(null)
+                onGoBack()
+            },
+            onCustomerCreated = {
+                onRecentCustomerIdSelected(null)
+                onGoBack()
+            }
         )
 
         "finance_customer_detail" -> {

@@ -126,7 +126,8 @@ fun buildNavigationKey(menu: String, subItem: String): String {
     if (menu == "Finance") {
         return when (subItem) {
             "Customers"          -> "finance_customers"
-            "Orders"             -> "finance_sales_invoices"
+            "Orders"             -> "finance_sales_orders"
+            "Invoice", "Invoices"-> "finance_sales_invoices"
             "Suppliers"          -> "finance_suppliers"
             "Purchase List"      -> "finance_purchase_orders"
             "Purchase Receive"   -> "finance_purchase_receive"
@@ -300,7 +301,9 @@ object SidebarConfig {
                 subItems = mapOf(
                     "Sales" to listOf(
                         "Customers",
-                        "Orders"
+                        "Orders",
+                        "Invoice",
+                        "Receipts"
                     ),
                     "Purchase" to listOf(
                         "Suppliers",

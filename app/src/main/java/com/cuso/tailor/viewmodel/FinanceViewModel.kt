@@ -14,9 +14,13 @@ import com.cuso.tailor.model.finance.AccountDropdownItem
 import com.cuso.tailor.model.finance.ChartOfAccountItem
 import com.cuso.tailor.model.finance.CreateCustomerApiResponse
 import com.cuso.tailor.model.finance.CreateCustomerPayload
+import com.cuso.tailor.model.finance.CreateInvoiceApiResponse
 import com.cuso.tailor.model.finance.CreatedCustomerData
+import com.cuso.tailor.model.finance.CustomerFinancialProfileData
+import com.cuso.tailor.model.finance.CustomerFinancialProfileResponse
 import com.cuso.tailor.model.finance.ExpenseItem
 import com.cuso.tailor.model.finance.ExpensePagination
+import com.cuso.tailor.model.finance.GenericDeleteResponse
 import com.cuso.tailor.model.finance.InvoiceItem
 import com.cuso.tailor.model.finance.InvoiceViewOneData
 import com.cuso.tailor.model.finance.JournalEntryDetailData
@@ -24,9 +28,14 @@ import com.cuso.tailor.model.finance.JournalEntryItem
 import com.cuso.tailor.model.finance.JournalEntryLineRequest
 import com.cuso.tailor.model.finance.JournalEntryPagination
 import com.cuso.tailor.model.finance.LedgerItem
+import com.cuso.tailor.model.finance.PaymentTermItem
+import com.cuso.tailor.model.finance.PaymentTermsResponse
+import com.cuso.tailor.model.finance.SendInvoiceApiResponse
 import com.cuso.tailor.model.finance.SupplierOverviewApiResponse
 import com.cuso.tailor.model.finance.SupplierOverviewData
 import com.cuso.tailor.model.finance.TrialBalanceItem
+import com.cuso.tailor.model.finance.VoidInvoiceRequest
+import com.cuso.tailor.model.finance.VoidInvoiceResponse
 import com.cuso.tailor.model.sales.CustomerListResponseV2
 import com.cuso.tailor.model.sales.CustomerOrderItem
 import com.cuso.tailor.model.sales.CustomerOrdersResponse
@@ -102,6 +111,36 @@ sealed class CreateCustomerState {
     object Loading : CreateCustomerState()
     data class Success(val message: String, val customer: CreatedCustomerData?) : CreateCustomerState()
     data class Error(val message: String) : CreateCustomerState()
+}
+
+sealed class VoidInvoiceState {
+    object Idle : VoidInvoiceState()
+    object Loading : VoidInvoiceState()
+    data class Success(val message: String) : VoidInvoiceState()
+    data class Error(val message: String) : VoidInvoiceState()
+}
+
+// Sealed state for Create Invoice
+sealed class CreateInvoiceState {
+    object Idle : CreateInvoiceState()
+    object Loading : CreateInvoiceState()
+    data class Success(val message: String, val invoice: InvoiceViewOneData?) : CreateInvoiceState()
+    data class Error(val message: String) : CreateInvoiceState()
+}
+
+// Generic UI State for handling invoice delete loading, success, and error
+sealed class DeleteInvoiceState {
+    object Idle : DeleteInvoiceState()
+    object Loading : DeleteInvoiceState()
+    data class Success(val message: String) : DeleteInvoiceState()
+    data class Error(val message: String) : DeleteInvoiceState()
+}
+
+sealed class UpdateCustomerState {
+    object Idle : UpdateCustomerState()
+    object Loading : UpdateCustomerState()
+    data class Success(val message: String) : UpdateCustomerState()
+    data class Error(val message: String) : UpdateCustomerState()
 }
 
 @HiltViewModel
@@ -1110,7 +1149,45 @@ class FinanceViewModel @Inject constructor(
             _isLoadingJournalDetail.value = false
         }
     }
+    // ── VOID INVOICE STATE ──
+    private val _voidInvoiceState = MutableStateFlow<VoidInvoiceState>(VoidInvoiceState.Idle)
+    val voidInvoiceState: StateFlow<VoidInvoiceState> = _voidInvoiceState.asStateFlow()
 
+    fun voidInvoice(invoiceId: String, reason: String) {
+        if (invoiceId.isBlank()) return
+        launchBusy {
+            _voidInvoiceState.value = VoidInvoiceState.Loading
+
+            // Endpoint: POST /api/finance/invoices/{id}/void
+            val result = repo.request<VoidInvoiceResponse> {
+                post(
+                    "/api/finance/sales-invoices/void/$invoiceId",
+                    VoidInvoiceRequest(reason = reason.trim())
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _voidInvoiceState.value = VoidInvoiceState.Success(res.message)
+                        fetchInvoiceDetail(invoiceId)
+                        refreshInvoices()
+                    } else {
+                        _voidInvoiceState.value = VoidInvoiceState.Error(res.message.ifBlank { "Failed to void invoice" })
+                    }
+                },
+                onFailure = { error ->
+                    _voidInvoiceState.value = VoidInvoiceState.Error(
+                        extractErrorMessage(error, "Failed to void invoice")
+                    )
+                }
+            )
+        }
+    }
+
+    fun resetVoidInvoiceState() {
+        _voidInvoiceState.value = VoidInvoiceState.Idle
+    }
     // ─────────────────────────────────────────────────────────────
     // ── SUPPLIER OVERVIEW API VIA API REPOSITORY ──
     // ─────────────────────────────────────────────────────────────
@@ -1144,6 +1221,357 @@ class FinanceViewModel @Inject constructor(
             )
             _isLoadingSupplierOverview.value = false
         }
+    }
+
+    // ── PAYMENT TERMS STATE ──
+    private val _paymentTermsList = MutableStateFlow<List<PaymentTermItem>>(emptyList())
+    val paymentTermsList: StateFlow<List<PaymentTermItem>> = _paymentTermsList.asStateFlow()
+
+    private val _isLoadingPaymentTerms = MutableStateFlow(false)
+    val isLoadingPaymentTerms: StateFlow<Boolean> = _isLoadingPaymentTerms.asStateFlow()
+
+    fun fetchPaymentTerms() {
+        launchBusy {
+            _isLoadingPaymentTerms.value = true
+            // Endpoint for payment terms list
+            val result = repo.request<PaymentTermsResponse> {
+                get("/api/finance/settings/payment-terms/view-all")
+            }
+            result.fold(
+                onSuccess = { response ->
+                    _paymentTermsList.value = response.data
+                },
+                onFailure = { /* Handle error if needed */ }
+            )
+            _isLoadingPaymentTerms.value = false
+        }
+    }
+
+    // ── CREATE INVOICE STATE ──
+    private val _createInvoiceState = MutableStateFlow<CreateInvoiceState>(CreateInvoiceState.Idle)
+    val createInvoiceState: StateFlow<CreateInvoiceState> = _createInvoiceState.asStateFlow()
+
+    // ── 1. SAVE AS DRAFT ONLY ──
+    fun createSalesInvoice(
+        customerId: String,
+        invoiceDate: String,
+        paymentTermId: String,
+        currency: String = "INR",
+        exchangeRate: String = "1",
+        priceIncludesTax: Boolean = false,
+        linesJson: String,
+        notes: String,
+        termsAndConditions: String,
+        attachmentParts: List<okhttp3.MultipartBody.Part> = emptyList()
+    ) {
+        launchBusy {
+            _createInvoiceState.value = CreateInvoiceState.Loading
+
+            val result = repo.request<CreateInvoiceApiResponse> {
+                postMultipart(
+                    url = "/api/finance/sales-invoices/create",
+                    parts = mapOf(
+                        "customerId" to repo.text(customerId),
+                        "invoiceDate" to repo.text(invoiceDate),
+                        "paymentTermId" to repo.text(paymentTermId),
+                        "currency" to repo.text(currency),
+                        "exchangeRate" to repo.text(exchangeRate),
+                        "priceIncludesTax" to repo.text(priceIncludesTax.toString()),
+                        "lines" to repo.text(linesJson),
+                        "notes" to repo.text(notes),
+                        "termsAndConditions" to repo.text(termsAndConditions)
+                    ),
+                    files = attachmentParts
+                )
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        _createInvoiceState.value = CreateInvoiceState.Success(
+                            message = response.message ?: "Invoice saved as draft",
+                            invoice = response.data
+                        )
+                        refreshInvoices()
+                    } else {
+                        _createInvoiceState.value = CreateInvoiceState.Error(
+                            response.message ?: "Failed to create invoice"
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _createInvoiceState.value = CreateInvoiceState.Error(
+                        extractErrorMessage(error, "Failed to create invoice")
+                    )
+                }
+            )
+        }
+    }
+
+    // ── 2. CREATE AND SEND INVOICE (POSTS TO LEDGER) ──
+    // ── CREATE AND SEND SALES INVOICE ──
+    fun createAndSendSalesInvoice(
+        customerId: String,
+        invoiceDate: String,
+        paymentTermId: String,
+        currency: String = "INR",
+        exchangeRate: String = "1",
+        priceIncludesTax: Boolean = false,
+        linesJson: String,
+        notes: String,
+        termsAndConditions: String,
+        attachmentParts: List<okhttp3.MultipartBody.Part> = emptyList()
+    ) {
+        launchBusy {
+            _createInvoiceState.value = CreateInvoiceState.Loading
+
+            // Step 1: Create invoice (POST /api/finance/sales-invoices/create)
+            val createResult = repo.request<CreateInvoiceApiResponse> {
+                postMultipart(
+                    url = "/api/finance/sales-invoices/create",
+                    parts = mapOf(
+                        "customerId" to repo.text(customerId),
+                        "invoiceDate" to repo.text(invoiceDate),
+                        "paymentTermId" to repo.text(paymentTermId),
+                        "currency" to repo.text(currency),
+                        "exchangeRate" to repo.text(exchangeRate),
+                        "priceIncludesTax" to repo.text(priceIncludesTax.toString()),
+                        "lines" to repo.text(linesJson),
+                        "notes" to repo.text(notes),
+                        "termsAndConditions" to repo.text(termsAndConditions)
+                    ),
+                    files = attachmentParts
+                )
+            }
+
+            createResult.fold(
+                onSuccess = { createResponse ->
+                    if (!createResponse.success) {
+                        _createInvoiceState.value = CreateInvoiceState.Error(
+                            createResponse.message ?: "Failed to create invoice"
+                        )
+                        return@fold
+                    }
+
+                    // Extract the created invoice ID from response
+                    val createdInvoiceId = createResponse.data?.id.orEmpty()
+                        .ifBlank { createResponse.data?.id.orEmpty() }
+
+                    if (createdInvoiceId.isBlank()) {
+                        _createInvoiceState.value = CreateInvoiceState.Error(
+                            "Invoice created, but failed to retrieve invoice ID for sending."
+                        )
+                        return@fold
+                    }
+
+                    // Step 2: Send invoice with ID in path URL (POST /api/finance/sales-invoices/send/{id})
+                    // Uses default empty body: emptyMap<String, String>()
+                    val sendResult = repo.request<SendInvoiceApiResponse> {
+                        post("/api/finance/sales-invoices/send/$createdInvoiceId")
+                    }
+
+                    sendResult.fold(
+                        onSuccess = { sendResponse ->
+                            if (sendResponse.success) {
+                                _createInvoiceState.value = CreateInvoiceState.Success(
+                                    message = sendResponse.message ?: "Invoice sent and posted to ledger.",
+                                    invoice = sendResponse.data
+                                )
+                                refreshInvoices()
+                            } else {
+                                _createInvoiceState.value = CreateInvoiceState.Error(
+                                    sendResponse.message ?: "Invoice created, but failed to send"
+                                )
+                            }
+                        },
+                        onFailure = { sendError ->
+                            _createInvoiceState.value = CreateInvoiceState.Error(
+                                "Invoice created as draft, but sending failed: " +
+                                        extractErrorMessage(sendError, "Failed to send invoice")
+                            )
+                        }
+                    )
+                },
+                onFailure = { createError ->
+                    _createInvoiceState.value = CreateInvoiceState.Error(
+                        extractErrorMessage(createError, "Failed to create invoice")
+                    )
+                }
+            )
+        }
+    }
+
+    // ── SEND STANDALONE INVOICE (DRAFT TO SENT) ──
+    fun sendInvoice(invoiceId: String) {
+        if (invoiceId.isBlank()) return
+        launchBusy {
+            _createInvoiceState.value = CreateInvoiceState.Loading
+
+            // Hits POST /api/finance/sales-invoices/send/{id}
+            val result = repo.request<SendInvoiceApiResponse> {
+                post("/api/finance/sales-invoices/send/$invoiceId")
+            }
+
+            result.fold(
+                onSuccess = { sendResponse ->
+                    if (sendResponse.success) {
+                        _createInvoiceState.value = CreateInvoiceState.Success(
+                            message = sendResponse.message ?: "Invoice sent and posted to ledger.",
+                            invoice = sendResponse.data
+                        )
+                        // Refresh details and list
+                        fetchInvoiceDetail(invoiceId)
+                        refreshInvoices()
+                    } else {
+                        _createInvoiceState.value = CreateInvoiceState.Error(
+                            sendResponse.message ?: "Failed to send invoice"
+                        )
+                    }
+                },
+                onFailure = { sendError ->
+                    _createInvoiceState.value = CreateInvoiceState.Error(
+                        extractErrorMessage(sendError, "Failed to send invoice")
+                    )
+                }
+            )
+        }
+    }
+
+    // ── DELETE INVOICE STATE ──
+    private val _deleteInvoiceState = MutableStateFlow<DeleteInvoiceState>(DeleteInvoiceState.Idle)
+    val deleteInvoiceState: StateFlow<DeleteInvoiceState> = _deleteInvoiceState.asStateFlow()
+
+    /**
+     * Deletes a sales invoice by ID (DELETE /api/finance/sales-invoices/{id})
+     * Automatically triggers refreshInvoices() on success.
+     */
+    fun deleteInvoice(invoiceId: String) {
+        if (invoiceId.isBlank()) return
+        launchBusy {
+            _deleteInvoiceState.value = DeleteInvoiceState.Loading
+
+            // Endpoint: DELETE /api/finance/sales-invoices/{id}
+            val result = repo.request<GenericDeleteResponse> {
+                delete("/api/finance/sales-invoices/delete-one/$invoiceId")
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        _deleteInvoiceState.value = DeleteInvoiceState.Success(
+                            response.message ?: "Invoice deleted successfully"
+                        )
+                        // Automatically refreshes the invoice list
+                        refreshInvoices()
+                    } else {
+                        _deleteInvoiceState.value = DeleteInvoiceState.Error(
+                            response.message ?: "Failed to delete invoice"
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _deleteInvoiceState.value = DeleteInvoiceState.Error(
+                        extractErrorMessage(error, "Failed to delete invoice")
+                    )
+                }
+            )
+        }
+    }
+
+    // ── Inside FinanceViewModel Class ──
+
+    // 1. Customer Financial Profile State
+    private val _customerFinancialProfile = MutableStateFlow<CustomerFinancialProfileData?>(null)
+    val customerFinancialProfile: StateFlow<CustomerFinancialProfileData?> = _customerFinancialProfile.asStateFlow()
+
+    private val _isLoadingCustomerProfile = MutableStateFlow(false)
+    val isLoadingCustomerProfile: StateFlow<Boolean> = _isLoadingCustomerProfile.asStateFlow()
+
+    private val _customerProfileError = MutableStateFlow<String?>(null)
+    val customerProfileError: StateFlow<String?> = _customerProfileError.asStateFlow()
+
+    // 2. Update Customer State
+    private val _updateCustomerState = MutableStateFlow<UpdateCustomerState>(UpdateCustomerState.Idle)
+    val updateCustomerState: StateFlow<UpdateCustomerState> = _updateCustomerState.asStateFlow()
+
+    /**
+     * Fetch Customer Financial Profile for Prefilling in Edit Mode
+     */
+    fun fetchCustomerFinancialProfile(customerId: String) {
+        if (customerId.isBlank()) return
+        launchBusy {
+            _isLoadingCustomerProfile.value = true
+            _customerProfileError.value = null
+
+            val result = repo.request<CustomerFinancialProfileResponse> {
+                get("/api/finance/customers/view-one/$customerId")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _customerFinancialProfile.value = res.data
+                },
+                onFailure = { error ->
+                    _customerProfileError.value = extractErrorMessage(error, "Failed to load customer profile")
+                }
+            )
+            _isLoadingCustomerProfile.value = false
+        }
+    }
+
+    /**
+     * Update Customer API
+     */
+    fun updateCustomer(
+        customerId: String,
+        payload: CreateCustomerPayload,
+        onSuccessCallback: () -> Unit = {}
+    ) {
+        launchBusy {
+            _updateCustomerState.value = UpdateCustomerState.Loading
+
+            val result = repo.request<GenericDeleteResponse> {
+                put("/api/sales/customers/update/$customerId", payload)
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        _updateCustomerState.value = UpdateCustomerState.Success(
+                            response.message ?: "Customer updated successfully"
+                        )
+                        fetchCustomerForFinance(page = 1)
+                        onSuccessCallback()
+                    } else {
+                        _updateCustomerState.value = UpdateCustomerState.Error(
+                            response.message ?: "Failed to update customer"
+                        )
+                    }
+                },
+                onFailure = { throwable ->
+                    _updateCustomerState.value = UpdateCustomerState.Error(
+                        extractErrorMessage(throwable, "Failed to update customer")
+                    )
+                }
+            )
+        }
+    }
+
+    fun clearCustomerFinancialProfile() {
+        _customerFinancialProfile.value = null
+        _customerProfileError.value = null
+    }
+
+    fun resetUpdateCustomerState() {
+        _updateCustomerState.value = UpdateCustomerState.Idle
+    }
+
+    fun resetDeleteInvoiceState() {
+        _deleteInvoiceState.value = DeleteInvoiceState.Idle
+    }
+
+    fun resetCreateInvoiceState() {
+        _createInvoiceState.value = CreateInvoiceState.Idle
     }
 
     fun clearSupplierOverview() {

@@ -271,8 +271,8 @@ fun CardContentsLoginScreen(
             Spacer(Modifier.height(tokens.screenPadding))
 
             ContinueWithGoogle(activity, navController)
-            Spacer(Modifier.height(tokens.screenPadding / 2))
-            ContinueWithApple(activity, navController)
+//            Spacer(Modifier.height(tokens.screenPadding / 2))
+//            ContinueWithApple(activity, navController)
 
             Spacer(Modifier.height(tokens.screenPadding))
             Box(

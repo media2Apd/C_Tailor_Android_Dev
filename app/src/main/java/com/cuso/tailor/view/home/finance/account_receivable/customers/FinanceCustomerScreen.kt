@@ -47,6 +47,7 @@ import com.cuso.tailor.model.settings.BranchItem
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.CreateCustomerState
+import com.cuso.tailor.viewmodel.UpdateCustomerState
 
 // ─────────────────────────────────────────────────────────────
 // FinanceCustomerScreen — List with Draggable FabScaffold
@@ -112,11 +113,7 @@ fun FinanceCustomerScreen(
         fab = FabConfig(
             label = "Add Customer",
             icon = Icons.Default.Add,
-            onClick = { onAddCustomer() },
-            alignment = Alignment.BottomEnd,
-            endPadding = 16.dp,
-            bottomPadding = 24.dp,
-            draggable = true
+            onClick = { onAddCustomer() }
         )
     ) {
         Column(
@@ -230,6 +227,7 @@ fun FinanceCustomerScreen(
 // ─────────────────────────────────────────────────────────────
 @Composable
 fun CreateCustomerScreen(
+    customerId: String? = null,
     onClose: () -> Unit,
     onCustomerCreated: () -> Unit = onClose,
     viewModel: FinanceViewModel = hiltViewModel(),
@@ -237,10 +235,20 @@ fun CreateCustomerScreen(
 ) {
     val tokens = LocalAppTokens.current
     var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val isEditMode = !customerId.isNullOrBlank()
 
     val createCustomerState by viewModel.createCustomerState.collectAsStateWithLifecycle()
+    val updateCustomerState by viewModel.updateCustomerState.collectAsStateWithLifecycle()
+    val customerProfile by viewModel.customerFinancialProfile.collectAsStateWithLifecycle()
+    val isLoadingProfile by viewModel.isLoadingCustomerProfile.collectAsStateWithLifecycle()
 
-    // ── Fetch Branches from API ──
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.clearCustomerFinancialProfile()
+        }
+    }
+
+    // ── Fetch Branches ──
     LaunchedEffect(Unit) {
         branchViewModel.loadBranches()
     }
@@ -250,18 +258,19 @@ fun CreateCustomerScreen(
         (branchUiState as? BranchUiState.Success)?.branches.orEmpty()
     }
 
-    // Selected Branch State
     var selectedBranch by remember { mutableStateOf<BranchItem?>(null) }
     var branchExpanded by remember { mutableStateOf(false) }
 
-    // Pre-select first branch or default branch once branches are loaded
-    LaunchedEffect(branches) {
-        if (selectedBranch == null && branches.isNotEmpty()) {
-            selectedBranch = branches.find { it.isMainBranch } ?: branches.first()
+    // ── Fetch Profile if Edit Mode ──
+    LaunchedEffect(customerId) {
+        if (!customerId.isNullOrBlank()) {
+            viewModel.fetchCustomerFinancialProfile(customerId)
+        } else {
+            viewModel.clearCustomerFinancialProfile()
         }
     }
 
-    // Tab 1: General & Demographics Form States
+    // Form States
     var fullName by remember { mutableStateOf("") }
     var mobileNumber by remember { mutableStateOf("") }
     var emailAddress by remember { mutableStateOf("") }
@@ -275,7 +284,6 @@ fun CreateCustomerScreen(
     var preferredLanguage by remember { mutableStateOf("") }
     var languageExpanded by remember { mutableStateOf(false) }
 
-    // Tab 2: Credit & Taxation Form States
     var customerClassification by remember { mutableStateOf("") }
     var classificationExpanded by remember { mutableStateOf(false) }
     var creditLimit by remember { mutableStateOf("") }
@@ -286,7 +294,6 @@ fun CreateCustomerScreen(
     var accountStatus by remember { mutableStateOf("") }
     var accountStatusExpanded by remember { mutableStateOf(false) }
 
-    // Tab 3: Billing & Shipping Form States
     var flatBuildingNo by remember { mutableStateOf("") }
     var streetAddress by remember { mutableStateOf("") }
     var areaZone by remember { mutableStateOf("") }
@@ -295,9 +302,62 @@ fun CreateCustomerScreen(
     var country by remember { mutableStateOf("") }
     var pincode by remember { mutableStateOf("") }
     var shippingSameAsBilling by remember { mutableStateOf(true) }
-
-    // Tab 4: Internal Notes Form States
     var customerAccountingNotes by remember { mutableStateOf("") }
+
+    // ── PREFILL VALUES FROM API ON EDIT MODE ──
+    LaunchedEffect(customerProfile) {
+        customerProfile?.let { profile ->
+            val header = profile.customerHeader
+            val taxBilling = profile.taxAndBilling
+            val credit = profile.creditManagement
+            val billing = taxBilling?.billingAddress
+
+            fullName = header?.fullName.orEmpty()
+            mobileNumber = header?.mobileNumber.orEmpty()
+            emailAddress = header?.email.orEmpty()
+            customerType = header?.customerType.orEmpty()
+            customerClassification = header?.customerLevel.orEmpty()
+            accountStatus = header?.status.orEmpty()
+
+            creditLimit = credit?.creditLimit?.let { if (it == 0.0) "0" else it.toString() } ?: "0"
+            creditPeriodDays = credit?.creditPeriodDays?.toString() ?: "0"
+            taxIdType = taxBilling?.taxIdType.orEmpty()
+            taxRegistrationNumber = taxBilling?.taxId.orEmpty()
+
+            flatBuildingNo = billing?.flatNo.orEmpty()
+            streetAddress = billing?.street.orEmpty()
+            areaZone = billing?.areaZone.orEmpty()
+            city = billing?.city.orEmpty()
+            stateProvince = billing?.subdivisionName.orEmpty()
+            country = billing?.countryName.orEmpty().ifBlank { "India" }
+            pincode = billing?.pincode.orEmpty()
+        }
+    }
+
+    LaunchedEffect(branches, customerProfile, isEditMode) {
+        if (isEditMode) {
+            val branchRef = customerProfile?.customerHeader?.branch
+            if (branchRef != null && branches.isNotEmpty()) {
+                selectedBranch = branches.find { it.id == branchRef._id || it.name == branchRef.name }
+            }
+        } else {
+            if (selectedBranch == null && branches.isNotEmpty()) {
+                selectedBranch = branches.find { it.isMainBranch } ?: branches.first()
+            }
+        }
+    }
+
+    // Success Listener
+    LaunchedEffect(createCustomerState, updateCustomerState) {
+        if (createCustomerState is CreateCustomerState.Success) {
+            viewModel.resetCreateCustomerState()
+            onCustomerCreated()
+        }
+        if (updateCustomerState is UpdateCustomerState.Success) {
+            viewModel.resetUpdateCustomerState()
+            onCustomerCreated()
+        }
+    }
 
     val tabs = listOf(
         "General & Demographics" to R.drawable.ic_person,
@@ -306,17 +366,6 @@ fun CreateCustomerScreen(
         "Internal Notes" to R.drawable.ic_document
     )
 
-    // Handle Customer Creation Response
-    LaunchedEffect(createCustomerState) {
-        when (createCustomerState) {
-            is CreateCustomerState.Success -> {
-                viewModel.resetCreateCustomerState()
-                onCustomerCreated()
-            }
-            else -> Unit
-        }
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -324,13 +373,13 @@ fun CreateCustomerScreen(
     ) {
         // Top Bar
         TitleBar(
-            title = "New Customer",
+            title = if (isEditMode) "Edit Customer" else "New Customer",
             onClose = onClose
         )
         HorizontalDivider(color = dividerColor)
         Spacer(Modifier.padding(top = 10.dp))
 
-        // Horizontal Tabs Row
+        // Tabs
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -370,260 +419,259 @@ fun CreateCustomerScreen(
         }
         HorizontalDivider(color = dividerColor)
 
-        // Scrollable Form Content Body
+        // Body Content with Loading state during prefill fetch
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(tokens.screenPadding),
-                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-            ) {
-                when (selectedTabIndex) {
-                    // --- TAB 1: General & Demographics ---
-                    0 -> {
-                        FormSectionCard(title = "BASIC DEMOGRAPHICS") {
-                            FormLabel(text = "Full Name", isRequired = true)
-                            FormTextField(
-                                value = fullName,
-                                onValueChange = { fullName = it },
-                                placeholder = "e.g. Rajesh Kumar"
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormLabel(text = "Mobile Number", isRequired = true)
-                            FormTextField(
-                                value = mobileNumber,
-                                onValueChange = { mobileNumber = it },
-                                placeholder = "+91 9876543210",
-                                keyboardType = KeyboardType.Phone
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormLabel(text = "Email Address")
-                            FormTextField(
-                                value = emailAddress,
-                                onValueChange = { emailAddress = it },
-                                placeholder = "customer@example.com",
-                                keyboardType = KeyboardType.Email
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormDropdown(
-                                label = "Customer Type",
-                                value = customerType,
-                                expanded = customerTypeExpanded,
-                                onExpandChange = { customerTypeExpanded = it },
-                                options = listOf("Individual", "Corporate", "Business"),
-                                onOptionSelected = { customerType = it }
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormDropdown(
-                                label = "Gender",
-                                value = gender,
-                                expanded = genderExpanded,
-                                onExpandChange = { genderExpanded = it },
-                                options = listOf("Male", "Female", "Other"),
-                                onOptionSelected = { gender = it }
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormLabel(text = "Date of Birth")
-                            FormTextField(
-                                value = dateOfBirth,
-                                onValueChange = { dateOfBirth = it },
-                                placeholder = "YYYY-MM-DD"
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormDropdown(
-                                label = "Preferred Contact Method",
-                                value = preferredContactMethod,
-                                expanded = contactMethodExpanded,
-                                onExpandChange = { contactMethodExpanded = it },
-                                options = listOf("Whatsapp", "Call", "SMS", "Email"),
-                                onOptionSelected = { preferredContactMethod = it }
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormDropdown(
-                                label = "Preferred Language",
-                                value = preferredLanguage,
-                                expanded = languageExpanded,
-                                onExpandChange = { languageExpanded = it },
-                                options = listOf("English", "Tamil", "Hindi"),
-                                onOptionSelected = { preferredLanguage = it }
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            // ── Live Branch Selection from API ──
-                            FormDropdown(
-                                label = "Assigned Branch",
-                                value = selectedBranch?.name ?: if (branchUiState is BranchUiState.Loading) "Loading branches..." else "Select Branch",
-                                expanded = branchExpanded,
-                                onExpandChange = { branchExpanded = it },
-                                options = branches.mapNotNull { it.name },
-                                onOptionSelected = { branchName ->
-                                    selectedBranch = branches.find { it.name == branchName }
-                                }
-                            )
-                        }
-                    }
-
-                    // --- TAB 2: Credit & Taxation ---
-                    1 -> {
-                        FormSectionCard(title = "B2B CREDIT & TAX CONFIGURATION") {
-                            FormDropdown(
-                                label = "Customer Classification",
-                                value = customerClassification,
-                                expanded = classificationExpanded,
-                                onExpandChange = { classificationExpanded = it },
-                                options = listOf("Regular", "VIP", "Premium"),
-                                onOptionSelected = { customerClassification = it }
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormLabel(text = "Credit Limit (₹)")
-                            FormTextField(
-                                value = creditLimit,
-                                onValueChange = { creditLimit = it },
-                                placeholder = "0",
-                                keyboardType = KeyboardType.Number
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormLabel(text = "Credit Period (Days)")
-                            FormTextField(
-                                value = creditPeriodDays,
-                                onValueChange = { creditPeriodDays = it },
-                                placeholder = "0",
-                                keyboardType = KeyboardType.Number
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormDropdown(
-                                label = "Tax ID Type",
-                                value = taxIdType,
-                                expanded = taxIdTypeExpanded,
-                                onExpandChange = { taxIdTypeExpanded = it },
-                                options = listOf("GSTIN", "PAN", "Other"),
-                                onOptionSelected = { taxIdType = it }
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormLabel(text = "Tax / Registration Number")
-                            FormTextField(
-                                value = taxRegistrationNumber,
-                                onValueChange = { taxRegistrationNumber = it },
-                                placeholder = "E.G. 33AAAAA0000A1Z5"
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormDropdown(
-                                label = "Account Status",
-                                value = accountStatus,
-                                expanded = accountStatusExpanded,
-                                onExpandChange = { accountStatusExpanded = it },
-                                options = listOf("Active", "Inactive", "Blocked"),
-                                onOptionSelected = { accountStatus = it }
-                            )
-                        }
-                    }
-
-                    // --- TAB 3: Billing & Shipping ---
-                    2 -> {
-                        FormSectionCard(title = "BILLING ADDRESS") {
-                            FormLabel(text = "Flat / Building / Door No")
-                            FormTextField(
-                                value = flatBuildingNo,
-                                onValueChange = { flatBuildingNo = it },
-                                placeholder = "Floor 4, Block B"
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormLabel(text = "Street Address")
-                            FormTextField(
-                                value = streetAddress,
-                                onValueChange = { streetAddress = it },
-                                placeholder = "Gandhi Road"
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormLabel(text = "Area / Zone")
-                            FormTextField(
-                                value = areaZone,
-                                onValueChange = { areaZone = it },
-                                placeholder = "Anna Nagar"
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormLabel(text = "City", isRequired = true)
-                            FormTextField(
-                                value = city,
-                                onValueChange = { city = it },
-                                placeholder = "Chennai"
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormLabel(text = "State / Province")
-                            FormTextField(
-                                value = stateProvince,
-                                onValueChange = { stateProvince = it },
-                                placeholder = "Tamil Nadu"
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormLabel(text = "Country")
-                            FormTextField(
-                                value = country,
-                                onValueChange = { country = it },
-                                placeholder = "India"
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            FormLabel(text = "Pincode")
-                            FormTextField(
-                                value = pincode,
-                                onValueChange = { pincode = it },
-                                placeholder = "600040",
-                                keyboardType = KeyboardType.Number
-                            )
-
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = shippingSameAsBilling,
-                                    onCheckedChange = { shippingSameAsBilling = it },
-                                    colors = CheckboxDefaults.colors(checkedColor = Primary)
+            if (isLoadingProfile) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Primary)
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(tokens.screenPadding),
+                    verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                ) {
+                    when (selectedTabIndex) {
+                        0 -> {
+                            FormSectionCard(title = "BASIC DEMOGRAPHICS") {
+                                FormLabel(text = "Full Name", isRequired = true)
+                                FormTextField(
+                                    value = fullName,
+                                    onValueChange = { fullName = it },
+                                    placeholder = "e.g. Rajesh Kumar"
                                 )
-                                Text(
-                                    text = "Shipping Address matches Billing Address",
-                                    fontSize = tokens.bodySmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = title_color
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormLabel(text = "Mobile Number", isRequired = true)
+                                FormTextField(
+                                    value = mobileNumber,
+                                    onValueChange = { mobileNumber = it },
+                                    placeholder = "+91 9876543210",
+                                    keyboardType = KeyboardType.Phone
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormLabel(text = "Email Address")
+                                FormTextField(
+                                    value = emailAddress,
+                                    onValueChange = { emailAddress = it },
+                                    placeholder = "customer@example.com",
+                                    keyboardType = KeyboardType.Email
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormDropdown(
+                                    label = "Customer Type",
+                                    value = customerType,
+                                    expanded = customerTypeExpanded,
+                                    onExpandChange = { customerTypeExpanded = it },
+                                    options = listOf("Individual", "Corporate", "Business"),
+                                    onOptionSelected = { customerType = it }
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormDropdown(
+                                    label = "Gender",
+                                    value = gender,
+                                    expanded = genderExpanded,
+                                    onExpandChange = { genderExpanded = it },
+                                    options = listOf("Male", "Female", "Other"),
+                                    onOptionSelected = { gender = it }
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormLabel(text = "Date of Birth")
+                                FormTextField(
+                                    value = dateOfBirth,
+                                    onValueChange = { dateOfBirth = it },
+                                    placeholder = "YYYY-MM-DD"
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormDropdown(
+                                    label = "Preferred Contact Method",
+                                    value = preferredContactMethod,
+                                    expanded = contactMethodExpanded,
+                                    onExpandChange = { contactMethodExpanded = it },
+                                    options = listOf("Whatsapp", "Call", "SMS", "Email"),
+                                    onOptionSelected = { preferredContactMethod = it }
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormDropdown(
+                                    label = "Preferred Language",
+                                    value = preferredLanguage,
+                                    expanded = languageExpanded,
+                                    onExpandChange = { languageExpanded = it },
+                                    options = listOf("English", "Tamil", "Hindi"),
+                                    onOptionSelected = { preferredLanguage = it }
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormDropdown(
+                                    label = "Assigned Branch",
+                                    value = selectedBranch?.name ?: if (branchUiState is BranchUiState.Loading) "Loading branches..." else "Select Branch",
+                                    expanded = branchExpanded,
+                                    onExpandChange = { branchExpanded = it },
+                                    options = branches.mapNotNull { it.name },
+                                    onOptionSelected = { branchName ->
+                                        selectedBranch = branches.find { it.name == branchName }
+                                    }
                                 )
                             }
                         }
-                    }
 
-                    // --- TAB 4: Internal Notes ---
-                    3 -> {
-                        FormSectionCard(title = "INTERNAL LEDGER REMARKS") {
-                            FormLabel(text = "Customer Accounting Notes")
-                            FormTextArea(
-                                value = customerAccountingNotes,
-                                onValueChange = { customerAccountingNotes = it },
-                                placeholder = "Enter credit history observations, tax audit notes, or special client instructions...",
-                                minLines = 4,
-                                maxLines = 6
-                            )
+                        1 -> {
+                            FormSectionCard(title = "B2B CREDIT & TAX CONFIGURATION") {
+                                FormDropdown(
+                                    label = "Customer Classification",
+                                    value = customerClassification,
+                                    expanded = classificationExpanded,
+                                    onExpandChange = { classificationExpanded = it },
+                                    options = listOf("Regular", "VIP", "Premium"),
+                                    onOptionSelected = { customerClassification = it }
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormLabel(text = "Credit Limit (₹)")
+                                FormTextField(
+                                    value = creditLimit,
+                                    onValueChange = { creditLimit = it },
+                                    placeholder = "0",
+                                    keyboardType = KeyboardType.Number
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormLabel(text = "Credit Period (Days)")
+                                FormTextField(
+                                    value = creditPeriodDays,
+                                    onValueChange = { creditPeriodDays = it },
+                                    placeholder = "0",
+                                    keyboardType = KeyboardType.Number
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormDropdown(
+                                    label = "Tax ID Type",
+                                    value = taxIdType,
+                                    expanded = taxIdTypeExpanded,
+                                    onExpandChange = { taxIdTypeExpanded = it },
+                                    options = listOf("GSTIN", "PAN", "Other"),
+                                    onOptionSelected = { taxIdType = it }
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormLabel(text = "Tax / Registration Number")
+                                FormTextField(
+                                    value = taxRegistrationNumber,
+                                    onValueChange = { taxRegistrationNumber = it },
+                                    placeholder = "E.G. 33AAAAA0000A1Z5"
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormDropdown(
+                                    label = "Account Status",
+                                    value = accountStatus,
+                                    expanded = accountStatusExpanded,
+                                    onExpandChange = { accountStatusExpanded = it },
+                                    options = listOf("Active", "Inactive", "Blocked"),
+                                    onOptionSelected = { accountStatus = it }
+                                )
+                            }
+                        }
+
+                        2 -> {
+                            FormSectionCard(title = "BILLING ADDRESS") {
+                                FormLabel(text = "Flat / Building / Door No")
+                                FormTextField(
+                                    value = flatBuildingNo,
+                                    onValueChange = { flatBuildingNo = it },
+                                    placeholder = "Floor 4, Block B"
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormLabel(text = "Street Address")
+                                FormTextField(
+                                    value = streetAddress,
+                                    onValueChange = { streetAddress = it },
+                                    placeholder = "Gandhi Road"
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormLabel(text = "Area / Zone")
+                                FormTextField(
+                                    value = areaZone,
+                                    onValueChange = { areaZone = it },
+                                    placeholder = "Anna Nagar"
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormLabel(text = "City", isRequired = true)
+                                FormTextField(
+                                    value = city,
+                                    onValueChange = { city = it },
+                                    placeholder = "Chennai"
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormLabel(text = "State / Province")
+                                FormTextField(
+                                    value = stateProvince,
+                                    onValueChange = { stateProvince = it },
+                                    placeholder = "Tamil Nadu"
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormLabel(text = "Country")
+                                FormTextField(
+                                    value = country,
+                                    onValueChange = { country = it },
+                                    placeholder = "India"
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                FormLabel(text = "Pincode")
+                                FormTextField(
+                                    value = pincode,
+                                    onValueChange = { pincode = it },
+                                    placeholder = "600040",
+                                    keyboardType = KeyboardType.Number
+                                )
+
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(
+                                        checked = shippingSameAsBilling,
+                                        onCheckedChange = { shippingSameAsBilling = it },
+                                        colors = CheckboxDefaults.colors(checkedColor = Primary)
+                                    )
+                                    Text(
+                                        text = "Shipping Address matches Billing Address",
+                                        fontSize = tokens.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = title_color
+                                    )
+                                }
+                            }
+                        }
+
+                        3 -> {
+                            FormSectionCard(title = "INTERNAL LEDGER REMARKS") {
+                                FormLabel(text = "Customer Accounting Notes")
+                                FormTextArea(
+                                    value = customerAccountingNotes,
+                                    onValueChange = { customerAccountingNotes = it },
+                                    placeholder = "Enter credit history observations, tax audit notes, or special client instructions...",
+                                    minLines = 4,
+                                    maxLines = 6
+                                )
+                            }
                         }
                     }
                 }
@@ -632,7 +680,9 @@ fun CreateCustomerScreen(
 
         HorizontalDivider(color = dividerColor)
 
-        // Bottom Action Bar: Cancel & Save Customer Buttons
+        // Bottom Actions (Cancel / Save or Update)
+        val isSaving = createCustomerState is CreateCustomerState.Loading || updateCustomerState is UpdateCustomerState.Loading
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -657,7 +707,6 @@ fun CreateCustomerScreen(
 
             Spacer(Modifier.width(12.dp))
 
-            // Save Customer Button
             Button(
                 onClick = {
                     val addressPayload = CustomerAddressPayload(
@@ -682,27 +731,30 @@ fun CreateCustomerScreen(
                         customerLevel = customerClassification.ifBlank { "Regular" },
                         creditLimit = creditLimit.toDoubleOrNull() ?: 0.0,
                         creditPeriodDays = creditPeriodDays.toIntOrNull() ?: 0,
-                        // ── Dynamic Branch ID from Selected Branch ──
                         branchId = selectedBranch?.id ?: branches.firstOrNull()?.id,
                         status = accountStatus.ifBlank { "Active" },
                         taxId = taxRegistrationNumber.trim().ifBlank { null },
                         taxIdType = taxIdType.ifBlank { "GSTIN" },
                         sameAsBillingAddress = shippingSameAsBilling,
                         billingAddress = addressPayload,
-                        shippingAddress = if (shippingSameAsBilling) addressPayload else addressPayload,
+                        shippingAddress = addressPayload,
                         customFields = CustomerCustomFieldsPayload(
                             notes = customerAccountingNotes.trim().ifBlank { null }
                         )
                     )
 
-                    viewModel.createCustomer(payload)
+                    if (isEditMode) {
+                        viewModel.updateCustomer(customerId, payload)
+                    } else {
+                        viewModel.createCustomer(payload)
+                    }
                 },
-                enabled = fullName.isNotBlank() && mobileNumber.isNotBlank() && createCustomerState !is CreateCustomerState.Loading,
+                enabled = fullName.isNotBlank() && mobileNumber.isNotBlank() && !isSaving,
                 colors = ButtonDefaults.buttonColors(containerColor = Primary),
                 shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
                 modifier = Modifier.height(tokens.buttonHeight)
             ) {
-                if (createCustomerState is CreateCustomerState.Loading) {
+                if (isSaving) {
                     CirculerProgressIndicatorSmall()
                 } else {
                     Icon(
@@ -713,7 +765,7 @@ fun CreateCustomerScreen(
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        text = "Save Customer",
+                        text = if (isEditMode) "Update Customer" else "Save Customer",
                         fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = whiteBg

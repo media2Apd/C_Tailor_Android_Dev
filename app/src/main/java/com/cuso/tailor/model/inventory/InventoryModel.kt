@@ -14,7 +14,21 @@ data class InventoryItemListResponse(
     val data: List<InventoryItem>
         get() = _items ?: _data ?: emptyList()
 }
+data class InventoryWarehouseDto(
+    @SerializedName("warehouseId") val warehouseId: String = "",
+    @SerializedName("warehouseName") val warehouseName: String = "",
+    @SerializedName("warehouseCode") val warehouseCode: String? = null,
+    @SerializedName("bins") val bins: List<InventoryBinDto> = emptyList()
+)
 
+data class InventoryBinDto(
+    @SerializedName("binId") val binId: String = "",
+    @SerializedName("binName") val binName: String = "",
+    @SerializedName("binCode") val binCode: String? = null,
+    @SerializedName("quantity") val quantity: Double = 0.0,
+    @SerializedName("reservedQuantity") val reservedQuantity: Double = 0.0,
+    @SerializedName("availableQuantity") val availableQuantity: Double = 0.0
+)
 data class InventoryPagination(
     val total: Int = 0,
     val page: Int = 1,
@@ -57,7 +71,10 @@ data class InventoryItem(
     @SerializedName("tags") val tags: List<String> = emptyList(),
     @SerializedName("createdAt") val createdAt: String = "",
     @SerializedName("updatedAt") val updatedAt: String = "",
-    @SerializedName("stockStatus") val rawStockStatus: String? = null
+    @SerializedName("stockStatus") val rawStockStatus: String? = null,
+    @SerializedName("totalStock") val totalStock: Double = 0.0,
+    @SerializedName("availableStock") val availableStock: Double = 0.0,
+    @SerializedName("warehouses") val warehouses: List<InventoryWarehouseDto> = emptyList()
 ) {
     val stockStatus: String
         get() = rawStockStatus ?: when {

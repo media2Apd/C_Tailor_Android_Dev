@@ -27,7 +27,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
-import com.cuso.tailor.R
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -43,6 +42,7 @@ class InvoicePdfGenerator(private val context: Context) {
         val description: String,
         val hsnSku: String = "-",
         val quantity: Int,
+        val unit: String = "",
         val unitPrice: Double,
         val discount: String = "-",
         val tax: Double,
@@ -79,7 +79,8 @@ class InvoicePdfGenerator(private val context: Context) {
         val companyEmail: String = "",
         val companyPhone: String = "",
         val companyGst: String = "",
-        val logoUrl: String? = null
+        val logoUrl: String? = null,
+        val signatoryLabel: String = "Authorized Signatory"
     )
 
     data class SavedPdf(
@@ -143,8 +144,10 @@ class InvoicePdfGenerator(private val context: Context) {
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
         webView.settings.javaScriptEnabled = true
-        webView.settings.loadWithOverviewMode = true
-        webView.settings.useWideViewPort = true
+        // PDF export uses the plain device layout so the responsive invoice lays out
+// at the A4 CSS width. The on-screen preview keeps its own WebView settings.
+        webView.settings.loadWithOverviewMode = false
+        webView.settings.useWideViewPort = false
 
         var finished = false
         val mainHandler = Handler(Looper.getMainLooper())
@@ -335,614 +338,310 @@ class InvoicePdfGenerator(private val context: Context) {
     }
 
     fun buildInvoiceHtml(data: InvoiceData): String {
-        fun money(v: Double) = "₹" + String.format(Locale.US, "%,.2f", v)
+        fun esc(value: String): String = value
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
 
-        // Strip branch suffix (e.g., "- Main Branch") to show only the main organization name
-        val cleanCompanyName = data.companyName
+        // Whole amounts are shown without decimals, like the reference design
+        fun money(v: Double): String {
+            val pattern = if (v % 1.0 == 0.0) "%,.0f" else "%,.2f"
+            return "₹" + String.format(Locale.US, pattern, v)
+        }
+
+        // Strip the branch suffix such as "- Main Branch"
+        val companyName = data.companyName
             .substringBefore(" - ")
             .substringBefore(" – ")
             .trim()
-            .ifEmpty { "RELDA" }
+            .ifEmpty { "Company" }
 
         val logoBlockHtml = if (!data.logoUrl.isNullOrEmpty()) {
             """<img src="${data.logoUrl}" class="brand-logo" alt="Logo"/>"""
         } else {
-            """
-            <div class="brand-badge-row">
-              <div class="brand-icon">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
-                  <circle cx="12" cy="12" r="11" fill="#DC2626"/>
-                  <path d="M6 12C9 9 15 9 18 12C15 15 9 15 6 12Z" fill="#FFFFFF"/>
-                </svg>
-              </div>
-              <span class="brand-name">$cleanCompanyName</span>
-            </div>
-            """.trimIndent()
+            """<div class="brand-fallback">${esc(companyName)}</div>"""
         }
 
-        val footerLogoBase64 = drawableToBase64(R.drawable.cuso_technologies_logo)
-        val footerLogoTag = if (footerLogoBase64.isNotEmpty()) {
-            """<img src="$footerLogoBase64" class="footer-logo" alt="cuso"/>"""
-        } else {
-            """<span class="footer-dot-icon"></span>"""
+        val companyMetaHtml = buildString {
+            if (data.companyAddress.isNotBlank()) {
+                append("""<div class="addr">${esc(data.companyAddress)}</div>""")
+            }
+            if (data.companyEmail.isNotBlank()) {
+                append("""<div>Email: ${esc(data.companyEmail)}</div>""")
+            }
+            if (data.companyPhone.isNotBlank()) {
+                append("""<div>Phone: ${esc(data.companyPhone)}</div>""")
+            }
+            if (data.companyGst.isNotBlank()) {
+                append("""<div>GSTIN: ${esc(data.companyGst)}</div>""")
+            }
         }
 
-        val itemsHtml = data.items.mapIndexed { index, item ->
-            val isEvenRow = (index % 2 == 1)
-            val rowClass = if (isEvenRow) "even-row" else "odd-row"
-            """
-            <tr class="$rowClass">
-                <td class="desc">${item.description.ifEmpty { "-" }}</td>
-                <td>${item.hsnSku.ifEmpty { "-" }}</td>
-                <td class="center">${item.quantity}</td>
-                <td class="num">${money(item.unitPrice)}</td>
-                <td class="num">${item.discount.ifEmpty { "-" }}</td>
-                <td class="num">${String.format(Locale.US, "%.0f", item.tax)}%</td>
-                <td class="num bold">${money(item.total)}</td>
-            </tr>
-            """.trimIndent()
-        }.joinToString("\n")
-
-        val taxLabel = if (data.taxPercent > 0) {
-            "Tax Breakdown (VAT ${String.format(Locale.US, "%.0f", data.taxPercent)}%):"
-        } else {
-            "Tax Breakdown (VAT 10%):"
-        }
-
-        val gstBarHtml = if (data.companyGst.isNotEmpty()) {
-            """
-            <div class="gst-container">
-              <span class="gst-badge">GST/VAT/ABN/EIN:${data.companyGst}</span>
-            </div>
-            """.trimIndent()
+        val billToPhoneHtml = if (data.billToPhone.isNotBlank()) {
+            """<div class="p-extra">Phone: ${esc(data.billToPhone)}</div>"""
         } else ""
 
+        val referenceHtml = if (data.orderReference.isNotBlank()) {
+            """<div class="p-extra">Order: ${esc(data.orderReference)}</div>"""
+        } else ""
+
+        val itemsHtml = data.items.mapIndexed { index, item ->
+            val discountCell = if (item.discount.isBlank() || item.discount == "-") {
+                """<span class="neg">&mdash;</span>"""
+            } else {
+                esc(item.discount)
+            }
+            val hsnCell = if (item.hsnSku.isBlank() || item.hsnSku == "-") "&ndash;" else esc(item.hsnSku)
+
+            """
+        <tr>
+          <td class="idx">${index + 1}</td>
+          <td class="desc">${esc(item.description.ifBlank { "-" })}</td>
+          <td class="hsn">$hsnCell</td>
+          <td class="qty"><div class="qty-n">${item.quantity}</div><div class="qty-u">${esc(item.unit)}</div></td>
+          <td class="num rate">${money(item.unitPrice)}</td>
+          <td class="num">$discountCell</td>
+          <td class="num total">${money(item.total)}</td>
+        </tr>
+        """.trimIndent()
+        }.joinToString("\n")
+
+        val discountRowHtml = if (data.discountAmount > 0.0) {
+            """<div class="t-row"><span>Discount:</span><span class="neg">-${money(data.discountAmount)}</span></div>"""
+        } else ""
+
+        val shippingRowHtml = if (data.shippingAmount > 0.0) {
+            """<div class="t-row"><span>Shipping:</span><span>${money(data.shippingAmount)}</span></div>"""
+        } else ""
+
+        // Placeholder bank details are shown when the API does not send bankDetails
+        val bankName = data.bankName.ifBlank { "Corporate Bank" }
+        val accountNo = data.accountNo.ifBlank { "XXXXXXXXXXXX" }
+        val ifscSwift = data.ifscSwift.ifBlank { "XXXX0000000" }
+        val paymentMethod = data.paymentMethod.ifBlank { "Bank Transfer / UPI / Cheque" }
+
         return """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=420, initial-scale=1.0">
-        <title>Invoice</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+    <meta charset="UTF-8">
+    <!-- No initial-scale here so overview mode fits the 760px layout to the screen width -->
+    <meta name="viewport" content="width=760, user-scalable=yes">
+    <title>Invoice</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
 
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #ffffff;
-            color: #111827;
-            padding: 12px;
-            display: flex;
-            justify-content: center;
-          }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: #ffffff;
+        color: #111827;
+        padding: 8px;
+      }
 
-          .container {
-            width: 100%;
-            max-width: 420px;
-            background: #ffffff;
-            padding: 4px;
-          }
+      .container {
+        width: 100%;
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 34px 38px;
+        background: #ffffff;
+        border: 1px solid #E5E7EB;
+        border-radius: 16px;
+      }
 
-          /* ── TOP SECTION ── */
-          .inv-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 6px;
-          }
+      /* Header */
+      .head { display: flex; justify-content: space-between; align-items: flex-start; }
+      .head-left { flex: 1; padding-right: 16px; }
+      .head-right { flex-shrink: 0; min-width: 250px; }
 
-          .inv-top-left {
-            flex: 1;
-            padding-right: 12px;
-          }
+      .brand-logo { height: 46px; max-width: 150px; object-fit: contain; display: block; margin-bottom: 14px; }
+      .brand-fallback {
+        display: inline-block; background: #111111; color: #D9B86C;
+        font-size: 13px; font-weight: 700; letter-spacing: 1px;
+        padding: 14px 12px; margin-bottom: 14px; border-radius: 3px;
+      }
 
-          .inv-top-right {
-            text-align: right;
-            flex-shrink: 0;
-          }
+      .company-meta { font-size: 12.5px; color: #4B5563; line-height: 1.6; }
+      .company-meta .addr { margin-bottom: 10px; }
 
-          .brand-badge-row {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin-bottom: 4px;
-          }
+      .invoice-title {
+        font-size: 36px; font-weight: 900; letter-spacing: 1px;
+        color: #E5E7EB; text-align: right; line-height: 1; margin-bottom: 22px;
+      }
 
-          .brand-logo {
-            max-height: 26px;
-            max-width: 130px;
-            object-fit: contain;
-            margin-bottom: 4px;
-          }
+      .meta-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+      .meta-row .k { color: #6B7280; font-weight: 600; }
+      .meta-row .v { color: #111827; }
+      .meta-row .mono { font-family: "Courier New", monospace; font-weight: 700; font-size: 12px; }
+      .meta-row .due { color: #2222D6; font-weight: 700; }
 
-          .brand-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
+      .divider { border: none; border-top: 1px solid #E5E7EB; margin: 20px 0; }
 
-          .brand-name {
-            font-size: 13.5px;
-            font-weight: 800;
-            color: #DC2626;
-            letter-spacing: 0.3px;
-            font-family: serif;
-          }
+      /* Bill to and ship to */
+      .parties {
+        display: flex; gap: 24px;
+        background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 14px;
+        padding: 18px 22px;
+      }
+      .party { flex: 1; }
+      .p-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #9CA3AF; text-transform: uppercase; margin-bottom: 8px; }
+      .p-name { font-size: 16px; font-weight: 800; color: #000000; margin-bottom: 6px; }
+      .p-addr { font-size: 13px; color: #4B5563; line-height: 1.6; }
+      .p-extra { font-size: 13px; color: #4B5563; margin-top: 6px; }
 
-          .company-meta {
-            font-size: 5.23px;
-            color: #111827;
-            line-height: 1.5;
-          }
-          .company-meta span.bold {
-            font-weight: 700;
-          }
+      /* Items table */
+      table.items { width: 100%; border-collapse: collapse; margin-top: 22px; }
+      table.items thead th {
+        background: #F3F4F6; color: #4B5563; font-size: 13px; font-weight: 600;
+        text-align: left; padding: 12px 8px;
+        border-top: 1px solid #D1D5DB; border-bottom: 1px solid #D1D5DB;
+      }
+      table.items thead th.c { text-align: center; }
+      table.items thead th.r { text-align: right; }
+      table.items tbody td { font-size: 13px; color: #4B5563; padding: 16px 8px; vertical-align: middle; }
+      td.idx { color: #9CA3AF; font-weight: 600; width: 6%; }
+      td.desc { color: #000000; font-weight: 700; }
+      td.hsn { width: 14%; }
+      td.qty { text-align: center; width: 11%; }
+      .qty-n { color: #000000; font-weight: 700; }
+      .qty-u { color: #000000; font-weight: 600; font-size: 12px; }
+      td.num { text-align: right; width: 13%; }
+      td.rate { color: #4B5563; }
+      td.total { color: #000000; font-weight: 800; font-size: 14px; }
+      .neg { color: #DC2626; }
 
-          /* Invoice Title: 15.29px bold black */
-          .invoice-title {
-            font-size: 15.29px;
-            font-weight: 800;
-            color: #000000;
-            letter-spacing: 0.5px;
-            line-height: 1.1;
-            margin-bottom: 5px;
-          }
+      /* Payment and totals */
+      .bottom { display: flex; gap: 28px; align-items: flex-start; margin-top: 8px; padding-top: 22px; border-top: 1px solid #E5E7EB; }
+      .pay-col { flex: 1; }
+      .pay-box {
+        display: flex; justify-content: space-between; align-items: center; gap: 12px;
+        background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 14px; padding: 16px 18px;
+      }
+      .pay-title { font-size: 10.5px; font-weight: 800; letter-spacing: 1px; color: #111827; text-transform: uppercase; margin-bottom: 6px; }
+      .pay-method { font-size: 13px; color: #4B5563; margin-bottom: 10px; }
+      .pay-line { font-size: 11.5px; color: #374151; line-height: 1.7; }
+      .pay-line b { color: #111827; }
+      .qr-box {
+        width: 64px; height: 64px; flex-shrink: 0; background: #ffffff;
+        border: 1px solid #E5E7EB; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+      }
 
-          /* Invoice meta: 5.23px semi bold */
-          .invoice-meta {
-            font-size: 5.23px;
-            font-weight: 600;
-            color: #111827;
-            line-height: 1.5;
-            text-align: right;
-          }
-          .invoice-meta .k {
-            font-weight: 700;
-            color: #000000;
-          }
+      .totals-col { flex: 1; }
+      .t-row { display: flex; justify-content: space-between; font-size: 13px; color: #4B5563; padding: 4px 0; }
+      .t-row .amt { color: #111827; font-weight: 600; }
+      .t-row.tax, .t-row.tax .amt { color: #047857; }
+      .grand {
+        display: flex; justify-content: space-between; align-items: center;
+        border-top: 2px solid #111827; margin-top: 10px; padding-top: 12px;
+        font-size: 19px; font-weight: 900; color: #000000; letter-spacing: 0.3px;
+      }
+      .paid { display: flex; justify-content: space-between; color: #047857; font-weight: 700; font-size: 14px; padding: 10px 0 8px; }
+      .balance {
+        display: flex; justify-content: space-between; align-items: center;
+        background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px;
+        padding: 10px 14px; color: #78350F; font-weight: 800; font-size: 14px;
+      }
 
-          /* GSTIN badge: background #EFF3F7 hugging text only */
-          .gst-container {
-            margin-top: 5px;
-            margin-bottom: 8px;
-            text-align: left;
-          }
-          .gst-badge {
-            display: inline-block;
-            background-color: #EFF3F7;
-            padding: 3.5px 8px;
-            font-size: 5.23px;
-            font-weight: 600;
-            color: #111827;
-            border-radius: 2.5px;
-          }
+      /* Terms and signature */
+      .foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; margin-top: 26px; padding-top: 20px; border-top: 1px solid #E5E7EB; }
+      .terms-h { font-size: 10.5px; font-weight: 800; letter-spacing: 1px; color: #111827; text-transform: uppercase; margin-bottom: 6px; }
+      .terms-b { font-size: 12px; color: #4B5563; line-height: 1.5; }
+      .sign { min-width: 190px; text-align: center; border-top: 1px solid #D1D5DB; padding-top: 6px; font-size: 12px; font-weight: 700; color: #111827; }
+    </style>
+    </head>
+    <body>
+    <div class="container">
 
-          /* ── BILL TO / SHIP TO BOX ── */
-          .parties-box {
-            border: 0.75px solid #E5E7EB;
-            border-radius: 3px;
-            display: flex;
-            margin-bottom: 8px;
-            background: #ffffff;
-          }
+      <div class="head">
+        <div class="head-left">
+          $logoBlockHtml
+          <div class="company-meta">$companyMetaHtml</div>
+        </div>
+        <div class="head-right">
+          <div class="invoice-title">INVOICE</div>
+          <div class="meta-row"><span class="k">Invoice No:</span><span class="v mono">${esc(data.invoiceNumber.ifEmpty { "-" })}</span></div>
+          <div class="meta-row"><span class="k">Invoice Date:</span><span class="v">${esc(data.invoiceDate.ifEmpty { "-" })}</span></div>
+          <div class="meta-row"><span class="k">Due Date:</span><span class="due">${esc(data.dueDate.ifEmpty { "-" })}</span></div>
+        </div>
+      </div>
 
-          .party-col {
-            flex: 1;
-            padding: 6px 9px;
-            font-size: 5.23px;
-            line-height: 1.45;
-            color: #111827;
-          }
+      <hr class="divider"/>
 
-          .party-col.divider {
-            border-left: 0.75px solid #E5E7EB;
-          }
+      <div class="parties">
+        <div class="party">
+          <div class="p-label">Bill to:</div>
+          <div class="p-name">${esc(data.customerName.ifEmpty { "-" })}</div>
+          <div class="p-addr">${esc(data.billToAddress.ifEmpty { "-" })}</div>
+          $billToPhoneHtml
+        </div>
+        <div class="party">
+          <div class="p-label">Ship to:</div>
+          <div class="p-name">${esc(data.customerName.ifEmpty { "-" })}</div>
+          <div class="p-addr">${esc(data.shipToAddress.ifEmpty { "-" })}</div>
+          $referenceHtml
+        </div>
+      </div>
 
-          .party-title {
-            font-size: 5.23px;
-            font-weight: 700;
-            color: #000000;
-            margin-bottom: 2px;
-          }
+      <table class="items">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Item &amp; Description</th>
+            <th>HSN / SAC</th>
+            <th class="c">Qty</th>
+            <th class="r">Rate</th>
+            <th class="r">Discount</th>
+            <th class="r">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          $itemsHtml
+        </tbody>
+      </table>
 
-          .party-name {
-            font-size: 5.23px;
-            font-weight: 600;
-            color: #111827;
-          }
-
-          .ref-row {
-            margin-top: 3px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-
-          /* ── ITEMS TABLE ── */
-          table.items {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 9px;
-          }
-
-          /* Table title bar: background #EFF3F7 */
-          table.items thead th {
-            background-color: #EFF3F7;
-            font-size: 5.23px;
-            font-weight: 700;
-            color: #000000;
-            text-align: left;
-            padding: 6px 6px;
-            border: none;
-          }
-
-          table.items thead th.num { text-align: right; }
-          table.items thead th.center { text-align: center; }
-
-          /* Table data color: #767676, size: 5.23px with increased vertical padding */
-          table.items tbody td {
-            font-size: 5.23px;
-            color: #767676;
-            padding: 6px 6px;
-            border: none;
-            vertical-align: middle;
-          }
-
-          /* Alternating rows background: #EFF3F7 */
-          table.items tbody tr.even-row td {
-            background-color: #EFF3F7;
-          }
-
-          table.items tbody td.num { text-align: right; }
-          table.items tbody td.center { text-align: center; }
-          table.items tbody td.bold { font-weight: 700; }
-
-          /* ── BOTTOM SECTION: PAYMENT & TOTALS ── */
-          .bottom-section {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 9px;
-          }
-
-          .payment-col {
-            flex: 1.15;
-          }
-
-          /* Payment details enclosed in a single border box */
-          .payment-box {
-            border: 0.75px solid #E5E7EB;
-            border-radius: 3px;
-            padding: 6px 8px;
-            background: #ffffff;
-          }
-
-          .payment-method-header {
-            font-size: 5.23px;
-            color: #000000;
-            margin-bottom: 6px;
-          }
-          .payment-method-header .lbl-bold {
-            font-weight: 700;
-          }
-
-          .bank-content-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-
-          .bank-details-text {
-            font-size: 5.23px;
-            line-height: 1.5;
-            color: #111827;
-          }
-          .bank-details-text .bank-title {
-            font-size: 5.23px;
-            font-weight: 700;
-            color: #000000;
-            margin-bottom: 2px;
-          }
-          .lbl-bold { font-weight: 700; }
-
-          .qr-wrap {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-left: 6px;
-          }
-
-          .qr-code {
-            width: 34px;
-            height: 34px;
-            background: #ffffff;
-            border: 0.75px solid #000000;
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            grid-template-rows: repeat(6, 1fr);
-            padding: 1.5px;
-            gap: 0.5px;
-          }
-          .qr-code div { background: #000000; }
-          .qr-code div.off { background: transparent; }
-
-          .qr-caption {
-            font-size: 4px;
-            color: #111827;
-            text-align: center;
-            line-height: 1.1;
-            margin-top: 2px;
-          }
-
-          .totals-col {
-            flex: 0.95;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-          }
-
-          .totals-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 3.5px 6px;
-            font-size: 5.23px;
-            color: #111827;
-          }
-
-          /* Tax breakdown row: background #EFF3F7 */
-          .totals-row.tax-highlight {
-            background-color: #EFF3F7;
-            border-radius: 2px;
-            padding: 4.5px 6px;
-            font-weight: 500;
-            margin: 1.5px 0;
-          }
-
-          /* Grand total row: background #EFF3F7 */
-          .totals-row.grand-total {
-            background-color: #EFF3F7;
-            border-radius: 2px;
-            font-size: 5.8px;
-            font-weight: 800;
-            color: #000000;
-            padding: 5.5px 6px;
-            margin-top: 2.5px;
-          }
-
-          /* ── TERMS & CONDITIONS ── */
-          .terms-block {
-            margin-top: 6px;
-            margin-bottom: 9px;
-          }
-
-          .terms-header {
-            font-size: 5.23px;
-            font-weight: 700;
-            color: #5F5F5F;
-            margin-bottom: 2px;
-          }
-
-          .terms-body {
-            font-size: 5.23px;
-            color: #767676;
-            line-height: 1.5;
-          }
-
-          /* ── SIGNATURE ── */
-          .signature-wrapper {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 6px;
-            margin-bottom: 12px;
-          }
-
-          .signature-box {
-            text-align: center;
-            width: 80px;
-          }
-
-          .signature-script {
-            font-family: 'Brush Script MT', 'Dancing Script', 'Segoe Script', cursive;
-            font-size: 16px;
-            color: #111827;
-            line-height: 1;
-            margin-bottom: 2px;
-          }
-
-          .signature-line {
-            width: 100%;
-            border-top: 0.75px solid #D1D5DB;
-            margin-bottom: 2px;
-          }
-
-          .signature-caption {
-            font-size: 4.2px;
-            color: #6B7280;
-          }
-
-          /* ── FOOTER ── */
-          .footer-brand {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 3px;
-            font-size: 4.5px;
-            color: #6B7280;
-            margin-top: 6px;
-          }
-
-          .footer-logo {
-            height: 9px;
-            width: auto;
-            object-fit: contain;
-          }
-
-          .footer-dot-icon {
-            width: 5px;
-            height: 5px;
-            background: #3B82F6;
-            display: inline-block;
-            border-radius: 1px;
-          }
-        </style>
-        </head>
-        <body>
-
-        <div class="container">
-
-          <!-- TOP IDENTITY & INVOICE META -->
-          <div class="inv-top">
-            <div class="inv-top-left">
-              $logoBlockHtml
-              <div class="company-meta">
-                ${data.companyAddress.ifEmpty { "-" }}<br>
-                ${if (data.companyEmail.isNotEmpty()) """<span class="bold">Email:</span> ${data.companyEmail}<br>""" else ""}
-                ${if (data.companyPhone.isNotEmpty()) """<span class="bold">Phone:</span> ${data.companyPhone}""" else ""}
-              </div>
+      <div class="bottom">
+        <div class="pay-col">
+          <div class="pay-box">
+            <div>
+              <div class="pay-title">Payment instructions</div>
+              <div class="pay-method">${esc(paymentMethod)}</div>
+              <div class="pay-line">Bank: <b>${esc(bankName)}</b></div>
+              <div class="pay-line">Account No: <b>${esc(accountNo)}</b></div>
+              <div class="pay-line">IFSC: <b>${esc(ifscSwift)}</b></div>
             </div>
-            <div class="inv-top-right">
-              <div class="invoice-title">INVOICE</div>
-              <div class="invoice-meta">
-                <div><span class="k">Invoice No:</span> ${data.invoiceNumber.ifEmpty { "-" }}</div>
-                <div><span class="k">Invoice Date:</span> ${data.invoiceDate.ifEmpty { "-" }}</div>
-                <div><span class="k">Due Date:</span> ${data.dueDate.ifEmpty { "-" }}</div>
-              </div>
+            <div class="qr-box">
+              <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#9CA3AF" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4M20 17v3"/>
+              </svg>
             </div>
           </div>
-
-          <!-- GSTIN / TAX IDENTIFIER BADGE -->
-          $gstBarHtml
-
-          <!-- BILL TO / SHIP TO BOX -->
-          <div class="parties-box">
-            <div class="party-col">
-              <div class="party-title">Bill To:</div>
-              <div class="party-name">${data.customerName.ifEmpty { "-" }}</div>
-              <div>${data.billToAddress.ifEmpty { "-" }}</div>
-              ${if (data.billToPhone.isNotEmpty()) "<div>Phone: ${data.billToPhone}</div>" else ""}
-              ${if (data.billToEmail.isNotEmpty()) "<div>Email: ${data.billToEmail}</div>" else ""}
-            </div>
-            <div class="party-col divider">
-              <div class="party-title">Ship To:</div>
-              <div class="party-name">${data.customerName.ifEmpty { "-" }}</div>
-              <div>${data.shipToAddress.ifEmpty { "-" }}</div>
-              <div class="party-title" style="margin-top: 3px;">Reference:</div>
-              <div class="ref-row">
-                <span>Order ID: ${data.orderReference.ifEmpty { "-" }}</span>
-                <span>${if (data.orderReference.isNotEmpty()) data.orderReference else "-"}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- ITEMS TABLE -->
-          <table class="items">
-            <thead>
-              <tr>
-                <th>Item/Description</th>
-                <th>HSN/SKU</th>
-                <th class="center">Quantity</th>
-                <th class="num">Unit Price</th>
-                <th class="num">Discount</th>
-                <th class="num">Tax %</th>
-                <th class="num">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              $itemsHtml
-            </tbody>
-          </table>
-
-          <!-- BOTTOM SECTION: PAYMENT & TOTALS -->
-          <div class="bottom-section">
-            <div class="payment-col">
-              <div class="payment-box">
-                <div class="payment-method-header">
-                  <span class="lbl-bold">Payment Method:</span> ${data.paymentMethod.ifEmpty { "-" }}
-                </div>
-                <div class="bank-content-row">
-                  <div class="bank-details-text">
-                    <div class="bank-title">Bank Details:</div>
-                    <div><span class="lbl-bold">Bank Name:</span> ${data.bankName.ifEmpty { "-" }}</div>
-                    <div><span class="lbl-bold">Acc0unt No:</span> ${data.accountNo.ifEmpty { "-" }}</div>
-                    <div><span class="lbl-bold">IFSC/SWIFT:</span> ${data.ifscSwift.ifEmpty { "-" }}</div>
-                  </div>
-                  <div class="qr-wrap">
-                    <div class="qr-code" id="qrCode"></div>
-                    <div class="qr-caption">UPIQR /<br>Payment QR<br>Code</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="totals-col">
-              <div class="totals-row">
-                <span>Subtotal:</span>
-                <span>${money(data.subtotal)}</span>
-              </div>
-              <div class="totals-row">
-                <span>Discount:</span>
-                <span>-${money(data.discountAmount)}</span>
-              </div>
-              <div class="totals-row tax-highlight">
-                <span>$taxLabel</span>
-                <span>${money(data.taxAmount)}</span>
-              </div>
-              <div class="totals-row">
-                <span>Shipping/Handling:</span>
-                <span>${money(data.shippingAmount)}</span>
-              </div>
-              <div class="totals-row grand-total">
-                <span>Grand Total:</span>
-                <span>${money(data.totalAmount)}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- TERMS & CONDITIONS -->
-          <div class="terms-block">
-            <div class="terms-header">Terms & Conditions:</div>
-            <div class="terms-body">${data.termsAndConditions}</div>
-          </div>
-
-          <!-- SIGNATURE BLOCK -->
-          <div class="signature-wrapper">
-            <div class="signature-box">
-              <div class="signature-script">Signature</div>
-              <div class="signature-line"></div>
-              <div class="signature-caption">Authorized Signature</div>
-            </div>
-          </div>
-
-          <!-- FOOTER -->
-          <div class="footer-brand">
-            <span>Created with cuso invoice</span>
-            $footerLogoTag
-          </div>
-
         </div>
 
-        <script>
-          const qr = document.getElementById('qrCode');
-          if (qr) {
-            const pattern = [
-              1,1,1,0,1,1,
-              1,0,1,1,0,1,
-              1,1,0,0,1,1,
-              0,1,1,0,1,0,
-              1,0,1,1,0,1,
-              1,1,0,1,1,1
-            ];
-            pattern.forEach(bit => {
-              const cell = document.createElement('div');
-              if (!bit) cell.className = 'off';
-              qr.appendChild(cell);
-            });
-          }
-        </script>
+        <div class="totals-col">
+          <div class="t-row"><span>Subtotal:</span><span class="amt">${money(data.subtotal)}</span></div>
+          $discountRowHtml
+          <div class="t-row tax"><span>Total Tax:</span><span class="amt">+${money(data.taxAmount)}</span></div>
+          $shippingRowHtml
+          <div class="grand"><span>GRAND TOTAL:</span><span>${money(data.totalAmount)}</span></div>
+          <div class="paid"><span>Amount Paid:</span><span>${money(data.paidAmount)}</span></div>
+          <div class="balance"><span>Balance Due:</span><span>${money(data.balanceAmount)}</span></div>
+        </div>
+      </div>
 
-        </body>
-        </html>
-        """.trimIndent()
+      <div class="foot">
+        <div>
+          <div class="terms-h">Terms &amp; conditions</div>
+          <div class="terms-b">${esc(data.termsAndConditions)}</div>
+        </div>
+        <div class="sign">${esc(data.signatoryLabel)}</div>
+      </div>
+
+    </div>
+    </body>
+    </html>
+    """.trimIndent()
     }
 }

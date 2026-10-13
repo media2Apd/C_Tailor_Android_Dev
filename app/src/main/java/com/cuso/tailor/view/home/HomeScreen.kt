@@ -73,6 +73,7 @@ import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.adaptive_screen.getAdaptiveTokens
 import com.cuso.tailor.database.entities.SalesStatusEntity
+import com.cuso.tailor.model.finance.InvoiceViewOneData
 import com.cuso.tailor.model.inventory.LowStockItemDto
 import com.cuso.tailor.model.sales.OperationItem
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Organization
@@ -115,6 +116,7 @@ import com.cuso.tailor.viewmodel.ProfileViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
 import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.sales.MeasurementItem
+import com.cuso.tailor.model.sales.OrderOverviewData
 import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.viewmodel.InventoryViewModel
@@ -174,7 +176,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     val customerUiState by customerViewModel.uiState.collectAsStateWithLifecycle()
     var selectedCustomer by remember { mutableStateOf<CustomerItem?>(null) }
     var selectedOrderId by remember { mutableStateOf<String?>(null) }
-
+    var isOrderFromFinance by remember { mutableStateOf(false) }
+    var prefillOrderForInvoice by remember { mutableStateOf<OrderOverviewData?>(null) }
     val context = LocalContext.current
     val activity = context as ComponentActivity
 
@@ -186,6 +189,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedPurchaseInvoice by remember { mutableStateOf<PurchaseInvoiceItem?>(null) }
     var selectedSupplier by remember { mutableStateOf<SupplierRow?>(null) }
     var selectedSupplierId by remember { mutableStateOf<String?>(null) }
+    var selectedReceiptId by remember { mutableStateOf<String?>(null) }
+    // Inside HomeScreen Composable (around line 140, near selectedInvoiceId)
+    var invoiceForPayment by remember { mutableStateOf<InvoiceViewOneData?>(null) } // <-- ADD THIS
 
     // Inventory State
     var selectedInventoryItemId by remember { mutableStateOf<String?>(null) }
@@ -367,6 +373,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "manage_subscription",
 
             // ── Sales ──
+
+            "sales_dashboard",
             "sales_lead",
             "create_lead",
             "view_lead",
@@ -419,9 +427,12 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "view_quotation",
 
             // ── Finance ──
+            // ── Finance ──
+            "finance_dashboard",
             "finance_sales_orders",
             "finance_sales_invoices",
             "finance_invoice_detail",
+            "finance_receipts",
             "finance_purchase_invoices",
             "finance_purchase_invoice_detail",
             "finance_customers",
@@ -446,12 +457,16 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "finance_supplier_detail",
             "finance_create_supplier",
             "finance_create_sales_invoice",
+
             // Inside HomeScreen.kt -> implementedRoutes:
             "finance_purchase_orders",
             "finance_purchase_receive",
             "finance_bills_list",
-            "finance_payments_made",
 
+            "finance_receipt_detail",
+            "finance_payments_made",
+            "finance_record_payment",
+            "finance_create_payment_receipt",
             // ── Inventory ──
             "inventory_suppliers",
             "inventory_supplier_detail",
@@ -482,6 +497,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_create_bill",
 
             // ── Inventory Procurement Flow ──
+            "inventory_procurement_returns",
+            "inventory_returns",
             "inventory_suppliers",
             "inventory_procurement_suppliers",
             "inventory_supplier_detail",
@@ -758,6 +775,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 "inventory_create_category" -> selectedCategoryIdForEdit = null
                 "create_order_review", "create_order" -> pendingOrderReviewData = null
                 "finance_invoice_detail", "inventory_payable_purchase_detail" -> selectedInvoiceId = null
+                "finance_receipt_detail" -> selectedReceiptId = null
                 "finance_create_customer" -> selectedRecentCustomerId = null
                 "measurements_available_view", "measurement_management_view" -> selectedMeasurementItem = null
                 "finance_ledger" -> selectedLedgerAccountId = null
@@ -933,9 +951,15 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
-                            selectedDocumentCategoryId = selectedDocumentCategoryId,                 // <-- ADDED
+                            isOrderFromFinance = isOrderFromFinance,
+                            invoiceForPayment = invoiceForPayment,
+                            onInvoiceForPaymentChange = { invoiceForPayment = it },
+                            onOrderFromFinanceChange = { isOrderFromFinance = it },
+                            prefillOrderForInvoice = prefillOrderForInvoice,
+                            onPrefillOrderForInvoiceChange = { prefillOrderForInvoice = it },
+                            selectedDocumentCategoryId = selectedDocumentCategoryId,
                             onDocumentCategoryIdSelected = { selectedDocumentCategoryId = it },
-                            selectedDocumentId = selectedDocumentId,                         // <-- Add
+                            selectedDocumentId = selectedDocumentId,
                             onDocumentIdSelected = { selectedDocumentId = it },
                             selectedTrainingAssignmentId = selectedTrainingAssignmentId,
                             onTrainingAssignmentIdSelected = { selectedTrainingAssignmentId = it },
@@ -1010,6 +1034,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             onPaymentModeSelected = { selectedPaymentModeId = it },
                             selectedInvoiceId = selectedInvoiceId,
                             onInvoiceSelected = { selectedInvoiceId = it },
+                            selectedReceiptId = selectedReceiptId,
+                            onReceiptSelected = { selectedReceiptId = it },
                             selectedPurchaseInvoice = selectedPurchaseInvoice,
                             onPurchaseInvoiceSelected = { selectedPurchaseInvoice = it },
                             selectedInventoryItemId = selectedInventoryItemId,
@@ -1735,6 +1761,7 @@ fun formatIndianNumber(number: Number): String {
 
 fun normalizeRoute(rawKey: String): String {
     return when (rawKey) {
+        "sales_dashboard", "sales_sales_dashboard" -> "sales_dashboard"
         "sales_lead_management" -> "sales_lead"
         "sales_customer" -> "sales_customers"
         "sales_measurements" -> "sales_measurements"
@@ -1748,6 +1775,9 @@ fun normalizeRoute(rawKey: String): String {
 
         "finance_sales_invoices" -> "finance_sales_invoices"
         "finance_sales_orders" -> "finance_sales_orders"
+        "finance_receipts" -> "finance_receipts"
+        "finance_receipt_detail" -> "finance_receipt_detail"
+        "finance_create_payment_receipt" -> "finance_create_payment_receipt"
         "finance_customers" -> "finance_customers"
         "finance_payments_received" -> "finance_payments_received"
         "finance_suppliers" -> "finance_suppliers"
@@ -1764,6 +1794,12 @@ fun normalizeRoute(rawKey: String): String {
 
         // Vendor invoice creation flow
         "inventory_billing", "inventory_bills" -> "inventory_billing"
+
+        // Procurement Returns mapping
+        "inventory_procurement_returns",
+        "inventory_procurement_return",
+        "inventory_return",
+        "inventory_returns" -> "inventory_returns"
 
         // Procurement bill list mappings routed to AllBillListScreen
         "inventory_all_bills",

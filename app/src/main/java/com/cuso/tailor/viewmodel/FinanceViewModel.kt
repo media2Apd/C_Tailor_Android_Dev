@@ -18,6 +18,7 @@ import com.cuso.tailor.model.finance.CreateInvoiceApiResponse
 import com.cuso.tailor.model.finance.CreatedCustomerData
 import com.cuso.tailor.model.finance.CustomerFinancialProfileData
 import com.cuso.tailor.model.finance.CustomerFinancialProfileResponse
+import com.cuso.tailor.model.finance.CustomerPaymentDetailResponse
 import com.cuso.tailor.model.finance.ExpenseItem
 import com.cuso.tailor.model.finance.ExpensePagination
 import com.cuso.tailor.model.finance.GenericDeleteResponse
@@ -30,6 +31,7 @@ import com.cuso.tailor.model.finance.JournalEntryPagination
 import com.cuso.tailor.model.finance.LedgerItem
 import com.cuso.tailor.model.finance.PaymentTermItem
 import com.cuso.tailor.model.finance.PaymentTermsResponse
+import com.cuso.tailor.model.finance.RecordPaymentData
 import com.cuso.tailor.model.finance.SendInvoiceApiResponse
 import com.cuso.tailor.model.finance.SupplierOverviewApiResponse
 import com.cuso.tailor.model.finance.SupplierOverviewData
@@ -141,6 +143,14 @@ sealed class UpdateCustomerState {
     object Loading : UpdateCustomerState()
     data class Success(val message: String) : UpdateCustomerState()
     data class Error(val message: String) : UpdateCustomerState()
+}
+
+// UI State for Recording Payment
+sealed class RecordPaymentState {
+    object Idle : RecordPaymentState()
+    object Loading : RecordPaymentState()
+    data class Success(val message: String, val data: RecordPaymentData?) : RecordPaymentState()
+    data class Error(val message: String) : RecordPaymentState()
 }
 
 @HiltViewModel
@@ -1555,6 +1565,311 @@ class FinanceViewModel @Inject constructor(
                 }
             )
         }
+    }
+
+    // ── RECORD PAYMENT RECEIPT STATE ──
+    private val _recordPaymentState = MutableStateFlow<RecordPaymentState>(RecordPaymentState.Idle)
+    val recordPaymentState: StateFlow<RecordPaymentState> = _recordPaymentState.asStateFlow()
+
+    /**
+     * Dynamic Multipart API to Record Customer Payment Receipt
+     * Endpoint: POST /api/finance/payments-received/create (or /api/finance/sales-invoices/record-payment)
+     */
+    fun recordCustomerPayment(
+        customerId: String,
+        branchId: String,
+        invoiceId: String,
+        amount: Double,
+        paymentMode: String,
+        depositToAccountId: String,
+        paymentDate: String,
+        referenceNumber: String,
+        notes: String,
+        attachmentParts: List<okhttp3.MultipartBody.Part> = emptyList(),
+        onSuccess: (String) -> Unit = {}
+    ) {
+        launchBusy {
+            _recordPaymentState.value = RecordPaymentState.Loading
+
+            val partsMap = mutableMapOf(
+                "customerId" to repo.text(customerId),
+                "branchId" to repo.text(branchId),
+                "invoiceId" to repo.text(invoiceId),
+                "amount" to repo.text(amount.toInt().toString()),
+                "paymentMode" to repo.text(paymentMode),
+                "depositToAccountId" to repo.text(depositToAccountId),
+                "paymentDate" to repo.text(paymentDate),
+                "notes" to repo.text(notes)
+            )
+
+            if (referenceNumber.isNotBlank()) {
+                partsMap["referenceNumber"] = repo.text(referenceNumber)
+            }
+
+            val result = repo.request<com.cuso.tailor.model.finance.RecordPaymentApiResponse> {
+                postMultipart(
+                    url = "/api/finance/sales-payments/create",
+                    parts = partsMap,
+                    files = attachmentParts
+                )
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        _recordPaymentState.value = RecordPaymentState.Success(
+                            message = response.message,
+                            data = response.data
+                        )
+                        // Refresh invoices list and view one details
+                        fetchInvoiceDetail(invoiceId)
+                        refreshInvoices()
+                        onSuccess(response.message)
+                    } else {
+                        _recordPaymentState.value = RecordPaymentState.Error(
+                            response.message.ifBlank { "Failed to record payment" }
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _recordPaymentState.value = RecordPaymentState.Error(
+                        extractErrorMessage(error, "Failed to record payment")
+                    )
+                }
+            )
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── CUSTOMER RECEIPTS / PAYMENTS RECEIVED STATE ──
+    // ─────────────────────────────────────────────────────────────
+    private val _receiptsList = MutableStateFlow<List<com.cuso.tailor.model.finance.CustomerPaymentItem>>(emptyList())
+    val receiptsList: StateFlow<List<com.cuso.tailor.model.finance.CustomerPaymentItem>> = _receiptsList.asStateFlow()
+
+    private val _receiptsPagination = MutableStateFlow<PaginationInfo?>(null)
+    val receiptsPagination: StateFlow<PaginationInfo?> = _receiptsPagination.asStateFlow()
+
+    private val _isLoadingReceipts = MutableStateFlow(false)
+    val isLoadingReceipts: StateFlow<Boolean> = _isLoadingReceipts.asStateFlow()
+
+    private val _isLoadingMoreReceipts = MutableStateFlow(false)
+    val isLoadingMoreReceipts: StateFlow<Boolean> = _isLoadingMoreReceipts.asStateFlow()
+
+    private val _canLoadMoreReceipts = MutableStateFlow(true)
+    val canLoadMoreReceipts: StateFlow<Boolean> = _canLoadMoreReceipts.asStateFlow()
+
+    private val _currentReceiptPage = MutableStateFlow(1)
+    val currentReceiptPage: StateFlow<Int> = _currentReceiptPage.asStateFlow()
+
+    private val _receiptsError = MutableStateFlow<String?>(null)
+    val receiptsError: StateFlow<String?> = _receiptsError.asStateFlow()
+
+    private var activeReceiptSearch: String? = null
+    private var activeReceiptStatus: String? = null
+    private var fetchReceiptsJob: Job? = null
+
+    /**
+     * Fetch customer payments / receipts with pagination & search
+     */
+    fun fetchCustomerReceipts(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ) {
+        fetchReceiptsJob?.cancel()
+        fetchReceiptsJob = launchBusy {
+            _isLoadingReceipts.value = true
+            _receiptsError.value = null
+            _currentReceiptPage.value = page
+            activeReceiptSearch = search?.trim()?.ifBlank { null }
+            activeReceiptStatus = status?.trim()?.ifBlank { null }
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to page,
+                "limit" to limit
+            )
+            activeReceiptSearch?.let { queryParams["search"] = it }
+            activeReceiptStatus?.let { queryParams["status"] = it }
+
+            val result = repo.request<com.cuso.tailor.model.finance.CustomerPaymentResponse> {
+                get("/api/finance/sales-payments/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    _receiptsList.value = response.data
+                    _receiptsPagination.value = response.pagination
+
+                    val totalPages = response.pagination?.totalPages ?: 1
+                    _canLoadMoreReceipts.value = page < totalPages && response.data.isNotEmpty()
+                },
+                onFailure = { e ->
+                    if (e !is CancellationException) {
+                        _receiptsError.value = extractErrorMessage(e, "Failed to load receipts")
+                    }
+                }
+            )
+            _isLoadingReceipts.value = false
+        }
+    }
+
+    /**
+     * Load next page for infinite scrolling
+     */
+    fun loadMoreCustomerReceipts(limit: Int = 10) {
+        if (_isLoadingMoreReceipts.value || _isLoadingReceipts.value || !_canLoadMoreReceipts.value) return
+
+        launchBusy {
+            _isLoadingMoreReceipts.value = true
+            val nextPage = _currentReceiptPage.value + 1
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to nextPage,
+                "limit" to limit
+            )
+            activeReceiptSearch?.let { queryParams["search"] = it }
+            activeReceiptStatus?.let { queryParams["status"] = it }
+
+            val result = repo.request<com.cuso.tailor.model.finance.CustomerPaymentResponse> {
+                get("/api/finance/sales-payments/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    val newItems = response.data
+                    if (newItems.isNotEmpty()) {
+                        _receiptsList.value += newItems
+                        _currentReceiptPage.value = nextPage
+                        _receiptsPagination.value = response.pagination
+
+                        val totalPages = response.pagination?.totalPages ?: nextPage
+                        _canLoadMoreReceipts.value = nextPage < totalPages
+                    } else {
+                        _canLoadMoreReceipts.value = false
+                    }
+                },
+                onFailure = {
+                    // Fail silently to allow retry on next scroll
+                }
+            )
+            _isLoadingMoreReceipts.value = false
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── OUTSTANDING INVOICES PER CUSTOMER ──
+    // ─────────────────────────────────────────────────────────────
+    private val _outstandingInvoices = MutableStateFlow<List<com.cuso.tailor.model.finance.CustomerOutstandingInvoiceItem>>(emptyList())
+    val outstandingInvoices: StateFlow<List<com.cuso.tailor.model.finance.CustomerOutstandingInvoiceItem>> = _outstandingInvoices.asStateFlow()
+
+    private val _isLoadingOutstandingInvoices = MutableStateFlow(false)
+    val isLoadingOutstandingInvoices: StateFlow<Boolean> = _isLoadingOutstandingInvoices.asStateFlow()
+
+    /**
+     * Fetch unpaid/outstanding invoices for the selected customer
+     * Endpoint: GET /api/finance/customers/:customerId/outstanding-invoices
+     */
+    fun fetchCustomerOutstandingInvoices(customerId: String) {
+        if (customerId.isBlank()) {
+            _outstandingInvoices.value = emptyList()
+            return
+        }
+        launchBusy {
+            _isLoadingOutstandingInvoices.value = true
+            val result = repo.request<com.cuso.tailor.model.finance.CustomerOutstandingInvoicesResponse> {
+                get("/api/finance/sales-invoices/outstanding/$customerId")
+            }
+            result.fold(
+                onSuccess = { response ->
+                    _outstandingInvoices.value = response.data
+                },
+                onFailure = {
+                    _outstandingInvoices.value = emptyList()
+                }
+            )
+            _isLoadingOutstandingInvoices.value = false
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── RECEIPT / PAYMENT DETAIL & VOID ──
+    // ─────────────────────────────────────────────────────────────
+    private val _receiptDetail = MutableStateFlow<com.cuso.tailor.model.finance.CustomerPaymentDetailData?>(null)
+    val receiptDetail: StateFlow<com.cuso.tailor.model.finance.CustomerPaymentDetailData?> = _receiptDetail.asStateFlow()
+
+    private val _isLoadingReceiptDetail = MutableStateFlow(false)
+    val isLoadingReceiptDetail: StateFlow<Boolean> = _isLoadingReceiptDetail.asStateFlow()
+
+    private val _receiptDetailError = MutableStateFlow<String?>(null)
+    val receiptDetailError: StateFlow<String?> = _receiptDetailError.asStateFlow()
+
+    /**
+     * Fetch single payment receipt details
+     */
+    fun fetchReceiptDetail(paymentId: String) {
+        if (paymentId.isBlank()) return
+        launchBusy {
+            _isLoadingReceiptDetail.value = true
+            _receiptDetailError.value = null
+            _receiptDetail.value = null
+
+            val result = repo.request<CustomerPaymentDetailResponse> {
+                get("/api/finance/sales-payments/view-one/$paymentId")
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    _receiptDetail.value = response.data
+                },
+                onFailure = { error ->
+                    _receiptDetailError.value = extractErrorMessage(error, "Failed to load receipt details")
+                }
+            )
+            _isLoadingReceiptDetail.value = false
+        }
+    }
+
+    /**
+     * Void a payment receipt
+     */
+    fun voidCustomerPayment(paymentId: String, reason: String = "Void requested", onSuccess: () -> Unit = {}) {
+        if (paymentId.isBlank()) return
+        launchBusy {
+            val result = repo.request<GenericDeleteResponse> {
+                post(
+                    "/api/finance/sales-payments/void/$paymentId",
+                    mapOf("reason" to reason)
+                )
+            }
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        fetchReceiptDetail(paymentId)
+                        refreshCustomerReceipts()
+                        onSuccess()
+                    }
+                },
+                onFailure = { /* Handle error */ }
+            )
+        }
+    }
+
+    fun clearReceiptDetail() {
+        _receiptDetail.value = null
+        _receiptDetailError.value = null
+    }
+
+    fun clearOutstandingInvoices() {
+        _outstandingInvoices.value = emptyList()
+    }
+
+    fun refreshCustomerReceipts() {
+        fetchCustomerReceipts(page = 1, search = activeReceiptSearch, status = activeReceiptStatus)
+    }
+
+    fun resetRecordPaymentState() {
+        _recordPaymentState.value = RecordPaymentState.Idle
     }
 
     fun clearCustomerFinancialProfile() {

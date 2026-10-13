@@ -13,6 +13,10 @@
 package com.cuso.tailor.view.home.sales.sales_order
 
 import android.content.Context
+import android.print.PrintAttributes
+import android.print.PrintManager
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -30,6 +34,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
@@ -42,9 +48,9 @@ import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.home.formatIndianNumber
-import com.cuso.tailor.view.home.pdfgenerator.OrderReceiptPdfGenerator
 import com.cuso.tailor.viewmodel.OrderOverviewState
 import com.cuso.tailor.viewmodel.OrderOverviewViewModel
+import com.cuso.tailor.viewmodel.SalesViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -53,23 +59,48 @@ import java.util.TimeZone
 @Composable
 fun OrderOverviewScreen(
     orderId: String,
+    showConvertToInvoice: Boolean = false,
+    onConvertToInvoice: (OrderOverviewData) -> Unit = {},
     onClose: () -> Unit = {},
     onEditOrder: (OrderReviewData) -> Unit = {},
     onCreateNew: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
     val context = LocalContext.current
-    val viewModel: OrderOverviewViewModel = hiltViewModel(key = "order_overview_view_$orderId")
-    val state by viewModel.overviewState.collectAsStateWithLifecycle()
+    val overViewViewModel: OrderOverviewViewModel = hiltViewModel()
+    val viewModel: SalesViewModel = hiltViewModel(key = "order_overview_view_$orderId")
+    val state by overViewViewModel.overviewState.collectAsStateWithLifecycle()
+    val warehouseList by overViewViewModel.warehouseList.collectAsStateWithLifecycle()
 
-    val warehouseList by viewModel.warehouseList.collectAsStateWithLifecycle()
+    // Dialog state for cancelling order
+    var showCancelModal by remember { mutableStateOf(false) }
 
+    // Cancellation API states
+    val isCancelling by viewModel.isCancellingOrder.collectAsStateWithLifecycle()
+    val cancelSuccess by viewModel.cancelOrderSuccess.collectAsStateWithLifecycle()
+    val cancelError by viewModel.cancelOrderError.collectAsStateWithLifecycle()
 
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // Listen for cancel success
+    LaunchedEffect(cancelSuccess) {
+        cancelSuccess?.let {
+            successMessage = it
+            viewModel.clearCancelOrderAlerts()
+        }
+    }
+
+    // Listen for cancel error
+    LaunchedEffect(cancelError) {
+        cancelError?.let {
+            errorMessage = it
+            viewModel.clearCancelOrderAlerts()
+        }
+    }
+
     LaunchedEffect(orderId) {
-        viewModel.fetchSalesOverview(orderId)
+        overViewViewModel.fetchSalesOverview(orderId)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -108,7 +139,7 @@ fun OrderOverviewScreen(
                                 )
                                 Spacer(Modifier.height(14.dp))
                                 Button(
-                                    onClick = { viewModel.fetchSalesOverview(orderId) },
+                                    onClick = { overViewViewModel.fetchSalesOverview(orderId) },
                                     colors = ButtonDefaults.buttonColors(containerColor = Primary),
                                     shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
                                 ) {
@@ -121,15 +152,38 @@ fun OrderOverviewScreen(
                         val orderData = s.data
                         OrderOverviewContent(
                             orderData = orderData,
-                            warehouseList = warehouseList, // <-- Pass warehouseList here
+                            warehouseList = warehouseList,
                             context = context,
-                            onCancelOrder = { errorMessage = "Order cancellation initiated" },
+                            showConvertToInvoice = showConvertToInvoice, // <-- Pass செய்கிறோம்
+                            onConvertToInvoice = { onConvertToInvoice(orderData) }, // <-- Pass செய்கிறோம்
+                            onCancelOrder = { showCancelModal = true },
                             onPrintInvoice = { printReceipt(context, orderData) },
-                            onTrackOrder = { successMessage = "Tracking details refreshed" }
+                            onEditOrder = {
+                                onEditOrder(orderData.mapToOrderReviewData())
+                            }
                         )
                     }
                 }
             }
+        }
+
+        // Cancellation Reason Modal Dialog
+        if (showCancelModal) {
+            CancelOrderDialog(
+                isLoading = isCancelling,
+                onDismiss = {
+                    if (!isCancelling) showCancelModal = false
+                },
+                onConfirmCancel = { reason ->
+                    viewModel.cancelOrder(
+                        orderId = orderId,
+                        reason = reason,
+                        onSuccess = {
+                            showCancelModal = false
+                        }
+                    )
+                }
+            )
         }
 
         DynamicIslandSuccess(
@@ -147,6 +201,136 @@ fun OrderOverviewScreen(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// CANCELLATION REASON MODAL DIALOG
+// ─────────────────────────────────────────────────────────────────────────
+@Composable
+private fun CancelOrderDialog(
+    isLoading: Boolean,
+    onDismiss: () -> Unit,
+    onConfirmCancel: (String) -> Unit
+) {
+    val tokens = LocalAppTokens.current
+    var reasonText by remember { mutableStateOf("") }
+    val isConfirmEnabled = reasonText.isNotBlank() && !isLoading
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = !isLoading,
+            dismissOnClickOutside = !isLoading
+        )
+    ) {
+        Surface(
+            shape = RoundedCornerShape(tokens.cardCornerRadius),
+            color = whiteBg,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                Text(
+                    text = "Cancel Order",
+                    fontSize = tokens.bodyLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = title_color
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    text = "Please enter the reason for cancellation. Reason cannot be empty.",
+                    fontSize = tokens.bodySmall,
+                    color = mutedText
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = reasonText,
+                    onValueChange = { reasonText = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp),
+                    placeholder = {
+                        Text(
+                            text = "Enter cancellation reason...",
+                            fontSize = tokens.bodySmall,
+                            color = mutedText
+                        )
+                    },
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Primary,
+                        unfocusedBorderColor = sectionBorder,
+                        focusedTextColor = title_color,
+                        unfocusedTextColor = title_color
+                    ),
+                    maxLines = 4,
+                    enabled = !isLoading
+                )
+
+                Spacer(Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(tokens.buttonHeight),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                        border = BorderStroke(1.dp, sectionBorder),
+                        enabled = !isLoading
+                    ) {
+                        Text(
+                            text = "Back",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = title_color
+                        )
+                    }
+
+                    Button(
+                        onClick = { onConfirmCancel(reasonText.trim()) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(tokens.buttonHeight),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = redText,
+                            disabledContainerColor = redText.copy(alpha = 0.4f)
+                        ),
+                        enabled = isConfirmEnabled
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = whiteBg,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text(
+                                text = "Confirm Cancel",
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = whiteBg
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // MAIN ORDER DETAILS CONTENT
 // ─────────────────────────────────────────────────────────────────────────
 @Composable
@@ -154,9 +338,11 @@ private fun OrderOverviewContent(
     orderData: OrderOverviewData,
     warehouseList: List<WarehouseDropdownItem>,
     context: Context,
+    showConvertToInvoice: Boolean = false,
+    onConvertToInvoice: () -> Unit = {},
     onCancelOrder: () -> Unit,
     onPrintInvoice: () -> Unit,
-    onTrackOrder: () -> Unit
+    onEditOrder: () -> Unit
 ) {
     val tokens = LocalAppTokens.current
     val order = orderData.order
@@ -167,6 +353,9 @@ private fun OrderOverviewContent(
     val isPaid = (orderData.balanceAmount ?: 0.0) <= 0.0
     val paymentType = orderData.paymentType?.replaceFirstChar { it.uppercase() }
         ?: if (isPaid) "Paid" else if ((orderData.advanceAmountPaid ?: 0.0) > 0.0) "Advance" else " - "
+
+    val isCancelled = orderData.status?.equals("cancelled", ignoreCase = true) == true ||
+            orderData.order.status.equals("cancelled", ignoreCase = true)
 
     Column(
         modifier = Modifier
@@ -196,22 +385,23 @@ private fun OrderOverviewContent(
                 )
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Status Badge
+                    val statusBg = if (isCancelled) redBg else greenBg
+                    val statusColor = if (isCancelled) redText else darkGreenBg
+
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                            .background(greenBg)
+                            .background(statusBg)
                             .padding(horizontal = 12.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = status,
                             fontSize = tokens.caption,
                             fontWeight = FontWeight.SemiBold,
-                            color = darkGreenBg
+                            color = statusColor
                         )
                     }
 
-                    // Payment Type Badge
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(tokens.cardCornerRadius))
@@ -230,16 +420,14 @@ private fun OrderOverviewContent(
 
             Spacer(Modifier.height(16.dp))
 
-            // Action Buttons Row: [Print Invoice] [Track Order]
+            // Action Buttons Row: [Print Invoice] [Edit Order]
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedButton(
                     onClick = onPrintInvoice,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(tokens.buttonHeight),
+                    modifier = Modifier.weight(1f).height(tokens.buttonHeight),
                     shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
                     border = BorderStroke(1.5.dp, Primary),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
@@ -248,31 +436,47 @@ private fun OrderOverviewContent(
                 }
 
                 OutlinedButton(
-                    onClick = onTrackOrder,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(tokens.buttonHeight),
+                    onClick = onEditOrder,
+                    modifier = Modifier.weight(1f).height(tokens.buttonHeight),
                     shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
                     border = BorderStroke(1.5.dp, Primary),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
                 ) {
-                    Text("Track Order", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold)
+                    Text("Edit Order", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold)
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            if (showConvertToInvoice && !isCancelled) {
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    onClick = onConvertToInvoice,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(tokens.buttonHeight),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                ) {
+                    Text(
+                        text = "Convert to Invoice",
+                        fontSize = tokens.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = whiteBg
+                    )
+                }
+            }
 
             // Cancel Order Button
-            OutlinedButton(
-                onClick = onCancelOrder,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(tokens.buttonHeight),
-                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                border = BorderStroke(1.dp, redText),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = redText)
-            ) {
-                Text("Cancel Order", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = redText)
+            if (!isCancelled) {
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(
+                    onClick = onCancelOrder,
+                    modifier = Modifier.fillMaxWidth().height(tokens.buttonHeight),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                    border = BorderStroke(1.dp, redText),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = redText)
+                ) {
+                    Text("Cancel Order", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = redText)
+                }
             }
         }
 
@@ -292,7 +496,6 @@ private fun OrderOverviewContent(
                 ?: customer?.email?.takeIf { it.isNotBlank() }
                 ?: " - "
 
-            val addressObj = snapshot?.shippingAddress ?: snapshot?.billingAddress ?: customer?.address
             val customerAddress = listOfNotNull(
                 snapshot?.shippingAddress?.flatNo ?: snapshot?.billingAddress?.flatNo,
                 snapshot?.shippingAddress?.street ?: snapshot?.billingAddress?.street ?: customer?.address?.addressLine,
@@ -353,7 +556,6 @@ private fun OrderOverviewContent(
 
             Spacer(Modifier.height(14.dp))
 
-            // Subtotal, GST, Shipping Fee
             val subtotal = orderData.subtotal ?: order.totalAmount
             val gstAmount = orderData.totalTax ?: (order.totalAmount * 0.05)
             val grandTotal = orderData.grandTotal ?: (subtotal + gstAmount)
@@ -379,7 +581,6 @@ private fun OrderOverviewContent(
             HorizontalDivider(color = sectionBorder)
             Spacer(Modifier.height(6.dp))
 
-            // Grand Total
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -511,14 +712,12 @@ private fun OrderTimelineView(orderData: OrderOverviewData) {
                     .height(IntrinsicSize.Min),
                 verticalAlignment = Alignment.Top
             ) {
-                // Continuous Vertical Track & Circle Node
                 Column(
                     modifier = Modifier
                         .width(24.dp)
                         .fillMaxHeight(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Node Circle
                     Box(
                         modifier = Modifier
                             .size(tokens.iconSize * 0.85f)
@@ -528,7 +727,6 @@ private fun OrderTimelineView(orderData: OrderOverviewData) {
                             )
                     )
 
-                    // Connecting Line
                     if (index != steps.lastIndex) {
                         Box(
                             modifier = Modifier
@@ -541,7 +739,6 @@ private fun OrderTimelineView(orderData: OrderOverviewData) {
 
                 Spacer(modifier = Modifier.width(14.dp))
 
-                // Title and Subtitle Details
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -698,27 +895,335 @@ private fun formatOverviewDate(isoDate: String?): String {
     }
 }
 
+private fun formatReceiptDate(isoDate: String?): String {
+    if (isoDate.isNullOrBlank()) return " - "
+    return try {
+        val inputFormats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd"
+        )
+        var parsed: Date? = null
+        for (pattern in inputFormats) {
+            try {
+                val sdf = SimpleDateFormat(pattern, Locale.ENGLISH).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }
+                parsed = sdf.parse(isoDate)
+                if (parsed != null) break
+            } catch (_: Exception) {}
+        }
+        parsed?.let {
+            SimpleDateFormat("MMM dd, yyyy", Locale.ENGLISH).format(it)
+        } ?: isoDate
+    } catch (_: Exception) {
+        isoDate
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────
-// RECEIPT PRINT HELPER
+// RECEIPT PRINT HELPER: POS THERMAL RECEIPT (EXACT MATCH TO ATTACHED IMAGE)
 // ─────────────────────────────────────────────────────────────────────────
 private fun printReceipt(context: Context, orderData: OrderOverviewData) {
-    val pdfGenerator = OrderReceiptPdfGenerator(context)
-    val receiptData = OrderReceiptPdfGenerator.OrderReceiptData(
-        orderNumber = orderData.order.orderNumber,
-        customerName = orderData.order.customerId?.name ?: " - ",
-        items = orderData.items.map {
-            OrderReceiptPdfGenerator.OrderItem(
-                quantity = it.quantity,
-                name = it.categoryName,
-                price = it.stitchingCharge,
-                additionalCharge = it.additionalCharges.sumOf { add -> add.amount }
-            )
-        },
-        otherCharges = orderData.order.summaryAdditionalCharges.sumOf { it.amount },
-        totalAmount = orderData.order.totalAmount,
-        paidAmount = orderData.order.totalPaid,
-        balanceAmount = orderData.order.balanceAmount,
-        deliveryDate = orderData.order.deliveryDate
+    val html = generatePosReceiptHtml(orderData)
+    val webView = WebView(context).apply {
+        settings.javaScriptEnabled = false
+        webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                val printManager = context.getSystemService(Context.PRINT_SERVICE) as? PrintManager
+                val orderNo = orderData.orderCode?.takeIf { it.isNotBlank() } ?: orderData.order.orderNumber
+                val printAdapter = createPrintDocumentAdapter("Receipt_$orderNo")
+                val printAttributes = PrintAttributes.Builder()
+                    .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                    .setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+                    .build()
+                printManager?.print("Order Receipt", printAdapter, printAttributes)
+            }
+        }
+    }
+    webView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
+}
+
+private fun generatePosReceiptHtml(orderData: OrderOverviewData): String {
+    val order = orderData.order
+    val orderNumber = orderData.orderCode?.takeIf { it.isNotBlank() } ?: order.orderNumber.ifBlank { " - " }
+    val orderDate = formatReceiptDate(orderData.orderDate ?: order.orderDate)
+    val deliveryDue = formatReceiptDate(orderData.dueDate ?: order.deliveryDate)
+
+    val customerName = orderData.customerSnapshot?.name?.takeIf { it.isNotBlank() }
+        ?: order.customerId?.name?.takeIf { it.isNotBlank() } ?: " - "
+
+    val customerMobile = orderData.customerSnapshot?.phone?.takeIf { it.isNotBlank() }
+        ?: order.customerId?.mobile?.takeIf { it.isNotBlank() } ?: " - "
+
+    val branchName = orderData.branchId?.name ?: order.branch?.name ?: "Nexus - Main Branch"
+
+    val subtotal = orderData.subtotal ?: order.totalAmount
+    val totalTax = orderData.totalTax ?: (subtotal * 0.05)
+    val cgst = totalTax / 2.0
+    val sgst = totalTax / 2.0
+    val grandTotal = orderData.grandTotal ?: (subtotal + totalTax)
+    val totalPaid = orderData.advanceAmountPaid ?: order.totalPaid
+    val balanceDue = orderData.balanceAmount ?: (grandTotal - totalPaid).coerceAtLeast(0.0)
+    val paymentMode = orderData.paymentMode?.replaceFirstChar { it.uppercase() }?.takeIf { it.isNotBlank() } ?: "Cash"
+
+    val itemsRows = StringBuilder()
+    orderData.items.forEachIndexed { index, item ->
+        val itemName = item.categoryName.takeIf { it.isNotBlank() && it != "Custom Garment" }
+            ?: item.itemDescription?.takeIf { it.isNotBlank() }
+            ?: "Item #${index + 1}"
+        val qty = item.quantityNumber?.toInt() ?: item.quantity
+        val unit = item.unit ?: "Pieces"
+        val lineTotal = item.lineTotal ?: ((item.unitPrice ?: item.stitchingCharge) * qty)
+
+        itemsRows.append(
+            """
+            <tr>
+                <td style="padding: 6px 0; vertical-align: top; font-weight: bold; width: 45%;">${index + 1}. $itemName</td>
+                <td style="padding: 6px 0; vertical-align: top; text-align: center; font-weight: bold; width: 30%;">
+                    $qty<br/><span style="font-weight: normal; font-size: 11px;">$unit</span>
+                </td>
+                <td style="padding: 6px 0; vertical-align: top; text-align: right; font-weight: bold; width: 25%;">₹${formatIndianNumber(lineTotal)}</td>
+            </tr>
+            """.trimIndent()
+        )
+    }
+
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            @page {
+                size: auto;
+                margin: 0;
+            }
+            body {
+                font-family: 'Courier New', Courier, monospace;
+                color: #000;
+                margin: 0;
+                padding: 18px 24px;
+                width: 320px;
+                margin-left: auto;
+                margin-right: auto;
+                font-size: 13px;
+                line-height: 1.4;
+            }
+            .center {
+                text-align: center;
+            }
+            .bold {
+                font-weight: bold;
+            }
+            .shop-title {
+                font-size: 18px;
+                font-weight: bold;
+                letter-spacing: 1px;
+                margin-top: 10px;
+                margin-bottom: 4px;
+            }
+            .branch-title {
+                font-size: 13px;
+                font-weight: bold;
+                margin-bottom: 4px;
+            }
+            .address-line {
+                font-size: 11px;
+                margin-bottom: 2px;
+            }
+            .dashed-line {
+                border-top: 1.5px dashed #000;
+                margin: 8px 0;
+            }
+            .dotted-line {
+                border-top: 1.5px dotted #000;
+                margin: 8px 0;
+            }
+            .solid-line {
+                border-top: 1.5px solid #000;
+                margin: 8px 0;
+            }
+            .row-split {
+                display: flex;
+                justify-content: space-between;
+                margin: 3px 0;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th {
+                text-align: left;
+                padding: 5px 0;
+                font-size: 13px;
+            }
+            .logo-box {
+                width: 70px;
+                height: 70px;
+                background-color: #1a1a1a;
+                color: #fff;
+                margin: 0 auto;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                font-family: sans-serif;
+                font-size: 11px;
+                font-weight: bold;
+                letter-spacing: 1.5px;
+            }
+            .logo-icon {
+                font-size: 14px;
+                color: #cca461;
+                margin-bottom: 2px;
+            }
+            .footer-text {
+                margin-top: 14px;
+                font-size: 11px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="center">
+            <div class="logo-box">
+                <span class="logo-icon">&#10018;</span>
+                <span>NEXUS</span>
+                <span style="font-size: 7px; color: #999; letter-spacing: 0.5px;">APPAREL</span>
+            </div>
+            <div class="shop-title">NEXUS BOUTIQUE</div>
+            <div class="branch-title">$branchName</div>
+            <div class="address-line">Udhayam Colony, Anna Nagar, Chennai, Tamil Nadu - 600040</div>
+            <div class="address-line bold">Ph: 919962376763</div>
+        </div>
+
+        <div class="dashed-line"></div>
+
+        <div class="row-split">
+            <span>Order No:</span>
+            <span class="bold" style="font-size: 14px;">$orderNumber</span>
+        </div>
+        <div class="row-split">
+            <span>Date:</span>
+            <span>$orderDate</span>
+        </div>
+        <div class="row-split">
+            <span>Delivery Due:</span>
+            <span class="bold">$deliveryDue</span>
+        </div>
+
+        <div class="dotted-line"></div>
+
+        <div class="row-split">
+            <span>Customer:</span>
+            <span class="bold">$customerName</span>
+        </div>
+        <div class="row-split">
+            <span>Mobile:</span>
+            <span>$customerMobile</span>
+        </div>
+
+        <div class="dashed-line"></div>
+
+        <table>
+            <thead>
+                <tr style="border-bottom: 1.5px solid #000;">
+                    <th style="width: 45%;">Item Description</th>
+                    <th style="text-align: center; width: 30%;">Qty</th>
+                    <th style="text-align: right; width: 25%;">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                $itemsRows
+            </tbody>
+        </table>
+
+        <div class="dashed-line"></div>
+
+        <div class="row-split">
+            <span>Subtotal:</span>
+            <span>₹${formatIndianNumber(subtotal)}</span>
+        </div>
+        <div class="row-split">
+            <span>CGST 2.5%:</span>
+            <span>+₹${formatIndianNumber(cgst)}</span>
+        </div>
+        <div class="row-split">
+            <span>SGST 2.5%:</span>
+            <span>+₹${formatIndianNumber(sgst)}</span>
+        </div>
+
+        <div class="solid-line"></div>
+
+        <div class="row-split bold" style="font-size: 15px;">
+            <span>GRAND TOTAL:</span>
+            <span>₹${formatIndianNumber(grandTotal)}</span>
+        </div>
+
+        <div class="dotted-line"></div>
+
+        <div class="row-split bold">
+            <span>Total Paid ($paymentMode):</span>
+            <span>₹${formatIndianNumber(totalPaid)}</span>
+        </div>
+
+        <div class="dashed-line"></div>
+
+        <div class="row-split bold" style="font-size: 14px;">
+            <span>BALANCE DUE:</span>
+            <span>₹${formatIndianNumber(balanceDue)}</span>
+        </div>
+
+        <div class="dashed-line"></div>
+
+        <div class="center footer-text">
+            <div class="bold" style="font-size: 12px; margin-bottom: 3px;">THANK YOU FOR YOUR BUSINESS!</div>
+            <div>Please bring this receipt for trial / delivery.</div>
+        </div>
+    </body>
+    </html>
+    """.trimIndent()
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// SAFE EXTENSION MAPPER: OrderOverviewData -> OrderReviewData
+// ─────────────────────────────────────────────────────────────────────────
+private fun OrderOverviewData.mapToOrderReviewData(): OrderReviewData {
+    val editId = this.id.ifBlank { this.order._id }
+    return OrderReviewData(
+        orderId = editId,
+        editOrderId = editId,
+        customerId = this.customerSnapshot?.customerCode ?: this.customerId?._id ?: this.order.customerId?._id ?: "",
+        customerCode = this.customerSnapshot?.customerCode ?: this.customerId?.customerCode ?: "",
+        branchId = this.branchId?._id ?: this.order.branch?._id ?: "",
+        fullName = this.customerSnapshot?.name ?: this.customerId?.fullName ?: this.order.customerId?.name ?: "",
+        phone = this.customerSnapshot?.phone ?: this.customerId?.mobileNumber ?: this.order.customerId?.mobile ?: "",
+        email = this.customerSnapshot?.email ?: this.customerId?.email ?: this.order.customerId?.email ?: "",
+        flatNo = this.customerSnapshot?.billingAddress?.flatNo ?: "",
+        street = this.customerSnapshot?.billingAddress?.street ?: "",
+        areaZone = this.customerSnapshot?.billingAddress?.areaZone ?: "",
+        city = this.customerSnapshot?.billingAddress?.city ?: this.order.customerId?.address?.city ?: "",
+        pincode = this.customerSnapshot?.billingAddress?.pincode ?: "",
+        orderDate = this.orderDate ?: this.order.orderDate ?: "",
+        trialDate = this.trialDate ?: this.order.trialDate ?: "",
+        deliveryDate = this.dueDate ?: this.order.deliveryDate ?: "",
+        priority = this.priority ?: "",
+        orderType = this.orderType ?: "",
+        orderNotes = this.orderNotes ?: "",
+        paymentMode = this.paymentMode ?: "",
+        paymentType = this.paymentType ?: "",
+        paymentTermId = this.paymentTermId?.id ?: "",
+        salespersonId = this.salespersonId?.id ?: "",
+        advanceAmountPaid = this.advanceAmountPaid ?: this.order.totalPaid,
+        advanceAmountRequired = this.advanceAmountRequired ?: 0.0,
+        deliveryMethod = this.deliveryMethod ?: "",
+        deliveryCharge = this.deliveryCharge ?: 0.0,
+        discount = this.totalDiscount ?: this.order.discount,
+        paidSoFar = this.advanceAmountPaid ?: this.order.totalPaid,
+        billingNotes = this.billingNotes ?: "",
+        status = this.status ?: this.order.status,
+        subtotal = this.subtotal ?: this.order.totalAmount,
+        grandTotal = this.grandTotal ?: this.order.totalAmount,
+        dynamicItems = emptyList()
     )
-    pdfGenerator.printReceiptViaWebView(receiptData)
 }

@@ -40,6 +40,8 @@ import com.cuso.tailor.model.inventory.IncreaseStockRequest
 import com.cuso.tailor.model.inventory.InventoryItem
 import com.cuso.tailor.model.inventory.InventoryItemviewone
 import com.cuso.tailor.model.inventory.InventoryPagination
+import com.cuso.tailor.model.inventory.InventoryReturnItem
+import com.cuso.tailor.model.inventory.InventoryReturnsResponse
 import com.cuso.tailor.model.inventory.ItemGroupDto
 import com.cuso.tailor.model.inventory.ItemGroupViewOneData
 import com.cuso.tailor.model.inventory.LowStockItemDto
@@ -73,6 +75,7 @@ import com.cuso.tailor.model.inventory.VoidPaymentRequest
 import com.cuso.tailor.model.inventory.WarehouseAddress
 import com.cuso.tailor.model.inventory.WarehouseDropdownItem
 import com.cuso.tailor.model.inventory.WarehouseItem
+import com.cuso.tailor.model.sales.PaginationInfo
 import com.cuso.tailor.model.sales.ProductionTemplateItem
 import com.cuso.tailor.model.sales.ProductionTemplateResponse
 import com.cuso.tailor.repository.ApiRepository
@@ -4544,5 +4547,107 @@ class InventoryViewModel @Inject constructor(
                 _categoryActionError.value = extractErrorMessage(error.message)
             }
         }
+    }
+
+    //INVENTORY PURCHASE RETURNS
+
+    private val _returnsList = MutableStateFlow<List<InventoryReturnItem>>(emptyList())
+    val returnsList: StateFlow<List<InventoryReturnItem>> = _returnsList.asStateFlow()
+
+    private val _pagination = MutableStateFlow<PaginationInfo?>(null)
+    val pagination: StateFlow<PaginationInfo?> = _pagination.asStateFlow()
+
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    private val _canLoadMore = MutableStateFlow(true)
+    val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
+
+    private val _currentPage = MutableStateFlow(1)
+    val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
+
+
+    private var activeSearch: String? = null
+    private var fetchJob: Job? = null
+
+    /**
+     * Fetch returns list with pagination
+     */
+    fun fetchReturns(page: Int = 1, limit: Int = 10, search: String? = null) {
+        fetchJob?.cancel()
+        fetchJob = launchBusy {
+            _isLoading.value = true
+            _errorMessage.value = null
+            _currentPage.value = page
+            activeSearch = search?.trim()?.ifBlank { null }
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to page,
+                "limit" to limit
+            )
+            activeSearch?.let { queryParams["search"] = it }
+
+            val result = apiRepository.request<InventoryReturnsResponse> {
+                get("/api/inventory/purchase-return/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    _returnsList.value = response.data
+                    _pagination.value = response.pagination
+                    val totalPages = response.pagination?.totalPages ?: 1
+                    _canLoadMore.value = page < totalPages && response.data.isNotEmpty()
+                },
+                onFailure = { error ->
+                    if (error !is CancellationException) {
+                        _errorMessage.value = extractErrorMessage(error.message)
+                    }
+                }
+            )
+            _isLoading.value = false
+        }
+    }
+
+    /**
+     * Load next page for pagination
+     */
+    fun loadMoreReturns(limit: Int = 10) {
+        if (_isLoadingMore.value || _isLoading.value || !_canLoadMore.value) return
+
+        launchBusy {
+            _isLoadingMore.value = true
+            val nextPage = _currentPage.value + 1
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to nextPage,
+                "limit" to limit
+            )
+            activeSearch?.let { queryParams["search"] = it }
+
+            val result = apiRepository.request<InventoryReturnsResponse> {
+                get("/api/inventory/purchase-return/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    val newItems = response.data
+                    if (newItems.isNotEmpty()) {
+                        _returnsList.value += newItems
+                        _currentPage.value = nextPage
+                        _pagination.value = response.pagination
+                        val totalPages = response.pagination?.totalPages ?: nextPage
+                        _canLoadMore.value = nextPage < totalPages
+                    } else {
+                        _canLoadMore.value = false
+                    }
+                },
+                onFailure = { /* Fail silently */ }
+            )
+            _isLoadingMore.value = false
+        }
+    }
+
+    fun refreshReturns() {
+        fetchReturns(page = 1, search = activeSearch)
     }
 }

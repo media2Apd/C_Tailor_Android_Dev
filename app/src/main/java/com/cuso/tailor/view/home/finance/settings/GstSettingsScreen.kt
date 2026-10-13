@@ -13,6 +13,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
@@ -21,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
@@ -143,6 +146,14 @@ fun GstSettingsOverviewScreen(
         }
     }
 
+// Metric values derived from the GST list, so they stay in sync with the data
+    val activeCount = remember(mockGstList) { mockGstList.count { it.status.equals("Active", ignoreCase = true) } }
+    val inactiveCount = remember(mockGstList) { mockGstList.size - activeCount }
+    val groupNames = remember(mockGstList) {
+        mockGstList.map { it.group.removeSuffix(" GST Group").removeSuffix(" India") }.distinct()
+    }
+    val stateCount = remember(mockGstList) { mockGstList.map { it.state }.distinct().size }
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         FabScaffold(
             modifier = Modifier.fillMaxSize(),
@@ -178,72 +189,51 @@ fun GstSettingsOverviewScreen(
                         )
                     }
 
-                    // Header Title & Description
+                    // 2x2 grid of separate metric cards
                     item {
                         Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = tokens.screenPadding)
+                            modifier = Modifier.fillMaxWidth()
+                                .padding(horizontal = tokens.screenPadding),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(
-                                text = "GST Settings",
-                                fontSize = tokens.h2,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextPrimary
-                            )
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = "Manage your GST registrations and GST groups across states and union territories.",
-                                fontSize = tokens.caption,
-                                color = close_color,
-                                lineHeight = tokens.bodySmall.times(1.3f)
-                            )
-                        }
-                    }
-
-                    // 2x2 Metric Summary Box
-                    item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
-                                .background(whiteBg)
-                        ) {
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                MetricSummaryCell(
+                            // Row height follows the taller card, so both cards in a row match
+                            Row(
+                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                MetricCard(
                                     title = "Active Registrations",
-                                    count = "4",
-                                    indicatorText = "All Compliant",
+                                    count = activeCount.toString(),
+                                    indicatorText = if (inactiveCount == 0) "All Compliant" else "$inactiveCount Inactive",
                                     indicatorColor = greentext,
+                                    indicatorIcon = Icons.Default.ArrowDropUp,
                                     modifier = Modifier.weight(1f)
                                 )
-                                VerticalDivider(color = dividerColor, thickness = 2.dp, modifier = Modifier.height(100.dp))
-                                MetricSummaryCell(
+                                MetricCard(
                                     title = "Inactive Registrations",
-                                    count = "1",
+                                    count = inactiveCount.toString(),
                                     indicatorText = "Deactivated",
                                     indicatorColor = redText,
+                                    indicatorIcon = Icons.Default.ArrowDropDown,
                                     modifier = Modifier.weight(1f)
                                 )
                             }
-                            HorizontalDivider(color = dividerColor, thickness = 2.dp)
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                MetricSummaryCell(
+                            Row(
+                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                MetricCard(
                                     title = "GST Groups",
-                                    count = "2",
-                                    indicatorText = "North / South / West",
+                                    count = groupNames.size.toString(),
+                                    indicatorText = groupNames.joinToString(" / "),
                                     indicatorColor = close_color,
-                                    showDot = false,
                                     modifier = Modifier.weight(1f)
                                 )
-                                VerticalDivider(color = dividerColor, thickness = 2.dp, modifier = Modifier.height(100.dp))
-
-                                MetricSummaryCell(
+                                MetricCard(
                                     title = "States Covered",
-                                    count = "4",
+                                    count = stateCount.toString(),
                                     indicatorText = "States & UTs",
                                     indicatorColor = close_color,
-                                    showDot = false,
                                     modifier = Modifier.weight(1f)
                                 )
                             }
@@ -293,7 +283,68 @@ private fun MetricSummaryCell(
         }
     }
 }
-
+// ── Metric Card Component ──
+// Standalone card with its own background, border and rounded corners
+// ── Metric Card Component ──
+// Light bordered card: muted title, large value, and a small indicator line below
+@Composable
+private fun MetricCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    count: String,
+    indicatorText: String,
+    indicatorColor: Color,
+    // Optional small arrow shown before the indicator text (null for plain text)
+    indicatorIcon: ImageVector? = null
+) {
+    val tokens = LocalAppTokens.current
+    Surface(
+        modifier = modifier.fillMaxHeight(),
+        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
+        color = whiteBg,
+        border = BorderStroke(1.dp, dividerColor)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Title: larger, regular weight, muted colour
+            Text(
+                text = title,
+                fontSize = tokens.bodySmall,
+                color = close_color,
+                maxLines = 1
+            )
+            // Value: large, medium weight
+            Text(
+                text = count,
+                fontSize = tokens.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = TextPrimary,
+                maxLines = 1
+            )
+            // Indicator line: optional arrow icon followed by the text
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (indicatorIcon != null) {
+                    Icon(
+                        imageVector = indicatorIcon,
+                        contentDescription = null,
+                        tint = indicatorColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Text(
+                    text = indicatorText,
+                    fontSize = tokens.caption,
+                    color = indicatorColor,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
 // ── GST Card Component ──
 @Composable
 fun GstRegistrationCard(

@@ -15,15 +15,39 @@ import com.cuso.tailor.model.sales.BillingPaymentDetailData
 import com.cuso.tailor.model.sales.BillingPaymentDetailResponse
 import com.cuso.tailor.model.sales.BillingPaymentItemDto
 import com.cuso.tailor.model.sales.BillingPaymentListResponse
+import com.cuso.tailor.model.sales.CancelOrderRequest
+import com.cuso.tailor.model.sales.CancelOrderResponse
 import com.cuso.tailor.model.sales.CategoryItem
 import com.cuso.tailor.model.sales.ConvertLeadToOpportunityRequest
 import com.cuso.tailor.model.sales.ConvertToOrderData
 import com.cuso.tailor.model.sales.CreateLeadFormRequest
+import com.cuso.tailor.model.sales.CustomerAnalyticsData
+import com.cuso.tailor.model.sales.CustomerAnalyticsResponse
 import com.cuso.tailor.model.sales.CustomerSearchResponse
+import com.cuso.tailor.model.sales.DashboardChartsData
+import com.cuso.tailor.model.sales.DashboardChartsResponse
+import com.cuso.tailor.model.sales.ExecutiveAnalyticsData
+import com.cuso.tailor.model.sales.ExecutiveAnalyticsResponse
 import com.cuso.tailor.model.sales.GarmentCategoryDto
+import com.cuso.tailor.model.sales.KpiMetricsData
+import com.cuso.tailor.model.sales.KpiMetricsResponse
 import com.cuso.tailor.model.sales.LeadData
 import com.cuso.tailor.model.sales.LeadTableItem
+import com.cuso.tailor.model.sales.OpportunityAnalyticsData
+import com.cuso.tailor.model.sales.OpportunityAnalyticsResponse
 import com.cuso.tailor.model.sales.OrderItem
+import com.cuso.tailor.model.sales.QuotationAnalyticsData
+import com.cuso.tailor.model.sales.QuotationAnalyticsResponse
+import com.cuso.tailor.model.sales.RecentFollowUpItem
+import com.cuso.tailor.model.sales.RecentFollowUpsResponse
+import com.cuso.tailor.model.sales.RecentLeadItem
+import com.cuso.tailor.model.sales.RecentLeadsResponse
+import com.cuso.tailor.model.sales.RecentOpportunitiesResponse
+import com.cuso.tailor.model.sales.RecentOpportunityItem
+import com.cuso.tailor.model.sales.RecentOrderItem
+import com.cuso.tailor.model.sales.RecentOrdersResponse
+import com.cuso.tailor.model.sales.RecentQuotationItem
+import com.cuso.tailor.model.sales.RecentQuotationsResponse
 import com.cuso.tailor.model.sales.RecordOrderPaymentRequest
 import com.cuso.tailor.model.sales.RecordOrderPaymentResponse
 import com.cuso.tailor.model.sales.StaffDto
@@ -872,6 +896,62 @@ class SalesViewModel @Inject constructor(
             fetchBillingPayments(page = 1, search = newQuery.takeIf { it.isNotBlank() })
         }
     }
+    // ─────────────────────────────────────────────────────────────
+    // Cancel Order
+    // ─────────────────────────────────────────────────────────────
+
+    // ───────── Cancel Order ─────────
+    private val _isCancellingOrder = MutableStateFlow(false)
+    val isCancellingOrder: StateFlow<Boolean> = _isCancellingOrder.asStateFlow()
+
+    private val _cancelOrderSuccess = MutableStateFlow<String?>(null)
+    val cancelOrderSuccess: StateFlow<String?> = _cancelOrderSuccess.asStateFlow()
+
+    private val _cancelOrderError = MutableStateFlow<String?>(null)
+    val cancelOrderError: StateFlow<String?> = _cancelOrderError.asStateFlow()
+
+    fun cancelOrder(
+        orderId: String,
+        reason: String,
+        onSuccess: () -> Unit = {}
+    ) {
+        if (orderId.isBlank()) return
+        if (reason.isBlank()) {
+            _cancelOrderError.value = "Cancellation reason is required"
+            return
+        }
+
+        viewModelScope.launch {
+            _isCancellingOrder.value = true
+            _cancelOrderError.value = null
+            _cancelOrderSuccess.value = null
+
+            val request = CancelOrderRequest(cancellationReason = reason.trim(), status = "Cancelled")
+
+            apiRepository.request<CancelOrderResponse> {
+                patch("/api/sales/orders/change-status/$orderId", request)
+            }.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        _cancelOrderSuccess.value = response.message ?: "Order cancelled successfully"
+                        onSuccess()
+                    } else {
+                        _cancelOrderError.value = response.message ?: "Failed to cancel order"
+                    }
+                },
+                onFailure = { error ->
+                    _cancelOrderError.value = error.message ?: "Failed to cancel order"
+                }
+            )
+
+            _isCancellingOrder.value = false
+        }
+    }
+
+    fun clearCancelOrderAlerts() {
+        _cancelOrderSuccess.value = null
+        _cancelOrderError.value = null
+    }
 
     // ─────────────────────────────────────────────────────────────
     // Fetch Billing Detail (View-One)
@@ -935,6 +1015,109 @@ class SalesViewModel @Inject constructor(
         _billingPaymentsError.value = null
         _recordPaymentSuccess.value = null
         _recordPaymentError.value = null
+    }
+
+    // =============================================================
+    // SALES DASHBOARD API STATES
+    // =============================================================
+    private val _kpiMetrics = MutableStateFlow<KpiMetricsData?>(null)
+    val kpiMetrics: StateFlow<KpiMetricsData?> = _kpiMetrics.asStateFlow()
+
+    private val _chartsData = MutableStateFlow<DashboardChartsData?>(null)
+    val chartsData: StateFlow<DashboardChartsData?> = _chartsData.asStateFlow()
+
+    private val _executiveAnalytics = MutableStateFlow<ExecutiveAnalyticsData?>(null)
+    val executiveAnalytics: StateFlow<ExecutiveAnalyticsData?> = _executiveAnalytics.asStateFlow()
+
+    private val _opportunityAnalytics = MutableStateFlow<OpportunityAnalyticsData?>(null)
+    val opportunityAnalytics: StateFlow<OpportunityAnalyticsData?> = _opportunityAnalytics.asStateFlow()
+
+    private val _quotationAnalytics = MutableStateFlow<QuotationAnalyticsData?>(null)
+    val quotationAnalytics: StateFlow<QuotationAnalyticsData?> = _quotationAnalytics.asStateFlow()
+
+    private val _customerAnalytics = MutableStateFlow<CustomerAnalyticsData?>(null)
+    val customerAnalytics: StateFlow<CustomerAnalyticsData?> = _customerAnalytics.asStateFlow()
+
+    private val _recentOrders = MutableStateFlow<List<RecentOrderItem>>(emptyList())
+    val recentOrders: StateFlow<List<RecentOrderItem>> = _recentOrders.asStateFlow()
+
+    private val _recentQuotations = MutableStateFlow<List<RecentQuotationItem>>(emptyList())
+    val recentQuotations: StateFlow<List<RecentQuotationItem>> = _recentQuotations.asStateFlow()
+
+    private val _recentOpportunities = MutableStateFlow<List<RecentOpportunityItem>>(emptyList())
+    val recentOpportunities: StateFlow<List<RecentOpportunityItem>> = _recentOpportunities.asStateFlow()
+
+    private val _recentLeads = MutableStateFlow<List<RecentLeadItem>>(emptyList())
+    val recentLeads: StateFlow<List<RecentLeadItem>> = _recentLeads.asStateFlow()
+
+    private val _recentFollowUps = MutableStateFlow<List<RecentFollowUpItem>>(emptyList())
+    val recentFollowUps: StateFlow<List<RecentFollowUpItem>> = _recentFollowUps.asStateFlow()
+
+    private val _isLoadingDashboard = MutableStateFlow(false)
+    val isLoadingDashboard: StateFlow<Boolean> = _isLoadingDashboard.asStateFlow()
+
+    // Function to fetch all sales dashboard APIs together
+    fun fetchSalesDashboardData(month: Int = 10, year: Int = 2026, period: String = "this_month") {
+        viewModelScope.launch {
+            _isLoadingDashboard.value = true
+
+            // 1. KPI Metrics
+            apiRepository.request<KpiMetricsResponse> {
+                get("/api/sales/orders/dashboard/kpi-metrics", apiRepository.query("period" to period))
+            }.onSuccess { _kpiMetrics.value = it.data }
+
+            // 2. Charts
+            apiRepository.request<DashboardChartsResponse> {
+                get("/api/sales/orders/dashboard/charts", apiRepository.query("month" to month, "year" to year))
+            }.onSuccess { _chartsData.value = it.data }
+
+            // 3. Executive Analytics
+            apiRepository.request<ExecutiveAnalyticsResponse> {
+                get("/api/sales/orders/dashboard/executive-analytics")
+            }.onSuccess { _executiveAnalytics.value = it.data }
+
+            // 4. Opportunity Analytics
+            apiRepository.request<OpportunityAnalyticsResponse> {
+                get("/api/sales/opportunities/dashboard/analytics")
+            }.onSuccess { _opportunityAnalytics.value = it.data }
+
+            // 5. Quotation Analytics
+            apiRepository.request<QuotationAnalyticsResponse> {
+                get("/api/sales/quotations/dashboard/analytics", apiRepository.query("month" to month, "year" to year))
+            }.onSuccess { _quotationAnalytics.value = it.data }
+
+            // 6. Customer Analytics
+            apiRepository.request<CustomerAnalyticsResponse> {
+                get("/api/sales/customers/dashboard/analytics")
+            }.onSuccess { _customerAnalytics.value = it.data }
+
+            // 7. Recent Sales Orders
+            apiRepository.request<RecentOrdersResponse> {
+                get("/api/sales/orders/dashboard/recent", apiRepository.query("limit" to 5))
+            }.onSuccess { _recentOrders.value = it.data }
+
+            // 8. Recent Quotations
+            apiRepository.request<RecentQuotationsResponse> {
+                get("/api/sales/quotations/dashboard/recent", apiRepository.query("limit" to 5))
+            }.onSuccess { _recentQuotations.value = it.data }
+
+            // 9. Recent Opportunities
+            apiRepository.request<RecentOpportunitiesResponse> {
+                get("/api/sales/opportunities/dashboard/recent", apiRepository.query("limit" to 5))
+            }.onSuccess { _recentOpportunities.value = it.data }
+
+            // 10. Recent Leads
+            apiRepository.request<RecentLeadsResponse> {
+                get("/api/sales/leads/dashboard/recent", apiRepository.query("limit" to 5))
+            }.onSuccess { _recentLeads.value = it.data }
+
+            // 11. Recent Follow-Ups
+            apiRepository.request<RecentFollowUpsResponse> {
+                get("/api/sales/leads/follow-up/dashboard/recent", apiRepository.query("limit" to 5))
+            }.onSuccess { _recentFollowUps.value = it.data }
+
+            _isLoadingDashboard.value = false
+        }
     }
 
     // =============================================================

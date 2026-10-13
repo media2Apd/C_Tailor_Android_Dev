@@ -15,7 +15,6 @@ import android.webkit.WebViewClient
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,7 +24,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Add
@@ -69,6 +67,7 @@ fun FinanceInvoiceScreen(
     onClose: () -> Unit,
     onInvoiceClick: (InvoiceItem) -> Unit,
     onCreateInvoice: () -> Unit = {},
+    onRecordPayment: (InvoiceViewOneData) -> Unit = {},
     onBreadCrumbClick: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
@@ -149,25 +148,8 @@ fun FinanceInvoiceScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "All Invoices",
-                    fontSize = tokens.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = TextPrimary
-                )
-                Spacer(Modifier.weight(1f))
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = TextPrimary,
-                    modifier = Modifier
-                        .size(tokens.iconSize * 1.2f)
-                        .clickable { onClose() }
-                )
+                TitleBar(title = "All Invoices", onClose = onClose)
             }
 
             // ── Search & Filter Bar ──
@@ -330,7 +312,8 @@ private fun InvoiceDataCard(
 
 // Status color resolver
 private fun statusColorsOfInvoice(status: String?): Pair<String, Color> = when (status?.lowercase()) {
-    "sent" -> "Sent" to darkGreenBg
+    "sent" -> "Sent" to Primary
+    "paid" -> "Paid" to darkGreenBg
     "draft" -> "Draft" to yellowText
     "void", "voided" -> "Void" to redText
     else -> "Unknown" to mutedText
@@ -451,6 +434,14 @@ fun VoidInvoiceDialog(
                         if (it.isNotBlank()) isError = false
                     },
                     modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedLabelColor = title_color,
+                        focusedTextColor = title_color,
+                        focusedBorderColor = title_color,
+                        unfocusedTextColor = title_color,
+                        unfocusedLabelColor = title_color,
+                        unfocusedBorderColor = title_color
+                    ),
                     label = { Text("Reason for Voiding *", fontSize = tokens.bodySmall) },
                     placeholder = { Text("e.g. Order cancelled by customer", fontSize = tokens.bodySmall) },
                     minLines = 3,
@@ -495,7 +486,7 @@ fun VoidInvoiceDialog(
                 enabled = !isLoading,
                 shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
             ) {
-                Text("Cancel", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium)
+                Text("Cancel", fontSize = tokens.bodySmall,color =  title_color, fontWeight = FontWeight.Medium)
             }
         },
         shape = RoundedCornerShape(tokens.cardCornerRadius),
@@ -503,9 +494,6 @@ fun VoidInvoiceDialog(
     )
 }
 
-// ─────────────────────────────────────────────────────────────
-// 5. Action Bar (Print, Void, Download PDF, Record Payment)
-// ─────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────
 // 5. Action Bar (Print, Void, Download PDF, Send, Record Payment)
 // ─────────────────────────────────────────────────────────────
@@ -881,7 +869,7 @@ fun InvoiceDetailScreen(
                         InvoiceActionBar(
                             showRecordPayment = invoice.balanceAmount > 0.0 && !isVoid && !isDraft,
                             showVoid = !isVoid,
-                            showSend = isDraft, // Displays "Send" button only when status is Draft
+                            showSend = isDraft,
                             onDownloadPdf = {
                                 if (!isDownloading) {
                                     isDownloading = true
@@ -909,7 +897,9 @@ fun InvoiceDetailScreen(
                                     DynamicIslandManager.showError("Invoice is not ready to print")
                                 }
                             },
-                            onRecordPayment = { onRecordPayment(invoice) },
+                            onRecordPayment = {
+                                onRecordPayment(invoice)
+                            },
                             onVoid = { showVoidDialog = true },
                             onSend = {
                                 // Executes the standalone Send API

@@ -4,7 +4,7 @@
     "GrazieInspection",
     "AssignedValueIsNeverRead",
     "unused_variable",
-    "unused"
+    "unused", "VariableNeverRead"
 )
 package com.cuso.tailor.view.home.sales.sales_order
 
@@ -15,10 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -326,14 +323,7 @@ fun SalesOrderScreen(
 
                                         if (isLoadingMore) {
                                             item {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(16.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    CirculerProgressIndicatorSmall()
-                                                }
+                                                ThreeDotLoading()
                                             }
                                         }
                                     }

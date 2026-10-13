@@ -1,148 +1,145 @@
-@file:Suppress("unused", "SameParameterValue")
+@file:Suppress("UNUSED_PARAMETER")
 
 package com.cuso.tailor.view.home.inventory.procurement.returns
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.LocalShipping
+import androidx.compose.material.icons.outlined.MonetizationOn
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.cuso.tailor.adaptive_screen.AppDesignTokens
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.inventory.InventoryReturnItem
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
-
-// ─────────────────────────────────────────────────────────────
-// DATA MODELS
-// ─────────────────────────────────────────────────────────────
-
-data class ReturnItemModel(
-    val id: String,
-    val rmaCode: String = "RMA-00124",
-    val orderNo: String = "648770",
-    val customerName: String = "Hameed",
-    val date: String = "01-10-2023",
-    val returned: String = "No",
-    val approvalStatus: String = "Approved",
-    val receiveStatus: String = "In Transit",
-    val refundStatus: String = "In Transit"
-)
-
-// ─────────────────────────────────────────────────────────────
-// SCREEN COMPOSABLE
-// ─────────────────────────────────────────────────────────────
+import com.cuso.tailor.viewmodel.InventoryViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
 @Composable
 fun AllReturnsScreen(
-    onClose: () -> Unit,
-    onEditRma: () -> Unit = {},
-    onPdfExport: () -> Unit = {},
-    onReturnItemClick: (ReturnItemModel) -> Unit = {}
+    viewModel: InventoryViewModel = hiltViewModel(),
+    onClose: () -> Unit = {},
+    onCreateReturnClick: () -> Unit = {},
+    onReturnItemClick: (InventoryReturnItem) -> Unit = {},
+    onEditRma: (InventoryReturnItem) -> Unit = {},
+    onPdfExport: (InventoryReturnItem) -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
-    var selectedItemIds by remember { mutableStateOf(setOf<String>()) }
 
-    // Mock Sample Data
-    val returnItems = remember {
-        listOf(
-            ReturnItemModel(id = "1"),
-            ReturnItemModel(id = "2"),
-            ReturnItemModel(id = "3"),
-            ReturnItemModel(id = "4"),
-            ReturnItemModel(id = "5")
-        )
-    }
+    val returns by viewModel.returnsList.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
+    val canLoadMore by viewModel.canLoadMore.collectAsStateWithLifecycle()
 
-    // Pre-select first item as shown in the mockup
     LaunchedEffect(Unit) {
-        selectedItemIds = setOf("1")
+        viewModel.fetchReturns(page = 1)
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Primary_background)
+    FabScaffold(
+        fab = FabConfig(
+            label = "Create Return",
+            icon = Icons.Default.Add,
+            onClick = onCreateReturnClick
+        )
     ) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            topBar = {
-                TitleBar(
-                    title = "All Returns",
-                    onClose = onClose
-                )
-            }
-        ) { padding ->
-            Column(
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Transparent)
+        ) {
+            // Header Bar
+            TitleBar(
+                title = "Purchase Returns",
+                onClose = onClose
+            )
+
+            Spacer(modifier = Modifier.height(tokens.extraPadding * 0.8f))
+
+            // Search Filter
+            SearchFilterBar(
+                query = searchQuery,
+                onQueryChange = {
+                    searchQuery = it
+                    viewModel.fetchReturns(page = 1, search = it.ifBlank { null })
+                },
+                placeholder = "Search RMA number, supplier..."
+            )
+
+            Spacer(modifier = Modifier.height(tokens.extraPadding * 0.8f))
+
+            // Content Section
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
+                    .weight(1f)
             ) {
-                // Search and Filter Header
-                SearchFilterBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    placeholder = "Search Customers...",
-                    showFilterIcon = true,
-                    onFilterClick = { },
-                    height = tokens.fieldHeight * 1.1f
-                )
-
-                HorizontalDivider(color = grey_border.copy(alpha = 0.6f), thickness = 2.dp)
-
-                // RMA Main Group Header (RMA-1001)
-                RmaGroupHeaderSection(
-                    rmaGroupCode = "RMA-1001",
-                    status = "Approved",
-                    raisedDate = "12 Feb 2026",
-                    department = "Production",
-                    tokens = tokens,
-                    onEditClick = onEditRma,
-                    onPdfClick = onPdfExport,
-                    onMoreClick = { }
-                )
-
-                HorizontalDivider(color = Color(0xFFE5E7EB), thickness = 2.dp)
-
-                // Returns List
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    itemsIndexed(returnItems, key = { _, item -> item.id }) { _, item ->
-                        val isChecked = selectedItemIds.contains(item.id)
-                        ReturnCardItem(
-                            item = item,
-                            isChecked = isChecked,
-                            tokens = tokens,
-                            onCheckedChange = { checked ->
-                                selectedItemIds = if (checked) {
-                                    selectedItemIds + item.id
-                                } else {
-                                    selectedItemIds - item.id
-                                }
-                            },
-                            onClick = { onReturnItemClick(item) }
+                if (isLoading && returns.isEmpty()) {
+                    ListSkeleton()
+                } else if (returns.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No purchase returns found",
+                            fontSize = tokens.bodyMedium,
+                            color = mutedText,
+                            fontWeight = FontWeight.Medium
                         )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = tokens.screenPadding * 4)
+                    ) {
+                        items(returns, key = { it.id }) { item ->
+                            ReturnCardItem(
+                                item = item,
+                                onClick = { onReturnItemClick(item) }
+                            )
+                        }
+
+                        // Infinite scroll loader
+                        if (canLoadMore) {
+                            item {
+                                LaunchedEffect(Unit) {
+                                    viewModel.loadMoreReturns()
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(tokens.screenPadding),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isLoadingMore) {
+                                        ThreeDotLoading()
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -150,328 +147,230 @@ fun AllReturnsScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// RMA GROUP HEADER
-// ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun RmaGroupHeaderSection(
-    rmaGroupCode: String,
-    status: String,
-    raisedDate: String,
-    department: String,
-    tokens: AppDesignTokens,
-    onEditClick: () -> Unit,
-    onPdfClick: () -> Unit,
-    onMoreClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(whiteBg)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = rmaGroupCode,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = title_color
-            )
-
-            Spacer(Modifier.width(8.dp))
-
-            StatusDotBadge(text = status)
-
-            Spacer(Modifier.weight(1f))
-
-            // Action: Edit
-            OutlinedActionButton(
-                label = "Edit",
-                icon = Icons.Default.Edit,
-                onClick = onEditClick
-            )
-
-            Spacer(Modifier.width(8.dp))
-
-            // Action: PDF
-            OutlinedActionButton(
-                label = "PDF",
-                onClick = onPdfClick
-            )
-
-            Spacer(Modifier.width(4.dp))
-
-            IconButton(
-                onClick = onMoreClick,
-                modifier = Modifier.size(28.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Options",
-                    tint = mutedText,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // Subtext: Raised on date | Department
-        Text(
-            text = buildAnnotatedString {
-                withStyle(style = SpanStyle(color = mutedText)) {
-                    append("Raised on ")
-                }
-                withStyle(style = SpanStyle(color = title_color, fontWeight = FontWeight.SemiBold)) {
-                    append(raisedDate)
-                }
-                withStyle(style = SpanStyle(color = grey_border)) {
-                    append("   |   ")
-                }
-                withStyle(style = SpanStyle(color = mutedText)) {
-                    append("Department: ")
-                }
-                withStyle(style = SpanStyle(color = title_color, fontWeight = FontWeight.SemiBold)) {
-                    append(department)
-                }
-            },
-            fontSize = 12.sp
-        )
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// RETURN CARD ITEM
-// ─────────────────────────────────────────────────────────────
-
+/**
+ * Return Card Item matching the screenshot layout.
+ */
+@SuppressLint("DefaultLocale")
 @Composable
 private fun ReturnCardItem(
-    item: ReturnItemModel,
-    isChecked: Boolean,
-    tokens: AppDesignTokens,
-    onCheckedChange: (Boolean) -> Unit,
+    item: InventoryReturnItem,
     onClick: () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(0.dp),
-        colors = CardDefaults.cardColors(containerColor = whiteBg),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            // Header Row: Checkbox, Code, Status Badge
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AppCheckbox(
-                    checked = isChecked,
-                    onCheckedChange = onCheckedChange
-                )
+    val tokens = LocalAppTokens.current
 
-                Spacer(Modifier.width(10.dp))
+    // Extract supplier initials for avatar
+    val supplierName = item.supplier?.name?.trim()?.ifBlank { "Supplier" } ?: "Supplier"
+    val initials = remember(supplierName) {
+        val parts = supplierName.split("\\s+".toRegex()).filter { it.isNotBlank() }
+        when {
+            parts.size >= 2 -> "${parts[0].first()}${parts[1].first()}".uppercase()
+            parts.isNotEmpty() && parts[0].length >= 2 -> parts[0].take(2).uppercase()
+            parts.isNotEmpty() -> parts[0].take(1).uppercase()
+            else -> "S"
+        }
+    }
 
-                Text(
-                    text = item.rmaCode,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = title_color
-                )
-
-                Spacer(Modifier.weight(1f))
-
-                StatusDotBadge(text = item.approvalStatus)
+    // Format Date (DD-MM-YYYY)
+    val formattedDate = remember(item.returnDate) {
+        try {
+            val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+            parser.timeZone = TimeZone.getTimeZone("UTC")
+            val parsedDate = parser.parse(item.returnDate)
+            if (parsedDate != null) {
+                SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()).format(parsedDate)
+            } else {
+                item.returnDate.take(10)
             }
+        } catch (_: Exception) {
+            item.returnDate.take(10)
+        }
+    }
 
-            Spacer(Modifier.height(14.dp))
+    // Order Code
+    val orderCode = item.po?.poNumber?.ifBlank { "N/A" } ?: "N/A"
 
-            // Details Grid
-            Row(modifier = Modifier.fillMaxWidth()) {
-                // Column 1
-                Column(modifier = Modifier.weight(1f)) {
-                    LabelValueItem(label = "ORDER NO", value = item.orderNo)
-                    Spacer(Modifier.height(10.dp))
-                    LabelValueItem(label = "DATE", value = item.date)
+    // Status colors
+    val isApproved = item.status.equals("Approved", ignoreCase = true)
+    val statusBg = if (isApproved) greenBg else light_grey
+    val statusText = if (isApproved) greentext else headerGrey
+
+    val menuActions = remember {
+        listOf(
+            MenuAction(
+                label = "View Details",
+                icon = Icons.Outlined.Visibility,
+                textColor = TextPrimary,
+                tint = TextSecondary,
+                onClick = onClick
+            ),
+            MenuAction(
+                label = "Delete",
+                icon = Icons.Outlined.Delete,
+                textColor = redText,
+                tint = redText,
+                onClick = {}
+            )
+        )
+    }
+
+    DataCard(
+        item = item,
+        onClick = { onClick() },
+        showHeaderDivider = false,
+        showActionsInHeader = false,
+        actions = emptyList(),
+        content = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // ── ROW 1: CHECKBOX • AVATAR • NAME & ORDER • STATUS BADGE • MENU ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+
+                    // Title & Order/Date Column
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = supplierName,
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = blackTitle,
+                            maxLines = 1
+                        )
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "#$orderCode",
+                                fontSize = tokens.caption,
+                                color = TextSecondary
+                            )
+                            Text(
+                                text = "  •  $formattedDate",
+                                fontSize = tokens.caption,
+                                color = mutedText
+                            )
+                        }
+                    }
+
+                    // StatusBadge with dot indicator & 3-dot dropdown menu
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.3f)
+                    ) {
+                        StatusBadge(
+                            text = item.status.ifBlank { "" },
+                            bgColor = statusBg,
+                            textColor = statusText,
+                            dotColor = statusText,
+                            cornerRadius = tokens.cardCornerRadius
+                        )
+
+//                        ActionDropdownMenu(
+//                            actions = menuActions,
+//                            icon = Icons.Default.MoreVert
+//                        )
+                    }
                 }
 
-                // Column 2
-                Column(modifier = Modifier.weight(1f)) {
-                    LabelValueItem(label = "CUSTOMER NAME", value = item.customerName)
-                    Spacer(Modifier.height(10.dp))
-                    LabelValueItem(label = "RETURNED", value = item.returned)
-                }
-            }
+                Spacer(modifier = Modifier.height(tokens.extraPadding * 1.2f))
 
-            Spacer(Modifier.height(14.dp))
-
-            // Bottom Status Strip
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFFFAFAFA))
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
+                // ── ROW 2: RMA NUMBER CHIP & RETURNED STATUS ──
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Receive Status
-                    Column {
-                        Text(
-                            text = "Receive Status",
-                            fontSize = 10.sp,
-                            color = mutedText
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        TransitBadge(
-                            text = item.receiveStatus,
-                            textColor = Color(0xFFD97706),
-                            bgColor = Color(0xFFFEF3C7),
-                            borderColor = Color(0xFFFDE68A)
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+
+                        // RMA Chip pill
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                                .background(light_blue)
+                                .border(1.dp, light_blue_border, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                                .padding(horizontal = tokens.extraPadding * 0.8f, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = item.rmaNumber.ifBlank { "" },
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = TextPrimary
+                            )
+                        }
                     }
 
-                    // Refund Status
-                    Column(horizontalAlignment = Alignment.End) {
+                    // Returned: Yes/No
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Refund Status",
-                            fontSize = 10.sp,
-                            color = mutedText
+                            text = "Returned: ",
+                            fontSize = tokens.bodySmall,
+                            color = TextSecondary
                         )
-                        Spacer(Modifier.height(4.dp))
-                        TransitBadge(
-                            text = item.refundStatus,
-                            textColor = Color(0xFF2563EB),
-                            bgColor = Color(0xFFEFF6FF),
-                            borderColor = Color(0xFFDBEAFE)
+                        Text(
+                            text = if (item.returned) "Yes" else "No",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = TextPrimary
                         )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(tokens.extraPadding * 1.2f))
+
+                // ── ROW 3: BOTTOM STATUS CONTAINER (RECEIVE STATUS & REFUND STATUS) ──
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
+                        .background(cardBgLight)
+                        .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
+                        .padding(tokens.extraPadding)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Column 1: Receive Status
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "RECEIVE STATUS",
+                                fontSize = tokens.label,
+                                fontWeight = FontWeight.Medium,
+                                color = mutedText
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = item.receiveStatus.ifBlank { "" },
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextPrimary
+                                )
+                            }
+                        }
+
+                        // Column 2: Refund Status
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "REFUND STATUS",
+                                fontSize = tokens.label,
+                                fontWeight = FontWeight.Medium,
+                                color = mutedText
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = item.refundStatus.ifBlank { "" },
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextPrimary
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────
-// REUSABLE MINI COMPONENTS
-// ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun LabelValueItem(label: String, value: String) {
-    Column {
-        Text(
-            text = label,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Medium,
-            color = mutedText,
-            letterSpacing = 0.5.sp
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text = value,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Normal,
-            color = title_color
-        )
-    }
-}
-
-@Composable
-private fun StatusDotBadge(
-    text: String,
-    bgColor: Color = Color(0xFFE8F8F0),
-    textColor: Color = Color(0xFF10B981),
-    dotColor: Color = Color(0xFF10B981)
-) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(bgColor)
-            .padding(horizontal = 8.dp, vertical = 3.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(5.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(dotColor)
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                text = text,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = textColor
-            )
-        }
-    }
-}
-
-@Composable
-private fun TransitBadge(
-    text: String,
-    textColor: Color,
-    bgColor: Color,
-    borderColor: Color
-) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(bgColor)
-            .border(width = 0.8.dp, color = borderColor, shape = RoundedCornerShape(4.dp))
-            .padding(horizontal = 6.dp, vertical = 2.dp)
-    ) {
-        Text(
-            text = text,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Medium,
-            color = textColor
-        )
-    }
-}
-
-@Composable
-private fun OutlinedActionButton(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .border(width = 1.dp, color = grey_border, shape = RoundedCornerShape(4.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = label,
-                    tint = title_color,
-                    modifier = Modifier.size(12.dp)
-                )
-                Spacer(Modifier.width(4.dp))
-            }
-            Text(
-                text = label,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = title_color
-            )
-        }
-    }
+    )
 }

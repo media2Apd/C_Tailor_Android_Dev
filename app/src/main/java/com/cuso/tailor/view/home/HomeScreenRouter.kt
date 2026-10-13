@@ -27,6 +27,7 @@ import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.inventory.StockLocationItemDto
 import com.cuso.tailor.model.sales.CustomerItem
 import com.cuso.tailor.model.sales.MeasurementItem
+import com.cuso.tailor.model.sales.OrderOverviewData
 import com.cuso.tailor.model.sales.OrderReviewData
 import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.model.settings.SegmentItem
@@ -50,6 +51,7 @@ import com.cuso.tailor.view.home.finance.account_receivable.payment_received.Pay
 import com.cuso.tailor.view.home.finance.account_receivable.sales_invoice.CreateSalesInvoiceScreen
 import com.cuso.tailor.view.home.finance.account_receivable.sales_invoice.FinanceInvoiceScreen
 import com.cuso.tailor.view.home.finance.account_receivable.sales_invoice.InvoiceDetailScreen
+import com.cuso.tailor.view.home.finance.receipts.CustomerReceiptsListScreen
 import com.cuso.tailor.view.home.finance.expenses.ExpensesScreen
 import com.cuso.tailor.view.home.finance.finance_core.chart_of_accounts.ChartOfAccountScreen
 import com.cuso.tailor.view.home.finance.finance_core.journal_entry.ManualJournalEntryScreen
@@ -150,6 +152,8 @@ import com.cuso.tailor.view.home.reports.inventory.*
 import com.cuso.tailor.view.home.reports.sales.SalesOrderReportsScreen
 import com.cuso.tailor.view.home.role.RoleSettingsScreen
 import com.cuso.tailor.view.home.sales.customer.*
+import com.cuso.tailor.view.home.sales.dashboard.SalesDashboardScreen
+import com.cuso.tailor.view.home.finance.receipts.CustomerReceiptDetailScreen
 import com.cuso.tailor.view.home.sales.lead.*
 import com.cuso.tailor.view.home.sales.measurements.MeasurementFieldsConfigScreen
 import com.cuso.tailor.view.home.sales.measurements.MeasurementManagementScreen
@@ -185,6 +189,11 @@ import com.cuso.tailor.view.home.services.settings.ServiceTemplateDetailViewScre
 import com.cuso.tailor.view.home.services.settings.ServiceTemplateListScreen
 import com.cuso.tailor.view.home.subscriptions.SubscriptionFlowContainer
 import com.cuso.tailor.view.home.warehouse.WarehouseSettingsScreen
+import com.cuso.tailor.model.finance.InvoiceViewOneData
+import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.view.home.finance.account_receivable.sales_invoice.RecordPaymentReceiptScreen
+import com.cuso.tailor.view.home.finance.dashboard.FinanceOverviewScreen
+import com.cuso.tailor.view.home.finance.receipts.CreatePaymentReceiptScreen
 import com.cuso.tailor.viewmodel.*
 
 // TEMPORARY: payment term source innum illa
@@ -194,6 +203,15 @@ private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @Composable
 fun HomeScreenRouter(
     screen: String,
+
+    selectedReceiptId: String? = null,
+    onReceiptSelected: (String?) -> Unit = {},
+    isOrderFromFinance: Boolean = false,
+    invoiceForPayment: InvoiceViewOneData? = null,
+    onInvoiceForPaymentChange: (InvoiceViewOneData?) -> Unit = {},
+    onOrderFromFinanceChange: (Boolean) -> Unit = {},
+    prefillOrderForInvoice: OrderOverviewData? = null,
+    onPrefillOrderForInvoiceChange: (OrderOverviewData?) -> Unit = {},
     selectedDocumentCategoryId: String? = null,
     onDocumentCategoryIdSelected: (String?) -> Unit = {},
     selectedDocumentId: String? = null,
@@ -326,7 +344,7 @@ fun HomeScreenRouter(
         }
 
         // In HomeScreenRouter: Add opportunity routes to SalesRouter block
-        "sales_lead", "create_lead", "view_lead", "edit_lead", "convert_lead_to_opportunity", "sales_customers",
+        "sales_dashboard", "sales_lead", "create_lead", "view_lead", "edit_lead", "convert_lead_to_opportunity", "sales_customers",
         "create_customer", "view_customer", "edit_customer", "view_customer_recent",
         "sales_measurements", "measurements_available_view", "measurement_management_view",
         "measurement_fields_config", "sales_sales_orders", "create_order",
@@ -341,6 +359,10 @@ fun HomeScreenRouter(
         "sales_opportunity_pipeline", "sales_opportunities", "create_opportunity", "opportunity_detail" -> {
             SalesRouter(
                 screen = screen,
+                isOrderFromFinance = isOrderFromFinance,
+                onOrderFromFinanceChange = onOrderFromFinanceChange,
+                prefillOrderForInvoice = prefillOrderForInvoice,
+                onPrefillOrderForInvoiceChange = onPrefillOrderForInvoiceChange,
                 selectedOpportunityId = selectedOpportunityId,
                 onOpportunityIdSelected = onOpportunityIdSelected,
                 navController = navController,
@@ -374,15 +396,21 @@ fun HomeScreenRouter(
             )
         }
 
-        "finance_sales_invoices", "finance_invoice_detail", "finance_purchase_invoices", "finance_purchase_invoice_detail",
-        "finance_customers", "finance_customer_detail", "finance_suppliers", "finance_supplier_detail", "finance_expenses",
+        // ── Add "finance_receipts" into this list ──
+        "finance_dashboard", "finance_receipts", "finance_create_payment_receipt", "finance_sales_invoices", "finance_invoice_detail", "finance_record_payment", "finance_purchase_invoices", "finance_purchase_invoice_detail", "finance_customers", "finance_customer_detail", "finance_suppliers", "finance_supplier_detail", "finance_expenses",
         "finance_chart_of_accounts", "finance_journal_screen", "finance_trial_balance", "finance_ledger", "finance_payments_received",
         "payment_detail_screen", "finance_payments_mode", "payment_mode_detail", "finance_gst_settings", "finance_create_customer",
         "finance_add_gst", "finance_tax_rates", "finance_add_tax_group", "finance_create_sales_invoice", "finance_purchase_orders",
-        "finance_purchase_receive", "finance_bills_list", "finance_payments_made" , "finance_sales_orders"  -> {
+        "finance_purchase_receive", "finance_receipt_detail", "finance_bills_list", "finance_payments_made", "finance_sales_orders" -> {
             FinanceRouter(
                 screen = screen,
+                isOrderFromFinance = isOrderFromFinance,
+                onOrderFromFinanceChange = onOrderFromFinanceChange,
+                prefillOrderForInvoice = prefillOrderForInvoice,
+                onPrefillOrderForInvoiceChange = onPrefillOrderForInvoiceChange,
                 token = token,
+                invoiceForPayment = invoiceForPayment,
+                onInvoiceForPaymentChange = onInvoiceForPaymentChange,
                 selectedSupplier = selectedSupplier,
                 inventoryViewModel = inventoryViewModel,
                 customerViewModel = customerViewModel,
@@ -395,6 +423,8 @@ fun HomeScreenRouter(
                 onPaymentModeSelected = onPaymentModeSelected,
                 selectedInvoiceId = selectedInvoiceId,
                 onInvoiceSelected = onInvoiceSelected,
+                selectedReceiptId = selectedReceiptId,
+                onReceiptSelected = onReceiptSelected,
                 selectedPurchaseInvoice = selectedPurchaseInvoice,
                 onPurchaseInvoiceSelected = onPurchaseInvoiceSelected,
                 selectedRecentCustomerId = selectedRecentCustomerId,
@@ -913,6 +943,10 @@ private fun InventoryStructureRouter(
 @Composable
 private fun SalesRouter(
     screen: String,
+    isOrderFromFinance: Boolean,
+    onOrderFromFinanceChange: (Boolean) -> Unit,
+    prefillOrderForInvoice: OrderOverviewData?,
+    onPrefillOrderForInvoiceChange: (OrderOverviewData?) -> Unit,
     selectedOpportunityId: String?,
     onOpportunityIdSelected: (String?) -> Unit,
     selectedMeasurementItem: MeasurementItem?,
@@ -983,6 +1017,16 @@ private fun SalesRouter(
     }
 
     when (screen) {
+        // Sales Dashboard Screen Route
+        "sales_dashboard" -> SalesDashboardScreen(
+            onClose = onGoBack,
+            onNavigateToOrders = { onNavigate("sales_sales_orders") },
+            onNavigateToQuotations = { onNavigate("sales_pricing_quotation") },
+            onNavigateToCustomers = { onNavigate("sales_customers") },
+            onNavigateToLeads = { onNavigate("sales_lead") },
+            onNavigateToPipeline = { onNavigate("sales_opportunity_pipeline") }
+        )
+
         "sales_lead" -> LeadScreenContent(
             onCreateLead = { onNavigate("create_lead") },
             onViewLead = { onNavigate("view_lead") },
@@ -1366,12 +1410,22 @@ private fun SalesRouter(
             selectedOrderId?.let { id ->
                 OrderOverviewScreen(
                     orderId = id,
-                    onClose = onGoBack,
+                    showConvertToInvoice = isOrderFromFinance, // Visible only when coming from Finance module
+                    onConvertToInvoice = { orderData ->
+                        onPrefillOrderForInvoiceChange(orderData) // Store order data for invoice form
+                        onNavigate("finance_create_sales_invoice") // Navigate to Create Invoice screen
+                    },
+                    onClose = {
+                        onOrderFromFinanceChange(false)
+                        onGoBack()
+                    },
                     onEditOrder = { reviewData ->
+                        onEditOrderIdChange(id)
                         onPendingOrderReviewDataChange(reviewData)
                         onNavigate("create_order")
                     },
                     onCreateNew = {
+                        onEditOrderIdChange(null)
                         onPendingOrderReviewDataChange(null)
                         onNavigate("create_order")
                     }
@@ -1656,10 +1710,19 @@ private fun SalesRouter(
     }
 }
 
+// ── FINANCE ROUTER ──
 @Composable
 private fun FinanceRouter(
     screen: String,
     token: String,
+    isOrderFromFinance: Boolean,
+    invoiceForPayment: InvoiceViewOneData?,
+    selectedReceiptId: String?,
+    onReceiptSelected: (String?) -> Unit,
+    onInvoiceForPaymentChange: (InvoiceViewOneData?) -> Unit,
+    onOrderFromFinanceChange: (Boolean) -> Unit,
+    prefillOrderForInvoice: OrderOverviewData?,
+    onPrefillOrderForInvoiceChange: (OrderOverviewData?) -> Unit,
     selectedSupplier: SupplierRow?,
     selectedLedgerAccountId: String?,
     selectedLedgerAccountName: String,
@@ -1675,7 +1738,7 @@ private fun FinanceRouter(
     selectedRecentCustomerId: String?,
     onRecentCustomerIdSelected: (String?) -> Unit,
     inventoryViewModel: InventoryViewModel,
-    customerViewModel: CustomerViewModel, // <-- 2. ADD THIS PARAMETER
+    customerViewModel: CustomerViewModel,
     selectedReceivePoId: String? = null,
     onReceivePoIdSelected: (String?) -> Unit = {},
     selectedPurchaseOrderForDetail: PurchaseOrder? = null,
@@ -1689,9 +1752,43 @@ private fun FinanceRouter(
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit
 ) {
+    val financeViewModel: FinanceViewModel = hiltViewModel()
     var selectedPurchaseOrderForEdit by remember { mutableStateOf<PurchaseOrder?>(null) }
+
     when (screen) {
-        // ── Finance -> Sales -> Orders -> Opens SalesOrderScreen with Finance context ──
+        // Finance Dashboard overview screen
+        "finance_dashboard" -> FinanceOverviewScreen(
+            onClose = onGoBack,
+            onViewDistribution = { onNavigate("finance_chart_of_accounts") },
+            onViewFunds = { onNavigate("finance_chart_of_accounts") },
+            onSummaryView = { title ->
+                when (title) {
+                    "Sales" -> onNavigate("finance_sales_invoices")
+                    "Purchase" -> onNavigate("finance_purchase_orders")
+                    "General Ledger" -> onNavigate("finance_chart_of_accounts")
+                    "Expenses" -> onNavigate("finance_expenses")
+                    "Funds" -> onNavigate("finance_chart_of_accounts")
+                }
+            },
+            onGoTo = { title ->
+                when (title) {
+                    "Sales" -> onNavigate("finance_sales_invoices")
+                    "Purchase" -> onNavigate("finance_purchase_orders")
+                    "General Ledger" -> onNavigate("finance_trial_balance")
+                    "Expenses" -> onNavigate("finance_expenses")
+                    "Funds" -> onNavigate("finance_chart_of_accounts")
+                }
+            },
+            onAlertClick = { title ->
+                when (title) {
+                    "Supplier Payments Due" -> onNavigate("finance_payments_made")
+                    "Expense Claims" -> onNavigate("finance_expenses")
+                    "Bank Reconciliation" -> onNavigate("finance_trial_balance")
+                }
+            }
+        )
+
+        // Finance Sales Orders: sets finance origin flag to true
         "finance_sales_orders" -> {
             SalesOrderScreen(
                 navController = navController,
@@ -1703,12 +1800,28 @@ private fun FinanceRouter(
                 },
                 onViewOrder = { orderId ->
                     onOrderIdSelected(orderId)
+                    onOrderFromFinanceChange(true) // Set flag for finance context
                     onNavigate("order_overview")
                 },
                 onEditOrder = { orderId -> onEditOrderIdChange(orderId) },
-                onBreadCrumbClick = { onOpenModulesPanel("Finance") } // Keep Module Context as Finance!
+                onBreadCrumbClick = { onOpenModulesPanel("Finance") }
             )
         }
+
+        // Single Create Sales Invoice route receiving prefilled order data
+        "finance_create_sales_invoice" -> CreateSalesInvoiceScreen(
+            prefillOrder = prefillOrderForInvoice, // Pass prefilled order object
+            onClose = {
+                onPrefillOrderForInvoiceChange(null)
+                onGoBack()
+            },
+            onInvoiceCreatedSuccessfully = {
+                onPrefillOrderForInvoiceChange(null)
+                onGoBack()
+            },
+            customerViewModel = customerViewModel,
+            inventoryViewModel = inventoryViewModel
+        )
 
         "finance_sales_invoices" -> FinanceInvoiceScreen(
             onClose = onGoBack,
@@ -1717,17 +1830,50 @@ private fun FinanceRouter(
                 onNavigate("finance_invoice_detail")
             },
             onCreateInvoice = {
+                onPrefillOrderForInvoiceChange(null)
                 onNavigate("finance_create_sales_invoice")
+            },
+            onRecordPayment = { invoiceData ->
+                onInvoiceForPaymentChange(invoiceData)
+                onNavigate("finance_record_payment")
             },
             onBreadCrumbClick = { onOpenModulesPanel("Finance") }
         )
 
-        "finance_create_sales_invoice" -> CreateSalesInvoiceScreen(
+        "finance_receipts" -> CustomerReceiptsListScreen(
+            viewModel = financeViewModel,
             onClose = onGoBack,
-            onInvoiceCreatedSuccessfully = { onGoBack() },
-            customerViewModel = customerViewModel,
-            inventoryViewModel = inventoryViewModel
+            onCreateReceiptClick = {
+                onNavigate("finance_create_payment_receipt")
+            },
+            onReceiptClick = { receipt ->
+                onReceiptSelected(receipt.id)
+                onNavigate("finance_receipt_detail")
+            }
         )
+
+        "finance_receipt_detail" -> {
+            selectedReceiptId?.let { id ->
+                CustomerReceiptDetailScreen(
+                    paymentId = id,
+                    viewModel = financeViewModel,
+                    onClose = {
+                        onReceiptSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
+        // New route to open Record Payment / Create Receipt Screen
+        "finance_create_payment_receipt" -> CreatePaymentReceiptScreen(
+            financeViewModel = financeViewModel,
+            customerViewModel = customerViewModel,
+            onClose = onGoBack,
+            onPaymentRecorded = {
+                financeViewModel.fetchCustomerReceipts(page = 1)
+            }
+        )
+
 
         "finance_invoice_detail" -> {
             selectedInvoiceId?.let { id ->
@@ -1737,9 +1883,59 @@ private fun FinanceRouter(
                         onInvoiceSelected(null)
                         onGoBack()
                     },
+                    onRecordPayment = { invoiceData ->
+                        // Store the full invoice object globally in HomeScreen state
+                        onInvoiceForPaymentChange(invoiceData)
+                        // Trigger actual screenStack push in HomeScreen
+                        onNavigate("finance_record_payment")
+                    },
                     token = token
                 )
             } ?: run { onGoBack() }
+        }
+
+        "finance_record_payment" -> {
+            invoiceForPayment?.let { invoice ->
+                val recordState by financeViewModel.recordPaymentState.collectAsStateWithLifecycle()
+                val context = LocalContext.current
+
+                RecordPaymentReceiptScreen(
+                    invoice = invoice,
+                    isLoading = recordState is RecordPaymentState.Loading,
+                    onClose = {
+                        onInvoiceForPaymentChange(null)
+                        financeViewModel.resetRecordPaymentState()
+                        onGoBack()
+                    },
+                    onSavePayment = { customerId, branchId, invoiceId, amount, mode, depositAccountId, isoDate, refNo, notes, uris, sendNotification ->
+                        val binaryParts = uris.mapNotNull { uri ->
+                            uriToMultipartPart(context, uri, "attachments")
+                        }
+
+                        financeViewModel.recordCustomerPayment(
+                            customerId = customerId,
+                            branchId = branchId,
+                            invoiceId = invoiceId,
+                            amount = amount,
+                            paymentMode = mode,
+                            depositToAccountId = depositAccountId,
+                            paymentDate = isoDate,
+                            referenceNumber = refNo,
+                            notes = notes,
+                            attachmentParts = binaryParts,
+                            onSuccess = { successMsg ->
+                                DynamicIslandManager.showSuccess(successMsg)
+                                onInvoiceForPaymentChange(null)
+                                financeViewModel.resetRecordPaymentState()
+                                onGoBack()
+                            }
+                        )
+                    }
+                )
+            } ?: run {
+                // If invoice object is null, safely go back
+                onGoBack()
+            }
         }
 
         "finance_purchase_invoices" -> PurchaseInvoiceScreen(
@@ -2648,12 +2844,18 @@ private fun InventoryProcurementRouter(
             onOptionsClick = { }
         )
 
-        "inventory_returns", "inventory_procurement_returns" -> AllReturnsScreen(
+        "inventory_returns", "inventory_procurement_returns", "inventory_procurement_return", "inventory_return" -> AllReturnsScreen(
             onClose = onGoBack,
+            onCreateReturnClick = {
+                // If you have a create return screen, navigate here (e.g., onNavigate("create_return"))
+            },
+            onReturnItemClick = { returnItem ->
+                // Handle click if needed
+            },
             onEditRma = { },
-            onPdfExport = { },
-            onReturnItemClick = { }
+            onPdfExport = { }
         )
+
 
         "inventory_billing" -> AllBillsScreen(
             onClose = onGoBack,

@@ -48,6 +48,7 @@ interface FinanceApiService {
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<ChartOfAccountsResponse>
+
     @GET("/api/finance/chart-of-accounts/dropdown")
     suspend fun getChartOfAccountsDropdown(
         @Header("Authorization") token: String,

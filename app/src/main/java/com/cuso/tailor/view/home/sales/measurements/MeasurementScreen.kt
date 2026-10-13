@@ -70,7 +70,6 @@ import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.ui.theme.yellowBg
 import com.cuso.tailor.ui.theme.yellowText
 import com.cuso.tailor.view.composable.AppErrorState
-import com.cuso.tailor.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardField
 import com.cuso.tailor.view.composable.DataCardImage
@@ -84,6 +83,7 @@ import com.cuso.tailor.view.composable.FilterSection
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
+import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
 import com.cuso.tailor.viewmodel.MeasurementDeleteState
@@ -405,12 +405,7 @@ fun MeasurementsScreen(
 
                                             if (isLoadingMore) {
                                                 item {
-                                                    Box(
-                                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        CirculerProgressIndicatorSmall()
-                                                    }
+                                                    ThreeDotLoading()
                                                 }
                                             }
                                         }

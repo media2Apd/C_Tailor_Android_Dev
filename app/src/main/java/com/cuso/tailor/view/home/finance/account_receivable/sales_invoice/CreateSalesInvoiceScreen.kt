@@ -1,4 +1,4 @@
-@file:Suppress("unused", "AssignedValueIsNeverRead", "VariableNeverRead")
+@file:Suppress("unused", "unusedVariable", "AssignedValueIsNeverRead", "VariableNeverRead")
 package com.cuso.tailor.view.home.finance.account_receivable.sales_invoice
 
 import android.app.DatePickerDialog
@@ -30,6 +30,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.finance.CreateInvoiceLineItemRequest
+import com.cuso.tailor.model.sales.OrderOverviewData
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.utils.uriToMultipartPart
@@ -70,6 +71,7 @@ data class SalesLineRowState(
 @Composable
 fun CreateSalesInvoiceScreen(
     onClose: () -> Unit,
+    prefillOrder: OrderOverviewData? = null,
     onInvoiceCreatedSuccessfully: () -> Unit = {},
     customerViewModel: CustomerViewModel = hiltViewModel(),
     financeViewModel: FinanceViewModel = hiltViewModel(),
@@ -77,6 +79,105 @@ fun CreateSalesInvoiceScreen(
 ) {
     val tokens = LocalAppTokens.current
     val context = LocalContext.current
+
+    // Date Formatters
+    val calendar = remember { Calendar.getInstance() }
+    val displayDateFormatter = remember { SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()) }
+
+    // Helper: parse ISO dates to dd-MM-yyyy
+    fun formatToDisplayDate(rawDate: String?): String {
+        if (rawDate.isNullOrBlank()) return ""
+        return try {
+            val inputFormats = listOf(
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                "yyyy-MM-dd"
+            )
+            var parsed: Date? = null
+            for (pattern in inputFormats) {
+                try {
+                    val sdf = SimpleDateFormat(pattern, Locale.US).apply {
+                        timeZone = TimeZone.getTimeZone("UTC")
+                    }
+                    parsed = sdf.parse(rawDate)
+                    if (parsed != null) break
+                } catch (_: Exception) {}
+            }
+            parsed?.let { displayDateFormatter.format(it) } ?: ""
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    // ──────────────── PREFILLED FORM STATES ────────────────
+    var selectedCustomerId by remember(prefillOrder) {
+        mutableStateOf<String?>(
+            prefillOrder?.customerId?._id
+                ?: prefillOrder?.customerSnapshot?.customerCode
+                ?: prefillOrder?.order?.customerId?._id
+        )
+    }
+
+    var customerDisplayName by remember(prefillOrder) {
+        val name = prefillOrder?.customerSnapshot?.name
+            ?: prefillOrder?.order?.customerId?.name
+            ?: ""
+        val phone = prefillOrder?.customerSnapshot?.phone
+            ?: prefillOrder?.order?.customerId?.mobile
+            ?: ""
+        mutableStateOf(if (name.isNotBlank() && phone.isNotBlank()) "$name ($phone)" else name)
+    }
+    var customerDropdownExpanded by remember { mutableStateOf(false) }
+
+    var invoiceNumber by remember { mutableStateOf("INV-AUTO") }
+
+    // Prefill Reference / Order Number
+    var referenceOrderNumber by remember(prefillOrder) {
+        mutableStateOf(
+            prefillOrder?.orderCode?.takeIf { it.isNotBlank() }
+                ?: prefillOrder?.order?.orderNumber
+                ?: ""
+        )
+    }
+
+    var selectedPaymentTermId by remember(prefillOrder) {
+        mutableStateOf(prefillOrder?.paymentTermId?.id)
+    }
+    var paymentTermsDisplayName by remember(prefillOrder) {
+        mutableStateOf(prefillOrder?.paymentTermId?.name ?: "")
+    }
+    var paymentTermsExpanded by remember { mutableStateOf(false) }
+
+    // Prefill Due Date from order dueDate or deliveryDate
+    var dueDate by remember(prefillOrder) {
+        val prefillDueDate = formatToDisplayDate(prefillOrder?.dueDate ?: prefillOrder?.order?.deliveryDate)
+        mutableStateOf(if (prefillDueDate.isNotBlank()) prefillDueDate else displayDateFormatter.format(calendar.time))
+    }
+
+    // Prefill Itemized Sales Lines from order items
+    val salesLines = remember(prefillOrder) {
+        val list = mutableStateListOf<SalesLineRowState>()
+        if (prefillOrder != null && prefillOrder.items.isNotEmpty()) {
+            prefillOrder.items.forEach { item ->
+                list.add(
+                    SalesLineRowState(
+                        itemId = item._id,
+                        itemName = item.categoryName.ifBlank { item.itemDescription.orEmpty() },
+                        quantity = item.quantity.toString(),
+                        rate = (item.unitPrice ?: item.stitchingCharge).toString(),
+                        taxGroupId = item.taxGroupId?.id.orEmpty(),
+                        taxGroupName = item.taxGroupId?.name ?: "GST 5% (CGST 2.5% + SGST 2.5%)",
+                        taxRatePercentage = item.taxGroupId?.totalRate ?: 5.0,
+                        incomeAccountId = "",
+                        incomeAccountName = "Sales Revenue"
+                    )
+                )
+            }
+        } else {
+            list.add(SalesLineRowState())
+        }
+        list
+    }
 
     // ──────────────── API STATES OBSERVATION ────────────────
     val customerUiState by customerViewModel.uiState.collectAsStateWithLifecycle()
@@ -89,10 +190,65 @@ fun CreateSalesInvoiceScreen(
     val taxGroupsList by inventoryViewModel.taxGroups.collectAsStateWithLifecycle()
     val paymentTermsList by financeViewModel.paymentTermsList.collectAsStateWithLifecycle()
 
-    // Create Invoice Action State
     val createInvoiceState by financeViewModel.createInvoiceState.collectAsStateWithLifecycle()
 
-    // Listen for API response
+    // Fetch API Data on screen launch
+    LaunchedEffect(Unit) {
+        customerViewModel.loadCustomers(isRefresh = true)
+        financeViewModel.fetchChartOfAccountsDropdown(context = "sales_line")
+        financeViewModel.fetchPaymentTerms()
+        inventoryViewModel.fetchFabricList()
+        inventoryViewModel.fetchTaxGroups()
+    }
+
+    // Match customer from customer list once loaded
+    LaunchedEffect(customersList, prefillOrder) {
+        if (customersList.isNotEmpty() && prefillOrder != null) {
+            val targetId = prefillOrder.customerId?._id ?: prefillOrder.order.customerId?._id
+            val targetCode = prefillOrder.customerSnapshot?.customerCode
+            val targetName = prefillOrder.customerSnapshot?.name ?: prefillOrder.order.customerId?.name
+
+            val matchedCustomer = customersList.find { c ->
+                c.id == targetId || c.customerCode == targetCode || c.name.equals(targetName, ignoreCase = true)
+            }
+
+            if (matchedCustomer != null) {
+                selectedCustomerId = matchedCustomer.id
+                val mob = matchedCustomer.mobile?.trim().orEmpty()
+                customerDisplayName = if (mob.isNotBlank()) "${matchedCustomer.name.trim()} ($mob)" else matchedCustomer.name.trim()
+            }
+        }
+    }
+
+    // Match default income accounts for item rows once loaded
+    LaunchedEffect(accountDropdownList) {
+        if (accountDropdownList.isNotEmpty()) {
+            val defaultAccount = accountDropdownList.find { it.accountName.contains("Sales", ignoreCase = true) }
+                ?: accountDropdownList.first()
+            salesLines.forEach { line ->
+                if (line.incomeAccountId.isBlank()) {
+                    line.incomeAccountId = defaultAccount.id
+                    line.incomeAccountName = defaultAccount.displayName.ifBlank { defaultAccount.accountName }
+                }
+            }
+        }
+    }
+
+    // Match default tax groups for item rows once loaded
+    LaunchedEffect(taxGroupsList) {
+        if (taxGroupsList.isNotEmpty()) {
+            val defaultTax = taxGroupsList.find { it.isDefault } ?: taxGroupsList.first()
+            salesLines.forEach { line ->
+                if (line.taxGroupId.isBlank()) {
+                    line.taxGroupId = defaultTax.id
+                    line.taxGroupName = defaultTax.name
+                    line.taxRatePercentage = defaultTax.totalRate
+                }
+            }
+        }
+    }
+
+    // Listen for invoice creation API response
     LaunchedEffect(createInvoiceState) {
         when (val state = createInvoiceState) {
             is CreateInvoiceState.Success -> {
@@ -109,41 +265,17 @@ fun CreateSalesInvoiceScreen(
         }
     }
 
-    // Date Formatters
-    val calendar = remember { Calendar.getInstance() }
-    val displayDateFormatter = remember { SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()) }
-    var dueDate by remember { mutableStateOf(displayDateFormatter.format(calendar.time)) }
-
-    // Fetch API Data on screen launch
-    LaunchedEffect(Unit) {
-        customerViewModel.loadCustomers(isRefresh = true)
-        financeViewModel.fetchChartOfAccountsDropdown(context = "sales_line")
-        financeViewModel.fetchPaymentTerms()
-        inventoryViewModel.fetchFabricList()
-        inventoryViewModel.fetchTaxGroups()
-    }
-
-    // Form Header States
-    var selectedCustomerId by remember { mutableStateOf<String?>(null) }
-    var customerDisplayName by remember { mutableStateOf("") }
-    var customerDropdownExpanded by remember { mutableStateOf(false) }
-
-    var invoiceNumber by remember { mutableStateOf("INV-AUTO") }
-    var referenceOrderNumber by remember { mutableStateOf("") }
-
-    var selectedPaymentTermId by remember { mutableStateOf<String?>(null) }
-    var paymentTermsDisplayName by remember { mutableStateOf("") }
-    var paymentTermsExpanded by remember { mutableStateOf(false) }
-
-    // Auto-select default payment term from API
+    // Auto-select payment term from API if not already set by prefill
     LaunchedEffect(paymentTermsList) {
         if (paymentTermsDisplayName.isBlank() && paymentTermsList.isNotEmpty()) {
             val defaultTerm = paymentTermsList.find { it.isDefault } ?: paymentTermsList.first()
             selectedPaymentTermId = defaultTerm.id
             paymentTermsDisplayName = defaultTerm.name
 
-            val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, defaultTerm.dueDays) }
-            dueDate = displayDateFormatter.format(cal.time)
+            if (prefillOrder == null) {
+                val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, defaultTerm.dueDays) }
+                dueDate = displayDateFormatter.format(cal.time)
+            }
         }
     }
 
@@ -160,18 +292,16 @@ fun CreateSalesInvoiceScreen(
         )
     }
 
-    // Line Items State
-    val salesLines = remember { mutableStateListOf(SalesLineRowState()) }
     val itemDropdownExpandedMap = remember { mutableStateMapOf<String, Boolean>() }
     val incomeDropdownExpandedMap = remember { mutableStateMapOf<String, Boolean>() }
     val taxDropdownExpandedMap = remember { mutableStateMapOf<String, Boolean>() }
 
     // Notes & Terms
-    var customerNotes by remember {
-        mutableStateOf("Thank you for your business! Payment is requested via ACH wire transfer or credit card.")
+    var customerNotes by remember(prefillOrder) {
+        mutableStateOf(prefillOrder?.orderNotes.orEmpty())
     }
     var termsAndConditions by remember {
-        mutableStateOf("Payment due within 30 days of invoice date.")
+        mutableStateOf("")
     }
 
     // Attachments
@@ -238,7 +368,7 @@ fun CreateSalesInvoiceScreen(
         return Triple(selectedCustomerId!!, linesJson, binaryParts)
     }
 
-    // 1. Handles Save Draft Action
+    // Handles Save Draft Action
     fun handleSaveDraft() {
         if (createInvoiceState is CreateInvoiceState.Loading) return
         val prepared = preparePayload() ?: return
@@ -258,7 +388,7 @@ fun CreateSalesInvoiceScreen(
         )
     }
 
-    // 2. Handles Save and Send Action
+    // Handles Save and Send Action
     fun handleSaveAndSend() {
         if (createInvoiceState is CreateInvoiceState.Loading) return
         val prepared = preparePayload() ?: return
@@ -292,7 +422,7 @@ fun CreateSalesInvoiceScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
-            verticalArrangement = Arrangement.spacedBy(tokens.screenPadding) // Clear spacing between distinct cards
+            verticalArrangement = Arrangement.spacedBy(tokens.screenPadding)
         ) {
             // ──────────────── CARD 1: GENERAL INVOICE FIELDS ────────────────
             Card(
@@ -424,7 +554,6 @@ fun CreateSalesInvoiceScreen(
                         .padding(tokens.cardPadding),
                     verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                 ) {
-                    // Header Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -447,7 +576,6 @@ fun CreateSalesInvoiceScreen(
                         )
                     }
 
-                    // Horizontally Scrollable Table: contains ONLY headers and data rows
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -456,7 +584,6 @@ fun CreateSalesInvoiceScreen(
                         Column(
                             verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                         ) {
-                            // Table Header Row
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
@@ -470,7 +597,6 @@ fun CreateSalesInvoiceScreen(
                                 Spacer(Modifier.width(tokens.iconSize * 1.5f))
                             }
 
-                            // Table Data Rows
                             salesLines.forEachIndexed { index, line ->
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -482,7 +608,7 @@ fun CreateSalesInvoiceScreen(
                                             value = line.itemName,
                                             expanded = itemDropdownExpandedMap[line.id] == true,
                                             onExpandChange = { itemDropdownExpandedMap[line.id] = it },
-                                            options = itemOptions.ifEmpty { listOf("Select Item") },
+                                            options = itemOptions.ifEmpty { listOf(line.itemName.ifBlank { "Select Item" }) },
                                             onOptionSelected = { chosenName ->
                                                 line.itemName = chosenName
                                                 val matchedItem = fabricItemList.find { it.name == chosenName }
@@ -505,7 +631,7 @@ fun CreateSalesInvoiceScreen(
                                             value = line.incomeAccountName,
                                             expanded = incomeDropdownExpandedMap[line.id] == true,
                                             onExpandChange = { incomeDropdownExpandedMap[line.id] = it },
-                                            options = accountOptions.ifEmpty { listOf("Select Account") },
+                                            options = accountOptions.ifEmpty { listOf(line.incomeAccountName.ifBlank { "Select Account" }) },
                                             onOptionSelected = { chosenAccountName ->
                                                 line.incomeAccountName = chosenAccountName
                                                 val matchedAcc = accountDropdownList.find {
@@ -531,7 +657,7 @@ fun CreateSalesInvoiceScreen(
                                             value = line.taxGroupName,
                                             expanded = taxDropdownExpandedMap[line.id] == true,
                                             onExpandChange = { taxDropdownExpandedMap[line.id] = it },
-                                            options = taxGroupOptions.ifEmpty { listOf("Tax (0%)") },
+                                            options = taxGroupOptions.ifEmpty { listOf(line.taxGroupName.ifBlank { "Tax (0%)" }) },
                                             onOptionSelected = { chosenTaxName ->
                                                 line.taxGroupName = chosenTaxName
                                                 val matchedTax = taxGroupsList.find { it.name == chosenTaxName }
@@ -573,7 +699,6 @@ fun CreateSalesInvoiceScreen(
                         }
                     }
 
-                    // Divider and "+ Add New Row" are placed below in the Column (NOT inside the horizontal scroll Box)
                     HorizontalDivider(color = BorderGray)
 
                     Box(
@@ -706,7 +831,6 @@ fun CreateSalesInvoiceScreen(
                     )
                     Spacer(Modifier.height(tokens.extraPadding))
 
-                    // Reusing ImageUploadSection component
                     ImageUploadSection(
                         selectedImages = selectedAttachmentUris,
                         onBrowseClick = { attachmentPickerLauncher.launch("*/*") },
@@ -736,7 +860,6 @@ fun CreateSalesInvoiceScreen(
                 textColor = TextPrimary
             )
 
-            // Extra clearance at the bottom so the floating bottom bar doesn't overlap action buttons
             Spacer(Modifier.height(110.dp))
         }
     }

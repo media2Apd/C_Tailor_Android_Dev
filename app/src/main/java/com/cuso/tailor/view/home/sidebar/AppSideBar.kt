@@ -100,6 +100,7 @@ fun buildNavigationKey(menu: String, subItem: String): String {
     // Explicit Sales route mapping
     if (menu == "Sales") {
         return when (subItem) {
+            "Sales Dashboard"      -> "sales_dashboard" // Route to sales dashboard
             "Opportunity Pipeline" -> "sales_opportunity_pipeline"
             "Opportunities"        -> "sales_opportunities"
             "Opportunity"          -> "sales_opportunities"
@@ -124,20 +125,21 @@ fun buildNavigationKey(menu: String, subItem: String): String {
     }
 
     if (menu == "Finance") {
-        return when (subItem) {
-            "Customers"          -> "finance_customers"
-            "Orders"             -> "finance_sales_orders"
-            "Invoice", "Invoices"-> "finance_sales_invoices"
-            "Suppliers"          -> "finance_suppliers"
-            "Purchase List"      -> "finance_purchase_orders"
-            "Purchase Receive"   -> "finance_purchase_receive"
-            "Purchase Bills"     -> "finance_bills_list"
-            "Payments Made"      -> "finance_payments_made"
-            "Expense Management" -> "finance_expenses"
-            "Chart Of Accounts",
-            "Chart of Accounts"  -> "finance_chart_of_accounts"
-            "Journal Entries"    -> "finance_journal_screen"
-            "Approvals"          -> "inventory_approvals"
+        return when (subItem.trim().lowercase()) {
+            "finance dashboard"  -> "finance_dashboard"
+            "customers", "customer" -> "finance_customers"
+            "orders", "order"    -> "finance_sales_orders"
+            "invoice", "invoices"-> "finance_sales_invoices"
+            "receipts", "receipt"-> "finance_receipts"
+            "suppliers", "supplier" -> "finance_suppliers"
+            "purchase list"      -> "finance_purchase_orders"
+            "purchase receive"   -> "finance_purchase_receive"
+            "purchase bills"     -> "finance_bills_list"
+            "payments made"      -> "finance_payments_made"
+            "expense management" -> "finance_expenses"
+            "chart of accounts"  -> "finance_chart_of_accounts"
+            "journal entries"    -> "finance_journal_screen"
+            "approvals"          -> "inventory_approvals"
             else -> "finance_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }
     }
@@ -155,6 +157,7 @@ fun buildNavigationKey(menu: String, subItem: String): String {
 
             // Procurement sub-items: route Bill List to AllBillListScreen
             "Suppliers"           -> "inventory_suppliers"
+            "Return", "Returns"   -> "inventory_returns"
             "Purchase Request"    -> "inventory_procurement_purchase_request"
             "Purchase Order"      -> "inventory_procurement_purchase_order"
             "Purchase Receive"    -> "inventory_procurement_purchase_receive"
@@ -262,6 +265,7 @@ object SidebarConfig {
                 label = "Sales",
                 isPanel = true,
                 categories = listOf(
+                    "Sales Dashboard",
                     "Lead Management",
                     "Customer",
                     "Opportunity",
@@ -292,6 +296,7 @@ object SidebarConfig {
                 label = "Finance",
                 isPanel = true,
                 categories = listOf(
+                    "Finance Dashboard",
                     "Sales",
                     "Purchase",
                     "Expense Management",

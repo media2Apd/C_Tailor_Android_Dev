@@ -119,7 +119,9 @@ import com.cuso.tailor.model.sales.MeasurementItem
 import com.cuso.tailor.model.sales.OrderOverviewData
 import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.InventoryViewModel
+import com.cuso.tailor.viewmodel.SalesViewModel
 
 val LeadPrimary = Primary
 val LeadPrimarySoft = light_blue_border
@@ -132,6 +134,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     val viewModel: HomeViewModel = hiltViewModel()
     val authViewModel: Authenticate = hiltViewModel()
     val hrViewModel: HrViewModel = hiltViewModel()
+    val salesViewModel: SalesViewModel = hiltViewModel()
+    val branchViewModel: BranchViewModel = hiltViewModel()
     val customerViewModel: CustomerViewModel = hiltViewModel()
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val profileViewModel: ProfileViewModel = hiltViewModel()
@@ -203,7 +207,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedReceivePoId by remember { mutableStateOf<String?>(null) }
     var selectedBarcodeIdForDetail by remember { mutableStateOf<String?>(null) }
     var selectedCategoryIdForEdit by remember { mutableStateOf<String?>(null) }
-
+    var selectedPicklistId by remember { mutableStateOf<String?>(null) }
+    var selectedPackageIdForDetail by remember { mutableStateOf<String?>(null) }
+    var selectedPackageIdForEdit by remember { mutableStateOf<String?>(null) }
     // Approvals State
     var selectedApprovalId by remember { mutableStateOf<String?>(null) }
 
@@ -474,6 +480,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
             // ── Inventory Core & Structure ──
             "inventory_items",
+            "inventory_picklist_detail",
+            "inventory_create_package",
             "inventory_all_items",
             "inventory_create_item",
             "inventory_item_detail",
@@ -489,6 +497,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_transfer_order",
             "inventory_transfer_stock",
             "inventory_items_transfer_stock",
+            "inventory_packages",
+            "inventory_create_package",
+            "inventory_package_detail",
 
             // ── Inventory Billing & Bills ──
             "inventory_billing",
@@ -499,6 +510,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             // ── Inventory Procurement Flow ──
             "inventory_procurement_returns",
             "inventory_returns",
+            "inventory_picklist",
+            "inventory_picklist_detail",
+            "inventory_create_picklist",
+            "inventory_packages",
             "inventory_suppliers",
             "inventory_procurement_suppliers",
             "inventory_supplier_detail",
@@ -759,7 +774,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
+                "inventory_package_detail" -> selectedPackageIdForDetail = null
+                "inventory_create_package" -> selectedPackageIdForEdit = null
                 "hr_new_document_upload" -> selectedDocumentId = null
+                "inventory_picklist_detail", "inventory_create_picklist" -> selectedPicklistId = null
                 "hr_add_document_category" -> selectedDocumentCategoryId = null
                 "hr_assign_training_form" -> selectedTrainingAssignmentId = null
                 "hr_add_edit_program" -> selectedTrainingProgramId = null
@@ -951,6 +969,13 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+
+                            selectedPackageIdForDetail = selectedPackageIdForDetail,
+                            onPackageIdForDetailSelected = { selectedPackageIdForDetail = it },
+                            selectedPackageIdForEdit = selectedPackageIdForEdit,
+                            onPackageIdForEditSelected = { selectedPackageIdForEdit = it },
+                            selectedPicklistId = selectedPicklistId,
+                            onPicklistIdSelected = { selectedPicklistId = it },
                             isOrderFromFinance = isOrderFromFinance,
                             invoiceForPayment = invoiceForPayment,
                             onInvoiceForPaymentChange = { invoiceForPayment = it },
@@ -996,6 +1021,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             onBulkItemIdSelected = { selectedBulkItemId = it },
                             token = token,
                             hrViewModel = hrViewModel,
+                            salesViewModel = salesViewModel,
+                            branchViewModel = branchViewModel,
                             customerViewModel = customerViewModel,
                             inventoryViewModel = inventoryViewModel,
                             settingsViewModel = settingsViewModel,
@@ -1112,6 +1139,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             onClose = { showQuickAccessPanel = false },
             onItemClick = { route ->
                 when (route) {
+                    "create_picklist", "inventory_create_picklist" -> {
+                        isSalesSettingsMode = false
+                        selectedPicklistId = null
+                        navigateTo("inventory_create_picklist")
+                    }
                     "create_order" -> {
                         isSalesSettingsMode = false
                         pendingOrderReviewData = null
@@ -1809,6 +1841,12 @@ fun normalizeRoute(rawKey: String): String {
         "inventory_bill_list" -> "inventory_all_bills"
 
         // Procurement mappings
+        // Inventory sub-category mappings
+        "inventory_picklist" -> "inventory_picklist"
+        "inventory_packages" -> "inventory_packages"
+        "inventory_create_package" -> "inventory_create_package"
+        "inventory_package_detail" -> "inventory_package_detail"
+        "inventory_create_picklist" -> "inventory_create_picklist"
         "inventory_procurement_suppliers" -> "inventory_suppliers"
         "inventory_payments_made", "inventory_payables_payments" -> "inventory_payments_made"
         "inventory_procurement_purchase_request" -> "inventory_requisitions"

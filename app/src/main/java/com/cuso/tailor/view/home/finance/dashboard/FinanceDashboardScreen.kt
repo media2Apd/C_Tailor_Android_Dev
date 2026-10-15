@@ -1,55 +1,35 @@
-
 @file:Suppress("unused", "SpellCheckingInspection")
 
 package com.cuso.tailor.view.home.finance.dashboard
 
+import android.annotation.SuppressLint
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
@@ -61,146 +41,23 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.ui.theme.BluePrimary
-import com.cuso.tailor.ui.theme.BorderGray
-import com.cuso.tailor.ui.theme.Primary_background
-import com.cuso.tailor.ui.theme.TextPrimary
-import com.cuso.tailor.ui.theme.TextSecondary
-import com.cuso.tailor.ui.theme.chartAmber
-import com.cuso.tailor.ui.theme.chartBlue
-import com.cuso.tailor.ui.theme.chartEmerald
-import com.cuso.tailor.ui.theme.chartGreenDeep
-import com.cuso.tailor.ui.theme.darkGreenBg
-import com.cuso.tailor.ui.theme.grey_border
-import com.cuso.tailor.ui.theme.greenBg
-import com.cuso.tailor.ui.theme.greentext
-import com.cuso.tailor.ui.theme.headerGrey
-import com.cuso.tailor.ui.theme.light_grey
-import com.cuso.tailor.ui.theme.mutedText
-import com.cuso.tailor.ui.theme.orangeBg
-import com.cuso.tailor.ui.theme.orangeText
-import com.cuso.tailor.ui.theme.primary_light
-import com.cuso.tailor.ui.theme.redBg
-import com.cuso.tailor.ui.theme.redText
-import com.cuso.tailor.ui.theme.title_border
-import com.cuso.tailor.ui.theme.whiteBg
-import com.cuso.tailor.ui.theme.yellowBg
-import com.cuso.tailor.ui.theme.yellowText
+import com.cuso.tailor.model.finance.*
+import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.viewmodel.FinanceViewModel
+import androidx.core.graphics.toColorInt
+import com.cuso.tailor.view.composable.FinanceDashboardSkeleton
 
 // =============================================================
-// UI MODELS
+// SCREEN (DYNAMIC API DATA WITH SMOOTH ANIMATIONS)
 // =============================================================
 
-private data class FinanceKpi(
-    val icon: ImageVector,
-    val iconBg: Color,
-    val iconTint: Color,
-    val title: String,
-    val value: String,
-    val trend: String? = null,
-    val badge: String? = null
-)
-
-private data class DistributionItem(val label: String, val percent: Float, val amount: String, val color: Color)
-private data class BankItem(val name: String, val amount: String, val color: Color)
-private data class ExpenseCategory(val label: String, val percent: Float, val color: Color)
-private data class TransactionItem(
-    val name: String,
-    val tag: String,
-    val reference: String,
-    val date: String,
-    val amount: String,
-    val status: String
-)
-
-private data class SummaryItem(
-    val title: String,
-    val firstLabel: String,
-    val firstValue: String,
-    val secondLabel: String,
-    val secondValue: String,
-    val actionText: String
-)
-
-private data class AlertItem(
-    val icon: ImageVector,
-    val iconBg: Color,
-    val iconTint: Color,
-    val title: String,
-    val subtitle: String,
-    val count: String,
-    val countBg: Color,
-    val countFg: Color
-)
-
-// =============================================================
-// DATA
-// =============================================================
-
-private val kpiItems = listOf(
-    FinanceKpi(Icons.Outlined.AccountBalanceWallet, primary_light, BluePrimary, "Total Receivables", "₹ 2.48 Cr", trend = "12.8%"),
-    FinanceKpi(Icons.Outlined.ShoppingCart, redBg, redText, "Total Payables", "₹ 1.76 Cr", trend = "8.4%"),
-    FinanceKpi(Icons.Outlined.AccountBalance, primary_light, BluePrimary, "Total Funds", "₹ 3.92 Cr", trend = "5.6%"),
-    FinanceKpi(Icons.AutoMirrored.Outlined.TrendingUp, greenBg, darkGreenBg, "Monthly Collected", "₹ 1.82 Cr", trend = "15.3%"),
-    FinanceKpi(Icons.Outlined.CreditCard, orangeBg, orangeText, "Monthly Expenses", "₹ 1.05 Cr", trend = "6.1%"),
-    FinanceKpi(Icons.Default.Warning, orangeBg, orangeText, "Pending Approvals", "28 Tasks", badge = "Outstanding")
-)
-
-private val inflowPoints = listOf(1.2f, 1.8f, 1.1f, 2.2f, 1.6f, 1.8f)
-private val outflowPoints = listOf(0.9f, 1.4f, 0.8f, 1.3f, 1.15f, 1.2f)
-private val cashFlowXLabels = listOf("Jul 24", "", "Nov 24", "Mar 25", "May 25", "")
-private val cashFlowPeriods = listOf("Last 6 Month", "Last 12 Month", "Last 24 Month")
-
-private val distributionItems = listOf(
-    DistributionItem("Receivables", 27f, "₹2.48 Cr", BluePrimary),
-    DistributionItem("Payables", 19f, "₹1.76 Cr", redText),
-    DistributionItem("Expenses", 11f, "₹1.05 Cr", chartAmber),
-    DistributionItem("Funds / Cash", 43f, "₹3.92 Cr", greentext)
-)
-
-private val bankItems = listOf(
-    BankItem("HDFC - Main Campus", "₹ 1.56 Cr", chartBlue),
-    BankItem("ICICI - City Campus", "₹ 1.12 Cr", BluePrimary),
-    BankItem("SBI - North", "₹ 78.40 L", greentext),
-    BankItem("Cash In Hand", "₹ 78,000", greentext)
-)
-
-private val expenseCategories = listOf(
-    ExpenseCategory("Salaries", 40f, chartBlue),
-    ExpenseCategory("Administration", 25f, chartAmber),
-    ExpenseCategory("Academics", 20f, chartEmerald),
-    ExpenseCategory("Utilities", 15f, chartGreenDeep)
-)
-
-private val transactionItems = listOf(
-    TransactionItem("Rahul Sharma", "Invoice Received", "INV-2025-186", "30 May 2025", "₹ 68,250", "Open"),
-    TransactionItem("Ananya Gupta", "Receipt Collected", "INV-2025-186", "29 May 2025", "₹ 1,25,000", "Completed"),
-    TransactionItem("Bright Future Books", "Salary Payment", "INV-2025-186", "28 May 2025", "₹ 75,430", "Completed"),
-    TransactionItem("Neha Verma", "Expense Reimb.", "INV-2025-186", "27 May 2025", "₹ 18,756", "Pending")
-)
-
-private val summaryItems = listOf(
-    SummaryItem("Sales", "Total Sales", "₹ 4.82 Cr", "Pending Invoices", "12", "Go to Sales"),
-    SummaryItem("Purchase", "Total Purchase", "₹ 2.14 Cr", "Pending POs", "8", "Go to Purchase"),
-    SummaryItem("General Ledger", "Total Entries", "1,248", "Reconciled", "98%", "Go to Ledger"),
-    SummaryItem("Expenses", "Total Expenses", "₹ 1.05 Cr", "Pending Claims", "24", "Go to Expenses"),
-    SummaryItem("Funds", "Total Funds", "₹ 3.92 Cr", "Available Balance", "₹ 2.18 Cr", "Go to Funds")
-)
-
-private val alertItems = listOf(
-    AlertItem(Icons.Default.Warning, redBg, redText, "Supplier Payments Due", "Due in next 7 days", "9", redBg, redText),
-    AlertItem(Icons.Default.Schedule, orangeBg, orangeText, "Expense Claims", "Awaiting manager approval", "24", orangeBg, orangeText),
-    AlertItem(Icons.Default.AccessTime, primary_light, BluePrimary, "Bank Reconciliation", "Unreconciled items remaining", "27", primary_light, BluePrimary)
-)
-
-// =============================================================
-// SCREEN
-// =============================================================
-
+@SuppressLint("DefaultLocale")
 @Composable
 fun FinanceOverviewScreen(
+    viewModel: FinanceViewModel = hiltViewModel(),
     onClose: () -> Unit = {},
     onViewDistribution: () -> Unit = {},
     onViewFunds: () -> Unit = {},
@@ -210,6 +67,27 @@ fun FinanceOverviewScreen(
 ) {
     val tokens = LocalAppTokens.current
 
+    // Observe API States
+    val kpiData by viewModel.kpiData.collectAsState()
+    val cashFlowData by viewModel.cashFlowData.collectAsState()
+    val distributionData by viewModel.distributionData.collectAsState()
+    val salesOverview by viewModel.salesOverview.collectAsState()
+    val purchaseOverview by viewModel.purchaseOverview.collectAsState()
+    val ledgerOverview by viewModel.ledgerOverview.collectAsState()
+    val expensesOverview by viewModel.expensesOverview.collectAsState()
+    val fundsOverview by viewModel.fundsOverview.collectAsState()
+    val recentTransactions by viewModel.recentTransactions.collectAsState()
+    val alertsList by viewModel.alertsList.collectAsState()
+    val bankSnapshot by viewModel.bankSnapshot.collectAsState()
+    val expenseCategories by viewModel.expenseCategories.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    // Trigger staggered entry animations when screen loads
+    var isVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        isVisible = true
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -218,79 +96,279 @@ fun FinanceOverviewScreen(
         TitleBar(title = "Finance Overview", onClose = onClose)
         HorizontalDivider(color = title_border)
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding),
-            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
-        ) {
-            SectionTitle("Key Metrics")
-
-            kpiItems.chunked(2).forEach { pair ->
-                Row(
+        AnimatedContent(
+            targetState = isLoading && kpiData == null,
+            transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
+            label = "loading_state_transition"
+        ) { loading ->
+            if (loading) {
+                FinanceDashboardSkeleton() // <-- Exact Finance Skeleton
+            } else {
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding),
+                    verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
                 ) {
-                    pair.forEach { item ->
-                        FinanceKpiCard(item = item, modifier = Modifier.weight(1f))
+                    // Staggered Section 1: KPI Cards
+                    AnimatedVisibility(
+                        visible = isVisible,
+                        enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { 50 }
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)) {
+                            SectionTitle("Key Metrics")
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
+                            ) {
+                                FinanceKpiCard(
+                                    icon = Icons.Outlined.AccountBalanceWallet,
+                                    iconBg = primary_light,
+                                    iconTint = BluePrimary,
+                                    title = "Total Receivables",
+                                    value = "₹ ${formatAmount(kpiData?.totalReceivables?.amount ?: 0.0)}",
+                                    trend = kpiData?.totalReceivables?.salesGrowth,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FinanceKpiCard(
+                                    icon = Icons.Outlined.ShoppingCart,
+                                    iconBg = redBg,
+                                    iconTint = redText,
+                                    title = "Total Payables",
+                                    value = "₹ ${formatAmount(kpiData?.totalPayables?.amount ?: 0.0)}",
+                                    trend = kpiData?.totalPayables?.billingGrowth,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
+                            ) {
+                                FinanceKpiCard(
+                                    icon = Icons.Outlined.AccountBalance,
+                                    iconBg = primary_light,
+                                    iconTint = BluePrimary,
+                                    title = "Total Funds",
+                                    value = "₹ ${formatAmount(kpiData?.totalFunds?.amount ?: 0.0)}",
+                                    trend = kpiData?.totalFunds?.growth,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FinanceKpiCard(
+                                    icon = Icons.AutoMirrored.Outlined.TrendingUp,
+                                    iconBg = greenBg,
+                                    iconTint = darkGreenBg,
+                                    title = "Monthly Collected",
+                                    value = "₹ ${formatAmount(kpiData?.periodCollected?.amount ?: 0.0)}",
+                                    trend = kpiData?.periodCollected?.growth,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
+                            ) {
+                                FinanceKpiCard(
+                                    icon = Icons.Outlined.CreditCard,
+                                    iconBg = orangeBg,
+                                    iconTint = orangeText,
+                                    title = "Monthly Expenses",
+                                    value = "₹ ${formatAmount(kpiData?.periodExpenses?.amount ?: 0.0)}",
+                                    trend = kpiData?.periodExpenses?.growth,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FinanceKpiCard(
+                                    icon = Icons.Default.Warning,
+                                    iconBg = orangeBg,
+                                    iconTint = orangeText,
+                                    title = "Pending Approvals",
+                                    value = "${kpiData?.pendingApprovals?.total ?: 0} Tasks",
+                                    badge = "Outstanding",
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            PendingActionsCard(
+                                label = "Pending Approvals",
+                                count = String.format("%02d", kpiData?.pendingApprovals?.total ?: 0)
+                            )
+                        }
+                    }
+
+                    // Staggered Section 2: Cash Flow Trends
+                    AnimatedVisibility(
+                        visible = isVisible,
+                        enter = fadeIn(tween(500)) + slideInVertically(tween(500)) { 60 }
+                    ) {
+                        CashFlowTrendsCard(cashFlowData = cashFlowData)
+                    }
+
+                    // Staggered Section 3: Finance Distribution
+                    AnimatedVisibility(
+                        visible = isVisible,
+                        enter = fadeIn(tween(600)) + slideInVertically(tween(600)) { 70 }
+                    ) {
+                        FinanceDistributionCard(
+                            distributionData = distributionData,
+                            onViewClick = onViewDistribution
+                        )
+                    }
+
+                    // Staggered Section 4: Bank Snapshot
+                    AnimatedVisibility(
+                        visible = isVisible,
+                        enter = fadeIn(tween(700)) + slideInVertically(tween(700)) { 80 }
+                    ) {
+                        BankSnapshotCard(
+                            snapshot = bankSnapshot,
+                            categories = expenseCategories,
+                            onViewFunds = onViewFunds
+                        )
+                    }
+
+                    // Staggered Section 5: Recent Transactions
+                    AnimatedVisibility(
+                        visible = isVisible,
+                        enter = fadeIn(tween(800)) + slideInVertically(tween(800)) { 90 }
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
+                            SectionTitle("Recent Transactions")
+                            RecentTransactionsCard(transactions = recentTransactions)
+                        }
+                    }
+
+                    // Staggered Section 6: Summary Areas
+                    AnimatedVisibility(
+                        visible = isVisible,
+                        enter = fadeIn(tween(900)) + slideInVertically(tween(900)) { 100 }
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
+                            SectionTitle("Summary Areas")
+                            SummaryAreaCard(
+                                title = "Sales",
+                                firstLabel = "Customers",
+                                firstValue = "${salesOverview?.summary?.get("customers") ?: 0}",
+                                secondLabel = "Sales Invoices",
+                                secondValue = "${salesOverview?.summary?.get("salesInvoices") ?: 0}",
+                                actionText = "Go to Sales",
+                                onView = { onSummaryView("Sales") },
+                                onGoTo = { onGoTo("Sales") }
+                            )
+                            SummaryAreaCard(
+                                title = "Purchase",
+                                firstLabel = "Suppliers",
+                                firstValue = "${purchaseOverview?.summary?.get("suppliers") ?: 0}",
+                                secondLabel = "Purchase Invoices",
+                                secondValue = "${purchaseOverview?.summary?.get("purchaseInvoices") ?: 0}",
+                                actionText = "Go to Purchase",
+                                onView = { onSummaryView("Purchase") },
+                                onGoTo = { onGoTo("Purchase") }
+                            )
+                            SummaryAreaCard(
+                                title = "General Ledger",
+                                firstLabel = "Chart of Accounts",
+                                firstValue = "${ledgerOverview?.summary?.get("chartOfAccounts") ?: 0}",
+                                secondLabel = "Journal Entries",
+                                secondValue = "${ledgerOverview?.summary?.get("journalEntries") ?: 0}",
+                                actionText = "Go to Ledger",
+                                onView = { onSummaryView("General Ledger") },
+                                onGoTo = { onGoTo("General Ledger") }
+                            )
+                            SummaryAreaCard(
+                                title = "Expenses",
+                                firstLabel = "Submitted",
+                                firstValue = "${expensesOverview?.summary?.get("submitted") ?: 0}",
+                                secondLabel = "Pending Claims",
+                                secondValue = "${expensesOverview?.summary?.get("pendingClaims") ?: 0}",
+                                actionText = "Go to Expenses",
+                                onView = { onSummaryView("Expenses") },
+                                onGoTo = { onGoTo("Expenses") }
+                            )
+                            SummaryAreaCard(
+                                title = "Funds",
+                                firstLabel = "Bank Accounts",
+                                firstValue = "${fundsOverview?.summary?.get("bankAccounts") ?: 0}",
+                                secondLabel = "Unreconciled",
+                                secondValue = "${fundsOverview?.summary?.get("unreconciled") ?: 0}",
+                                actionText = "Go to Funds",
+                                onView = { onSummaryView("Funds") },
+                                onGoTo = { onGoTo("Funds") }
+                            )
+                        }
+                    }
+
+                    // Staggered Section 7: Pending Actions & Alerts
+                    AnimatedVisibility(
+                        visible = isVisible,
+                        enter = fadeIn(tween(1000)) + slideInVertically(tween(1000)) { 110 }
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
+                            SectionTitle("Pending Actions & Alerts")
+                            alertsList.forEach { alert ->
+                                AlertCard(
+                                    title = alert.title,
+                                    subtitle = alert.description,
+                                    count = alert.count.toString(),
+                                    badgeColorHex = alert.badgeColor,
+                                    onClick = { onAlertClick(alert.title) }
+                                )
+                            }
+                        }
                     }
                 }
-            }
-
-            PendingActionsCard(label = "Pending Actions", count = "08")
-
-            CashFlowTrendsCard()
-
-            FinanceDistributionCard(onViewClick = onViewDistribution)
-
-            BankSnapshotCard(onViewFunds = onViewFunds)
-
-            SectionTitle("Recent Transactions")
-            RecentTransactionsCard()
-
-            SectionTitle("Summary Areas")
-            summaryItems.forEach { item ->
-                SummaryAreaCard(
-                    item = item,
-                    onView = { onSummaryView(item.title) },
-                    onGoTo = { onGoTo(item.title) }
-                )
-            }
-
-            SectionTitle("Pending Actions & Alerts")
-            alertItems.forEach { item ->
-                AlertCard(item = item, onClick = { onAlertClick(item.title) })
             }
         }
     }
 }
 
 // =============================================================
-// KEY METRICS
+// ANIMATED KPI CARD COMPONENT
 // =============================================================
 
 @Composable
-private fun FinanceKpiCard(item: FinanceKpi, modifier: Modifier = Modifier) {
+private fun FinanceKpiCard(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    iconBg: Color,
+    iconTint: Color,
+    title: String,
+    value: String,
+    trend: String? = null,
+    badge: String? = null
+) {
     val tokens = LocalAppTokens.current
-    FinanceCard(modifier = modifier.fillMaxHeight(), contentPadding = 14.dp) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "kpi_card_scale"
+    )
+
+    FinanceCard(
+        modifier = modifier
+            .fillMaxHeight()
+            .scale(scale),
+        contentPadding = 14.dp
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            FinanceIconBox(icon = item.icon, bg = item.iconBg, tint = item.iconTint)
+            FinanceIconBox(icon = icon, bg = iconBg, tint = iconTint)
             when {
-                item.trend != null -> Text(
-                    text = "▲ ${item.trend}",
+                trend != null -> Text(
+                    text = "▲ $trend",
                     fontSize = tokens.caption,
                     fontWeight = FontWeight.Medium,
                     color = greentext
                 )
-                item.badge != null -> Text(
-                    text = item.badge,
+                badge != null -> Text(
+                    text = badge,
                     fontSize = tokens.caption,
                     fontWeight = FontWeight.Normal,
                     color = chartAmber
@@ -298,10 +376,10 @@ private fun FinanceKpiCard(item: FinanceKpi, modifier: Modifier = Modifier) {
             }
         }
         Spacer(Modifier.height(12.dp))
-        Text(text = item.title, fontSize = tokens.bodySmall, color = mutedText, maxLines = 1)
+        Text(text = title, fontSize = tokens.bodySmall, color = mutedText, maxLines = 1)
         Spacer(Modifier.height(2.dp))
         Text(
-            text = item.value,
+            text = value,
             fontSize = tokens.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = TextPrimary,
@@ -341,19 +419,26 @@ private fun PendingActionsCard(label: String, count: String) {
 }
 
 // =============================================================
-// CASH FLOW TRENDS
+// ANIMATED CASH FLOW TRENDS CARD
 // =============================================================
 
 @Composable
-private fun CashFlowTrendsCard() {
+private fun CashFlowTrendsCard(cashFlowData: CashFlowData?) {
     val tokens = LocalAppTokens.current
-    var expanded by remember { mutableStateOf(false) }
-    var selectedPeriod by remember { mutableStateOf("Last 12 Month") }
+    val points = cashFlowData?.chartData.orEmpty()
+    val inflowPoints = points.map { it.inflow.toFloat() }
+    val outflowPoints = points.map { it.outflow.toFloat() }
+    val maxVal = (inflowPoints + outflowPoints).maxOrNull()?.takeIf { it > 0 } ?: 1000f
 
     val inflowColor = BluePrimary
     val outflowColor = BluePrimary.copy(alpha = 0.4f)
-    val yLabels = listOf("₹3.0 Cr", "₹2.0 Cr", "₹1.0 Cr", "")
-    val maxValue = 3f
+
+    // Animated drawing progress from 0% to 100%
+    val animatedProgress by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+        label = "cash_flow_progress"
+    )
 
     FinanceCard(contentPadding = 16.dp) {
         Row(
@@ -362,40 +447,12 @@ private fun CashFlowTrendsCard() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             CardTitle("Cash Flow Trends")
-            Box {
-                Row(
-                    modifier = Modifier.clickable { expanded = true },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = selectedPeriod.uppercase(),
-                        fontSize = tokens.caption,
-                        color = headerGrey,
-                        maxLines = 1
-                    )
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = headerGrey,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.background(whiteBg)
-                ) {
-                    cashFlowPeriods.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option, fontSize = tokens.bodySmall, color = TextPrimary) },
-                            onClick = {
-                                selectedPeriod = option
-                                expanded = false
-                            }
-                        )
-                    }
-                }
-            }
+            Text(
+                text = cashFlowData?.summary?.status ?: "Surplus",
+                fontSize = tokens.caption,
+                fontWeight = FontWeight.SemiBold,
+                color = if (cashFlowData?.summary?.status == "Surplus") greentext else redText
+            )
         }
 
         Spacer(Modifier.height(8.dp))
@@ -406,40 +463,35 @@ private fun CashFlowTrendsCard() {
         Spacer(Modifier.height(12.dp))
 
         Row(modifier = Modifier.fillMaxWidth().height(120.dp)) {
-            Column(
-                modifier = Modifier.width(48.dp).fillMaxHeight(),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                yLabels.forEach { Text(text = it, fontSize = tokens.label, color = mutedText) }
-            }
-            Canvas(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
                 val w = size.width
                 val h = size.height
+
                 for (i in 0..3) {
                     val y = h * i / 3f
                     drawLine(grey_border, Offset(0f, y), Offset(w, y), 1.dp.toPx())
                 }
-                val slot = w / inflowPoints.size
-                fun offsets(values: List<Float>) = values.mapIndexed { i, v ->
-                    Offset(slot * (i + 0.5f), h * (1f - (v / maxValue).coerceIn(0f, 1f)))
+
+                if (points.isNotEmpty()) {
+                    val slot = w / points.size
+                    fun offsets(values: List<Float>) = values.mapIndexed { i, v ->
+                        val animatedY = h * (1f - ((v * animatedProgress) / maxVal).coerceIn(0f, 1f))
+                        Offset(slot * (i + 0.5f), animatedY)
+                    }
+                    if (outflowPoints.any { it > 0 }) {
+                        drawPath(smoothPath(offsets(outflowPoints)), outflowColor, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+                    }
+                    if (inflowPoints.any { it > 0 }) {
+                        drawPath(smoothPath(offsets(inflowPoints)), inflowColor, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+                    }
                 }
-                drawPath(
-                    smoothPath(offsets(outflowPoints)),
-                    outflowColor,
-                    style = Stroke(2.dp.toPx(), cap = StrokeCap.Round)
-                )
-                drawPath(
-                    smoothPath(offsets(inflowPoints)),
-                    inflowColor,
-                    style = Stroke(2.dp.toPx(), cap = StrokeCap.Round)
-                )
             }
         }
         Spacer(Modifier.height(8.dp))
-        Row(modifier = Modifier.fillMaxWidth().padding(start = 48.dp)) {
-            cashFlowXLabels.forEach { label ->
+        Row(modifier = Modifier.fillMaxWidth()) {
+            points.forEach { pt ->
                 Text(
-                    text = label,
+                    text = pt.periodLabel.take(3),
                     fontSize = tokens.label,
                     color = headerGrey,
                     textAlign = TextAlign.Center,
@@ -452,12 +504,28 @@ private fun CashFlowTrendsCard() {
 }
 
 // =============================================================
-// FINANCE DISTRIBUTION
+// ANIMATED FINANCE DISTRIBUTION
 // =============================================================
 
 @Composable
-private fun FinanceDistributionCard(onViewClick: () -> Unit) {
+private fun FinanceDistributionCard(
+    distributionData: FinanceDistributionData?,
+    onViewClick: () -> Unit
+) {
     val tokens = LocalAppTokens.current
+    val items = distributionData?.distribution.orEmpty()
+
+    // Smooth animate bar width filling
+    var animateBar by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        animateBar = true
+    }
+    val barProgress by animateFloatAsState(
+        targetValue = if (animateBar) 1f else 0f,
+        animationSpec = tween(1000, easing = FastOutSlowInEasing),
+        label = "distribution_bar_anim"
+    )
+
     FinanceCard(contentPadding = 16.dp) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -470,14 +538,15 @@ private fun FinanceDistributionCard(onViewClick: () -> Unit) {
         Spacer(Modifier.height(14.dp))
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            distributionItems.forEach { item ->
+            items.forEach { item ->
+                val itemColor = parseColorSafely(item.color)
                 Row(verticalAlignment = Alignment.Top) {
                     Box(
                         modifier = Modifier
                             .padding(top = 3.dp)
                             .size(12.dp)
                             .clip(CircleShape)
-                            .background(item.color)
+                            .background(itemColor)
                     )
                     Spacer(Modifier.width(10.dp))
                     Column {
@@ -488,7 +557,7 @@ private fun FinanceDistributionCard(onViewClick: () -> Unit) {
                             color = TextPrimary
                         )
                         Text(
-                            text = "${item.percent.toInt()}% • ${item.amount}",
+                            text = "${item.percentage.toInt()}% • ₹${formatAmount(item.amount)}",
                             fontSize = tokens.caption,
                             color = mutedText
                         )
@@ -502,32 +571,30 @@ private fun FinanceDistributionCard(onViewClick: () -> Unit) {
             modifier = Modifier.fillMaxWidth().height(8.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            distributionItems.forEach { item ->
+            items.forEach { item ->
+                val targetWeight = (item.percentage * barProgress).coerceAtLeast(0.01f)
                 Box(
                     modifier = Modifier
-                        .weight(item.percent)
+                        .weight(targetWeight)
                         .fillMaxHeight()
                         .clip(CircleShape)
-                        .background(item.color)
+                        .background(parseColorSafely(item.color))
                 )
             }
-            Box(
-                modifier = Modifier
-                    .weight(3f)
-                    .fillMaxHeight()
-                    .clip(CircleShape)
-                    .background(light_grey)
-            )
         }
     }
 }
 
 // =============================================================
-// BANK SNAPSHOT
+// BANK SNAPSHOT CARD
 // =============================================================
 
 @Composable
-private fun BankSnapshotCard(onViewFunds: () -> Unit) {
+private fun BankSnapshotCard(
+    snapshot: BankSnapshotData?,
+    categories: List<CategoryExpenseSlice>,
+    onViewFunds: () -> Unit
+) {
     val tokens = LocalAppTokens.current
     FinanceCard(contentPadding = 16.dp) {
         Row(
@@ -542,7 +609,7 @@ private fun BankSnapshotCard(onViewFunds: () -> Unit) {
         Text(text = "Total Cash & Bank Balance", fontSize = tokens.caption, color = mutedText)
         Spacer(Modifier.height(2.dp))
         Text(
-            text = "₹ 3.92 Cr",
+            text = "₹ ${formatAmount(snapshot?.totalBalance ?: 0.0)}",
             fontSize = tokens.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = TextPrimary
@@ -550,9 +617,9 @@ private fun BankSnapshotCard(onViewFunds: () -> Unit) {
         Spacer(Modifier.height(12.dp))
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            bankItems.forEach { bank ->
+            snapshot?.accounts.orEmpty().forEach { bank ->
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(bank.color))
+                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(parseColorSafely(bank.color)))
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = bank.name,
@@ -563,7 +630,7 @@ private fun BankSnapshotCard(onViewFunds: () -> Unit) {
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = bank.amount,
+                        text = "₹ ${formatAmount(bank.balance)}",
                         fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = TextPrimary
@@ -571,24 +638,28 @@ private fun BankSnapshotCard(onViewFunds: () -> Unit) {
                 }
             }
         }
+    }
+}
 
-        Spacer(Modifier.height(14.dp))
-        Text(text = "Expense by Category", fontSize = tokens.bodySmall, color = TextSecondary)
-        Spacer(Modifier.height(8.dp))
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            ExpenseDonut(segments = expenseCategories)
-            Spacer(Modifier.width(32.dp))
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                expenseCategories.forEach { cat ->
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = cat.label,
-                            fontSize = tokens.caption,
-                            color = headerGrey,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(text = "${cat.percent.toInt()}%", fontSize = tokens.caption, color = TextSecondary)
-                    }
+// =============================================================
+// RECENT TRANSACTIONS CARD
+// =============================================================
+
+@Composable
+private fun RecentTransactionsCard(transactions: List<RecentTransactionDto>) {
+    FinanceCard(contentPadding = 0.dp) {
+        if (transactions.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = "No recent transactions found", color = mutedText)
+            }
+        } else {
+            transactions.forEachIndexed { index, item ->
+                TransactionRow(item)
+                if (index < transactions.lastIndex) {
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp), color = grey_border)
                 }
             }
         }
@@ -596,52 +667,7 @@ private fun BankSnapshotCard(onViewFunds: () -> Unit) {
 }
 
 @Composable
-private fun ExpenseDonut(
-    segments: List<ExpenseCategory>,
-    diameter: Dp = 76.dp,
-    strokeWidth: Dp = 16.dp
-) {
-    Canvas(modifier = Modifier.size(diameter)) {
-        val strokePx = strokeWidth.toPx()
-        val arcSize = Size(size.width - strokePx, size.height - strokePx)
-        val topLeft = Offset(strokePx / 2f, strokePx / 2f)
-        val total = segments.sumOf { it.percent.toDouble() }.toFloat()
-        val gap = 3f
-        var angle = -90f
-        segments.forEach { seg ->
-            val full = seg.percent / total * 360f
-            drawArc(
-                color = seg.color,
-                startAngle = angle + gap / 2f,
-                sweepAngle = (full - gap).coerceAtLeast(0f),
-                useCenter = false,
-                topLeft = topLeft,
-                size = arcSize,
-                style = Stroke(strokePx)
-            )
-            angle += full
-        }
-    }
-}
-
-// =============================================================
-// RECENT TRANSACTIONS
-// =============================================================
-
-@Composable
-private fun RecentTransactionsCard() {
-    FinanceCard(contentPadding = 0.dp) {
-        transactionItems.forEachIndexed { index, item ->
-            TransactionRow(item)
-            if (index < transactionItems.lastIndex) {
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp), color = grey_border)
-            }
-        }
-    }
-}
-
-@Composable
-private fun TransactionRow(item: TransactionItem) {
+private fun TransactionRow(item: RecentTransactionDto) {
     val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier
@@ -652,7 +678,7 @@ private fun TransactionRow(item: TransactionItem) {
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = item.name,
+                    text = item.party.ifBlank { item.type },
                     fontSize = tokens.bodySmall,
                     fontWeight = FontWeight.Medium,
                     color = TextPrimary,
@@ -661,17 +687,17 @@ private fun TransactionRow(item: TransactionItem) {
                     modifier = Modifier.weight(1f, fill = false)
                 )
                 Spacer(Modifier.width(6.dp))
-                FinanceTag(text = item.tag, bg = primary_light, fg = BluePrimary, shape = RoundedCornerShape(4.dp))
+                FinanceTag(text = item.type, bg = primary_light, fg = BluePrimary, shape = RoundedCornerShape(4.dp))
             }
             Spacer(Modifier.height(4.dp))
             Text(text = item.reference, fontSize = tokens.caption, color = mutedText)
             Spacer(Modifier.height(2.dp))
-            Text(text = item.date, fontSize = tokens.caption, color = mutedText)
+            Text(text = item.date.take(10), fontSize = tokens.caption, color = mutedText)
         }
         Spacer(Modifier.width(8.dp))
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = item.amount,
+                text = "₹ ${formatAmount(item.amount)}",
                 fontSize = tokens.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = TextPrimary
@@ -684,18 +710,27 @@ private fun TransactionRow(item: TransactionItem) {
 }
 
 private fun transactionStatusColors(status: String): Pair<Color, Color> = when (status.lowercase()) {
-    "completed" -> greenBg to greentext
-    "open" -> orangeBg to orangeText
-    "pending" -> yellowBg to yellowText
+    "completed", "paid" -> greenBg to greentext
+    "open", "sent" -> orangeBg to orangeText
+    "pending", "draft" -> yellowBg to yellowText
     else -> light_grey to headerGrey
 }
 
 // =============================================================
-// SUMMARY AREAS
+// SUMMARY AREA CARD WITH TAP ANIMATION
 // =============================================================
 
 @Composable
-private fun SummaryAreaCard(item: SummaryItem, onView: () -> Unit, onGoTo: () -> Unit) {
+private fun SummaryAreaCard(
+    title: String,
+    firstLabel: String,
+    firstValue: String,
+    secondLabel: String,
+    secondValue: String,
+    actionText: String,
+    onView: () -> Unit,
+    onGoTo: () -> Unit
+) {
     val tokens = LocalAppTokens.current
     FinanceCard(contentPadding = 16.dp) {
         Row(
@@ -703,22 +738,22 @@ private fun SummaryAreaCard(item: SummaryItem, onView: () -> Unit, onGoTo: () ->
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CardTitle(item.title)
+            CardTitle(title)
             Box(modifier = Modifier.clickable { onView() }) {
                 FinanceTag(text = "View", bg = primary_light, fg = BluePrimary, shape = RoundedCornerShape(4.dp))
             }
         }
         Spacer(Modifier.height(12.dp))
-        Text(text = item.firstLabel, fontSize = tokens.bodySmall, color = mutedText)
+        Text(text = firstLabel, fontSize = tokens.bodySmall, color = mutedText)
         Spacer(Modifier.height(2.dp))
         Text(
-            text = item.firstValue,
+            text = firstValue,
             fontSize = tokens.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = TextPrimary
         )
         Spacer(Modifier.height(10.dp))
-        Text(text = item.secondLabel, fontSize = tokens.bodySmall, color = mutedText)
+        Text(text = secondLabel, fontSize = tokens.bodySmall, color = mutedText)
         Spacer(Modifier.height(2.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -726,13 +761,13 @@ private fun SummaryAreaCard(item: SummaryItem, onView: () -> Unit, onGoTo: () ->
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = item.secondValue,
+                text = secondValue,
                 fontSize = tokens.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = TextPrimary
             )
             Text(
-                text = "${item.actionText} →",
+                text = "$actionText →",
                 fontSize = tokens.bodySmall,
                 color = BluePrimary,
                 modifier = Modifier.clickable { onGoTo() }
@@ -742,47 +777,67 @@ private fun SummaryAreaCard(item: SummaryItem, onView: () -> Unit, onGoTo: () ->
 }
 
 // =============================================================
-// PENDING ACTIONS & ALERTS
+// ALERT CARD COMPONENT WITH BOUNCE PRESS ANIMATION
 // =============================================================
 
 @Composable
-private fun AlertCard(item: AlertItem, onClick: () -> Unit) {
+private fun AlertCard(
+    title: String,
+    subtitle: String,
+    count: String,
+    badgeColorHex: String,
+    onClick: () -> Unit
+) {
     val tokens = LocalAppTokens.current
-    FinanceCard(contentPadding = 14.dp, modifier = Modifier.clickable { onClick() }) {
+    val parsedColor = parseColorSafely(badgeColorHex)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "alert_scale"
+    )
+
+    FinanceCard(
+        contentPadding = 14.dp,
+        modifier = Modifier
+            .scale(scale)
+            .clickable(interactionSource = interactionSource, indication = null) { onClick() }
+    ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Box(
-                modifier = Modifier.size(36.dp).clip(CircleShape).background(item.iconBg),
+                modifier = Modifier.size(36.dp).clip(CircleShape).background(parsedColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(item.icon, contentDescription = null, tint = item.iconTint, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Warning, contentDescription = null, tint = parsedColor, modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = item.title,
+                    text = title,
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(text = item.subtitle, fontSize = tokens.caption, color = mutedText, maxLines = 1)
+                Text(text = subtitle, fontSize = tokens.caption, color = mutedText, maxLines = 1)
             }
             Spacer(Modifier.width(8.dp))
-            FinanceTag(text = item.count, bg = item.countBg, fg = item.countFg, shape = RoundedCornerShape(4.dp))
+            FinanceTag(text = count, bg = parsedColor.copy(alpha = 0.15f), fg = parsedColor, shape = RoundedCornerShape(4.dp))
         }
     }
 }
 
 // =============================================================
-// SHARED COMPONENTS
+// SHARED COMPONENTS & HELPERS
 // =============================================================
 
 @Composable
 private fun FinanceCard(
     modifier: Modifier = Modifier,
     contentPadding: Dp = 16.dp,
-    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit
 ) {
     val tokens = LocalAppTokens.current
     Surface(
@@ -870,10 +925,6 @@ private fun LegendDot(color: Color, label: String) {
     }
 }
 
-// =============================================================
-// HELPERS
-// =============================================================
-
 private fun smoothPath(points: List<Offset>): Path {
     val path = Path()
     if (points.isEmpty()) return path
@@ -885,4 +936,17 @@ private fun smoothPath(points: List<Offset>): Path {
         path.cubicTo(cx, p0.y, cx, p1.y, p1.x, p1.y)
     }
     return path
+}
+
+@SuppressLint("DefaultLocale")
+private fun formatAmount(amount: Double): String {
+    return String.format("%,.0f", amount)
+}
+
+private fun parseColorSafely(hexColor: String): Color {
+    return try {
+        Color(hexColor.toColorInt())
+    } catch (_: Exception) {
+        BluePrimary
+    }
 }

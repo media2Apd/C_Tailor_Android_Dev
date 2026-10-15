@@ -29,6 +29,8 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.BorderGray
 import com.cuso.tailor.ui.theme.modelBg
 import com.cuso.tailor.ui.theme.modelBorder
+import com.cuso.tailor.ui.theme.sectionBorder
+import com.cuso.tailor.ui.theme.whiteBg
 
 // ── Calibrated industrial shimmer brush ──
 @Composable
@@ -574,6 +576,314 @@ private fun DataCardItemSkeleton(
                     shape = RoundedCornerShape(3.dp),
                     brush = brush
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun HomeSkeleton() {
+    val tokens = LocalAppTokens.current
+    val brush = rememberShimmerBrush()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Transparent)
+            .padding(horizontal = tokens.screenPadding),
+        verticalArrangement = Arrangement.spacedBy(tokens.screenPadding)
+    ) {
+        // 1. Top Greeting Card Skeleton
+        ShimmerBox(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(tokens.cardHeight * 0.95f),
+            shape = RoundedCornerShape(tokens.cardCornerRadius),
+            brush = brush
+        )
+
+        // 2. 6 Metrics Grid Skeleton (2x3)
+        Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
+            ShimmerBox(
+                modifier = Modifier.width(130.dp).height(20.dp),
+                shape = RoundedCornerShape(4.dp),
+                brush = brush
+            )
+            repeat(3) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                ) {
+                    repeat(2) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(85.dp)
+                                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.7f))
+                                .border(1.dp, sectionBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.7f))
+                                .padding(12.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.SpaceBetween) {
+                                ShimmerBox(Modifier.width(80.dp).height(14.dp), brush = brush)
+                                ShimmerBox(Modifier.width(60.dp).height(20.dp), brush = brush)
+                                ShimmerBox(Modifier.width(90.dp).height(12.dp), brush = brush)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Target & Donut Chart Skeletons
+        repeat(3) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius * 0.8f))
+                    .border(1.dp, sectionBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.8f))
+                    .padding(tokens.screenPadding)
+            ) {
+                Column {
+                    ShimmerBox(Modifier.width(140.dp).height(18.dp), brush = brush)
+                    Spacer(Modifier.height(8.dp))
+                    ShimmerBox(Modifier.width(200.dp).height(12.dp), brush = brush)
+                    Spacer(Modifier.height(18.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ShimmerBox(Modifier.size(90.dp), shape = CircleShape, brush = brush)
+                        Spacer(Modifier.width(24.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            repeat(3) {
+                                ShimmerBox(Modifier.fillMaxWidth().height(12.dp), brush = brush)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =============================================================
+// FINANCE DASHBOARD SKELETON
+// =============================================================
+
+@Composable
+fun FinanceDashboardSkeleton() {
+    val tokens = LocalAppTokens.current
+    val brush = rememberShimmerBrush()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding),
+        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
+    ) {
+        // Section Title Skeleton
+        ShimmerBox(modifier = Modifier.width(140.dp).height(20.dp), brush = brush)
+
+        // 2x3 KPI Grid Skeleton
+        repeat(3) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
+            ) {
+                repeat(2) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(115.dp)
+                            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                            .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius))
+                            .padding(14.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxHeight()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                ShimmerBox(Modifier.size(36.dp), shape = RoundedCornerShape(10.dp), brush = brush)
+                                ShimmerBox(Modifier.width(48.dp).height(14.dp), brush = brush)
+                            }
+                            ShimmerBox(Modifier.fillMaxWidth(0.6f).height(14.dp), brush = brush)
+                            ShimmerBox(Modifier.fillMaxWidth(0.75f).height(22.dp), brush = brush)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Pending Actions Bar Skeleton
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius))
+                .padding(14.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ShimmerBox(Modifier.size(32.dp), shape = RoundedCornerShape(8.dp), brush = brush)
+                Spacer(Modifier.width(10.dp))
+                ShimmerBox(Modifier.width(120.dp).height(16.dp), brush = brush)
+                Spacer(Modifier.weight(1f))
+                ShimmerBox(Modifier.width(28.dp).height(20.dp), brush = brush)
+            }
+        }
+
+        // Cash Flow Trends Skeleton
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(210.dp)
+                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxHeight()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    ShimmerBox(Modifier.width(150.dp).height(18.dp), brush = brush)
+                    ShimmerBox(Modifier.width(70.dp).height(16.dp), brush = brush)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ShimmerBox(Modifier.width(55.dp).height(12.dp), brush = brush)
+                    ShimmerBox(Modifier.width(55.dp).height(12.dp), brush = brush)
+                }
+                ShimmerBox(Modifier.fillMaxWidth().height(110.dp), brush = brush)
+            }
+        }
+
+        // Distribution Card Skeleton
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                ShimmerBox(Modifier.width(160.dp).height(18.dp), brush = brush)
+                repeat(3) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ShimmerBox(Modifier.size(10.dp), shape = CircleShape, brush = brush)
+                        Spacer(Modifier.width(10.dp))
+                        ShimmerBox(Modifier.width(110.dp).height(14.dp), brush = brush)
+                        Spacer(Modifier.weight(1f))
+                        ShimmerBox(Modifier.width(60.dp).height(14.dp), brush = brush)
+                    }
+                }
+                ShimmerBox(Modifier.fillMaxWidth().height(8.dp), shape = CircleShape, brush = brush)
+            }
+        }
+    }
+}
+
+// =============================================================
+// SALES DASHBOARD SKELETON
+// =============================================================
+
+@Composable
+fun SalesDashboardSkeleton() {
+    val tokens = LocalAppTokens.current
+    val brush = rememberShimmerBrush()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Top Bar & Range Skeleton
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            ShimmerBox(Modifier.width(180.dp).height(28.dp), brush = brush)
+            ShimmerBox(Modifier.width(120.dp).height(38.dp), shape = RoundedCornerShape(12.dp), brush = brush)
+        }
+
+        // 2x3 KPI Grid Skeleton
+        repeat(3) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                repeat(2) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(115.dp)
+                            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                            .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius))
+                            .padding(14.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxHeight()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                ShimmerBox(Modifier.size(36.dp), shape = RoundedCornerShape(10.dp), brush = brush)
+                                ShimmerBox(Modifier.width(55.dp).height(22.dp), brush = brush)
+                            }
+                            ShimmerBox(Modifier.fillMaxWidth(0.55f).height(13.dp), brush = brush)
+                            ShimmerBox(Modifier.fillMaxWidth(0.7f).height(20.dp), brush = brush)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Chart Card Skeleton
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(230.dp)
+                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxHeight()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    ShimmerBox(Modifier.width(170.dp).height(18.dp), brush = brush)
+                    ShimmerBox(Modifier.width(80.dp).height(24.dp), shape = RoundedCornerShape(8.dp), brush = brush)
+                }
+                ShimmerBox(Modifier.fillMaxWidth().height(140.dp), brush = brush)
+            }
+        }
+
+        // Pipeline Health Skeleton
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(190.dp)
+                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius))
+                .padding(16.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                ShimmerBox(Modifier.width(180.dp).height(18.dp), brush = brush)
+                repeat(3) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            ShimmerBox(Modifier.width(100.dp).height(14.dp), brush = brush)
+                            ShimmerBox(Modifier.width(40.dp).height(14.dp), brush = brush)
+                        }
+                        ShimmerBox(Modifier.fillMaxWidth().height(8.dp), shape = CircleShape, brush = brush)
+                    }
+                }
             }
         }
     }

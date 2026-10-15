@@ -11,6 +11,10 @@ package com.cuso.tailor.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.model.finance.AccountDropdownItem
+import com.cuso.tailor.model.finance.*
+import com.cuso.tailor.model.finance.CashFlowData
+import com.cuso.tailor.model.finance.CashFlowResponse
+import com.cuso.tailor.model.finance.CategoryExpenseSlice
 import com.cuso.tailor.model.finance.ChartOfAccountItem
 import com.cuso.tailor.model.finance.CreateCustomerApiResponse
 import com.cuso.tailor.model.finance.CreateCustomerPayload
@@ -19,8 +23,13 @@ import com.cuso.tailor.model.finance.CreatedCustomerData
 import com.cuso.tailor.model.finance.CustomerFinancialProfileData
 import com.cuso.tailor.model.finance.CustomerFinancialProfileResponse
 import com.cuso.tailor.model.finance.CustomerPaymentDetailResponse
+import com.cuso.tailor.model.finance.DashboardAlertDto
 import com.cuso.tailor.model.finance.ExpenseItem
 import com.cuso.tailor.model.finance.ExpensePagination
+import com.cuso.tailor.model.finance.FinanceDistributionData
+import com.cuso.tailor.model.finance.FinanceDistributionResponse
+import com.cuso.tailor.model.finance.FinanceKpiData
+import com.cuso.tailor.model.finance.FinanceKpiResponse
 import com.cuso.tailor.model.finance.GenericDeleteResponse
 import com.cuso.tailor.model.finance.InvoiceItem
 import com.cuso.tailor.model.finance.InvoiceViewOneData
@@ -29,8 +38,11 @@ import com.cuso.tailor.model.finance.JournalEntryItem
 import com.cuso.tailor.model.finance.JournalEntryLineRequest
 import com.cuso.tailor.model.finance.JournalEntryPagination
 import com.cuso.tailor.model.finance.LedgerItem
+import com.cuso.tailor.model.finance.OperationsOverviewData
+import com.cuso.tailor.model.finance.OperationsOverviewResponse
 import com.cuso.tailor.model.finance.PaymentTermItem
 import com.cuso.tailor.model.finance.PaymentTermsResponse
+import com.cuso.tailor.model.finance.RecentTransactionDto
 import com.cuso.tailor.model.finance.RecordPaymentData
 import com.cuso.tailor.model.finance.SendInvoiceApiResponse
 import com.cuso.tailor.model.finance.SupplierOverviewApiResponse
@@ -196,6 +208,150 @@ class FinanceViewModel @Inject constructor(
     private var activeExpenseSearch: String? = null
     private var activeExpenseStatus: String? = null
     private var fetchExpensesJob: Job? = null
+
+    // 1. KPI State
+    private val _kpiData = MutableStateFlow<FinanceKpiData?>(null)
+    val kpiData: StateFlow<FinanceKpiData?> = _kpiData.asStateFlow()
+
+    // 2. Cash Flow State
+    private val _cashFlowData = MutableStateFlow<CashFlowData?>(null)
+    val cashFlowData: StateFlow<CashFlowData?> = _cashFlowData.asStateFlow()
+
+    // 3. Distribution State
+    private val _distributionData = MutableStateFlow<FinanceDistributionData?>(null)
+    val distributionData: StateFlow<FinanceDistributionData?> = _distributionData.asStateFlow()
+
+    // 4. Overviews State
+    private val _salesOverview = MutableStateFlow<OperationsOverviewData?>(null)
+    val salesOverview: StateFlow<OperationsOverviewData?> = _salesOverview.asStateFlow()
+
+    private val _purchaseOverview = MutableStateFlow<OperationsOverviewData?>(null)
+    val purchaseOverview: StateFlow<OperationsOverviewData?> = _purchaseOverview.asStateFlow()
+
+    private val _ledgerOverview = MutableStateFlow<OperationsOverviewData?>(null)
+    val ledgerOverview: StateFlow<OperationsOverviewData?> = _ledgerOverview.asStateFlow()
+
+    private val _expensesOverview = MutableStateFlow<OperationsOverviewData?>(null)
+    val expensesOverview: StateFlow<OperationsOverviewData?> = _expensesOverview.asStateFlow()
+
+    private val _fundsOverview = MutableStateFlow<OperationsOverviewData?>(null)
+    val fundsOverview: StateFlow<OperationsOverviewData?> = _fundsOverview.asStateFlow()
+
+    // 5. Recent Transactions State
+    private val _recentTransactions = MutableStateFlow<List<RecentTransactionDto>>(emptyList())
+    val recentTransactions: StateFlow<List<RecentTransactionDto>> = _recentTransactions.asStateFlow()
+
+    // 6. Alerts & Pending Actions State
+    private val _alertsList = MutableStateFlow<List<DashboardAlertDto>>(emptyList())
+    val alertsList: StateFlow<List<DashboardAlertDto>> = _alertsList.asStateFlow()
+
+    // 7. Bank Snapshot State
+    private val _bankSnapshot = MutableStateFlow<BankSnapshotData?>(null)
+    val bankSnapshot: StateFlow<BankSnapshotData?> = _bankSnapshot.asStateFlow()
+
+    // 8. Expense by Category State
+    private val _expenseCategories = MutableStateFlow<List<CategoryExpenseSlice>>(emptyList())
+    val expenseCategories: StateFlow<List<CategoryExpenseSlice>> = _expenseCategories.asStateFlow()
+
+    // Loading State
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    init {
+        fetchAllDashboardData()
+    }
+
+    /**
+     * Executes parallel requests to fetch all dashboard sections
+     */
+    fun fetchAllDashboardData() {
+        viewModelScope.launch {
+            _isLoading.value = true
+
+            // 1. Fetch KPI
+            launch {
+                repo.request<FinanceKpiResponse> {
+                    get("/api/finance/dashboard/kpi-summary")
+                }.onSuccess { _kpiData.value = it.data }
+            }
+
+            // 2. Fetch Cash Flow Analytics
+            launch {
+                repo.request<CashFlowResponse> {
+                    get("/api/finance/dashboard/cash-flow")
+                }.onSuccess { _cashFlowData.value = it.data }
+            }
+
+            // 3. Fetch Distribution
+            launch {
+                repo.request<FinanceDistributionResponse> {
+                    get("/api/finance/dashboard/distribution")
+                }.onSuccess { _distributionData.value = it.data }
+            }
+
+            // 4. Fetch Operations Overviews
+            launch {
+                repo.request<OperationsOverviewResponse> {
+                    get("/api/finance/dashboard/sales-overview")
+                }.onSuccess { _salesOverview.value = it.data }
+            }
+
+            launch {
+                repo.request<OperationsOverviewResponse> {
+                    get("/api/finance/dashboard/purchase-overview")
+                }.onSuccess { _purchaseOverview.value = it.data }
+            }
+
+            launch {
+                repo.request<OperationsOverviewResponse> {
+                    get("/api/finance/dashboard/ledger-overview")
+                }.onSuccess { _ledgerOverview.value = it.data }
+            }
+
+            launch {
+                repo.request<OperationsOverviewResponse> {
+                    get("/api/finance/dashboard/expenses-overview")
+                }.onSuccess { _expensesOverview.value = it.data }
+            }
+
+            launch {
+                repo.request<OperationsOverviewResponse> {
+                    get("/api/finance/dashboard/funds-overview")
+                }.onSuccess { _fundsOverview.value = it.data }
+            }
+
+            // 5. Fetch Recent Transactions
+            launch {
+                repo.request<RecentTransactionsResponse> {
+                    get("/api/finance/dashboard/recent-transactions")
+                }.onSuccess { _recentTransactions.value = it.data?.transactions.orEmpty() }
+            }
+
+            // 6. Fetch Alerts & Pending Actions
+            launch {
+                repo.request<DashboardAlertsResponse> {
+                    get("/api/finance/dashboard/pending-alerts")
+                }.onSuccess { _alertsList.value = it.data?.alerts.orEmpty() }
+            }
+
+            // 7. Fetch Bank Snapshot
+            launch {
+                repo.request<BankSnapshotResponse> {
+                    get("/api/finance/dashboard/bank-snapshot")
+                }.onSuccess { _bankSnapshot.value = it.data }
+            }
+
+            // 8. Fetch Expense by Category
+            launch {
+                repo.request<ExpenseByCategoryResponse> {
+                    get("/api/finance/dashboard/expense-by-category")
+                }.onSuccess { _expenseCategories.value = it.data?.categories.orEmpty() }
+            }
+
+            _isLoading.value = false
+        }
+    }
+
 
     fun fetchExpenses(
         page: Int = 1,
@@ -1606,7 +1762,7 @@ class FinanceViewModel @Inject constructor(
                 partsMap["referenceNumber"] = repo.text(referenceNumber)
             }
 
-            val result = repo.request<com.cuso.tailor.model.finance.RecordPaymentApiResponse> {
+            val result = repo.request<RecordPaymentApiResponse> {
                 postMultipart(
                     url = "/api/finance/sales-payments/create",
                     parts = partsMap,
@@ -1643,8 +1799,8 @@ class FinanceViewModel @Inject constructor(
     // ─────────────────────────────────────────────────────────────
     // ── CUSTOMER RECEIPTS / PAYMENTS RECEIVED STATE ──
     // ─────────────────────────────────────────────────────────────
-    private val _receiptsList = MutableStateFlow<List<com.cuso.tailor.model.finance.CustomerPaymentItem>>(emptyList())
-    val receiptsList: StateFlow<List<com.cuso.tailor.model.finance.CustomerPaymentItem>> = _receiptsList.asStateFlow()
+    private val _receiptsList = MutableStateFlow<List<CustomerPaymentItem>>(emptyList())
+    val receiptsList: StateFlow<List<CustomerPaymentItem>> = _receiptsList.asStateFlow()
 
     private val _receiptsPagination = MutableStateFlow<PaginationInfo?>(null)
     val receiptsPagination: StateFlow<PaginationInfo?> = _receiptsPagination.asStateFlow()
@@ -1692,7 +1848,7 @@ class FinanceViewModel @Inject constructor(
             activeReceiptSearch?.let { queryParams["search"] = it }
             activeReceiptStatus?.let { queryParams["status"] = it }
 
-            val result = repo.request<com.cuso.tailor.model.finance.CustomerPaymentResponse> {
+            val result = repo.request<CustomerPaymentResponse> {
                 get("/api/finance/sales-payments/view-all", queryParams)
             }
 
@@ -1731,7 +1887,7 @@ class FinanceViewModel @Inject constructor(
             activeReceiptSearch?.let { queryParams["search"] = it }
             activeReceiptStatus?.let { queryParams["status"] = it }
 
-            val result = repo.request<com.cuso.tailor.model.finance.CustomerPaymentResponse> {
+            val result = repo.request<CustomerPaymentResponse> {
                 get("/api/finance/sales-payments/view-all", queryParams)
             }
 
@@ -1760,8 +1916,8 @@ class FinanceViewModel @Inject constructor(
     // ─────────────────────────────────────────────────────────────
     // ── OUTSTANDING INVOICES PER CUSTOMER ──
     // ─────────────────────────────────────────────────────────────
-    private val _outstandingInvoices = MutableStateFlow<List<com.cuso.tailor.model.finance.CustomerOutstandingInvoiceItem>>(emptyList())
-    val outstandingInvoices: StateFlow<List<com.cuso.tailor.model.finance.CustomerOutstandingInvoiceItem>> = _outstandingInvoices.asStateFlow()
+    private val _outstandingInvoices = MutableStateFlow<List<CustomerOutstandingInvoiceItem>>(emptyList())
+    val outstandingInvoices: StateFlow<List<CustomerOutstandingInvoiceItem>> = _outstandingInvoices.asStateFlow()
 
     private val _isLoadingOutstandingInvoices = MutableStateFlow(false)
     val isLoadingOutstandingInvoices: StateFlow<Boolean> = _isLoadingOutstandingInvoices.asStateFlow()
@@ -1777,7 +1933,7 @@ class FinanceViewModel @Inject constructor(
         }
         launchBusy {
             _isLoadingOutstandingInvoices.value = true
-            val result = repo.request<com.cuso.tailor.model.finance.CustomerOutstandingInvoicesResponse> {
+            val result = repo.request<CustomerOutstandingInvoicesResponse> {
                 get("/api/finance/sales-invoices/outstanding/$customerId")
             }
             result.fold(
@@ -1795,8 +1951,8 @@ class FinanceViewModel @Inject constructor(
     // ─────────────────────────────────────────────────────────────
     // ── RECEIPT / PAYMENT DETAIL & VOID ──
     // ─────────────────────────────────────────────────────────────
-    private val _receiptDetail = MutableStateFlow<com.cuso.tailor.model.finance.CustomerPaymentDetailData?>(null)
-    val receiptDetail: StateFlow<com.cuso.tailor.model.finance.CustomerPaymentDetailData?> = _receiptDetail.asStateFlow()
+    private val _receiptDetail = MutableStateFlow<CustomerPaymentDetailData?>(null)
+    val receiptDetail: StateFlow<CustomerPaymentDetailData?> = _receiptDetail.asStateFlow()
 
     private val _isLoadingReceiptDetail = MutableStateFlow(false)
     val isLoadingReceiptDetail: StateFlow<Boolean> = _isLoadingReceiptDetail.asStateFlow()

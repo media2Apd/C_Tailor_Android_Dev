@@ -478,7 +478,7 @@ interface InventoryApiService {
     // 6. SUPPLIER
     // =========================================================================
 
-    @GET("/api/inventory/supplier/view-all")
+    @GET("/api/finance/supplier/view-all")
     suspend fun getAllSuppliers(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -488,27 +488,27 @@ interface InventoryApiService {
         @Query("status") status: String? = null
     ): Response<SupplierListResponse>
 
-    @GET("/api/inventory/supplier/dropdown")
+    @GET("/api/finance/supplier/dropdown")
     suspend fun getSupplierDropdown(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<SupplierDropdownResponse>
 
-    @GET("/api/inventory/supplier/view-one/{id}")
+    @GET("/api/finance/supplier/view-one/{id}")
     suspend fun getSupplierById(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<SupplierViewOneResponse>
 
-    @POST("/api/inventory/supplier/create")
+    @POST("/api/finance/supplier/create")
     suspend fun createSupplier(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Body request: CreateSupplierRequest
     ): Response<SupplierActionResponse>
 
-    @PUT("/api/inventory/supplier/update-one/{id}")
+    @PUT("/api/finance/supplier/update-one/{id}")
     suspend fun updateSupplier(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -516,21 +516,21 @@ interface InventoryApiService {
         @Body request: CreateSupplierRequest
     ): Response<SupplierActionResponse>
 
-    @DELETE("/api/inventory/supplier/delete-one/{id}")
+    @DELETE("/api/finance/supplier/delete-one/{id}")
     suspend fun deleteSupplier(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<SupplierActionResponse>
 
-    @PATCH("/api/inventory/supplier/restore/{id}")
+    @PATCH("/api/finance/supplier/restore/{id}")
     suspend fun restoreSupplier(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String
     ): Response<SupplierActionResponse>
 
-    @GET("/api/inventory/supplier/{id}/ledger")
+    @GET("/api/finance/supplier/{id}/ledger")
     suspend fun getSupplierLedger(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,

@@ -194,6 +194,13 @@ import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.view.home.finance.account_receivable.sales_invoice.RecordPaymentReceiptScreen
 import com.cuso.tailor.view.home.finance.dashboard.FinanceOverviewScreen
 import com.cuso.tailor.view.home.finance.receipts.CreatePaymentReceiptScreen
+import com.cuso.tailor.view.home.inventory.inventory.packages.CreatePackageScreen
+import com.cuso.tailor.view.home.inventory.inventory.packages.PackageDetailScreen
+import com.cuso.tailor.view.home.inventory.inventory.packages.PackagesScreen
+import com.cuso.tailor.view.home.inventory.inventory.picklist.CreatePicklistScreen
+import com.cuso.tailor.view.home.inventory.inventory.picklist.PicklistDetailScreen
+import com.cuso.tailor.view.home.inventory.inventory.picklist.PicklistListScreen
+//import com.cuso.tailor.view.home.inventory.procurement.picklist.CreatePicklistScreen
 import com.cuso.tailor.viewmodel.*
 
 // TEMPORARY: payment term source innum illa
@@ -203,7 +210,12 @@ private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @Composable
 fun HomeScreenRouter(
     screen: String,
-
+    selectedPackageIdForDetail: String? = null,
+    onPackageIdForDetailSelected: (String?) -> Unit = {},
+    selectedPackageIdForEdit: String? = null,
+    onPackageIdForEditSelected: (String?) -> Unit = {},
+    selectedPicklistId: String? = null,
+    onPicklistIdSelected: (String?) -> Unit = {},
     selectedReceiptId: String? = null,
     onReceiptSelected: (String?) -> Unit = {},
     isOrderFromFinance: Boolean = false,
@@ -256,6 +268,8 @@ fun HomeScreenRouter(
     hrViewModel: HrViewModel,
     customerViewModel: CustomerViewModel,
     settingsViewModel: SettingsViewModel,
+    salesViewModel: SalesViewModel,
+    branchViewModel: BranchViewModel,
     authViewModel: Authenticate,
     inventoryViewModel: InventoryViewModel,
     onNavigate: (String) -> Unit,
@@ -409,6 +423,9 @@ fun HomeScreenRouter(
                 prefillOrderForInvoice = prefillOrderForInvoice,
                 onPrefillOrderForInvoiceChange = onPrefillOrderForInvoiceChange,
                 token = token,
+                settingsViewModel = settingsViewModel,
+                salesViewModel = salesViewModel,
+                branchViewModel = branchViewModel,
                 invoiceForPayment = invoiceForPayment,
                 onInvoiceForPaymentChange = onInvoiceForPaymentChange,
                 selectedSupplier = selectedSupplier,
@@ -441,7 +458,7 @@ fun HomeScreenRouter(
                 onNavigate = onNavigate,
                 onGoBack = onGoBack,
                 onOpenModulesPanel = onOpenModulesPanel
-            )
+                )
         }
 
         "inventory_items", "inventory_all_items", "inventory_create_item",
@@ -497,9 +514,16 @@ fun HomeScreenRouter(
         "inventory_payments_made", "inventory_payment_overview_detail",
         "inventory_credits", "inventory_procurement_credits", "inventory_payables_credits",
         "inventory_returns", "inventory_procurement_returns", "inventory_billing",
-        "inventory_bill_preview", "inventory_create_bill" -> {
+        "inventory_bill_preview", "inventory_create_bill",
+        "inventory_picklist", "inventory_picklist_detail", "inventory_create_package", "inventory_package_detail", "inventory_create_picklist", "inventory_packages" -> {
             InventoryProcurementRouter(
                 screen = screen,
+                selectedPackageIdForDetail = selectedPackageIdForDetail,
+                onPackageIdForDetailSelected = onPackageIdForDetailSelected,
+                selectedPackageIdForEdit = selectedPackageIdForEdit,
+                onPackageIdForEditSelected = onPackageIdForEditSelected,
+                selectedPicklistId = selectedPicklistId,
+                onPicklistIdSelected = onPicklistIdSelected,
                 selectedBarcodeIdForDetail = selectedBarcodeIdForDetail,
                 onBarcodeIdForDetailSelected = onBarcodeIdForDetailSelected,
                 selectedReceivePoId = selectedReceivePoId,
@@ -1738,6 +1762,9 @@ private fun FinanceRouter(
     selectedRecentCustomerId: String?,
     onRecentCustomerIdSelected: (String?) -> Unit,
     inventoryViewModel: InventoryViewModel,
+    settingsViewModel: SettingsViewModel,
+    branchViewModel: BranchViewModel,
+    salesViewModel: SalesViewModel,
     customerViewModel: CustomerViewModel,
     selectedReceivePoId: String? = null,
     onReceivePoIdSelected: (String?) -> Unit = {},
@@ -2138,16 +2165,32 @@ private fun FinanceRouter(
                 onGoBack()
             }
         )
-
         "finance_gst_settings" -> GstSettingsOverviewScreen(
+            viewModel = settingsViewModel,
             onClose = onGoBack,
-            onAddGst = { onNavigate("finance_add_gst") },
-            onEditGst = { onNavigate("finance_add_gst") }
+            onAddGst = {
+                settingsViewModel.clearSelectedTaxRegistration()
+                onNavigate("finance_add_gst")
+            },
+            onEditGst = { selectedItem ->
+                settingsViewModel.fetchTaxRegistrationById(selectedItem.id)
+                onNavigate("finance_add_gst")
+            }
         )
 
         "finance_add_gst" -> AddGstSettingsScreen(
-            onClose = onGoBack,
-            onSave = onGoBack
+            settingsViewModel = settingsViewModel,     // <-- Added this parameter
+            branchViewModel = branchViewModel,
+            inventoryViewModel = inventoryViewModel,
+            salesViewModel = salesViewModel,
+            onClose = {
+                settingsViewModel.clearSelectedTaxRegistration()
+                onGoBack()
+            },
+            onSave = {
+                settingsViewModel.clearSelectedTaxRegistration()
+                onGoBack()
+            }
         )
 
         "finance_tax_rates" -> TaxRatesScreen(
@@ -2543,6 +2586,12 @@ private fun InventoryMainRouter(
 @Composable
 private fun InventoryProcurementRouter(
     screen: String,
+    selectedPackageIdForDetail: String? = null,
+    onPackageIdForDetailSelected: (String?) -> Unit = {},
+    selectedPackageIdForEdit: String? = null,
+    onPackageIdForEditSelected: (String?) -> Unit = {},
+    selectedPicklistId: String? = null,
+    onPicklistIdSelected: (String?) -> Unit = {},
     selectedBarcodeIdForDetail: String?,
     onBarcodeIdForDetailSelected: (String?) -> Unit,
     selectedReceivePoId: String?,
@@ -2856,7 +2905,130 @@ private fun InventoryProcurementRouter(
             onPdfExport = { }
         )
 
+        // ── Inventory Picklist Screen ──
+        "inventory_picklist" -> {
+            PicklistListScreen(
+                viewModel = inventoryViewModel,
+                onClose = onGoBack,
+                onCreatePicklistClick = {
+                    onPicklistIdSelected(null)
+                    onNavigate("inventory_create_picklist")
+                },
+                onEditPicklistClick = { editId ->
+                    onPicklistIdSelected(editId)
+                    onNavigate("inventory_create_picklist")
+                },
+                onPicklistItemClick = { item ->
+                    onPicklistIdSelected(item.id)
+                    onNavigate("inventory_picklist_detail")
+                }
+            )
+        }
 
+        // ── Inventory Picklist Detail Screen ──
+        "inventory_picklist_detail" -> {
+            selectedPicklistId?.let { id ->
+                PicklistDetailScreen(
+                    picklistId = id,
+                    viewModel = inventoryViewModel,
+                    onClose = {
+                        onPicklistIdSelected(null)
+                        onGoBack()
+                    },
+                    onEditClick = { editId ->
+                        onPicklistIdSelected(editId)
+                        onNavigate("inventory_create_picklist")
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
+
+
+        // ── Create / Edit Picklist Screen ──
+        "inventory_create_picklist" -> {
+            CreatePicklistScreen(
+                picklistId = selectedPicklistId,
+                viewModel = inventoryViewModel,
+                onClose = {
+                    onGoBack()
+                },
+                onCancel = {
+                    onGoBack()
+                },
+                onSuccessSaved = {
+                    onGoBack()
+                }
+            )
+        }
+
+        // ── Packages Screen Route ──
+        // ── Packages Screen Route ──
+        "inventory_packages" -> {
+            PackagesScreen(
+                viewModel = inventoryViewModel,
+                onNavigateBack = onGoBack,
+                onCreatePackageClick = {
+                    onPackageIdForEditSelected(null)
+                    onPackageIdForDetailSelected(null)
+                    onNavigate("inventory_create_package")
+                },
+                onPackageItemClick = { pkg ->
+                    // Set ID and navigate to Detail Screen
+                    onPackageIdForDetailSelected(pkg.id)
+                    onNavigate("inventory_package_detail")
+                },
+                onEditPackageClick = { pkg ->
+                    // Set ID for Edit mode and navigate to Create/Edit Screen
+                    onPackageIdForDetailSelected(null)
+                    onPackageIdForEditSelected(pkg.id)
+                    onNavigate("inventory_create_package")
+                }
+            )
+        }
+//        "inventory_create_package" -> {
+//            CreatePackageScreen(
+//                viewModel = inventoryViewModel,
+//                onClose = onGoBack,
+//                onPackageCreated = onGoBack
+//            )
+//        }
+
+
+
+        // ── 2. Create / Edit Package Screen Route ──
+        "inventory_create_package" -> {
+            CreatePackageScreen(
+                packageId = selectedPackageIdForEdit,
+                viewModel = inventoryViewModel,
+                onClose = {
+                    onPackageIdForEditSelected(null)
+                    onGoBack()
+                },
+                onPackageSaved = {
+                    onPackageIdForEditSelected(null)
+                    onGoBack()
+                }
+            )
+        }
+
+        // ── 3. Package Detail Screen Route ──
+        "inventory_package_detail" -> {
+            selectedPackageIdForDetail?.let { id ->
+                PackageDetailScreen(
+                    packageId = id,
+                    viewModel = inventoryViewModel,
+                    onClose = {
+                        onPackageIdForDetailSelected(null)
+                        onGoBack()
+                    },
+                    onEditClick = { editId ->
+                        onPackageIdForDetailSelected(null)
+                        onPackageIdForEditSelected(editId)
+                        onNavigate("inventory_create_package")
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
         "inventory_billing" -> AllBillsScreen(
             onClose = onGoBack,
             onCreateBillClick = { onNavigate("inventory_create_bill") },

@@ -1,4 +1,6 @@
-@file:Suppress("unused", "SpellCheckingInspection", "UNUSED_PARAMETER")
+@file:Suppress("unused", "SpellCheckingInspection", "UNUSED_PARAMETER","unusedVariable","AssignedValueIsNeverRead",
+    "VariableNeverRead"
+)
 
 package com.cuso.tailor.view.home.finance.settings
 
@@ -9,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,11 +28,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.settings.TaxRegistrationItemDto
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.sales.lead.MiniSwitch
+import com.cuso.tailor.viewmodel.BranchUiState
+import com.cuso.tailor.viewmodel.BranchViewModel
+import com.cuso.tailor.viewmodel.InventoryViewModel
+import com.cuso.tailor.viewmodel.SalesViewModel
+import com.cuso.tailor.viewmodel.SettingsViewModel
+import kotlinx.coroutines.delay
 
 // ===========================================================
 // DATA MODELS FOR GST SETTINGS
@@ -75,84 +86,62 @@ fun FormSectionHeader(title: String) {
 
 @Composable
 fun GstSettingsOverviewScreen(
+    viewModel: SettingsViewModel,
     onClose: () -> Unit = {},
     onAddGst: () -> Unit = {},
-    onEditGst: (GstRegistrationItem) -> Unit = {}
+    onEditGst: (TaxRegistrationItemDto) -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
+    val listState = rememberLazyListState()
+
+    // ── Observe State from ViewModel ──
+    val taxRegistrations by viewModel.taxRegistrations.collectAsState()
+    val isLoading by viewModel.isLoadingTaxRegistrations.collectAsState()
+    val isLoadingMore by viewModel.isLoadingMoreTaxRegistrations.collectAsState()
+    val canLoadMore by viewModel.canLoadMoreTaxRegistrations.collectAsState()
+    val errorMessage by viewModel.taxRegistrationsError.collectAsState()
+
     var searchQuery by remember { mutableStateOf("") }
 
-    val mockGstList = remember {
-        listOf(
-            GstRegistrationItem(
-                id = "1",
-                title = "Tamil Nadu GST Registration",
-                group = "South India GST Group",
-                gstin = "33AABCU9603R1ZM",
-                type = "Regular",
-                state = "Tamil Nadu",
-                status = "Active",
-                effectiveDate = "01 Apr 2024"
-            ),
-            GstRegistrationItem(
-                id = "2",
-                title = "Karnataka GST Registration",
-                group = "South India GST Group",
-                gstin = "29AABCU9603R1ZP",
-                type = "Regular",
-                state = "Karnataka",
-                status = "Active",
-                effectiveDate = "01 Apr 2024"
-            ),
-            GstRegistrationItem(
-                id = "3",
-                title = "Kerala GST Registration",
-                group = "South India GST Group",
-                gstin = "32AABCU9603R1ZN",
-                type = "Composition",
-                state = "Kerala",
-                status = "Active",
-                effectiveDate = "15 Jun 2024"
-            ),
-            GstRegistrationItem(
-                id = "4",
-                title = "Maharashtra GST Registration",
-                group = "West India GST Group",
-                gstin = "27AABCU9603R1ZQ",
-                type = "Regular",
-                state = "Maharashtra",
-                status = "Inactive",
-                effectiveDate = "01 Apr 2023"
-            ),
-            GstRegistrationItem(
-                id = "5",
-                title = "Delhi GST Registration",
-                group = "North India GST Group",
-                gstin = "07AABCU9603R1ZP",
-                type = "Regular",
-                state = "Delhi",
-                status = "Active",
-                effectiveDate = "01 Jul 2024"
-            )
-        )
+    // ── Fetch Initial Data on Launch ──
+    LaunchedEffect(Unit) {
+        viewModel.fetchTaxRegistrations(page = 1)
     }
 
-    val filteredList = remember(searchQuery, mockGstList) {
-        if (searchQuery.isBlank()) mockGstList
-        else mockGstList.filter {
-            it.title.contains(searchQuery, ignoreCase = true) ||
-                    it.gstin.contains(searchQuery, ignoreCase = true) ||
-                    it.state.contains(searchQuery, ignoreCase = true)
+    // ── Debounced Search Query ──
+    LaunchedEffect(searchQuery) {
+        delay(400)
+        viewModel.fetchTaxRegistrations(page = 1, search = searchQuery.takeIf { it.isNotBlank() })
+    }
+
+    // ── Infinite Scroll Detection ──
+    val shouldLoadMore = remember {
+        derivedStateOf {
+            val totalItems = listState.layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            totalItems > 0 && lastVisibleItemIndex >= totalItems - 2
         }
     }
 
-// Metric values derived from the GST list, so they stay in sync with the data
-    val activeCount = remember(mockGstList) { mockGstList.count { it.status.equals("Active", ignoreCase = true) } }
-    val inactiveCount = remember(mockGstList) { mockGstList.size - activeCount }
-    val groupNames = remember(mockGstList) {
-        mockGstList.map { it.group.removeSuffix(" GST Group").removeSuffix(" India") }.distinct()
+    LaunchedEffect(shouldLoadMore.value) {
+        if (shouldLoadMore.value && canLoadMore && !isLoading && !isLoadingMore) {
+            viewModel.loadMoreTaxRegistrations()
+        }
     }
-    val stateCount = remember(mockGstList) { mockGstList.map { it.state }.distinct().size }
+
+    // ── Dynamic Metric Calculations ──
+    val activeCount = remember(taxRegistrations) {
+        taxRegistrations.count { it.status.equals("Active", ignoreCase = true) }
+    }
+    val inactiveCount = remember(taxRegistrations) {
+        taxRegistrations.size - activeCount
+    }
+    val groupCount = remember(taxRegistrations) {
+        taxRegistrations.mapNotNull { it.registrationType?.takeIf { type -> type.isNotBlank() } }.distinct().size
+    }
+    val stateCount = remember(taxRegistrations) {
+        taxRegistrations.mapNotNull { it.subdivisionName?.takeIf { state -> state.isNotBlank() } }.distinct().size
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         FabScaffold(
@@ -166,22 +155,17 @@ fun GstSettingsOverviewScreen(
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 TitleBar(title = "GST Settings", onClose = onClose)
-                HorizontalDivider(color = dividerColor, thickness = 2.dp)
 
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        top = tokens.extraPadding * 0.5f,
-                        bottom = 100.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.7f)
+                    state = listState,
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    // Search & Filter Bar
+                    // Search Bar
                     item {
                         SearchFilterBar(
                             query = searchQuery,
                             onQueryChange = { searchQuery = it },
-                            placeholder = "Search Customers...",
+                            placeholder = "Search GSTIN, state, or name...",
                             borderColor = sectionBorder,
                             textSecondaryColor = close_color,
                             height = tokens.fieldHeight,
@@ -189,17 +173,19 @@ fun GstSettingsOverviewScreen(
                         )
                     }
 
-                    // 2x2 grid of separate metric cards
+                    // Metric Cards
                     item {
                         Column(
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
                                 .padding(horizontal = tokens.screenPadding),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Row height follows the taller card, so both cards in a row match
                             Row(
-                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(IntrinsicSize.Min),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 MetricCard(
                                     title = "Active Registrations",
@@ -219,18 +205,20 @@ fun GstSettingsOverviewScreen(
                                 )
                             }
                             Row(
-                                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(IntrinsicSize.Min),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 MetricCard(
-                                    title = "GST Groups",
-                                    count = groupNames.size.toString(),
-                                    indicatorText = groupNames.joinToString(" / "),
+                                    title = "Primary Settings",
+                                    count = groupCount.toString(),
+                                    indicatorText = "Categories",
                                     indicatorColor = close_color,
                                     modifier = Modifier.weight(1f)
                                 )
                                 MetricCard(
-                                    title = "States Covered",
+                                    title = "Jurisdictions Covered",
                                     count = stateCount.toString(),
                                     indicatorText = "States & UTs",
                                     indicatorColor = close_color,
@@ -240,18 +228,76 @@ fun GstSettingsOverviewScreen(
                         }
                     }
 
-                    // List of GST Registration Cards
-                    items(filteredList, key = { it.id }) { item ->
+                    // Initial Loading Indicator
+                    if (isLoading && taxRegistrations.isEmpty()) {
+                        item {
+                            ListSkeleton()
+                        }
+                    }
+
+                    // Error Message Card
+                    if (errorMessage != null && taxRegistrations.isEmpty()) {
+                        item {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = tokens.screenPadding),
+                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                                color = redText.copy(alpha = 0.08f),
+                                border = BorderStroke(1.dp, redText.copy(alpha = 0.3f))
+                            ) {
+                                Text(
+                                    text = errorMessage.orEmpty(),
+                                    fontSize = tokens.bodySmall,
+                                    color = redText,
+                                    modifier = Modifier.padding(14.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+
+                    // Empty State
+                    if (!isLoading && taxRegistrations.isEmpty() && errorMessage == null) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 50.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (searchQuery.isNotBlank()) "No GST registrations match your search" else "No GST registrations found",
+                                    fontSize = tokens.bodyMedium,
+                                    color = close_color
+                                )
+                            }
+                        }
+                    }
+
+                    // Dynamic List Items from API
+                    items(
+                        items = taxRegistrations,
+                        key = { it.id }
+                    ) { item ->
                         GstRegistrationCard(
                             item = item,
                             onEditClick = { onEditGst(item) }
                         )
+                    }
+
+                    // Infinite Scroll Loading Footer
+                    if (isLoadingMore) {
+                        item {
+                            ThreeDotLoading()
+                        }
                     }
                 }
             }
         }
     }
 }
+
 
 // ── Metric Cell Helper Component ──
 @Composable
@@ -294,15 +340,13 @@ private fun MetricCard(
     count: String,
     indicatorText: String,
     indicatorColor: Color,
-    // Optional small arrow shown before the indicator text (null for plain text)
     indicatorIcon: ImageVector? = null
 ) {
     val tokens = LocalAppTokens.current
     Surface(
         modifier = modifier.fillMaxHeight(),
         shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
-        color = whiteBg,
-        border = BorderStroke(1.dp, dividerColor)
+        color = whiteBg
     ) {
         Column(
             modifier = Modifier
@@ -310,14 +354,12 @@ private fun MetricCard(
                 .padding(horizontal = 14.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Title: larger, regular weight, muted colour
             Text(
                 text = title,
                 fontSize = tokens.bodySmall,
                 color = close_color,
                 maxLines = 1
             )
-            // Value: large, medium weight
             Text(
                 text = count,
                 fontSize = tokens.bodyLarge,
@@ -325,7 +367,6 @@ private fun MetricCard(
                 color = TextPrimary,
                 maxLines = 1
             )
-            // Indicator line: optional arrow icon followed by the text
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (indicatorIcon != null) {
                     Icon(
@@ -348,348 +389,451 @@ private fun MetricCard(
 // ── GST Card Component ──
 @Composable
 fun GstRegistrationCard(
-    item: GstRegistrationItem,
+    item: TaxRegistrationItemDto,
     onEditClick: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
     val isActive = item.status.equals("Active", ignoreCase = true)
-    var menuExpanded by remember { mutableStateOf(false) }
 
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
-        color = whiteBg
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(tokens.screenPadding * 0.8f),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Header Row: Title & 3-Dot Menu
-            Row(
+    // Format date string from "2026-10-12T..." or validFrom
+    val effectiveDate = remember(item.validFrom, item.createdAt) {
+        val rawDate = item.validFrom ?: item.createdAt
+        if (!rawDate.isNullOrBlank() && rawDate.length >= 10) {
+            val parts = rawDate.take(10).split("-")
+            if (parts.size == 3) {
+                val months = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+                val monthIndex = (parts[1].toIntOrNull() ?: 1) - 1
+                val monthName = months.getOrElse(monthIndex) { parts[1] }
+                "${parts[2]} $monthName ${parts[0]}"
+            } else rawDate.take(10)
+        } else {
+            "01 Apr 2024"
+        }
+    }
+
+    DataCard(
+        item = item,
+        onClick = { onEditClick() },
+        title = "${item.subdivisionName ?: item.countryCode ?: "State"} GST Registration",
+        subtitle = item.registeredLegalName?.takeIf { it.isNotBlank() } ?: "GST Group",
+        titleFontWeight = FontWeight.Medium,
+        actions = listOf(
+            MenuAction(
+                label = "Edit",
+                icon = Icons.Default.MoreVert,
+                onClick = onEditClick
+            )
+        ),
+        content = {
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                // GSTIN Box Badge
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Primary_background)
+                        .border(1.dp, light_blue_border, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
                     Text(
-                        text = item.title,
-                        fontSize = tokens.bodyMedium,
+                        text = "GSTIN: ${item.registrationNumber ?: "N/A"}",
+                        fontSize = tokens.bodySmall,
+                        fontWeight = FontWeight.Bold,
                         color = title_color
                     )
+                }
+
+                // Type & State Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = item.group,
+                        text = "Type:",
                         fontSize = tokens.caption,
                         color = close_color
                     )
-                }
-
-                Box {
-                    IconButton(
-                        onClick = { menuExpanded = true },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = "Options",
-                            tint = iconMuted,
-                            modifier = Modifier.size(tokens.iconSize)
-                        )
-                    }
-
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                        modifier = Modifier.background(whiteBg)
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Edit", color = TextPrimary, fontSize = tokens.bodySmall) },
-                            onClick = {
-                                menuExpanded = false
-                                onEditClick()
-                            }
-                        )
-                    }
-                }
-            }
-
-            // GSTIN Badge
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(cardBgLight)
-                    .border(1.dp, light_blue_border, RoundedCornerShape(6.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = "GSTIN: ${item.gstin}",
-                    fontSize = tokens.caption,
-                    fontWeight = FontWeight.Bold,
-                    color = textSubdued
-                )
-            }
-
-            // Details Line
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "Type:", fontSize = tokens.caption, color = close_color)
-                Text(text = item.type, fontSize = tokens.caption,  color = TextPrimary)
-                Text(text = "•", fontSize = tokens.caption, color = close_color)
-                Text(text = "State:", fontSize = tokens.caption, color = close_color)
-                Text(text = item.state, fontSize = tokens.caption, color = TextPrimary)
-            }
-            HorizontalDivider(color = dividerColor, thickness = 2.dp)
-            // Bottom Badges Line
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Status Badge
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(if (isActive) greenBg else modelGray)
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(5.dp)
-                            .clip(CircleShape)
-                            .background(if (isActive) greentext else close_color)
+                    Text(
+                        text = item.taxScheme ?: "Regular",
+                        fontSize = tokens.caption,
+                        fontWeight = FontWeight.Normal,
+                        color = TextPrimary
                     )
                     Text(
-                        text = item.status,
-                        fontSize = tokens.label,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isActive) greentext else close_color
+                        text = "•",
+                        fontSize = tokens.caption,
+                        color = close_color
+                    )
+                    Text(
+                        text = "State:",
+                        fontSize = tokens.caption,
+                        color = close_color
+                    )
+                    Text(
+                        text = item.subdivisionName ?: item.countryCode ?: "N/A",
+                        fontSize = tokens.caption,
+                        fontWeight = FontWeight.Normal,
+                        color = TextPrimary
                     )
                 }
-                // Effective Date
+
+                HorizontalDivider(color = dividerColor, thickness = 1.dp)
+
+                // Bottom Row: Status Badge on Left & Effective Date on Right
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "Effective:", fontSize = tokens.label, color = close_color)
-                    Text(text = item.effectiveDate, fontSize = tokens.label, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                    // Status Badge with dot
+                    StatusBadge(
+                        text = item.status,
+                        bgColor = if (isActive) greenBg else modelGray,
+                        textColor = if (isActive) greentext else close_color,
+                        cornerRadius = 20.dp
+                    )
+
+                    // Effective Date
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Effective:",
+                            fontSize = tokens.bodySmall,
+                            color = close_color
+                        )
+                        Text(
+                            text = effectiveDate,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                    }
                 }
             }
         }
-    }
+    )
 }
-
 // ===========================================================
 // SCREEN 2: ADD/EDIT GST SETTINGS FORM
 // ===========================================================
 
 @Composable
 fun AddGstSettingsScreen(
+    settingsViewModel: SettingsViewModel,
+    branchViewModel: BranchViewModel,
+    inventoryViewModel: InventoryViewModel,
+    salesViewModel: SalesViewModel,
     onClose: () -> Unit = {},
     onSave: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
-    val tabs = listOf(
-        "GST Registration",
-        "GST Behaviour",
-        "Tax Preferences",
-        "Compliance Settings"
-    )
+    // ── 1. Fetch Dynamic Data on Screen Launch ──
+    LaunchedEffect(Unit) {
+        branchViewModel.loadBranches()
+        inventoryViewModel.fetchTaxGroups()
+        salesViewModel.fetchStaff()
+    }
 
-    // ── Tab 1 States (GST Registration) ──
-    var isGstRegistered by remember { mutableStateOf("Yes") }
-    var gstinNumber by remember { mutableStateOf("") }
-    var legalBusinessName by remember { mutableStateOf("Threads & Style Pvt. Ltd.") }
-    var tradeName by remember { mutableStateOf("CUSO Tailor") }
-    var panNumber by remember { mutableStateOf("ABCDE1234F") }
+    // ── 2. Observe ViewModel States ──
+    val selectedTaxItem by settingsViewModel.selectedTaxRegistration.collectAsState()
+    val branchUiState by branchViewModel.uiState.collectAsState()
+    val taxGroups by inventoryViewModel.taxGroups.collectAsState()
+    val staffList by salesViewModel.staffList.collectAsState()
+
+    // ── 3. Derived Dropdown Options from APIs ──
+    val branches = remember(branchUiState) {
+        if (branchUiState is BranchUiState.Success) {
+            (branchUiState as BranchUiState.Success).branches
+        } else emptyList()
+    }
+
+    val branchOptions = remember(branches) {
+        branches.map { "${it.name} (${it.address.city?.ifBlank { "" }})" }
+    }
+
+    val taxGroupOptions = remember(taxGroups) {
+        taxGroups.map { "${it.name} (${it.totalRate}%)" }
+    }
+
+    val authUserOptions = remember(staffList) {
+        staffList.map { staff ->
+            val name = "${staff.firstName} ${staff.lastName}".trim()
+            val memberTag = if (staff.memberId.isNotBlank()) " (${staff.memberId})" else ""
+            if (name.isNotBlank()) "$name$memberTag" else staff.memberId.ifBlank { "" }
+        }
+    }
+
+    // ── Tab Items for SettingsTabs Component ──
+    val tabItems = remember {
+        listOf(
+            TabItem(label = "Tax Registration"),
+            TabItem(label = "Tax Defaults & Regime"),
+            TabItem(label = "Filing & Invoice Preferences"),
+            TabItem(label = "Compliance Reminders")
+        )
+    }
+
+    // =======================================================
+    // FORM FORM STATES
+    // =======================================================
+
+    // ── Tab 1: Tax Registration ──
+    var registrationNumber by remember { mutableStateOf("") }
+    var registrationType by remember { mutableStateOf("") }
+    var isRegTypeExpanded by remember { mutableStateOf(false) }
+    val registrationTypes = listOf("GSTIN", "VAT", "EIN", "TRN", "ABN", "PAN")
+
+    var status by remember { mutableStateOf("") }
+    var isStatusExpanded by remember { mutableStateOf(false) }
+    val statusOptions = listOf("Active", "Draft", "Inactive")
+
+    var registeredLegalName by remember { mutableStateOf("") }
+
+    var branchJurisdiction by remember { mutableStateOf("") }
+    var selectedBranchId by remember { mutableStateOf<String?>(null) }
+    var isBranchExpanded by remember { mutableStateOf(false) }
+
+    var countryCode by remember { mutableStateOf("") }
+    var subdivisionName by remember { mutableStateOf("") }
+    var subdivisionCode by remember { mutableStateOf("") }
     var registrationDate by remember { mutableStateOf("") }
-    var businessState by remember { mutableStateOf("") }
-    var isBusinessStateExpanded by remember { mutableStateOf(false) }
+    var registeredAddress by remember { mutableStateOf("") }
+
+    // ── Tab 2: Tax Defaults & Regime ──
+    var taxRegime by remember { mutableStateOf("") }
+    var isTaxRegimeExpanded by remember { mutableStateOf(false) }
+    val taxRegimeList = listOf("GST (Goods & Services Tax)", "VAT (Value Added Tax)", "Sales Tax", "Other")
+
     var taxScheme by remember { mutableStateOf("") }
     var isTaxSchemeExpanded by remember { mutableStateOf(false) }
-    var registrationStatus by remember { mutableStateOf("Active") }
-    var isRegStatusExpanded by remember { mutableStateOf(false) }
+    val taxSchemeList = listOf("Regular Scheme", "Composition Scheme", "Flat Rate Scheme", "Exempt", "Other")
 
-    // ── Tab 2 States (GST Behaviour) ──
-    var defaultIntraStateTax by remember { mutableStateOf("") }
+    var defaultIntraStateTaxGroup by remember { mutableStateOf("") }
+    var selectedIntraStateTaxGroupId by remember { mutableStateOf<String?>(null) }
     var isIntraStateExpanded by remember { mutableStateOf(false) }
-    var defaultInterStateTax by remember { mutableStateOf("") }
+
+    var defaultInterStateTaxGroup by remember { mutableStateOf("") }
+    var selectedInterStateTaxGroupId by remember { mutableStateOf<String?>(null) }
     var isInterStateExpanded by remember { mutableStateOf(false) }
-    var rcmEnabled by remember { mutableStateOf(false) }
-    var compositionSchemeEnabled by remember { mutableStateOf(false) }
-    var exportSezEnabled by remember { mutableStateOf(false) }
 
-    // ── Tab 3 States (Tax Preferences) ──
-    var defaultTaxTreatment by remember { mutableStateOf("") }
-    var isTaxTreatmentExpanded by remember { mutableStateOf(false) }
-    var defaultTaxRate by remember { mutableStateOf("") }
-    var isTaxRateExpanded by remember { mutableStateOf(false) }
-    var taxCalculationMethod by remember { mutableStateOf("") }
-    var isTaxCalcMethodExpanded by remember { mutableStateOf(false) }
-    var placeOfSupplyBehaviour by remember { mutableStateOf("") }
-    var isPlaceOfSupplyExpanded by remember { mutableStateOf(false) }
-    var showTaxBreakdown by remember { mutableStateOf(true) }
-    var showHsnSac by remember { mutableStateOf(true) }
-    var showPlaceOfSupply by remember { mutableStateOf(true) }
+    var isPrimaryRegistration by remember { mutableStateOf(false) }
+    var isGroupRegistration by remember { mutableStateOf(false) }
 
-    // ── Tab 4 States (Compliance Settings) ──
+    // ── Tab 3: Filing & Invoice Preferences ──
+    var filingAccountingMethod by remember { mutableStateOf("") }
+    var isFilingMethodExpanded by remember { mutableStateOf(false) }
+    val filingMethods = listOf("Accrual Basis", "Cash Basis")
+
     var filingFrequency by remember { mutableStateOf("") }
     var isFilingFrequencyExpanded by remember { mutableStateOf(false) }
-    var returnPeriodStart by remember { mutableStateOf("") }
-    var isReturnPeriodStartExpanded by remember { mutableStateOf(false) }
-    var requireApprovalBeforeFiling by remember { mutableStateOf(true) }
-    var sendEmailReminder by remember { mutableStateOf(true) }
-    var notifyValidationErrors by remember { mutableStateOf(true) }
-    var authorizedFilingUser by remember { mutableStateOf("") }
-    var isAuthUserExpanded by remember { mutableStateOf(false) }
-    var complianceReminder by remember { mutableStateOf("") }
-    var isComplianceReminderExpanded by remember { mutableStateOf(false) }
+    val filingFrequencies = listOf("Monthly", "Quarterly", "Semi Annually", "Annually")
 
-    val stateList = listOf("Karnataka", "Tamil Nadu", "Kerala", "Maharashtra", "Delhi")
-    val taxSchemeList = listOf("Regular", "Composition", "Casual Taxable", "Non-Resident")
-    val statusList = listOf("Active", "Inactive", "Suspended")
-    val intraStateTaxList = listOf("CGST + SGST", "UTGST", "Exempt")
-    val interStateTaxList = listOf("IGST", "Exempt", "Zero Rated")
-    val taxTreatmentList = listOf("Taxable", "Exempt", "Nil Rated", "Non-GST")
-    val taxRateList = listOf("GST 0%", "GST 5%", "GST 12%", "GST 18% — Services", "GST 28%")
-    val taxCalcMethodList = listOf("Tax Exclusive (tax added on top)", "Tax Inclusive (tax included in price)")
-    val placeOfSupplyList = listOf("Use Customer Billing State", "Use Customer Shipping State", "Use Place of Delivery")
-    val filingFrequencyList = listOf("Monthly", "Quarterly", "Annually")
-    val returnPeriodList = listOf("April (Financial Year)", "January (Calendar Year)")
-    val authUserList = listOf("Finance Admin (admin@cusotailor.in)", "Accounts Manager (accounts@cusotailor.in)")
-    val reminderDaysList = listOf("3 days before deadline", "7 days before deadline", "15 days before deadline")
+    var taxRoundingRule by remember { mutableStateOf("") }
+    var isTaxRoundingExpanded by remember { mutableStateOf(false) }
+    val taxRoundingRules = listOf("Round Half Up (Standard)", "Round Half Down", "Round Down", "Round Up")
+
+    var showTaxBreakdownOnInvoice by remember { mutableStateOf(true) }
+    var showHsnSacOnInvoice by remember { mutableStateOf(true) }
+    var showPlaceOfSupplyOnInvoice by remember { mutableStateOf(true) }
+
+    // ── Tab 4: Compliance Reminders ──
+    var reminderLeadDays by remember { mutableStateOf("") }
+    var taxAgentNumber by remember { mutableStateOf("") }
+
+    var authorizedFilingOfficer by remember { mutableStateOf("") }
+    var selectedStaffId by remember { mutableStateOf<String?>(null) }
+    var isOfficerExpanded by remember { mutableStateOf(false) }
+
+    var sendEmailReminders by remember { mutableStateOf(true) }
+    var sendValidationAlerts by remember { mutableStateOf(true) }
+
+    // ── PRE-FILL DATA WHEN EDIT API DATA COMES ──
+    LaunchedEffect(selectedTaxItem) {
+        selectedTaxItem?.let { item ->
+            // Tab 1
+            registrationNumber = item.registrationNumber.orEmpty()
+            registrationType = item.registrationType.orEmpty()
+            status = item.status
+            registeredLegalName = item.registeredLegalName.orEmpty()
+            countryCode = item.countryCode.orEmpty()
+            subdivisionName = item.subdivisionName.orEmpty()
+            subdivisionCode = item.subdivisionCode.orEmpty()
+            registrationDate = item.validFrom?.take(10).orEmpty()
+            registeredAddress = item.registeredAddress.orEmpty()
+
+            selectedBranchId = item.branchId
+            branches.find { it.id == item.branchId }?.let { b ->
+                branchJurisdiction = "${b.name} (${b.address.city?.ifBlank { "" }})"
+            }
+
+            // Tab 2
+            taxRegime = item.taxRegime.orEmpty()
+            taxScheme = item.taxScheme.orEmpty()
+            isPrimaryRegistration = item.isPrimary
+            isGroupRegistration = item.isGroupRegistration
+
+            selectedIntraStateTaxGroupId = item.defaultIntraStateTaxGroupId
+            taxGroups.find { it.id == item.defaultIntraStateTaxGroupId }?.let { tg ->
+                defaultIntraStateTaxGroup = "${tg.name} (${tg.totalRate}%)"
+            }
+
+            selectedInterStateTaxGroupId = item.defaultInterStateTaxGroupId
+            taxGroups.find { it.id == item.defaultInterStateTaxGroupId }?.let { tg ->
+                defaultInterStateTaxGroup = "${tg.name} (${tg.totalRate}%)"
+            }
+
+            // Tab 3
+            filingAccountingMethod = if (item.filingMethod?.contains("Accrual", ignoreCase = true) == true) "Accrual Basis" else "Cash Basis"
+            filingFrequency = item.filingFrequency.orEmpty()
+            taxRoundingRule = if (item.taxRoundingRule?.contains("Half_Up", ignoreCase = true) == true) "Round Half Up (Standard)" else item.taxRoundingRule.orEmpty()
+            showTaxBreakdownOnInvoice = item.showTaxBreakdownOnInvoice
+            showHsnSacOnInvoice = item.showHsnSacOnInvoice
+            showPlaceOfSupplyOnInvoice = item.showPlaceOfSupplyOnInvoice
+
+            // Tab 4
+            reminderLeadDays = item.reminderDaysBeforeDeadline.toString()
+            taxAgentNumber = item.taxAgentNumber.orEmpty()
+            sendEmailReminders = item.sendEmailReminder
+            sendValidationAlerts = item.notifyOnValidator
+
+            val firstUserId = item.authorizedFilingUsers.firstOrNull()
+            if (!firstUserId.isNullOrBlank()) {
+                selectedStaffId = firstUserId
+                staffList.find { it.id == firstUserId }?.let { staff ->
+                    val name = "${staff.firstName} ${staff.lastName}".trim()
+                    val tag = if (staff.memberId.isNotBlank()) " (${staff.memberId})" else ""
+                    authorizedFilingOfficer = if (name.isNotBlank()) "$name$tag" else staff.memberId
+                }
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         Column(modifier = Modifier.fillMaxSize()) {
-            TitleBar(title = "GST Settings", onClose = onClose)
+            TitleBar(
+                title = if (selectedTaxItem != null) "Edit GST Settings" else "GST Settings",
+                onClose = {
+                    settingsViewModel.clearSelectedTaxRegistration()
+                    onClose()
+                }
+            )
 
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = tokens.screenPadding),
-                contentPadding = PaddingValues(bottom = tokens.buttonHeight * 2),
-                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                contentPadding = PaddingValues(top = 10.dp, bottom = tokens.buttonHeight * 2),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Section Title & Subtitle based on selected tab
+                // ── Reusable SettingsTabs Component ──
                 item {
-                    Column(modifier = Modifier.padding(top = 4.dp)) {
-                        Text(
-                            text = tabs[selectedTabIndex],
-                            fontSize = tokens.h2,
-                            color = TextPrimary
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = when (selectedTabIndex) {
-                                0 -> "Manage your GST registration details across states and union territories."
-                                1 -> "Configure how GST is applied to your sales and purchases."
-                                2 -> "Configure tax rates, tax rules, and preferences for your business."
-                                else -> "Configure how GST is applied to your sales and purchases."
-                            },
-                            fontSize = tokens.bodySmall,
-                            color = close_color
-                        )
-                    }
-                }
-
-                // ── Reusable Underline Tab Row Component ──
-                item {
-                    AppUnderlineTabRow(
-                        tabs = tabs,
+                    SettingsTabs(
+                        tabs = tabItems,
                         selectedIndex = selectedTabIndex,
                         onTabSelected = { selectedTabIndex = it },
-                        isScrollable = true
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 
                 // ==========================================
-                // TAB 1: GST REGISTRATION
+                // TAB 0: TAX REGISTRATION
                 // ==========================================
                 if (selectedTabIndex == 0) {
                     item {
-                        Spacer(Modifier.height(8.dp))
-                        FormLabel("GST Registered", isRequired = true)
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(20.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.clickable { isGstRegistered = "Yes" }
-                            ) {
-                                AppRadioButton(
-                                    selected = isGstRegistered == "Yes",
-                                    onClick = { isGstRegistered = "Yes" },
-                                )
-                                Text("Yes", fontSize = tokens.bodyMedium, color = TextPrimary)
+                        FormLabel("Registration Number (GSTIN / VAT ID)", isRequired = true)
+                        FormTextField(
+                            value = registrationNumber,
+                            onValueChange = { registrationNumber = it.uppercase() },
+                            placeholder = "E.G. 29ABCDE1234F1Z5"
+                        )
+                    }
+
+                    item {
+                        FormLabel("Registration Type")
+                        FormDropdown(
+                            value = registrationType,
+                            expanded = isRegTypeExpanded,
+                            onExpandChange = { isRegTypeExpanded = it },
+                            options = registrationTypes,
+                            onOptionSelected = { registrationType = it }
+                        )
+                    }
+
+                    item {
+                        FormLabel("Status")
+                        FormDropdown(
+                            value = status,
+                            expanded = isStatusExpanded,
+                            onExpandChange = { isStatusExpanded = it },
+                            options = statusOptions,
+                            onOptionSelected = { status = it }
+                        )
+                    }
+
+                    item {
+                        FormLabel("Registered Legal Name")
+                        FormTextField(
+                            value = registeredLegalName,
+                            onValueChange = { registeredLegalName = it },
+                            placeholder = "Legal Trade Entity Name"
+                        )
+                    }
+
+                    item {
+                        FormLabel("Branch Jurisdiction")
+                        FormDropdown(
+                            value = branchJurisdiction.ifBlank { "Select Branch" },
+                            expanded = isBranchExpanded,
+                            onExpandChange = { isBranchExpanded = it },
+                            options = if (branchOptions.isNotEmpty()) branchOptions else listOf("Loading branches..."),
+                            onOptionSelected = { selected ->
+                                branchJurisdiction = selected
+                                val index = branchOptions.indexOf(selected)
+                                if (index != -1 && index < branches.size) {
+                                    selectedBranchId = branches[index].id
+                                    // Auto-fill state if available
+                                    branches[index].address.state?.let { subdivisionName = it }
+                                }
                             }
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.clickable { isGstRegistered = "No" }
-                            ) {
-                                AppRadioButton(
-                                    selected = isGstRegistered == "No",
-                                    onClick = { isGstRegistered = "No" },
-                                )
-                                Text("No", fontSize = tokens.bodyMedium, color = TextPrimary)
-                            }
-                        }
+                        )
                     }
 
                     item {
-                        FormLabel("GSTIN", isRequired = true)
+                        FormLabel("Country Code (ISO 3166-1)")
                         FormTextField(
-                            value = gstinNumber,
-                            onValueChange = { gstinNumber = it },
-                            placeholder = "29ABCDE1234F1Z5"
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = "15-character GST Identification Number",
-                            fontSize = tokens.caption,
-                            color = close_color
+                            value = countryCode,
+                            onValueChange = { countryCode = it.uppercase() },
+                            placeholder = "IN"
                         )
                     }
 
                     item {
-                        FormLabel("Legal Business Name (from Business Profile)")
+                        FormLabel("State / Province (Subdivision Name)")
                         FormTextField(
-                            value = legalBusinessName,
-                            onValueChange = { legalBusinessName = it },
-                            enabled = false,
-                            containerColor = light_blue
+                            value = subdivisionName,
+                            onValueChange = { subdivisionName = it },
+                            placeholder = "e.g. Tamil Nadu, Karnataka"
                         )
                     }
 
                     item {
-                        FormLabel("Trade Name (from Business Profile)")
+                        FormLabel("Subdivision Code (ISO 3166-2)")
                         FormTextField(
-                            value = tradeName,
-                            onValueChange = { tradeName = it },
-                            enabled = false,
-                            containerColor = light_blue
+                            value = subdivisionCode,
+                            onValueChange = { subdivisionCode = it.uppercase() },
+                            placeholder = "E.G. TN, KA, MH"
                         )
                     }
 
                     item {
-                        FormLabel("PAN (from Business Profile)")
-                        FormTextField(
-                            value = panNumber,
-                            onValueChange = { panNumber = it },
-                            enabled = false,
-                            containerColor = light_blue
-                        )
-                    }
-
-                    item {
-                        FormLabel("Registration Date")
+                        FormLabel("Registration Date (Valid From)")
                         DatePickerField(
                             value = registrationDate,
                             onDateSelected = { registrationDate = it }
@@ -697,13 +841,29 @@ fun AddGstSettingsScreen(
                     }
 
                     item {
-                        FormLabel("Business State")
+                        FormLabel("Registered Statutory Address")
+                        FormTextArea(
+                            value = registeredAddress,
+                            onValueChange = { registeredAddress = it },
+                            placeholder = "Full official address registered with tax department...",
+                            maxLines = 4,
+                            minLines = 3
+                        )
+                    }
+                }
+
+                // ==========================================
+                // TAB 1: TAX DEFAULTS & REGIME
+                // ==========================================
+                if (selectedTabIndex == 1) {
+                    item {
+                        FormLabel("Tax Regime")
                         FormDropdown(
-                            value = businessState,
-                            expanded = isBusinessStateExpanded,
-                            onExpandChange = { isBusinessStateExpanded = it },
-                            options = stateList,
-                            onOptionSelected = { businessState = it }
+                            value = taxRegime,
+                            expanded = isTaxRegimeExpanded,
+                            onExpandChange = { isTaxRegimeExpanded = it },
+                            options = taxRegimeList,
+                            onOptionSelected = { taxRegime = it }
                         )
                     }
 
@@ -719,80 +879,178 @@ fun AddGstSettingsScreen(
                     }
 
                     item {
-                        FormLabel("Registration Status")
+                        FormLabel("Default Intra-State Tax Group")
                         FormDropdown(
-                            value = registrationStatus,
-                            expanded = isRegStatusExpanded,
-                            onExpandChange = { isRegStatusExpanded = it },
-                            options = statusList,
-                            onOptionSelected = { registrationStatus = it }
+                            value = defaultIntraStateTaxGroup.ifBlank { "Select CGST + SGST Group" },
+                            expanded = isIntraStateExpanded,
+                            onExpandChange = { isIntraStateExpanded = it },
+                            options = if (taxGroupOptions.isNotEmpty()) taxGroupOptions else listOf("No tax groups available"),
+                            onOptionSelected = { selected ->
+                                defaultIntraStateTaxGroup = selected
+                                val index = taxGroupOptions.indexOf(selected)
+                                if (index != -1 && index < taxGroups.size) {
+                                    selectedIntraStateTaxGroupId = taxGroups[index].id
+                                }
+                            }
                         )
+                    }
+
+                    item {
+                        FormLabel("Default Inter-State Tax Group")
+                        FormDropdown(
+                            value = defaultInterStateTaxGroup.ifBlank { "Select IGST Group" },
+                            expanded = isInterStateExpanded,
+                            onExpandChange = { isInterStateExpanded = it },
+                            options = if (taxGroupOptions.isNotEmpty()) taxGroupOptions else listOf("No tax groups available"),
+                            onOptionSelected = { selected ->
+                                defaultInterStateTaxGroup = selected
+                                val index = taxGroupOptions.indexOf(selected)
+                                if (index != -1 && index < taxGroups.size) {
+                                    selectedInterStateTaxGroupId = taxGroups[index].id
+                                }
+                            }
+                        )
+                    }
+
+                    item {
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { isPrimaryRegistration = !isPrimaryRegistration }
+                        ) {
+                            AppCheckbox(
+                                checked = isPrimaryRegistration,
+                                onCheckedChange = { isPrimaryRegistration = it }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Set as Primary Registration for this Entity",
+                                fontSize = tokens.bodySmall,
+                                color = TextPrimary
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { isGroupRegistration = !isGroupRegistration }
+                        ) {
+                            AppCheckbox(
+                                checked = isGroupRegistration,
+                                onCheckedChange = { isGroupRegistration = it }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Is Group Tax Registration (Tax Representation Group)",
+                                fontSize = tokens.bodySmall,
+                                color = TextPrimary
+                            )
+                        }
                     }
                 }
 
                 // ==========================================
-                // TAB 2: GST BEHAVIOUR 
+                // TAB 2: FILING & INVOICE PREFERENCES
                 // ==========================================
-                if (selectedTabIndex == 1) {
+                if (selectedTabIndex == 2) {
                     item {
-                        FormSectionHeader("Tax Type Defaults")
-
-                        FormLabel("Default Intra-State Tax", isRequired = true)
+                        FormLabel("Filing Accounting Method")
                         FormDropdown(
-                            value = defaultIntraStateTax,
-                            expanded = isIntraStateExpanded,
-                            onExpandChange = { isIntraStateExpanded = it },
-                            options = intraStateTaxList,
-                            onOptionSelected = { defaultIntraStateTax = it }
+                            value = filingAccountingMethod,
+                            expanded = isFilingMethodExpanded,
+                            onExpandChange = { isFilingMethodExpanded = it },
+                            options = filingMethods,
+                            onOptionSelected = { filingAccountingMethod = it }
                         )
-                        Spacer(Modifier.height(2.dp))
-                        Text("Applied when customer and business are in the same state", fontSize = tokens.caption, color = close_color)
-
-                        Spacer(Modifier.height(14.dp))
-
-                        FormLabel("Default Inter-State Tax", isRequired = true)
-                        FormDropdown(
-                            value = defaultInterStateTax,
-                            expanded = isInterStateExpanded,
-                            onExpandChange = { isInterStateExpanded = it },
-                            options = interStateTaxList,
-                            onOptionSelected = { defaultInterStateTax = it }
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text("Applied when customer and business are in different states", fontSize = tokens.caption, color = close_color)
                     }
 
                     item {
-                        FormSectionHeader("GST Features")
-
-                        ToggleRow("Reverse Charge Mechanism (RCM)", rcmEnabled) { rcmEnabled = it }
-                        HorizontalDivider(color = dividerColor, thickness = 2.dp)
-                        ToggleRow("Composition Scheme", compositionSchemeEnabled) { compositionSchemeEnabled = it }
-                        HorizontalDivider(color = dividerColor, thickness = 2.dp)
-                        ToggleRow("Export / SEZ Transactions", exportSezEnabled) { exportSezEnabled = it }
+                        FormLabel("Filing Frequency")
+                        FormDropdown(
+                            value = filingFrequency,
+                            expanded = isFilingFrequencyExpanded,
+                            onExpandChange = { isFilingFrequencyExpanded = it },
+                            options = filingFrequencies,
+                            onOptionSelected = { filingFrequency = it }
+                        )
                     }
 
                     item {
-                        FormSectionHeader("Business State")
+                        FormLabel("Tax Rounding Rule")
+                        FormDropdown(
+                            value = taxRoundingRule,
+                            expanded = isTaxRoundingExpanded,
+                            onExpandChange = { isTaxRoundingExpanded = it },
+                            options = taxRoundingRules,
+                            onOptionSelected = { taxRoundingRule = it }
+                        )
+                    }
 
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                            color = cardBgLight,
-                            border = BorderStroke(1.dp, light_blue_border)
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = "Karnataka — sourced from Business Profile.",
-                                    fontSize = tokens.bodySmall,
-                                    color = close_color
+                    item {
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = "INVOICE DISPLAY PREFERENCES",
+                            fontSize = tokens.label,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary
+                        )
+                        Spacer(Modifier.height(8.dp))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showTaxBreakdownOnInvoice = !showTaxBreakdownOnInvoice }
+                            ) {
+                                AppCheckbox(
+                                    checked = showTaxBreakdownOnInvoice,
+                                    onCheckedChange = { showTaxBreakdownOnInvoice = it }
                                 )
+                                Spacer(Modifier.width(8.dp))
                                 Text(
-                                    text = "Edit in Business Profile →",
+                                    text = "Show detailed sub-tax breakdown on customer invoices (CGST/SGST/IGST)",
                                     fontSize = tokens.bodySmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Primary,
-                                    modifier = Modifier.clickable { }
+                                    color = TextPrimary
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showHsnSacOnInvoice = !showHsnSacOnInvoice }
+                            ) {
+                                AppCheckbox(
+                                    checked = showHsnSacOnInvoice,
+                                    onCheckedChange = { showHsnSacOnInvoice = it }
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "Show HSN/SAC statutory codes on invoice line items",
+                                    fontSize = tokens.bodySmall,
+                                    color = TextPrimary
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { showPlaceOfSupplyOnInvoice = !showPlaceOfSupplyOnInvoice }
+                            ) {
+                                AppCheckbox(
+                                    checked = showPlaceOfSupplyOnInvoice,
+                                    onCheckedChange = { showPlaceOfSupplyOnInvoice = it }
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "Show Place of Supply jurisdiction code on invoices",
+                                    fontSize = tokens.bodySmall,
+                                    color = TextPrimary
                                 )
                             }
                         }
@@ -800,130 +1058,85 @@ fun AddGstSettingsScreen(
                 }
 
                 // ==========================================
-                // TAB 3: TAX PREFERENCES
-                // ==========================================
-                if (selectedTabIndex == 2) {
-                    item {
-                        FormSectionHeader("Tax Configuration")
-
-                        FormLabel("Default Tax Treatment", isRequired = true)
-                        FormDropdown(
-                            value = defaultTaxTreatment,
-                            expanded = isTaxTreatmentExpanded,
-                            onExpandChange = { isTaxTreatmentExpanded = it },
-                            options = taxTreatmentList,
-                            onOptionSelected = { defaultTaxTreatment = it }
-                        )
-
-                        Spacer(Modifier.height(14.dp))
-
-                        FormLabel("Default Tax Rate", isRequired = true)
-                        FormDropdown(
-                            value = defaultTaxRate,
-                            expanded = isTaxRateExpanded,
-                            onExpandChange = { isTaxRateExpanded = it },
-                            options = taxRateList,
-                            onOptionSelected = { defaultTaxRate = it }
-                        )
-
-                        Spacer(Modifier.height(14.dp))
-
-                        FormLabel("Tax Calculation Method")
-                        FormDropdown(
-                            value = taxCalculationMethod,
-                            expanded = isTaxCalcMethodExpanded,
-                            onExpandChange = { isTaxCalcMethodExpanded = it },
-                            options = taxCalcMethodList,
-                            onOptionSelected = { taxCalculationMethod = it }
-                        )
-
-                        Spacer(Modifier.height(14.dp))
-
-                        FormLabel("Place of Supply Behaviour")
-                        FormDropdown(
-                            value = placeOfSupplyBehaviour,
-                            expanded = isPlaceOfSupplyExpanded,
-                            onExpandChange = { isPlaceOfSupplyExpanded = it },
-                            options = placeOfSupplyList,
-                            onOptionSelected = { placeOfSupplyBehaviour = it }
-                        )
-                    }
-
-                    item {
-                        FormSectionHeader("Tax Display")
-
-                        ToggleRow("Show tax breakdown on invoices", showTaxBreakdown) { showTaxBreakdown = it }
-                        HorizontalDivider(color = dividerColor, thickness = 2.dp)
-                        ToggleRow("Show HSN/SAC on invoices", showHsnSac) { showHsnSac = it }
-                        HorizontalDivider(color = dividerColor, thickness = 2.dp)
-                        ToggleRow("Show Place of Supply on invoices", showPlaceOfSupply) { showPlaceOfSupply = it }
-                    }
-                }
-
-                // ==========================================
-                // TAB 4: COMPLIANCE SETTINGS
+                // TAB 3: COMPLIANCE REMINDERS
                 // ==========================================
                 if (selectedTabIndex == 3) {
                     item {
-                        FormSectionHeader("Filing Configuration")
-
-                        FormLabel("Filing Frequency", isRequired = true)
-                        FormDropdown(
-                            value = filingFrequency,
-                            expanded = isFilingFrequencyExpanded,
-                            onExpandChange = { isFilingFrequencyExpanded = it },
-                            options = filingFrequencyList,
-                            onOptionSelected = { filingFrequency = it }
-                        )
-
-                        Spacer(Modifier.height(14.dp))
-
-                        FormLabel("Return Period Start", isRequired = true)
-                        FormDropdown(
-                            value = returnPeriodStart,
-                            expanded = isReturnPeriodStartExpanded,
-                            onExpandChange = { isReturnPeriodStartExpanded = it },
-                            options = returnPeriodList,
-                            onOptionSelected = { returnPeriodStart = it }
+                        FormLabel("Reminder Lead Time (Days Before Deadline)")
+                        FormTextField(
+                            value = reminderLeadDays,
+                            onValueChange = { reminderLeadDays = it },
+                            placeholder = "5"
                         )
                     }
 
                     item {
-                        FormSectionHeader("Approval Workflow")
-
-                        ToggleRow("Require approval before filing GST returns", requireApprovalBeforeFiling) { requireApprovalBeforeFiling = it }
-                        HorizontalDivider(color = dividerColor, thickness = 2.dp)
-                        ToggleRow("Send email reminder before filing deadline", sendEmailReminder) { sendEmailReminder = it }
-                        HorizontalDivider(color = dividerColor, thickness = 2.dp)
-                        ToggleRow("Notify on validation errors", notifyValidationErrors) { notifyValidationErrors = it }
+                        FormLabel("Tax Agent / Preparer ID")
+                        FormTextField(
+                            value = taxAgentNumber,
+                            onValueChange = { taxAgentNumber = it },
+                            placeholder = "e.g. AGENT-88402"
+                        )
                     }
 
                     item {
-                        FormSectionHeader("Filing & Reminders")
-
-                        FormLabel("Authorized Filing User")
+                        FormLabel("Authorized Statutory Filing Officer")
                         FormDropdown(
-                            value = authorizedFilingUser,
-                            expanded = isAuthUserExpanded,
-                            onExpandChange = { isAuthUserExpanded = it },
-                            options = authUserList,
-                            onOptionSelected = { authorizedFilingUser = it }
+                            value = authorizedFilingOfficer.ifBlank { "Select Team Member" },
+                            expanded = isOfficerExpanded,
+                            onExpandChange = { isOfficerExpanded = it },
+                            options = if (authUserOptions.isNotEmpty()) authUserOptions else listOf("No team members found"),
+                            onOptionSelected = { selected ->
+                                authorizedFilingOfficer = selected
+                                val index = authUserOptions.indexOf(selected)
+                                if (index != -1 && index < staffList.size) {
+                                    selectedStaffId = staffList[index].id
+                                }
+                            }
                         )
+                    }
 
-                        Spacer(Modifier.height(14.dp))
+                    item {
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { sendEmailReminders = !sendEmailReminders }
+                        ) {
+                            AppCheckbox(
+                                checked = sendEmailReminders,
+                                onCheckedChange = { sendEmailReminders = it }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Send automated email alerts to authorized filing users before return deadlines",
+                                fontSize = tokens.bodySmall,
+                                color = TextPrimary
+                            )
+                        }
 
-                        FormLabel("Compliance Reminder")
-                        FormDropdown(
-                            value = complianceReminder,
-                            expanded = isComplianceReminderExpanded,
-                            onExpandChange = { isComplianceReminderExpanded = it },
-                            options = reminderDaysList,
-                            onOptionSelected = { complianceReminder = it }
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { sendValidationAlerts = !sendValidationAlerts }
+                        ) {
+                            AppCheckbox(
+                                checked = sendValidationAlerts,
+                                onCheckedChange = { sendValidationAlerts = it }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Send real-time alerts on statutory validation failures",
+                                fontSize = tokens.bodySmall,
+                                color = TextPrimary
+                            )
+                        }
+                    }
 
-                        Spacer(Modifier.height(16.dp))
-
-                        // Info Box
+                    item {
+                        Spacer(Modifier.height(8.dp))
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
@@ -942,7 +1155,7 @@ fun AddGstSettingsScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Text(
-                                    text = "Compliance reminders are sent to the authorized filing user via email. Ensure the user has an active account in CUSO.",
+                                    text = "Compliance reminders are dispatched automatically according to statutory deadlines configured for this tax regime. Ensure authorized users have verified email addresses.",
                                     fontSize = tokens.bodySmall,
                                     color = Primary,
                                     lineHeight = tokens.bodySmall.times(1.3f)
@@ -954,15 +1167,18 @@ fun AddGstSettingsScreen(
             }
         }
 
-        // Bottom Fixed Navigation Buttons (Cancel / Save Changes)
+        // Bottom Fixed Navigation Buttons
         StepNavigationFab(
             showBack = true,
             backLabel = "Cancel",
-            onBack = onClose,
+            onBack = {
+                settingsViewModel.clearSelectedTaxRegistration()
+                onClose()
+            },
             showBackArrow = false,
             showTrailingArrow = false,
             trailingAction = TrailingFabAction.Update(
-                label = "Save Changes",
+                label = if (selectedTaxItem != null) "Update Changes" else "Save Changes",
                 onClick = onSave
             ),
             backWidthFraction = 0.25f,

@@ -1,11 +1,11 @@
+@file:Suppress("unused", "SpellCheckingInspection")
+
 package com.cuso.tailor.view.home
 
+import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
@@ -30,20 +31,38 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.adaptive_screen.getAdaptiveTokens
+import com.cuso.tailor.model.home.*
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.HomeSkeleton
+import com.cuso.tailor.viewmodel.HomeViewModel
 import java.time.LocalTime
+import androidx.core.graphics.toColorInt
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeDashboardScreen(
     widthSizeClass: WindowWidthSizeClass,
     adminName: String = "Admin",
+    viewModel: HomeViewModel = hiltViewModel(),
     onNavigate: (String) -> Unit = {}
 ) {
     val designTokens = getAdaptiveTokens(widthSizeClass)
     val baseDensity = LocalDensity.current
+
+    // Collect API states
+    val kpis by viewModel.kpis.collectAsState()
+    val revenueTrend by viewModel.revenueTrend.collectAsState()
+    val marketing by viewModel.marketing.collectAsState()
+    val orderStatus by viewModel.orderStatus.collectAsState()
+    val stockStatus by viewModel.stockStatus.collectAsState()
+    val attendance by viewModel.attendance.collectAsState()
+    val serviceStatus by viewModel.serviceStatus.collectAsState()
+    val topProducts by viewModel.topProducts.collectAsState()
+    val actionTasks by viewModel.actionTasks.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     CompositionLocalProvider(
         LocalDensity provides Density(density = baseDensity.density, fontScale = 1f),
@@ -51,77 +70,123 @@ fun HomeDashboardScreen(
     ) {
         val tokens = LocalAppTokens.current
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Transparent),
-            contentPadding = PaddingValues(
-                horizontal = tokens.screenPadding,
-                vertical = tokens.screenPadding
-            ),
-            verticalArrangement = Arrangement.spacedBy(tokens.screenPadding)
-        ) {
-            // 1. Top Greeting Card
-            item {
-                GreetingCard(
-                    userName = adminName,
-                    newLeadsCount = 12,
-                    onNavigate = onNavigate
-                )
-            }
+        if (isLoading && kpis == null) {
+            HomeSkeleton()
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent),
+                contentPadding = PaddingValues(
+                    horizontal = tokens.screenPadding,
+                    vertical = tokens.screenPadding
+                ),
+                verticalArrangement = Arrangement.spacedBy(tokens.screenPadding)
+            ) {
+                // 1. Top Greeting Card
+                item {
+                    GreetingCard(
+                        userName = adminName,
+                        newLeadsCount = actionTasks.find { it.module.equals("Sales", ignoreCase = true) }?.count ?: 0,
+                        onNavigate = onNavigate
+                    )
+                }
 
-            // 2. 6 Metrics Grid
-            item {
-                KeyMetricsSection()
-            }
+                // 2. 6 Metrics Grid
+                item {
+                    KeyMetricsSection(kpis = kpis)
+                }
 
-            // 3. Sales Targets Progress Bar (Animated)
-            item {
-                SalesTargetsSection()
-            }
+                // 3. Sales Targets Progress Bar (Animated)
+                item {
+                    SalesTargetsSection(revenueData = revenueTrend)
+                }
 
-            // 4. Order Status Donut Chart (Animated)
-            item {
-                OrderStatusSection()
-            }
+                // 4. Order Status Donut Chart (Animated)
+                item {
+                    orderStatus?.let { data ->
+                        DonutChartCard(
+                            title = data.title.ifBlank { "Order Status" },
+                            subtitle = data.subtitle,
+                            centerValue = "${data.totalOrders ?: 0}",
+                            centerLabel = "ORDERS",
+                            segments = data.segments.map { DonutSegment(it.count, parseColorSafely(it.color)) },
+                            legends = data.segments.map { LegendItemData(it.status, "${it.count.toInt()}", parseColorSafely(it.color)) }
+                        )
+                    }
+                }
 
-            // 5. Stock Status Donut Chart (Animated)
-            item {
-                StockStatusSection()
-            }
+                // 5. Stock Status Donut Chart (Animated)
+                item {
+                    stockStatus?.let { data ->
+                        DonutChartCard(
+                            title = data.title.ifBlank { "Stock Status" },
+                            subtitle = data.subtitle,
+                            centerValue = "${data.totalSKUs ?: 0}",
+                            centerLabel = "SKUS",
+                            segments = data.segments.map { DonutSegment(it.count, parseColorSafely(it.color)) },
+                            legends = data.segments.map { LegendItemData(it.status, "${it.count.toInt()}", parseColorSafely(it.color)) }
+                        )
+                    }
+                }
 
-            // 6. Today's Attendance Donut Chart (Animated)
-            item {
-                TodayAttendanceSection()
-            }
+                // 6. Today's Attendance Donut Chart (Animated)
+                item {
+                    attendance?.let { data ->
+                        DonutChartCard(
+                            title = data.title.ifBlank { "Today's Attendance" },
+                            subtitle = data.subtitle,
+                            centerValue = "${data.totalEmployees ?: 0}",
+                            centerLabel = "EMPLOYEES",
+                            segments = data.segments.map { DonutSegment(it.count, parseColorSafely(it.color)) },
+                            legends = data.segments.map { LegendItemData(it.status, "${it.count.toInt()}", parseColorSafely(it.color)) }
+                        )
+                    }
+                }
 
-            // 7. Marketing Performance Bars (Animated)
-            item {
-                MarketingPerformanceSection()
-            }
+                // 7. Marketing Performance Bars (Animated)
+                item {
+                    MarketingPerformanceSection(marketingData = marketing)
+                }
 
-            // 8. Service Status Donut Chart (Animated)
-            item {
-                ServiceStatusSection()
-            }
+                // 8. Service Status Donut Chart (Animated)
+                item {
+                    serviceStatus?.let { data ->
+                        DonutChartCard(
+                            title = data.title.ifBlank { "Service Status" },
+                            subtitle = data.subtitle,
+                            centerValue = "${data.totalRequests ?: 0}",
+                            centerLabel = "REQUESTS",
+                            segments = data.segments.map { DonutSegment(it.count, parseColorSafely(it.color)) },
+                            legends = data.segments.map { LegendItemData(it.status, "${it.count.toInt()}", parseColorSafely(it.color)) }
+                        )
+                    }
+                }
 
-            // 9. Top Products Ranking List
-            item {
-                TopProductsSection(onViewDetails = { onNavigate("inventory_items") })
-            }
+                // 9. Top Products Ranking List
+                item {
+                    TopProductsSection(
+                        products = topProducts,
+                        onViewDetails = { onNavigate("inventory_items") }
+                    )
+                }
 
-            // 10. Action Required Task Cards
-            item {
-                ActionRequiredSection(onResolveClick = { route -> onNavigate(route) })
-            }
+                // 10. Action Required Task Cards
+                item {
+                    ActionRequiredSection(
+                        actions = actionTasks,
+                        onResolveClick = { route -> onNavigate(route) }
+                    )
+                }
 
-            // 11. Business Health Status Cards
-            item {
-                BusinessHealthSection(onViewModule = { onNavigate("module_settings") })
-            }
+                // 11. Business Health Status Cards
+                item {
+                    BusinessHealthSection(onViewModule = { onNavigate("module_settings") })
+                }
 
-            item {
-                Spacer(Modifier.height(tokens.screenPadding * 2))
+                item {
+                    Spacer(Modifier.height(tokens.screenPadding * 2))
+                }
             }
         }
     }
@@ -173,7 +238,7 @@ private fun GreetingCard(
             )
             Spacer(Modifier.height(tokens.extraPadding * 0.4f))
             Text(
-                text = "You have $newLeadsCount new leads to review today.",
+                text = "You have $newLeadsCount items requiring your attention today.",
                 color = whiteBg.copy(alpha = 0.85f),
                 fontSize = tokens.bodySmall,
                 fontWeight = FontWeight.Normal
@@ -183,26 +248,22 @@ private fun GreetingCard(
 }
 
 // ─────────────────────────────────────────────────────────────
-// 2. KEY METRICS (6 Grid Cards)
+// 2. KEY METRICS (From KPI API)
 // ─────────────────────────────────────────────────────────────
-private data class MetricItem(
-    val title: String,
-    val value: String,
-    val subtitle: String,
-    val isPositive: Boolean? = null
-)
-
 @Composable
-private fun KeyMetricsSection() {
+private fun KeyMetricsSection(kpis: HomeKpisGroup?) {
     val tokens = LocalAppTokens.current
-    val metrics = listOf(
-        MetricItem("Sales Revenue", "₹42.8L", "12.4% Today", true),
-        MetricItem("Total Orders", "1,284", "8.2% Growth", true),
-        MetricItem("Net Profit", "₹8.6L", "6.8% Up", true),
-        MetricItem("Receivables", "₹11.4L", "Outstanding claims", null),
-        MetricItem("Inventory Value", "₹32.6L", "Total stock assets", null),
-        MetricItem("Delivery Success", "96.8%", "1.8% Increase", true)
-    )
+
+    val metrics = remember(kpis) {
+        listOf(
+            MetricItem("Sales Revenue", "₹${formatCurrency(kpis?.salesRevenue?.amount ?: 0.0)}", kpis?.salesRevenue?.growth ?: "0%", kpis?.salesRevenue?.trendUp),
+            MetricItem("Total Orders", "${kpis?.totalOrders?.count ?: 0}", kpis?.totalOrders?.growth ?: "0%", kpis?.totalOrders?.trendUp),
+            MetricItem("Net Profit", "₹${formatCurrency(kpis?.netProfit?.amount ?: 0.0)}", kpis?.netProfit?.growth ?: "0%", kpis?.netProfit?.trendUp),
+            MetricItem("Receivables", "₹${formatCurrency(kpis?.receivables?.amount ?: 0.0)}", kpis?.receivables?.overdueLabel ?: "Outstanding claims", null),
+            MetricItem("Inventory Value", "₹${formatCurrency(kpis?.inventoryValue?.amount ?: 0.0)}", kpis?.inventoryValue?.reorderLabel ?: "Total stock assets", null),
+            MetricItem("Delivery Success", kpis?.deliverySuccess?.percentage ?: "100%", kpis?.deliverySuccess?.comparisonLabel ?: "On-time fulfillment", true)
+        )
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
         Text(
@@ -244,19 +305,23 @@ private fun KeyMetricsSection() {
                             )
                             Spacer(Modifier.height(tokens.extraPadding * 0.3f))
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (item.isPositive == true) {
+                                if (item.isPositive != null) {
                                     Icon(
-                                        imageVector = Icons.Default.ArrowDropUp,
+                                        imageVector = if (item.isPositive) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
                                         contentDescription = null,
-                                        tint = darkGreenBg,
+                                        tint = if (item.isPositive) darkGreenBg else redText,
                                         modifier = Modifier.size(tokens.iconSize * 0.8f)
                                     )
                                 }
                                 Text(
                                     text = item.subtitle,
                                     fontSize = tokens.caption,
-                                    color = if (item.isPositive == true) darkGreenBg else iconMuted,
-                                    fontWeight = if (item.isPositive == true) FontWeight.Medium else FontWeight.Normal
+                                    color = when (item.isPositive) {
+                                        true -> darkGreenBg
+                                        false -> redText
+                                        else -> iconMuted
+                                    },
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
@@ -267,26 +332,29 @@ private fun KeyMetricsSection() {
     }
 }
 
+private data class MetricItem(
+    val title: String,
+    val value: String,
+    val subtitle: String,
+    val isPositive: Boolean? = null
+)
+
 // ─────────────────────────────────────────────────────────────
-// 3. SALES TARGETS (Animated Progress)
+// 3. SALES TARGETS (From Revenue Trends API)
 // ─────────────────────────────────────────────────────────────
 @Composable
-private fun SalesTargetsSection() {
+private fun SalesTargetsSection(revenueData: RevenueTrendData?) {
     val tokens = LocalAppTokens.current
     var isStarted by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        isStarted = true
-    }
+    LaunchedEffect(Unit) { isStarted = true }
 
-    val targetProgress by animateFloatAsState(
-        targetValue = if (isStarted) 1.0f else 0f,
-        animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-        label = "TargetProgressAnim"
-    )
+    val currentTotal = revenueData?.summary?.totalCurrentRevenue ?: 0.0
+    val targetVal = 100000.0 // Baseline target
+    val achievedFraction = (currentTotal / targetVal).coerceIn(0.0, 1.0).toFloat()
 
     val achievedProgress by animateFloatAsState(
-        targetValue = if (isStarted) 0.856f else 0f,
+        targetValue = if (isStarted) achievedFraction else 0f,
         animationSpec = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
         label = "AchievedProgressAnim"
     )
@@ -305,7 +373,7 @@ private fun SalesTargetsSection() {
                 color = title_color
             )
             Text(
-                text = "Monthly progress vs goal set",
+                text = "Monthly progress vs goal (${revenueData?.summary?.overallGrowth ?: "+0%"})",
                 fontSize = tokens.caption,
                 color = iconMuted
             )
@@ -315,34 +383,9 @@ private fun SalesTargetsSection() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(text = "Monthly Target", fontSize = tokens.bodySmall, color = headerGrey)
+                Text(text = "Achieved Revenue", fontSize = tokens.bodySmall, color = headerGrey)
                 Text(
-                    text = "₹50.0L",
-                    fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.Medium,
-                    color = TextPrimary
-                )
-            }
-            Spacer(Modifier.height(tokens.extraPadding * 0.5f))
-            LinearProgressIndicator(
-                progress = { targetProgress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(tokens.extraPadding * 0.6f)
-                    .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.3f)),
-                color = mutedText.copy(alpha = 0.5f),
-                trackColor = sectionBorder
-            )
-
-            Spacer(Modifier.height(tokens.extraPadding))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(text = "Achieved (85.6%)", fontSize = tokens.bodySmall, color = headerGrey)
-                Text(
-                    text = "₹42.8L",
+                    text = "₹${formatCurrency(currentTotal)}",
                     fontSize = tokens.bodySmall,
                     fontWeight = FontWeight.Medium,
                     color = darkGreenBg
@@ -380,10 +423,11 @@ private fun DonutChartCard(
     val tokens = LocalAppTokens.current
     val animatedProgress = remember { Animatable(0f) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(segments) {
+        animatedProgress.snapTo(0f)
         animatedProgress.animateTo(
             targetValue = 1f,
-            animationSpec = tween(durationMillis = 1100, easing = FastOutSlowInEasing)
+            animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing)
         )
     }
 
@@ -490,103 +534,17 @@ private fun DonutChartCard(
 }
 
 // ─────────────────────────────────────────────────────────────
-// 4. ORDER STATUS
+// 7. MARKETING PERFORMANCE (From Marketing API)
 // ─────────────────────────────────────────────────────────────
 @Composable
-private fun OrderStatusSection() {
-    DonutChartCard(
-        title = "Order Status",
-        subtitle = "Fulfillment lifecycle of 1,284 orders",
-        centerValue = "1,284",
-        centerLabel = "ORDERS",
-        segments = listOf(
-            DonutSegment(246f, darkPurple),
-            DonutSegment(318f, Primary),
-            DonutSegment(168f, orangeText),
-            DonutSegment(212f, greentext),
-            DonutSegment(344f, BluePrimary)
-        ),
-        legends = listOf(
-            LegendItemData("Conf", "246", darkPurple),
-            LegendItemData("Proc", "318", Primary),
-            LegendItemData("Ready", "168", orangeText),
-            LegendItemData("Transit", "212", greentext),
-            LegendItemData("Delivered", "344", BluePrimary)
-        )
-    )
-}
-
-// ─────────────────────────────────────────────────────────────
-// 5. STOCK STATUS
-// ─────────────────────────────────────────────────────────────
-@Composable
-private fun StockStatusSection() {
-    DonutChartCard(
-        title = "Stock Status",
-        subtitle = "10 Reorders Required",
-        centerValue = "8,420",
-        centerLabel = "SKUS",
-        segments = listOf(
-            DonutSegment(6120f, darkGreenBg),
-            DonutSegment(1450f, BluePrimary),
-            DonutSegment(620f, yellowText),
-            DonutSegment(230f, redText)
-        ),
-        legends = listOf(
-            LegendItemData("Available", "6,120", darkGreenBg),
-            LegendItemData("Reserved", "1,450", BluePrimary),
-            LegendItemData("Low Stock", "620", yellowText),
-            LegendItemData("Out of Stock", "230", redText)
-        )
-    )
-}
-
-// ─────────────────────────────────────────────────────────────
-// 6. TODAY'S ATTENDANCE
-// ─────────────────────────────────────────────────────────────
-@Composable
-private fun TodayAttendanceSection() {
-    DonutChartCard(
-        title = "Today's Attendance",
-        subtitle = "12 Leave Requests Pending",
-        centerValue = "248",
-        centerLabel = "EMPLOYEES",
-        segments = listOf(
-            DonutSegment(214f, darkGreenBg),
-            DonutSegment(8f, redText),
-            DonutSegment(12f, yellowText),
-            DonutSegment(14f, darkPurple)
-        ),
-        legends = listOf(
-            LegendItemData("Present", "214", darkGreenBg),
-            LegendItemData("Absent", "8", redText),
-            LegendItemData("Late", "12", yellowText),
-            LegendItemData("On Leave", "14", darkPurple)
-        )
-    )
-}
-
-// ─────────────────────────────────────────────────────────────
-// 7. MARKETING PERFORMANCE (Animated Linear Bars)
-// ─────────────────────────────────────────────────────────────
-private data class ChannelItem(val name: String, val amount: String, val targetProgress: Float, val color: Color)
-
-@Composable
-private fun MarketingPerformanceSection() {
+private fun MarketingPerformanceSection(marketingData: HomeMarketingData?) {
     val tokens = LocalAppTokens.current
     var isStarted by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        isStarted = true
-    }
+    LaunchedEffect(Unit) { isStarted = true }
 
-    val channels = listOf(
-        ChannelItem("Paid Ads", "₹18.5L", 0.9f, Primary),
-        ChannelItem("Social", "₹12.2L", 0.65f, darkGreenBg),
-        ChannelItem("Email", "₹6.4L", 0.35f, yellowText),
-        ChannelItem("WhatsApp", "₹4.1L", 0.22f, BluePrimary),
-        ChannelItem("Referral", "₹1.6L", 0.1f, iconMuted)
-    )
+    val channels = marketingData?.channels.orEmpty()
+    val headerStats = marketingData?.headerStats
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -602,7 +560,7 @@ private fun MarketingPerformanceSection() {
                 color = title_color
             )
             Text(
-                text = "ROI 4.2x | 1,842 Leads Generated",
+                text = headerStats?.badgeText ?: "ROI 0.0x | 0 Leads Generated",
                 fontSize = tokens.caption,
                 color = iconMuted
             )
@@ -610,7 +568,7 @@ private fun MarketingPerformanceSection() {
 
             channels.forEach { item ->
                 val progress by animateFloatAsState(
-                    targetValue = if (isStarted) item.targetProgress else 0f,
+                    targetValue = if (isStarted) item.barProgress else 0f,
                     animationSpec = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
                     label = "ChannelProgress"
                 )
@@ -620,9 +578,9 @@ private fun MarketingPerformanceSection() {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = item.name, fontSize = tokens.caption, color = headerGrey)
+                        Text(text = item.channel, fontSize = tokens.caption, color = headerGrey)
                         Text(
-                            text = item.amount,
+                            text = "₹${formatCurrency(item.amount)}",
                             fontSize = tokens.caption,
                             fontWeight = FontWeight.Medium,
                             color = TextPrimary
@@ -635,7 +593,7 @@ private fun MarketingPerformanceSection() {
                             .fillMaxWidth()
                             .height(tokens.extraPadding * 0.5f)
                             .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.2f)),
-                        color = item.color,
+                        color = parseColorSafely(item.color),
                         trackColor = grey_border
                     )
                 }
@@ -645,52 +603,14 @@ private fun MarketingPerformanceSection() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 8. SERVICE STATUS
+// 9. TOP PRODUCTS (From Top Products API)
 // ─────────────────────────────────────────────────────────────
 @Composable
-private fun ServiceStatusSection() {
-    DonutChartCard(
-        title = "Service Status",
-        subtitle = "Rating 4.6/5 | 12 SLA Breached",
-        centerValue = "186",
-        centerLabel = "REQUESTS",
-        segments = listOf(
-            DonutSegment(24f, redText),
-            DonutSegment(48f, yellowText),
-            DonutSegment(18f, BluePrimary),
-            DonutSegment(12f, darkPurple),
-            DonutSegment(84f, darkGreenBg)
-        ),
-        legends = listOf(
-            LegendItemData("Open", "24", redText),
-            LegendItemData("In Progress", "48", yellowText),
-            LegendItemData("Awaiting", "18", BluePrimary),
-            LegendItemData("Refund", "12", darkPurple),
-            LegendItemData("Resolved", "84", darkGreenBg)
-        )
-    )
-}
-
-// ─────────────────────────────────────────────────────────────
-// 9. TOP PRODUCTS
-// ─────────────────────────────────────────────────────────────
-private data class ProductRankingItem(
-    val title: String,
-    val orders: String,
-    val revenue: String,
-    val change: String
-)
-
-@Composable
-private fun TopProductsSection(onViewDetails: () -> Unit) {
+private fun TopProductsSection(
+    products: List<LeaderboardProductItem>,
+    onViewDetails: () -> Unit
+) {
     val tokens = LocalAppTokens.current
-    val products = listOf(
-        ProductRankingItem("Wireless Headphones", "Orders: 186", "Revenue: ₹4.8L", "+18.2%"),
-        ProductRankingItem("Classic Cotton Shirt", "Orders: 164", "Revenue: ₹3.9L", "+12.4%"),
-        ProductRankingItem("Running Shoes", "Orders: 142", "Revenue: ₹3.6L", "+9.8%"),
-        ProductRankingItem("Smart Watch", "Orders: 118", "Revenue: ₹3.2L", "+15.6%"),
-        ProductRankingItem("Travel Backpack", "Orders: 106", "Revenue: ₹2.7L", "+7.4%")
-    )
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -700,7 +620,7 @@ private fun TopProductsSection(onViewDetails: () -> Unit) {
     ) {
         Column(modifier = Modifier.padding(tokens.screenPadding)) {
             Text(
-                text = "Top Products",
+                text = "Top Products & Services",
                 fontSize = tokens.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = title_color
@@ -722,23 +642,23 @@ private fun TopProductsSection(onViewDetails: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = item.title,
+                            text = item.name,
                             fontSize = tokens.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = TextPrimary
                         )
                         Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                         Text(
-                            text = "${item.orders}   ${item.revenue}",
+                            text = "Orders: ${item.orders}   ₹${formatCurrency(item.revenue)}",
                             fontSize = tokens.caption,
                             color = headerGrey
                         )
                     }
                     Text(
-                        text = item.change,
+                        text = item.growth,
                         fontSize = tokens.caption,
                         fontWeight = FontWeight.Medium,
-                        color = darkGreenBg
+                        color = if (item.growth.startsWith("-")) redText else darkGreenBg
                     )
                 }
                 if (index != products.lastIndex) {
@@ -765,31 +685,14 @@ private fun TopProductsSection(onViewDetails: () -> Unit) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 10. ACTION REQUIRED
+// 10. ACTION REQUIRED (From Action Required API)
 // ─────────────────────────────────────────────────────────────
-private data class ActionItem(
-    val module: String,
-    val priority: String,
-    val priorityColor: Color,
-    val description: String,
-    val time: String,
-    val route: String
-)
-
 @Composable
-private fun ActionRequiredSection(onResolveClick: (String) -> Unit) {
+private fun ActionRequiredSection(
+    actions: List<HomeActionTaskItem>,
+    onResolveClick: (String) -> Unit
+) {
     val tokens = LocalAppTokens.current
-    val actions = listOf(
-        ActionItem("Sales", "High", redText, "14 overdue follow-ups", "Today", "sales_lead"),
-        ActionItem("Finance", "High", redText, "₹3.2L overdue receivables", "Today", "finance_sales_invoices"),
-        ActionItem("Inventory", "High", redText, "18 SKUs require reorder", "Today", "inventory_low_stock_alerts"),
-        ActionItem("Logistics", "Medium", yellowText, "7 delayed deliveries", "Today", "logistics_delivery"),
-        ActionItem("Services", "High", redText, "4 SLA-breached complaints", "Today", "services_service_status"),
-        ActionItem("HR", "High", redText, "3 payroll approvals pending", "Today", "hr_leave_approval"),
-        ActionItem("IT", "Critical", redText, "2 integration failures", "Now", "module_settings"),
-        ActionItem("Legal", "Medium", yellowText, "3 contracts expiring", "7 Days", "module_settings"),
-        ActionItem("Security", "Critical", redText, "2 critical security alerts", "Now", "module_settings")
-    )
 
     Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
         Text(
@@ -799,12 +702,13 @@ private fun ActionRequiredSection(onResolveClick: (String) -> Unit) {
             color = title_color
         )
         Text(
-            text = "Important items requiring business-wide attention",
+            text = "Important items requiring attention across your business",
             fontSize = tokens.caption,
             color = iconMuted
         )
 
         actions.forEach { item ->
+            val priorityColor = parseColorSafely(item.priorityColor)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(tokens.cardCornerRadius * 0.8f),
@@ -829,12 +733,12 @@ private fun ActionRequiredSection(onResolveClick: (String) -> Unit) {
                             Spacer(Modifier.width(tokens.extraPadding * 0.5f))
                             Surface(
                                 shape = RoundedCornerShape(tokens.cardCornerRadius * 0.3f),
-                                color = item.priorityColor.copy(alpha = 0.12f)
+                                color = priorityColor.copy(alpha = 0.12f)
                             ) {
                                 Text(
                                     text = item.priority,
                                     fontSize = tokens.label,
-                                    color = item.priorityColor,
+                                    color = priorityColor,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(horizontal = tokens.extraPadding * 0.5f, vertical = 2.dp)
                                 )
@@ -842,21 +746,24 @@ private fun ActionRequiredSection(onResolveClick: (String) -> Unit) {
                         }
                         Spacer(Modifier.height(tokens.extraPadding * 0.3f))
                         Text(
-                            text = item.description,
+                            text = item.actionRequired,
                             fontSize = tokens.caption,
                             color = headerGrey
                         )
                     }
 
                     Column(horizontalAlignment = Alignment.End) {
-                        Text(text = item.time, fontSize = tokens.label, color = iconMuted)
+                        Text(text = item.due, fontSize = tokens.label, color = iconMuted)
                         Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                         Text(
                             text = "Resolve",
                             color = Primary,
                             fontSize = tokens.caption,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.clickable { onResolveClick(item.route) }
+                            modifier = Modifier.clickable {
+                                val targetRoute = mapModuleToRoute(item.module)
+                                onResolveClick(targetRoute)
+                            }
                         )
                     }
                 }
@@ -866,14 +773,8 @@ private fun ActionRequiredSection(onResolveClick: (String) -> Unit) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 11. BUSINESS HEALTH
+// 11. BUSINESS HEALTH SECTION
 // ─────────────────────────────────────────────────────────────
-private data class HealthItem(
-    val title: String,
-    val subtitle: String,
-    val isHealthy: Boolean
-)
-
 @Composable
 private fun BusinessHealthSection(onViewModule: () -> Unit) {
     val tokens = LocalAppTokens.current
@@ -958,5 +859,39 @@ private fun BusinessHealthSection(onViewModule: () -> Unit) {
                 fontWeight = FontWeight.Medium
             )
         }
+    }
+}
+
+private data class HealthItem(
+    val title: String,
+    val subtitle: String,
+    val isHealthy: Boolean
+)
+
+// ─────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────
+@SuppressLint("DefaultLocale")
+private fun formatCurrency(amount: Double): String {
+    return String.format("%,.0f", amount)
+}
+
+private fun parseColorSafely(hexColor: String): Color {
+    return try {
+        Color(hexColor.toColorInt())
+    } catch (_: Exception) {
+        BluePrimary
+    }
+}
+
+private fun mapModuleToRoute(module: String): String {
+    return when (module.lowercase()) {
+        "sales" -> "sales_lead"
+        "finance" -> "finance_sales_invoices"
+        "inventory" -> "inventory_low_stock_alerts"
+        "logistics" -> "logistics_delivery"
+        "services" -> "services_service_status"
+        "hr" -> "hr_leave_approval"
+        else -> "module_settings"
     }
 }

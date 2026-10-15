@@ -155,6 +155,9 @@ fun buildNavigationKey(menu: String, subItem: String): String {
             // Direct Billing
             "Billing", "Bills"    -> "inventory_billing"
 
+            "Picklist"            -> "inventory_picklist"
+            "Packages"            -> "inventory_packages"
+
             // Procurement sub-items: route Bill List to AllBillListScreen
             "Suppliers"           -> "inventory_suppliers"
             "Return", "Returns"   -> "inventory_returns"
@@ -334,6 +337,7 @@ object SidebarConfig {
                     "Bulk",
                     "Adjustment",
                     "Transfer Order",
+                    "Inventory",
                     "Procurement",
                     "Location Management",
                     "Low Stock Alert",
@@ -341,11 +345,15 @@ object SidebarConfig {
                     "Safety Stock",
                     "Payments Made",
                     "Billing",
-                    "Payables",
+//                    "Payables",
                     "Multi-Channel",
                     "Approvals"
                 ),
                 subItems = mapOf(
+                    "Inventory" to listOf(
+                        "Picklist",
+                        "Packages"
+                    ),
                     "Procurement" to listOf(
                         "Suppliers",
                         "Purchase Request",
@@ -355,26 +363,26 @@ object SidebarConfig {
                         "Bill List",
                         "Barcode List"
                     ),
-                    "Payables" to listOf(
-                        "Invoices",
-                        "Payments",
-                        "Credits"
-                    ),
+//                    "Payables" to listOf(
+//                        "Invoices",
+//                        "Payments",
+//                        "Credits"
+//                    ),
                     // ADD "Basic Info" and other sub-items here:
                     "Multi-Channel" to listOf(
-                        "Basic Info",
-                        "Allocation List",
-                        "Product Listings",
-                        "Publish Listing",
-                        "Publish History",
-                        "Variant Listing",
-                        "SKU Listing",
+//                        "Basic Info",
+//                        "Allocation List",
+//                        "Product Listings",
+//                        "Publish Listing",
+//                        "Publish History",
+//                        "Variant Listing",
+//                        "SKU Listing",
                         "Category Listing",
-                        "Attributes Listing",
-                        "Return Req List",
-                        "Low Stock Alerts",
-                        "Auto Reorder",
-                        "Safety stock settings"
+//                        "Attributes Listing",
+//                        "Return Req List",
+//                        "Low Stock Alerts",
+//                        "Auto Reorder",
+//                        "Safety stock settings"
                     )
                 )
             ),

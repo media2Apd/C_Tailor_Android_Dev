@@ -9,7 +9,7 @@ plugins {
     alias(libs.plugins.google.services)
 
     alias(libs.plugins.google.firebase.crashlytics)
-    alias(libs.plugins.google.firebase.perf)   // replace this
+    alias(libs.plugins.google.firebase.perf)
 
 }
 
@@ -46,7 +46,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://10.46.35.196:5000/\""
+                "\"http://192.168.88.6:5000/\""
             )
         }
 
@@ -115,8 +115,6 @@ dependencies {
 
     // Core
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.foundation)
-    implementation(libs.androidx.foundation.layout)
     implementation(libs.androidx.lifecycle.runtime.ktx)
 
     // Navigation
@@ -185,9 +183,7 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.runner)
     androidTestImplementation(libs.androidx.espresso.core)
-
     implementation(libs.accompanist.permissions)
-
     implementation(libs.colorpicker.compose)
 
     // iText7 for PDF generation
@@ -200,14 +196,10 @@ dependencies {
     implementation(libs.androidx.print)
 
     //CRASHLYTICS
-
-    // build.gradle.kts (app level)
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.analytics)
 
     //PERFORMANCE
-
-
     // Add the dependency for the Performance Monitoring library
     // When using the BoM, you don't specify versions in Firebase library dependencies
     implementation(libs.firebase.perf)

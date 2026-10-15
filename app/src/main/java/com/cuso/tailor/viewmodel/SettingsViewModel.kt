@@ -10,6 +10,7 @@ import com.cuso.tailor.model.inventory.ProductCategoryItem
 import com.cuso.tailor.model.sales.FabricPricingItem
 import com.cuso.tailor.model.sales.myOrganizationResponse
 import com.cuso.tailor.model.settings.*
+import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.AuthRepository
 import com.cuso.tailor.repository.SessionManager
 import com.cuso.tailor.repository.SettingsRepository
@@ -20,14 +21,17 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val settingsRepository: SettingsRepository,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val apiRepository: ApiRepository
 ) : ViewModel() {
 
     private var fetchJob: Job? = null
@@ -256,6 +260,32 @@ class SettingsViewModel @Inject constructor(
 
     private val _isLoadingBins = MutableStateFlow(false)
     val isLoadingBins: StateFlow<Boolean> = _isLoadingBins.asStateFlow()
+
+    // =========================================================================
+    // TAX REGISTRATIONS (PAGINATED)
+    // =========================================================================
+    private val _taxRegistrations = MutableStateFlow<List<TaxRegistrationItemDto>>(emptyList())
+    val taxRegistrations: StateFlow<List<TaxRegistrationItemDto>> = _taxRegistrations.asStateFlow()
+
+    private val _isLoadingTaxRegistrations = MutableStateFlow(false)
+    val isLoadingTaxRegistrations: StateFlow<Boolean> = _isLoadingTaxRegistrations.asStateFlow()
+
+    private val _isLoadingMoreTaxRegistrations = MutableStateFlow(false)
+    val isLoadingMoreTaxRegistrations: StateFlow<Boolean> = _isLoadingMoreTaxRegistrations.asStateFlow()
+
+    private val _canLoadMoreTaxRegistrations = MutableStateFlow(true)
+    val canLoadMoreTaxRegistrations: StateFlow<Boolean> = _canLoadMoreTaxRegistrations.asStateFlow()
+
+    private val _currentTaxRegistrationPage = MutableStateFlow(1)
+    val currentTaxRegistrationPage: StateFlow<Int> = _currentTaxRegistrationPage.asStateFlow()
+
+    private val _taxRegistrationsError = MutableStateFlow<String?>(null)
+    val taxRegistrationsError: StateFlow<String?> = _taxRegistrationsError.asStateFlow()
+
+    private var activeTaxRegistrationSearch: String? = null
+    private var activeTaxRegistrationStatus: String? = null
+    private var taxRegistrationJob: Job? = null
+
 
     // ===========================================================
     // 9. UTILITY & MESSAGE METHODS
@@ -2173,5 +2203,149 @@ class SettingsViewModel @Inject constructor(
                 onError(clean)
             }
         }
+    }
+
+    // =========================================================================
+    // TAX REGISTRATIONS
+    // =========================================================================
+
+    /**
+     * Fetch tax registration list with pagination and search.
+     * Update endpoint path if different on your backend.
+     */
+    fun fetchTaxRegistrations(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ) {
+        taxRegistrationJob?.cancel()
+        taxRegistrationJob = launchBusy {
+            _isLoadingTaxRegistrations.value = true
+            _taxRegistrationsError.value = null
+            _currentTaxRegistrationPage.value = page
+            activeTaxRegistrationSearch = search?.trim()?.ifBlank { null }
+            activeTaxRegistrationStatus = status?.trim()?.ifBlank { null }
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to page,
+                "limit" to limit
+            )
+            activeTaxRegistrationSearch?.let { queryParams["search"] = it }
+            activeTaxRegistrationStatus?.let { queryParams["status"] = it }
+
+            val result = apiRepository.request<TaxRegistrationResponse> {
+                get("/api/finance/settings/tax-registrations/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _taxRegistrations.value = res.data
+                    val totalPages = res.pagination?.totalPages ?: 1
+                    _canLoadMoreTaxRegistrations.value = page < totalPages && res.data.isNotEmpty()
+                },
+                onFailure = { error ->
+                    if (error !is CancellationException) {
+                        _taxRegistrationsError.value = extractErrorMessage(error.message)
+                    }
+                }
+            )
+            _isLoadingTaxRegistrations.value = false
+        }
+    }
+
+    /**
+     * Load next page for tax registration list.
+     */
+    fun loadMoreTaxRegistrations(limit: Int = 10) {
+        if (_isLoadingMoreTaxRegistrations.value || _isLoadingTaxRegistrations.value || !_canLoadMoreTaxRegistrations.value) return
+
+        launchBusy {
+            _isLoadingMoreTaxRegistrations.value = true
+            val nextPage = _currentTaxRegistrationPage.value + 1
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to nextPage,
+                "limit" to limit
+            )
+            activeTaxRegistrationSearch?.let { queryParams["search"] = it }
+            activeTaxRegistrationStatus?.let { queryParams["status"] = it }
+
+            val result = apiRepository.request<TaxRegistrationResponse> {
+                get("/api/finance/settings/tax-registrations/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.data.isNotEmpty()) {
+                        _taxRegistrations.update { (it + res.data).distinctBy { item -> item.id } }
+                        _currentTaxRegistrationPage.value = nextPage
+                        val totalPages = res.pagination?.totalPages ?: nextPage
+                        _canLoadMoreTaxRegistrations.value = nextPage < totalPages
+                    } else {
+                        _canLoadMoreTaxRegistrations.value = false
+                    }
+                },
+                onFailure = {
+                    _canLoadMoreTaxRegistrations.value = false
+                }
+            )
+            _isLoadingMoreTaxRegistrations.value = false
+        }
+    }
+
+    // =========================================================================
+    // TAX REGISTRATION VIEW-ONE / EDIT PREFILL STATE
+    // =========================================================================
+    private val _selectedTaxRegistration = MutableStateFlow<TaxRegistrationItemDto?>(null)
+    val selectedTaxRegistration: StateFlow<TaxRegistrationItemDto?> = _selectedTaxRegistration.asStateFlow()
+
+    private val _isLoadingTaxDetail = MutableStateFlow(false)
+    val isLoadingTaxDetail: StateFlow<Boolean> = _isLoadingTaxDetail.asStateFlow()
+
+    private val _taxDetailError = MutableStateFlow<String?>(null)
+    val taxDetailError: StateFlow<String?> = _taxDetailError.asStateFlow()
+
+    /**
+     * Sets the item directly when clicking edit from the list.
+     */
+    fun setSelectedTaxRegistration(item: TaxRegistrationItemDto?) {
+        _selectedTaxRegistration.value = item
+    }
+
+    /**
+     * Fetches fresh single tax registration details by ID.
+     */
+    fun fetchTaxRegistrationById(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingTaxDetail.value = true
+            _taxDetailError.value = null
+
+            apiRepository.request<TaxRegistrationViewOneResponse> {
+                get("/api/finance/settings/tax-registrations/view-one/$id")
+            }.fold(
+                onSuccess = { res ->
+                    _selectedTaxRegistration.value = res.data
+                },
+                onFailure = { error ->
+                    _taxDetailError.value = error.message ?: "Failed to load tax registration details"
+                }
+            )
+
+            _isLoadingTaxDetail.value = false
+        }
+    }
+
+    /**
+     * Clears selected tax registration when closing or creating fresh.
+     */
+    fun clearSelectedTaxRegistration() {
+        _selectedTaxRegistration.value = null
+        _taxDetailError.value = null
+    }
+
+    fun clearTaxRegistrationsError() {
+        _taxRegistrationsError.value = null
     }
 }

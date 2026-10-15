@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName
 data class CategoryListResponse(
     @SerializedName("success")
     val success: Boolean,
-    @SerializedName("categories")
+    @SerializedName("data")
     val categories: List<CategoryItemDto> = emptyList(),
     @SerializedName("total")
     val total: Int = 0,

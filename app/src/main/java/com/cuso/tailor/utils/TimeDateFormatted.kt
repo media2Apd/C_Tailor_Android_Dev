@@ -74,3 +74,44 @@ fun convert24HrTo12Hr(time24: String?): String {
         time24
     }
 }
+
+/**
+ * Converts a date string coming from the date picker into the ISO 8601 format
+ * expected by the backend, e.g. "2026-10-11T00:00:00.000Z".
+ * Returns null if the input is blank or cannot be parsed.
+ */
+ fun toIsoDateTime(input: String?): String? {
+    if (input.isNullOrBlank()) return null
+    val value = input.trim()
+
+    // Already in ISO format, send as is
+    if (value.contains("T") && value.endsWith("Z")) return value
+
+    val inputPatterns = listOf(
+        "yyyy-MM-dd",
+        "dd-MM-yyyy",
+        "dd/MM/yyyy",
+        "MM/dd/yyyy",
+        "dd MMM yyyy",
+        "dd MMM, yyyy"
+    )
+
+    val outputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
+
+    for (pattern in inputPatterns) {
+        try {
+            val parser = SimpleDateFormat(pattern, Locale.ENGLISH).apply {
+                isLenient = false
+                // Parse in UTC so the selected day does not shift because of the local timezone
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val date = parser.parse(value) ?: continue
+            return outputFormat.format(date)
+        } catch (_: Exception) {
+            // Try the next pattern
+        }
+    }
+    return null
+}

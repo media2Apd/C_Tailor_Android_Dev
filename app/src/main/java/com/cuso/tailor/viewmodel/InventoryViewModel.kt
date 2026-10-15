@@ -6,7 +6,7 @@
     "unused_variable",
     "unused_parameter",
     "unused",
-    "RedundantSuppression"
+    "RedundantSuppression", "USELESS_ELVIS_LEFT_IS_NULL"
 )
 
 package com.cuso.tailor.viewmodel
@@ -16,6 +16,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.model.inventory.AssignStockLocationRequest
+import com.cuso.tailor.model.inventory.*
 import com.cuso.tailor.model.inventory.AutoReorderRuleData
 import com.cuso.tailor.model.inventory.AutoReorderRuleItemDto
 import com.cuso.tailor.model.inventory.BarcodeItemDoc
@@ -27,6 +28,8 @@ import com.cuso.tailor.model.inventory.CreateAutoReorderRuleRequest
 import com.cuso.tailor.model.inventory.CreateBillRequest
 import com.cuso.tailor.model.inventory.CreateInventoryItemResponse
 import com.cuso.tailor.model.inventory.CreateItemGroupRequest
+import com.cuso.tailor.model.inventory.CreatePackageRequest
+import com.cuso.tailor.model.inventory.CreatePackageResponse
 import com.cuso.tailor.model.inventory.CreatePoItemRequest
 import com.cuso.tailor.model.inventory.CreatePurchaseOrderRequest
 import com.cuso.tailor.model.inventory.CreateRequisitionRequest
@@ -46,6 +49,8 @@ import com.cuso.tailor.model.inventory.ItemGroupDto
 import com.cuso.tailor.model.inventory.ItemGroupViewOneData
 import com.cuso.tailor.model.inventory.LowStockItemDto
 import com.cuso.tailor.model.inventory.POBillConvertData
+import com.cuso.tailor.model.inventory.PackageItemDto
+import com.cuso.tailor.model.inventory.PackageViewOneResponse
 import com.cuso.tailor.model.inventory.PaymentTermDto
 import com.cuso.tailor.model.inventory.PhysicalAttributes
 import com.cuso.tailor.model.inventory.PurchaseOrder
@@ -69,6 +74,7 @@ import com.cuso.tailor.model.inventory.SupplierDto
 import com.cuso.tailor.model.inventory.SupplierLedgerContainer
 import com.cuso.tailor.model.inventory.TaxGroupDto
 import com.cuso.tailor.model.inventory.TransferStockRequest
+import com.cuso.tailor.model.inventory.UpdatePackageRequest
 import com.cuso.tailor.model.inventory.UpdateWarehouseRequest
 import com.cuso.tailor.model.inventory.VariantSelection
 import com.cuso.tailor.model.inventory.VoidPaymentRequest
@@ -814,8 +820,8 @@ class InventoryViewModel @Inject constructor(
     // =============================================================================
     // Bill list
     // =============================================================================
-    private val _billsList = MutableStateFlow<List<com.cuso.tailor.model.inventory.ProcurementBillItem>>(emptyList())
-    val billsList: StateFlow<List<com.cuso.tailor.model.inventory.ProcurementBillItem>> = _billsList.asStateFlow()
+    private val _billsList = MutableStateFlow<List<ProcurementBillItem>>(emptyList())
+    val billsList: StateFlow<List<ProcurementBillItem>> = _billsList.asStateFlow()
 
     private val _isLoadingBills = MutableStateFlow(false)
     val isLoadingBills: StateFlow<Boolean> = _isLoadingBills.asStateFlow()
@@ -851,8 +857,8 @@ class InventoryViewModel @Inject constructor(
     // =========================================================================
     // PROCUREMENT BILL DETAIL STATE & ACTIONS
     // =========================================================================
-    private val _selectedBillDetail = MutableStateFlow<com.cuso.tailor.model.inventory.ProcurementBillDetailData?>(null)
-    val selectedBillDetail: StateFlow<com.cuso.tailor.model.inventory.ProcurementBillDetailData?> = _selectedBillDetail.asStateFlow()
+    private val _selectedBillDetail = MutableStateFlow<ProcurementBillDetailData?>(null)
+    val selectedBillDetail: StateFlow<ProcurementBillDetailData?> = _selectedBillDetail.asStateFlow()
 
     private val _isLoadingBillDetail = MutableStateFlow(false)
     val isLoadingBillDetail: StateFlow<Boolean> = _isLoadingBillDetail.asStateFlow()
@@ -868,7 +874,117 @@ class InventoryViewModel @Inject constructor(
     private val _recordPaymentErrorMessage = MutableStateFlow<String?>(null)
     val recordPaymentErrorMessage: StateFlow<String?> = _recordPaymentErrorMessage.asStateFlow()
 
+    // =========================================================================
+    // DASHBOARD OVERVIEW STATES
+    // =========================================================================
+    private val _isDashboardLoading = MutableStateFlow(false)
+    val isDashboardLoading: StateFlow<Boolean> = _isDashboardLoading.asStateFlow()
 
+    private val _dashboardSummary = MutableStateFlow<DashboardSummaryData?>(null)
+    val dashboardSummary: StateFlow<DashboardSummaryData?> = _dashboardSummary.asStateFlow()
+
+    private val _stockHealth = MutableStateFlow<StockHealthData?>(null)
+    val stockHealth: StateFlow<StockHealthData?> = _stockHealth.asStateFlow()
+
+    private val _stockTrends = MutableStateFlow<StockTrendsData?>(null)
+    val stockTrends: StateFlow<StockTrendsData?> = _stockTrends.asStateFlow()
+
+    private val _categoryBreakdown = MutableStateFlow<List<CategoryBreakdownItem>>(emptyList())
+    val categoryBreakdown: StateFlow<List<CategoryBreakdownItem>> = _categoryBreakdown.asStateFlow()
+
+    private val _fastMovingProducts = MutableStateFlow<List<FastMovingProductItem>>(emptyList())
+    val fastMovingProducts: StateFlow<List<FastMovingProductItem>> = _fastMovingProducts.asStateFlow()
+
+    private val _warehouseHealthList = MutableStateFlow<List<WarehouseHealthItem>>(emptyList())
+    val warehouseHealthList: StateFlow<List<WarehouseHealthItem>> = _warehouseHealthList.asStateFlow()
+
+    private val _slowMovingProducts = MutableStateFlow<List<SlowMovingProductItem>>(emptyList())
+    val slowMovingProducts: StateFlow<List<SlowMovingProductItem>> = _slowMovingProducts.asStateFlow()
+
+    private val _dashboardError = MutableStateFlow<String?>(null)
+    val dashboardError: StateFlow<String?> = _dashboardError.asStateFlow()
+
+    /**
+     * Dashboard-oda anaithu API-kalaiyum fetch seyyum main function
+     */
+    fun fetchDashboardOverview() {
+        viewModelScope.launch {
+            _isDashboardLoading.value = true
+            _dashboardError.value = null
+
+            // 1. Dashboard Summary
+            launch {
+                apiRepository.request<DashboardSummaryResponse> {
+                    get("/api/inventory-dashboard/summary")
+                }.fold(
+                    onSuccess = { _dashboardSummary.value = it.data },
+                    onFailure = { /* silently handle or log */ }
+                )
+            }
+
+            // 2. Stock Health
+            launch {
+                apiRepository.request<StockHealthResponse> {
+                    get("/api/inventory-dashboard/stock-health")
+                }.fold(
+                    onSuccess = { _stockHealth.value = it.data },
+                    onFailure = { }
+                )
+            }
+
+            // 3. Stock Trends
+            launch {
+                apiRepository.request<StockTrendsResponse> {
+                    get("/api/inventory-dashboard/stock-trends")
+                }.fold(
+                    onSuccess = { _stockTrends.value = it.data },
+                    onFailure = { }
+                )
+            }
+
+            // 4. Category Breakdown
+            launch {
+                apiRepository.request<CategoryBreakdownResponse> {
+                    get("/api/inventory-dashboard/categories")
+                }.fold(
+                    onSuccess = { _categoryBreakdown.value = it.data },
+                    onFailure = { }
+                )
+            }
+
+            // 5. Fast Moving Products
+            launch {
+                apiRepository.request<FastMovingResponse> {
+                    get("/api/inventory-dashboard/fast-moving")
+                }.fold(
+                    onSuccess = { _fastMovingProducts.value = it.data },
+                    onFailure = { }
+                )
+            }
+
+            // 6. Warehouse Health
+            launch {
+                apiRepository.request<WarehouseHealthResponse> {
+                    get("/api/inventory-dashboard/warehouse-health")
+                }.fold(
+                    onSuccess = { _warehouseHealthList.value = it.data },
+                    onFailure = { }
+                )
+            }
+
+            // 7. Slow Moving
+            launch {
+                apiRepository.request<SlowMovingResponse> {
+                    get("/api/inventory-dashboard/slow-moving")
+                }.fold(
+                    onSuccess = { _slowMovingProducts.value = it.data },
+                    onFailure = { }
+                )
+            }
+
+            _isDashboardLoading.value = false
+        }
+    }
 
     fun fetchPurchaseOrderDetail(poId: String) {
         if (poId.isBlank()) return
@@ -3321,6 +3437,7 @@ class InventoryViewModel @Inject constructor(
     }
 
     private fun extractErrorMessage(raw: String?): String {
+        android.util.Log.e("API_ERROR", raw ?: "null")
         if (raw.isNullOrBlank()) return "An unexpected error occurred"
         val trimmed = raw.trim()
         if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
@@ -3576,7 +3693,7 @@ class InventoryViewModel @Inject constructor(
 
             result.onSuccess { response ->
                 currentSafetyStockPage = nextPage
-                _safetyStockList.value = _safetyStockList.value + response.data
+                _safetyStockList.value += response.data
                 totalSafetyStockPages = response.pagination?.totalPages ?: 1
                 _canLoadMoreSafetyStock.value = currentSafetyStockPage < totalSafetyStockPages
             }.onFailure { err ->
@@ -3768,8 +3885,8 @@ class InventoryViewModel @Inject constructor(
     // =========================================================================
     // PAYMENTS MADE (VIEW-ALL: PAGINATED)
     // =========================================================================
-    private val _paymentsMadeList = MutableStateFlow<List<com.cuso.tailor.model.inventory.PaymentsMadeItem>>(emptyList())
-    val paymentsMadeList: StateFlow<List<com.cuso.tailor.model.inventory.PaymentsMadeItem>> = _paymentsMadeList.asStateFlow()
+    private val _paymentsMadeList = MutableStateFlow<List<PaymentsMadeItem>>(emptyList())
+    val paymentsMadeList: StateFlow<List<PaymentsMadeItem>> = _paymentsMadeList.asStateFlow()
 
     private val _isLoadingPaymentsMade = MutableStateFlow(false)
     val isLoadingPaymentsMade: StateFlow<Boolean> = _isLoadingPaymentsMade.asStateFlow()
@@ -3956,8 +4073,8 @@ class InventoryViewModel @Inject constructor(
     // =========================================================================
 
     // ── Approvals List State ──
-    private val _approvalsList = MutableStateFlow<List<com.cuso.tailor.model.inventory.ApprovalListItemDto>>(emptyList())
-    val approvalsList: StateFlow<List<com.cuso.tailor.model.inventory.ApprovalListItemDto>> = _approvalsList.asStateFlow()
+    private val _approvalsList = MutableStateFlow<List<ApprovalListItemDto>>(emptyList())
+    val approvalsList: StateFlow<List<ApprovalListItemDto>> = _approvalsList.asStateFlow()
 
     private val _isLoadingApprovals = MutableStateFlow(false)
     val isLoadingApprovals: StateFlow<Boolean> = _isLoadingApprovals.asStateFlow()
@@ -3978,8 +4095,8 @@ class InventoryViewModel @Inject constructor(
     private var activeApprovalsStatus: String? = null
 
     // ── Approval Detail State ──
-    private val _selectedApprovalDetail = MutableStateFlow<com.cuso.tailor.model.inventory.ApprovalDetailData?>(null)
-    val selectedApprovalDetail: StateFlow<com.cuso.tailor.model.inventory.ApprovalDetailData?> = _selectedApprovalDetail.asStateFlow()
+    private val _selectedApprovalDetail = MutableStateFlow<ApprovalDetailData?>(null)
+    val selectedApprovalDetail: StateFlow<ApprovalDetailData?> = _selectedApprovalDetail.asStateFlow()
 
     private val _isLoadingApprovalDetail = MutableStateFlow(false)
     val isLoadingApprovalDetail: StateFlow<Boolean> = _isLoadingApprovalDetail.asStateFlow()
@@ -4319,8 +4436,8 @@ class InventoryViewModel @Inject constructor(
     // CATEGORY MANAGEMENT STATES & OPERATIONS
     // =========================================================================
 
-    private val _categoriesList = MutableStateFlow<List<com.cuso.tailor.model.inventory.CategoryItemDto>>(emptyList())
-    val categoriesList: StateFlow<List<com.cuso.tailor.model.inventory.CategoryItemDto>> = _categoriesList.asStateFlow()
+    private val _categoriesList = MutableStateFlow<List<CategoryItemDto>>(emptyList())
+    val categoriesList: StateFlow<List<CategoryItemDto>> = _categoriesList.asStateFlow()
 
     private val _isLoadingCategories = MutableStateFlow(false)
     val isLoadingCategories: StateFlow<Boolean> = _isLoadingCategories.asStateFlow()
@@ -4420,8 +4537,8 @@ class InventoryViewModel @Inject constructor(
     // CATEGORY VIEW-ONE & MUTATION STATES
     // =========================================================================
 
-    private val _selectedCategoryDetail = MutableStateFlow<com.cuso.tailor.model.inventory.CategoryItemDto?>(null)
-    val selectedCategoryDetail: StateFlow<com.cuso.tailor.model.inventory.CategoryItemDto?> = _selectedCategoryDetail.asStateFlow()
+    private val _selectedCategoryDetail = MutableStateFlow<CategoryItemDto?>(null)
+    val selectedCategoryDetail: StateFlow<CategoryItemDto?> = _selectedCategoryDetail.asStateFlow()
 
     private val _isLoadingCategoryDetail = MutableStateFlow(false)
     val isLoadingCategoryDetail: StateFlow<Boolean> = _isLoadingCategoryDetail.asStateFlow()
@@ -4464,7 +4581,7 @@ class InventoryViewModel @Inject constructor(
             _isSavingCategory.value = true
             _categoryActionError.value = null
 
-            val request = com.cuso.tailor.model.inventory.CreateCategoryRequest(
+            val request = CreateCategoryRequest(
                 name = name.trim(),
                 code = code?.trim()?.takeIf { it.isNotBlank() },
                 parentCategoryId = parentCategoryId?.takeIf { it.isNotBlank() },
@@ -4497,7 +4614,7 @@ class InventoryViewModel @Inject constructor(
             _isSavingCategory.value = true
             _categoryActionError.value = null
 
-            val request = com.cuso.tailor.model.inventory.CreateCategoryRequest(
+            val request = CreateCategoryRequest(
                 name = name.trim(),
                 code = code?.trim()?.takeIf { it.isNotBlank() },
                 parentCategoryId = parentCategoryId?.takeIf { it.isNotBlank() },
@@ -4647,6 +4764,565 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
+    // =========================================================================
+    // PICKLIST STATES & OPERATIONS
+    // =========================================================================
+    private val _picklists = MutableStateFlow<List<PicklistItemDto>>(emptyList())
+    val picklists: StateFlow<List<PicklistItemDto>> = _picklists.asStateFlow()
+
+    private val _isLoadingPicklists = MutableStateFlow(false)
+    val isLoadingPicklists: StateFlow<Boolean> = _isLoadingPicklists.asStateFlow()
+
+    private val _isLoadingMorePicklists = MutableStateFlow(false)
+    val isLoadingMorePicklists: StateFlow<Boolean> = _isLoadingMorePicklists.asStateFlow()
+
+    private val _canLoadMorePicklists = MutableStateFlow(true)
+    val canLoadMorePicklists: StateFlow<Boolean> = _canLoadMorePicklists.asStateFlow()
+
+    private val _currentPicklistPage = MutableStateFlow(1)
+    val currentPicklistPage: StateFlow<Int> = _currentPicklistPage.asStateFlow()
+
+    private val _picklistError = MutableStateFlow<String?>(null)
+    val picklistError: StateFlow<String?> = _picklistError.asStateFlow()
+
+    private val _isCreatingPicklist = MutableStateFlow(false)
+    val isCreatingPicklist: StateFlow<Boolean> = _isCreatingPicklist.asStateFlow()
+
+    private var activePicklistSearch: String? = null
+    private var picklistJob: Job? = null
+
+    fun fetchPicklists(page: Int = 1, limit: Int = 10, search: String? = null) {
+        picklistJob?.cancel()
+        picklistJob = launchBusy {
+            _isLoadingPicklists.value = true
+            _picklistError.value = null
+            _currentPicklistPage.value = page
+            activePicklistSearch = search?.trim()?.ifBlank { null }
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to page,
+                "limit" to limit
+            )
+            activePicklistSearch?.let { queryParams["search"] = it }
+
+            val result = apiRepository.request<PicklistListResponse> {
+                get("/api/inventory/picklist/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _picklists.value = res.data
+                    val totalPages = res.pagination?.totalPages ?: 1
+                    _canLoadMorePicklists.value = page < totalPages && res.data.isNotEmpty()
+                },
+                onFailure = { error ->
+                    if (error !is CancellationException) {
+                        _picklistError.value = extractErrorMessage(error.message)
+                    }
+                }
+            )
+            _isLoadingPicklists.value = false
+        }
+    }
+
+    fun loadMorePicklists(limit: Int = 10) {
+        if (_isLoadingMorePicklists.value || _isLoadingPicklists.value || !_canLoadMorePicklists.value) return
+
+        launchBusy {
+            _isLoadingMorePicklists.value = true
+            val nextPage = _currentPicklistPage.value + 1
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to nextPage,
+                "limit" to limit
+            )
+            activePicklistSearch?.let { queryParams["search"] = it }
+
+            val result = apiRepository.request<PicklistListResponse> {
+                get("/api/inventory/picklist/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.data.isNotEmpty()) {
+                        _picklists.update { (it + res.data).distinctBy { item -> item.id } }
+                        _currentPicklistPage.value = nextPage
+                        val totalPages = res.pagination?.totalPages ?: nextPage
+                        _canLoadMorePicklists.value = nextPage < totalPages
+                    } else {
+                        _canLoadMorePicklists.value = false
+                    }
+                },
+                onFailure = { }
+            )
+            _isLoadingMorePicklists.value = false
+        }
+    }
+
+//    fun createPicklist(
+//        date: String,
+//        assigneeId: String?,
+//        warehouseId: String,
+//        internalNotes: String?,
+//        salesOrderId: String,
+//        onSuccess: () -> Unit
+//    ) {
+//        launchBusy {
+//            _isCreatingPicklist.value = true
+//            _picklistError.value = null
+//
+//            val req = com.cuso.tailor.model.inventory.CreatePicklistRequest(
+//                date = date,
+//                assigneeId = assigneeId,
+//                warehouseId = warehouseId,
+//                internalNotes = internalNotes,
+//                salesOrderId = salesOrderId
+//            )
+//
+//            val result = apiRepository.request<com.cuso.tailor.model.inventory.CreatePicklistResponse> {
+//                post("/api/inventory/picklist/create", req)
+//            }
+//
+//            result.fold(
+//                onSuccess = {
+//                    fetchPicklists(page = 1)
+//                    onSuccess()
+//                },
+//                onFailure = { error ->
+//                    _picklistError.value = extractErrorMessage(error.message)
+//                }
+//            )
+//            _isCreatingPicklist.value = false
+//        }
+//    }
+//
+//    fun updatePicklist(
+//        id: String,
+//        date: String,
+//        assigneeId: String?,
+//        warehouseId: String,
+//        internalNotes: String?,
+//        salesOrderId: String,
+//        onSuccess: () -> Unit
+//    ) {
+//        launchBusy {
+//            _isCreatingPicklist.value = true
+//            _picklistError.value = null
+//
+//            val req = com.cuso.tailor.model.inventory.CreatePicklistRequest(
+//                date = date,
+//                assigneeId = assigneeId,
+//                warehouseId = warehouseId,
+//                internalNotes = internalNotes,
+//                salesOrderId = salesOrderId
+//            )
+//
+//            val result = apiRepository.request<com.cuso.tailor.model.inventory.CreatePicklistResponse> {
+//                put("/api/inventory/picklist/update-one/$id", req)
+//            }
+//
+//            result.fold(
+//                onSuccess = {
+//                    fetchPicklists(page = 1)
+//                    fetchPicklistDetail(id)
+//                    onSuccess()
+//                },
+//                onFailure = { error ->
+//                    _picklistError.value = extractErrorMessage(error.message)
+//                }
+//            )
+//            _isCreatingPicklist.value = false
+//        }
+//    }
+
+    fun createPicklist(
+        date: String,
+        assigneeId: String?,
+        warehouseId: String,
+        internalNotes: String?,
+        salesOrderId: String,
+        items: List<PicklistLineItemPayload> = emptyList(),
+        onSuccess: () -> Unit
+    ) {
+        launchBusy {
+            _isCreatingPicklist.value = true
+            _picklistError.value = null
+
+            val req = CreatePicklistRequest(
+                date = date,
+                assigneeId = assigneeId,
+                warehouseId = warehouseId,
+                internalNotes = internalNotes,
+                salesOrderId = salesOrderId,
+                items = items
+            )
+
+            val result = apiRepository.request<CreatePicklistResponse> {
+                post("/api/inventory/picklist/create", req)
+            }
+
+            result.fold(
+                onSuccess = {
+                    fetchPicklists(page = 1)
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _picklistError.value = extractErrorMessage(error.message)
+                }
+            )
+            _isCreatingPicklist.value = false
+        }
+    }
+
+    fun updatePicklist(
+        id: String,
+        assigneeId: String?,
+        internalNotes: String?,
+        items: List<UpdatePicklistItemPayload>,
+        onSuccess: () -> Unit
+    ) {
+        launchBusy {
+            _isCreatingPicklist.value = true
+            _picklistError.value = null
+
+            val req = UpdatePicklistRequest(
+                assigneeId = assigneeId,
+                internalNotes = internalNotes,
+                items = items
+            )
+
+            val result = apiRepository.request<CreatePicklistResponse> {
+                put("/api/inventory/picklist/update-one/$id", req)
+            }
+
+            result.fold(
+                onSuccess = {
+                    fetchPicklists(page = 1)
+                    fetchPicklistDetail(id)
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _picklistError.value = extractErrorMessage(error.message)
+                }
+            )
+            _isCreatingPicklist.value = false
+        }
+    }
+
+
+    // =========================================================================
+    // PICKLIST VIEW ONE (DETAIL)
+    // =========================================================================
+    private val _picklistDetail = MutableStateFlow<PicklistDetailDto?>(null)
+    val picklistDetail: StateFlow<PicklistDetailDto?> = _picklistDetail.asStateFlow()
+
+    private val _isLoadingPicklistDetail = MutableStateFlow(false)
+    val isLoadingPicklistDetail: StateFlow<Boolean> = _isLoadingPicklistDetail.asStateFlow()
+
+    private val _picklistDetailError = MutableStateFlow<String?>(null)
+    val picklistDetailError: StateFlow<String?> = _picklistDetailError.asStateFlow()
+
+    fun fetchPicklistDetail(id: String) {
+        if (id.isBlank()) return
+        launchBusy {
+            _isLoadingPicklistDetail.value = true
+            _picklistDetailError.value = null
+
+            val result = apiRepository.request<PicklistViewOneResponse> {
+                get("/api/inventory/picklist/view-one/$id")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _picklistDetail.value = res.data
+                },
+                onFailure = { error ->
+                    _picklistDetailError.value = extractErrorMessage(error.message)
+                }
+            )
+            _isLoadingPicklistDetail.value = false
+        }
+    }
+
+    // =========================================================================
+    // READY FOR DELIVERY SALES ORDERS (FOR PICKLIST CREATION)
+    // =========================================================================
+    private val _readyDeliveryOrders = MutableStateFlow<List<ReadyForDeliveryOrderDto>>(emptyList())
+    val readyDeliveryOrders: StateFlow<List<ReadyForDeliveryOrderDto>> = _readyDeliveryOrders.asStateFlow()
+
+    private val _isLoadingReadyOrders = MutableStateFlow(false)
+    val isLoadingReadyOrders: StateFlow<Boolean> = _isLoadingReadyOrders.asStateFlow()
+
+    private val _readyOrdersError = MutableStateFlow<String?>(null)
+    val readyOrdersError: StateFlow<String?> = _readyOrdersError.asStateFlow()
+
+    fun fetchReadyForDeliveryOrders(search: String? = null) {
+        viewModelScope.launch {
+            _isLoadingReadyOrders.value = true
+            _readyOrdersError.value = null
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to 1,
+                "limit" to 10
+            )
+            search?.trim()?.takeIf { it.isNotBlank() }?.let { queryParams["search"] = it }
+
+            val result = apiRepository.request<ReadyForDeliveryResponse> {
+                get("/api/sales/orders/dispatch/ready-list", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _readyDeliveryOrders.value = res.data
+                },
+                onFailure = { error ->
+                    _readyOrdersError.value = extractErrorMessage(error.message)
+                }
+            )
+            _isLoadingReadyOrders.value = false
+        }
+    }
+
+    // =========================================================================
+    // PACKAGES STATES & OPERATIONS
+    // =========================================================================
+    private val _packagesList = MutableStateFlow<List<PackageItemDto>>(emptyList())
+    val packagesList: StateFlow<List<PackageItemDto>> = _packagesList.asStateFlow()
+
+    private val _packageSummary = MutableStateFlow<PackageSummaryDto?>(null)
+    val packageSummary: StateFlow<PackageSummaryDto?> = _packageSummary.asStateFlow()
+
+    private val _isLoadingPackages = MutableStateFlow(false)
+    val isLoadingPackages: StateFlow<Boolean> = _isLoadingPackages.asStateFlow()
+
+    private val _isLoadingMorePackages = MutableStateFlow(false)
+    val isLoadingMorePackages: StateFlow<Boolean> = _isLoadingMorePackages.asStateFlow()
+
+    private val _canLoadMorePackages = MutableStateFlow(true)
+    val canLoadMorePackages: StateFlow<Boolean> = _canLoadMorePackages.asStateFlow()
+
+    private val _currentPackagesPage = MutableStateFlow(1)
+    val currentPackagesPage: StateFlow<Int> = _currentPackagesPage.asStateFlow()
+
+    private val _packagesError = MutableStateFlow<String?>(null)
+    val packagesError: StateFlow<String?> = _packagesError.asStateFlow()
+
+    private var activePackagesSearch: String? = null
+    private var activePackagesStatus: String? = null
+    private var packagesJob: Job? = null
+
+    fun fetchPackages(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ) {
+        packagesJob?.cancel()
+        packagesJob = launchBusy {
+            _isLoadingPackages.value = true
+            _packagesError.value = null
+            _currentPackagesPage.value = page
+            activePackagesSearch = search?.trim()?.ifBlank { null }
+            activePackagesStatus = status?.trim()?.ifBlank { null }
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to page,
+                "limit" to limit
+            )
+            activePackagesSearch?.let { queryParams["search"] = it }
+            activePackagesStatus?.let { queryParams["status"] = it }
+
+            val result = apiRepository.request<PackageResponse> {
+                get("/api/inventory/package/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _packagesList.value = res.data
+                    _packageSummary.value = res.summary
+                    val totalPages = null ?: 1
+                    _canLoadMorePackages.value = page < totalPages && res.data.isNotEmpty()
+                },
+                onFailure = { error ->
+                    if (error !is CancellationException) {
+                        _packagesError.value = extractErrorMessage(error.message)
+                    }
+                }
+            )
+            _isLoadingPackages.value = false
+        }
+    }
+
+    fun loadMorePackages(limit: Int = 20) {
+        if (_isLoadingMorePackages.value || _isLoadingPackages.value || !_canLoadMorePackages.value) return
+
+        launchBusy {
+            _isLoadingMorePackages.value = true
+            val nextPage = _currentPackagesPage.value + 1
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to nextPage,
+                "limit" to limit
+            )
+            activePackagesSearch?.let { queryParams["search"] = it }
+            activePackagesStatus?.let { queryParams["status"] = it }
+
+            val result = apiRepository.request<PackageResponse> {
+                get("/api/inventory/package/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.data.isNotEmpty()) {
+                        _packagesList.update { (it + res.data).distinctBy { item -> item.id } }
+                        _currentPackagesPage.value = nextPage
+                        val totalPages = null ?: nextPage
+                        _canLoadMorePackages.value = false
+                    } else {
+                        _canLoadMorePackages.value = false
+                    }
+                },
+                onFailure = { }
+            )
+            _isLoadingMorePackages.value = false
+        }
+    }
+
+    // ── Create Package State ──
+    private val _isCreatingPackage = MutableStateFlow(false)
+    val isCreatingPackage: StateFlow<Boolean> = _isCreatingPackage.asStateFlow()
+
+    private val _createPackageError = MutableStateFlow<String?>(null)
+    val createPackageError: StateFlow<String?> = _createPackageError.asStateFlow()
+
+    fun createPackage(
+        request: CreatePackageRequest,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isCreatingPackage.value = true
+            _createPackageError.value = null
+
+            val result = apiRepository.request<CreatePackageResponse> {
+                post("/api/inventory/package/create", request)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    fetchPackages(page = 1) // Refresh package list
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _createPackageError.value = extractErrorMessage(error.message)
+                }
+            )
+            _isCreatingPackage.value = false
+        }
+    }
+
+    // ── Package Detail (View One) & Update States ──
+    private val _packageDetail = MutableStateFlow<PackageItemDto?>(null)
+    val packageDetail: StateFlow<PackageItemDto?> = _packageDetail.asStateFlow()
+
+    private val _isLoadingPackageDetail = MutableStateFlow(false)
+    val isLoadingPackageDetail: StateFlow<Boolean> = _isLoadingPackageDetail.asStateFlow()
+
+    private val _packageDetailError = MutableStateFlow<String?>(null)
+    val packageDetailError: StateFlow<String?> = _packageDetailError.asStateFlow()
+
+    private val _isUpdatingPackage = MutableStateFlow(false)
+    val isUpdatingPackage: StateFlow<Boolean> = _isUpdatingPackage.asStateFlow()
+
+    fun fetchPackageDetail(packageId: String) {
+        if (packageId.isBlank()) return
+        launchBusy {
+            _isLoadingPackageDetail.value = true
+            _packageDetailError.value = null
+
+            val result = apiRepository.request<PackageViewOneResponse> {
+                get("/api/inventory/package/view-one/$packageId")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _packageDetail.value = res.data
+                },
+                onFailure = { error ->
+                    _packageDetailError.value = extractErrorMessage(error.message)
+                }
+            )
+            _isLoadingPackageDetail.value = false
+        }
+    }
+
+    fun updatePackage(
+        packageId: String,
+        estimatedDelivery: String?,
+        onSuccess: () -> Unit
+    ) {
+        if (packageId.isBlank()) return
+        launchBusy {
+            _isUpdatingPackage.value = true
+            _packageDetailError.value = null
+
+            val result = apiRepository.request<CreatePackageResponse> {
+                put("/api/inventory/package/update-one/$packageId",
+                    UpdatePackageRequest(estimatedDelivery = estimatedDelivery)
+                )
+            }
+
+            result.fold(
+                onSuccess = {
+                    fetchPackages(page = 1) // Refresh packages list
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _packageDetailError.value = extractErrorMessage(error.message)
+                }
+            )
+            _isUpdatingPackage.value = false
+        }
+    }
+
+    // ── Delete Package ──
+    private val _isDeletingPackage = MutableStateFlow(false)
+    val isDeletingPackage: StateFlow<Boolean> = _isDeletingPackage.asStateFlow()
+
+    fun deletePackage(packageId: String, onSuccess: () -> Unit) {
+        if (packageId.isBlank()) return
+        launchBusy {
+            _isDeletingPackage.value = true
+            _packageDetailError.value = null
+
+            val result = apiRepository.request<CreatePackageResponse> {
+                delete("/api/inventory/picklist/delete-one/$packageId")
+            }
+
+            result.fold(
+                onSuccess = {
+                    fetchPackages(page = 1) // Refresh package list
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _packageDetailError.value = extractErrorMessage(error.message)
+                }
+            )
+            _isDeletingPackage.value = false
+        }
+    }
+
+    fun clearPackageDetail() {
+        _packageDetail.value = null
+        _packageDetailError.value = null
+    }
+
+    fun clearCreatePackageError() {
+        _createPackageError.value = null
+    }
+    fun clearPicklistDetail() {
+        _picklistDetail.value = null
+        _picklistDetailError.value = null
+    }
     fun refreshReturns() {
         fetchReturns(page = 1, search = activeSearch)
     }

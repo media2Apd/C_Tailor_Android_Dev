@@ -395,7 +395,7 @@ data class CreateGarmentStyleRequest(
     @SerializedName("stitchingTaxGroupId") val stitchingTaxGroupId: String? = null,
     @SerializedName("isCustomStitchable") val isCustomStitchable: Boolean = true,
     @SerializedName("status") val status: String = "Active",
-    @SerializedName("incomeAccount") val incomeAccount: String? = null
+    @SerializedName("incomeAccountId") val incomeAccount: String? = null
 
 )
 

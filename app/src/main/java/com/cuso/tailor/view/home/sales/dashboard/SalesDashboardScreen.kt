@@ -86,7 +86,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.BorderGray
-import com.cuso.tailor.ui.theme.Primary_background
 import com.cuso.tailor.ui.theme.TextPrimary
 import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.headerBg
@@ -95,6 +94,7 @@ import com.cuso.tailor.ui.theme.iconMuted
 import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.view.composable.SalesDashboardSkeleton
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.viewmodel.SalesViewModel
 import java.util.Calendar
@@ -320,86 +320,79 @@ fun SalesDashboardScreen(
     // ---------------- LAYOUT ----------------
 
     Scaffold(
-        containerColor = Primary_background,
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            // Page header
-            // Top bar: title on the left, period dropdown on the right
-            DashboardTopBar(
-                title = "Sales Dashboard",
-                selectedValue = selectedPeriod,
-                options = periodOptions,
-                onSelected = { value ->
-                    // A period change reloads the whole dashboard, so every card shows its skeleton
-                    statusOnlyReload = false
-                    // "Period" is the placeholder item, so it resets to the default period
-                    selectedPeriod = if (value == "period") "this_month" else value
-                }
-            )
+        if (globalLoading && kpiMetrics == null) {
+            SalesDashboardSkeleton() // <-- Exact Sales Skeleton on initial load
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // Top bar: title on the left, period dropdown on the right
+                DashboardTopBar(
+                    title = "Sales Dashboard",
+                    selectedValue = selectedPeriod,
+                    options = periodOptions,
+                    onSelected = { value ->
+                        statusOnlyReload = false
+                        selectedPeriod = if (value == "period") "this_month" else value
+                    }
+                )
 
-//            // Date range selector
-//            DateRangeSelector(
-//                label = rangeLabel,
-//                options = periodOptions,
-//                onSelected = { selectedPeriod = it }
-//            )
-
-            // KPI grid, two cards per row
-            kpiItems.chunked(2).forEach { pair ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    pair.forEach { item ->
-                        KpiCard(item = item, isLoading = globalLoading, modifier = Modifier.weight(1f))
+                // KPI grid, two cards per row
+                kpiItems.chunked(2).forEach { pair ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        pair.forEach { item ->
+                            KpiCard(item = item, isLoading = globalLoading, modifier = Modifier.weight(1f))
+                        }
                     }
                 }
+
+                RevenueOrdersTrendCard(
+                    points = trendPoints,
+                    activeMonthIndex = selectedMonth - 1,
+                    year = selectedYear,
+                    isLoading = globalLoading
+                )
+
+                PipelineHealthCard(rows = healthRows, isLoading = globalLoading)
+
+                OrderStatusMixCard(
+                    slices = statusSlices,
+                    totalOrders = totalOrders,
+                    selectedMonth = selectedMonth,
+                    selectedYear = selectedYear,
+                    onMonthChanged = {
+                        statusOnlyReload = true
+                        selectedMonth = it
+                    },
+                    onYearChanged = {
+                        statusOnlyReload = true
+                        selectedYear = it
+                    },
+                    isLoading = statusLoading
+                )
+
+                RevenueByCategoryCard(rows = categoryRows, isLoading = globalLoading)
+
+                RecentSalesOrdersCard(rows = orderRows, isLoading = globalLoading, onViewAll = onNavigateToOrders)
+
+                TopPerformersCard(
+                    rows = followUpRows,
+                    isLoading = globalLoading,
+                    onViewAll = onNavigateToPipeline,
+                    onFollowUp = onNavigateToLeads
+                )
             }
-
-            RevenueOrdersTrendCard(
-                points = trendPoints,
-                activeMonthIndex = selectedMonth - 1,
-                year = selectedYear,
-                isLoading = globalLoading
-            )
-
-            PipelineHealthCard(rows = healthRows, isLoading = globalLoading)
-
-            OrderStatusMixCard(
-                slices = statusSlices,
-                totalOrders = totalOrders,
-                selectedMonth = selectedMonth,
-                selectedYear = selectedYear,
-                onMonthChanged = {
-                    // Only this card should show its skeleton while the new month loads
-                    statusOnlyReload = true
-                    selectedMonth = it
-                },
-                onYearChanged = {
-                    statusOnlyReload = true
-                    selectedYear = it
-                },
-                isLoading = statusLoading
-            )
-
-            RevenueByCategoryCard(rows = categoryRows, isLoading = globalLoading)
-
-            RecentSalesOrdersCard(rows = orderRows, isLoading = globalLoading, onViewAll = onNavigateToOrders)
-
-            TopPerformersCard(
-                rows = followUpRows,
-                isLoading = globalLoading,
-                onViewAll = onNavigateToPipeline,
-                onFollowUp = onNavigateToLeads
-            )
         }
     }
 }

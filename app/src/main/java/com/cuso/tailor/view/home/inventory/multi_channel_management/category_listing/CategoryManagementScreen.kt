@@ -137,6 +137,7 @@ fun CategoryManagementScreen(
     val filteredCategories by remember(categoriesList, searchQuery, filterSections) {
         derivedStateOf {
             categoriesList.filter { item ->
+
                 // Search query match (Category Name or Code)
                 val matchesSearch = searchQuery.isBlank() ||
                         item.name.contains(searchQuery, ignoreCase = true) ||

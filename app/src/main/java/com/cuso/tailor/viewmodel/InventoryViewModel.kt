@@ -905,6 +905,33 @@ class InventoryViewModel @Inject constructor(
     val dashboardError: StateFlow<String?> = _dashboardError.asStateFlow()
 
     /**
+     * Fetches stock trends dynamically based on the selected period:
+     * - "this_year"
+     * - "last_year"
+     * - "last_6_months"
+     * - "last_12_months"
+     */
+    // Dedicated loading state for Stock Trends chart
+    private val _isLoadingStockTrends = MutableStateFlow(false)
+    val isLoadingStockTrends: StateFlow<Boolean> = _isLoadingStockTrends.asStateFlow()
+
+    fun fetchStockTrends(period: String = "this_year") {
+        viewModelScope.launch {
+            _isLoadingStockTrends.value = true
+            apiRepository.request<StockTrendsResponse> {
+                get(
+                    "/api/inventory/dashboard/stock-trends",
+                    apiRepository.query("period" to period)
+                )
+            }.fold(
+                onSuccess = { _stockTrends.value = it.data },
+                onFailure = { /* silently handle or log */ }
+            )
+            _isLoadingStockTrends.value = false
+        }
+    }
+
+    /**
      * Dashboard-oda anaithu API-kalaiyum fetch seyyum main function
      */
     fun fetchDashboardOverview() {
@@ -915,7 +942,7 @@ class InventoryViewModel @Inject constructor(
             // 1. Dashboard Summary
             launch {
                 apiRepository.request<DashboardSummaryResponse> {
-                    get("/api/inventory-dashboard/summary")
+                    get("/api/inventory/dashboard/summary")
                 }.fold(
                     onSuccess = { _dashboardSummary.value = it.data },
                     onFailure = { /* silently handle or log */ }
@@ -925,27 +952,22 @@ class InventoryViewModel @Inject constructor(
             // 2. Stock Health
             launch {
                 apiRepository.request<StockHealthResponse> {
-                    get("/api/inventory-dashboard/stock-health")
+                    get("/api/inventory/dashboard/stock-health")
                 }.fold(
                     onSuccess = { _stockHealth.value = it.data },
                     onFailure = { }
                 )
             }
 
-            // 3. Stock Trends
+            // 3. Stock Trends (Initial default: "this_year")
             launch {
-                apiRepository.request<StockTrendsResponse> {
-                    get("/api/inventory-dashboard/stock-trends")
-                }.fold(
-                    onSuccess = { _stockTrends.value = it.data },
-                    onFailure = { }
-                )
+                fetchStockTrends(period = "this_year")
             }
 
             // 4. Category Breakdown
             launch {
                 apiRepository.request<CategoryBreakdownResponse> {
-                    get("/api/inventory-dashboard/categories")
+                    get("/api/inventory/dashboard/categories")
                 }.fold(
                     onSuccess = { _categoryBreakdown.value = it.data },
                     onFailure = { }
@@ -955,7 +977,7 @@ class InventoryViewModel @Inject constructor(
             // 5. Fast Moving Products
             launch {
                 apiRepository.request<FastMovingResponse> {
-                    get("/api/inventory-dashboard/fast-moving")
+                    get("/api/inventory/dashboard/fast-moving")
                 }.fold(
                     onSuccess = { _fastMovingProducts.value = it.data },
                     onFailure = { }
@@ -965,7 +987,7 @@ class InventoryViewModel @Inject constructor(
             // 6. Warehouse Health
             launch {
                 apiRepository.request<WarehouseHealthResponse> {
-                    get("/api/inventory-dashboard/warehouse-health")
+                    get("/api/inventory/dashboard/warehouse-health")
                 }.fold(
                     onSuccess = { _warehouseHealthList.value = it.data },
                     onFailure = { }
@@ -975,7 +997,7 @@ class InventoryViewModel @Inject constructor(
             // 7. Slow Moving
             launch {
                 apiRepository.request<SlowMovingResponse> {
-                    get("/api/inventory-dashboard/slow-moving")
+                    get("/api/inventory/dashboard/slow-moving")
                 }.fold(
                     onSuccess = { _slowMovingProducts.value = it.data },
                     onFailure = { }

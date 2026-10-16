@@ -86,7 +86,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.BorderGray
+import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.TextPrimary
+import com.cuso.tailor.ui.theme.greentext
 import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.headerBg
 import com.cuso.tailor.ui.theme.headerGrey
@@ -1221,9 +1223,9 @@ private fun parseColorSafely(hex: String?, fallback: Color): Color {
 
 // Fallback colors used when the API does not return a color for a status slice
 private fun statusFallbackColor(name: String): Color = when (name.trim().lowercase()) {
-    "completed", "delivered" -> Emerald
-    "in progress", "in_progress", "processing" -> Blue
-    "pending" -> Amber
+    "Ready For Delivery", "delivered" -> greentext
+    "in Production", "in_progress", "processing" -> Primary
+    "pending approval" -> Amber
     "cancelled", "canceled" -> Red
     "returned" -> Purple
     else -> Indigo
@@ -1243,20 +1245,68 @@ private fun smoothPath(points: List<Offset>): Path {
 }
 
 // Colors for status, priority and health chips
+// Colors for status, priority and health chips matching the reference design
 private fun chipStyleFor(raw: String): ChipStyle {
-    val green = ChipStyle(Color(0xFFE7F8F0), Color(0xFFBDEBD4), Color(0xFF0E9F6E))
-    val blue = ChipStyle(Color(0xFFEAF1FF), Color(0xFFC9DAFB), Color(0xFF2F6FE4))
-    val amber = ChipStyle(Color(0xFFFFF5E0), Color(0xFFFBDDA0), Color(0xFFC77700))
-    val red = ChipStyle(Color(0xFFFDECEF), Color(0xFFF8C7CF), Color(0xFFD62839))
-    val purple = ChipStyle(Color(0xFFF3EAFE), Color(0xFFDDC6FA), Color(0xFF7E22CE))
-    val grey = ChipStyle(Color(0xFFF1F5F9), Color(0xFFE2E8F0), Color(0xFF475569))
+    // Green / Teal badge (Ready for Delivery, Delivered, Completed)
+    val green = ChipStyle(
+        bg = Color(0xFFECFDF5),
+        border = Color(0xFFA7F3D0),
+        fg = Color(0xFF059669)
+    )
 
-    return when (raw.trim().lowercase().replace("_", " ")) {
-        "completed", "delivered", "won", "strong", "low", "accepted" -> green
-        "in progress", "on track", "processing", "confirmed" -> blue
-        "pending", "attention", "medium", "draft" -> amber
-        "cancelled", "canceled", "high", "rejected", "lost" -> red
-        "returned" -> purple
+    // Indigo / Blue badge (In Production, Processing, In Progress)
+    val indigo = ChipStyle(
+        bg = Color(0xFFEEF2FF),
+        border = Color(0xFFC7D2FE),
+        fg = Color(0xFF4F46E5)
+    )
+
+    // Amber / Orange badge (Pending, Pending Approval, Draft, Medium)
+    val amber = ChipStyle(
+        bg = Color(0xFFFFFBEB),
+        border = Color(0xFFFDE68A),
+        fg = Color(0xFFD97706)
+    )
+
+    // Red badge (Cancelled, Rejected, High)
+    val red = ChipStyle(
+        bg = Color(0xFFFEF2F2),
+        border = Color(0xFFFECACA),
+        fg = Color(0xFFDC2626)
+    )
+
+    // Purple badge (Returned, Refunded)
+    val purple = ChipStyle(
+        bg = Color(0xFFF5F3FF),
+        border = Color(0xFFDDD6FE),
+        fg = Color(0xFF7C3AED)
+    )
+
+    // Default neutral gray badge
+    val grey = ChipStyle(
+        bg = Color(0xFFF8FAFC),
+        border = Color(0xFFE2E8F0),
+        fg = Color(0xFF64748B)
+    )
+
+    val clean = raw.trim().lowercase().replace("_", " ")
+
+    return when {
+        // Ready / Delivered / Completed -> Green
+        clean.contains("ready") || clean.contains("deliver") || clean.contains("completed") || clean.contains("won") || clean.contains("accepted") -> green
+
+        // In Production / In Progress / Confirmed -> Indigo
+        clean.contains("production") || clean.contains("progress") || clean.contains("processing") || clean.contains("confirmed") -> indigo
+
+        // Pending / Approval / Medium priority -> Amber
+        clean.contains("pending") || clean.contains("approval") || clean.contains("draft") || clean.contains("medium") || clean.contains("attention") -> amber
+
+        // Cancelled / High priority / Rejected -> Red
+        clean.contains("cancel") || clean.contains("reject") || clean.contains("lost") || clean.contains("high") -> red
+
+        // Returned -> Purple
+        clean.contains("return") -> purple
+
         else -> grey
     }
 }

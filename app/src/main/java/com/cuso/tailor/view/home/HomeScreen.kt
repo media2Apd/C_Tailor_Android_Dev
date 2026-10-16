@@ -193,6 +193,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedPurchaseInvoice by remember { mutableStateOf<PurchaseInvoiceItem?>(null) }
     var selectedSupplier by remember { mutableStateOf<SupplierRow?>(null) }
     var selectedSupplierId by remember { mutableStateOf<String?>(null) }
+    var selectedCreditNoteId by remember { mutableStateOf<String?>(null) }
     var selectedReceiptId by remember { mutableStateOf<String?>(null) }
     // Inside HomeScreen Composable (around line 140, near selectedInvoiceId)
     var invoiceForPayment by remember { mutableStateOf<InvoiceViewOneData?>(null) } // <-- ADD THIS
@@ -473,7 +474,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "finance_payments_made",
             "finance_record_payment",
             "finance_create_payment_receipt",
+            "finance_credits",
+            "finance_create_credit",
+            "finance_credit_detail",
             // ── Inventory ──
+            "inventory_dashboard",
             "inventory_suppliers",
             "inventory_supplier_detail",
             "inventory_create_supplier",
@@ -774,6 +779,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
+                "finance_credit_detail" -> selectedCreditNoteId = null
                 "inventory_package_detail" -> selectedPackageIdForDetail = null
                 "inventory_create_package" -> selectedPackageIdForEdit = null
                 "hr_new_document_upload" -> selectedDocumentId = null
@@ -969,7 +975,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
-
+                            selectedCreditNoteId = selectedCreditNoteId,
+                            onCreditNoteSelected = { selectedCreditNoteId = it },
                             selectedPackageIdForDetail = selectedPackageIdForDetail,
                             onPackageIdForDetailSelected = { selectedPackageIdForDetail = it },
                             selectedPackageIdForEdit = selectedPackageIdForEdit,
@@ -1661,22 +1668,22 @@ private val CustomerAvatarPalette = listOf(
     Color(0xFFF59E0B), Color(0xFF3B82F6), Color(0xFFEC4899), Color(0xFF10B981), Color(0xFF6366F1)
 )
 
-private fun mapOperationsToCustomers(ops: List<OperationItem>): List<RecentCustomer> {
-    return ops.distinctBy { it.customer }.take(5).mapIndexed { index, op ->
-        val nameParts = op.customer.trim().split(" ").filter { it.isNotBlank() }
-        val initials = nameParts.take(2).joinToString("") { it.first().uppercase() }.ifBlank { "?" }
-        val prettyName = nameParts.joinToString(" ") { word ->
-            word.lowercase().replaceFirstChar { it.uppercase() }
-        }
-        RecentCustomer(
-            id = op.customerId.orEmpty(),
-            name = prettyName.ifBlank { op.customer },
-            role = op.type,
-            initials = initials,
-            avatarColor = CustomerAvatarPalette[index % CustomerAvatarPalette.size]
-        )
-    }
-}
+//private fun mapOperationsToCustomers(ops: List<OperationItem>): List<RecentCustomer> {
+//    return ops.distinctBy { it.customer }.take(5).mapIndexed { index, op ->
+//        val nameParts = op.customer.trim().split(" ").filter { it.isNotBlank() }
+//        val initials = nameParts.take(2).joinToString("") { it.first().uppercase() }.ifBlank { "?" }
+//        val prettyName = nameParts.joinToString(" ") { word ->
+//            word.lowercase().replaceFirstChar { it.uppercase() }
+//        }
+//        RecentCustomer(
+//            id = op.customerId.orEmpty(),
+//            name = prettyName.ifBlank { op.customer },
+//            role = op.type,
+//            initials = initials,
+//            avatarColor = CustomerAvatarPalette[index % CustomerAvatarPalette.size]
+//        )
+//    }
+//}
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -1810,6 +1817,9 @@ fun normalizeRoute(rawKey: String): String {
         "finance_receipts" -> "finance_receipts"
         "finance_receipt_detail" -> "finance_receipt_detail"
         "finance_create_payment_receipt" -> "finance_create_payment_receipt"
+        "finance_credits", "finance_credit" -> "finance_credits"
+        "finance_create_credit" -> "finance_create_credit"
+        "finance_credit_detail" -> "finance_credit_detail"
         "finance_customers" -> "finance_customers"
         "finance_payments_received" -> "finance_payments_received"
         "finance_suppliers" -> "finance_suppliers"
@@ -1820,6 +1830,7 @@ fun normalizeRoute(rawKey: String): String {
         "finance_trial_balance" -> "finance_trial_balance"
 
         // Inventory item and transfer mappings
+        "inventory_dashboard" -> "inventory_dashboard"
         "inventory_all_items" -> "inventory_items"
         "inventory_item_groups" -> "inventory_item_groups"
         "inventory_transfer_order", "inventory_items_transfer_stock" -> "inventory_transfer_stock"

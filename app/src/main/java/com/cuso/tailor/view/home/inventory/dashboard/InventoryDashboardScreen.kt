@@ -1,13 +1,16 @@
 package com.cuso.tailor.view.home.inventory.dashboard
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -15,10 +18,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -27,7 +37,9 @@ import coil.compose.AsyncImage
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.*
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.viewmodel.InventoryViewModel
+import java.util.Locale
 
 @Composable
 fun InventoryDashboardScreen(
@@ -44,26 +56,20 @@ fun InventoryDashboardScreen(
     val warehouseHealth by viewModel.warehouseHealthList.collectAsState()
     val slowMoving by viewModel.slowMovingProducts.collectAsState()
     val isLoading by viewModel.isDashboardLoading.collectAsState()
+    val isLoadingStockTrends by viewModel.isLoadingStockTrends.collectAsState() // <-- 1. Collect loading state
+
+    var selectedTrendPeriod by remember { mutableStateOf("this_year") }
 
     LaunchedEffect(Unit) {
         viewModel.fetchDashboardOverview()
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0,0,0,0),
         containerColor = Primary_background
     ) { padding ->
         if (isLoading && summary == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    color = Primary,
-                    strokeWidth = 2.5.dp
-                )
-            }
+            ListSkeleton()
         } else {
             LazyColumn(
                 modifier = modifier
@@ -128,7 +134,7 @@ fun InventoryDashboardScreen(
                             value = summary?.inventoryValue?.displayValue ?: "₹${summary?.inventoryValue?.value ?: 0}",
                             changePercent = summary?.inventoryValue?.changePercent ?: 0.0,
                             isPositive = (summary?.inventoryValue?.changePercent ?: 0.0) >= 0,
-                            icon = Icons.Outlined.TrendingUp,
+                            icon = Icons.AutoMirrored.Outlined.TrendingUp,
                             iconTint = chartEmerald,
                             iconBg = greenBg,
                             sparkline = summary?.inventoryValue?.sparkline ?: listOf(2.0, 2.2, 2.5)
@@ -187,7 +193,6 @@ fun InventoryDashboardScreen(
                                         data = card
                                     )
                                 }
-                                // Placeholder if row items are less than grid columns
                                 repeat(tokens.gridColumns - rowCards.size) {
                                     Spacer(modifier = Modifier.weight(1f))
                                 }
@@ -196,9 +201,17 @@ fun InventoryDashboardScreen(
                     }
                 }
 
-                // Inventory Value & Stock Trends Chart
+                // Inventory Value & Stock Trends Chart (Reloads on filter change)
                 item {
-                    InventoryValueStockCard(points = stockTrends?.points ?: emptyList())
+                    InventoryValueStockCard(
+                        trendsData = stockTrends,
+                        selectedPeriod = selectedTrendPeriod,
+                        isLoading = isLoadingStockTrends, // <-- 2. Pass loading state
+                        onPeriodSelected = { newPeriod ->
+                            selectedTrendPeriod = newPeriod
+                            viewModel.fetchStockTrends(period = newPeriod)
+                        }
+                    )
                 }
 
                 // Warehouse Health Section
@@ -352,9 +365,27 @@ fun MiniSparkline(
     }
 }
 
+@SuppressLint("UseKtx")
 @Composable
-fun InventoryValueStockCard(points: List<StockTrendPoint>) {
+fun InventoryValueStockCard(
+    trendsData: StockTrendsData?,
+    selectedPeriod: String = "this_year",
+    isLoading: Boolean = false, // <-- Added loading parameter
+    onPeriodSelected: (String) -> Unit = {}
+) {
     val tokens = LocalAppTokens.current
+    val points = trendsData?.points ?: emptyList()
+    var isDropdownOpen by remember { mutableStateOf(false) }
+
+    // Backend query parameters
+    val filterOptions = listOf(
+        "This Year" to "this_year",
+        "Last Year" to "last_year",
+        "Last 6 Months" to "last_6_months",
+        "Last 12 Months" to "last_12_months"
+    )
+
+    val currentLabel = filterOptions.firstOrNull { it.second == selectedPeriod }?.first ?: "This Year"
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -375,7 +406,7 @@ fun InventoryValueStockCard(points: List<StockTrendPoint>) {
                         fontWeight = FontWeight.Medium,
                         color = Primary
                     )
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(6.dp))
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = null,
@@ -384,79 +415,212 @@ fun InventoryValueStockCard(points: List<StockTrendPoint>) {
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "This Year ▾",
-                        fontSize = tokens.caption,
-                        color = TextSecondary,
-                        fontWeight = FontWeight.Medium
-                    )
+                // Interactive Period Dropdown
+                Box {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
+                            .clickable { isDropdownOpen = true }
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "$currentLabel ▾",
+                            fontSize = tokens.caption,
+                            color = TextSecondary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = isDropdownOpen,
+                        onDismissRequest = { isDropdownOpen = false },
+                        modifier = Modifier.background(whiteBg)
+                    ) {
+                        filterOptions.forEach { (label, value) ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = label,
+                                        fontSize = tokens.bodySmall,
+                                        fontWeight = if (value == selectedPeriod) FontWeight.SemiBold else FontWeight.Normal,
+                                        color = if (value == selectedPeriod) Primary else TextPrimary
+                                    )
+                                },
+                                onClick = {
+                                    isDropdownOpen = false
+                                    onPeriodSelected(value)
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
             Spacer(Modifier.height(10.dp))
 
-            // Legends
+            // Chart Legends
             Row(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ChartLegendItem(color = Primary, text = "Value (₹)", isCircle = true)
-                ChartLegendItem(color = chartCyan, text = "Incoming", isCircle = false)
-                ChartLegendItem(color = chartBlue, text = "Outgoing", isCircle = false)
+                ChartLegendItem(color = Color(0xFF14B8A6), text = "Incoming", isCircle = false)
+                ChartLegendItem(color = Color(0xFF3B82F6), text = "Outgoing", isCircle = false)
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(18.dp))
 
-            // Bar Trends Chart
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(tokens.cardHeight)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
+            // Show loader while API response is loading
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(190.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    val months = if (points.isNotEmpty()) points.map { it.month } else listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Oct", "Dec")
-                    months.take(8).forEachIndexed { index, m ->
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Bottom,
-                            modifier = Modifier.fillMaxHeight()
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                verticalAlignment = Alignment.Bottom,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(6.dp)
-                                        .fillMaxHeight(0.35f + (index % 4) * 0.15f)
-                                        .background(chartCyan, RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp))
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .width(6.dp)
-                                        .fillMaxHeight(0.25f + (index % 3) * 0.15f)
-                                        .background(chartBlue, RoundedCornerShape(topStart = 2.dp, topEnd = 2.dp))
+                    CircularProgressIndicator(
+                        color = Primary,
+                        strokeWidth = 2.5.dp,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            } else if (points.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No stock trend data available",
+                        fontSize = tokens.bodySmall,
+                        color = mutedText
+                    )
+                }
+            } else {
+                val incomingColor = Color(0xFF14B8A6)
+                val outgoingColor = Color(0xFF3B82F6)
+                val valueLineColor = Primary
+                val gridLineColor = Color(0xFFEEF2F6)
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(190.dp)
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val yAxisLabelWidth = 42.dp.toPx()
+                        val bottomLabelHeight = 24.dp.toPx()
+                        val chartWidth = size.width - yAxisLabelWidth
+                        val chartHeight = size.height - bottomLabelHeight
+
+                        val maxStock = points.maxOfOrNull { maxOf(it.incomingStock, it.outgoingStock) }?.takeIf { it > 0 } ?: 1.0
+                        val maxInventoryValue = points.maxOfOrNull { it.inventoryValue }?.takeIf { it > 0 } ?: 1.0
+                        val minInventoryValue = points.minOfOrNull { it.inventoryValue } ?: 0.0
+
+                        val dashedEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
+                        val gridSteps = 2
+
+                        for (i in 0..gridSteps) {
+                            val y = (chartHeight / gridSteps) * i
+                            drawLine(
+                                color = gridLineColor,
+                                start = Offset(0f, y),
+                                end = Offset(chartWidth, y),
+                                strokeWidth = 1.dp.toPx(),
+                                pathEffect = dashedEffect
+                            )
+
+                            val tickValue = maxInventoryValue - ((maxInventoryValue - minInventoryValue) / gridSteps) * i
+                            val labelText = if (tickValue >= 1.0) {
+                                String.format(Locale.US, "%.1f Cr", tickValue)
+                            } else if (tickValue > 0) {
+                                String.format(Locale.US, "%.0f L", tickValue * 100)
+                            } else {
+                                "0"
+                            }
+
+                            drawIntoCanvas { canvas ->
+                                val paint = android.graphics.Paint().apply {
+                                    color = android.graphics.Color.parseColor("#94A3B8")
+                                    textSize = 9.dp.toPx()
+                                    isAntiAlias = true
+                                }
+                                canvas.nativeCanvas.drawText(
+                                    labelText,
+                                    chartWidth + 6.dp.toPx(),
+                                    y + 4.dp.toPx(),
+                                    paint
                                 )
                             }
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                text = m,
-                                fontSize = tokens.label,
-                                color = mutedText,
-                                fontWeight = FontWeight.Medium
-                            )
                         }
+
+                        val stepX = chartWidth / points.size
+                        val barWidth = (stepX * 0.28f).coerceIn(3.5.dp.toPx(), 8.dp.toPx())
+                        val barSpacing = 2.dp.toPx()
+                        val linePath = Path()
+
+                        points.forEachIndexed { index, point ->
+                            val centerX = (index + 0.5f) * stepX
+
+                            val incomingHeight = ((point.incomingStock / maxStock) * (chartHeight * 0.82f)).toFloat()
+                            val outgoingHeight = ((point.outgoingStock / maxStock) * (chartHeight * 0.82f)).toFloat()
+
+                            if (incomingHeight > 0f) {
+                                drawRoundRect(
+                                    color = incomingColor,
+                                    topLeft = Offset(centerX - barWidth - (barSpacing / 2f), chartHeight - incomingHeight),
+                                    size = Size(barWidth, incomingHeight),
+                                    cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                                )
+                            }
+
+                            if (outgoingHeight > 0f) {
+                                drawRoundRect(
+                                    color = outgoingColor,
+                                    topLeft = Offset(centerX + (barSpacing / 2f), chartHeight - outgoingHeight),
+                                    size = Size(barWidth, outgoingHeight),
+                                    cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                                )
+                            }
+
+                            val valueRange = (maxInventoryValue - minInventoryValue).coerceAtLeast(0.01)
+                            val normalizedValue = ((point.inventoryValue - minInventoryValue) / valueRange).toFloat().coerceIn(0f, 1f)
+                            val valueY = chartHeight - (normalizedValue * (chartHeight * 0.70f) + (chartHeight * 0.15f))
+
+                            if (index == 0) {
+                                linePath.moveTo(centerX, valueY)
+                            } else {
+                                linePath.lineTo(centerX, valueY)
+                            }
+
+                            drawIntoCanvas { canvas ->
+                                val textPaint = android.graphics.Paint().apply {
+                                    color = android.graphics.Color.parseColor("#94A3B8")
+                                    textSize = 9.5.dp.toPx()
+                                    textAlign = android.graphics.Paint.Align.CENTER
+                                    isAntiAlias = true
+                                }
+                                canvas.nativeCanvas.drawText(
+                                    point.month,
+                                    centerX,
+                                    size.height - 4.dp.toPx(),
+                                    textPaint
+                                )
+                            }
+                        }
+
+                        drawPath(
+                            path = linePath,
+                            color = valueLineColor,
+                            style = Stroke(
+                                width = 2.5.dp.toPx(),
+                                cap = StrokeCap.Round,
+                                join = StrokeJoin.Round
+                            )
+                        )
                     }
                 }
             }
@@ -526,36 +690,52 @@ fun WarehouseHealthSectionCard(warehouses: List<WarehouseHealthItem>) {
                 Column(modifier = Modifier.padding(vertical = 4.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
                                 text = wh.name,
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
-                                color = TitleColor
+                                color = TitleColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 text = wh.location,
-                                fontSize = tokens.bodySmall,
+                                fontSize = tokens.caption,
                                 color = mutedText,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End
+                        ) {
                             Text(
                                 text = "${wh.percent.toInt()}% ",
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
-                                color = barColor
+                                color = barColor,
+                                maxLines = 1
                             )
                             Text(
                                 text = wh.status,
                                 fontSize = tokens.bodySmall,
                                 color = TextSecondary,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Normal,
+                                maxLines = 1
                             )
                         }
                     }
@@ -602,7 +782,6 @@ fun StockHealthSectionCard(stockHealth: StockHealthData?) {
 
             Spacer(Modifier.height(14.dp))
 
-            // Donut Chart
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -661,7 +840,6 @@ fun StockHealthSectionCard(stockHealth: StockHealthData?) {
 
             Spacer(Modifier.height(14.dp))
 
-            // Segments
             stockHealth?.segments?.forEach { seg ->
                 val parsedColor = try {
                     Color(android.graphics.Color.parseColor(seg.color))
@@ -920,19 +1098,45 @@ fun SlowMovingSectionCard(products: List<SlowMovingProductItem>) {
                 )
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(14.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("PRODUCT", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                Text("DAYS IDLE / VALUE", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                Text("ACTION", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
+                Text(
+                    text = "Product",
+                    fontSize = tokens.caption,
+                    color = mutedText,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(2.3f)
+                )
+                Text(
+                    text = "Days Idle",
+                    fontSize = tokens.caption,
+                    color = mutedText,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1.1f)
+                )
+                Text(
+                    text = "Value (₹)",
+                    fontSize = tokens.caption,
+                    color = mutedText,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1.3f)
+                )
+                Text(
+                    text = "Status",
+                    fontSize = tokens.caption,
+                    color = mutedText,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                    modifier = Modifier.weight(1.4f)
+                )
             }
 
             HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
+                modifier = Modifier.padding(vertical = 10.dp),
                 thickness = 0.5.dp,
                 color = dividerColor
             )
@@ -941,94 +1145,90 @@ fun SlowMovingSectionCard(products: List<SlowMovingProductItem>) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                        .padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left
                     Row(
-                        modifier = Modifier.weight(1.3f),
+                        modifier = Modifier.weight(2.3f),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(redBg.copy(alpha = 0.5f)),
+                                .background(Color(0xFFEFF3F8)),
                             contentAlignment = Alignment.Center
                         ) {
                             if (!item.image.isNullOrBlank()) {
                                 AsyncImage(
                                     model = item.image,
-                                    contentDescription = null,
+                                    contentDescription = item.name,
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
                             } else {
                                 Icon(
-                                    imageVector = Icons.Outlined.Print,
+                                    imageVector = Icons.Outlined.Inventory2,
                                     contentDescription = null,
-                                    tint = redText,
+                                    tint = iconMuted,
                                     modifier = Modifier.size(tokens.iconSize)
                                 )
                             }
                         }
-                        Spacer(Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                text = item.name,
-                                fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Medium,
-                                color = title_color,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = item.sku,
-                                fontSize = tokens.label,
-                                color = mutedText,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
 
-                    // Middle
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                        Spacer(Modifier.width(10.dp))
+
                         Text(
-                            text = item.daysIdle,
-                            fontSize = tokens.caption,
-                            color = TextSecondary,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = item.stockValue,
-                            fontSize = tokens.caption,
-                            color = mutedText,
-                            fontWeight = FontWeight.Medium
+                            text = item.name,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = TitleColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    // Right (Badge Action)
+                    Text(
+                        text = item.daysIdle,
+                        fontSize = tokens.bodySmall,
+                        color = TextSecondary,
+                        fontWeight = FontWeight.Normal,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1.1f)
+                    )
+
+                    Text(
+                        text = item.stockValue,
+                        fontSize = tokens.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = TitleColor,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1.3f)
+                    )
+
                     val isDisposal = item.recommendation.contains("Disposal", ignoreCase = true)
                     Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isDisposal) redBg else yellowBg)
-                            .border(
-                                1.dp,
-                                if (isDisposal) redText.copy(alpha = 0.4f) else yellowText.copy(alpha = 0.4f),
-                                RoundedCornerShape(12.dp)
-                            )
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                        modifier = Modifier.weight(1.4f),
+                        contentAlignment = Alignment.CenterEnd
                     ) {
-                        Text(
-                            text = item.recommendation,
-                            fontSize = tokens.label,
-                            fontWeight = FontWeight.Medium,
-                            color = if (isDisposal) redText else yellowText
-                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isDisposal) redBg else Color(0xFFFFFBEB))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isDisposal) redText.copy(alpha = 0.35f) else Color(0xFFFDE68A),
+                                    shape = RoundedCornerShape(6.dp)
+                                )
+                                .padding(horizontal = 10.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = item.recommendation,
+                                fontSize = tokens.label,
+                                fontWeight = FontWeight.Medium,
+                                color = if (isDisposal) redText else Color(0xFFD97706)
+                            )
+                        }
                     }
                 }
             }

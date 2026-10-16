@@ -192,24 +192,27 @@ import com.cuso.tailor.view.home.warehouse.WarehouseSettingsScreen
 import com.cuso.tailor.model.finance.InvoiceViewOneData
 import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.view.home.finance.account_receivable.sales_invoice.RecordPaymentReceiptScreen
+import com.cuso.tailor.view.home.finance.credit.CreateCreditNoteScreen
+import com.cuso.tailor.view.home.finance.credit.CreditNoteDetailScreen
 import com.cuso.tailor.view.home.finance.dashboard.FinanceOverviewScreen
 import com.cuso.tailor.view.home.finance.receipts.CreatePaymentReceiptScreen
+import com.cuso.tailor.view.home.inventory.dashboard.InventoryDashboardScreen
 import com.cuso.tailor.view.home.inventory.inventory.packages.CreatePackageScreen
 import com.cuso.tailor.view.home.inventory.inventory.packages.PackageDetailScreen
 import com.cuso.tailor.view.home.inventory.inventory.packages.PackagesScreen
 import com.cuso.tailor.view.home.inventory.inventory.picklist.CreatePicklistScreen
 import com.cuso.tailor.view.home.inventory.inventory.picklist.PicklistDetailScreen
 import com.cuso.tailor.view.home.inventory.inventory.picklist.PicklistListScreen
-//import com.cuso.tailor.view.home.inventory.procurement.picklist.CreatePicklistScreen
 import com.cuso.tailor.viewmodel.*
 
-// TEMPORARY: payment term source innum illa
 private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("FlowOperatorInvokedInComposition")
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedCreditNoteId: String? = null,
+    onCreditNoteSelected: (String?) -> Unit = {},
     selectedPackageIdForDetail: String? = null,
     onPackageIdForDetailSelected: (String?) -> Unit = {},
     selectedPackageIdForEdit: String? = null,
@@ -410,14 +413,16 @@ fun HomeScreenRouter(
             )
         }
 
-        // ── Add "finance_receipts" into this list ──
-        "finance_dashboard", "finance_receipts", "finance_create_payment_receipt", "finance_sales_invoices", "finance_invoice_detail", "finance_record_payment", "finance_purchase_invoices", "finance_purchase_invoice_detail", "finance_customers", "finance_customer_detail", "finance_suppliers", "finance_supplier_detail", "finance_expenses",
+        // ── Add "finance_credits", "finance_create_credit", "finance_credit_detail" into this list ──
+        "finance_dashboard", "finance_receipts", "finance_create_payment_receipt", "finance_credits", "finance_create_credit", "finance_credit_detail", "finance_sales_invoices", "finance_invoice_detail", "finance_record_payment", "finance_purchase_invoices", "finance_purchase_invoice_detail", "finance_customers", "finance_customer_detail", "finance_suppliers", "finance_supplier_detail", "finance_expenses",
         "finance_chart_of_accounts", "finance_journal_screen", "finance_trial_balance", "finance_ledger", "finance_payments_received",
         "payment_detail_screen", "finance_payments_mode", "payment_mode_detail", "finance_gst_settings", "finance_create_customer",
         "finance_add_gst", "finance_tax_rates", "finance_add_tax_group", "finance_create_sales_invoice", "finance_purchase_orders",
         "finance_purchase_receive", "finance_receipt_detail", "finance_bills_list", "finance_payments_made", "finance_sales_orders" -> {
             FinanceRouter(
                 screen = screen,
+                selectedCreditNoteId = selectedCreditNoteId, // <-- Pass down
+                onCreditNoteSelected = onCreditNoteSelected, // <-- Pass down
                 isOrderFromFinance = isOrderFromFinance,
                 onOrderFromFinanceChange = onOrderFromFinanceChange,
                 prefillOrderForInvoice = prefillOrderForInvoice,
@@ -461,7 +466,7 @@ fun HomeScreenRouter(
                 )
         }
 
-        "inventory_items", "inventory_all_items", "inventory_create_item",
+        "inventory_dashboard", "inventory_items", "inventory_all_items", "inventory_create_item",
         "inventory_item_detail", "inventory_item_groups", "inventory_item_group_detail",
         "inventory_create_item_group", "inventory_bulk", "inventory_all_bulk",
         "inventory_bulk_detail", "inventory_add_bulk", "inventory_adjustment",
@@ -1739,6 +1744,8 @@ private fun SalesRouter(
 private fun FinanceRouter(
     screen: String,
     token: String,
+    selectedCreditNoteId: String? = null, // <-- Receive as parameter
+    onCreditNoteSelected: (String?) -> Unit = {}, // <-- Receive as parameter
     isOrderFromFinance: Boolean,
     invoiceForPayment: InvoiceViewOneData?,
     selectedReceiptId: String?,
@@ -1901,6 +1908,45 @@ private fun FinanceRouter(
             }
         )
 
+        // 1. Credit Notes List Screen
+        "finance_credits" -> {
+            com.cuso.tailor.view.home.finance.credit.CreditNotesListScreen(
+                viewModel = financeViewModel,
+                onBack = onGoBack,
+                onNavigateToCreate = {
+                    onNavigate("finance_create_credit")
+                },
+                onNavigateToDetail = { id ->
+                    onCreditNoteSelected(id) // Sets ID into HomeScreen level state
+                    onNavigate("finance_credit_detail")
+                }
+            )
+        }
+
+        // 2. Create Credit Note Screen
+        "finance_create_credit" -> {
+            CreateCreditNoteScreen(
+                viewModel = financeViewModel,
+                inventoryViewModel = inventoryViewModel,
+                customerViewModel = customerViewModel,
+                branchViewModel = branchViewModel,
+                onBack = onGoBack
+            )
+        }
+
+        // 3. Credit Note Detail Screen (View One)
+        "finance_credit_detail" -> {
+            selectedCreditNoteId?.let { id ->
+                CreditNoteDetailScreen(
+                    creditNoteId = id,
+                    viewModel = financeViewModel,
+                    onBack = {
+                        onCreditNoteSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
 
         "finance_invoice_detail" -> {
             selectedInvoiceId?.let { id ->
@@ -2235,6 +2281,12 @@ private fun InventoryMainRouter(
     var selectedStockLocationItem by remember { mutableStateOf<StockLocationItemDto?>(null) }
 
     when (screen) {
+        "inventory_dashboard" -> {
+            InventoryDashboardScreen(
+                viewModel = inventoryViewModel
+            )
+        }
+
         "inventory_items", "inventory_all_items" -> InventoryScreen(
             onClose = onGoBack,
             onAddItem = { onNavigate("inventory_create_item") },

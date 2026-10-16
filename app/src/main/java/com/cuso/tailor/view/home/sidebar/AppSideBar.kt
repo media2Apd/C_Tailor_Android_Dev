@@ -131,6 +131,7 @@ fun buildNavigationKey(menu: String, subItem: String): String {
             "orders", "order"    -> "finance_sales_orders"
             "invoice", "invoices"-> "finance_sales_invoices"
             "receipts", "receipt"-> "finance_receipts"
+            "credit", "credits"  -> "finance_credits"
             "suppliers", "supplier" -> "finance_suppliers"
             "purchase list"      -> "finance_purchase_orders"
             "purchase receive"   -> "finance_purchase_receive"
@@ -146,6 +147,7 @@ fun buildNavigationKey(menu: String, subItem: String): String {
 
     if (menu == "Inventory") {
         return when (subItem) {
+            "Inventory Dashboard", "Dashboard" -> "inventory_dashboard"
             "All Items"           -> "inventory_all_items"
             "Item Groups"         -> "inventory_item_groups"
             "Bulk"                -> "inventory_bulk"
@@ -311,7 +313,8 @@ object SidebarConfig {
                         "Customers",
                         "Orders",
                         "Invoice",
-                        "Receipts"
+                        "Receipts",
+                        "Credit"
                     ),
                     "Purchase" to listOf(
                         "Suppliers",
@@ -332,6 +335,7 @@ object SidebarConfig {
                 label = "Inventory",
                 isPanel = true,
                 categories = listOf(
+                    "Inventory Dashboard",
                     "All Items",
                     "Item Groups",
                     "Bulk",

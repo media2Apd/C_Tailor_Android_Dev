@@ -165,6 +165,22 @@ sealed class RecordPaymentState {
     data class Error(val message: String) : RecordPaymentState()
 }
 
+// ── Sealed state for applying credits to an invoice ──
+sealed class ApplyCreditState {
+    object Idle : ApplyCreditState()
+    object Loading : ApplyCreditState()
+    data class Success(val message: String) : ApplyCreditState()
+    data class Error(val message: String) : ApplyCreditState()
+}
+
+// ── Sealed state for Voiding Credit Note ──
+sealed class VoidCreditNoteState {
+    object Idle : VoidCreditNoteState()
+    object Loading : VoidCreditNoteState()
+    data class Success(val message: String) : VoidCreditNoteState()
+    data class Error(val message: String) : VoidCreditNoteState()
+}
+
 @HiltViewModel
 class FinanceViewModel @Inject constructor(
     private val financeRepository: FinanceRepository,
@@ -2009,6 +2025,357 @@ class FinanceViewModel @Inject constructor(
                 onFailure = { /* Handle error */ }
             )
         }
+    }
+
+    private val _creditNotes = MutableStateFlow<List<CreditNoteItemDto>>(emptyList())
+    val creditNotes: StateFlow<List<CreditNoteItemDto>> = _creditNotes.asStateFlow()
+//
+//    private val _isLoading = MutableStateFlow(false)
+//    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _selectedCreditNote = MutableStateFlow<CreditNoteItemDto?>(null)
+    val selectedCreditNote: StateFlow<CreditNoteItemDto?> = _selectedCreditNote.asStateFlow()
+
+    // State for Credit Note Allocations (Applied Invoices)
+    private val _creditNoteAllocations = MutableStateFlow<List<CreditNoteAllocationItem>>(emptyList())
+    val creditNoteAllocations: StateFlow<List<CreditNoteAllocationItem>> = _creditNoteAllocations.asStateFlow()
+
+    private val _isSubmitting = MutableStateFlow(false)
+    val isSubmitting: StateFlow<Boolean> = _isSubmitting.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    // Fetch credit note allocations by credit note ID
+    fun fetchCreditNoteAllocations(creditNoteId: String) {
+        if (creditNoteId.isBlank()) return
+        viewModelScope.launch {
+            repo.request<CreditNoteAllocationsResponse> {
+                get("/api/finance/credit-notes/allocations/$creditNoteId")
+            }.fold(
+                onSuccess = { res -> _creditNoteAllocations.value = res.data },
+                onFailure = { _creditNoteAllocations.value = emptyList() }
+            )
+        }
+    }
+
+
+    init {
+        fetchCreditNotes()
+    }
+
+    fun fetchCreditNotes(search: String? = null) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+
+            val queryParams = mutableMapOf<String, Any>("page" to 1, "limit" to 20)
+            if (!search.isNullOrBlank()) queryParams["search"] = search.trim()
+
+            repo.request<CreditNoteListResponse> {
+                get("/api/finance/credit-notes/view-all", queryParams)
+            }.fold(
+                onSuccess = { res ->
+                    _creditNotes.value = res.data
+                },
+                onFailure = { err ->
+                    _errorMessage.value = err.message ?: "Failed to load credit notes"
+                }
+            )
+            _isLoading.value = false
+        }
+    }
+
+    fun fetchCreditNoteById(id: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            repo.request<CreditNoteSingleResponse> {
+                get("/api/finance/credit-notes/view-one/$id")
+            }.fold(
+                onSuccess = { res -> _selectedCreditNote.value = res.data },
+                onFailure = { err -> _errorMessage.value = err.message }
+            )
+            _isLoading.value = false
+        }
+    }
+
+    fun createCreditNote(request: CreateCreditNoteRequest, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            repo.request<CreditNoteSingleResponse> {
+                post("/api/finance/credit-notes/create", request)
+            }.fold(
+                onSuccess = {
+                    fetchCreditNotes()
+                    onSuccess()
+                },
+                onFailure = { err -> _errorMessage.value = err.message }
+            )
+            _isSubmitting.value = false
+        }
+    }
+    /**
+     * Standalone Send Credit Note API:
+     * POST /api/finance/credit-notes/send/{id}
+     */
+    fun sendCreditNote(creditNoteId: String, onSuccess: () -> Unit = {}) {
+        android.util.Log.d("CreditNoteAPI", "sendCreditNote called with ID: '$creditNoteId'")
+        if (creditNoteId.isBlank()) {
+            android.util.Log.e("CreditNoteAPI", "Credit note ID is blank. Aborting request.")
+            _errorMessage.value = "Credit Note ID is missing."
+            return
+        }
+
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            _errorMessage.value = null
+
+            // Passing emptyMap<String, Any>() ensures OkHttp creates a valid POST request body
+            val result = repo.request<SendCreditNoteResponse> {
+                post(
+                    "/api/finance/credit-notes/send/$creditNoteId",
+                    emptyMap<String, Any>()
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    android.util.Log.d("CreditNoteAPI", "Successfully sent credit note: ${res.message}")
+                    // Refresh both the list and the current view-one screen
+                    fetchCreditNotes()
+                    fetchCreditNoteById(creditNoteId)
+                    _isSubmitting.value = false
+                    onSuccess()
+                },
+                onFailure = { err ->
+                    val errorMsg = extractErrorMessage(err, "Failed to send credit note")
+                    android.util.Log.e("CreditNoteAPI", "Failed to send credit note: $errorMsg", err)
+                    _errorMessage.value = errorMsg
+                    _isSubmitting.value = false
+                }
+            )
+        }
+    }
+
+    /**
+     * Create & Send Chained API:
+     * 1. Calls POST /api/finance/credit-notes/create
+     * 2. Takes the generated ID (_id) from response
+     * 3. Calls POST /api/finance/credit-notes/send/{id} (Posts to General Ledger)
+     */
+    fun createAndSendCreditNote(
+        request: CreateCreditNoteRequest,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            _errorMessage.value = null
+
+            // Step 1: Create Credit Note
+            val createResult = repo.request<CreditNoteSingleResponse> {
+                post("/api/finance/credit-notes/create", request)
+            }
+
+            createResult.fold(
+                onSuccess = { createResponse ->
+                    val creditNoteId = createResponse.data?.id ?: createResponse.data?.id
+
+                    if (creditNoteId.isNullOrBlank()) {
+                        _errorMessage.value = "Credit note created, but ID was missing for sending."
+                        fetchCreditNotes()
+                        _isSubmitting.value = false
+                        return@fold
+                    }
+
+                    // Step 2: Send & Post to Ledger with the received ID in URL Path
+                    val sendResult = repo.request<SendCreditNoteResponse> {
+                        post("/api/finance/credit-notes/send/$creditNoteId")
+                    }
+
+                    sendResult.fold(
+                        onSuccess = {
+                            fetchCreditNotes()
+                            _isSubmitting.value = false
+                            onSuccess()
+                        },
+                        onFailure = { sendError ->
+                            _errorMessage.value = "Created as draft, but failed to send to ledger: ${sendError.message}"
+                            fetchCreditNotes()
+                            _isSubmitting.value = false
+                        }
+                    )
+                },
+                onFailure = { err ->
+                    _errorMessage.value = err.message ?: "Failed to create credit note"
+                    _isSubmitting.value = false
+                }
+            )
+        }
+    }
+
+    fun deleteCreditNote(id: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            repo.request<CreditNoteSingleResponse> {
+                delete("/api/finance/credit-notes/delete-one/$id")
+            }.fold(
+                onSuccess = {
+                    fetchCreditNotes()
+                    onSuccess()
+                },
+                onFailure = { err -> _errorMessage.value = err.message }
+            )
+            _isLoading.value = false
+        }
+    }
+
+    // ── Inside FinanceViewModel Class ──
+    private val _applyCreditState = MutableStateFlow<ApplyCreditState>(ApplyCreditState.Idle)
+    val applyCreditState: StateFlow<ApplyCreditState> = _applyCreditState.asStateFlow()
+
+    fun resetApplyCreditState() {
+        _applyCreditState.value = ApplyCreditState.Idle
+    }
+
+    /**
+     * Apply Credit Note balance to an outstanding sales invoice
+     * Endpoint: POST /api/finance/credit-notes/apply-to-invoice
+     */
+    fun applyCreditNoteToInvoice(
+        request: ApplyCreditToInvoiceRequest,
+        onSuccess: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _applyCreditState.value = ApplyCreditState.Loading
+
+            val result = repo.request<ApplyCreditToInvoiceResponse> {
+                post("/api/finance/credit-notes/apply-to-invoice", request)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _applyCreditState.value = ApplyCreditState.Success(res.message)
+                        // Refresh current credit note details, allocations, and list
+                        fetchCreditNoteById(request.creditNoteId)
+                        fetchCreditNoteAllocations(request.creditNoteId)
+                        fetchCreditNotes()
+                        onSuccess(res.message)
+                    } else {
+                        _applyCreditState.value = ApplyCreditState.Error(
+                            res.message.ifBlank { "Failed to apply credit to invoice." }
+                        )
+                    }
+                },
+                onFailure = { err ->
+                    _applyCreditState.value = ApplyCreditState.Error(
+                        extractErrorMessage(err, "Failed to apply credit to invoice.")
+                    )
+                }
+            )
+        }
+    }
+
+    // ── Inside FinanceViewModel Class ──
+    private val _voidCreditNoteState = MutableStateFlow<VoidCreditNoteState>(VoidCreditNoteState.Idle)
+    val voidCreditNoteState: StateFlow<VoidCreditNoteState> = _voidCreditNoteState.asStateFlow()
+
+    fun resetVoidCreditNoteState() {
+        _voidCreditNoteState.value = VoidCreditNoteState.Idle
+    }
+
+    /**
+     * Void Credit Note and Reverse General Ledger API
+     * Endpoint: POST /api/finance/credit-notes/void/{id}
+     */
+    fun voidCreditNote(
+        creditNoteId: String,
+        reason: String,
+        onSuccess: (String) -> Unit = {}
+    ) {
+        if (creditNoteId.isBlank()) return
+        viewModelScope.launch {
+            _voidCreditNoteState.value = VoidCreditNoteState.Loading
+            _isSubmitting.value = true
+            _errorMessage.value = null
+
+            // Use VoidCreditNoteResponse so Gson doesn't fail when customerId is a String
+            val result = repo.request<VoidCreditNoteResponse> {
+                post(
+                    "/api/finance/credit-notes/void/$creditNoteId",
+                    mapOf("reason" to reason.trim())
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val msg = res.message?.ifBlank { "Credit Note voided and ledger reversed successfully." }
+                            ?: "Credit Note voided and ledger reversed successfully."
+
+                        _voidCreditNoteState.value = VoidCreditNoteState.Success(msg)
+
+                        // Full refresh: current detail item, applied allocations, and credit note list
+                        fetchCreditNotes()
+                        fetchCreditNoteById(creditNoteId)
+                        fetchCreditNoteAllocations(creditNoteId)
+                        _isSubmitting.value = false
+                        onSuccess(msg)
+                    } else {
+                        val errorMsg = res.message?.ifBlank { "Failed to void credit note" }
+                            ?: "Failed to void credit note"
+
+                        _voidCreditNoteState.value = VoidCreditNoteState.Error(errorMsg)
+                        _errorMessage.value = errorMsg
+                        _isSubmitting.value = false
+                    }
+                },
+                onFailure = { err ->
+                    val errorMsg = extractErrorMessage(err, "Failed to void credit note")
+                    _voidCreditNoteState.value = VoidCreditNoteState.Error(errorMsg)
+                    _errorMessage.value = errorMsg
+                    _isSubmitting.value = false
+                }
+            )
+        }
+    }
+
+//    /**
+//     * Standalone Send Credit Note API:
+//     * POST /api/finance/credit-notes/send/{id}
+//     */
+//    fun sendCreditNote(creditNoteId: String, onSuccess: () -> Unit = {}) {
+//        if (creditNoteId.isBlank()) return
+//        viewModelScope.launch {
+//            _isSubmitting.value = true
+//            _errorMessage.value = null
+//
+//            val result = repo.request<SendCreditNoteResponse> {
+//                post(
+//                    "/api/finance/credit-notes/send/$creditNoteId",
+//                    emptyMap<String, Any>()
+//                )
+//            }
+//
+//            result.fold(
+//                onSuccess = { res ->
+//                    // Full refresh: current detail item, applied allocations, and credit note list
+//                    fetchCreditNotes()
+//                    fetchCreditNoteById(creditNoteId)
+//                    fetchCreditNoteAllocations(creditNoteId)
+//                    _isSubmitting.value = false
+//                    onSuccess()
+//                },
+//                onFailure = { err ->
+//                    _errorMessage.value = extractErrorMessage(err, "Failed to send credit note")
+//                    _isSubmitting.value = false
+//                }
+//            )
+//        }
+//    }
+
+    fun clearSelected() {
+        _selectedCreditNote.value = null
     }
 
     fun clearReceiptDetail() {

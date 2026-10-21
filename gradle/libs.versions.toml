@@ -3,6 +3,7 @@ accompanistPermissions = "0.37.3"
 colorpickerCompose = "1.3.0"
 core = "3.5.4"
 espressoCore = "3.7.0"
+facebookCore = "<current-version>"
 itextCore = "9.8.0"
 junit = "4.13.2"
 credentials = "1.6.0"
@@ -54,12 +55,14 @@ crashlytics = "3.0.8"
 uiText = "1.12.1"
 volley = "1.2.1"
 uiUnit = "1.12.1"
+litertApi = "2.3.0"
 
 
 [libraries]
 #noinspection LoginCredentials,LoginCredentials
 androidx-credentials-core = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
 androidx-credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
+facebook-core = { module = "com.facebook.android:facebook-core", version.ref = "facebookCore" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
 androidx-compose-material3-window-size-class1 = { module = "androidx.compose.material3:material3-window-size-class" }
 androidx-transition = { module = "androidx.transition:transition", version.ref = "transition" }
@@ -124,6 +127,7 @@ androidx-compose-material3-lint = { group = "androidx.compose.material3", name =
 androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
 volley = { group = "com.android.volley", name = "volley", version.ref = "volley" }
 androidx-compose-ui-unit = { group = "androidx.compose.ui", name = "ui-unit", version.ref = "uiUnit" }
+litert-api = { group = "com.google.ai.edge.litert", name = "litert-api", version.ref = "litertApi" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -36,6 +36,8 @@ import com.cuso.tailor.model.hr.MemberDetail
 import com.cuso.tailor.model.hr.MemberDetailResponse
 import com.cuso.tailor.model.hr.MemberItem
 import com.cuso.tailor.model.hr.MonthlyAttendanceItem
+import com.cuso.tailor.model.hr.OrgMemberDto
+import com.cuso.tailor.model.hr.OrgStructureResponse
 import com.cuso.tailor.model.hr.RoleItem
 import com.cuso.tailor.model.hr.SalaryComponentItem
 import com.cuso.tailor.model.hr.SalaryComponentRequest
@@ -361,6 +363,46 @@ class HrViewModel @Inject constructor(
 //    fun clearMemberDetail() {
 //        _memberDetail.value = null
 //    }
+
+    // =========================================================================
+    // ORGANIZATION STRUCTURE (HIERARCHY)
+    // =========================================================================
+    private val _orgMembers = MutableStateFlow<List<OrgMemberDto>>(emptyList())
+    val orgMembers: StateFlow<List<OrgMemberDto>> = _orgMembers.asStateFlow()
+
+    private val _isLoadingOrgStructure = MutableStateFlow(false)
+    val isLoadingOrgStructure: StateFlow<Boolean> = _isLoadingOrgStructure.asStateFlow()
+
+    private val _orgStructureError = MutableStateFlow<String?>(null)
+    val orgStructureError: StateFlow<String?> = _orgStructureError.asStateFlow()
+
+    /**
+     * Fetches organization structure members
+     * Endpoint: GET /api/members/org-structure (or pass your endpoint URL)
+     */
+    fun fetchOrgStructure(departmentId: String? = null) {
+        viewModelScope.launch {
+            _isLoadingOrgStructure.value = true
+            _orgStructureError.value = null
+
+            val result = repo.request<OrgStructureResponse> {
+                get(
+                    "/api/members/dropdown-filter",
+                    repo.query("departmentId" to departmentId)
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _orgMembers.value = res.data
+                },
+                onFailure = { error ->
+                    _orgStructureError.value = error.message ?: "Failed to fetch organization structure"
+                }
+            )
+            _isLoadingOrgStructure.value = false
+        }
+    }
 
     // ═══════════════════════════════════════════════
     // ── Create / Update Member ──

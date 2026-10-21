@@ -682,13 +682,15 @@ class SettingsRepository @Inject constructor(
             val response: Response<GetFloorsResponse> = inventoryApi.getFloors(
                 token = accessToken,
                 csrfToken = csrfToken,
-                warehouseId = warehouseId,
+                warehouseId = warehouseId?.trim()?.takeIf { it.isNotBlank() }, // 👈 Prevents ?warehouseId= empty query
                 page = page,
                 limit = limit
             )
             val body = response.body()
             if (response.isSuccessful && body?.success == true) {
-                Result.success(body.floors ?: emptyList())
+                // ✅ Takes from body.data first!
+                val list = body.data ?: body.floors ?: emptyList()
+                Result.success(list)
             } else {
                 val errorMsg = response.errorBody()?.string() ?: response.message() ?: body?.message ?: "Failed to fetch floors"
                 Result.failure(Exception(errorMsg))
@@ -762,6 +764,7 @@ class SettingsRepository @Inject constructor(
     // 9. SECTIONS (INVENTORY)
     // ===========================================================
 
+    // 2. getSections
     suspend fun getSections(
         warehouseId: String? = null,
         floorId: String? = null,
@@ -773,14 +776,15 @@ class SettingsRepository @Inject constructor(
             val response: Response<GetSectionsResponse> = inventoryApi.getSections(
                 token = accessToken,
                 csrfToken = csrfToken,
-                warehouseId = warehouseId,
-                floorId = floorId,
+                warehouseId = warehouseId?.trim()?.takeIf { it.isNotBlank() },
+                floorId = floorId?.trim()?.takeIf { it.isNotBlank() },
                 page = page,
                 limit = limit
             )
             val body = response.body()
             if (response.isSuccessful && body?.success == true) {
-                val list = body.sections ?: body.data ?: emptyList()
+                // ✅ Takes from body.data first!
+                val list = body.data ?: body.sections ?: emptyList()
                 Result.success(list)
             } else {
                 val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to fetch sections"
@@ -855,6 +859,7 @@ class SettingsRepository @Inject constructor(
     // 10. RACKS (INVENTORY)
     // ===========================================================
 
+    // 3. getRacks
     suspend fun getRacks(
         warehouseId: String? = null,
         floorId: String? = null,
@@ -867,15 +872,16 @@ class SettingsRepository @Inject constructor(
             val response: Response<GetRacksResponse> = inventoryApi.getRacks(
                 token = accessToken,
                 csrfToken = csrfToken,
-                warehouseId = warehouseId?.takeIf { it.isNotBlank() },
-                floorId = floorId?.takeIf { it.isNotBlank() },
-                sectionId = sectionId?.takeIf { it.isNotBlank() },
+                warehouseId = warehouseId?.trim()?.takeIf { it.isNotBlank() },
+                floorId = floorId?.trim()?.takeIf { it.isNotBlank() },
+                sectionId = sectionId?.trim()?.takeIf { it.isNotBlank() },
                 page = page,
                 limit = limit
             )
             val body = response.body()
             if (response.isSuccessful && body?.success == true) {
-                val list = body.racks ?: body.data ?: emptyList()
+                // ✅ Takes from body.data first!
+                val list = body.data ?: body.racks ?: emptyList()
                 Result.success(list)
             } else {
                 val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to fetch racks"
@@ -950,10 +956,7 @@ class SettingsRepository @Inject constructor(
     // 11. BINS (INVENTORY)
     // ===========================================================
 
-    // ===========================================================
-    // 11. BINS (INVENTORY)
-    // ===========================================================
-
+    // 4. getBins
     suspend fun getBins(
         page: Int = 1,
         limit: Int = 50
@@ -968,7 +971,8 @@ class SettingsRepository @Inject constructor(
             )
             val body = response.body()
             if (response.isSuccessful && body?.success == true) {
-                val list = body.bins ?: body.data ?: emptyList()
+                // ✅ Takes from body.data first!
+                val list = body.data ?: body.bins ?: emptyList()
                 Result.success(list)
             } else {
                 val errorMsg = response.errorBody()?.string() ?: response.message() ?: "Failed to fetch bins"

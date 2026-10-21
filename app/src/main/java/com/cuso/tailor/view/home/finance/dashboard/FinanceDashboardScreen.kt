@@ -45,11 +45,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.finance.*
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.FinanceViewModel
 import androidx.core.graphics.toColorInt
 import com.cuso.tailor.view.composable.FinanceDashboardSkeleton
-
+import com.cuso.tailor.view.composable.FormDropdown
 // =============================================================
 // SCREEN (DYNAMIC API DATA WITH SMOOTH ANIMATIONS)
 // =============================================================
@@ -82,6 +81,22 @@ fun FinanceOverviewScreen(
     val expenseCategories by viewModel.expenseCategories.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
+    // Dashboard Filter States
+    val branches by viewModel.branches.collectAsState()
+    val selectedBranch by viewModel.selectedBranch.collectAsState()
+    val selectedPeriod by viewModel.selectedPeriod.collectAsState()
+    val selectedCashFlowRange by viewModel.selectedCashFlowRange.collectAsState()
+
+    var branchDropdownExpanded by remember { mutableStateOf(false) }
+    var periodDropdownExpanded by remember { mutableStateOf(false) }
+
+    val branchOptions = remember(branches) {
+        listOf("All Branches") + branches.mapNotNull { it.name }
+    }
+    val periodOptions = remember {
+        listOf("This Month", "This Year")
+    }
+
     // Trigger staggered entry animations when screen loads
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -91,11 +106,8 @@ fun FinanceOverviewScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Primary_background)
+            .background(Color.Transparent)
     ) {
-        TitleBar(title = "Finance Overview", onClose = onClose)
-        HorizontalDivider(color = title_border)
-
         AnimatedContent(
             targetState = isLoading && kpiData == null,
             transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
@@ -111,13 +123,61 @@ fun FinanceOverviewScreen(
                         .padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding),
                     verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
                 ) {
-                    // Staggered Section 1: KPI Cards
+                    Row(
+                        Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "Finance Dashboard",
+                            fontSize = tokens.h1,
+                            color = title_color,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    // Staggered Section 1: KPI Cards + Branch and Period Filters
                     AnimatedVisibility(
                         visible = isVisible,
                         enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { 50 }
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)) {
-                            SectionTitle("Key Metrics")
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                SectionTitle("Key Metrics")
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Branch Dropdown
+                                    FormDropdown(
+                                        modifier = Modifier.width(135.dp),
+                                        value = selectedBranch?.name ?: "All Branches",
+                                        expanded = branchDropdownExpanded,
+                                        onExpandChange = { branchDropdownExpanded = it },
+                                        options = branchOptions,
+                                        onOptionSelected = { chosenBranchName ->
+                                            val branch = if (chosenBranchName == "All Branches") null else branches.find { it.name == chosenBranchName }
+                                            viewModel.setBranch(branch)
+                                        }
+                                    )
+
+                                    // Period Dropdown
+                                    val currentPeriodLabel = if (selectedPeriod == "this_year") "This Year" else "This Month"
+                                    FormDropdown(
+                                        modifier = Modifier.width(125.dp),
+                                        value = currentPeriodLabel,
+                                        expanded = periodDropdownExpanded,
+                                        onExpandChange = { periodDropdownExpanded = it },
+                                        options = periodOptions,
+                                        onOptionSelected = { chosenLabel ->
+                                            val periodKey = if (chosenLabel == "This Year") "this_year" else "this_month"
+                                            viewModel.setPeriod(periodKey)
+                                        }
+                                    )
+                                }
+                            }
 
                             Row(
                                 modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
@@ -203,9 +263,14 @@ fun FinanceOverviewScreen(
                         visible = isVisible,
                         enter = fadeIn(tween(500)) + slideInVertically(tween(500)) { 60 }
                     ) {
-                        CashFlowTrendsCard(cashFlowData = cashFlowData)
+                        CashFlowTrendsCard(
+                            cashFlowData = cashFlowData,
+                            selectedRange = selectedCashFlowRange,
+                            onRangeSelected = { chosenRange ->
+                                viewModel.setCashFlowRange(chosenRange)
+                            }
+                        )
                     }
-
                     // Staggered Section 3: Finance Distribution
                     AnimatedVisibility(
                         visible = isVisible,
@@ -423,7 +488,11 @@ private fun PendingActionsCard(label: String, count: String) {
 // =============================================================
 
 @Composable
-private fun CashFlowTrendsCard(cashFlowData: CashFlowData?) {
+private fun CashFlowTrendsCard(
+    cashFlowData: CashFlowData?,
+    selectedRange: String,
+    onRangeSelected: (String) -> Unit
+) {
     val tokens = LocalAppTokens.current
     val points = cashFlowData?.chartData.orEmpty()
     val inflowPoints = points.map { it.inflow.toFloat() }
@@ -432,6 +501,14 @@ private fun CashFlowTrendsCard(cashFlowData: CashFlowData?) {
 
     val inflowColor = BluePrimary
     val outflowColor = BluePrimary.copy(alpha = 0.4f)
+
+    var rangeDropdownExpanded by remember { mutableStateOf(false) }
+    val rangeOptions = listOf("Last 6 Months", "Last 12 Months", "Year Wise")
+    val currentRangeLabel = when (selectedRange) {
+        "last_12_months" -> "Last 12 Months"
+        "year_wise" -> "Year Wise"
+        else -> "Last 6 Months"
+    }
 
     // Animated drawing progress from 0% to 100%
     val animatedProgress by animateFloatAsState(
@@ -447,12 +524,35 @@ private fun CashFlowTrendsCard(cashFlowData: CashFlowData?) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             CardTitle("Cash Flow Trends")
-            Text(
-                text = cashFlowData?.summary?.status ?: "Surplus",
-                fontSize = tokens.caption,
-                fontWeight = FontWeight.SemiBold,
-                color = if (cashFlowData?.summary?.status == "Surplus") greentext else redText
-            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = cashFlowData?.summary?.status ?: "Surplus",
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (cashFlowData?.summary?.status == "Surplus") greentext else redText
+                )
+
+                // Cash Flow Range Dropdown
+                FormDropdown(
+                    modifier = Modifier.width(140.dp),
+                    value = currentRangeLabel,
+                    expanded = rangeDropdownExpanded,
+                    onExpandChange = { rangeDropdownExpanded = it },
+                    options = rangeOptions,
+                    onOptionSelected = { chosen ->
+                        val code = when (chosen) {
+                            "Last 12 Months" -> "last_12_months"
+                            "Year Wise" -> "year_wise"
+                            else -> "last_6_months"
+                        }
+                        onRangeSelected(code)
+                    }
+                )
+            }
         }
 
         Spacer(Modifier.height(8.dp))

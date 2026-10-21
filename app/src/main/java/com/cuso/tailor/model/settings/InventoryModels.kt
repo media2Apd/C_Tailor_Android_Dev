@@ -104,8 +104,8 @@ data class BaseInventoryResponse<T>(
 
 data class GetSectionsResponse(
     @SerializedName("success") val success: Boolean = false,
-    @SerializedName("sections") val sections: List<SectionItem>? = emptyList(),
-    @SerializedName("data") val data: List<SectionItem>? = null,
+    @SerializedName("data") val data: List<SectionItem>? = null,         // 👈 data prioritized
+    @SerializedName("sections") val sections: List<SectionItem>? = null,
     @SerializedName("total") val total: Int = 0,
     @SerializedName("page") val page: Int = 1,
     @SerializedName("pageSize") val pageSize: Int = 20,
@@ -115,8 +115,8 @@ data class GetSectionsResponse(
 
 data class GetRacksResponse(
     @SerializedName("success") val success: Boolean = false,
-    @SerializedName("racks") val racks: List<RackItem>? = emptyList(),
-    @SerializedName("data") val data: List<RackItem>? = null,
+    @SerializedName("data") val data: List<RackItem>? = null,            // 👈 data prioritized
+    @SerializedName("racks") val racks: List<RackItem>? = null,
     @SerializedName("total") val total: Int = 0,
     @SerializedName("page") val page: Int = 1,
     @SerializedName("pageSize") val pageSize: Int = 20,
@@ -126,8 +126,8 @@ data class GetRacksResponse(
 
 data class GetBinsResponse(
     @SerializedName("success") val success: Boolean = false,
-    @SerializedName("bins") val bins: List<BinItem>? = emptyList(),
-    @SerializedName("data") val data: List<BinItem>? = null,
+    @SerializedName("data") val data: List<BinItem>? = null,             // 👈 data prioritized
+    @SerializedName("bins") val bins: List<BinItem>? = null,
     @SerializedName("total") val total: Int = 0,
     @SerializedName("page") val page: Int = 1,
     @SerializedName("pageSize") val pageSize: Int = 20,

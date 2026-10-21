@@ -34,10 +34,11 @@ import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.home.sales.settings.design.DesignSetupScreen
 
-// Sub-Item Model for Module Settings
+// Sub-Item Model supporting optional nested children
 data class ModuleSubItem(
     val title: String,
-    val onClick: () -> Unit
+    val onClick: (() -> Unit)? = null,
+    val children: List<ModuleSubItem> = emptyList()
 )
 
 // Module Setting Item Model
@@ -63,17 +64,19 @@ fun ModuleSettingsScreen(
     onNavigateDesignSetup: () -> Unit = { onNavigateToModule("sales_design_setup") },
     onConfigureMarketing: () -> Unit = {},
     onConfigureFinance: () -> Unit = { onNavigateToModule("finance_chart_of_accounts") },
-    onConfigureInventory: () -> Unit = { onNavigateToModule("inventory_allocation_rules") },
+    onConfigureInventory: () -> Unit = { onNavigateToModule("inventory_location_structure") },
     // Inventory Sub-items Navigation
-    onNavigateAllocationRules: () -> Unit = { onNavigateToModule("inventory_allocation_rules") },
-    onNavigatePdfTemplates: () -> Unit = { onNavigateToModule("inventory_pdf_templates") },
-    onNavigateLocationStructure: () -> Unit = { onNavigateToModule("inventory_location_structure") },
+    onNavigateWarehouse: () -> Unit = { onNavigateToModule("inventory_location_structure") },
     onNavigateFloorOverview: () -> Unit = { onNavigateToModule("inventory_floor_overview") },
-    onNavigateGstSettings: () -> Unit = { onNavigateToModule("finance_gst_settings") },
-    onNavigateTaxRates: () -> Unit = { onNavigateToModule("finance_tax_rates") },
     onNavigateSectionOverview: () -> Unit = { onNavigateToModule("inventory_section_overview") },
     onNavigateRackOverview: () -> Unit = { onNavigateToModule("inventory_rack_overview") },
     onNavigateBinOverview: () -> Unit = { onNavigateToModule("inventory_bin_overview") },
+    onNavigateAutoReorder: () -> Unit = { onNavigateToModule("inventory_auto_reorder_settings") },
+    onNavigatePdfTemplates: () -> Unit = { onNavigateToModule("inventory_pdf_templates") },
+    onNavigateAllocationRules: () -> Unit = { onNavigateToModule("inventory_allocation_rules") },
+    onNavigateLocationStructure: () -> Unit = { onNavigateToModule("inventory_location_structure") },
+    onNavigateGstSettings: () -> Unit = { onNavigateToModule("finance_gst_settings") },
+    onNavigateTaxRates: () -> Unit = { onNavigateToModule("finance_tax_rates") },
     onConfigureLogistics: () -> Unit = { onNavigateToModule("logistics_delivery") },
     onConfigureServices: () -> Unit = { onNavigateToModule("services_service_status") },
     onNavigateServiceTemplates: () -> Unit = { onNavigateToModule("services_service_templates") },
@@ -105,15 +108,15 @@ fun ModuleSettingsScreen(
         onConfigureMarketing,
         onConfigureFinance,
         onConfigureInventory,
-        onNavigateAllocationRules,
-        onNavigatePdfTemplates,
-        onNavigateTaxRates,
-        onNavigateGstSettings,
-        onNavigateLocationStructure,
+        onNavigateWarehouse,
         onNavigateFloorOverview,
         onNavigateSectionOverview,
         onNavigateRackOverview,
         onNavigateBinOverview,
+        onNavigateAutoReorder,
+        onNavigatePdfTemplates,
+        onNavigateTaxRates,
+        onNavigateGstSettings,
         onConfigureLogistics,
         onConfigureServices,
         onConfigureHR,
@@ -143,7 +146,6 @@ fun ModuleSettingsScreen(
                     ModuleSubItem(title = "Garment", onClick = onConfigureSales),
                     ModuleSubItem(title = "Garment Pricing", onClick = onConfigureSalesPricing),
                     ModuleSubItem(title = "Measurement List", onClick = onNavigateMeasurementList),
-                    // Design Setup sub-item integrated under Measurement List
                     ModuleSubItem(
                         title = "Design Setup",
                         onClick = {
@@ -176,6 +178,7 @@ fun ModuleSettingsScreen(
                 ),
                 onConfigure = onConfigureFinance
             ),
+            // Updated Inventory Module Structure matching the screenshots
             ModuleSettingItem(
                 id = "inventory",
                 title = "Inventory",
@@ -184,15 +187,28 @@ fun ModuleSettingsScreen(
                 tags = listOf("Stock", "Warehouse", "Procurement"),
                 isConfigured = true,
                 subItems = listOf(
-                    ModuleSubItem(title = "Allocation Rules", onClick = onNavigateAllocationRules),
-                    ModuleSubItem(title = "PDF Templates", onClick = onNavigatePdfTemplates),
-                    ModuleSubItem(title = "Location Structure", onClick = onNavigateLocationStructure),
-                    ModuleSubItem(title = "Floor Overview", onClick = onNavigateFloorOverview),
-                    ModuleSubItem(title = "Section Overview", onClick = onNavigateSectionOverview),
-                    ModuleSubItem(title = "Rack Overview", onClick = onNavigateRackOverview),
-                    ModuleSubItem(title = "Bin Overview", onClick = onNavigateBinOverview)
+                    ModuleSubItem(
+                        title = "Warehouse Structure",
+                        children = listOf(
+                            ModuleSubItem(title = "Warehouse", onClick = onNavigateLocationStructure),
+                            ModuleSubItem(title = "Floor", onClick = onNavigateFloorOverview),
+                            ModuleSubItem(title = "Section", onClick = onNavigateSectionOverview),
+                            ModuleSubItem(title = "Rack", onClick = onNavigateRackOverview),
+                            ModuleSubItem(title = "Bin", onClick = onNavigateBinOverview)
+                        )
+                    ),
+                    ModuleSubItem(
+                        title = "Auto Reorder Settings",
+                        onClick = onNavigateAutoReorder
+                    ),
+                    ModuleSubItem(
+                        title = "Customization",
+                        children = listOf(
+                            ModuleSubItem(title = "PDF Templates", onClick = onNavigatePdfTemplates)
+                        )
+                    )
                 ),
-                onConfigure = onNavigateAllocationRules
+                onConfigure = onNavigateLocationStructure
             ),
             ModuleSettingItem(
                 id = "logistics",
@@ -307,7 +323,6 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
     val tokens = LocalAppTokens.current
     var isExpanded by remember { mutableStateOf(false) }
 
-    // Theme color palette mappings
     val statusBg = if (module.isConfigured) greenBg else yellowBg
     val statusTextColor = if (module.isConfigured) darkGreenBg else yellowText
 
@@ -409,19 +424,68 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                             color = grey_border,
                             thickness = 1.dp
                         )
+                        SubItemRowRenderer(subItem = subItem)
+                    }
+                }
+            }
+        }
+    }
+}
 
+@Composable
+private fun SubItemRowRenderer(subItem: ModuleSubItem) {
+    val tokens = LocalAppTokens.current
+    val hasChildren = subItem.children.isNotEmpty()
+    var isChildGroupExpanded by remember { mutableStateOf(false) }
+
+    if (hasChildren) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { isChildGroupExpanded = !isChildGroupExpanded }
+                    .padding(vertical = 12.dp, horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = subItem.title,
+                    fontSize = tokens.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Primary
+                )
+
+                Icon(
+                    imageVector = if (isChildGroupExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(tokens.iconSize)
+                )
+            }
+
+            AnimatedVisibility(
+                visible = isChildGroupExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, bottom = 4.dp)
+                ) {
+                    subItem.children.forEach { child ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { subItem.onClick() }
-                                .padding(vertical = 12.dp, horizontal = 4.dp),
+                                .clickable { child.onClick?.invoke() }
+                                .padding(vertical = 10.dp, horizontal = 6.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = subItem.title,
+                                text = "•  ${child.title}",
                                 fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Medium,
+                                fontWeight = FontWeight.Normal,
                                 color = title_color
                             )
 
@@ -429,12 +493,35 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                 contentDescription = null,
                                 tint = iconMuted,
-                                modifier = Modifier.size(tokens.iconSize)
+                                modifier = Modifier.size(tokens.iconSize * 0.9f)
                             )
                         }
                     }
                 }
             }
+        }
+    } else {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { subItem.onClick?.invoke() }
+                .padding(vertical = 12.dp, horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = subItem.title,
+                fontSize = tokens.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = title_color
+            )
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = iconMuted,
+                modifier = Modifier.size(tokens.iconSize)
+            )
         }
     }
 }

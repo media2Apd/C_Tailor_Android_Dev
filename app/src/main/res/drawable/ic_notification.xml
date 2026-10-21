@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="16"
+    android:viewportHeight="16">
+    <!-- Outline icon: stroke only, no fill (same as fill="none" in the SVG) -->
+    <path
+        android:pathData="M10.0013,11.3333H13.3346L12.398,10.3967C12.1439,10.1426 12.0012,9.798 12.0013,9.4387V7.3333C12.0015,5.6378 10.9331,4.1262 9.3346,3.5607V3.3333C9.3346,2.5975 8.7372,2 8.0013,2C7.2654,2 6.668,2.5975 6.668,3.3333V3.5607C5.1146,4.11 4.0013,5.592 4.0013,7.3333V9.4393C4.0013,9.798 3.8586,10.1427 3.6046,10.3967L2.668,11.3333H6.0013M10.0013,11.3333V12C10.0013,13.1038 9.1051,14 8.0013,14C6.8975,14 6.0013,13.1038 6.0013,12V11.3333M10.0013,11.3333H6.0013"
+        android:strokeWidth="1.33333"
+        android:strokeColor="#2F27CE"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

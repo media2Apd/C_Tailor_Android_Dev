@@ -5,7 +5,8 @@
     "AssignedValueIsNeverRead",
     "unused_variable",
     "unused_parameter",
-    "UnusedMaterial3ScaffoldPaddingParameter", "VariableNeverRead", "SameParameterValue"
+    "UnusedMaterial3ScaffoldPaddingParameter", "VariableNeverRead", "SameParameterValue",
+    "KotlinConstantConditions"
 )
 package com.cuso.tailor.view.home.sidebar
 
@@ -96,11 +97,10 @@ data class MenuItem(
 // Navigation Key Builder
 // ─────────────────────────────────────────────────────────────
 
-fun buildNavigationKey(menu: String, subItem: String): String {
-    // Explicit Sales route mapping
+fun buildNavigationKey(menu: String, subItem: String, category: String? = null): String {
     if (menu == "Sales") {
         return when (subItem) {
-            "Sales Dashboard"      -> "sales_dashboard" // Route to sales dashboard
+            "Sales Dashboard"      -> "sales_dashboard"
             "Opportunity Pipeline" -> "sales_opportunity_pipeline"
             "Opportunities"        -> "sales_opportunities"
             "Opportunity"          -> "sales_opportunities"
@@ -125,22 +125,41 @@ fun buildNavigationKey(menu: String, subItem: String): String {
     }
 
     if (menu == "Finance") {
-        return when (subItem.trim().lowercase()) {
-            "finance dashboard"  -> "finance_dashboard"
-            "customers", "customer" -> "finance_customers"
-            "orders", "order"    -> "finance_sales_orders"
-            "invoice", "invoices"-> "finance_sales_invoices"
-            "receipts", "receipt"-> "finance_receipts"
-            "credit", "credits"  -> "finance_credits"
-            "suppliers", "supplier" -> "finance_suppliers"
-            "purchase list"      -> "finance_purchase_orders"
-            "purchase receive"   -> "finance_purchase_receive"
-            "purchase bills"     -> "finance_bills_list"
-            "payments made"      -> "finance_payments_made"
-            "expense management" -> "finance_expenses"
-            "chart of accounts"  -> "finance_chart_of_accounts"
-            "journal entries"    -> "finance_journal_screen"
-            "approvals"          -> "inventory_approvals"
+        val cleanSubItem = subItem.trim().lowercase()
+
+        // 👉 1. Purchase Return check (First priority)
+        if (cleanSubItem == "purchase return" || cleanSubItem == "purchase returns" || cleanSubItem == "return" || cleanSubItem == "returns") {
+            return "finance_purchase_returns"
+        }
+
+        // ✅ Supplier Credit / Vendor Credit under Purchase
+        if ((category?.equals("Purchase", ignoreCase = true) == true || category?.contains("Supplier", ignoreCase = true) == true) &&
+            (cleanSubItem == "credit" || cleanSubItem == "credits" || cleanSubItem == "supplier credit" || cleanSubItem == "vendor credit")
+        ) {
+            return "finance_vendor_credits"
+        }
+
+        return when (cleanSubItem) {
+            "finance dashboard"    -> "finance_dashboard"
+            "bank accounts", "bank account" -> "finance_bank_accounts"
+            "bank statements", "bank statement" -> "finance_bank_statements"
+            "customers", "customer"-> "finance_customers"
+            "orders", "order"      -> "finance_sales_orders"
+            "invoice", "invoices"  -> "finance_sales_invoices"
+            "receipts", "receipt"  -> "finance_receipts"
+            "credit", "credits"    -> if (category?.equals("Purchase", ignoreCase = true) == true) "finance_vendor_credits" else "finance_credits"
+            "supplier credit", "supplier credits", "vendor credit", "vendor credits" -> "finance_vendor_credits"
+            "suppliers", "supplier"-> "finance_suppliers"
+            "purchase list"        -> "finance_purchase_orders"
+            "purchase receive"     -> "finance_purchase_receive"
+            "purchase bills"       -> "finance_bills_list"
+            "purchase return", "purchase returns" -> "finance_purchase_returns"
+            "payments made"        -> "finance_payments_made"
+            "expense management"   -> "finance_expenses"
+            "chart of accounts"    -> "finance_chart_of_accounts"
+            "journal entries"      -> "finance_journal_screen"
+            "cash book", "cash books" -> "finance_cash_book"
+            "approvals"            -> "inventory_approvals"
             else -> "finance_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }
     }
@@ -148,49 +167,33 @@ fun buildNavigationKey(menu: String, subItem: String): String {
     if (menu == "Inventory") {
         return when (subItem) {
             "Inventory Dashboard", "Dashboard" -> "inventory_dashboard"
+            "Pricing", "Pricing List", "Price List" -> "inventory_pricing_list"
             "All Items"           -> "inventory_all_items"
             "Item Groups"         -> "inventory_item_groups"
             "Bulk"                -> "inventory_bulk"
             "Adjustment"          -> "inventory_adjustment"
             "Transfer Order"      -> "inventory_transfer_order"
-
-            // Direct Billing
             "Billing", "Bills"    -> "inventory_billing"
-
             "Picklist"            -> "inventory_picklist"
             "Packages"            -> "inventory_packages"
-
-            // Procurement sub-items: route Bill List to AllBillListScreen
             "Suppliers"           -> "inventory_suppliers"
             "Return", "Returns"   -> "inventory_returns"
             "Purchase Request"    -> "inventory_procurement_purchase_request"
             "Purchase Order"      -> "inventory_procurement_purchase_order"
             "Purchase Receive"    -> "inventory_procurement_purchase_receive"
             "Bill List", "Bills List" -> "inventory_all_bills"
-            "Barcode LIST"        -> "inventory_procurement_barcode_list"
-
-            // Standalone inventory items
+            // Match any casing of "Barcode List"
+            "Barcode List", "Barcode LIST", "Barcode", "Barcodes" -> "inventory_procurement_barcode_list"
             "Location Management" -> "inventory_location_management"
             "Low Stock Alert"     -> "inventory_low_stock_alert"
             "Auto Reorder"        -> "inventory_auto_reorder"
             "Safety Stock"        -> "inventory_safety_stock"
-
-            // Direct Payments Made
             "Payments Made"       -> "inventory_payments_made"
-
-            // Payables sub-items
-            "Invoices"            -> "inventory_payables_invoices"
-            "Payments"            -> "inventory_payables_payments"
-            "Credits"             -> "inventory_payables_credits"
-
-            // Multi-Channel sub-items
+            "Credits", "Supplier Credit", "Vendor Credit" -> "finance_vendor_credits"
             "Basic Info"          -> "inventory_multichannel_basic_info"
             "Allocation List"     -> "inventory_multichannel_allocation_list"
             "Category Listing"    -> "inventory_multichannel_category_listing"
-
-            // Standalone approvals
             "Approvals"           -> "inventory_approvals"
-
             else -> "inventory_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }
     }
@@ -212,11 +215,12 @@ fun buildNavigationKey(menu: String, subItem: String): String {
         return when (subItem) {
             "Employee Management"        -> "hr_employee_management"
             "Organization Structure"    -> "hr_organization_structure"
+            "All Employees"             -> "hr_organization_structure"
+            "Production Team"           -> "hr_production_team"
             "Daily Attendance"           -> "hr_daily_attendance"
             "Apply for Leave"            -> "hr_apply_leave"
             "Manual Entry"               -> "hr_attendance_manual_entry"
             "Monthly Attendance"         -> "hr_monthly_attendance"
-//            "Biometric Management"       -> "hr_attendance_biometric_management"
             "Shift Management"           -> "hr_attendance_shift_management"
             "Leave Balance"              -> "hr_leave_balance"
             "Leave Approval"             -> "hr_leave_approval"
@@ -240,7 +244,6 @@ fun buildNavigationKey(menu: String, subItem: String): String {
             "Training Assignment"        -> "hr_training_assignment_list"
             "Document Management"        -> "hr_document_management"
             "Clearance"                  -> "hr_exit_clearance"
-            // ── Document Management Sub-Items ──
             "Document Categories"        -> "hr_document_categories"
             "Employee Document Upload"   -> "hr_employee_document_upload"
             else -> "hr_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
@@ -251,6 +254,7 @@ fun buildNavigationKey(menu: String, subItem: String): String {
     val subItemKey = subItem.lowercase().replace(" ", "_").replace("&", "and")
     return "${menuKey}_${subItemKey}"
 }
+
 // ─────────────────────────────────────────────────────────────
 // Sidebar Configuration
 // ─────────────────────────────────────────────────────────────
@@ -280,8 +284,7 @@ object SidebarConfig {
                     "Payment & Billing"
                 ),
                 subItems = mapOf(
-                    "Opportunity" to listOf("Opportunity Pipeline", "Opportunities"),
-//                    "Pricing & Quotes" to listOf("Pricing Overview", "Quotation")
+                    "Opportunity" to listOf("Opportunity Pipeline", "Opportunities")
                 )
             ),
             MenuItem(
@@ -306,6 +309,7 @@ object SidebarConfig {
                     "Purchase",
                     "Expense Management",
                     "General Ledger",
+                    "Funds",
                     "Approvals"
                 ),
                 subItems = mapOf(
@@ -321,15 +325,21 @@ object SidebarConfig {
                         "Purchase List",
                         "Purchase Receive",
                         "Purchase Bills",
-                        "Payments Made"
+                        "Purchase Return",
+                        "Payments Made",
+                        "Supplier Credit"
                     ),
                     "General Ledger" to listOf(
                         "Chart Of Accounts",
                         "Journal Entries"
+                    ),
+                    "Funds" to listOf(
+                        "Cash Book",
+                        "Bank Accounts",
+                        "Bank Statements"
                     )
                 )
             ),
-            // Inside SidebarConfig.kt -> getFullMenuItems() -> Inventory item:
             MenuItem(
                 icon = R.drawable.inventory,
                 label = "Inventory",
@@ -349,7 +359,7 @@ object SidebarConfig {
                     "Safety Stock",
                     "Payments Made",
                     "Billing",
-//                    "Payables",
+                    "Pricing", // Added Pricing category
                     "Multi-Channel",
                     "Approvals"
                 ),
@@ -367,26 +377,8 @@ object SidebarConfig {
                         "Bill List",
                         "Barcode List"
                     ),
-//                    "Payables" to listOf(
-//                        "Invoices",
-//                        "Payments",
-//                        "Credits"
-//                    ),
-                    // ADD "Basic Info" and other sub-items here:
                     "Multi-Channel" to listOf(
-//                        "Basic Info",
-//                        "Allocation List",
-//                        "Product Listings",
-//                        "Publish Listing",
-//                        "Publish History",
-//                        "Variant Listing",
-//                        "SKU Listing",
-                        "Category Listing",
-//                        "Attributes Listing",
-//                        "Return Req List",
-//                        "Low Stock Alerts",
-//                        "Auto Reorder",
-//                        "Safety stock settings"
+                        "Category Listing"
                     )
                 )
             ),
@@ -424,11 +416,15 @@ object SidebarConfig {
                     "Exit Management"
                 ),
                 subItems = mapOf(
+                    // Organization Structure now has two sub-items
+                    "Organization Structure" to listOf(
+                        "All Employees",
+                        "Production Team"
+                    ),
                     "Attendance Management" to listOf(
                         "Daily Attendance",
                         "Monthly Attendance",
                         "Manual Entry",
-//                        "Biometric Management",
                         "Shift Management"
                     ),
                     "Leave Management" to listOf(
@@ -527,10 +523,6 @@ object SidebarConfig {
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// FULL SIDEBAR
-// ─────────────────────────────────────────────────────────────
-
 @Composable
 fun FullSideBar(
     isOpen: Boolean,
@@ -554,10 +546,6 @@ fun FullSideBar(
     )
 }
 
-// ─────────────────────────────────────────────────────────────
-// SALES SIDEBAR
-// ─────────────────────────────────────────────────────────────
-
 @Composable
 fun SalesSideBar(
     isOpen: Boolean,
@@ -580,10 +568,6 @@ fun SalesSideBar(
         onBlurScrimChange = onBlurScrimChange
     )
 }
-
-// ─────────────────────────────────────────────────────────────
-// Reusable Sidebar Content
-// ─────────────────────────────────────────────────────────────
 
 @Composable
 private fun AppSidebarContent(
@@ -641,9 +625,9 @@ private fun AppSidebarContent(
             if (firstCategory != null && firstSubItem != null) {
                 expandedCategory = firstCategory
                 selectedSubItem  = "$firstCategory::$firstSubItem"
-                onMenuItemClick(buildNavigationKey(label, firstSubItem))
+                onMenuItemClick(buildNavigationKey(label, firstSubItem, firstCategory))
             } else if (firstCategory != null) {
-                onMenuItemClick(buildNavigationKey(label, firstCategory))
+                onMenuItemClick(buildNavigationKey(label, firstCategory, null))
             }
         } else {
             onMenuItemClick(label.lowercase())
@@ -656,7 +640,8 @@ private fun AppSidebarContent(
 
     fun handleSubItemClick(category: String, subItem: String) {
         selectedSubItem = "$category::$subItem"
-        onMenuItemClick(buildNavigationKey(selectedMenu, subItem))
+        // ✅ Passes parent category so "Supplier Credit" under Purchase navigates to vendor credits
+        onMenuItemClick(buildNavigationKey(selectedMenu, subItem, category))
         onClose()
     }
 
@@ -718,10 +703,6 @@ private fun AppSidebarContent(
         }
     }
 }
-
-// ─────────────────────────────────────────────────────────────
-// Sidebar Icon Rail
-// ─────────────────────────────────────────────────────────────
 
 @Composable
 private fun SidebarIconRail(
@@ -866,10 +847,6 @@ private fun SidebarIconRail(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// User Profile + Logout Dropdown
-// ─────────────────────────────────────────────────────────────
-
 @Composable
 fun SidebarUserProfile(
     user: User?,
@@ -954,10 +931,6 @@ fun SidebarUserProfile(
         )
     }
 }
-
-// ─────────────────────────────────────────────────────────────
-// Sidebar Accordion Panel
-// ─────────────────────────────────────────────────────────────
 
 @Composable
 private fun SidebarAccordionPanel(
@@ -1100,24 +1073,6 @@ private fun SidebarAccordionPanel(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Frequently Used Data
-// ─────────────────────────────────────────────────────────────
-
-private val moduleDescriptions = mapOf(
-    "Sales" to "Manage leads, customers, orders & quotes",
-    "Marketing" to "Campaigns, promotions & customer outreach",
-    "Finance" to "Invoices, payments, expenses & accounting",
-    "Inventory" to "Manage stock, products & warehouses",
-    "Logistics" to "Shipments, delivery & transportation",
-    "Services" to "Service requests, jobs & maintenance",
-    "HR" to "Employees, attendance & payroll",
-    "IT" to "IT assets, support & system management",
-    "Legal" to "Contracts, documents & compliance",
-    "Security" to "Access control & activity monitoring",
-    "Reports" to "Sales & finance reporting"
-)
-
 private val moduleAccentColors = mapOf(
     "Sales"      to Primary,
     "Inventory"  to Color(0xFF10B981),
@@ -1158,12 +1113,7 @@ private fun buildFrequentlyUsed(context: Context, menuItems: List<MenuItem>): Li
     }
 }
 
-private const val HALF_FRACTION = 0.55f
 private const val FULL_FRACTION = 0.96f
-
-// ─────────────────────────────────────────────────────────────
-// FULL MODULES PANEL
-// ─────────────────────────────────────────────────────────────
 
 @Composable
 fun ModulesPanel(
@@ -1186,17 +1136,12 @@ fun ModulesPanel(
     )
 }
 
-// ─────────────────────────────────────────────────────────────
-// QUICK ACCESS PANEL
-// ─────────────────────────────────────────────────────────────
-
 private data class QuickAccessItem(
     val label: String,
     val icon: Int,
     val route: String
 )
 
-private val quickAccessIconBg = Color(0xFFEDE9FE)
 private val quickAccessIconTint = Color(0xFF4338CA)
 
 @Composable
@@ -1402,10 +1347,6 @@ fun ModulesPanelHeader(
         }
     }
 }
-
-// ─────────────────────────────────────────────────────────────
-// Reusable Modules Panel Content
-// ─────────────────────────────────────────────────────────────
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalMaterial3Api::class)

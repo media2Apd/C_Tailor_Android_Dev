@@ -15,6 +15,7 @@ package com.cuso.tailor.view.composable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -24,33 +25,84 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.redText
 import kotlinx.coroutines.delay
+import com.cuso.tailor.R
 
-// Circle diameter used ONLY for the icon bubble now — not for the whole pill
-private val CIRCLE_SIZE = 40.dp
+// ── Pill dimensions (from the design) ──
+private val PILL_HEIGHT = 46.dp
+private val PILL_RADIUS = 23.dp
+private val BADGE_SIZE = 32.dp
 private val ICON_SIZE = 18.dp
+private val PROGRESS_HEIGHT = 3.dp
 
-// Theme-aware colors
-private val PillBgLight = Color(0xFF1C1C1E)
-private val PillBgDark = Color(0xFFF2F2F7)
-private val PillTextLight = Color(0xFFFFFFFF)
-private val PillTextDark = Color(0xFF1C1C1E)
+// All colors for one toast style (success/error x light/dark)
+private data class ToastColors(
+    val pillBg: Color,      // Pill background (tinted)
+    val pillBorder: Color,  // 1dp border
+    val glow: Color,        // Shadow color
+    val badge: Color,       // Circle behind the icon + progress line color
+    val icon: Color,        // Check / X color
+    val text: Color         // Message text
+)
+
+private val SuccessLightColors = ToastColors(
+    pillBg = Color(0xFFF0FDF4),
+    pillBorder = Color(0xFFBBF7D0),
+    glow = Color(0xFF16A34A).copy(alpha = 0.18f),
+    badge = Color(0xFF16A34A),
+    icon = Color(0xFFFFFFFF),
+    text = Color(0xFF14532D)
+)
+
+private val ErrorLightColors = ToastColors(
+    pillBg = Color(0xFFFEF2F2),
+    pillBorder = Color(0xFFFECACA),
+    glow = Color(0xFFDC2626).copy(alpha = 0.18f),
+    badge = Color(0xFFDC2626),
+    icon = Color(0xFFFFFFFF),
+    text = Color(0xFF7F1D1D)
+)
+
+private val SuccessDarkColors = ToastColors(
+    pillBg = Color(0xFF0E1F17),
+    pillBorder = Color(0xFF1F4D33),
+    glow = Color.Black.copy(alpha = 0.6f),
+    badge = Color(0xFF22C55E),
+    icon = Color(0xFF052E16),
+    text = Color(0xFFDCFCE7)
+)
+
+private val ErrorDarkColors = ToastColors(
+    pillBg = Color(0xFF231416),
+    pillBorder = Color(0xFF5B2128),
+    glow = Color.Black.copy(alpha = 0.6f),
+    badge = Color(0xFFF87171),
+    icon = Color(0xFF450A0A),
+    text = Color(0xFFFEE2E2)
+)
 
 @Composable
 private fun DynamicIslandBase(
@@ -58,15 +110,22 @@ private fun DynamicIslandBase(
     message: String?,
     onDismiss: () -> Unit,
     durationMillis: Long,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    iconTint: Color
+    isError: Boolean
 ) {
     val tokens = LocalAppTokens.current
-    val isDarkTheme = isSystemInDarkTheme()
-    val pillBgColor = if (isDarkTheme)  PillBgLight else PillBgDark
-    val pillTextColor = if (isDarkTheme) PillTextLight else PillTextDark
+
+    // Follows the app's current theme (same detection as the date/time pickers)
+    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val colors = when {
+        isError && isDarkTheme -> ErrorDarkColors
+        isError -> ErrorLightColors
+        isDarkTheme -> SuccessDarkColors
+        else -> SuccessLightColors
+    }
 
     val dropY = remember { Animatable(-1f) }
+    // Remaining-time loader: 1f = full line, 0f = empty
+    val progress = remember { Animatable(1f) }
     var isPresent by remember { mutableStateOf(false) }
     var showText by remember { mutableStateOf(false) }
 
@@ -74,6 +133,7 @@ private fun DynamicIslandBase(
         if (message != null) {
             isPresent = true
             showText = false
+            progress.snapTo(1f)
             dropY.snapTo(-1f)
 
             // Step 1: Drop down animation
@@ -85,7 +145,11 @@ private fun DynamicIslandBase(
             // Step 2: Expand and reveal text
             showText = true
 
-            delay(durationMillis)
+            // Stay visible for durationMillis while the loader line runs down to 0
+            progress.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = durationMillis.toInt(), easing = LinearEasing)
+            )
 
             // Step 3: Shrink and hide text
             showText = false
@@ -103,17 +167,10 @@ private fun DynamicIslandBase(
     }
 
     if (isPresent) {
-        // FIX: This outer Box now ALWAYS fills the entire screen and anchors
-        // its child to TopCenter itself, regardless of where the caller
-        // placed this composable in their layout tree (Column, LazyColumn,
-        // Scaffold content, nested Box, etc.).
-        // Previously, positioning depended on the modifier/parent passed in
-        // at each call site, so some screens showed the pill correctly at
-        // the top while others showed it slightly lower because it was
-        // being laid out inside a non-full-screen parent container.
-        // By self-anchoring here, every call site now gets a consistent,
-        // guaranteed top position without needing to fix each screen
-        // individually.
+        // This outer Box ALWAYS fills the entire screen and anchors its child
+        // to TopCenter itself, regardless of where the caller placed this
+        // composable in their layout tree, so every screen gets the same
+        // consistent top position.
         Box(
             modifier = Modifier
                 .fillMaxSize(),
@@ -124,11 +181,8 @@ private fun DynamicIslandBase(
                     .statusBarsPadding()
                     .padding(top = 3.dp)
                     // Cap how wide the pill can grow on tablets/large screens
-                    // so long messages wrap into readable lines instead of
-                    // stretching into one giant edge-to-edge bar.
                     .widthIn(max = 380.dp)
                     // Side padding so the pill never touches screen edges
-                    // on narrow phones.
                     .padding(horizontal = tokens.screenPadding)
                     .fillMaxWidth()
                     .graphicsLayer {
@@ -137,67 +191,95 @@ private fun DynamicIslandBase(
                     },
                 contentAlignment = Alignment.TopCenter
             ) {
-                Row(
+                val pillShape = RoundedCornerShape(PILL_RADIUS)
+
+                // Pill: tinted background + border + colored shadow.
+                // clip() makes the loader line follow the pill's rounded bottom edge.
+                Box(
                     modifier = Modifier
-                        // Removed the fixed .height(CIRCLE_SIZE). The Row now
-                        // wraps its own content height, so when the message
-                        // spans 2-3 lines, the whole pill grows taller
-                        // instead of the text getting clipped inside a
-                        // fixed 40.dp bar.
-                        // A minimum height keeps the pill looking correct
-                        // for short, single-line messages.
-                        .defaultMinSize(minHeight = CIRCLE_SIZE)
-                        .background(pillBgColor, RoundedCornerShape(CIRCLE_SIZE / 2)),
-                    // Center-aligned vertically so the icon stays aligned
-                    // with the text block regardless of number of lines.
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier.size(CIRCLE_SIZE),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = iconTint,
-                            modifier = Modifier.size(ICON_SIZE)
+                        .shadow(
+                            elevation = 12.dp,
+                            shape = pillShape,
+                            ambientColor = colors.glow,
+                            spotColor = colors.glow
                         )
+                        .clip(pillShape)
+                        .background(colors.pillBg)
+                        .border(1.dp, colors.pillBorder, pillShape)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            // Wraps its content height, so 2-3 line messages make
+                            // the pill taller instead of clipping the text.
+                            .defaultMinSize(minHeight = PILL_HEIGHT)
+                            .padding(horizontal = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Icon badge (check / X)
+                        Box(
+                            modifier = Modifier
+                                .size(BADGE_SIZE)
+                                .clip(CircleShape)
+                                .background(colors.badge),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = if (isError) painterResource(R.drawable.ic_close_circle) else painterResource(R.drawable.ic_tick),
+                                contentDescription = null,
+                                tint = colors.icon,
+                                modifier = Modifier.size(ICON_SIZE)
+                            )
+                        }
+
+                        AnimatedVisibility(
+                            visible = showText,
+                            enter = fadeIn(tween(200, delayMillis = 100)) +
+                                    expandHorizontally(
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                                            stiffness = Spring.StiffnessMedium
+                                        ),
+                                        expandFrom = Alignment.Start
+                                    ),
+                            exit = shrinkHorizontally(
+                                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                                shrinkTowards = Alignment.Start
+                            ) + fadeOut(tween(120))
+                        ) {
+                            Text(
+                                text = message ?: "",
+                                color = colors.text,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                // Up to 3 lines so long validation errors fully show
+                                maxLines = 3,
+                                // 10dp gap after the badge; 13dp + 7dp row padding = 20dp right padding
+                                modifier = Modifier.padding(
+                                    start = 10.dp,
+                                    end = 13.dp,
+                                    top = 8.dp,
+                                    bottom = 8.dp
+                                )
+                            )
+                        }
                     }
 
-                    AnimatedVisibility(
-                        visible = showText,
-                        enter = fadeIn(tween(200, delayMillis = 100)) +
-                                expandHorizontally(
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMedium
-                                    ),
-                                    expandFrom = Alignment.Start
-                                ),
-                        exit = shrinkHorizontally(
-                            animationSpec = tween(220, easing = FastOutSlowInEasing),
-                            shrinkTowards = Alignment.Start
-                        ) + fadeOut(tween(120))
-                    ) {
-                        Text(
-                            text = message ?: "",
-                            color = pillTextColor,
-                            fontSize = tokens.bodySmall,
-                            // Increased from 2 to 3 lines so longer error
-                            // messages (like validation errors) have enough
-                            // room to fully display without truncating.
-                            maxLines = 3,
-                            // Vertical padding so text isn't flush against
-                            // the top/bottom edges of the now-taller pill,
-                            // matching the icon's vertical centering within
-                            // its own 40.dp box.
-                            modifier = Modifier.padding(
-                                end = tokens.screenPadding,
-                                top = 8.dp,
-                                bottom = 8.dp
-                            )
-                        )
-                    }
+                    // Loader line: thin bar at the bottom of the pill that
+                    // shrinks from full width to 0 over durationMillis.
+                    // matchParentSize so the bar never changes the pill's own size.
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .drawBehind {
+                                if (!showText) return@drawBehind
+                                val barHeight = PROGRESS_HEIGHT.toPx()
+                                drawRect(
+                                    color = colors.badge.copy(alpha = 0.6f),
+                                    topLeft = Offset(0f, size.height - barHeight),
+                                    size = Size(size.width * progress.value, barHeight)
+                                )
+                            }
+                    )
                 }
             }
         }
@@ -211,7 +293,7 @@ fun DynamicIslandError(
     onDismiss: () -> Unit,
     durationMillis: Long = 3000
 ) {
-    DynamicIslandBase(modifier, message, onDismiss, durationMillis, Icons.Default.ErrorOutline, Color(0xFFFF5252))
+    DynamicIslandBase(modifier, message, onDismiss, durationMillis, isError = true)
 }
 
 @Composable
@@ -221,7 +303,7 @@ fun DynamicIslandSuccess(
     onDismiss: () -> Unit,
     durationMillis: Long = 3000
 ) {
-    DynamicIslandBase(modifier, message, onDismiss, durationMillis, Icons.Default.CheckCircle, Color(0xFF4ADE80))
+    DynamicIslandBase(modifier, message, onDismiss, durationMillis, isError = false)
 }
 
 // ── Error Mapper retained as per original structure ──

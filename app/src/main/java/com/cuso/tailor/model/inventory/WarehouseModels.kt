@@ -16,7 +16,22 @@ data class WarehouseResponse(
 
 data class WarehouseListResponse(
     @SerializedName("success") val success: Boolean = false,
-    @SerializedName("data") val data: List<WarehouseItem> = emptyList()
+    @SerializedName("data") val data: WarehouseListDataWrapper? = null
+)
+
+data class WarehouseListDataWrapper(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("data") val data: List<WarehouseItem> = emptyList(),
+    @SerializedName("pagination") val pagination: WarehousePaginationDto? = null
+)
+
+data class WarehousePaginationDto(
+    @SerializedName("total") val total: Int = 0,
+    @SerializedName("page") val page: Int = 1,
+    @SerializedName("limit") val limit: Int = 20,
+    @SerializedName("totalPages") val totalPages: Int = 1,
+    @SerializedName("hasNextPage") val hasNextPage: Boolean = false,
+    @SerializedName("hasPreviousPage") val hasPreviousPage: Boolean = false
 )
 
 data class WarehouseDropdownResponse(

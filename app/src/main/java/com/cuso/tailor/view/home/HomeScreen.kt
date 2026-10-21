@@ -75,7 +75,6 @@ import com.cuso.tailor.adaptive_screen.getAdaptiveTokens
 import com.cuso.tailor.database.entities.SalesStatusEntity
 import com.cuso.tailor.model.finance.InvoiceViewOneData
 import com.cuso.tailor.model.inventory.LowStockItemDto
-import com.cuso.tailor.model.sales.OperationItem
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Organization
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Settings
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Subscription
@@ -196,7 +195,12 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedCreditNoteId by remember { mutableStateOf<String?>(null) }
     var selectedReceiptId by remember { mutableStateOf<String?>(null) }
     // Inside HomeScreen Composable (around line 140, near selectedInvoiceId)
-    var invoiceForPayment by remember { mutableStateOf<InvoiceViewOneData?>(null) } // <-- ADD THIS
+    var invoiceForPayment by remember { mutableStateOf<InvoiceViewOneData?>(null) }
+    var selectedCashShiftId by remember { mutableStateOf<String?>(null) }
+
+    var selectedBankAccountId by remember { mutableStateOf<String?>(null) }
+    var selectedStatementId by remember { mutableStateOf<String?>(null) }
+    var selectedPurchaseReturnId by remember { mutableStateOf<String?>(null) }
 
     // Inventory State
     var selectedInventoryItemId by remember { mutableStateOf<String?>(null) }
@@ -213,6 +217,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedPackageIdForEdit by remember { mutableStateOf<String?>(null) }
     // Approvals State
     var selectedApprovalId by remember { mutableStateOf<String?>(null) }
+    var selectedPriceListId by remember { mutableStateOf<String?>(null) }
 
 
     // HR State
@@ -464,19 +469,30 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "finance_supplier_detail",
             "finance_create_supplier",
             "finance_create_sales_invoice",
+            "finance_bank_accounts",
+            "finance_create_bank_account",
+            "finance_bank_account_detail",
+            "finance_bank_statements",
+            "finance_bank_statement_detail",
+            "finance_import_bank_statement",
 
-            // Inside HomeScreen.kt -> implementedRoutes:
             "finance_purchase_orders",
             "finance_purchase_receive",
             "finance_bills_list",
+            "finance_purchase_returns",
+            "finance_purchase_return_detail",
+            "finance_create_purchase_return",
 
             "finance_receipt_detail",
             "finance_payments_made",
             "finance_record_payment",
             "finance_create_payment_receipt",
             "finance_credits",
+            "finance_vendor_credits",
             "finance_create_credit",
             "finance_credit_detail",
+            "finance_cash_book",
+            "finance_cash_book_detail",
             // ── Inventory ──
             "inventory_dashboard",
             "inventory_suppliers",
@@ -564,6 +580,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_create_purchase_order",
             "inventory_auto_reorder",
             "inventory_auto_reorder_detail",
+            "inventory_auto_reorder_settings",
             "inventory_safety_stock",
             "inventory_safety_stock",
             "inventory_allocation_rules",
@@ -599,6 +616,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
             "inventory_multichannel_allocation_list",
             "inventory_multichannel_basic_info",
+            "inventory_pricing_list",
+            "inventory_new_pricing",
 
             // ── HR ──
             "hr_all_employees",
@@ -627,6 +646,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "hr_add_edit_program",
             "hr_training_assignment_list",
             "hr_assign_training_form",
+            "hr_organization_structure",
 
             // Salary Template Routes
             "hr_payroll_salary_templates",
@@ -779,6 +799,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
+                "inventory_new_pricing" -> selectedPriceListId = null
+                "finance_purchase_return_detail" -> selectedPurchaseReturnId = null
+                "finance_bank_account_detail" -> selectedBankAccountId = null
+                "finance_bank_statement_detail" -> selectedStatementId = null
+                "finance_cash_book_detail" -> selectedCashShiftId = null
                 "finance_credit_detail" -> selectedCreditNoteId = null
                 "inventory_package_detail" -> selectedPackageIdForDetail = null
                 "inventory_create_package" -> selectedPackageIdForEdit = null
@@ -975,6 +1000,16 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+                            selectedPriceListId = selectedPriceListId,
+                            onPriceListIdSelected = { selectedPriceListId = it },
+                            selectedPurchaseReturnId = selectedPurchaseReturnId,
+                            onPurchaseReturnIdSelected = { selectedPurchaseReturnId = it },
+                            selectedBankAccountId = selectedBankAccountId,
+                            onBankAccountIdSelected = { selectedBankAccountId = it },
+                            selectedCashShiftId = selectedCashShiftId,
+                            selectedStatementId = selectedStatementId,
+                            onStatementIdSelected = { selectedStatementId = it },
+                            onCashShiftSelected = { selectedCashShiftId = it },
                             selectedCreditNoteId = selectedCreditNoteId,
                             onCreditNoteSelected = { selectedCreditNoteId = it },
                             selectedPackageIdForDetail = selectedPackageIdForDetail,
@@ -1126,14 +1161,18 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
                 // Check if the clicked item is a child sub-item
                 val isSubItem = menuItem?.subItems?.values?.any { list -> list.contains(clickedItem) } == true
+                val parentCategory = menuItem?.subItems?.entries?.find { it.value.contains(clickedItem) }?.key
 
-                val rawNavKey = if (!isSubItem && menuItem?.subItems?.containsKey(clickedItem) == true) {
-                    // Only resolve to first child if the clicked item was a parent category header
+                val rawNavKey = if (menu == "Finance" && clickedItem.contains("return", ignoreCase = true)) {
+                    // 👉 Purchase Return கிளிக் செய்யப்பட்டால் சரியாக Returns-க்கு போகும்!
+                    "finance_purchase_returns"
+                } else if (menu == "Finance" && (parentCategory == "Purchase" && clickedItem.contains("credit", ignoreCase = true) || clickedItem.contains("Supplier Credit", ignoreCase = true))) {
+                    "finance_vendor_credits"
+                } else if (!isSubItem && menuItem?.subItems?.containsKey(clickedItem) == true) {
                     val firstSubItem = menuItem.subItems[clickedItem]?.firstOrNull() ?: clickedItem
-                    buildNavigationKey(menu, firstSubItem)
+                    buildNavigationKey(menu, firstSubItem, clickedItem)
                 } else {
-                    // Direct navigation for sub-items ("Opportunities" or "Opportunity Pipeline")
-                    buildNavigationKey(menu, clickedItem)
+                    buildNavigationKey(menu, clickedItem, parentCategory)
                 }
 
                 showModulesPanel = false
@@ -1812,12 +1851,17 @@ fun normalizeRoute(rawKey: String): String {
         "sales_opportunities" -> "sales_opportunities"
         "sales_opportunity" -> "sales_opportunities"
 
+        "finance_bank_statements", "finance_bank_statement" -> "finance_bank_statements"
+        "finance_import_bank_statement" -> "finance_import_bank_statement"
         "finance_sales_invoices" -> "finance_sales_invoices"
+        "finance_purchase_returns", "finance_purchase_return" -> "finance_purchase_returns"
         "finance_sales_orders" -> "finance_sales_orders"
         "finance_receipts" -> "finance_receipts"
         "finance_receipt_detail" -> "finance_receipt_detail"
         "finance_create_payment_receipt" -> "finance_create_payment_receipt"
         "finance_credits", "finance_credit" -> "finance_credits"
+        "finance_vendor_credits", "finance_vendor_credit", "finance_purchase_credit",
+        "supplier_credit", "suppliercredit", "supplier_credits", "vendor_credit", "vendor_credits" -> "finance_vendor_credits"
         "finance_create_credit" -> "finance_create_credit"
         "finance_credit_detail" -> "finance_credit_detail"
         "finance_customers" -> "finance_customers"
@@ -1863,18 +1907,22 @@ fun normalizeRoute(rawKey: String): String {
         "inventory_procurement_purchase_request" -> "inventory_requisitions"
         "inventory_procurement_purchase_order", "inventory_procurement_orders" -> "inventory_purchase_orders"
         "inventory_procurement_purchase_receive" -> "inventory_purchase_receive"
-        "inventory_procurement_barcode_list", "inventory_procurement_barcode", "inventory_all_barcodes" -> "inventory_barcode"
-        "inventory_location_management", "inventory_procurement_location_management" -> "inventory_stock_location"
+        "inventory_barcode_list", "inventory_procurement_barcode_list", "inventory_procurement_barcode", "inventory_all_barcodes" -> "inventory_barcode"        "inventory_location_management", "inventory_procurement_location_management" -> "inventory_stock_location"
 
         // Alerts & safety stock
         "inventory_low_stock_alert",
         "inventory_low_stock_alerts",
         "inventory_alerts_&_reorder" -> "inventory_low_stock_alerts"
         "inventory_safety_stock" -> "inventory_safety_stock"
+        "inventory_auto_reorder_settings" -> "inventory_auto_reorder_settings"
 
         // Payables mappings
         "inventory_payables_invoices", "inventory_invoices" -> "inventory_payable_invoices"
         "inventory_payables_credits", "inventory_procurement_credits" -> "inventory_credits"
+
+        // Pricing mapping
+        "inventory_pricing_list", "inventory_pricing", "pricing" -> "inventory_pricing_list"
+        "inventory_new_pricing", "inventory_create_price_list" -> "inventory_new_pricing"
 
         // Multi-Channel mapping
         "inventory_multichannel_category_listing" -> "inventory_category_listing"

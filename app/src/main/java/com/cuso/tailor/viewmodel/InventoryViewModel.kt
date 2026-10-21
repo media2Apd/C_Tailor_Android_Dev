@@ -204,7 +204,13 @@ data class WarehouseFormState(
     val totalFloorAreaSqft: String = "0",
     val defaultTemperatureZone: String = "normal"
 )
-
+// ── Sealed State for Create & Update Operations ──
+sealed class PriceListActionState {
+    object Idle : PriceListActionState()
+    object Loading : PriceListActionState()
+    data class Success(val message: String) : PriceListActionState()
+    data class Error(val message: String) : PriceListActionState()
+}
 // =============================================================================
 // VIEW MODEL
 // =============================================================================
@@ -1024,6 +1030,140 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
+    // Inside InventoryViewModel:
+    private val _priceListActionState = MutableStateFlow<PriceListActionState>(PriceListActionState.Idle)
+    val priceListActionState: StateFlow<PriceListActionState> = _priceListActionState.asStateFlow()
+
+    private val _selectedPriceListDetail = MutableStateFlow<PriceListViewOneData?>(null)
+    val selectedPriceListDetail: StateFlow<PriceListViewOneData?> = _selectedPriceListDetail.asStateFlow()
+
+    private val _isLoadingPriceListDetail = MutableStateFlow(false)
+    val isLoadingPriceListDetail: StateFlow<Boolean> = _isLoadingPriceListDetail.asStateFlow()
+
+    fun resetPriceListActionState() {
+        _priceListActionState.value = PriceListActionState.Idle
+    }
+
+    fun clearSelectedPriceListDetail() {
+        _selectedPriceListDetail.value = null
+    }
+
+    /**
+     * Fetch Single Price List by ID (View-One API for prefilling edit screen)
+     * Endpoint: GET /api/inventory/pricing-list/view-one/{id}
+     */
+    fun fetchPriceListById(id: String, onLoaded: (PriceListViewOneData) -> Unit = {}) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingPriceListDetail.value = true
+            val result = apiRepository.request<PriceListViewOneResponse> {
+                get("/api/inventory/pricing-list/view-one/$id")
+            }
+            result.fold(
+                onSuccess = { res ->
+                    res.data?.let {
+                        _selectedPriceListDetail.value = it
+                        onLoaded(it)
+                    }
+                },
+                onFailure = { /* Fail silently or show error */ }
+            )
+            _isLoadingPriceListDetail.value = false
+        }
+    }
+
+    /**
+     * Create New Price List
+     * Endpoint: POST /api/inventory/pricing-list/create
+     */
+    fun createPriceList(payload: PriceListRequestPayload, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _priceListActionState.value = PriceListActionState.Loading
+            val result = apiRepository.request<PriceListMutationResponse> {
+                post("/api/inventory/pricing-list/create", payload)
+            }
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val msg = res.message.ifBlank { "Price List created successfully" }
+                        _priceListActionState.value = PriceListActionState.Success(msg)
+                        fetchPriceLists(page = 1) // Refresh price list
+                        onSuccess()
+                    } else {
+                        _priceListActionState.value = PriceListActionState.Error(res.message)
+                    }
+                },
+                onFailure = { err ->
+                    _priceListActionState.value = PriceListActionState.Error(extractErrorMessage(err.message))
+                }
+            )
+        }
+    }
+
+    /**
+     * Update Existing Price List
+     * Endpoint: PUT /api/inventory/pricing-list/update-one/{id}
+     */
+    fun updatePriceList(id: String, payload: PriceListRequestPayload, onSuccess: () -> Unit = {}) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _priceListActionState.value = PriceListActionState.Loading
+            val result = apiRepository.request<PriceListMutationResponse> {
+                put("/api/inventory/pricing-list/update-one/$id", payload)
+            }
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val msg = res.message.ifBlank { "Price List updated successfully" }
+                        _priceListActionState.value = PriceListActionState.Success(msg)
+                        fetchPriceLists(page = 1) // Refresh price list
+                        onSuccess()
+                    } else {
+                        _priceListActionState.value = PriceListActionState.Error(res.message)
+                    }
+                },
+                onFailure = { err ->
+                    _priceListActionState.value = PriceListActionState.Error(extractErrorMessage(err.message))
+                }
+            )
+        }
+    }
+
+    /**
+     * Delete Price List by ID
+     * Endpoint: DELETE /api/inventory/pricing-list/delete-one/{id}
+     */
+    fun deletePriceList(
+        id: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _priceListActionState.value = PriceListActionState.Loading
+            val result = apiRepository.request<PriceListDeleteResponse> {
+                delete("/api/inventory/pricing-list/delete-one/$id")
+            }
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val msg = res.message.ifBlank { "Price List deleted successfully" }
+                        _priceListActionState.value = PriceListActionState.Success(msg)
+                        fetchPriceLists(page = 1) // Refresh list on deletion
+                        onSuccess(msg)
+                    } else {
+                        _priceListActionState.value = PriceListActionState.Error(res.message)
+                        onError(res.message)
+                    }
+                },
+                onFailure = { err ->
+                    val errorMsg = extractErrorMessage(err.message)
+                    _priceListActionState.value = PriceListActionState.Error(errorMsg)
+                    onError(errorMsg)
+                }
+            )
+        }
+    }
     // =========================================================================
     // PRODUCTION WORKFLOW TEMPLATES
     // =========================================================================
@@ -1071,7 +1211,7 @@ class InventoryViewModel @Inject constructor(
         loadWarehouseDropdown()
         fetchSuppliers()
         fetchSupplierDropdown()
-        fetchValidAdjustmentReasons()
+//        fetchValidAdjustmentReasons()
         fetchProductionTemplates()
     }
 
@@ -5330,6 +5470,99 @@ class InventoryViewModel @Inject constructor(
                 }
             )
             _isDeletingPackage.value = false
+        }
+    }
+
+    // ── Price Lists State Flow ──
+    private val _priceLists = MutableStateFlow<List<PriceListItemDto>>(emptyList())
+    val priceLists: StateFlow<List<PriceListItemDto>> = _priceLists.asStateFlow()
+
+    private val _isLoadingPriceLists = MutableStateFlow(false)
+    val isLoadingPriceLists: StateFlow<Boolean> = _isLoadingPriceLists.asStateFlow()
+
+    private val _isLoadingMorePriceLists = MutableStateFlow(false)
+    val isLoadingMorePriceLists: StateFlow<Boolean> = _isLoadingMorePriceLists.asStateFlow()
+
+    private val _canLoadMorePriceLists = MutableStateFlow(true)
+    val canLoadMorePriceLists: StateFlow<Boolean> = _canLoadMorePriceLists.asStateFlow()
+
+    private val _currentPriceListPage = MutableStateFlow(1)
+    val currentPriceListPage: StateFlow<Int> = _currentPriceListPage.asStateFlow()
+
+    private val _priceListError = MutableStateFlow<String?>(null)
+    val priceListError: StateFlow<String?> = _priceListError.asStateFlow()
+
+    private var activePriceListSearch: String? = null
+
+    /**
+     * Fetch All Price Lists from the backend
+     * Endpoint: GET /api/inventory/price-lists/view-all
+     */
+    fun fetchPriceLists(page: Int = 1, limit: Int = 20, search: String? = null) {
+        viewModelScope.launch {
+            _isLoadingPriceLists.value = true
+            _priceListError.value = null
+            _currentPriceListPage.value = page
+            _canLoadMorePriceLists.value = true
+            activePriceListSearch = search?.trim()?.ifBlank { null }
+
+            val queryParams = mutableMapOf<String, Any>("page" to page, "limit" to limit)
+            activePriceListSearch?.let { queryParams["search"] = it }
+
+            val result = apiRepository.request<PriceListResponse> {
+                get("/api/inventory/pricing-list/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val items = res.data?.data.orEmpty()
+                    _priceLists.value = items
+                    val totalPages = res.data?.pagination?.totalPages ?: 1
+                    _canLoadMorePriceLists.value = page < totalPages && items.isNotEmpty()
+                },
+                onFailure = { err ->
+                    _priceLists.value = emptyList()
+                    _priceListError.value = extractErrorMessage(err.message)
+                }
+            )
+            _isLoadingPriceLists.value = false
+        }
+    }
+
+    /**
+     * Infinite Scroll Pagination for Price Lists
+     */
+    fun loadMorePriceLists(limit: Int = 20) {
+        if (_isLoadingMorePriceLists.value || _isLoadingPriceLists.value || !_canLoadMorePriceLists.value) return
+
+        viewModelScope.launch {
+            _isLoadingMorePriceLists.value = true
+            val nextPage = _currentPriceListPage.value + 1
+
+            val queryParams = mutableMapOf<String, Any>("page" to nextPage, "limit" to limit)
+            activePriceListSearch?.let { queryParams["search"] = it }
+
+            val result = apiRepository.request<PriceListResponse> {
+                get("/api/inventory/pricing-list/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data?.data.orEmpty()
+                    if (newItems.isNotEmpty()) {
+                        _priceLists.update { (it + newItems).distinctBy { item -> item.id } }
+                        _currentPriceListPage.value = nextPage
+                        val totalPages = res.data?.pagination?.totalPages ?: nextPage
+                        _canLoadMorePriceLists.value = nextPage < totalPages
+                    } else {
+                        _canLoadMorePriceLists.value = false
+                    }
+                },
+                onFailure = {
+                    _canLoadMorePriceLists.value = false
+                }
+            )
+            _isLoadingMorePriceLists.value = false
         }
     }
 

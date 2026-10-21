@@ -40,17 +40,58 @@ import com.cuso.tailor.view.composable.HomeSkeleton
 import com.cuso.tailor.viewmodel.HomeViewModel
 import java.time.LocalTime
 import androidx.core.graphics.toColorInt
-
+import com.cuso.tailor.viewmodel.BranchUiState
+import com.cuso.tailor.viewmodel.BranchViewModel
+import com.cuso.tailor.view.composable.FormDropdown
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeDashboardScreen(
     widthSizeClass: WindowWidthSizeClass,
     adminName: String = "Admin",
     viewModel: HomeViewModel = hiltViewModel(),
+    branchViewModel: BranchViewModel = hiltViewModel(),
     onNavigate: (String) -> Unit = {}
 ) {
     val designTokens = getAdaptiveTokens(widthSizeClass)
     val baseDensity = LocalDensity.current
+
+    // Load branches from BranchViewModel
+    val branchState by branchViewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        branchViewModel.loadBranches()
+    }
+
+    // Branch selection states
+    var selectedBranchId by remember { mutableStateOf<String?>(null) }
+    var selectedBranchLabel by remember { mutableStateOf("All Branches") }
+    var branchDropdownExpanded by remember { mutableStateOf(false) }
+
+    // Period options mapping
+    val periodMapping = remember {
+        listOf(
+            "This Month (MTD)" to "this_month",
+            "This Quarter"     to "this_quarter",
+            "This Year (YTD)"   to "this_year"
+        )
+    }
+    var selectedPeriodLabel by remember { mutableStateOf(periodMapping[0].first) }
+    var selectedPeriodKey by remember { mutableStateOf(periodMapping[0].second) }
+    var periodDropdownExpanded by remember { mutableStateOf(false) }
+
+    // Auto-select default/first branch once loaded
+    val branchItems = (branchState as? BranchUiState.Success)?.branches.orEmpty()
+    LaunchedEffect(branchItems) {
+        if (branchItems.isNotEmpty() && selectedBranchId == null) {
+            val defaultBranch = branchItems.find { it.isMainBranch } ?: branchItems.first()
+            selectedBranchId = defaultBranch.id
+            selectedBranchLabel = defaultBranch.name?:""
+            viewModel.fetchAllHomeDashboardData(
+                branchId = defaultBranch.id,
+                period = selectedPeriodKey
+            )
+        }
+    }
 
     // Collect API states
     val kpis by viewModel.kpis.collectAsState()
@@ -83,6 +124,8 @@ fun HomeDashboardScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(tokens.screenPadding)
             ) {
+
+
                 // 1. Top Greeting Card
                 item {
                     GreetingCard(
@@ -91,6 +134,62 @@ fun HomeDashboardScreen(
                         onNavigate = onNavigate
                     )
                 }
+
+                // 2. Top Filter Row: Branch & Period Dropdowns
+                item {
+                    val branchOptions = remember(branchItems) {
+                        listOf("All Branches") + branchItems.map { it.name?:"" }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                    ) {
+                        // Branch Dropdown
+                        Box(modifier = Modifier.weight(1f)) {
+                            FormDropdown(
+                                label = "Branch",
+                                value = selectedBranchLabel,
+                                expanded = branchDropdownExpanded,
+                                onExpandChange = { branchDropdownExpanded = it },
+                                options = branchOptions,
+                                onOptionSelected = { chosen ->
+                                    selectedBranchLabel = chosen
+                                    selectedBranchId = if (chosen == "All Branches") {
+                                        null
+                                    } else {
+                                        branchItems.find { (it.name ?: "") == chosen }?.id
+                                    }
+                                    viewModel.fetchAllHomeDashboardData(
+                                        branchId = selectedBranchId,
+                                        period = selectedPeriodKey
+                                    )
+                                }
+                            )
+                        }
+
+                        // Period Dropdown
+                        Box(modifier = Modifier.weight(1f)) {
+                            FormDropdown(
+                                label = "Period",
+                                value = selectedPeriodLabel,
+                                expanded = periodDropdownExpanded,
+                                onExpandChange = { periodDropdownExpanded = it },
+                                options = periodMapping.map { it.first },
+                                onOptionSelected = { chosenLabel ->
+                                    selectedPeriodLabel = chosenLabel
+                                    selectedPeriodKey = periodMapping.firstOrNull { it.first == chosenLabel }?.second ?: "this_month"
+                                    viewModel.fetchAllHomeDashboardData(
+                                        branchId = selectedBranchId,
+                                        period = selectedPeriodKey
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // ... Remaining dashboard items (2 to 11) stay untouched ...
 
                 // 2. 6 Metrics Grid
                 item {

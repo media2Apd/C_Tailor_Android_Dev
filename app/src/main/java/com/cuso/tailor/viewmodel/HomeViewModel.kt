@@ -87,62 +87,75 @@ class HomeViewModel @Inject constructor(
         fetchAllHomeDashboardData()
     }
 
-    fun fetchAllHomeDashboardData() {
+    fun fetchAllHomeDashboardData(
+        branchId: String? = null,
+        period: String = "this_month"
+    ) {
         viewModelScope.launch {
             _isLoading.value = true
 
-            // Parallel launches for all dashboard cards
+            // Helper to build query parameters
+            fun buildPath(endpoint: String): String {
+                val params = mutableListOf<String>()
+                if (!branchId.isNullOrBlank()) {
+                    params.add("branchId=$branchId")
+                }
+                params.add("period=$period")
+                return "$endpoint?${params.joinToString("&")}"
+            }
+
+            // Parallel launches for all dashboard cards with query parameters
             launch {
                 repo.request<HomeKpiResponse> {
-                    get("/api/home/dashboard/kpi-summary")
+                    get(buildPath("/api/home/dashboard/kpi-summary"))
                 }.onSuccess { _kpis.value = it.data?.kpis }
             }
 
             launch {
                 repo.request<RevenueTrendResponse> {
-                    get("/api/home/dashboard/revenue-trend")
+                    get(buildPath("/api/home/dashboard/revenue-trend"))
                 }.onSuccess { _revenueTrend.value = it.data }
             }
 
             launch {
                 repo.request<HomeMarketingResponse> {
-                    get("/api/home/dashboard/marketing-performance")
+                    get(buildPath("/api/home/dashboard/marketing-performance"))
                 }.onSuccess { _marketing.value = it.data }
             }
 
             launch {
                 repo.request<DonutSectionResponse> {
-                    get("/api/home/dashboard/order-status")
+                    get(buildPath("/api/home/dashboard/order-status"))
                 }.onSuccess { _orderStatus.value = it.data }
             }
 
             launch {
                 repo.request<DonutSectionResponse> {
-                    get("/api/home/dashboard/stock-status")
+                    get(buildPath("/api/home/dashboard/stock-status"))
                 }.onSuccess { _stockStatus.value = it.data }
             }
 
             launch {
                 repo.request<DonutSectionResponse> {
-                    get("/api/home/dashboard/today-attendance")
+                    get(buildPath("/api/home/dashboard/today-attendance"))
                 }.onSuccess { _attendance.value = it.data }
             }
 
             launch {
                 repo.request<DonutSectionResponse> {
-                    get("/api/home/dashboard/service-status")
+                    get(buildPath("/api/home/dashboard/service-status"))
                 }.onSuccess { _serviceStatus.value = it.data }
             }
 
             launch {
                 repo.request<TopProductsResponse> {
-                    get("/api/home/dashboard/top-products")
+                    get(buildPath("/api/home/dashboard/top-products"))
                 }.onSuccess { _topProducts.value = it.data?.products.orEmpty() }
             }
 
             launch {
                 repo.request<HomeActionRequiredResponse> {
-                    get("/api/home/dashboard/actions-required")
+                    get(buildPath("/api/home/dashboard/actions-required"))
                 }.onSuccess { _actionTasks.value = it.data?.actions.orEmpty() }
             }
 

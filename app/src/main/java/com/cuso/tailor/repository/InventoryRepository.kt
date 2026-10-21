@@ -765,7 +765,9 @@ class InventoryRepository @Inject constructor(
             val response = inventoryApi.getAllWarehouses(accessToken, csrfToken)
 
             if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!.data)
+                // Extract list from nested data.data
+                val warehouseList = response.body()?.data?.data ?: emptyList()
+                Result.success(warehouseList)
             } else {
                 Result.failure(Exception(extractErrorMessage(response, ERROR_FETCH_WAREHOUSES)))
             }

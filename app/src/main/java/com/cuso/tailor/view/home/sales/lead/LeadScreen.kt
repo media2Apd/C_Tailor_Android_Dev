@@ -271,8 +271,8 @@ fun LeadFormScreen(
         branchViewModel.loadBranches()
         salesViewModel.fetchStaff()
         settingsViewModel.fetchGarments()
-        salesViewModel.fetchGarmentCategories()
-        salesViewModel.fetchSalesData()
+//        salesViewModel.fetchGarmentCategories()
+//        salesViewModel.fetchSalesData()
     }
 
     val branches = (branchState as? BranchUiState.Success)?.branches ?: emptyList()
@@ -502,7 +502,7 @@ fun LeadFormScreen(
         if (!isCreate) return@LaunchedEffect
         when (val state = leadState) {
             is SaleState.Success<*> -> {
-                salesViewModel.fetchSalesData()
+//                salesViewModel.fetchSalesData()
                 onBack()
             }
             is SaleState.Error -> {
@@ -1241,8 +1241,8 @@ fun LeadScreenContent(
     LaunchedEffect(Unit) {
         salesViewModel.fetchTableLeads()
         salesViewModel.fetchStaff()
-        salesViewModel.fetchGarmentCategories()
-        salesViewModel.fetchSalesData()
+//        salesViewModel.fetchGarmentCategories()
+//        salesViewModel.fetchSalesData()
     }
 
     LaunchedEffect(leadState) {
@@ -1250,7 +1250,7 @@ fun LeadScreenContent(
             is SaleState.Success<*> -> {
                 successMessage = "Lead Created Successfully"
                 salesViewModel.resetLeadState()
-                salesViewModel.fetchSalesData()
+//                salesViewModel.fetchSalesData()
                 salesViewModel.fetchTableLeads()
             }
             is SaleState.Error -> {

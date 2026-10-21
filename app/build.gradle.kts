@@ -46,7 +46,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.7:5000/\""
+                "\"http://192.168.88.6:5000/\""
             )
         }
 
@@ -123,6 +123,7 @@ dependencies {
     // Splash
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.room3.common.jvm)
+    implementation(libs.litert.api)
 
     // Google Auth
     //noinspection LoginCredentials
@@ -213,4 +214,8 @@ dependencies {
 
     //QR barcode
     implementation(libs.core)
+
+    // Meta App Events SDK
+    implementation("com.facebook.android:facebook-core:19.0.0")
+
 }

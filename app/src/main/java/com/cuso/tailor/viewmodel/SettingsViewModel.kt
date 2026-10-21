@@ -2337,6 +2337,226 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+
+    // =========================================================================
+    // 23. DOCUMENT TEMPLATES STATE & ACTIONS
+    // =========================================================================
+    private val _documentTemplates = MutableStateFlow<List<DocumentTemplateDto>>(emptyList())
+    val documentTemplates: StateFlow<List<DocumentTemplateDto>> = _documentTemplates.asStateFlow()
+
+    private val _isLoadingTemplates = MutableStateFlow(false)
+    val isLoadingTemplates: StateFlow<Boolean> = _isLoadingTemplates.asStateFlow()
+
+    private val _documentTemplatesError = MutableStateFlow<String?>(null)
+    val documentTemplatesError: StateFlow<String?> = _documentTemplatesError.asStateFlow()
+
+    private val _selectedDocType = MutableStateFlow(DocumentType.BILL)
+    val selectedDocType: StateFlow<String> = _selectedDocType.asStateFlow()
+
+    /**
+     * Fetches document templates from API by document type:
+     * Endpoint: GET /api/documents/templates?docType={docType}
+     *
+     * Supported docType values:
+     * - DocumentType.BILL ("bill")
+     * - DocumentType.PAYMENT_RECEIPT ("paymentReceipt")
+     * - DocumentType.PURCHASE_RECEIVE ("purchaseReceive")
+     * - DocumentType.SALES_ORDER ("salesOrder")
+     * - DocumentType.PACKING_SLIP ("packingSlip")
+     * - DocumentType.DELIVERY_SLIP ("deliverySlip")
+     * - DocumentType.CREDIT_NOTE ("creditNote")
+     * - DocumentType.RETURN_RECEIPT ("returnReceipt")
+     */
+    fun fetchDocumentTemplates(
+        docType: String = DocumentType.BILL,
+        onSuccess: (List<DocumentTemplateDto>) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isLoadingTemplates.value = true
+            _documentTemplatesError.value = null
+            _selectedDocType.value = docType
+
+            val result = apiRepository.request<DocumentTemplateResponse> {
+                get(
+                    "/api/documents/templates",
+                    apiRepository.query("docType" to docType)
+                )
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        _documentTemplates.value = response.data
+                        onSuccess(response.data)
+                    } else {
+                        val msg = response.message ?: "Failed to fetch document templates"
+                        _documentTemplatesError.value = msg
+                        showError(msg)
+                    }
+                },
+                onFailure = { error ->
+                    val clean = extractErrorMessage(error.message)
+                    _documentTemplatesError.value = clean
+                    showError(clean)
+                }
+            )
+
+            _isLoadingTemplates.value = false
+        }
+    }
+
+    // ── Set Default Template State ──
+    private val _isSettingDefaultTemplate = MutableStateFlow(false)
+    val isSettingDefaultTemplate: StateFlow<Boolean> = _isSettingDefaultTemplate.asStateFlow()
+
+    /**
+     * Sets the default template for a specific document type.
+     * Endpoint: PUT /api/documents/templates/set-default
+     * Payload: { "docType": "bill", "templateTheme": "standard" }
+     */
+    fun setDefaultTemplate(
+        docType: String,
+        templateTheme: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSettingDefaultTemplate.value = true
+
+            val request = SetDefaultTemplateRequest(
+                docType = docType,
+                templateTheme = templateTheme.lowercase()
+            )
+
+            val result = apiRepository.request<SetDefaultTemplateResponse> {
+                post("/api/documents/templates/set-default", request)
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        val msg = response.message ?: "Default template set successfully"
+                        showSuccess(msg)
+                        // Refresh templates list to update the 'isDefault' flags
+                        fetchDocumentTemplates(docType = docType)
+                        onSuccess(msg)
+                    } else {
+                        val errorMsg = response.message ?: "Failed to set default template"
+                        showError(errorMsg)
+                        onError(errorMsg)
+                    }
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                    onError(cleanError)
+                }
+            )
+
+            _isSettingDefaultTemplate.value = false
+        }
+    }
+
+    // =========================================================================
+    // AUTO REORDER SETTINGS (GLOBAL CONFIG)
+    // =========================================================================
+    private val _autoReorderSettings = MutableStateFlow<AutoReorderSettingsData?>(null)
+    val autoReorderSettings: StateFlow<AutoReorderSettingsData?> = _autoReorderSettings.asStateFlow()
+
+    private val _isLoadingSettings = MutableStateFlow(false)
+    val isLoadingSettings: StateFlow<Boolean> = _isLoadingSettings.asStateFlow()
+
+    private val _settingsError = MutableStateFlow<String?>(null)
+    val settingsError: StateFlow<String?> = _settingsError.asStateFlow()
+
+    /**
+     * Fetches current global Auto-Reorder Settings
+     * Endpoint: GET /api/inventory/auto-reorder/settings
+     */
+    fun fetchAutoReorderSettings(onLoaded: (AutoReorderSettingsData) -> Unit = {}) {
+        viewModelScope.launch {
+            _isLoadingSettings.value = true
+            _settingsError.value = null
+
+            val result = apiRepository.request<AutoReorderSettingsResponse> {
+                get("/api/inventory/auto-reorder/settings")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    res.data?.let {
+                        _autoReorderSettings.value = it
+                        onLoaded(it)
+                    }
+                },
+                onFailure = { err ->
+                    _settingsError.value = extractErrorMessage(err.message)
+                }
+            )
+            _isLoadingSettings.value = false
+        }
+    }
+
+    // ── Save Auto Reorder Settings State ──
+    private val _isSavingAutoReorderSettings = MutableStateFlow(false)
+    val isSavingAutoReorderSettings: StateFlow<Boolean> = _isSavingAutoReorderSettings.asStateFlow()
+
+    /**
+     * Updates and saves global Auto-Reorder Settings.
+     * Endpoint: PUT /api/inventory/auto-reorder/settings/update
+     * Automatically re-fetches /api/inventory/auto-reorder/settings upon success.
+     */
+    fun saveAutoReorderSettings(
+        request: SaveAutoReorderSettingsRequest,
+        onSuccess: (AutoReorderSettingsData) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSavingAutoReorderSettings.value = true
+
+            val result = apiRepository.request<SaveAutoReorderSettingsResponse> {
+                put("/api/inventory/auto-reorder/settings/update", request)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val message = res.message ?: "Auto reorder settings saved successfully"
+                        showSuccess(message)
+
+                        // Immediately re-fetch settings to refresh data from server
+                        fetchAutoReorderSettings { refreshedData ->
+                            onSuccess(refreshedData)
+                        }
+                    } else {
+                        val errorMsg = res.message ?: "Failed to save auto reorder settings"
+                        showError(errorMsg)
+                        onError(errorMsg)
+                    }
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                    onError(cleanError)
+                }
+            )
+
+            _isSavingAutoReorderSettings.value = false
+        }
+    }
+
+    /**
+     * Clears document templates state and error.
+     */
+    fun clearDocumentTemplates() {
+        _documentTemplates.value = emptyList()
+        _documentTemplatesError.value = null
+    }
+
+    fun clearDocumentTemplatesError() {
+        _documentTemplatesError.value = null
+    }
+
     /**
      * Clears selected tax registration when closing or creating fresh.
      */

@@ -195,7 +195,20 @@ import com.cuso.tailor.view.home.finance.account_receivable.sales_invoice.Record
 import com.cuso.tailor.view.home.finance.credit.CreateCreditNoteScreen
 import com.cuso.tailor.view.home.finance.credit.CreditNoteDetailScreen
 import com.cuso.tailor.view.home.finance.dashboard.FinanceOverviewScreen
+import com.cuso.tailor.view.home.finance.funds.bankAccounts.BankAccountDetailScreen
+import com.cuso.tailor.view.home.finance.funds.bankAccounts.CreateBankAccountScreen
+import com.cuso.tailor.view.home.finance.funds.bankAccounts.BankAccountsListScreen
+import com.cuso.tailor.view.home.finance.funds.bankstatement.BankStatementDetailScreen
+import com.cuso.tailor.view.home.finance.funds.bankstatement.BankStatementListScreen
+import com.cuso.tailor.view.home.finance.funds.bankstatement.ImportBankStatementScreen
+import com.cuso.tailor.view.home.finance.funds.cashbooks.CashBookDetailScreen
+import com.cuso.tailor.view.home.finance.funds.cashbooks.CashBookListScreen
+import com.cuso.tailor.view.home.finance.purchase.CreatePurchaseReturnScreen
+import com.cuso.tailor.view.home.finance.purchase.FinanceReturnScreen
+import com.cuso.tailor.view.home.finance.purchase.PurchaseReturnDetailScreen
+import com.cuso.tailor.view.home.finance.purchase.VendorCreditListScreen
 import com.cuso.tailor.view.home.finance.receipts.CreatePaymentReceiptScreen
+import com.cuso.tailor.view.home.hr.organization_structure.OrganizationStructureScreen
 import com.cuso.tailor.view.home.inventory.dashboard.InventoryDashboardScreen
 import com.cuso.tailor.view.home.inventory.inventory.packages.CreatePackageScreen
 import com.cuso.tailor.view.home.inventory.inventory.packages.PackageDetailScreen
@@ -203,6 +216,7 @@ import com.cuso.tailor.view.home.inventory.inventory.packages.PackagesScreen
 import com.cuso.tailor.view.home.inventory.inventory.picklist.CreatePicklistScreen
 import com.cuso.tailor.view.home.inventory.inventory.picklist.PicklistDetailScreen
 import com.cuso.tailor.view.home.inventory.inventory.picklist.PicklistListScreen
+import com.cuso.tailor.view.home.inventory.pricing_list.NewPriceListScreen
 import com.cuso.tailor.viewmodel.*
 
 private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
@@ -211,6 +225,16 @@ private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedPriceListId: String? = null,
+    onPriceListIdSelected: (String?) -> Unit = {},
+    selectedPurchaseReturnId: String? = null,
+    onPurchaseReturnIdSelected: (String?) -> Unit = {},
+    selectedBankAccountId: String? = null,
+    onBankAccountIdSelected: (String?) -> Unit = {},
+    selectedCashShiftId: String? = null,
+    selectedStatementId: String? = null,
+    onStatementIdSelected: (String?) -> Unit = {},
+    onCashShiftSelected: (String?) -> Unit = {},
     selectedCreditNoteId: String? = null,
     onCreditNoteSelected: (String?) -> Unit = {},
     selectedPackageIdForDetail: String? = null,
@@ -350,7 +374,8 @@ fun HomeScreenRouter(
         "inventory_allocation_rules", "inventory_create_allocation", "inventory_pdf_templates",
         "inventory_location_structure", "inventory_floor_overview", "inventory_add_floor",
         "inventory_section_overview", "inventory_add_section", "inventory_rack_overview",
-        "inventory_add_rack", "inventory_bin_overview", "inventory_add_bin" -> {
+        "inventory_add_rack", "inventory_bin_overview", "inventory_add_bin",
+        "inventory_auto_reorder_settings"  -> {
             InventoryStructureRouter(
                 screen = screen,
                 settingsViewModel = settingsViewModel,
@@ -414,15 +439,32 @@ fun HomeScreenRouter(
         }
 
         // ── Add "finance_credits", "finance_create_credit", "finance_credit_detail" into this list ──
-        "finance_dashboard", "finance_receipts", "finance_create_payment_receipt", "finance_credits", "finance_create_credit", "finance_credit_detail", "finance_sales_invoices", "finance_invoice_detail", "finance_record_payment", "finance_purchase_invoices", "finance_purchase_invoice_detail", "finance_customers", "finance_customer_detail", "finance_suppliers", "finance_supplier_detail", "finance_expenses",
-        "finance_chart_of_accounts", "finance_journal_screen", "finance_trial_balance", "finance_ledger", "finance_payments_received",
-        "payment_detail_screen", "finance_payments_mode", "payment_mode_detail", "finance_gst_settings", "finance_create_customer",
-        "finance_add_gst", "finance_tax_rates", "finance_add_tax_group", "finance_create_sales_invoice", "finance_purchase_orders",
-        "finance_purchase_receive", "finance_receipt_detail", "finance_bills_list", "finance_payments_made", "finance_sales_orders" -> {
+        "finance_dashboard", "finance_receipts", "finance_create_payment_receipt", "finance_credits",
+        "finance_vendor_credits",
+        "finance_create_credit", "finance_credit_detail", "finance_sales_invoices", "finance_invoice_detail",
+        "finance_record_payment", "finance_purchase_invoices", "finance_purchase_invoice_detail",
+        "finance_customers", "finance_customer_detail", "finance_suppliers", "finance_supplier_detail",
+        "finance_expenses", "finance_chart_of_accounts", "finance_journal_screen", "finance_trial_balance",
+        "finance_ledger", "finance_payments_received", "payment_detail_screen", "finance_payments_mode",
+        "payment_mode_detail", "finance_gst_settings", "finance_create_customer", "finance_add_gst",
+        "finance_tax_rates", "finance_add_tax_group", "finance_create_sales_invoice", "finance_purchase_orders",
+        "finance_purchase_receive", "finance_receipt_detail", "finance_bills_list", "finance_payments_made",
+        "finance_purchase_returns", "finance_purchase_return_detail", "finance_create_purchase_return",
+        "finance_sales_orders", "finance_cash_book", "finance_cash_book_detail",
+        "finance_bank_accounts", "finance_create_bank_account", "finance_bank_account_detail",
+        "finance_bank_statements", "finance_bank_statement_detail", "finance_import_bank_statement" -> {
             FinanceRouter(
                 screen = screen,
-                selectedCreditNoteId = selectedCreditNoteId, // <-- Pass down
-                onCreditNoteSelected = onCreditNoteSelected, // <-- Pass down
+                selectedPurchaseReturnId = selectedPurchaseReturnId,
+                onPurchaseReturnIdSelected = onPurchaseReturnIdSelected,
+                selectedStatementId = selectedStatementId,
+                onStatementIdSelected = onStatementIdSelected,
+                selectedBankAccountId = selectedBankAccountId,
+                onBankAccountIdSelected = onBankAccountIdSelected,
+                selectedCashShiftId = selectedCashShiftId,
+                onCashShiftSelected = onCashShiftSelected,
+                selectedCreditNoteId = selectedCreditNoteId,
+                onCreditNoteSelected = onCreditNoteSelected,
                 isOrderFromFinance = isOrderFromFinance,
                 onOrderFromFinanceChange = onOrderFromFinanceChange,
                 prefillOrderForInvoice = prefillOrderForInvoice,
@@ -478,9 +520,11 @@ fun HomeScreenRouter(
         "inventory_multichannel_basic_info",
         "inventory_multichannel_allocation_list",
         "inventory_multichannel_category_listing", "inventory_category_listing",
-        "inventory_approvals", "inventory_pricing_list","inventory_approval_detail", "inventory_create_category", -> {
+        "inventory_approvals", "inventory_pricing_list", "inventory_new_pricing", "inventory_approval_detail", "inventory_create_category" -> {
             InventoryMainRouter(
                 screen = screen,
+                selectedPriceListId = selectedPriceListId,
+                onPriceListIdSelected = onPriceListIdSelected,
                 selectedApprovalId = selectedApprovalId,
                 onApprovalIdSelected = onApprovalIdSelected,
                 selectedInventoryItemId = selectedInventoryItemId,
@@ -567,7 +611,7 @@ fun HomeScreenRouter(
         "hr_document_categories",
         "hr_add_document_category",
         "hr_employee_document_upload",
-        "hr_new_document_upload" -> {
+        "hr_new_document_upload", "hr_organization_structure",-> {
             HrRouter(
                 screen = screen,
                 selectedDocumentCategoryId = selectedDocumentCategoryId,
@@ -775,7 +819,8 @@ private fun HomeAndSettingsRouter(
             onConfigureSalesPricing = { onSafeNavigate("sales_garment_pricing_setup") },
             onConfigureMarketing = { onShowComingSoon("Marketing Settings Coming Soon") },
             onConfigureFinance = { onSafeNavigate("finance_chart_of_accounts") },
-            onConfigureInventory = { onSafeNavigate("inventory_allocation_rules") },
+            onConfigureInventory = { onSafeNavigate("inventory_location_structure") },
+            onNavigateWarehouse = { onSafeNavigate("inventory_location_structure") },
             onNavigateAllocationRules = { onSafeNavigate("inventory_allocation_rules") },
             onNavigatePdfTemplates = { onSafeNavigate("inventory_pdf_templates") },
             onNavigateLocationStructure = { onSafeNavigate("inventory_location_structure") },
@@ -783,6 +828,7 @@ private fun HomeAndSettingsRouter(
             onNavigateSectionOverview = { onSafeNavigate("inventory_section_overview") },
             onNavigateRackOverview = { onSafeNavigate("inventory_rack_overview") },
             onNavigateBinOverview = { onSafeNavigate("inventory_bin_overview") },
+            onNavigateAutoReorder = { onSafeNavigate("inventory_auto_reorder_settings") },
             onConfigureLogistics = { onSafeNavigate("logistics_delivery") },
             onConfigureServices = { onSafeNavigate("services_service_status") },
             onNavigateServiceTemplates = { onSafeNavigate("services_service_templates") },
@@ -828,7 +874,6 @@ private fun InventoryStructureRouter(
     onGoBack: () -> Unit,
     onShowComingSoon: (String) -> Unit
 ) {
-
     when (screen) {
         "inventory_allocation_rules" -> AllocationRulesScreen(
             onClose = onGoBack,
@@ -845,18 +890,23 @@ private fun InventoryStructureRouter(
             onCreateNewTemplate = { onShowComingSoon("Create Template Coming Soon") }
         )
 
+        "inventory_auto_reorder_settings" -> AutoReorderSettingsScreen(
+            onClose = onGoBack
+        )
+
         "inventory_location_structure" -> LocationStructureScreen(
             onClose = onGoBack,
-            onAddLocation = { onNavigate("inventory_add_floor") },
+            onAddFloor = { onNavigate("inventory_add_floor") },
             onFloorClick = { onNavigate("inventory_floor_overview") }
         )
 
+        // Floor Overview -> FAB navigates to Add Section Screen
         "inventory_floor_overview" -> FloorOverviewScreen(
             viewModel = settingsViewModel,
             onClose = onGoBack,
-            onAddFloor = {
-                settingsViewModel.clearSelectedFloorForEdit()
-                onNavigate("inventory_add_floor")
+            onAddSection = {
+                settingsViewModel.clearSelectedSectionForEdit()
+                onNavigate("inventory_add_section")
             },
             onEditFloor = { floor ->
                 settingsViewModel.setSelectedFloorForEdit(floor)
@@ -880,12 +930,13 @@ private fun InventoryStructureRouter(
             )
         }
 
+        // Section Overview -> FAB navigates to Add Rack Screen
         "inventory_section_overview" -> SectionOverviewScreen(
             viewModel = settingsViewModel,
             onClose = onGoBack,
-            onAddSection = {
-                settingsViewModel.clearSelectedSectionForEdit()
-                onNavigate("inventory_add_section")
+            onAddRack = {
+                settingsViewModel.clearSelectedRackForEdit()
+                onNavigate("inventory_add_rack")
             },
             onEditSection = { section ->
                 settingsViewModel.setSelectedSectionForEdit(section)
@@ -909,12 +960,13 @@ private fun InventoryStructureRouter(
             )
         }
 
+        // Rack Overview -> FAB navigates to Add Bin Screen
         "inventory_rack_overview" -> RackOverviewScreen(
             viewModel = settingsViewModel,
             onClose = onGoBack,
-            onAddRack = {
-                settingsViewModel.clearSelectedRackForEdit()
-                onNavigate("inventory_add_rack")
+            onAddBin = {
+                settingsViewModel.clearSelectedBinForEdit()
+                onNavigate("inventory_add_bin")
             },
             onEditRack = { rack ->
                 settingsViewModel.setSelectedRackForEdit(rack)
@@ -938,13 +990,10 @@ private fun InventoryStructureRouter(
             )
         }
 
+        // Bin Overview -> Displays bins only, no Add button
         "inventory_bin_overview" -> BinOverviewScreen(
             viewModel = settingsViewModel,
             onClose = onGoBack,
-            onAddBin = {
-                settingsViewModel.clearSelectedBinForEdit()
-                onNavigate("inventory_add_bin")
-            },
             onEditBin = { bin ->
                 settingsViewModel.setSelectedBinForEdit(bin)
                 onNavigate("inventory_add_bin")
@@ -968,7 +1017,6 @@ private fun InventoryStructureRouter(
         }
     }
 }
-
 @Composable
 private fun SalesRouter(
     screen: String,
@@ -1744,8 +1792,16 @@ private fun SalesRouter(
 private fun FinanceRouter(
     screen: String,
     token: String,
+    selectedPurchaseReturnId: String? = null,
+    onPurchaseReturnIdSelected: (String?) -> Unit = {},
+    selectedBankAccountId: String? = null,
+    selectedStatementId: String? = null,
+    onStatementIdSelected: (String?) -> Unit = {},
+    onBankAccountIdSelected: (String?) -> Unit = {},
+    selectedCashShiftId: String? = null,
+    onCashShiftSelected: (String?) -> Unit = {},
+    onCreditNoteSelected: (String?) -> Unit = {},
     selectedCreditNoteId: String? = null, // <-- Receive as parameter
-    onCreditNoteSelected: (String?) -> Unit = {}, // <-- Receive as parameter
     isOrderFromFinance: Boolean,
     invoiceForPayment: InvoiceViewOneData?,
     selectedReceiptId: String?,
@@ -2070,6 +2126,66 @@ private fun FinanceRouter(
             )
         }
 
+        // Purchase Returns List Screen
+        // Purchase Returns List Screen
+        "finance_purchase_returns" -> {
+            FinanceReturnScreen(
+                viewModel = financeViewModel,
+                onBack = onGoBack,
+                onCreateReturnClick = {
+                    onNavigate("finance_create_purchase_return") // 👈 Navigates to Create Screen
+                },
+                onReturnClick = { returnId ->
+                    if (returnId.isNotBlank()) {
+                        onPurchaseReturnIdSelected(returnId)
+                        onNavigate("finance_purchase_return_detail")
+                    }
+                }
+            )
+        }
+
+        //  Create Purchase Return Screen
+        "finance_create_purchase_return" -> {
+            CreatePurchaseReturnScreen(
+                onBack = onGoBack,
+                onCreateReturn = {
+                    onGoBack()
+                }
+            )
+        }
+
+        // Purchase Return Detail View Screen
+        "finance_purchase_return_detail" -> {
+            selectedPurchaseReturnId?.takeIf { it.isNotBlank() }?.let { id ->
+                PurchaseReturnDetailScreen(
+                    returnId = id,
+                    viewModel = financeViewModel,
+                    onBack = {
+                        onPurchaseReturnIdSelected(null)
+                        onGoBack()
+                    },
+                    onSettleRefund = {
+                        // Handle settle refund action
+                    },
+                    onViewPo = { poNumber ->
+                        // Navigate to PO details if needed
+                    }
+                )
+            } ?: run {
+                // If ID is missing or null, safely navigate back to avoid blank screen
+                onGoBack()
+            }
+        }
+
+        "finance_vendor_credits" -> {
+            VendorCreditListScreen(
+                viewModel = financeViewModel,
+                onBack = onGoBack,
+                onCreditClick = { creditId ->
+                }
+            )
+        }
+
         // 4. Payments Made -> Inventory Payments Made Screen
         "finance_payments_made" -> {
             AllInventoryPaymentScreen(
@@ -2253,12 +2369,123 @@ private fun FinanceRouter(
             onClose = onGoBack,
             onCreateGroup = { onGoBack() }
         )
+
+        // ── Cash Books List Screen ──
+        "finance_cash_book" -> {
+            CashBookListScreen(
+                viewModel = financeViewModel,
+                branchViewModel = branchViewModel,
+                onBack = onGoBack,
+                onNavigateToDetail = { shiftId ->
+                    onCashShiftSelected(shiftId)
+                    onNavigate("finance_cash_book_detail")
+                }
+            )
+        }
+
+        // ── Cash Book Detail Screen ──
+        "finance_cash_book_detail" -> {
+            selectedCashShiftId?.let { shiftId ->
+                CashBookDetailScreen(
+                    shiftId = shiftId,
+                    viewModel = financeViewModel,
+                    onBack = {
+                        onCashShiftSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
+
+        // ── BANK ACCOUNTS LIST ──
+        "finance_bank_accounts" -> {
+            BankAccountsListScreen(
+                viewModel = financeViewModel,
+                onBack = onGoBack,
+                onNavigateToCreate = {
+                    onNavigate("finance_create_bank_account")
+                },
+                onNavigateToDetail = { accountId ->
+                    if (accountId.isNotBlank()) {
+                        onBankAccountIdSelected(accountId) // Sets non-null ID
+                        onNavigate("finance_bank_account_detail")
+                    }
+                }
+            )
+        }
+
+        // ── CREATE BANK ACCOUNT ──
+        "finance_create_bank_account" -> {
+            CreateBankAccountScreen(
+                viewModel = financeViewModel,
+                branchViewModel = branchViewModel,
+                onBack = onGoBack
+            )
+        }
+
+        // ── BANK ACCOUNT DETAIL ──
+        "finance_bank_account_detail" -> {
+            selectedBankAccountId?.takeIf { it.isNotBlank() }?.let { validId ->
+                BankAccountDetailScreen(
+                    accountId = validId,
+                    viewModel = financeViewModel,
+                    onBack = {
+                        onBankAccountIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                // If ID is missing or null, safely pop back to prevent blank screen
+                onGoBack()
+            }
+        }
+
+        // ── BANK STATEMENTS LIST SCREEN ──
+        "finance_bank_statements" -> {
+            BankStatementListScreen(
+                viewModel = financeViewModel,
+                onBack = onGoBack,
+                onNavigateToImport = {
+                    onNavigate("finance_import_bank_statement")
+                },
+                onNavigateToDetail = { statementId ->
+                    if (statementId.isNotBlank()) {
+                        onStatementIdSelected(statementId)
+                        onNavigate("finance_bank_statement_detail")
+                    }
+                }
+            )
+        }
+
+        // ── BANK STATEMENT DETAIL SCREEN ──
+        "finance_bank_statement_detail" -> {
+            selectedStatementId?.takeIf { it.isNotBlank() }?.let { id ->
+                BankStatementDetailScreen(
+                    statementId = id,
+                    viewModel = financeViewModel,
+                    onBack = {
+                        onStatementIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
+
+        // ── IMPORT BANK STATEMENT FULL PAGE SCREEN ──
+        "finance_import_bank_statement" -> {
+            ImportBankStatementScreen(
+                viewModel = financeViewModel,
+                onBack = onGoBack
+            )
+        }
     }
 }
 
 @Composable
 private fun InventoryMainRouter(
     screen: String,
+    selectedPriceListId: String?,
+    onPriceListIdSelected: (String?) -> Unit,
     selectedApprovalId: String?,
     onApprovalIdSelected: (String?) -> Unit,
     selectedInventoryItemId: String?,
@@ -2608,11 +2835,30 @@ private fun InventoryMainRouter(
         }
 
         "inventory_pricing_list" -> AllPricingScreen(
+            viewModel = inventoryViewModel,
             onClose = onGoBack,
-            onAddNew = { onNavigate("sales_create_price_list") },
-            onItemClick = { },
-            onEditItem = { onNavigate("sales_create_price_list") },
-            onDeleteItem = { }
+            onAddNew = {
+                onPriceListIdSelected(null)
+                inventoryViewModel.clearSelectedPriceListDetail()
+                onNavigate("inventory_new_pricing")
+            },
+            onItemClick = { item ->
+                onPriceListIdSelected(item.id)
+                onNavigate("inventory_new_pricing")
+            },
+            onEditItem = { item ->
+                onPriceListIdSelected(item.id)
+                onNavigate("inventory_new_pricing")
+            }
+        )
+        "inventory_new_pricing" -> NewPriceListScreen(
+            editPriceListId = selectedPriceListId,
+            inventoryViewModel = inventoryViewModel,
+            onClose = {
+                onPriceListIdSelected(null)
+                inventoryViewModel.clearSelectedPriceListDetail()
+                onGoBack()
+            }
         )
 
         // Multi-Channel Basic Info Screen
@@ -2847,7 +3093,7 @@ private fun InventoryProcurementRouter(
             } ?: run { onGoBack() }
         }
 
-        "inventory_barcode", "inventory_procurement_barcode", "inventory_procurement_barcode_list", "inventory_all_barcodes" -> AllBarcodesScreen(
+        "inventory_barcode", "inventory_barcode_list", "inventory_procurement_barcode", "inventory_procurement_barcode_list", "inventory_all_barcodes" -> AllBarcodesScreen(
             onClose = onGoBack,
             onCreateBarcode = {
                 onBarcodeIdForDetailSelected(null)
@@ -3175,6 +3421,11 @@ private fun HrRouter(
                 onEmployeeIdSelected(editMemberId)
             },
             hrViewModel = hrViewModel
+        )
+        // Organization Structure screen (opened from "All Employees" sub-item)
+        "hr_organization_structure" -> OrganizationStructureScreen(
+            hrViewModel = hrViewModel,
+            onClose = onGoBack
         )
 
         "hr_daily_attendance", "hr_attendance" -> AttendanceListScreen(

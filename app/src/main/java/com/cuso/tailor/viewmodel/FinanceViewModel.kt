@@ -50,13 +50,17 @@ import com.cuso.tailor.model.finance.SupplierOverviewData
 import com.cuso.tailor.model.finance.TrialBalanceItem
 import com.cuso.tailor.model.finance.VoidInvoiceRequest
 import com.cuso.tailor.model.finance.VoidInvoiceResponse
+import com.cuso.tailor.model.inventory.PurchaseReceiveItem
+import com.cuso.tailor.model.inventory.PurchaseReceiveListResponse
 import com.cuso.tailor.model.sales.CustomerListResponseV2
 import com.cuso.tailor.model.sales.CustomerOrderItem
 import com.cuso.tailor.model.sales.CustomerOrdersResponse
 import com.cuso.tailor.model.sales.FinanceCustomerViewOneData
 import com.cuso.tailor.model.sales.PaginationInfo
+import com.cuso.tailor.model.settings.BranchItem
 import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.FinanceRepository
+import com.cuso.tailor.repository.SalesRepository
 import com.cuso.tailor.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -87,6 +91,14 @@ sealed class DeleteAccountState {
     object Loading : DeleteAccountState()
     data class Success(val message: String) : DeleteAccountState()
     data class Error(val message: String) : DeleteAccountState()
+}
+
+// ── Sealed UI State for Purchase Return Creation ──
+sealed class CreatePurchaseReturnState {
+    object Idle : CreatePurchaseReturnState()
+    object Loading : CreatePurchaseReturnState()
+    data class Success(val message: String) : CreatePurchaseReturnState()
+    data class Error(val message: String) : CreatePurchaseReturnState()
 }
 
 sealed class CreateExpenseState {
@@ -173,6 +185,22 @@ sealed class ApplyCreditState {
     data class Error(val message: String) : ApplyCreditState()
 }
 
+// ── Sealed state for Opening a Cash Shift ──
+sealed class OpenCashShiftState {
+    object Idle : OpenCashShiftState()
+    object Loading : OpenCashShiftState()
+    data class Success(val message: String) : OpenCashShiftState()
+    data class Error(val message: String) : OpenCashShiftState()
+}
+
+// ── Sealed state for Closing a Cash Shift ──
+sealed class CloseCashShiftState {
+    object Idle : CloseCashShiftState()
+    object Loading : CloseCashShiftState()
+    data class Success(val message: String) : CloseCashShiftState()
+    data class Error(val message: String) : CloseCashShiftState()
+}
+
 // ── Sealed state for Voiding Credit Note ──
 sealed class VoidCreditNoteState {
     object Idle : VoidCreditNoteState()
@@ -181,9 +209,37 @@ sealed class VoidCreditNoteState {
     data class Error(val message: String) : VoidCreditNoteState()
 }
 
+// ── Sealed states for Bank Account Actions ──
+sealed class BankAccountActionState {
+    object Idle : BankAccountActionState()
+    object Loading : BankAccountActionState()
+    data class Success(val message: String) : BankAccountActionState()
+    data class Error(val message: String) : BankAccountActionState()
+}
+
+// ─────────────────────────────────────────────────────────────
+// ── IMPORT STATEMENT UI STATE (Add above or inside FinanceViewModel) ──
+// ─────────────────────────────────────────────────────────────
+sealed class ImportBankStatementState {
+    object Idle : ImportBankStatementState()
+    object Loading : ImportBankStatementState()
+    data class Success(val message: String) : ImportBankStatementState()
+    data class Error(val message: String) : ImportBankStatementState()
+}
+
+// ── Sealed UI State for Delete Purchase Return ──
+sealed class DeletePurchaseReturnState {
+    object Idle : DeletePurchaseReturnState()
+    object Loading : DeletePurchaseReturnState()
+    data class Success(val message: String) : DeletePurchaseReturnState()
+    data class Error(val message: String) : DeletePurchaseReturnState()
+}
+
+
 @HiltViewModel
 class FinanceViewModel @Inject constructor(
     private val financeRepository: FinanceRepository,
+    private val salesRepository: SalesRepository,
     private val repo: ApiRepository
 ) : ViewModel() {
 
@@ -224,6 +280,19 @@ class FinanceViewModel @Inject constructor(
     private var activeExpenseSearch: String? = null
     private var activeExpenseStatus: String? = null
     private var fetchExpensesJob: Job? = null
+
+    // --- Dashboard Filters State ---
+    private val _branches = MutableStateFlow<List<BranchItem>>(emptyList())
+    val branches: StateFlow<List<BranchItem>> = _branches.asStateFlow()
+
+    private val _selectedBranch = MutableStateFlow<BranchItem?>(null)
+    val selectedBranch: StateFlow<BranchItem?> = _selectedBranch.asStateFlow()
+
+    private val _selectedPeriod = MutableStateFlow("this_month") // "this_month" or "this_year"
+    val selectedPeriod: StateFlow<String> = _selectedPeriod.asStateFlow()
+
+    private val _selectedCashFlowRange = MutableStateFlow("last_6_months") // "last_6_months", "last_12_months", "year_wise"
+    val selectedCashFlowRange: StateFlow<String> = _selectedCashFlowRange.asStateFlow()
 
     // 1. KPI State
     private val _kpiData = MutableStateFlow<FinanceKpiData?>(null)
@@ -273,98 +342,313 @@ class FinanceViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    // ── BANK STATEMENTS (List & Pagination) STATE ──
+    private val _bankStatements = MutableStateFlow<List<BankStatementItemDto>>(emptyList())
+    val bankStatements: StateFlow<List<BankStatementItemDto>> = _bankStatements.asStateFlow()
+
+    private val _statementPagination = MutableStateFlow<PaginationInfo?>(null)
+    val statementPagination: StateFlow<PaginationInfo?> = _statementPagination.asStateFlow()
+
+    private val _isLoadingStatements = MutableStateFlow(false)
+    val isLoadingStatements: StateFlow<Boolean> = _isLoadingStatements.asStateFlow()
+
+    private val _isLoadingMoreStatements = MutableStateFlow(false)
+    val isLoadingMoreStatements: StateFlow<Boolean> = _isLoadingMoreStatements.asStateFlow()
+
+    private val _canLoadMoreStatements = MutableStateFlow(true)
+    val canLoadMoreStatements: StateFlow<Boolean> = _canLoadMoreStatements.asStateFlow()
+
+    private val _currentStatementPage = MutableStateFlow(1)
+    val currentStatementPage: StateFlow<Int> = _currentStatementPage.asStateFlow()
+
+    private val _bankStatementError = MutableStateFlow<String?>(null)
+    val bankStatementError: StateFlow<String?> = _bankStatementError.asStateFlow()
+
+    private var activeStatementSearch: String? = null
+    private var fetchStatementsJob: Job? = null
+
+    // ── IMPORT STATEMENT STATE ──
+    private val _importStatementState = MutableStateFlow<ImportBankStatementState>(ImportBankStatementState.Idle)
+    val importStatementState: StateFlow<ImportBankStatementState> = _importStatementState.asStateFlow()
+
     init {
+        loadBranches()
         fetchAllDashboardData()
+        fetchBankAccounts()
+        fetchBankStatements()
+    }
+
+    fun loadBranches() {
+        viewModelScope.launch {
+            salesRepository.getBranches().fold(
+                onSuccess = { res -> if (res.success) _branches.value = res.data },
+                onFailure = { /* Fail silently */ }
+            )
+        }
+    }
+
+    fun setBranch(branch: BranchItem?) {
+        _selectedBranch.value = branch
+        fetchAllDashboardData(branchId = branch?.id, period = _selectedPeriod.value)
+    }
+
+    fun setPeriod(period: String) {
+        _selectedPeriod.value = period
+        fetchAllDashboardData(branchId = _selectedBranch.value?.id, period = period)
+    }
+
+    fun setCashFlowRange(range: String) {
+        _selectedCashFlowRange.value = range
+        fetchCashFlowData(
+            branchId = _selectedBranch.value?.id,
+            period = _selectedPeriod.value,
+            timeRange = range
+        )
     }
 
     /**
      * Executes parallel requests to fetch all dashboard sections
      */
-    fun fetchAllDashboardData() {
+    fun fetchAllDashboardData(
+        branchId: String? = _selectedBranch.value?.id,
+        period: String = _selectedPeriod.value
+    ) {
         viewModelScope.launch {
             _isLoading.value = true
+
+            val queryParams = mutableMapOf<String, Any>("period" to period)
+            if (!branchId.isNullOrBlank() && branchId != "all") {
+                queryParams["branchId"] = branchId
+            }
 
             // 1. Fetch KPI
             launch {
                 repo.request<FinanceKpiResponse> {
-                    get("/api/finance/dashboard/kpi-summary")
+                    get("/api/finance/dashboard/kpi-summary", queryParams)
                 }.onSuccess { _kpiData.value = it.data }
             }
 
             // 2. Fetch Cash Flow Analytics
             launch {
-                repo.request<CashFlowResponse> {
-                    get("/api/finance/dashboard/cash-flow")
-                }.onSuccess { _cashFlowData.value = it.data }
+                fetchCashFlowData(
+                    branchId = branchId,
+                    period = period,
+                    timeRange = _selectedCashFlowRange.value
+                )
             }
 
             // 3. Fetch Distribution
             launch {
                 repo.request<FinanceDistributionResponse> {
-                    get("/api/finance/dashboard/distribution")
+                    get("/api/finance/dashboard/distribution", queryParams)
                 }.onSuccess { _distributionData.value = it.data }
             }
 
             // 4. Fetch Operations Overviews
             launch {
                 repo.request<OperationsOverviewResponse> {
-                    get("/api/finance/dashboard/sales-overview")
+                    get("/api/finance/dashboard/sales-overview", queryParams)
                 }.onSuccess { _salesOverview.value = it.data }
             }
 
             launch {
                 repo.request<OperationsOverviewResponse> {
-                    get("/api/finance/dashboard/purchase-overview")
+                    get("/api/finance/dashboard/purchase-overview", queryParams)
                 }.onSuccess { _purchaseOverview.value = it.data }
             }
 
             launch {
                 repo.request<OperationsOverviewResponse> {
-                    get("/api/finance/dashboard/ledger-overview")
+                    get("/api/finance/dashboard/ledger-overview", queryParams)
                 }.onSuccess { _ledgerOverview.value = it.data }
             }
 
             launch {
                 repo.request<OperationsOverviewResponse> {
-                    get("/api/finance/dashboard/expenses-overview")
+                    get("/api/finance/dashboard/expenses-overview", queryParams)
                 }.onSuccess { _expensesOverview.value = it.data }
             }
 
             launch {
                 repo.request<OperationsOverviewResponse> {
-                    get("/api/finance/dashboard/funds-overview")
+                    get("/api/finance/dashboard/funds-overview", queryParams)
                 }.onSuccess { _fundsOverview.value = it.data }
             }
 
             // 5. Fetch Recent Transactions
             launch {
                 repo.request<RecentTransactionsResponse> {
-                    get("/api/finance/dashboard/recent-transactions")
+                    get("/api/finance/dashboard/recent-transactions", queryParams)
                 }.onSuccess { _recentTransactions.value = it.data?.transactions.orEmpty() }
             }
 
             // 6. Fetch Alerts & Pending Actions
             launch {
                 repo.request<DashboardAlertsResponse> {
-                    get("/api/finance/dashboard/pending-alerts")
+                    get("/api/finance/dashboard/pending-alerts", queryParams)
                 }.onSuccess { _alertsList.value = it.data?.alerts.orEmpty() }
             }
 
             // 7. Fetch Bank Snapshot
             launch {
                 repo.request<BankSnapshotResponse> {
-                    get("/api/finance/dashboard/bank-snapshot")
+                    get("/api/finance/dashboard/bank-snapshot", queryParams)
                 }.onSuccess { _bankSnapshot.value = it.data }
             }
 
             // 8. Fetch Expense by Category
             launch {
                 repo.request<ExpenseByCategoryResponse> {
-                    get("/api/finance/dashboard/expense-by-category")
+                    get("/api/finance/dashboard/expense-by-category", queryParams)
                 }.onSuccess { _expenseCategories.value = it.data?.categories.orEmpty() }
             }
 
             _isLoading.value = false
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+// ── VENDOR CREDITS STATE & API ──
+// ─────────────────────────────────────────────────────────────
+    private val _vendorCredits = MutableStateFlow<List<VendorCreditItemDto>>(emptyList())
+    val vendorCredits: StateFlow<List<VendorCreditItemDto>> = _vendorCredits.asStateFlow()
+
+    private val _isLoadingVendorCredits = MutableStateFlow(false)
+    val isLoadingVendorCredits: StateFlow<Boolean> = _isLoadingVendorCredits.asStateFlow()
+
+    private val _vendorCreditsPagination = MutableStateFlow<PaginationInfo?>(null)
+    val vendorCreditsPagination: StateFlow<PaginationInfo?> = _vendorCreditsPagination.asStateFlow()
+
+    fun fetchVendorCredits(
+        page: Int = 1,
+        limit: Int = 20,
+        search: String? = null
+    ) {
+        launchBusy {
+            _isLoadingVendorCredits.value = true
+            val queryParams = mutableMapOf<String, Any>("page" to page, "limit" to limit)
+            search?.takeIf { it.isNotBlank() }?.let { queryParams["search"] = it.trim() }
+
+            // Endpoint: GET /api/inventory/procurement/vendor-credits/view-all (or vendor-credits)
+            val result = repo.request<VendorCreditListResponse> {
+                get("/api/finance/vendor-credits/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _vendorCredits.value = res.data
+                    _vendorCreditsPagination.value = res.pagination
+                },
+                onFailure = {
+                    _vendorCredits.value = emptyList()
+                }
+            )
+            _isLoadingVendorCredits.value = false
+        }
+    }
+
+    // Purchase returns list state
+    private val _purchaseReturns = MutableStateFlow<List<PurchaseReturnDto>>(emptyList())
+    val purchaseReturns: StateFlow<List<PurchaseReturnDto>> = _purchaseReturns.asStateFlow()
+
+    // Pagination info
+    private val _pagination = MutableStateFlow<ReturnPaginationDto?>(null)
+    val pagination: StateFlow<ReturnPaginationDto?> = _pagination.asStateFlow()
+
+
+    /**
+     * Fetch all purchase returns using ApiRepository
+     */
+    fun fetchPurchaseReturns(page: Int = 1, limit: Int = 20, search: String? = null) {
+        launchBusy {
+            _isLoading.value = true
+            _errorMessage.value = null
+
+            val queryParams = mutableMapOf<String, Any>("page" to page, "limit" to limit)
+            search?.takeIf { it.isNotBlank() }?.let { queryParams["search"] = it.trim() }
+
+            val result = repo.request<PurchaseReturnListResponse> {
+                get("/api/inventory/purchase-return/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _purchaseReturns.value = res.data
+                    _pagination.value = res.pagination
+                },
+                onFailure = { err ->
+                    _purchaseReturns.value = emptyList()
+                    _errorMessage.value = extractErrorMessage(err, "Failed to load purchase returns")
+                }
+            )
+            _isLoading.value = false
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── PURCHASE RETURN DETAIL STATE & API ──
+    // ─────────────────────────────────────────────────────────────
+    private val _purchaseReturnDetail = MutableStateFlow<PurchaseReturnDetailData?>(null)
+    val purchaseReturnDetail: StateFlow<PurchaseReturnDetailData?> = _purchaseReturnDetail.asStateFlow()
+
+    private val _isLoadingReturnDetail = MutableStateFlow(false)
+    val isLoadingReturnDetail: StateFlow<Boolean> = _isLoadingReturnDetail.asStateFlow()
+
+    private val _returnDetailError = MutableStateFlow<String?>(null)
+    val returnDetailError: StateFlow<String?> = _returnDetailError.asStateFlow()
+
+    /**
+     * Fetch Purchase Return View-One by ID
+     * Endpoint: GET /api/inventory/purchase-return/view-one/{id}
+     */
+    fun fetchPurchaseReturnDetail(returnId: String) {
+        if (returnId.isBlank()) return
+        launchBusy {
+            _isLoadingReturnDetail.value = true
+            _returnDetailError.value = null
+            _purchaseReturnDetail.value = null
+
+            val result = repo.request<PurchaseReturnDetailResponse> {
+                get("/api/inventory/purchase-return/view-one/$returnId")
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    _purchaseReturnDetail.value = response.data
+                },
+                onFailure = { error ->
+                    _returnDetailError.value = extractErrorMessage(error, "Failed to load return details")
+                }
+            )
+            _isLoadingReturnDetail.value = false
+        }
+    }
+
+    fun clearPurchaseReturnDetail() {
+        _purchaseReturnDetail.value = null
+        _returnDetailError.value = null
+    }
+
+    /**
+     * Isolated Cash Flow trends query with its own range filter
+     */
+    fun fetchCashFlowData(
+        branchId: String? = _selectedBranch.value?.id,
+        period: String = _selectedPeriod.value,
+        timeRange: String = _selectedCashFlowRange.value
+    ) {
+        viewModelScope.launch {
+            // Must send 'period' and 'timeRange' as seen in the payload screenshot
+            val cfParams = mutableMapOf<String, Any>(
+                "period" to period,
+                "timeRange" to timeRange
+            )
+            if (!branchId.isNullOrBlank() && branchId != "all") {
+                cfParams["branchId"] = branchId
+            }
+            repo.request<CashFlowResponse> {
+                get("/api/finance/dashboard/cash-flow", cfParams)
+            }.onSuccess { _cashFlowData.value = it.data }
         }
     }
 
@@ -2373,6 +2657,942 @@ class FinanceViewModel @Inject constructor(
 //            )
 //        }
 //    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── CASH DRAWER SHIFTS / CASH BOOKS STATE ──
+    // ─────────────────────────────────────────────────────────────
+    private val _cashShifts = MutableStateFlow<List<CashDrawerShiftItemDto>>(emptyList())
+    val cashShifts: StateFlow<List<CashDrawerShiftItemDto>> = _cashShifts.asStateFlow()
+
+    private val _selectedCashShift = MutableStateFlow<CashDrawerShiftItemDto?>(null)
+    val selectedCashShift: StateFlow<CashDrawerShiftItemDto?> = _selectedCashShift.asStateFlow()
+
+    private val _isLoadingCashShifts = MutableStateFlow(false)
+    val isLoadingCashShifts: StateFlow<Boolean> = _isLoadingCashShifts.asStateFlow()
+
+    /**
+     * Fetch all Cash Drawer Shifts / Cash Books
+     * Endpoint: GET /api/finance/pos/shifts/view-all
+     */
+    fun fetchCashShifts(search: String? = null) {
+        viewModelScope.launch {
+            _isLoadingCashShifts.value = true
+            val queryParams = mutableMapOf<String, Any>()
+            if (!search.isNullOrBlank()) queryParams["search"] = search.trim()
+
+            repo.request<CashDrawerShiftListResponse> {
+                get("/api/finance/cash-drawer/shifts", queryParams)
+            }.fold(
+                onSuccess = { res -> _cashShifts.value = res.data },
+                onFailure = { _cashShifts.value = emptyList() }
+            )
+            _isLoadingCashShifts.value = false
+        }
+    }
+
+    /**
+     * Fetch Single Cash Drawer Shift Detail by ID
+     * Endpoint: GET /api/finance/pos/shifts/view-one/{id}
+     */
+    fun fetchCashShiftById(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingCashShifts.value = true
+            _selectedCashShift.value = null
+            repo.request<CashDrawerShiftDetailResponse> {
+                get("/api/finance/cash-drawer/shifts/$id")
+            }.fold(
+                onSuccess = { res -> _selectedCashShift.value = res.data },
+                onFailure = { _selectedCashShift.value = null }
+            )
+            _isLoadingCashShifts.value = false
+        }
+    }
+
+
+    // ── Inside FinanceViewModel Class ──
+    private val _openCashShiftState = MutableStateFlow<OpenCashShiftState>(OpenCashShiftState.Idle)
+    val openCashShiftState: StateFlow<OpenCashShiftState> = _openCashShiftState.asStateFlow()
+
+    fun resetOpenCashShiftState() {
+        _openCashShiftState.value = OpenCashShiftState.Idle
+    }
+
+    /**
+     * Open a New Cash Drawer Shift Session
+     * Endpoint: POST /api/finance/cash-drawer/shifts/open
+     */
+    fun openCashDrawerShift(
+        request: OpenCashShiftRequest,
+        onSuccess: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _openCashShiftState.value = OpenCashShiftState.Loading
+            _isSubmitting.value = true
+            _errorMessage.value = null
+
+            val result = repo.request<OpenCashShiftResponse> {
+                post("/api/finance/cash-drawer/open", request)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val msg = res.message ?: "Cash shift session opened successfully."
+                        _openCashShiftState.value = OpenCashShiftState.Success(msg)
+                        fetchCashShifts() // Refresh cash drawer list immediately
+                        _isSubmitting.value = false
+                        onSuccess(msg)
+                    } else {
+                        val errorMsg = res.message ?: "Failed to open cash drawer shift."
+                        _openCashShiftState.value = OpenCashShiftState.Error(errorMsg)
+                        _isSubmitting.value = false
+                    }
+                },
+                onFailure = { err ->
+                    val errorMsg = extractErrorMessage(err, "Failed to open cash drawer shift.")
+                    _openCashShiftState.value = OpenCashShiftState.Error(errorMsg)
+                    _isSubmitting.value = false
+                }
+            )
+        }
+    }
+
+    // ── Inside FinanceViewModel Class ──
+    private val _closeCashShiftState = MutableStateFlow<CloseCashShiftState>(CloseCashShiftState.Idle)
+    val closeCashShiftState: StateFlow<CloseCashShiftState> = _closeCashShiftState.asStateFlow()
+
+    fun resetCloseCashShiftState() {
+        _closeCashShiftState.value = CloseCashShiftState.Idle
+    }
+
+    /**
+     * Close and Tally a Cash Drawer Shift Session
+     * Endpoint: POST /api/finance/cash-drawer/shifts/close/{id}
+     */
+    fun closeCashDrawerShift(
+        shiftId: String,
+        request: CloseCashShiftRequest,
+        onSuccess: (String) -> Unit = {}
+    ) {
+        if (shiftId.isBlank()) return
+        viewModelScope.launch {
+            _closeCashShiftState.value = CloseCashShiftState.Loading
+            _isSubmitting.value = true
+            _errorMessage.value = null
+
+            val result = repo.request<CloseCashShiftResponse> {
+                post("/api/finance/cash-drawer/close/$shiftId", request)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val msg = res.message ?: "Cash drawer shift closed and tallied successfully."
+                        _closeCashShiftState.value = CloseCashShiftState.Success(msg)
+                        // Refresh current shift view and list
+                        fetchCashShiftById(shiftId)
+                        fetchCashShifts()
+                        _isSubmitting.value = false
+                        onSuccess(msg)
+                    } else {
+                        val errorMsg = res.message ?: "Failed to close cash drawer shift."
+                        _closeCashShiftState.value = CloseCashShiftState.Error(errorMsg)
+                        _isSubmitting.value = false
+                    }
+                },
+                onFailure = { err ->
+                    val errorMsg = extractErrorMessage(err, "Failed to close cash drawer shift.")
+                    _closeCashShiftState.value = CloseCashShiftState.Error(errorMsg)
+                    _isSubmitting.value = false
+                }
+            )
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── BANK ACCOUNTS STATE ──
+    // ─────────────────────────────────────────────────────────────
+    private val _bankAccounts = MutableStateFlow<List<BankAccountItemDto>>(emptyList())
+    val bankAccounts: StateFlow<List<BankAccountItemDto>> = _bankAccounts.asStateFlow()
+
+    private val _selectedBankAccount = MutableStateFlow<BankAccountItemDto?>(null)
+    val selectedBankAccount: StateFlow<BankAccountItemDto?> = _selectedBankAccount.asStateFlow()
+
+    private val _isLoadingBankAccounts = MutableStateFlow(false)
+    val isLoadingBankAccounts: StateFlow<Boolean> = _isLoadingBankAccounts.asStateFlow()
+
+    /**
+     * Fetch all Bank Accounts
+     * Endpoint: GET /api/finance/banking/accounts
+     */
+    fun fetchBankAccounts(search: String? = null) {
+        viewModelScope.launch {
+            _isLoadingBankAccounts.value = true
+            val queryParams = mutableMapOf<String, Any>()
+            if (!search.isNullOrBlank()) queryParams["search"] = search.trim()
+
+            repo.request<BankAccountListResponse> {
+                get("/api/finance/bank-accounts/view-all", queryParams)
+            }.fold(
+                onSuccess = { res -> _bankAccounts.value = res.data },
+                onFailure = { _bankAccounts.value = emptyList() }
+            )
+            _isLoadingBankAccounts.value = false
+        }
+    }
+
+    /**
+     * Fetch Single Bank Account Detail by ID
+     * Endpoint: GET /api/finance/banking/accounts/{id}
+     */
+    fun fetchBankAccountById(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingBankAccounts.value = true
+            _selectedBankAccount.value = null
+            repo.request<BankAccountDetailResponse> {
+                get("/api/finance/bank-accounts/view-one/$id")
+            }.fold(
+                onSuccess = { res -> _selectedBankAccount.value = res.data },
+                onFailure = { _selectedBankAccount.value = null }
+            )
+            _isLoadingBankAccounts.value = false
+        }
+    }
+
+    /**
+     * Create New Bank Account
+     * Endpoint: POST /api/finance/banking/accounts
+     */
+    fun createBankAccount(
+        request: CreateBankAccountRequest,
+        onSuccess: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            _errorMessage.value = null
+
+            val result = repo.request<BankAccountDetailResponse> {
+                post("/api/finance/bank-accounts/create", request)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _isSubmitting.value = false
+                    fetchBankAccounts()
+                    onSuccess(res.message ?: "Bank account created successfully.")
+                },
+                onFailure = { err ->
+                    _errorMessage.value = extractErrorMessage(err, "Failed to create bank account")
+                    _isSubmitting.value = false
+                }
+            )
+        }
+    }
+
+    private val _bankAccountActionState = MutableStateFlow<BankAccountActionState>(BankAccountActionState.Idle)
+    val bankAccountActionState: StateFlow<BankAccountActionState> = _bankAccountActionState.asStateFlow()
+
+    fun resetBankAccountActionState() {
+        _bankAccountActionState.value = BankAccountActionState.Idle
+    }
+
+    /**
+     * Set Bank Account as Organization Default
+     * Endpoint: POST /api/finance/banking/accounts/{id}/set-default
+     */
+    fun setBankAccountAsDefault(
+        accountId: String,
+        onSuccess: (String) -> Unit = {}
+    ) {
+        if (accountId.isBlank()) return
+        viewModelScope.launch {
+            _bankAccountActionState.value = BankAccountActionState.Loading
+            _isSubmitting.value = true
+            _errorMessage.value = null
+
+            val result = repo.request<SetDefaultBankAccountResponse> {
+                patch(
+                    "/api/finance/bank-accounts/set-default/$accountId",
+                    emptyMap<String, Any>()
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val msg = res.message ?: "Bank account set as organization default."
+                        _bankAccountActionState.value = BankAccountActionState.Success(msg)
+                        fetchBankAccounts()
+                        _isSubmitting.value = false
+                        onSuccess(msg)
+                    } else {
+                        val errorMsg = res.message ?: "Failed to set bank account as default."
+                        _bankAccountActionState.value = BankAccountActionState.Error(errorMsg)
+                        _isSubmitting.value = false
+                    }
+                },
+                onFailure = { err ->
+                    val errorMsg = extractErrorMessage(err, "Failed to set bank account as default.")
+                    _bankAccountActionState.value = BankAccountActionState.Error(errorMsg)
+                    _isSubmitting.value = false
+                }
+            )
+        }
+    }
+
+    /**
+     * Archive Bank Account
+     * Endpoint: POST /api/finance/banking/accounts/{id}/archive
+     * (or DELETE /api/finance/banking/accounts/{id})
+     */
+    fun archiveBankAccount(
+        accountId: String,
+        onSuccess: (String) -> Unit = {}
+    ) {
+        if (accountId.isBlank()) return
+        viewModelScope.launch {
+            _bankAccountActionState.value = BankAccountActionState.Loading
+            _isSubmitting.value = true
+            _errorMessage.value = null
+
+            val result = repo.request<ArchiveBankAccountResponse> {
+                post(
+                    "/api/finance/bank-accounts/delete-one/$accountId",
+                    emptyMap<String, Any>()
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val msg = res.message ?: "Bank account successfully archived."
+                        _bankAccountActionState.value = BankAccountActionState.Success(msg)
+                        fetchBankAccounts()
+                        _isSubmitting.value = false
+                        onSuccess(msg)
+                    } else {
+                        val errorMsg = res.message ?: "Failed to archive bank account."
+                        _bankAccountActionState.value = BankAccountActionState.Error(errorMsg)
+                        _isSubmitting.value = false
+                    }
+                },
+                onFailure = { err ->
+                    val errorMsg = extractErrorMessage(err, "Failed to archive bank account.")
+                    _bankAccountActionState.value = BankAccountActionState.Error(errorMsg)
+                    _isSubmitting.value = false
+                }
+            )
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── BANK STATEMENTS (List, Pagination & Import) STATE ──
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Fetch Bank Statements with Pagination & Search
+     * Endpoint: GET /api/finance/bank-statements/view-all
+     */
+    fun fetchBankStatements(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null
+    ) {
+        fetchStatementsJob?.cancel()
+        fetchStatementsJob = launchBusy {
+            _isLoadingStatements.value = true
+            _bankStatementError.value = null
+            _currentStatementPage.value = page
+            activeStatementSearch = search?.trim()?.ifBlank { null }
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to page,
+                "limit" to limit
+            )
+            activeStatementSearch?.let { queryParams["search"] = it }
+
+            val result = repo.request<BankStatementListResponse> {
+                get("/api/finance/bank-statements/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    _bankStatements.value = response.data
+                    _statementPagination.value = response.pagination
+                    val totalPages = response.pagination?.totalPages ?: 1
+                    _canLoadMoreStatements.value = page < totalPages && response.data.isNotEmpty()
+                },
+                onFailure = { e ->
+                    if (e !is CancellationException) {
+                        _bankStatementError.value = extractErrorMessage(e, "Failed to load bank statements")
+                    }
+                }
+            )
+            _isLoadingStatements.value = false
+        }
+    }
+
+    /**
+     * Infinite Scroll Pagination for Bank Statements
+     */
+    fun loadMoreBankStatements(limit: Int = 10) {
+        if (_isLoadingMoreStatements.value || _isLoadingStatements.value || !_canLoadMoreStatements.value) return
+
+        launchBusy {
+            _isLoadingMoreStatements.value = true
+            val nextPage = _currentStatementPage.value + 1
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to nextPage,
+                "limit" to limit
+            )
+            activeStatementSearch?.let { queryParams["search"] = it }
+
+            val result = repo.request<BankStatementListResponse> {
+                get("/api/finance/bank-statements/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    val newItems = response.data
+                    if (newItems.isNotEmpty()) {
+                        _bankStatements.value += newItems
+                        _currentStatementPage.value = nextPage
+                        _statementPagination.value = response.pagination
+                        val totalPages = response.pagination?.totalPages ?: nextPage
+                        _canLoadMoreStatements.value = nextPage < totalPages
+                    } else {
+                        _canLoadMoreStatements.value = false
+                    }
+                },
+                onFailure = {
+                    // Do not lock pagination permanently on error
+                }
+            )
+            _isLoadingMoreStatements.value = false
+        }
+    }
+
+    fun refreshBankStatements() {
+        fetchBankStatements(page = 1, search = activeStatementSearch)
+    }
+
+    /**
+     * Submit Import Bank Statement Request
+     * Endpoint: POST /api/finance/bank-statements/import
+     */
+    fun importBankStatement(
+        request: ImportBankStatementRequest,
+        onSuccess: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _importStatementState.value = ImportBankStatementState.Loading
+
+            val result = repo.request<ImportBankStatementResponse> {
+                post("/api/finance/bank-statements/import", request)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val msg = res.message.ifBlank { "Bank statement imported successfully." }
+                        _importStatementState.value = ImportBankStatementState.Success(msg)
+                        refreshBankStatements()
+                        onSuccess(msg)
+                    } else {
+                        _importStatementState.value = ImportBankStatementState.Error(
+                            res.message.ifBlank { "Failed to import bank statement." }
+                        )
+                    }
+                },
+                onFailure = { err ->
+                    _importStatementState.value = ImportBankStatementState.Error(
+                        extractErrorMessage(err, "Failed to import bank statement.")
+                    )
+                }
+            )
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── BANK STATEMENT DETAIL & ACTIONS STATE ──
+    // ─────────────────────────────────────────────────────────────
+    private val _statementDetail = MutableStateFlow<BankStatementDetailData?>(null)
+    val statementDetail: StateFlow<BankStatementDetailData?> = _statementDetail.asStateFlow()
+
+    private val _isLoadingStatementDetail = MutableStateFlow(false)
+    val isLoadingStatementDetail: StateFlow<Boolean> = _isLoadingStatementDetail.asStateFlow()
+
+    private val _statementDetailError = MutableStateFlow<String?>(null)
+    val statementDetailError: StateFlow<String?> = _statementDetailError.asStateFlow()
+
+    private val _isReconciling = MutableStateFlow(false)
+    val isReconciling: StateFlow<Boolean> = _isReconciling.asStateFlow()
+
+    /**
+     * Fetch Single Bank Statement Detail
+     * Endpoint: GET /api/finance/bank-statements/view-one/{id}
+     */
+    fun fetchBankStatementDetail(statementId: String) {
+        if (statementId.isBlank()) return
+        launchBusy {
+            _isLoadingStatementDetail.value = true
+            _statementDetailError.value = null
+            val result = repo.request<BankStatementDetailResponse> {
+                get("/api/finance/bank-statements/view-one/$statementId")
+            }
+            result.fold(
+                onSuccess = { response ->
+                    _statementDetail.value = response.data
+                },
+                onFailure = { error ->
+                    _statementDetailError.value = extractErrorMessage(error, "Failed to load statement details")
+                }
+            )
+            _isLoadingStatementDetail.value = false
+        }
+    }
+
+    /**
+     * Manual Match Statement Line
+     * Endpoint: POST /api/finance/bank-statements/match-line/{statementId}
+     */
+    fun manualMatchStatementLine(
+        statementId: String,
+        request: ManualMatchRequest,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isReconciling.value = true
+            val result = repo.request<BankStatementDetailResponse> {
+                post("/api/finance/bank-statements/manual-match/$statementId", request)
+            }
+            result.fold(
+                onSuccess = { response ->
+                    _isReconciling.value = false
+                    if (response.success) {
+                        _statementDetail.value = response.data
+                        refreshBankStatements()
+                        onSuccess(response.message.ifBlank { "Line matched successfully." })
+                    } else {
+                        onError(response.message.ifBlank { "Failed to match line." })
+                    }
+                },
+                onFailure = { error ->
+                    _isReconciling.value = false
+                    onError(extractErrorMessage(error, "Failed to match line."))
+                }
+            )
+        }
+    }
+
+    /**
+     * Unmatch Statement Line
+     * Endpoint: POST /api/finance/bank-statements/unmatch-line/{statementId}
+     */
+    fun unmatchStatementLine(
+        statementId: String,
+        statementLineId: String,
+        notes: String = "Manual unmatch requested by accountant",
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isReconciling.value = true
+            val payload = UnmatchStatementLineRequest(statementLineId = statementLineId, notes = notes)
+            val result = repo.request<BankStatementDetailResponse> {
+                post("/api/finance/bank-statements/unmatch/$statementId", payload)
+            }
+            result.fold(
+                onSuccess = { response ->
+                    _isReconciling.value = false
+                    if (response.success) {
+                        _statementDetail.value = response.data
+                        refreshBankStatements()
+                        onSuccess(response.message.ifBlank { "Line unmatched successfully." })
+                    } else {
+                        onError(response.message.ifBlank { "Failed to unmatch line." })
+                    }
+                },
+                onFailure = { error ->
+                    _isReconciling.value = false
+                    onError(extractErrorMessage(error, "Failed to unmatch line."))
+                }
+            )
+        }
+    }
+
+    /**
+     * Run RBS Auto-Reconciliation Algorithm
+     * Endpoint: POST /api/finance/bank-statements/auto-reconcile/{statementId}
+     */
+    fun runRbsAutoReconciliation(
+        statementId: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isReconciling.value = true
+            val result = repo.request<AutoReconcileResponse> {
+                post("/api/finance/bank-statements/auto-reconcile/$statementId", emptyMap<String, Any>())
+            }
+            result.fold(
+                onSuccess = { response ->
+                    _isReconciling.value = false
+                    if (response.success) {
+                        fetchBankStatementDetail(statementId)
+                        refreshBankStatements()
+                        onSuccess(response.message.ifBlank { "Auto-reconciliation executed successfully." })
+                    } else {
+                        onError(response.message.ifBlank { "Failed to run auto-reconciliation." })
+                    }
+                },
+                onFailure = { error ->
+                    _isReconciling.value = false
+                    onError(extractErrorMessage(error, "Auto-reconciliation failed."))
+                }
+            )
+        }
+    }
+
+    /**
+     * Archive Bank Statement
+     * Endpoint: POST /api/finance/bank-statements/archive/{id} (or DELETE /api/finance/bank-statements/delete-one/{id})
+     */
+    fun archiveBankStatement(
+        statementId: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isReconciling.value = true
+            val result = repo.request<GenericDeleteResponse> {
+                delete("/api/finance/bank-statements/delete-one/$statementId")
+            }
+            result.fold(
+                onSuccess = { response ->
+                    _isReconciling.value = false
+                    if (response.success) {
+                        refreshBankStatements()
+                        onSuccess(response.message ?: "Bank statement successfully archived.")
+                    } else {
+                        onError(response.message ?: "Failed to archive bank statement.")
+                    }
+                },
+                onFailure = { error ->
+                    _isReconciling.value = false
+                    onError(extractErrorMessage(error, "Failed to archive bank statement."))
+                }
+            )
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── PURCHASE RETURN ACTION STATE & APIs ──
+    // ─────────────────────────────────────────────────────────────
+    private val _returnActionState = MutableStateFlow<PurchaseReturnActionState>(PurchaseReturnActionState.Idle)
+    val returnActionState: StateFlow<PurchaseReturnActionState> = _returnActionState.asStateFlow()
+
+    fun resetReturnActionState() {
+        _returnActionState.value = PurchaseReturnActionState.Idle
+    }
+
+    /**
+     * Approve Purchase Return
+     * Endpoint: POST /api/inventory/purchase-return/approve/{id}
+     */
+    fun approvePurchaseReturn(returnId: String, onSuccess: (String) -> Unit = {}) {
+        if (returnId.isBlank()) return
+        viewModelScope.launch {
+            _returnActionState.value = PurchaseReturnActionState.Loading
+            val result = repo.request<GenericReturnActionResponse> {
+                post("/api/inventory/purchase-return/$returnId/approve", emptyMap<String, Any>())
+            }
+            result.fold(
+                onSuccess = { response ->
+                    val msg = response.message ?: "Purchase return approved successfully."
+                    _returnActionState.value = PurchaseReturnActionState.Success(msg)
+                    fetchPurchaseReturnDetail(returnId) // Reloads the populated details
+                    fetchPurchaseReturns()
+                    onSuccess(msg)
+                },
+                onFailure = { error ->
+                    val err = extractErrorMessage(error, "Failed to approve purchase return.")
+                    _returnActionState.value = PurchaseReturnActionState.Error(err)
+                }
+            )
+        }
+    }
+
+    /**
+     * Reject Purchase Return
+     * Endpoint: POST /api/inventory/purchase-return/reject/{id}
+     */
+    fun rejectPurchaseReturn(
+        returnId: String,
+        rejectionReason: String,
+        onSuccess: (String) -> Unit = {}
+    ) {
+        if (returnId.isBlank()) return
+        viewModelScope.launch {
+            _returnActionState.value = PurchaseReturnActionState.Loading
+            val result = repo.request<GenericReturnActionResponse> {
+                post(
+                    "/api/inventory/purchase-return/$returnId/reject",
+                    RejectPurchaseReturnRequest(rejectionReason = rejectionReason.trim())
+                )
+            }
+            result.fold(
+                onSuccess = { response ->
+                    val msg = response.message ?: "Purchase return rejected successfully."
+                    _returnActionState.value = PurchaseReturnActionState.Success(msg)
+                    fetchPurchaseReturnDetail(returnId)
+                    fetchPurchaseReturns()
+                    onSuccess(msg)
+                },
+                onFailure = { error ->
+                    val err = extractErrorMessage(error, "Failed to reject purchase return.")
+                    _returnActionState.value = PurchaseReturnActionState.Error(err)
+                }
+            )
+        }
+    }
+
+    /**
+     * Ship Goods for Purchase Return
+     * Endpoint: POST /api/inventory/purchase-return/ship/{id}
+     */
+    fun shipPurchaseReturnGoods(returnId: String, onSuccess: (String) -> Unit = {}) {
+        if (returnId.isBlank()) return
+        viewModelScope.launch {
+            _returnActionState.value = PurchaseReturnActionState.Loading
+            val result = repo.request<GenericReturnActionResponse> {
+                post("/api/inventory/purchase-return/$returnId/ship", emptyMap<String, Any>())
+            }
+            result.fold(
+                onSuccess = { response ->
+                    val msg = response.message ?: "Goods marked as shipped successfully."
+                    _returnActionState.value = PurchaseReturnActionState.Success(msg)
+                    fetchPurchaseReturnDetail(returnId)
+                    fetchPurchaseReturns()
+                    onSuccess(msg)
+                },
+                onFailure = { error ->
+                    val err = extractErrorMessage(error, "Failed to ship goods.")
+                    _returnActionState.value = PurchaseReturnActionState.Error(err)
+                }
+            )
+        }
+    }
+
+    /**
+     * Mark Purchase Return Received by Supplier
+     * Endpoint: POST /api/inventory/purchase-return/mark-received/{id}
+     */
+    fun markPurchaseReturnReceived(returnId: String, onSuccess: (String) -> Unit = {}) {
+        if (returnId.isBlank()) return
+        viewModelScope.launch {
+            _returnActionState.value = PurchaseReturnActionState.Loading
+            val result = repo.request<GenericReturnActionResponse> {
+                post("/api/inventory/purchase-return/$returnId/mark-received", emptyMap<String, Any>())
+            }
+            result.fold(
+                onSuccess = { response ->
+                    val msg = response.message ?: "Goods marked as received by supplier."
+                    _returnActionState.value = PurchaseReturnActionState.Success(msg)
+                    fetchPurchaseReturnDetail(returnId)
+                    fetchPurchaseReturns()
+                    onSuccess(msg)
+                },
+                onFailure = { error ->
+                    val err = extractErrorMessage(error, "Failed to mark as received.")
+                    _returnActionState.value = PurchaseReturnActionState.Error(err)
+                }
+            )
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // ── PURCHASE RETURN: RECEIVES BY PO & GRN RETURNABLE ITEMS ──
+    // ─────────────────────────────────────────────────────────────
+    private val _grnReceivesList = MutableStateFlow<List<PurchaseReceiveItem>>(emptyList())
+    val grnReceivesList: StateFlow<List<PurchaseReceiveItem>> = _grnReceivesList.asStateFlow()
+
+    private val _isLoadingGrnReceives = MutableStateFlow(false)
+    val isLoadingGrnReceives: StateFlow<Boolean> = _isLoadingGrnReceives.asStateFlow()
+
+    private val _returnableGrnData = MutableStateFlow<PurchaseReturnReceiveData?>(null)
+    val returnableGrnData: StateFlow<PurchaseReturnReceiveData?> = _returnableGrnData.asStateFlow()
+
+    private val _isLoadingReturnableItems = MutableStateFlow(false)
+    val isLoadingReturnableItems: StateFlow<Boolean> = _isLoadingReturnableItems.asStateFlow()
+
+    /**
+     * Fetch all GRNs for the chosen Purchase Order
+     * Endpoint: GET /api/inventory/purchase-receive/view-all?poId={poId}&limit=500
+     */
+    fun fetchReceivesByPo(poId: String) {
+        if (poId.isBlank()) {
+            _grnReceivesList.value = emptyList()
+            return
+        }
+        viewModelScope.launch {
+            _isLoadingGrnReceives.value = true
+            val queryParams = mutableMapOf<String, Any>("poId" to poId, "limit" to 500)
+            val result = repo.request<PurchaseReceiveListResponse> {
+                get("/api/inventory/purchase-receive/view-all", queryParams)
+            }
+            result.fold(
+                onSuccess = { res -> _grnReceivesList.value = res.data },
+                onFailure = { _grnReceivesList.value = emptyList() }
+            )
+            _isLoadingGrnReceives.value = false
+        }
+    }
+
+    /**
+     * Fetch items for return from the selected GRN/Receive
+     * Endpoint: GET /api/inventory/purchase-return/receive-items/{receiveId}
+     */
+    fun fetchReturnableItemsByReceiveId(receiveId: String) {
+        if (receiveId.isBlank()) {
+            _returnableGrnData.value = null
+            return
+        }
+        viewModelScope.launch {
+            _isLoadingReturnableItems.value = true
+            val result = repo.request<PurchaseReturnReceiveItemsResponse> {
+                get("/api/inventory/purchase-return/returnable/$receiveId")
+            }
+            result.fold(
+                onSuccess = { res -> _returnableGrnData.value = res.data },
+                onFailure = { _returnableGrnData.value = null }
+            )
+            _isLoadingReturnableItems.value = false
+        }
+    }
+
+    // Inside FinanceViewModel:
+    private val _createPurchaseReturnState = MutableStateFlow<CreatePurchaseReturnState>(CreatePurchaseReturnState.Idle)
+    val createPurchaseReturnState: StateFlow<CreatePurchaseReturnState> = _createPurchaseReturnState.asStateFlow()
+
+    fun resetCreatePurchaseReturnState() {
+        _createPurchaseReturnState.value = CreatePurchaseReturnState.Idle
+    }
+
+    /**
+     * Create Purchase Return Multipart Request
+     * Endpoint: POST /api/inventory/purchase-return/create
+     */
+    fun createPurchaseReturn(
+        poId: String,
+        receiveId: String,
+        returnDate: String,
+        reason: String,
+        itemsJson: String,
+        attachmentParts: List<okhttp3.MultipartBody.Part> = emptyList(),
+        onSuccess: (String) -> Unit = {}
+    ) {
+        launchBusy {
+            _createPurchaseReturnState.value = CreatePurchaseReturnState.Loading
+
+            val partsMap = mapOf(
+                "poId" to repo.text(poId),
+                "receiveId" to repo.text(receiveId),
+                "returnDate" to repo.text(returnDate),
+                "reason" to repo.text(reason),
+                "items" to repo.text(itemsJson)
+            )
+
+            val result = repo.request<CreatePurchaseReturnApiResponse> {
+                postMultipart(
+                    url = "/api/inventory/purchase-return/create",
+                    parts = partsMap,
+                    files = attachmentParts
+                )
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        val msg = response.message ?: "Purchase return request created successfully."
+                        _createPurchaseReturnState.value = CreatePurchaseReturnState.Success(msg)
+                        fetchPurchaseReturns() // Refresh the returns list
+                        onSuccess(msg)
+                    } else {
+                        val err = response.message ?: "Failed to create purchase return"
+                        _createPurchaseReturnState.value = CreatePurchaseReturnState.Error(err)
+                    }
+                },
+                onFailure = { error ->
+                    _createPurchaseReturnState.value = CreatePurchaseReturnState.Error(
+                        extractErrorMessage(error, "Failed to create purchase return")
+                    )
+                }
+            )
+        }
+    }
+
+    // Inside FinanceViewModel:
+    private val _deletePurchaseReturnState = MutableStateFlow<DeletePurchaseReturnState>(DeletePurchaseReturnState.Idle)
+    val deletePurchaseReturnState: StateFlow<DeletePurchaseReturnState> = _deletePurchaseReturnState.asStateFlow()
+
+    fun resetDeletePurchaseReturnState() {
+        _deletePurchaseReturnState.value = DeletePurchaseReturnState.Idle
+    }
+
+    /**
+     * Delete Purchase Return by ID
+     * Endpoint: DELETE /api/inventory/purchase-return/delete-one/{id}
+     */
+    fun deletePurchaseReturn(
+        returnId: String,
+        onSuccess: (String) -> Unit = {}
+    ) {
+        if (returnId.isBlank()) return
+        launchBusy {
+            _deletePurchaseReturnState.value = DeletePurchaseReturnState.Loading
+
+            val result = repo.request<GenericDeleteResponse> {
+                delete("/api/inventory/purchase-return/delete-one/$returnId")
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        val msg = response.message ?: "Purchase return deleted successfully."
+                        _deletePurchaseReturnState.value = DeletePurchaseReturnState.Success(msg)
+                        fetchPurchaseReturns() // Automatically fetches the updated list
+                        onSuccess(msg)
+                    } else {
+                        val err = response.message ?: "Failed to delete purchase return."
+                        _deletePurchaseReturnState.value = DeletePurchaseReturnState.Error(err)
+                    }
+                },
+                onFailure = { error ->
+                    _deletePurchaseReturnState.value = DeletePurchaseReturnState.Error(
+                        extractErrorMessage(error, "Failed to delete purchase return.")
+                    )
+                }
+            )
+        }
+    }
+
+    fun clearReturnCreationStates() {
+        _grnReceivesList.value = emptyList()
+        _returnableGrnData.value = null
+    }
+
+    fun resetImportBankStatementState() {
+        _importStatementState.value = ImportBankStatementState.Idle
+    }
+
+    fun clearSelectedCashShift() {
+        _selectedCashShift.value = null
+    }
 
     fun clearSelected() {
         _selectedCreditNote.value = null

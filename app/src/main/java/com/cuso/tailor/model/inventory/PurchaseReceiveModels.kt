@@ -12,6 +12,8 @@ data class AllReceivesResponse(
     @SerializedName("data") val data: List<PurchaseReceiveItem> = emptyList()
 )
 
+typealias PurchaseReceiveListResponse = AllReceivesResponse
+
 data class ReceivePaginationDto(
     @SerializedName("total") val total: Int,
     @SerializedName("page") val page: Int,

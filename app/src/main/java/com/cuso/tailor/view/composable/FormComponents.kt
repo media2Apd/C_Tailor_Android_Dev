@@ -44,7 +44,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.Primary
-import com.cuso.tailor.ui.theme.disabled
 import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.redText
@@ -240,13 +239,14 @@ fun FormTextField(
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
     placeholder: String = "",
+    trailingText: String? = null,                   // <-- Added trailing right-side label
     isError: Boolean = false,
     errorMessage: String? = null,
     enabled: Boolean = true,
-    borderColor: Color = grey_border,               // Customizable border color
-    textColor: Color = Color(0xFF374151),            // Customizable text color
-    placeholderColor: Color = Color(0xFF9CA3AF),      // Customizable placeholder color
-    containerColor: Color = whiteBg,                 // Customizable background container color
+    borderColor: Color = grey_border,
+    textColor: Color = Color(0xFF374151),
+    placeholderColor: Color = Color(0xFF9CA3AF),
+    containerColor: Color = whiteBg,
     keyboardCapitalization: androidx.compose.ui.text.input.KeyboardCapitalization =
         androidx.compose.ui.text.input.KeyboardCapitalization.None,
     visualTransformation: androidx.compose.ui.text.input.VisualTransformation =
@@ -257,7 +257,6 @@ fun FormTextField(
     val isAppBusy by AppLoadingManager.busyState.collectAsState()
     val effectiveEnabled = enabled && !isAppBusy
 
-    // Determine final border color based on error state or custom color
     val activeBorderColor = if (isError) redText else borderColor
     val activeContainerColor = if (effectiveEnabled) containerColor else light_grey
 
@@ -277,31 +276,51 @@ fun FormTextField(
             .padding(horizontal = tokens.cardPadding * 0.6f),
         contentAlignment = Alignment.CenterStart
     ) {
-        if (value.isEmpty() && placeholder.isNotEmpty()) {
-            Text(
-                text = placeholder,
-                fontSize = tokens.bodySmall,
-                color = placeholderColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            enabled = effectiveEnabled,
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = keyboardType,
-                capitalization = keyboardCapitalization
-            ),
-            visualTransformation = visualTransformation,
-            textStyle = TextStyle(
-                fontSize = tokens.bodyMedium,
-                color = if (effectiveEnabled) textColor else textColor.copy(alpha = 0.5f)
-            )
-        )
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (value.isEmpty() && placeholder.isNotEmpty()) {
+                    Text(
+                        text = placeholder,
+                        fontSize = tokens.bodySmall,
+                        color = placeholderColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    enabled = effectiveEnabled,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = keyboardType,
+                        capitalization = keyboardCapitalization
+                    ),
+                    visualTransformation = visualTransformation,
+                    textStyle = TextStyle(
+                        fontSize = tokens.bodyMedium,
+                        color = if (effectiveEnabled) textColor else textColor.copy(alpha = 0.5f)
+                    )
+                )
+            }
+
+            if (!trailingText.isNullOrBlank()) {
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = trailingText,
+                    fontSize = tokens.bodySmall,
+                    color = Color(0xFF94A3B8),
+                    fontWeight = FontWeight.Normal
+                )
+            }
+        }
     }
     if (isError && !errorMessage.isNullOrBlank()) {
         Text(

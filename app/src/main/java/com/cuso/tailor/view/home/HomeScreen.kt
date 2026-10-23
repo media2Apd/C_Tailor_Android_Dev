@@ -74,6 +74,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.adaptive_screen.getAdaptiveTokens
 import com.cuso.tailor.database.entities.SalesStatusEntity
 import com.cuso.tailor.model.finance.InvoiceViewOneData
+import com.cuso.tailor.model.hr.ExpenseClaimDto
 import com.cuso.tailor.model.inventory.LowStockItemDto
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Organization
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Settings
@@ -233,11 +234,17 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     // HR Training Management state
     var selectedTrainingProgramId by remember { mutableStateOf<String?>(null) }
     var selectedTrainingAssignmentId by remember { mutableStateOf<String?>(null) }
+    // HR Expense State
+    var selectedExpenseClaimId by remember { mutableStateOf<String?>(null) }
+    var selectedExpenseTypeId by remember { mutableStateOf<String?>(null) }
+    var selectedClaimForPayment by remember { mutableStateOf<ExpenseClaimDto?>(null) }
+
 
     // Services State
     var selectedFeedbackId by remember { mutableStateOf<String?>(null) }
     var selectedServiceTemplate by remember { mutableStateOf<ProductionTemplateDto?>(null) }
     var selectedServiceRequestId by remember { mutableStateOf<String?>(null) }
+    var selectedAlterationId by remember { mutableStateOf<String?>(null) }
 
     // Dashboard recent-customer navigation state
     var selectedRecentCustomerId by remember { mutableStateOf<String?>(null) }
@@ -620,6 +627,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "inventory_new_pricing",
 
             // ── HR ──
+
+            "hr_dashboard",
             "hr_all_employees",
             "hr_employee_onboarding",
             "hr_employee_management",
@@ -655,6 +664,16 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "hr_document_categories",
             "hr_employee_document_upload",
             "hr_new_document_upload",
+            "hr_expense_claims",
+            "hr_expense_new_claim",
+            "hr_expense_type",
+            "hr_add_expense_type",
+            "hr_submit_expense_claim",
+            "hr_expense_claim_detail",
+            "hr_expense_claim_detail_readonly",
+            "hr_expense_finance_reimbursement",
+            "hr_edit_expense_claim",
+            "hr_expense_process_payment",
 
             "hr_document_categories",
             "hr_add_document_category",
@@ -681,6 +700,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "services_service_request",
             "create_request",
             "review_services",
+            "review_service_request",
             "services_service_templates",
             "services_create_service_template",
             "services_view_service_template",
@@ -698,9 +718,16 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         )
     }
 
+    // Module prefixes that automatically allow navigation without manual registration
+    val autoAllowedPrefixes = remember {
+        listOf("legal_", "hr_", "sales_", "finance_", "inventory_", "logistics_", "services_", "reports_", "home_")
+    }
+
     fun safeNavigate(route: String) {
         val navKey = normalizeRoute(route)
-        if (navKey in implementedRoutes) {
+        val isAutoAllowed = autoAllowedPrefixes.any { navKey.startsWith(it) }
+
+        if (navKey in implementedRoutes || isAutoAllowed) {
             isSalesSettingsMode = false
             navigateTo(navKey)
         } else {
@@ -799,6 +826,13 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
+                "create_alteration", "view_alteration" -> selectedAlterationId = null
+                "hr_expense_process_payment" -> selectedClaimForPayment = null
+                "hr_add_expense_type" -> selectedExpenseTypeId = null
+                "hr_expense_claim_detail",
+                "hr_submit_expense_claim",
+                "hr_edit_expense_claim" -> selectedExpenseClaimId = null
+                "hr_expense_claim_detail", "hr_submit_expense_claim" -> selectedExpenseClaimId = null
                 "inventory_new_pricing" -> selectedPriceListId = null
                 "finance_purchase_return_detail" -> selectedPurchaseReturnId = null
                 "finance_bank_account_detail" -> selectedBankAccountId = null
@@ -814,7 +848,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 "hr_add_edit_program" -> selectedTrainingProgramId = null
                 "hr_payroll_salary_templates_form" -> selectedSalaryTemplateId = null
                 "hr_payroll_salary_components_create" -> selectedSalaryComponentId = null
-                "review_services" -> selectedServiceRequestId = null
+                "review_services", "review_service_request" -> selectedServiceRequestId = null
                 "create_opportunity", "opportunity_detail" -> selectedOpportunityId = null
                 "services_view_service_template", "services_create_service_template" -> {
                     android.util.Log.d("TEMPLATE_NAV_DEBUG", ">> BackHandler: Clearing selectedServiceTemplate")
@@ -1000,6 +1034,14 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+                            selectedAlterationId = selectedAlterationId,
+                            onAlterationIdSelected = { selectedAlterationId = it },
+                            selectedClaimForPayment = selectedClaimForPayment,
+                            onClaimForPaymentSelected = { selectedClaimForPayment = it },
+                            selectedExpenseTypeId = selectedExpenseTypeId,
+                            onExpenseTypeIdSelected = { selectedExpenseTypeId = it },
+                            selectedExpenseClaimId = selectedExpenseClaimId,
+                            onExpenseClaimIdSelected = { selectedExpenseClaimId = it },
                             selectedPriceListId = selectedPriceListId,
                             onPriceListIdSelected = { selectedPriceListId = it },
                             selectedPurchaseReturnId = selectedPurchaseReturnId,
@@ -1941,9 +1983,12 @@ fun normalizeRoute(rawKey: String): String {
         "services_customer_feedback" -> "services_customer_feedback"
         "services_alteration_management" -> "services_alteration_management"
         "services_service_request" -> "services_service_request"
-        "services_service_orders", "services_service_order" -> "services_service_orders"
+        // Map Production Orders to Service Orders screen
+        "services_production_orders",
+        "services_service_orders",
+        "services_service_order" -> "services_service_order"
         "service_order_overview" -> "service_order_overview"
-
+        "hr_dashboard", "hr_team_dashboard" -> "hr_dashboard"
         "hr_employees",
         "hr_employee_management" -> "hr_all_employees"
         "hr_payroll_salary_structure",
@@ -1965,11 +2010,21 @@ fun normalizeRoute(rawKey: String): String {
         "hr_assign_management",
         "hr_assigning_management",
         "hr_training_assignment_list" -> "hr_training_assignment_list"
+        "hr_expense_claim_detail" -> "hr_expense_claim_detail"
+
+        "legal_dashboard" -> "legal_dashboard"
 
         "hr_document_categories" -> "hr_document_categories"
         "hr_employee_document_upload" -> "hr_employee_document_upload"
         "hr_new_document_upload" -> "hr_new_document_upload"
-
+        "hr_expense_claims", "hr_expense_management", "hr_expense_approvals" -> "hr_expense_claims"
+        "hr_expense_new_claim" -> "hr_expense_new_claim"
+        "hr_expense_type" -> "hr_expense_type"
+        "hr_edit_expense_claim" -> "hr_edit_expense_claim"
+        "hr_submit_expense_claim" -> "hr_submit_expense_claim"
+        "hr_expense_claim_detail_readonly" -> "hr_expense_claim_detail_readonly"
+        "hr_expense_finance_reimbursement" -> "hr_expense_finance_reimbursement"
+        "hr_expense_process_payment" -> "hr_expense_process_payment"
         "reports_sales" -> "reports_sales"
         "reports_marketing" -> "reports_marketing"
         "reports_inventory", "reports_reports_inventory" -> "reports_inventory"

@@ -112,7 +112,10 @@ fun AppUnderlineTabRow(
                                 Primary
                             } else {
                                 close_color
-                            }
+                            },
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     }
                 )

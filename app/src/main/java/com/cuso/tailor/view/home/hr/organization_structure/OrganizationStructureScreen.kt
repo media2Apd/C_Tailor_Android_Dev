@@ -1,4 +1,4 @@
-@file:Suppress("unused", "UNUSED_PARAMETER","UNUSED_VARIABLE")
+@file:Suppress("unused", "UNUSED_PARAMETER", "UNUSED_VARIABLE")
 
 package com.cuso.tailor.view.home.hr.organization_structure
 
@@ -25,7 +25,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
@@ -53,27 +52,22 @@ fun OrganizationStructureScreen(
 
     var selectedDepartment by remember { mutableStateOf("All Departments") }
     var isDeptDropdownExpanded by remember { mutableStateOf(false) }
-    var viewMode by remember { mutableStateOf(StructureViewMode.VERTICAL) }
 
-    // Fetch API on load
     LaunchedEffect(Unit) {
         hrViewModel.fetchOrgStructure()
     }
 
-    // Separate Hierarchy:
-    // Level 1: Owner
     val owners = remember(members) {
         members.filter { it.role.equals("owner", ignoreCase = true) }
     }
 
-    // Level 2: Managers / Direct reports under owner
     val managersAndMembers = remember(members) {
         members.filterNot { it.role.equals("owner", ignoreCase = true) }
     }
 
     Scaffold(
         containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0,0,0,0),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TitleBar(
                 title = "Organization Structure",
@@ -95,20 +89,17 @@ fun OrganizationStructureScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(horizontal = tokens.screenPadding),
+                contentPadding = PaddingValues(top = tokens.screenPadding, bottom = tokens.screenPadding),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Header with subtitle description
                 item {
                     Column {
-                        // Filter Row: Department on the Left, Toggle buttons on the Right
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.Bottom
                         ) {
-                            // Department dropdown
                             Column(modifier = Modifier.weight(1f)) {
                                 FormLabel("Department")
                                 FormDropdown(
@@ -126,21 +117,19 @@ fun OrganizationStructureScreen(
                     }
                 }
 
-                // Organization hierarchy container card
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.7f),
+                        colors = CardDefaults.cardColors(containerColor = whiteBg),
+                        border = BorderStroke(1.dp, sectionBorder)
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                .padding(tokens.screenPadding * 0.85f),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // 1. Level 1: Owners Card
                             owners.forEach { owner ->
                                 var isExpanded by remember { mutableStateOf(true) }
 
@@ -153,7 +142,6 @@ fun OrganizationStructureScreen(
                                         onToggleExpand = { isExpanded = !isExpanded }
                                     )
 
-                                    // Dropdown children (Members under owner)
                                     AnimatedVisibility(
                                         visible = isExpanded,
                                         enter = expandVertically() + fadeIn(),
@@ -162,8 +150,8 @@ fun OrganizationStructureScreen(
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(start = 24.dp, top = 12.dp),
-                                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                                .padding(start = 20.dp, top = 10.dp),
+                                            verticalArrangement = Arrangement.spacedBy(10.dp)
                                         ) {
                                             managersAndMembers.forEach { childMember ->
                                                 MemberCardItem(
@@ -176,7 +164,6 @@ fun OrganizationStructureScreen(
                                 }
                             }
 
-                            // If no owner is assigned, fallback list
                             if (owners.isEmpty()) {
                                 managersAndMembers.forEach { member ->
                                     MemberCardItem(member = member)
@@ -190,9 +177,6 @@ fun OrganizationStructureScreen(
     }
 }
 
-/**
- * Reusable Member hierarchy card matching the design exactly
- */
 @Composable
 private fun MemberCardItem(
     member: OrgMemberDto,
@@ -201,76 +185,68 @@ private fun MemberCardItem(
     isExpanded: Boolean = false,
     onToggleExpand: () -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
             .clickable(enabled = hasChildren) { onToggleExpand() },
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
+        colors = CardDefaults.cardColors(containerColor = whiteBg),
+        border = BorderStroke(1.dp, sectionBorder)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Dark Squarish Rounded Avatar (Matching screenshot)
             Box(
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF1E293B)),
+                    .size(tokens.imageDp * 0.75f)
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.4f))
+                    .background(title_color),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = member.initials,
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
+                    color = whiteBg,
+                    fontSize = tokens.bodySmall,
+                    fontWeight = FontWeight.Medium
                 )
             }
 
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
 
-            // Info Column with tight line heights & exact alignments
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center
             ) {
-                // Name
                 Text(
                     text = member.fullName,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A),
-                    lineHeight = 16.sp
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary
                 )
 
-                Spacer(Modifier.height(3.dp))
+                Spacer(Modifier.height(2.dp))
 
-                // Role / Designation
                 Text(
                     text = member.role.ifBlank { "owner" }.lowercase(),
-                    fontSize = 13.sp,
+                    fontSize = tokens.caption,
                     fontWeight = FontWeight.Normal,
-                    color = Color(0xFF94A3B8),
-                    lineHeight = 14.sp
+                    color = iconMuted
                 )
 
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(4.dp))
 
-                // Active dot & Reports count tag
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
                             .size(6.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF10B981))
+                            .background(complete_button_bg)
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
@@ -279,24 +255,19 @@ private fun MemberCardItem(
                         } else {
                             "ACTIVE"
                         },
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF64748B),
-                        letterSpacing = 0.6.sp,
-                        lineHeight = 10.sp
+                        fontSize = tokens.label,
+                        fontWeight = FontWeight.Medium,
+                        color = headerGrey
                     )
                 }
             }
 
-            // Dropdown Chevron Indicator (Right aligned)
             if (hasChildren) {
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = if (isExpanded) "Collapse" else "Expand",
-                    tint = Color(0xFF64748B),
-                    modifier = Modifier
-                        .size(22.dp)
-                        .padding(end = 2.dp)
+                    tint = headerGrey,
+                    modifier = Modifier.size(tokens.iconSize)
                 )
             }
         }

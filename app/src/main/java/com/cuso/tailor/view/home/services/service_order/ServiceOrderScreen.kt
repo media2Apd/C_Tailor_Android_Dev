@@ -27,38 +27,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.tailor.R
-import com.cuso.tailor.ui.theme.BluePrimary
-import com.cuso.tailor.ui.theme.BorderGray
-import com.cuso.tailor.ui.theme.TextSecondary
-import com.cuso.tailor.view.composable.CirculerProgressIndicatorSmall
-import com.cuso.tailor.view.composable.DataCard
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
-import com.cuso.tailor.view.composable.ErrorMapper
-import com.cuso.tailor.view.composable.FabScaffold
-import com.cuso.tailor.view.composable.ListSkeleton
-import com.cuso.tailor.view.composable.MenuAction
-import com.cuso.tailor.view.composable.SearchFilterBar
-import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.viewmodel.OrderActionState
-import com.cuso.tailor.viewmodel.OrderUiState
-import com.cuso.tailor.viewmodel.SalesOrderViewModel
+import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.viewmodel.ServicesViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
-import androidx.compose.ui.text.style.TextOverflow
-import com.cuso.tailor.ui.theme.light_grey
-import com.cuso.tailor.ui.theme.redText
-import com.cuso.tailor.ui.theme.title_border
-import com.cuso.tailor.view.composable.AppErrorState
 
 @Composable
 fun ServiceOrderScreen(
@@ -68,13 +49,15 @@ fun ServiceOrderScreen(
     onCreateOrder: () -> Unit = {},
     onViewOrder: (String) -> Unit = {},
     onEditOrder: (String) -> Unit = {},
-    onBreadCrumbClick: () -> Unit = {}
+    onBreadCrumbClick: () -> Unit = {},
+    viewModel: ServicesViewModel = hiltViewModel()
 ) {
-    val viewModel: SalesOrderViewModel = hiltViewModel()
-    val orderState by viewModel.orderState.collectAsStateWithLifecycle()
-    val actionState by viewModel.actionState.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
-    val canLoadMore by viewModel.canLoadMore.collectAsStateWithLifecycle()
+    val tokens = LocalAppTokens.current
+
+    // Observe API states from ServicesViewModel
+    val serviceRequests by viewModel.serviceRequestsList.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingServiceRequestsList.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.serviceRequestsListError.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
@@ -82,324 +65,265 @@ fun ServiceOrderScreen(
     var searchQuery by remember { mutableStateOf("") }
     var statusFilter by remember { mutableStateOf("all") }
 
-    var successMessage by remember { mutableStateOf<String?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    // Infinite scroll listener
-    LaunchedEffect(listState) {
-        snapshotFlow {
-            val info = listState.layoutInfo
-            val total = info.totalItemsCount
-            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
-            total > 0 && lastVisible >= total - 3
-        }
-            .distinctUntilChanged()
-            .collect { nearEnd ->
-                if (nearEnd && canLoadMore && !isLoadingMore) {
-                    viewModel.loadMoreOrders()
-                }
-            }
-    }
-
-    // Debounced search and status filter
+    // Debounced search and filter triggering the API
     LaunchedEffect(searchQuery, statusFilter) {
         delay(400)
-        viewModel.fetchOrders(
+        viewModel.fetchServiceRequestsList(
             page = 1,
-            limit = 10,
+            limit = 20,
             search = searchQuery.takeIf { it.isNotBlank() },
             status = statusFilter.takeIf { it != "all" }
         )
     }
 
-    LaunchedEffect(orderState) {
-        if (orderState is OrderUiState.Error) {
-            errorMessage = ErrorMapper.map((orderState as OrderUiState.Error).message)
-        }
-    }
-
-    LaunchedEffect(actionState) {
-        when (val s = actionState) {
-            is OrderActionState.Success -> {
-                successMessage = s.message.ifBlank { "Service order updated successfully" }
-                viewModel.resetActionState()
-            }
-            is OrderActionState.Error -> {
-                errorMessage = ErrorMapper.map(s.message)
-                viewModel.resetActionState()
-            }
-            else -> Unit
-        }
-    }
-
-    val isLoading = orderState is OrderUiState.Loading
-    val orders = (orderState as? OrderUiState.Success)?.orders ?: emptyList()
-
     FabScaffold(
-//        fab = FabConfig(
-//            label = "Create Service Order",
-//            icon = Icons.Default.Add,
-//            onClick = { onCreateOrder() },
-//            bottomPadding = 50.dp
-//        )
-        fab=null,
+        fab = null,
         snackbarHostState = snackbarHostState,
         modifier = Modifier.fillMaxSize()
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().background(Primary_background)) {
             Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
 
+                // Top Title Bar
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    TitleBar(title ="Service Orders", onClose = onBack)
+                    TitleBar(title = "Service Orders", onClose = onBack)
                 }
 
+                // Search & Filter Component
                 Column(modifier = Modifier.fillMaxWidth()) {
-
                     SearchFilterBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
-                        placeholder = "Search Customers...",
+                        placeholder = "Search Customers, Code...",
                         accentColor = BluePrimary,
                         borderColor = BorderGray,
                         textSecondaryColor = TextSecondary,
-                        onFilterClick = { /* Open filter drawer if needed */ }
+                        onFilterClick = { /* Handle filter drawer */ }
                     )
                 }
                 HorizontalDivider(color = title_border)
 
+                // Main Content List Area
                 Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     when {
-                        isLoading -> {
+                        isLoading && serviceRequests.isEmpty() -> {
                             ListSkeleton()
                         }
-                        orderState is OrderUiState.Error -> {
+
+                        errorMessage != null && serviceRequests.isEmpty() -> {
                             AppErrorState(
-                                title = "Failed to load dashboard",
-                                message = "Something went wrong. Please check your connection and try again.",
-                                onRetry = { viewModel.fetchOrders() }
+                                title = "Failed to load service requests",
+                                message = errorMessage ?: "Please check your network and try again.",
+                                onRetry = { viewModel.fetchServiceRequestsList() }
                             )
                         }
-                        orderState is OrderUiState.Success -> {
-                            if (orders.isEmpty()) {
-                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(Icons.Default.Receipt, null, tint = Color.LightGray, modifier = Modifier.size(48.dp))
-                                        Spacer(Modifier.height(8.dp))
-                                        Text("No service orders found", color = Color.Gray, fontSize = 15.sp)
-                                    }
+
+                        serviceRequests.isEmpty() -> {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.Receipt,
+                                        contentDescription = null,
+                                        tint = mutedText,
+                                        modifier = Modifier.size(tokens.iconSize * 2.2f)
+                                    )
+                                    Spacer(Modifier.height(tokens.extraPadding / 2))
+                                    Text(
+                                        text = "No service orders found",
+                                        color = TextSecondary,
+                                        fontSize = tokens.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
                                 }
-                            } else {
-                                Column(modifier = Modifier.fillMaxSize()) {
-                                    LazyColumn(
-                                        state = listState,
-                                        modifier = Modifier.fillMaxWidth().weight(1f)
-                                    ) {
-                                        items(orders, key = { it.id }) { order ->
-                                            val garmentNames = order.garments.joinToString(", ") {
-                                                "${it.categoryName} (${it.quantity})"
-                                            }.ifEmpty { "—" }
+                            }
+                        }
 
-                                            val (statusBg, statusText) = when (order.status?.lowercase()) {
-                                                "completed" -> Color(0xFFDCFCE7) to Color(0xFF16A34A)
-                                                "pending" -> Color(0xFFFEF3C7) to Color(0xFFD97706)
-                                                "cancelled" -> Color(0xFFFEE2E2) to redText
-                                                else -> Color(0xFFDCFCE7) to Color(0xFF16A34A)
-                                            }
+                        else -> {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                items(serviceRequests, key = { it.id }) { request ->
+                                    // Extract summary of garments
+                                    val garmentNames = request.items?.joinToString(", ") { item ->
+                                        val name = item.garmentName?.takeIf { it.isNotBlank() }
+                                            ?: item.garmentDescription?.takeIf { it.isNotBlank() }
+                                            ?: item.category
+                                            ?: "Garment"
+                                        "$name (${item.quantity ?: 1})"
+                                    }?.ifBlank { "—" } ?: "—"
 
-                                            val priorityColor = redText
-
-                                            DataCard(
-                                                item = order,
-                                                eyebrowText = "Order ID: ${order.orderNumber}",
-                                                eyebrowColor = Color(0xFF6B7280),
-                                                topBadgeText = "Active",
-                                                topBadgeBgColor = Color(0xFFEDE9FE),
-                                                topBadgeTextColor = Color(0xFF4338CA),
-                                                topBadgeShowDot = false,
-                                                topBadgeInline = false,
-                                                showActionsInHeader = true,
-                                                title = order.customerId?.name ?: "Unknown",
-                                                titleFontWeight = FontWeight.SemiBold,
-                                                titleColor = Color(0xFF111827),
-                                                actions = listOf(
-                                                    MenuAction("View", Icons.Default.Visibility) { onViewOrder(order.id) },
-                                                    MenuAction("Edit", Icons.Default.Edit) { onEditOrder(order.id) }
-                                                ),
-                                                onClick = { onViewOrder(order.id) },
-                                                content = {
-                                                    // Item Details (Tag Icon)
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .padding(top = 2.dp)
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(id = R.drawable.ic_tag),
-                                                            contentDescription = null,
-                                                            tint = Color(0xFF9CA3AF),
-                                                            modifier = Modifier.size(16.dp)
-                                                        )
-                                                        Spacer(Modifier.width(8.dp))
-                                                        Text(
-                                                            text = garmentNames,
-                                                            fontSize = 14.sp,
-                                                            color = Color(0xFF6B7280),
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis
-                                                        )
-                                                    }
-
-                                                    Spacer(Modifier.height(6.dp))
-
-                                                    // Delivery Date (Calendar Icon)
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        modifier = Modifier.fillMaxWidth()
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.ic_calendar),
-                                                            contentDescription = null,
-                                                            tint = Color(0xFF9CA3AF),
-                                                            modifier = Modifier.size(16.dp)
-                                                        )
-                                                        Spacer(Modifier.width(8.dp))
-                                                        Text(
-                                                            text = "Delivery: ${order.deliveryDate.toDisplayDate()}",
-                                                            fontSize = 14.sp,
-                                                            color = Color(0xFF6B7280)
-                                                        )
-                                                    }
-
-                                                    Spacer(Modifier.height(10.dp))
-                                                    HorizontalDivider(color = light_grey, thickness = 2.dp)
-                                                    Spacer(Modifier.height(10.dp))
-
-                                                    // Bottom Split: Priority & Status (Left) | Total & Paid (Right)
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                        verticalAlignment = Alignment.Bottom
-                                                    ) {
-                                                        // Left Column: Priority + Status Pill
-                                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .size(8.dp)
-                                                                        .clip(CircleShape)
-                                                                        .background(priorityColor)
-                                                                )
-                                                                Spacer(Modifier.width(6.dp))
-                                                                Text(
-                                                                    text = "High Priority",
-                                                                    fontSize = 13.sp,
-                                                                    fontWeight = FontWeight.Medium,
-                                                                    color = Color(0xFF374151)
-                                                                )
-                                                            }
-
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .clip(RoundedCornerShape(20.dp))
-                                                                    .background(statusBg)
-                                                                    .padding(horizontal = 14.dp, vertical = 6.dp)
-                                                            ) {
-                                                                Text(
-                                                                    text = order.status?.replaceFirstChar { it.uppercase() } ?: "Completed",
-                                                                    fontSize = 13.sp,
-                                                                    fontWeight = FontWeight.SemiBold,
-                                                                    color = statusText
-                                                                )
-                                                            }
-                                                        }
-
-                                                        // Right Column: Total & Paid amount
-                                                        Column(
-                                                            horizontalAlignment = Alignment.End,
-                                                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                                                        ) {
-                                                            Text(
-                                                                text = "Total: ₹${order.totalAmount}",
-                                                                fontSize = 12.sp,
-                                                                color = Color(0xFF6B7280)
-                                                            )
-                                                            Row(verticalAlignment = Alignment.Bottom) {
-                                                                Text(
-                                                                    text = "₹${order.totalPaid}",
-                                                                    fontSize = 18.sp,
-                                                                    fontWeight = FontWeight.Bold,
-                                                                    color = Color(0xFF111827)
-                                                                )
-                                                                Spacer(Modifier.width(4.dp))
-                                                                Text(
-                                                                    text = "Paid",
-                                                                    fontSize = 13.sp,
-                                                                    color = Color(0xFF9CA3AF),
-                                                                    modifier = Modifier.padding(bottom = 1.dp)
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            )
-                                        }
-
-                                        if (isLoadingMore) {
-                                            item {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(16.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    CirculerProgressIndicatorSmall()
-                                                }
-                                            }
-                                        }
+                                    // Dynamic status color mapping from theme
+                                    val cleanStatus = (request.status ?: "Draft").replace("_", " ")
+                                    val (statusBg, statusText) = when (cleanStatus.lowercase()) {
+                                        "completed", "ready for delivery" -> Pair(greenBg, greentext)
+                                        "received in workshop"             -> Pair(cyanBg, chartBlue)
+                                        "pending approval"                 -> Pair(yellowBg, orangeText)
+                                        else                               -> Pair(cardBgLight, TextSecondary)
                                     }
+
+                                    // Dynamic priority color mapping from theme
+                                    val priority = request.priority ?: "Medium"
+                                    val priorityDotColor = when (priority.lowercase()) {
+                                        "urgent", "high" -> redText
+                                        "low"            -> greentext
+                                        else             -> orangeText
+                                    }
+
+                                    DataCard(
+                                        item = request,
+                                        eyebrowText = "Request Code: ${request.serviceRequestCode ?: "—"}",
+                                        eyebrowColor = TextSecondary,
+                                        topBadgeText = request.primaryCategory?.replace("_", " ") ?: "Service",
+                                        topBadgeBgColor = primary_light,
+                                        topBadgeTextColor = BluePrimary,
+                                        topBadgeShowDot = false,
+                                        topBadgeInline = false,
+                                        showActionsInHeader = true,
+                                        title = request.customerSnapshot?.name ?: request.customerId?.fullName ?: "Unknown Customer",
+                                        titleFontWeight = FontWeight.Medium,
+                                        titleColor = TextPrimary,
+                                        actions = listOf(
+                                            MenuAction("View", Icons.Default.Visibility) { onViewOrder(request.id) },
+                                            MenuAction("Edit", Icons.Default.Edit) { onEditOrder(request.id) }
+                                        ),
+                                        onClick = { onViewOrder(request.id) },
+                                        content = {
+                                            // Garments Summary Row
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth().padding(top = 2.dp)
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(id = R.drawable.ic_tag),
+                                                    contentDescription = null,
+                                                    tint = mutedText,
+                                                    modifier = Modifier.size(tokens.iconSize * 0.85f)
+                                                )
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(
+                                                    text = garmentNames,
+                                                    fontSize = tokens.caption,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = TextSecondary,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+
+                                            Spacer(Modifier.height(6.dp))
+
+                                            // Delivery Date Row
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_calendar),
+                                                    contentDescription = null,
+                                                    tint = mutedText,
+                                                    modifier = Modifier.size(tokens.iconSize * 0.85f)
+                                                )
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(
+                                                    text = "Delivery: ${formatIsoDate(request.deliveryDate)}",
+                                                    fontSize = tokens.caption,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = TextSecondary
+                                                )
+                                            }
+
+                                            Spacer(Modifier.height(tokens.extraPadding / 2))
+                                            HorizontalDivider(color = light_grey, thickness = 2.dp)
+                                            Spacer(Modifier.height(tokens.extraPadding / 2))
+
+                                            // Bottom Row: Priority & Status (Left) | Total & Paid (Right)
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.Bottom
+                                            ) {
+                                                // Left: Priority + Status Pill
+                                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(8.dp)
+                                                                .clip(CircleShape)
+                                                                .background(priorityDotColor)
+                                                        )
+                                                        Spacer(Modifier.width(6.dp))
+                                                        Text(
+                                                            text = "$priority Priority",
+                                                            fontSize = tokens.label,
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = TextPrimary
+                                                        )
+                                                    }
+
+                                                    Surface(
+                                                        shape = RoundedCornerShape(tokens.cardCornerRadius / 1.5f),
+                                                        color = statusBg
+                                                    ) {
+                                                        Text(
+                                                            text = cleanStatus,
+                                                            fontSize = tokens.label,
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = statusText,
+                                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                                        )
+                                                    }
+                                                }
+
+                                                // Right: Grand Total & Advance Paid
+                                                Column(
+                                                    horizontalAlignment = Alignment.End,
+                                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Total: ₹${(request.grandTotal ?: 0.0).toInt()}",
+                                                        fontSize = tokens.label,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = TextSecondary
+                                                    )
+                                                    Row(verticalAlignment = Alignment.Bottom) {
+                                                        Text(
+                                                            text = "₹${(request.advanceAmountPaid ?: 0.0).toInt()}",
+                                                            fontSize = tokens.bodyMedium,
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = TextPrimary
+                                                        )
+                                                        Spacer(Modifier.width(4.dp))
+                                                        Text(
+                                                            text = "Paid",
+                                                            fontSize = tokens.label,
+                                                            fontWeight = FontWeight.Medium,
+                                                            color = mutedText,
+                                                            modifier = Modifier.padding(bottom = 1.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    )
                                 }
                             }
                         }
                     }
                 }
             }
-
-            DynamicIslandSuccess(
-                modifier = Modifier.align(Alignment.TopCenter),
-                message = successMessage,
-                onDismiss = { successMessage = null }
-            )
-
-            DynamicIslandError(
-                modifier = Modifier.align(Alignment.TopCenter),
-                message = errorMessage,
-                onDismiss = { errorMessage = null }
-            )
         }
     }
 }
 
-//private fun formatServiceGarmentsSummary(garments: String): String {
-//    if (garments.isBlank()) return "—"
-//    val names = garments.split(",").map { it.trim().substringBefore("(").trim() }
-//    return when {
-//        names.isEmpty() -> "—"
-//        names.size == 1 -> names[0]
-//        else -> "${names[0]}, ${names.size - 1} more"
-//    }
-//}
-//
-//private fun serviceOrderStatusColors(status: String?): Pair<Color, Color> = when (status?.lowercase()) {
-//    "confirmed"  -> greenBg to greentext
-//    "pending"    -> yellowBg to yellowText
-//    "processing" -> Color(0xFFF3E5F5) to Color(0xFF9C27B0)
-//    "completed"  -> greenBg to greentext
-//    "cancelled"  -> redBg to redText
-//    else         -> Color(0xFFE3F2FD) to Color(0xFF1976D2)
-//}
-
-private fun Long?.toDisplayDate(): String {
-    if (this == null) return "—"
-    return runCatching { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(this)) }.getOrDefault("—")
+// Adaptive ISO date formatter
+private fun formatIsoDate(isoString: String?): String {
+    if (isoString.isNullOrBlank()) return "—"
+    return try {
+        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        val date = parser.parse(isoString) ?: return isoString.take(10)
+        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(date)
+    } catch (_: Exception) {
+        isoString.take(10)
+    }
 }

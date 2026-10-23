@@ -833,3 +833,21 @@ data class CustomFields(
     val notes: String? = null,
     val tags: List<String> = emptyList()
 )
+
+
+data class CustomerDropdownResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String?,
+    @SerializedName("data") val data: List<CustomerDropdownItem>?
+)
+
+data class CustomerDropdownItem(
+    @SerializedName("_id") val id: String,
+    @SerializedName("branchId") val branchId: String?,
+    @SerializedName("customerCode") val customerCode: String?,
+    @SerializedName("fullName") val fullName: String?,
+    @SerializedName("mobileNumber") val mobileNumber: String?,
+    @SerializedName("email") val email: String?,
+    @SerializedName("customerType") val customerType: String?,
+    @SerializedName("customerLevel") val customerLevel: String?
+)

@@ -708,8 +708,8 @@ fun AddEditDesignScreen(
                                     .size(130.dp)
                                     .dashedBorder(
                                         color = iconMuted.copy(alpha = 0.5f),
-                                        shape = CircleShape,
-                                        strokeWidth = 1.5.dp
+                                        strokeWidth = 1.5.dp,
+                                        shape = CircleShape
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {

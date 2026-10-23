@@ -15,10 +15,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.model.sales.CreateCustomerRequest
 import com.cuso.tailor.model.sales.CustomerBillingAddressRequest
+import com.cuso.tailor.model.sales.CustomerDropdownItem
+import com.cuso.tailor.model.sales.CustomerDropdownResponse
 import com.cuso.tailor.model.sales.CustomerItem
 import com.cuso.tailor.model.sales.CustomerViewData
 import com.cuso.tailor.model.sales.UpdateCustomerRequest
 import com.cuso.tailor.model.sales.customers
+import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.SalesRepository
 import com.cuso.tailor.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,9 +32,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// API Endpoint for customer dropdown
+private const val CUSTOMER_DROPDOWN_URL = "/api/sales/customers/dropdown"
 @HiltViewModel
 class CustomerViewModel @Inject constructor(
-    private val repository: SalesRepository
+    private val repository: SalesRepository,
+    private val apiRepository: ApiRepository
 ) : ViewModel() {
 
     // ─────────────────────────────────────────────
@@ -135,6 +141,33 @@ class CustomerViewModel @Inject constructor(
         }
     }
 
+
+    // Inside CustomerViewModel class:
+    private val _customerDropdownList = MutableStateFlow<List<CustomerDropdownItem>>(emptyList())
+    val customerDropdownList: StateFlow<List<CustomerDropdownItem>> = _customerDropdownList.asStateFlow()
+
+    private val _isLoadingCustomerDropdown = MutableStateFlow(false)
+    val isLoadingCustomerDropdown: StateFlow<Boolean> = _isLoadingCustomerDropdown.asStateFlow()
+
+    /**
+     * Fetches active customers dropdown list
+     */
+    fun fetchCustomerDropdown() {
+        viewModelScope.launch {
+            _isLoadingCustomerDropdown.value = true
+            // If your repository has a direct API request helper:
+            val result = apiRepository.request<CustomerDropdownResponse> { get(CUSTOMER_DROPDOWN_URL) }
+            result.fold(
+                onSuccess = { res ->
+                    _customerDropdownList.value = res.data.orEmpty()
+                },
+                onFailure = {
+                    _customerDropdownList.value = emptyList()
+                }
+            )
+            _isLoadingCustomerDropdown.value = false
+        }
+    }
     fun loadMoreCustomers() {
         loadCustomers(isRefresh = false)
     }

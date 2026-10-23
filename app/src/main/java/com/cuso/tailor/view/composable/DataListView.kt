@@ -124,8 +124,10 @@
             Text(
                 text = text,
                 fontSize = tokens.label,
-                fontWeight = FontWeight.SemiBold,
-                color = textColor
+                fontWeight = FontWeight.Medium,
+                color = textColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -509,6 +511,8 @@
                                         text = field.text,
                                         fontSize = tokens.bodyMedium,
                                         color = field.textColor,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                         fontWeight = field.valueFontWeight
                                     )
                                 }
@@ -535,7 +539,7 @@
                                         )
                                     }
                                     Text(
-                                        text = field.text,
+                                        text = if (field.text.length > 20) field.text.take(20) + "..." else field.text,
                                         fontSize = tokens.bodySmall,
                                         color = field.textColor,
                                         fontWeight = field.valueFontWeight

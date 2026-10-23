@@ -46,7 +46,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -72,8 +71,6 @@ import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.AppUnderlineTabRow
 import com.cuso.tailor.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.tailor.view.composable.CountryAndStatePicker
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormTextField
 import com.cuso.tailor.view.composable.TitleBar
@@ -292,9 +289,9 @@ private fun LogoDisplayView(pictureUrl: String?) {
             .dashedBorder(
                 color = statLogoBg,
                 strokeWidth = 1.5.dp,
+                cornerRadius = radius,
                 dashLength = 6.dp,
-                gapLength = 4.dp,
-                cornerRadius = radius
+                gapLength = 4.dp
             )            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.65f)),
         contentAlignment = Alignment.Center
     ) {
@@ -336,9 +333,9 @@ private fun LogoDisplayEdit(
                 .dashedBorder(
                     color = statLogoBg,
                     strokeWidth = 1.5.dp,
+                    cornerRadius = radius,
                     dashLength = 6.dp,
-                    gapLength = 4.dp,
-                    cornerRadius = radius
+                    gapLength = 4.dp
                 )
                 .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
                 .clickable { onClick() },

@@ -366,9 +366,9 @@ fun GarmentTypeContent(
                                         .height(tokens.buttonHeight)
                                         .dashedBorder(
                                             color = Primary,
-                                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
                                             strokeWidth = 1.2.dp,
-                                            cornerRadius = tokens.cardCornerRadius * 0.5f
+                                            cornerRadius = tokens.cardCornerRadius * 0.5f,
+                                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
                                         )
                                         .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                                         .clickable { onAddSegmentClick() },

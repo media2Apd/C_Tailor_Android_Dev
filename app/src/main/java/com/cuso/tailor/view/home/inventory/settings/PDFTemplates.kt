@@ -1,5 +1,4 @@
-@file:Suppress("unused", "SpellCheckingInspection", "UNUSED_PARAMETER","AssignedValueIsNeverRead")
-
+@file:Suppress("unused", "SpellCheckingInspection", "UNUSED_PARAMETER", "AssignedValueIsNeverRead")
 
 package com.cuso.tailor.view.home.inventory.settings
 
@@ -33,7 +32,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -48,7 +46,6 @@ import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.dashedBorder
 import com.cuso.tailor.viewmodel.SettingsViewModel
 
-// Document types shown as tabs with matching API query values
 enum class DocType(val label: String, val apiValue: String) {
     BILL("Bill", DocumentType.BILL),
     PAYMENT_RECEIPT("Payment Receipt", DocumentType.PAYMENT_RECEIPT),
@@ -60,21 +57,17 @@ enum class DocType(val label: String, val apiValue: String) {
     RETURN_RECEIPT("Return Receipt", DocumentType.RETURN_RECEIPT)
 }
 
-// A single template entry for UI display
 data class PdfTemplate(
     val id: String,
     val type: DocType,
     val name: String,
-    val templateTheme: String, // "standard" or "modern"
+    val templateTheme: String,
     @DrawableRes val thumbnailRes: Int,
     val updatedAgo: String = "Updated recently",
     val isBuiltInDefault: Boolean = false,
     val rawDto: DocumentTemplateDto? = null
 )
 
-/**
- * Returns matching local thumbnail based on document type and template key
- */
 fun getThumbnailForTemplate(type: DocType, templateKey: String): Int {
     return when (type) {
         DocType.BILL -> {
@@ -99,23 +92,19 @@ fun PdfTemplatesScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    // Tabs
     val docTypes = remember { DocType.entries }
     val tabs = remember { docTypes.map { it.label } }
     var selectedTab by remember { mutableIntStateOf(0) }
     val currentType = docTypes[selectedTab]
 
-    // Collect remote state from SettingsViewModel
     val remoteTemplates by settingsViewModel.documentTemplates.collectAsStateWithLifecycle()
     val isLoading by settingsViewModel.isLoadingTemplates.collectAsStateWithLifecycle()
     val isSettingDefault by settingsViewModel.isSettingDefaultTemplate.collectAsStateWithLifecycle()
 
-    // Fetch from API whenever the selected tab changes
     LaunchedEffect(currentType) {
         settingsViewModel.fetchDocumentTemplates(docType = currentType.apiValue)
     }
 
-    // Map API DTOs into UI PdfTemplate models
     val templates: List<PdfTemplate> = remember(remoteTemplates, currentType) {
         remoteTemplates.map { dto ->
             val theme = if (dto.templateKey.equals("standard", ignoreCase = true)) "standard" else "modern"
@@ -132,9 +121,7 @@ fun PdfTemplatesScreen(
         }
     }
 
-    // Identify current default template for the tab
     val defaultTemplate = templates.firstOrNull { it.isBuiltInDefault }
-    val defaultCount = if (defaultTemplate != null) 1 else 0
 
     var previewTemplate by remember { mutableStateOf<PdfTemplate?>(null) }
 
@@ -145,9 +132,8 @@ fun PdfTemplatesScreen(
     ) {
         TitleBar(title = "PDF Templates", onClose = onClose)
 
-        Spacer(Modifier.padding(10.dp))
+        Spacer(Modifier.height(8.dp))
 
-        // Top tab row with primary underline indicator
         AppUnderlineTabRow(
             tabs = tabs,
             selectedIndex = selectedTab,
@@ -169,36 +155,8 @@ fun PdfTemplatesScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(tokens.screenPadding),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-//                // Header: title, counts and description
-//                item {
-//                    Row(
-//                        modifier = Modifier.fillMaxWidth(),
-//                        horizontalArrangement = Arrangement.SpaceBetween,
-//                        verticalAlignment = Alignment.CenterVertically
-//                    ) {
-//                        Text(
-//                            text = "${currentType.label} Templates",
-//                            fontSize = tokens.bodyLarge,
-//                            fontWeight = FontWeight.Bold,
-//                            color = TextPrimary
-//                        )
-//                        Text(
-//                            text = "${templates.size} templates · $defaultCount default",
-//                            fontSize = tokens.caption,
-//                            color = close_color
-//                        )
-//                    }
-//                    Spacer(Modifier.height(4.dp))
-//                    Text(
-//                        text = "Manage ready-to-use ${currentType.label.lowercase()} template designs and set default layout.",
-//                        fontSize = tokens.bodySmall,
-//                        color = TextSecondary
-//                    )
-//                }
-
-                // Preview Default Layout Button
                 if (templates.isNotEmpty()) {
                     item {
                         OutlinedButton(
@@ -211,7 +169,7 @@ fun PdfTemplatesScreen(
                             enabled = defaultTemplate != null,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(tokens.fieldHeight),
+                                .height(tokens.buttonHeight),
                             shape = RoundedCornerShape(tokens.cardCornerRadius * 0.45f),
                             border = BorderStroke(1.dp, Primary)
                         ) {
@@ -219,20 +177,19 @@ fun PdfTemplatesScreen(
                                 Icons.Default.RemoveRedEye,
                                 contentDescription = null,
                                 tint = Primary,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(tokens.iconSize * 0.9f)
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 text = "Preview Default Layout",
                                 fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = FontWeight.Medium,
                                 color = Primary
                             )
                         }
                     }
                 }
 
-                // Template cards for the selected tab (or empty state)
                 if (templates.isEmpty()) {
                     item {
                         Text(
@@ -242,7 +199,7 @@ fun PdfTemplatesScreen(
                             textAlign = TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 24.dp)
+                                .padding(vertical = 20.dp)
                         )
                     }
                 } else {
@@ -263,7 +220,6 @@ fun PdfTemplatesScreen(
                     }
                 }
 
-                // Create New Template dashed button
                 item {
                     Box(
                         modifier = Modifier
@@ -271,18 +227,17 @@ fun PdfTemplatesScreen(
                             .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
                             .dashedBorder(
                                 color = Primary,
-                                strokeWidth = 1.dp,
-                                shape = RoundedCornerShape(tokens.cardCornerRadius)
+                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f)
                             )
                             .clickable { onCreateNewTemplate() }
-                            .padding(vertical = 24.dp),
+                            .padding(vertical = 20.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Box(
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(30.dp))
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(20.dp))
                                     .background(primary_light),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -290,14 +245,14 @@ fun PdfTemplatesScreen(
                                     painter = painterResource(R.drawable.ic_document),
                                     contentDescription = null,
                                     tint = Primary,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(tokens.iconSize)
                                 )
                             }
-                            Spacer(Modifier.height(10.dp))
+                            Spacer(Modifier.height(8.dp))
                             Text(
                                 text = "Create New Template",
                                 fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = FontWeight.Medium,
                                 color = Primary
                             )
                             Spacer(Modifier.height(2.dp))
@@ -313,7 +268,6 @@ fun PdfTemplatesScreen(
         }
     }
 
-    // Full-screen preview popup
     previewTemplate?.let { template ->
         TemplatePreviewDialog(
             template = template,
@@ -322,7 +276,6 @@ fun PdfTemplatesScreen(
     }
 }
 
-// Full-screen popup that shows the template image with pinch-to-zoom
 @Composable
 fun TemplatePreviewDialog(
     template: PdfTemplate,
@@ -347,7 +300,7 @@ fun TemplatePreviewDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF111827).copy(alpha = 0.96f))
+                .background(title_color.copy(alpha = 0.95f))
         ) {
             Image(
                 painter = painterResource(id = template.thumbnailRes),
@@ -367,7 +320,6 @@ fun TemplatePreviewDialog(
                     .transformable(state = transformState)
             )
 
-            // Top bar: template name + close button
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -377,24 +329,24 @@ fun TemplatePreviewDialog(
             ) {
                 Text(
                     text = template.name,
-                    fontSize = tokens.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = whiteBg,
                     modifier = Modifier.weight(1f)
                 )
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(34.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.15f))
+                        .background(whiteBg.copy(alpha = 0.15f))
                         .clickable { onDismiss() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close preview",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        tint = whiteBg,
+                        modifier = Modifier.size(tokens.iconSize)
                     )
                 }
             }
@@ -402,7 +354,6 @@ fun TemplatePreviewDialog(
     }
 }
 
-// Template card with "Selected" indicator or "Set as Default" action
 @Composable
 fun TemplateCard(
     name: String,
@@ -417,19 +368,20 @@ fun TemplateCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
-        colors = CardDefaults.cardColors(containerColor = whiteBg)
+        colors = CardDefaults.cardColors(containerColor = whiteBg),
+        border = BorderStroke(1.dp, sectionBorder)
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Image(
                 painter = painterResource(id = thumbnailRes),
                 contentDescription = "$name thumbnail",
-                modifier = Modifier.size(width = 65.dp, height = 80.dp)
+                modifier = Modifier.size(width = 60.dp, height = 75.dp)
             )
 
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(
@@ -440,7 +392,7 @@ fun TemplateCard(
                     Text(
                         text = name,
                         fontSize = tokens.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Medium,
                         color = TextPrimary
                     )
 
@@ -449,19 +401,23 @@ fun TemplateCard(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = "Selected",
                             tint = Primary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(tokens.iconSize)
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = "Options",
-                            tint = mutedText,
-                            modifier = Modifier.size(18.dp)
+                            tint = iconMuted,
+                            modifier = Modifier.size(tokens.iconSize)
                         )
                     }
                 }
 
-                Text(text = updatedAgo, fontSize = tokens.caption, color = mutedText)
+                Text(
+                    text = updatedAgo,
+                    fontSize = tokens.caption,
+                    color = mutedText
+                )
                 Spacer(Modifier.height(8.dp))
 
                 Row(
@@ -469,7 +425,6 @@ fun TemplateCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Badge: "SELECTED" if default, otherwise "CUSTOM"
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
@@ -478,25 +433,24 @@ fun TemplateCard(
                     ) {
                         Text(
                             text = if (isDefault) "SELECTED" else "CUSTOM",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = tokens.label,
+                            fontWeight = FontWeight.Medium,
                             color = if (isDefault) greentext else Primary
                         )
                     }
 
-                    // Action: If already default, display checkmark indicator; otherwise show clickable "Set as Default →"
                     if (isDefault) {
                         Text(
                             text = "Default Template ✓",
                             fontSize = tokens.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Medium,
                             color = greentext
                         )
                     } else {
                         Text(
                             text = if (isSettingDefault) "Setting..." else "Set as Default",
                             fontSize = tokens.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Medium,
                             color = Primary,
                             modifier = Modifier.clickable(enabled = !isSettingDefault) {
                                 onSetAsDefault()

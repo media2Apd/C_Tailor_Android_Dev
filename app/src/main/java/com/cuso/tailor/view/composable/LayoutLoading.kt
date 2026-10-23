@@ -581,6 +581,210 @@ private fun DataCardItemSkeleton(
     }
 }
 
+// =============================================================
+// LEGAL DASHBOARD SKELETON
+// =============================================================
+
+@Composable
+fun LegalDashboardSkeleton() {
+    val tokens = LocalAppTokens.current
+    val brush = rememberShimmerBrush()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Transparent)
+            .padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding),
+        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+    ) {
+        // 1. Header Skeleton (Title & Export Button)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ShimmerBox(
+                    modifier = Modifier.width(180.dp).height(24.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    brush = brush
+                )
+                ShimmerBox(
+                    modifier = Modifier.width(130.dp).height(14.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    brush = brush
+                )
+            }
+            ShimmerBox(
+                modifier = Modifier.width(80.dp).height(32.dp),
+                shape = RoundedCornerShape(tokens.cardCornerRadius / 2),
+                brush = brush
+            )
+        }
+
+        // 2. Metrics Snapshot Section (Horizontal Cards)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                ShimmerBox(modifier = Modifier.width(120.dp).height(14.dp), brush = brush)
+                ShimmerBox(modifier = Modifier.width(80.dp).height(14.dp), brush = brush)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
+            ) {
+                repeat(2) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(130.dp)
+                            .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                            .padding(tokens.extraPadding)
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxHeight()
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                ShimmerBox(
+                                    modifier = Modifier.size(34.dp),
+                                    shape = RoundedCornerShape(tokens.cardCornerRadius / 2),
+                                    brush = brush
+                                )
+                                ShimmerBox(modifier = Modifier.width(65.dp).height(14.dp), brush = brush)
+                            }
+                            ShimmerBox(modifier = Modifier.width(80.dp).height(24.dp), brush = brush)
+                            ShimmerBox(modifier = Modifier.fillMaxWidth().height(16.dp), brush = brush)
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Compliance & Risk Trend Chart Card Skeleton
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(230.dp)
+                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                .padding(tokens.extraPadding)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxHeight(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        ShimmerBox(modifier = Modifier.width(170.dp).height(18.dp), brush = brush)
+                        ShimmerBox(modifier = Modifier.width(140.dp).height(12.dp), brush = brush)
+                    }
+                    ShimmerBox(
+                        modifier = Modifier.width(80.dp).height(26.dp),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius / 2),
+                        brush = brush
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ShimmerBox(modifier = Modifier.width(110.dp).height(12.dp), brush = brush)
+                    ShimmerBox(modifier = Modifier.width(90.dp).height(12.dp), brush = brush)
+                }
+
+                ShimmerBox(
+                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    shape = RoundedCornerShape(6.dp),
+                    brush = brush
+                )
+            }
+        }
+
+        // 4. Legal Health Status Card Skeleton
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                .padding(tokens.extraPadding)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ShimmerBox(modifier = Modifier.width(140.dp).height(18.dp), brush = brush)
+                    ShimmerBox(
+                        modifier = Modifier.width(80.dp).height(22.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        brush = brush
+                    )
+                }
+
+                repeat(4) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            ShimmerBox(modifier = Modifier.width(100.dp).height(14.dp), brush = brush)
+                            ShimmerBox(modifier = Modifier.width(60.dp).height(14.dp), brush = brush)
+                        }
+                        ShimmerBox(
+                            modifier = Modifier.fillMaxWidth().height(6.dp),
+                            shape = CircleShape,
+                            brush = brush
+                        )
+                    }
+                }
+            }
+        }
+
+        // 5. Risk Distribution Card Skeleton
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(whiteBg, RoundedCornerShape(tokens.cardCornerRadius))
+                .padding(tokens.extraPadding)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ShimmerBox(modifier = Modifier.width(130.dp).height(18.dp), brush = brush)
+
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ShimmerBox(
+                        modifier = Modifier.size(140.dp),
+                        shape = CircleShape,
+                        brush = brush
+                    )
+                }
+
+                repeat(4) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        ShimmerBox(modifier = Modifier.width(90.dp).height(14.dp), brush = brush)
+                        ShimmerBox(modifier = Modifier.width(70.dp).height(14.dp), brush = brush)
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun HomeSkeleton() {
     val tokens = LocalAppTokens.current

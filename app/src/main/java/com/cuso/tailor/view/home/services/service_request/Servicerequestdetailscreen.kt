@@ -1,4 +1,5 @@
 @file:Suppress("UNUSED_VALUE", "unused")
+
 package com.cuso.tailor.view.home.services.service_request
 
 import androidx.compose.foundation.BorderStroke
@@ -24,10 +25,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.model.service.ServiceRequestData
+import com.cuso.tailor.model.service.ServiceRequestDetailData
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
-import com.cuso.tailor.viewmodel.ServiceDetailUiState
 import com.cuso.tailor.viewmodel.ServicesViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -39,18 +39,35 @@ fun ServiceRequestDetailsScreen(
     onViewFullOrderHistory: () -> Unit = {},
     viewModel: ServicesViewModel = hiltViewModel()
 ) {
-    val detailState by viewModel.detailState.collectAsStateWithLifecycle()
+    // Collect ViewModel states
+    val detailData by viewModel.serviceRequestDetail.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingServiceRequestDetail.collectAsStateWithLifecycle()
+    val errorMsg by viewModel.serviceRequestDetailError.collectAsStateWithLifecycle()
 
+    // Load single service request detail on launch or requestId change
     LaunchedEffect(requestId) {
-        viewModel.loadServiceRequestById(requestId)
+        viewModel.fetchServiceRequestDetail(requestId)
+    }
+
+    // Clear state when leaving this screen
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.clearServiceRequestDetail()
+        }
     }
 
     Scaffold(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
-                TitleBar(title ="Service Details", onClose = onBack)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = whiteBg
+            ) {
+                TitleBar(
+                    title = "Service Details",
+                    onClose = onBack
+                )
             }
         }
     ) { padding ->
@@ -59,24 +76,23 @@ fun ServiceRequestDetailsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            when (val state = detailState) {
-                is ServiceDetailUiState.Loading -> {
+            when {
+                isLoading -> {
                     ListSkeleton()
                 }
-                is ServiceDetailUiState.Error -> {
+                errorMsg != null -> {
                     AppErrorState(
                         title = "Error Loading Details",
-                        message = state.message,
-                        onRetry = { viewModel.loadServiceRequestById(requestId) }
+                        message = errorMsg ?: "Unable to fetch details",
+                        onRetry = { viewModel.fetchServiceRequestDetail(requestId) }
                     )
                 }
-                is ServiceDetailUiState.Success -> {
+                detailData != null -> {
                     ServiceRequestDetailContent(
-                        service = state.request,
+                        service = detailData!!,
                         onViewFullOrderHistory = onViewFullOrderHistory
                     )
                 }
-                else -> Unit
             }
         }
     }
@@ -84,11 +100,16 @@ fun ServiceRequestDetailsScreen(
 
 @Composable
 private fun ServiceRequestDetailContent(
-    service: ServiceRequestData,
+    service: ServiceRequestDetailData,
     onViewFullOrderHistory: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    val item = service.items.firstOrNull()
+    val item = service.items?.firstOrNull()
+
+    // Determine status styling
+    val isCompleted = service.status.equals("Completed", ignoreCase = true)
+    val statusBg = if (isCompleted) greenBg else yellowBg
+    val statusFg = if (isCompleted) greentext else yellowText
 
     Column(
         modifier = Modifier
@@ -117,9 +138,9 @@ private fun ServiceRequestDetailContent(
                         color = TitleColor
                     )
                     StatusChip(
-                        text = service.status.replace("_", " ").orDash(),
-                        bg = yellowBg,
-                        fg = yellowText
+                        text = service.status?.replace("_", " ").orDash(),
+                        bg = statusBg,
+                        fg = statusFg
                     )
                 }
 
@@ -138,9 +159,9 @@ private fun ServiceRequestDetailContent(
                     )
                     Spacer(Modifier.width(tokens.extraPadding * 0.5f))
                     LabeledValue(
-                        "Request Date",
-                        formatDate(service.receivedDate ?: service.createdAt),
-                        Modifier.weight(1f)
+                        label = "Request Date",
+                        value = formatDate(service.receivedDate ?: service.createdAt),
+                        modifier = Modifier.weight(1f)
                     )
                     Box(
                         modifier = Modifier
@@ -150,9 +171,9 @@ private fun ServiceRequestDetailContent(
                     )
                     Spacer(Modifier.width(tokens.extraPadding * 0.5f))
                     LabeledValue(
-                        "Priority",
-                        service.priority.orDash(),
-                        Modifier.weight(1f),
+                        label = "Priority",
+                        value = service.priority.orDash(),
+                        modifier = Modifier.weight(1f),
                         valueColor = if (service.priority.equals("High", true) || service.priority.equals("Urgent", true)) redText else TitleColor
                     )
                 }
@@ -168,11 +189,11 @@ private fun ServiceRequestDetailContent(
         )
         DetailSectionCard {
             LabeledValueRow("Service Category", item?.category.orDash())
-            HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-            LabeledValueRow("Preferred Completion Date", formatDate(service.deliveryDate))
-            HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(vertical = tokens.extraPadding * 0.6f))
+            LabeledValueRow("Preferred Completion Date", formatDate(service.deliveryDate ?: service.preferredDate))
+            HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(vertical = tokens.extraPadding * 0.6f))
             LabeledValueRow("Priority Level", service.priority.orDash())
-            HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(vertical = tokens.extraPadding * 0.6f))
             LabeledValueRow("Service Type", service.primaryCategory.orDash())
         }
 
@@ -184,13 +205,23 @@ private fun ServiceRequestDetailContent(
             iconRes = R.drawable.ic_person
         )
         DetailSectionCard {
-            LabeledValueRow("Customer Name", service.customerId?.fullName.orDash())
-            HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-            LabeledValueRow("Phone Number", service.customerId?.mobileNumber.orDash())
-            HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-            LabeledValueRow("Email Address", service.customerId?.email.orDash())
-            HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
-            LabeledValueRow("Shipping Address", service.placeOfSupply.orDash())
+            val customerName = service.customerId?.fullName
+                ?: service.customerSnapshot?.name
+            val phone = service.customerId?.mobileNumber
+                ?: service.customerSnapshot?.phone
+            val email = service.customerId?.email
+                ?: service.customerSnapshot?.email
+            val address = service.placeOfSupply
+                ?: service.customerId?.billingAddress?.city
+                ?: service.customerSnapshot?.billingAddress?.city
+
+            LabeledValueRow("Customer Name", customerName.orDash())
+            HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(vertical = tokens.extraPadding * 0.6f))
+            LabeledValueRow("Phone Number", phone.orDash())
+            HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(vertical = tokens.extraPadding * 0.6f))
+            LabeledValueRow("Email Address", email.orDash())
+            HorizontalDivider(color = dividerColor, thickness = 1.dp, modifier = Modifier.padding(vertical = tokens.extraPadding * 0.6f))
+            LabeledValueRow("Shipping Address", address.orDash())
         }
 
         Spacer(Modifier.height(tokens.extraPadding * 0.8f))
@@ -279,14 +310,16 @@ private fun ServiceRequestDetailContent(
             modifier = Modifier.fillMaxWidth(),
             color = Color.Transparent
         ) {
+            val attachmentsList = service.attachments.orEmpty()
+            val count = if (attachmentsList.isNotEmpty()) attachmentsList.size else 3
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(tokens.screenPadding),
                 horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
             ) {
-                val attachmentCount = if (service.attachments.isNotEmpty()) service.attachments.size else 3
-                repeat(attachmentCount) {
+                repeat(count) {
                     Box(
                         modifier = Modifier
                             .size(76.dp)
@@ -329,8 +362,9 @@ private fun ServiceRequestDetailContent(
                         .padding(horizontal = 8.dp),
                     contentAlignment = Alignment.CenterEnd
                 ) {
+                    val amount = service.subtotal ?: item?.serviceCharge ?: 0.0
                     Text(
-                        text = if (service.subtotal > 0) String.format(Locale.US, "%.2f", service.subtotal) else "0.00",
+                        text = if (amount > 0) String.format(Locale.US, "%.2f", amount) else "0.00",
                         fontSize = tokens.bodySmall,
                         color = TextPrimary
                     )
@@ -370,8 +404,9 @@ private fun ServiceRequestDetailContent(
                     .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
                     .padding(tokens.screenPadding * 0.8f)
             ) {
+                val notes = service.internalNotes ?: item?.internalNotes
                 Text(
-                    text = item?.internalNotes.orDash(),
+                    text = notes.orDash(),
                     color = TextPrimary,
                     fontSize = tokens.bodySmall,
                     lineHeight = tokens.bodyMedium.value.dp.value.sp
@@ -446,7 +481,12 @@ private fun LabeledValue(
     Column(modifier = modifier) {
         Text(text = label, color = mutedText, fontSize = tokens.caption)
         Spacer(Modifier.height(2.dp))
-        Text(text = value.orDash(), color = valueColor, fontSize = tokens.bodySmall, fontWeight = FontWeight.Normal)
+        Text(
+            text = value.orDash(),
+            color = valueColor,
+            fontSize = tokens.bodySmall,
+            fontWeight = FontWeight.Normal
+        )
     }
 }
 
@@ -459,7 +499,12 @@ private fun LabeledValueRow(
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(text = label, color = mutedText, fontSize = tokens.caption)
         Spacer(Modifier.height(2.dp))
-        Text(text = value.orDash(), color = TitleColor, fontSize = tokens.bodySmall, fontWeight = FontWeight.Normal)
+        Text(
+            text = value.orDash(),
+            color = TitleColor,
+            fontSize = tokens.bodySmall,
+            fontWeight = FontWeight.Normal
+        )
     }
 }
 
@@ -472,7 +517,12 @@ private fun StatusChip(text: String, bg: Color, fg: Color) {
             .background(bg)
             .padding(horizontal = tokens.extraPadding * 0.75f, vertical = 4.dp)
     ) {
-        Text(text = text.orDash(), color = fg, fontSize = tokens.caption, fontWeight = FontWeight.Medium)
+        Text(
+            text = text.orDash(),
+            color = fg,
+            fontSize = tokens.caption,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 

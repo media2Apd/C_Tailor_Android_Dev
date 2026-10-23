@@ -11,6 +11,8 @@ package com.cuso.tailor.viewmodel
 import android.webkit.MimeTypeMap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.tailor.model.hr.ActiveExpenseTypeDto
+import com.cuso.tailor.model.hr.ActiveExpenseTypeListResponse
 import com.cuso.tailor.model.hr.AssignedTrainingListResponse
 import com.cuso.tailor.model.hr.AssignedTrainingProgramDto
 import com.cuso.tailor.model.hr.AssignedTrainingSingleResponse
@@ -22,6 +24,7 @@ import com.cuso.tailor.model.hr.CreateShiftRequest
 import com.cuso.tailor.model.hr.CreatedMemberFullData
 import com.cuso.tailor.model.hr.DeleteDocumentCategoryResponse
 import com.cuso.tailor.model.hr.DeleteEmployeeDocumentResponse
+import com.cuso.tailor.model.hr.DeleteExpenseClaimResponse
 import com.cuso.tailor.model.hr.DocumentCategoryDto
 import com.cuso.tailor.model.hr.DocumentCategoryDtoCat
 import com.cuso.tailor.model.hr.DocumentCategoryListResponse
@@ -30,7 +33,14 @@ import com.cuso.tailor.model.hr.DocumentCategorySingleResponse
 import com.cuso.tailor.model.hr.EmployeeDocumentDto
 import com.cuso.tailor.model.hr.EmployeeDocumentListResponse
 import com.cuso.tailor.model.hr.EmployeeDocumentSingleResponse
+import com.cuso.tailor.model.hr.ExpenseClaimDto
+import com.cuso.tailor.model.hr.ExpenseClaimPaymentDetails
+import com.cuso.tailor.model.hr.ExpenseClaimSingleResponse
+import com.cuso.tailor.model.hr.ExpenseClaimsApiResponse
+import com.cuso.tailor.model.hr.ExpenseTypeDto
+import com.cuso.tailor.model.hr.ExpenseTypeListApiResponse
 import com.cuso.tailor.model.hr.LeaveRequestItemDto
+import com.cuso.tailor.model.hr.LeaveRequestsResponse
 import com.cuso.tailor.model.hr.LeaveTypeItemDto
 import com.cuso.tailor.model.hr.MemberDetail
 import com.cuso.tailor.model.hr.MemberDetailResponse
@@ -61,6 +71,8 @@ import com.cuso.tailor.model.hr.ToggleSalaryComponentStatusRequest
 import com.cuso.tailor.model.hr.TrainingProgramDto
 import com.cuso.tailor.model.hr.TrainingProgramListResponse
 import com.cuso.tailor.model.hr.TrainingProgramSingleResponse
+import com.cuso.tailor.model.hr.UpdateExpenseClaimResponse
+import com.cuso.tailor.model.hr.UpdateExpenseClaimStatusRequest
 import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.utils.UiState // explicit import wins over same-package UiState
 import com.cuso.tailor.utils.launchState
@@ -81,6 +93,8 @@ import kotlin.collections.filter
 
 // Base path for all salary component endpoints
 private const val SALARY_BASE = "/api/hr/salary-component"
+// Add constant at top of HrViewModel.kt
+private const val EXPENSE_TYPE_BASE = "/api/hr/expense-type"
 
 sealed interface AttendanceUiState {
     object Loading : AttendanceUiState
@@ -147,7 +161,475 @@ class HrViewModel @Inject constructor(
             _isLoadingShifts.value = false
         }
     }
+    // =========================================================================
+    // EXPENSE CLAIMS
+    // =========================================================================
+    private val _expenseClaims = MutableStateFlow<List<ExpenseClaimDto>>(emptyList())
+    val expenseClaims: StateFlow<List<ExpenseClaimDto>> = _expenseClaims.asStateFlow()
 
+    private val _isLoadingExpenseClaims = MutableStateFlow(false)
+    val isLoadingExpenseClaims: StateFlow<Boolean> = _isLoadingExpenseClaims.asStateFlow()
+
+    private val _expenseClaimsError = MutableStateFlow<String?>(null)
+    val expenseClaimsError: StateFlow<String?> = _expenseClaimsError.asStateFlow()
+
+    /**
+     * Fetches expense claims list with optional status or search filter
+     * Endpoint: GET /api/expenses (adjust path to your exact backend endpoint)
+     */
+    fun fetchExpenseClaims(
+        page: Int = 1,
+        limit: Int = 10,
+        status: String? = "Pending_Approval",
+        search: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingExpenseClaims.value = true
+            _expenseClaimsError.value = null
+
+            val result = repo.request<ExpenseClaimsApiResponse> {
+                get(
+                    "/api/hr/expense-claim/view-all",
+                    repo.query(
+                        "page" to page,
+                        "limit" to limit,
+                        "status" to status,
+                        "search" to search
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _expenseClaims.value = res.data?.data ?: emptyList()
+                },
+                onFailure = { error ->
+                    _expenseClaimsError.value = error.message ?: "Failed to fetch expense claims"
+                }
+            )
+            _isLoadingExpenseClaims.value = false
+        }
+    }
+    /**
+     * Fetches expense claims list
+     * Endpoint: GET /api/hr/expense-claim/view-all?page=1&limit=10
+     */
+    fun fetchNewClaims(
+        page: Int = 1,
+        limit: Int = 10,
+        status: String? = null,
+        search: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingExpenseClaims.value = true
+            _expenseClaimsError.value = null
+
+            val result = repo.request<ExpenseClaimsApiResponse> {
+                get(
+                    "/api/hr/expense-claim/view-all",
+                    repo.query(
+                        "page" to page,
+                        "limit" to limit,
+                        "status" to status,
+                        "search" to search
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _expenseClaims.value = res.data?.data ?: emptyList()
+                },
+                onFailure = { error ->
+                    _expenseClaimsError.value = error.message ?: "Failed to fetch expense claims"
+                }
+            )
+            _isLoadingExpenseClaims.value = false
+        }
+    }
+
+    // =========================================================================
+    // ACTIVE EXPENSE TYPES (FOR CATEGORY DROPDOWN)
+    // =========================================================================
+    private val _activeExpenseTypes = MutableStateFlow<List<ActiveExpenseTypeDto>>(emptyList())
+    val activeExpenseTypes: StateFlow<List<ActiveExpenseTypeDto>> = _activeExpenseTypes.asStateFlow()
+
+    private val _isLoadingActiveExpenseTypes = MutableStateFlow(false)
+    val isLoadingActiveExpenseTypes: StateFlow<Boolean> = _isLoadingActiveExpenseTypes.asStateFlow()
+
+    private val _activeExpenseTypesError = MutableStateFlow<String?>(null)
+    val activeExpenseTypesError: StateFlow<String?> = _activeExpenseTypesError.asStateFlow()
+
+    /**
+     * Fetches active expense types for dropdown
+     * Endpoint: GET /api/hr/expense-type/active
+     */
+    fun fetchActiveExpenseTypes() {
+        viewModelScope.launch {
+            _isLoadingActiveExpenseTypes.value = true
+            _activeExpenseTypesError.value = null
+
+            val result = repo.request<ActiveExpenseTypeListResponse> {
+                get("/api/hr/expense-type/active")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _activeExpenseTypes.value = res.data
+                },
+                onFailure = { error ->
+                    _activeExpenseTypesError.value = error.message ?: "Failed to fetch active expense types"
+                }
+            )
+            _isLoadingActiveExpenseTypes.value = false
+        }
+    }
+
+    // =========================================================================
+    // EXPENSE CLAIMS (VIEW-ALL, VIEW-ONE, SUBMIT/DRAFT)
+    // =========================================================================
+    private val _expenseClaimDetail = MutableStateFlow<ExpenseClaimDto?>(null)
+    val expenseClaimDetail: StateFlow<ExpenseClaimDto?> = _expenseClaimDetail.asStateFlow()
+
+    private val _isLoadingExpenseClaimDetail = MutableStateFlow(false)
+    val isLoadingExpenseClaimDetail: StateFlow<Boolean> = _isLoadingExpenseClaimDetail.asStateFlow()
+
+    private val _isSubmittingExpenseClaim = MutableStateFlow(false)
+    val isSubmittingExpenseClaim: StateFlow<Boolean> = _isSubmittingExpenseClaim.asStateFlow()
+
+    fun fetchExpenseClaimDetail(claimId: String) {
+        viewModelScope.launch {
+            _isLoadingExpenseClaimDetail.value = true
+            val result = repo.request<ExpenseClaimSingleResponse> {
+                get("/api/hr/expense-claim/view-one/$claimId")
+            }
+            result.fold(
+                onSuccess = { res ->
+                    _expenseClaimDetail.value = res.data
+                },
+                onFailure = {
+                    _expenseClaimDetail.value = null
+                }
+            )
+            _isLoadingExpenseClaimDetail.value = false
+        }
+    }
+
+    fun clearExpenseClaimDetail() {
+        _expenseClaimDetail.value = null
+    }
+
+    fun submitExpenseClaim(
+        claimId: String? = null,
+        title: String,
+        description: String,
+        amount: String,
+        taxAmount: String,
+        currency: String = "INR",
+        status: String,
+        internalComments: String = "",
+        expenseDate: String,
+        category: String,
+        files: List<File>,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (title.isBlank()) {
+            onError("Please enter claim title")
+            return
+        }
+        if (category.isBlank()) {
+            onError("Please select a category")
+            return
+        }
+        if (amount.isBlank()) {
+            onError("Please enter amount")
+            return
+        }
+
+        viewModelScope.launch {
+            _isSubmittingExpenseClaim.value = true
+
+            val parts = mutableMapOf(
+                "title" to repo.text(title),
+                "description" to repo.text(description),
+                "amount" to repo.text(amount),
+                "taxAmount" to repo.text(taxAmount.ifBlank { "0" }),
+                "currency" to repo.text(currency),
+                "status" to repo.text(status),
+                "internalComments" to repo.text(internalComments),
+                "expenseDate" to repo.text(formatToApiDate(expenseDate)),
+                "category" to repo.text(category)
+            )
+
+            val fileParts = files.map { file ->
+                val extension = file.extension.lowercase()
+                val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+                    ?: when (extension) {
+                        "jpg", "jpeg" -> "image/jpeg"
+                        "png" -> "image/png"
+                        "pdf" -> "application/pdf"
+                        else -> "application/octet-stream"
+                    }
+                repo.filePart("attachments", file, mimeType)
+            }
+
+            if (claimId.isNullOrBlank()) {
+                // CREATE CALL
+                val result = repo.request<UpdateExpenseClaimResponse> {
+                    postMultipart(
+                        url = "/api/hr/expense-claim/create",
+                        parts = parts,
+                        files = fileParts
+                    )
+                }
+
+                _isSubmittingExpenseClaim.value = false
+                result.fold(
+                    onSuccess = { res ->
+                        onSuccess(res.message ?: "Expense claim created successfully")
+                    },
+                    onFailure = { error ->
+                        onError(error.message ?: "Failed to process expense claim")
+                    }
+                )
+            } else {
+                // UPDATE CALL (Using UpdateExpenseClaimResponse prevents String-to-Object JsonSyntaxException)
+                val result = repo.request<UpdateExpenseClaimResponse> {
+                    putMultipart(
+                        url = "/api/hr/expense-claim/update/$claimId",
+                        parts = parts,
+                        files = fileParts
+                    )
+                }
+
+                _isSubmittingExpenseClaim.value = false
+                result.fold(
+                    onSuccess = { res ->
+                        onSuccess(res.message ?: "Expense claim updated successfully")
+                    },
+                    onFailure = { error ->
+                        onError(error.message ?: "Failed to update expense claim")
+                    }
+                )
+            }
+        }
+    }
+
+    private fun formatToApiDate(rawDate: String): String {
+        return try {
+            if (rawDate.contains("-") && rawDate.length == 10) {
+                val parts = rawDate.split("-")
+                // If it is in dd-MM-yyyy format, convert to yyyy-MM-dd
+                if (parts[0].length == 2 && parts[2].length == 4) {
+                    "${parts[2]}-${parts[1]}-${parts[0]}"
+                } else {
+                    rawDate
+                }
+            } else {
+                rawDate
+            }
+        } catch (_: Exception) {
+            rawDate
+        }
+    }
+    // =========================================================================
+    // UPDATE EXPENSE CLAIM STATUS (APPROVE, REJECT, CLARIFY)
+    // =========================================================================
+    private val _isUpdatingClaimStatus = MutableStateFlow(false)
+    val isUpdatingClaimStatus: StateFlow<Boolean> = _isUpdatingClaimStatus.asStateFlow()
+
+    fun updateExpenseClaimStatus(
+        claimId: String,
+        status: String,
+        comment: String = "",
+        payment: ExpenseClaimPaymentDetails? = null,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isUpdatingClaimStatus.value = true
+            val request = UpdateExpenseClaimStatusRequest(
+                status = status,
+                comment = comment.trim().ifEmpty { null },
+                payment = payment
+            )
+
+            val result = repo.request<UpdateExpenseClaimResponse> {
+                patch("/api/hr/expense-claim/status/$claimId", request)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _isUpdatingClaimStatus.value = false
+                    fetchExpenseClaimDetail(claimId)
+                    onSuccess(res.message ?: "Expense claim status updated successfully")
+                },
+                onFailure = { error ->
+                    _isUpdatingClaimStatus.value = false
+                    onError(error.message ?: "Failed to update claim status")
+                }
+            )
+        }
+    }
+
+    // =========================================================================
+    // DELETE EXPENSE CLAIM
+    // =========================================================================
+    fun deleteExpenseClaim(
+        claimId: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val result = repo.request<DeleteExpenseClaimResponse> {
+                delete("/api/hr/expense-claim/delete/$claimId")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        // Immediately remove the deleted claim from local state
+                        _expenseClaims.value = _expenseClaims.value.filter { it.id != claimId }
+                        onSuccess(res.message ?: "Expense claim deleted successfully")
+                    } else {
+                        onError(res.message ?: "Failed to delete expense claim")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to delete expense claim")
+                }
+            )
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    // ── Finance Reimbursement Claims ──
+    // ═══════════════════════════════════════════════
+    fun fetchReimbursementClaims(page: Int = 1, limit: Int = 10, search: String? = null) {
+        fetchExpenseClaims(
+            page = page,
+            limit = limit,
+            status = "Approved,Payment_Pending,Paid,Rejected",
+            search = search
+        )
+    }
+
+    // =========================================================================
+    // EXPENSE TYPES
+    // =========================================================================
+    private val _expenseTypes = MutableStateFlow<List<ExpenseTypeDto>>(emptyList())
+    val expenseTypes: StateFlow<List<ExpenseTypeDto>> = _expenseTypes.asStateFlow()
+
+    private val _isLoadingExpenseTypes = MutableStateFlow(false)
+    val isLoadingExpenseTypes: StateFlow<Boolean> = _isLoadingExpenseTypes.asStateFlow()
+
+    private val _expenseTypesError = MutableStateFlow<String?>(null)
+    val expenseTypesError: StateFlow<String?> = _expenseTypesError.asStateFlow()
+
+    /**
+     * Fetches expense types list
+     * Endpoint: GET /api/hr/expense-type/view-all?page=1&limit=20
+     */
+    fun fetchExpenseTypes(page: Int = 1, limit: Int = 20, search: String? = null) {
+        viewModelScope.launch {
+            _isLoadingExpenseTypes.value = true
+            _expenseTypesError.value = null
+
+            val result = repo.request<ExpenseTypeListApiResponse> {
+                get(
+                    "/api/hr/expense-type/view-all",
+                    repo.query(
+                        "page" to page,
+                        "limit" to limit,
+                        "search" to search
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _expenseTypes.value = res.data?.data ?: emptyList()
+                },
+                onFailure = { error ->
+                    _expenseTypesError.value = error.message ?: "Failed to fetch expense types"
+                }
+            )
+            _isLoadingExpenseTypes.value = false
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CREATE / UPDATE / DELETE EXPENSE TYPE
+    // ═══════════════════════════════════════════════════════════════
+    private val _isSubmittingExpenseType = MutableStateFlow(false)
+    val isSubmittingExpenseType: StateFlow<Boolean> = _isSubmittingExpenseType.asStateFlow()
+
+    fun createOrUpdateExpenseType(
+        id: String? = null,
+        name: String,
+        description: String,
+        defaultLimit: Double,
+        status: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingExpenseType.value = true
+
+            val request = com.cuso.tailor.model.hr.SaveExpenseTypeRequest(
+                name = name,
+                description = description,
+                defaultLimit = defaultLimit,
+                status = status
+            )
+
+            val result = if (id.isNullOrBlank()) {
+                // CREATE (POST /api/hr/expense-type/create)
+                repo.request<com.cuso.tailor.model.hr.ExpenseTypeActionResponse> {
+                    post("$EXPENSE_TYPE_BASE/create", request)
+                }
+            } else {
+                // UPDATE (PUT /api/hr/expense-type/update/{id})
+                repo.request<com.cuso.tailor.model.hr.ExpenseTypeActionResponse> {
+                    put("$EXPENSE_TYPE_BASE/update/$id", request)
+                }
+            }
+
+            _isSubmittingExpenseType.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    fetchExpenseTypes() // Refresh list automatically
+                    onSuccess(res.message ?: "Expense type saved successfully")
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to save expense type")
+                }
+            )
+        }
+    }
+
+    fun deleteExpenseType(
+        id: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val result = repo.request<SimpleActionResponse> {
+                delete("$EXPENSE_TYPE_BASE/delete/$id")
+            }
+            result.fold(
+                onSuccess = {
+                    _expenseTypes.value = _expenseTypes.value.filter { it.id != id }
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to delete expense type")
+                }
+            )
+        }
+    }
     // ═══════════════════════════════════════════════
     // ── Members (List & Infinite Scroll) ──
     // ═══════════════════════════════════════════════
@@ -797,36 +1279,61 @@ class HrViewModel @Inject constructor(
     val leaveRequestsError: StateFlow<String?> = _leaveRequestsError.asStateFlow()
 
     fun fetchLeaveRequests(status: String? = null) {
-        launchBusy {
+        viewModelScope.launch {
             _isLoadingLeaveRequests.value = true
             _leaveRequestsError.value = null
-            val result = hrRepository.getLeaveRequests(page = 1, limit = 50, status = status)
+
+            val result = repo.request<LeaveRequestsResponse> {
+                get(
+                    "/api/hr/leave-request/view-all",
+                    repo.query(
+                        "page" to 1,
+                        "limit" to 50,
+                        "status" to status
+                    )
+                )
+            }
+
             result.fold(
-                onSuccess = { _leaveRequests.value = it },
-                onFailure = { e -> _leaveRequestsError.value = e.message ?: "Failed to load leave requests" }
+                onSuccess = { res ->
+                    // Extracts data.data based on the new nested API structure
+                    _leaveRequests.value = res.data?.data ?: emptyList()
+                },
+                onFailure = { error ->
+                    _leaveRequestsError.value = error.message ?: "Failed to load leave requests"
+                }
             )
             _isLoadingLeaveRequests.value = false
         }
     }
 
     // Unified leave status updater
+    // Updated to support exact uppercase/capitalized status format and approvalRemarks
     fun updateLeaveStatus(
         id: String,
-        status: String, // "approved" or "rejected"
-        note: String? = null,
+        status: String, // "Approved" or "Rejected"
+        approvalRemarks: String? = null,
         onSuccess: (String) -> Unit = {},
         onError: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
-            val result = hrRepository.updateLeaveStatus(id, status, note)
+            val request = com.cuso.tailor.model.hr.UpdateLeaveStatusRequest(
+                status = status,
+                approvalRemarks = approvalRemarks?.trim()?.ifBlank { null }
+            )
+
+            val result = repo.request<com.cuso.tailor.model.hr.UpdateLeaveStatusResponse> {
+                patch("/api/hr/leave-request/status/$id", request)
+            }
+
             result.fold(
-                onSuccess = { msg ->
-                    // Refresh list on status update
-                    fetchLeaveRequests()
-                    onSuccess(msg)
+                onSuccess = { res ->
+                    // Refresh pending list
+                    fetchLeaveRequests(status = "Pending")
+                    onSuccess(res.message ?: "Leave request status updated successfully")
                 },
-                onFailure = { e ->
-                    onError(e.message ?: "Failed to update leave status")
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to update leave status")
                 }
             )
         }

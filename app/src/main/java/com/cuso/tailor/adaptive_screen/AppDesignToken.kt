@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.sp
 
 /**
  * MAX FONT WEIGHT SHOULD BE FonWeight.Medium
- * MAX FONT SIZE SHOULD BE body.Medium
+ * MAX FONT SIZE SHOULD BE bodyMedium
  * QUICK USAGE GUIDE:
  * 3. tokens.bodyLarge        -> Pricing/Total Amounts
  * 4. tokens.bodyMedium       -> Field placeholders, standard content

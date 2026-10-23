@@ -3,12 +3,12 @@ package com.cuso.tailor.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cuso.tailor.model.service.CreateServiceRequestPayload
-import com.cuso.tailor.model.service.ServiceRequestData
+import com.cuso.tailor.model.service.*
 import com.cuso.tailor.model.settings.CreateStageRequest
 import com.cuso.tailor.model.settings.CreateTemplateRequest
 import com.cuso.tailor.model.settings.ProductionStageDto
 import com.cuso.tailor.model.settings.ProductionTemplateDto
+import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.ServicesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -19,6 +19,46 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.net.Uri
+
+data class ServiceRequestDraft(
+    val modeIndex: Int = 0, // 0 = Pre Order, 1 = External
+    val customerId: String = "",
+    val customerName: String = "",
+    val customerCode: String = "",
+    val customerMobile: String = "",
+    val customerEmail: String = "",
+    val selectedOrderId: String? = null,
+    val selectedOrderCode: String? = null,
+    val orderDeliveryDate: String = "",
+    val selectedCustomGarmentId: String? = null,
+    val serviceCategory: String = "",
+    val priorityLevel: String = "",
+    val preferredServiceDate: String = "",
+    val expectedDeliveryDate: String = "",
+    val garmentPiecesCount: Int = 1,
+    val garmentDescription: String = "",
+    val garmentCategoryName: String = "",
+    val specificIssueDescription: String = "",
+    val activeAlterationDeltas: List<AlterationDeltaDraft> = emptyList(),
+    val selectedRequirements: List<String> = emptyList(),
+    val isChargeableService: Boolean = false,
+    val ratePerPiece: String = "0",
+    val isTaxable: Boolean = false,
+    val selectedTaxGroupId: String? = null,
+    val selectedTaxGroupName: String? = null,
+    val selectedAttachments: List<Uri> = emptyList(),
+    val internalStaffNotes: String = ""
+)
+
+data class AlterationDeltaDraft(
+    val area: String,
+    val action: String = "",
+    val currentVal: String = "",
+    val requiredVal: String = "",
+    val unit: String = "",
+    val specificNotes: String = ""
+)
 
 data class ProductionTemplateUiState(
     val isLoading: Boolean = false,
@@ -50,11 +90,42 @@ sealed class ServiceActionUiState {
     data class Success(val message: String) : ServiceActionUiState()
     data class Error(val message: String) : ServiceActionUiState()
 }
+private const val SALES_ORDERS_DROPDOWN_URL = "/api/sales/orders/dropdown-list"
+private const val SERVICE_ALTERATION_VIEW_ONE_URL = "/api/services/alterations/tickets/view-one"
+private const val SERVICES_ANALYTICS_URL = "/api/services/service-requests/dashboard/analytics"
+private const val SERVICES_CHARTS_URL = "/api/services/service-requests/dashboard/charts"
+private const val SERVICES_RECENT_REQUESTS_URL = "/api/services/service-requests/dashboard/recent"
+private const val SERVICES_RECENT_COMPLAINTS_URL = "/api/services/complaints/dashboard/recent"
+private const val SERVICES_RECENT_JOBCARDS_URL = "/api/services/production/dashboard/recent-cards"
+private const val SERVICES_RECENT_FEEDBACKS_URL = "/api/services/feedbacks/dashboard/recent"
+private const val SERVICE_REQUEST_VIEW_ONE_URL = "/api/services/service-requests/view-one"
+private const val SERVICE_REQUESTS_VIEW_ALL_URL = "/api/services/service-requests/view-all"
+private const val SERVICE_ALTERATION_VIEW_ALL_URL = "/api/services/alterations/tickets/view-all"
+private const val SERVICE_ALTERATION_UPDATE_STATUS_URL = "/api/services/service-requests/change-status"
+private const val SERVICE_ALTERATION_COMMENT_URL = "/api/services/alterations/tickets/add-comment"
+private const val COMPLAINTS_VIEW_ALL_URL = "/api/services/complaints/view-all"
+private const val COMPLAINTS_VIEW_ONE_URL = "/api/services/complaints/view-one"
+private const val FEEDBACKS_VIEW_ALL_URL = "/api/services/feedbacks/view-all"
+
+
 
 @HiltViewModel
 class ServicesViewModel @Inject constructor(
-    private val repository: ServicesRepository
+    private val repository: ServicesRepository,
+    private val repo: ApiRepository
 ) : ViewModel() {
+
+    // In-memory draft for Create <-> Review navigation
+    private val _serviceDraft = MutableStateFlow<ServiceRequestDraft?>(null)
+    val serviceDraft: StateFlow<ServiceRequestDraft?> = _serviceDraft.asStateFlow()
+
+    fun saveServiceDraft(draft: ServiceRequestDraft) {
+        _serviceDraft.value = draft
+    }
+
+    fun clearServiceDraft() {
+        _serviceDraft.value = null
+    }
 
     // Template States
     private val _uiState = MutableStateFlow(ProductionTemplateUiState())
@@ -79,9 +150,201 @@ class ServicesViewModel @Inject constructor(
     private val _stagesError = MutableStateFlow<String?>(null)
     val stagesError: StateFlow<String?> = _stagesError.asStateFlow()
 
+    // Dashboard States
+    private val _analytics = MutableStateFlow<ServicesAnalyticsData?>(null)
+    val analytics: StateFlow<ServicesAnalyticsData?> = _analytics.asStateFlow()
+
+    private val _charts = MutableStateFlow<ServicesChartsData?>(null)
+    val charts: StateFlow<ServicesChartsData?> = _charts.asStateFlow()
+
+    private val _recentRequests = MutableStateFlow<List<RecentServiceRequestItem>>(emptyList())
+    val recentRequests: StateFlow<List<RecentServiceRequestItem>> = _recentRequests.asStateFlow()
+
+    private val _recentJobCards = MutableStateFlow<List<RecentJobCardItem>>(emptyList())
+    val recentJobCards: StateFlow<List<RecentJobCardItem>> = _recentJobCards.asStateFlow()
+
+    private val _recentComplaints = MutableStateFlow<List<RecentComplaintItem>>(emptyList())
+    val recentComplaints: StateFlow<List<RecentComplaintItem>> = _recentComplaints.asStateFlow()
+
+    private val _recentFeedbacks = MutableStateFlow<List<RecentFeedbackItem>>(emptyList())
+    val recentFeedbacks: StateFlow<List<RecentFeedbackItem>> = _recentFeedbacks.asStateFlow()
+
+    private val _isDashboardLoading = MutableStateFlow(false)
+    val isDashboardLoading: StateFlow<Boolean> = _isDashboardLoading.asStateFlow()
+
+    // ── Full Service Requests List State (View-All) ──
+    private val _serviceRequestsList = MutableStateFlow<List<ServiceRequestListItem>>(emptyList())
+    val serviceRequestsList: StateFlow<List<ServiceRequestListItem>> = _serviceRequestsList.asStateFlow()
+
+    private val _serviceRequestsPagination = MutableStateFlow<ServiceRequestPagination?>(null)
+    val serviceRequestsPagination: StateFlow<ServiceRequestPagination?> = _serviceRequestsPagination.asStateFlow()
+
+    private val _isLoadingServiceRequestsList = MutableStateFlow(false)
+    val isLoadingServiceRequestsList: StateFlow<Boolean> = _isLoadingServiceRequestsList.asStateFlow()
+
+    private val _serviceRequestsListError = MutableStateFlow<String?>(null)
+    val serviceRequestsListError: StateFlow<String?> = _serviceRequestsListError.asStateFlow()
+
     init {
         loadTemplates()
         loadStages()
+        fetchDashboardData()
+        fetchServiceRequestsList()
+    }
+
+    /**
+     * Fetches the full list of service requests with pagination and filters
+     */
+    fun fetchServiceRequestsList(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingServiceRequestsList.value = true
+            _serviceRequestsListError.value = null
+
+            val result = repo.request<ServiceRequestListResponse> {
+                get(
+                    SERVICE_REQUESTS_VIEW_ALL_URL,
+                    repo.query(
+                        "page" to page,
+                        "limit" to limit,
+                        "search" to search,
+                        "status" to status
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _serviceRequestsList.value = res.data.orEmpty()
+                    _serviceRequestsPagination.value = res.pagination
+                },
+                onFailure = { error ->
+                    _serviceRequestsListError.value = error.message ?: "Failed to load service requests"
+                }
+            )
+            _isLoadingServiceRequestsList.value = false
+        }
+    }
+    private val _serviceRequestDetail = MutableStateFlow<ServiceRequestDetailData?>(null)
+    val serviceRequestDetail: StateFlow<ServiceRequestDetailData?> = _serviceRequestDetail.asStateFlow()
+
+    private val _isLoadingServiceRequestDetail = MutableStateFlow(false)
+    val isLoadingServiceRequestDetail: StateFlow<Boolean> = _isLoadingServiceRequestDetail.asStateFlow()
+
+    private val _serviceRequestDetailError = MutableStateFlow<String?>(null)
+    val serviceRequestDetailError: StateFlow<String?> = _serviceRequestDetailError.asStateFlow()
+
+// 3. Add these functions inside ServicesViewModel class:
+
+    /**
+     * Fetches single service request details by ID using ApiRepository
+     */
+    fun fetchServiceRequestDetail(id: String) {
+        viewModelScope.launch {
+            _isLoadingServiceRequestDetail.value = true
+            _serviceRequestDetailError.value = null
+
+            val result = repo.request<SingleServiceRequestResponse> {
+                get("$SERVICE_REQUEST_VIEW_ONE_URL/$id")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _serviceRequestDetail.value = res.data
+                },
+                onFailure = { error ->
+                    _serviceRequestDetailError.value = error.message ?: "Failed to load service request details"
+                }
+            )
+
+            _isLoadingServiceRequestDetail.value = false
+        }
+    }
+
+    // Inside ServicesViewModel class:
+    private val _salesOrdersDropdown = MutableStateFlow<List<SalesOrderDropdownItem>>(emptyList())
+    val salesOrdersDropdown: StateFlow<List<SalesOrderDropdownItem>> = _salesOrdersDropdown.asStateFlow()
+
+    private val _isLoadingSalesOrders = MutableStateFlow(false)
+    val isLoadingSalesOrders: StateFlow<Boolean> = _isLoadingSalesOrders.asStateFlow()
+
+    /**
+     * Fetches sales orders for a specific customer ID
+     */
+    fun fetchSalesOrdersByCustomer(customerId: String, status: String) {
+        viewModelScope.launch {
+            _isLoadingSalesOrders.value = true
+            val result = repo.request<SalesOrderDropdownResponse> {
+                get(
+                    SALES_ORDERS_DROPDOWN_URL,
+                    repo.query("customerId" to customerId, "status" to status)
+                )
+            }
+            result.fold(
+                onSuccess = { res ->
+                    _salesOrdersDropdown.value = res.data.orEmpty()
+                },
+                onFailure = {
+                    _salesOrdersDropdown.value = emptyList()
+                }
+            )
+            _isLoadingSalesOrders.value = false
+        }
+    }
+
+    /**
+     * Clears the sales orders list when customer is reset
+     */
+    fun clearSalesOrders() {
+        _salesOrdersDropdown.value = emptyList()
+    }
+
+    /**
+     * Clears the currently selected service request detail state
+     */
+    fun clearServiceRequestDetail() {
+        _serviceRequestDetail.value = null
+        _serviceRequestDetailError.value = null
+    }
+
+    /**
+     * Loads all services dashboard widgets concurrently via ApiRepository
+     */
+    fun fetchDashboardData() {
+        viewModelScope.launch {
+            _isDashboardLoading.value = true
+
+            launch {
+                repo.request<ServicesAnalyticsResponse> { get(SERVICES_ANALYTICS_URL) }
+                    .onSuccess { _analytics.value = it.data }
+            }
+            launch {
+                repo.request<ServicesChartsResponse> { get(SERVICES_CHARTS_URL) }
+                    .onSuccess { _charts.value = it.data }
+            }
+            launch {
+                repo.request<RecentServiceRequestsResponse> { get(SERVICES_RECENT_REQUESTS_URL) }
+                    .onSuccess { _recentRequests.value = it.data.orEmpty() }
+            }
+            launch {
+                repo.request<RecentJobCardsResponse> { get(SERVICES_RECENT_JOBCARDS_URL) }
+                    .onSuccess { _recentJobCards.value = it.data.orEmpty() }
+            }
+            launch {
+                repo.request<RecentComplaintsResponse> { get(SERVICES_RECENT_COMPLAINTS_URL) }
+                    .onSuccess { _recentComplaints.value = it.data.orEmpty() }
+            }
+            launch {
+                repo.request<RecentFeedbacksResponse> { get(SERVICES_RECENT_FEEDBACKS_URL) }
+                    .onSuccess { _recentFeedbacks.value = it.data.orEmpty() }
+            }
+
+            _isDashboardLoading.value = false
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -281,9 +544,10 @@ class ServicesViewModel @Inject constructor(
             _listState.value = ServiceRequestUiState.Loading
             repository.getServiceRequests(page = page, search = search, status = status)
                 .onSuccess { response ->
+                    val items = response.data?.map { it.toServiceRequestData() } ?: emptyList()
                     _listState.value = ServiceRequestUiState.Success(
-                        items = response.data,
-                        total = response.pagination?.total ?: response.data.size
+                        items = items,
+                        total = response.pagination?.total ?: items.size
                     )
                 }
                 .onFailure { error ->
@@ -340,6 +604,314 @@ class ServicesViewModel @Inject constructor(
                     _actionState.value = ServiceActionUiState.Error(error.localizedMessage ?: "Status update failed")
                 }
         }
+    }
+    private val _alterationList = MutableStateFlow<List<AlterationItemDto>>(emptyList())
+    val alterationList: StateFlow<List<AlterationItemDto>> = _alterationList.asStateFlow()
+
+    private val _alterationQuery = MutableStateFlow("")
+    val alterationQuery: StateFlow<String> = _alterationQuery.asStateFlow()
+
+    private val _isAlterationsLoading = MutableStateFlow(false)
+    val isAlterationsLoading: StateFlow<Boolean> = _isAlterationsLoading.asStateFlow()
+
+    fun fetchAlterations(search: String? = null) {
+        viewModelScope.launch {
+            _isAlterationsLoading.value = true
+            val result = repo.request<AlterationListResponse> {
+                get(
+                    SERVICE_ALTERATION_VIEW_ALL_URL,
+                    repo.query(
+                        "page" to 1,
+                        "limit" to 50,
+                        "search" to search,
+                        "primaryCategory" to "Alteration"
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _alterationList.value = res.data.orEmpty()
+                },
+                onFailure = {
+                    _alterationList.value = emptyList()
+                }
+            )
+            _isAlterationsLoading.value = false
+        }
+    }
+
+    fun onAlterationSearch(query: String) {
+        _alterationQuery.value = query
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(350)
+            fetchAlterations(search = query.ifBlank { null })
+        }
+    }
+
+    // Add inside ServicesViewModel:
+    private val _alterationDetail = MutableStateFlow<AlterationViewData?>(null)
+    val alterationDetail: StateFlow<AlterationViewData?> = _alterationDetail.asStateFlow()
+
+    private val _isLoadingAlterationDetail = MutableStateFlow(false)
+    val isLoadingAlterationDetail: StateFlow<Boolean> = _isLoadingAlterationDetail.asStateFlow()
+
+    private val _alterationDetailError = MutableStateFlow<String?>(null)
+    val alterationDetailError: StateFlow<String?> = _alterationDetailError.asStateFlow()
+
+    /**
+     * Fetches single alteration ticket detail by ticket/service request ID
+     */
+    fun fetchAlterationDetail(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingAlterationDetail.value = true
+            _alterationDetailError.value = null
+
+            val result = repo.request<SingleAlterationResponse> {
+                get("$SERVICE_ALTERATION_VIEW_ONE_URL/$id")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _alterationDetail.value = res.data
+                },
+                onFailure = { error ->
+                    _alterationDetailError.value = error.message ?: "Failed to load alteration details"
+                }
+            )
+            _isLoadingAlterationDetail.value = false
+        }
+    }
+    fun clearAlterationDetail() {
+        _alterationDetail.value = null
+        _alterationDetailError.value = null
+    }
+
+    private val _isDelivering = MutableStateFlow(false)
+    val isDelivering: StateFlow<Boolean> = _isDelivering.asStateFlow()
+
+    /**
+     * Updates service request status to 'Delivered'
+     */
+    fun markAlterationAsDelivered(
+        id: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isDelivering.value = true
+            val payload = DeliverAlterationRequest(
+                status = "Delivered",
+                allowWithoutAdvance = true
+            )
+
+            val result = repo.request<DeliverAlterationResponse> {
+                patch("$SERVICE_ALTERATION_UPDATE_STATUS_URL/$id", payload)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _isDelivering.value = false
+                    // Refresh current view details
+                    fetchAlterationDetail(id)
+                    onSuccess(res.message ?: "Service request status updated to Delivered.")
+                },
+                onFailure = { err ->
+                    _isDelivering.value = false
+                    onError(err.message ?: "Failed to update status to Delivered")
+                }
+            )
+        }
+    }
+
+    private val _isSendingComment = MutableStateFlow(false)
+    val isSendingComment: StateFlow<Boolean> = _isSendingComment.asStateFlow()
+
+    /**
+     * Submits a staff observation or update comment to the service request
+     */
+    fun addAlterationComment(
+        id: String,
+        commentText: String,
+        onSuccess: (AlterationCommentItem?) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (id.isBlank() || commentText.isBlank()) return
+        viewModelScope.launch {
+            _isSendingComment.value = true
+            val payload = AddAlterationCommentRequest(commentText = commentText.trim())
+
+            val result = repo.request<AddAlterationCommentResponse> {
+                post("$SERVICE_ALTERATION_COMMENT_URL/$id", payload)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _isSendingComment.value = false
+                    // Refresh alteration ticket data to reflect logs
+                    fetchAlterationDetail(id)
+                    onSuccess(res.data?.comment)
+                },
+                onFailure = { err ->
+                    _isSendingComment.value = false
+                    onError(err.message ?: "Failed to post comment")
+                }
+            )
+        }
+    }
+
+
+    private val _complaintsList = MutableStateFlow<List<ComplaintItemDto>>(emptyList())
+    val complaintsList: StateFlow<List<ComplaintItemDto>> = _complaintsList.asStateFlow()
+
+    private val _complaintSearchQuery = MutableStateFlow("")
+    val complaintSearchQuery: StateFlow<String> = _complaintSearchQuery.asStateFlow()
+
+    private val _isLoadingComplaints = MutableStateFlow(false)
+    val isLoadingComplaints: StateFlow<Boolean> = _isLoadingComplaints.asStateFlow()
+
+    private val _complaintsError = MutableStateFlow<String?>(null)
+    val complaintsError: StateFlow<String?> = _complaintsError.asStateFlow()
+
+    private var complaintSearchJob: Job? = null
+
+    /**
+     * Fetches complaints list with optional search query
+     */
+    fun fetchComplaints(search: String? = null) {
+        viewModelScope.launch {
+            _isLoadingComplaints.value = true
+            _complaintsError.value = null
+
+            val result = repo.request<ComplaintListResponse> {
+                get(
+                    COMPLAINTS_VIEW_ALL_URL,
+                    repo.query(
+                        "page" to 1,
+                        "limit" to 50,
+                        "search" to search
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _complaintsList.value = res.data.orEmpty()
+                },
+                onFailure = { err ->
+                    _complaintsError.value = err.message ?: "Failed to load complaints"
+                    _complaintsList.value = emptyList()
+                }
+            )
+            _isLoadingComplaints.value = false
+        }
+    }
+
+    fun onComplaintSearch(query: String) {
+        _complaintSearchQuery.value = query
+        complaintSearchJob?.cancel()
+        complaintSearchJob = viewModelScope.launch {
+            delay(350)
+            fetchComplaints(search = query.ifBlank { null })
+        }
+    }
+
+    // ── Complaint Detail View State ──
+    private val _complaintDetail = MutableStateFlow<ComplaintDetailDataDto?>(null)
+    val complaintDetail: StateFlow<ComplaintDetailDataDto?> = _complaintDetail.asStateFlow()
+
+    private val _isLoadingComplaintDetail = MutableStateFlow<Boolean>(false)
+    val isLoadingComplaintDetail: StateFlow<Boolean> = _isLoadingComplaintDetail.asStateFlow()
+
+    private val _complaintDetailError = MutableStateFlow<String?>(null)
+    val complaintDetailError: StateFlow<String?> = _complaintDetailError.asStateFlow()
+
+    /**
+     * Fetches complaint details by ID from the API
+     */
+    fun fetchComplaintDetail(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingComplaintDetail.value = true
+            _complaintDetailError.value = null
+
+            val result = repo.request<SingleComplaintResponse> {
+                get("/api/services/complaints/view-one/$id")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _complaintDetail.value = res.data
+                },
+                onFailure = { err ->
+                    _complaintDetailError.value = err.message ?: "Failed to load complaint details"
+                }
+            )
+            _isLoadingComplaintDetail.value = false
+        }
+    }
+
+    private val _feedbacksList = MutableStateFlow<List<FeedbackItemDto>>(emptyList())
+    val feedbacksList: StateFlow<List<FeedbackItemDto>> = _feedbacksList.asStateFlow()
+
+    private val _feedbackSearchQuery = MutableStateFlow("")
+    val feedbackSearchQuery: StateFlow<String> = _feedbackSearchQuery.asStateFlow()
+
+    private val _isLoadingFeedbacks = MutableStateFlow<Boolean>(false)
+    val isLoadingFeedbacks: StateFlow<Boolean> = _isLoadingFeedbacks.asStateFlow()
+
+    private val _feedbacksError = MutableStateFlow<String?>(null)
+    val feedbacksError: StateFlow<String?> = _feedbacksError.asStateFlow()
+
+    private var feedbackSearchJob: Job? = null
+
+    /**
+     * Fetches feedback list with search query support
+     */
+    fun fetchFeedbacks(search: String? = null) {
+        viewModelScope.launch {
+            _isLoadingFeedbacks.value = true
+            _feedbacksError.value = null
+
+            val result = repo.request<FeedbackListResponse> {
+                get(
+                    FEEDBACKS_VIEW_ALL_URL,
+                    repo.query(
+                        "page" to 1,
+                        "limit" to 50,
+                        "search" to search
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _feedbacksList.value = res.data.orEmpty()
+                },
+                onFailure = { err ->
+                    _feedbacksError.value = err.message ?: "Failed to load feedbacks"
+                    _feedbacksList.value = emptyList()
+                }
+            )
+            _isLoadingFeedbacks.value = false
+        }
+    }
+
+    fun onFeedbackSearch(query: String) {
+        _feedbackSearchQuery.value = query
+        feedbackSearchJob?.cancel()
+        feedbackSearchJob = viewModelScope.launch {
+            delay(350)
+            fetchFeedbacks(search = query.ifBlank { null })
+        }
+    }
+
+    fun clearComplaintDetail() {
+        _complaintDetail.value = null
+        _complaintDetailError.value = null
     }
 
     fun resetActionState() {

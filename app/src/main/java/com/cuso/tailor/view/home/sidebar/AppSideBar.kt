@@ -200,12 +200,14 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
 
     if (menu == "Services") {
         return when (subItem) {
+            "Services Dashboard", "Dashboard" -> "services_dashboard"
+            "Production Orders", "Service Order", "Service Orders" -> "services_service_order"
             "Service Status"        -> "services_service_status"
             "Delay and Rework"      -> "services_delay_rework"
             "Service Delivery"      -> "services_service_delivery"
-            "Service Order"         -> "services_service_orders"
             "Service Request"       -> "services_service_request"
             "Alteration Management" -> "services_alteration_management"
+            "Customer Complaints"   -> "services_customer_feedback"
             "Customer Feedback"     -> "services_customer_feedback"
             else -> "services_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }
@@ -213,6 +215,8 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
 
     if (menu == "HR") {
         return when (subItem) {
+            "HR Dashboard", "Dashboard" -> "hr_dashboard"
+
             "Employee Management"        -> "hr_employee_management"
             "Organization Structure"    -> "hr_organization_structure"
             "All Employees"             -> "hr_organization_structure"
@@ -233,8 +237,8 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
             "Statutory Compliance"       -> "hr_payroll_statutory_compliance"
             "Reimbursements & Bonus"     -> "hr_payroll_reimbursements_bonus"
             "Loans & Advances"           -> "hr_payroll_loans_advances"
-            "Approvals"                  -> "hr_expense_approvals"
-            "New Claim"                  -> "hr_expense_new_claim"
+            "Approvals"                  -> if (category == "Expense Management") "hr_expense_claims" else "hr_expense_approvals"
+            "New Claim", "New Claims"    -> "hr_expense_new_claim"
             "Expense Type"               -> "hr_expense_type"
             "Finance Reimbursement"      -> "hr_expense_finance_reimbursement"
             "Training Management"        -> "hr_training_management"
@@ -247,6 +251,14 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
             "Document Categories"        -> "hr_document_categories"
             "Employee Document Upload"   -> "hr_employee_document_upload"
             else -> "hr_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
+        }
+    }
+
+    if (menu == "Legal") {
+        return when (subItem) {
+            "Legal Dashboard", "Dashboard" -> "legal_dashboard"
+            "Contracts & Agreements", "Contracts" -> "legal_contracts"
+            else -> "legal_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }
     }
 
@@ -391,20 +403,22 @@ object SidebarConfig {
                 R.drawable.services, "Services",
                 isPanel = true,
                 categories = listOf(
-                    "Service Status",
+                    "Services Dashboard",
+                    "Service & Orders",
                     "Service Request",
-                    "Service Order",
                     "Alteration Management",
+                    "Customer Complaints",
                     "Customer Feedback"
                 ),
                 subItems = mapOf(
-                    "Service Status" to listOf("Service Status", "Delay and Rework", "Service Delivery")
+                    "Service & Orders" to listOf("Production Orders", "Production Works")
                 )
             ),
             MenuItem(
                 R.drawable.hr, "HR",
                 isPanel = true,
                 categories = listOf(
+                    "HR Dashboard",
                     "Employee Management",
                     "Organization Structure",
                     "Attendance Management",
@@ -442,7 +456,7 @@ object SidebarConfig {
                     ),
                     "Expense Management" to listOf(
                         "Approvals",
-                        "New Claim",
+                        "New Claims",
                         "Expense Type",
                         "Finance Reimbursement"
                     ),
@@ -468,7 +482,7 @@ object SidebarConfig {
             MenuItem(
                 R.drawable.legal, "Legal",
                 isPanel = true,
-                categories = listOf("Legal Management")
+                categories = listOf("Legal Dashboard", "Contracts & Agreements")
             ),
             MenuItem(
                 R.drawable.security, "Security",

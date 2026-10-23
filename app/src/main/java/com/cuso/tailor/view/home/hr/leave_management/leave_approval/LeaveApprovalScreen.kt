@@ -45,11 +45,12 @@ fun formatLeaveDuration(startIso: String?, endIso: String?): String {
     }
 }
 
-// Resolves display name of the employee safely
+// Resolves display name of the employee safely from LeaveMemberDto
 fun resolveEmployeeName(member: LeaveMemberDto?): String {
     return when {
         member != null && (!member.firstName.isNullOrBlank() || !member.lastName.isNullOrBlank()) ->
             "${member.firstName.orEmpty()} ${member.lastName.orEmpty()}".trim()
+        !member?.employeeCode.isNullOrBlank() -> member.employeeCode
         !member?.memberId.isNullOrBlank() -> member.memberId
         else -> "Employee"
     }
@@ -63,14 +64,15 @@ fun LeaveApprovalScreen(
 ) {
     val tokens = LocalAppTokens.current
 
+    // Load leave requests when screen opens
     LaunchedEffect(Unit) {
-        viewModel.fetchLeaveRequests()
+        viewModel.fetchLeaveRequests(status = "Pending")
     }
+
     val leaveRequests by viewModel.leaveRequests.collectAsState()
     val isLoading by viewModel.isLoadingLeaveRequests.collectAsState()
     val errorMessageState by viewModel.leaveRequestsError.collectAsState()
 
-    // ── SEARCH FILTER STATE (Type explicitly declared) ──
     var searchQuery by remember { mutableStateOf("") }
 
     val filteredLeaveRequests: List<LeaveRequestItemDto> = remember(leaveRequests, searchQuery) {
@@ -88,7 +90,6 @@ fun LeaveApprovalScreen(
         }
     }
 
-
     // Dialog state holders
     var itemToApprove by remember { mutableStateOf<LeaveRequestItemDto?>(null) }
     var itemToReject by remember { mutableStateOf<LeaveRequestItemDto?>(null) }
@@ -101,10 +102,7 @@ fun LeaveApprovalScreen(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                // Header Bar with Close Button
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                Row(modifier = Modifier.fillMaxWidth()) {
                     TitleBar(title = "Leave Approval", onClose = onClose)
                 }
             }
@@ -115,9 +113,7 @@ fun LeaveApprovalScreen(
                     .padding(paddingValues)
             ) {
                 Spacer(Modifier.height(tokens.extraPadding * 0.6f))
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                Row(modifier = Modifier.fillMaxWidth()) {
                     SearchFilterBar(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
@@ -128,7 +124,6 @@ fun LeaveApprovalScreen(
 
                 Spacer(Modifier.height(tokens.extraPadding * 0.6f))
 
-                // UI State Handler
                 when {
                     isLoading && leaveRequests.isEmpty() -> {
                         ListSkeleton()
@@ -138,7 +133,7 @@ fun LeaveApprovalScreen(
                         AppErrorState(
                             title = "Failed to load leave requests",
                             message = errorMessageState ?: "Something went wrong. Please check your connection and try again.",
-                            onRetry = { viewModel.fetchLeaveRequests() }
+                            onRetry = { viewModel.fetchLeaveRequests(status = "Pending") }
                         )
                     }
 
@@ -169,7 +164,7 @@ fun LeaveApprovalScreen(
                             ) { item ->
                                 val member = item.organizationMemberId
                                 val employeeName = resolveEmployeeName(member)
-                                val designation = member?.designation?.ifBlank { "Employee" } ?: "Employee"
+                                val codeOrId = member?.employeeCode ?: member?.memberId ?: "Employee"
                                 val leaveTypeName = item.leaveTypeId?.name ?: "Leave"
                                 val durationText = formatLeaveDuration(item.startDate, item.endDate)
                                 val daysCount = item.totalDays?.toInt() ?: 1
@@ -186,7 +181,7 @@ fun LeaveApprovalScreen(
                                     title = employeeName,
                                     titleColor = title_color,
                                     titleFontWeight = FontWeight.Medium,
-                                    subtitle = designation,
+                                    subtitle = "Code: $codeOrId",
                                     topBadgeText = leaveTypeName,
                                     topBadgeInline = true,
                                     topBadgeShowDot = false,
@@ -249,7 +244,7 @@ fun LeaveApprovalScreen(
                                             HorizontalDivider(color = sectionBorder, thickness = 1.dp)
                                             Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
-                                            // Action Buttons: Open dialogs on click
+                                            // Action Buttons: Open confirmation dialogs
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
@@ -297,7 +292,7 @@ fun LeaveApprovalScreen(
             }
         }
 
-        // Approve Confirmation Dialog
+        // Approve Confirmation Dialog: sends { "status": "Approved" }
         itemToApprove?.let { item ->
             ApproveLeaveDialog(
                 employeeName = resolveEmployeeName(item.organizationMemberId),
@@ -307,29 +302,38 @@ fun LeaveApprovalScreen(
                     itemToApprove = null
                     viewModel.updateLeaveStatus(
                         id = targetId,
-                        status = "approved",
-                        onSuccess = { msg -> successFeedback = msg },
-                        onError = { err -> errorFeedback = err }
+                        status = "Approved", // 👈 Capitalized as required by API
+                        approvalRemarks = null,
+                        onSuccess = { msg ->
+                            successFeedback = msg
+                        },
+                        onError = { err ->
+                            errorFeedback = err
+                        }
                     )
                 }
             )
         }
 
-        // Reject Confirmation Dialog with Note
+// Reject Confirmation Dialog: sends { "status": "Rejected", "approvalRemarks": "..." }
         itemToReject?.let { item ->
             RejectLeaveDialog(
                 employeeName = resolveEmployeeName(item.organizationMemberId),
                 durationText = formatLeaveDuration(item.startDate, item.endDate),
                 onDismiss = { itemToReject = null },
-                onConfirm = { note ->
+                onConfirm = { remarks ->
                     val targetId = item.id
                     itemToReject = null
                     viewModel.updateLeaveStatus(
                         id = targetId,
-                        status = "rejected",
-                        note = note,
-                        onSuccess = { msg -> successFeedback = msg },
-                        onError = { err -> errorFeedback = err }
+                        status = "Rejected", // 👈 Capitalized as required by API
+                        approvalRemarks = remarks, // 👈 approvalRemarks mapped from input note
+                        onSuccess = { msg ->
+                            successFeedback = msg
+                        },
+                        onError = { err ->
+                            errorFeedback = err
+                        }
                     )
                 }
             )
@@ -348,9 +352,6 @@ fun LeaveApprovalScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Confirmation Dialog: Approve Leave Request
-// ─────────────────────────────────────────────────────────────
 @Composable
 private fun ApproveLeaveDialog(
     employeeName: String,
@@ -366,9 +367,7 @@ private fun ApproveLeaveDialog(
             tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier.padding(tokens.cardPadding)
-            ) {
+            Column(modifier = Modifier.padding(tokens.cardPadding)) {
                 Text(
                     text = "Approve leave request?",
                     fontSize = tokens.bodyLarge,
@@ -426,9 +425,6 @@ private fun ApproveLeaveDialog(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Confirmation Dialog: Reject Leave Request with Optional Note
-// ─────────────────────────────────────────────────────────────
 @Composable
 private fun RejectLeaveDialog(
     employeeName: String,
@@ -446,9 +442,7 @@ private fun RejectLeaveDialog(
             tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier.padding(tokens.cardPadding)
-            ) {
+            Column(modifier = Modifier.padding(tokens.cardPadding)) {
                 Text(
                     text = "Reject leave request",
                     fontSize = tokens.bodyLarge,

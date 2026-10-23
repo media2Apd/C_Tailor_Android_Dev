@@ -1,139 +1,48 @@
-@file:Suppress("unused")
+@file:Suppress("unused", "UNUSED_PARAMETER","DEPRECATION", "AssignedValueIsNeverRead")
+
 package com.cuso.tailor.view.home.services.alteration_management
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.cuso.tailor.ui.theme.whiteBg
-import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.DataCard
-import com.cuso.tailor.view.composable.DataCardField
-import com.cuso.tailor.view.composable.FabConfig
-import com.cuso.tailor.view.composable.FabScaffold
-import com.cuso.tailor.view.composable.SearchFilterBar
+import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.service.AlterationItemDto
+import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.viewmodel.ServicesViewModel
 
-// ─────────────────────────────────────────────
-// Data model (static/dummy)
-// ─────────────────────────────────────────────
-enum class AlterationStatus { PENDING, IN_PROGRESS, COMPLETED }
-
-data class AlterationItem(
-    val customerName: String,
-    val orderId: String,
-    val garmentType: String,
-    val alterationType: String,
-    val assignedTailor: String,
-    val dueDate: String,
-    val status: AlterationStatus
-)
-
-val dummyAlterationItems = List(4) {
-    AlterationItem(
-        customerName = "Rahul Mehna",
-        orderId = "ALT-2201",
-        garmentType = "Blazer",
-        alterationType = "Sleeve Shortening",
-        assignedTailor = "Suresh Kumar",
-        dueDate = "Aug 2, 2026",
-        status = AlterationStatus.PENDING
-    )
-}
-
-// ─────────────────────────────────────────────
-// AlterationCard — same DataCard pattern as LowStockAlertCard
-// ─────────────────────────────────────────────
-@Composable
-fun AlterationCard(
-    item: AlterationItem,
-    onViewClick: () -> Unit
-) {
-    val (badgeText, badgeBg, badgeText2Color) = when (item.status) {
-        AlterationStatus.PENDING -> Triple("Pending", Color(0xFFFDE7E7), Color(0xFFE53935))
-        AlterationStatus.IN_PROGRESS -> Triple("In Progress", Color(0xFFFFF4DE), Color(0xFFF59E0B))
-        AlterationStatus.COMPLETED -> Triple("Completed", Color(0xFFE7F8EE), Color(0xFF16A34A))
-    }
-
-    DataCard(
-        item = item,
-        title = item.customerName,
-        subtitle = "Order: ${item.orderId} · ${item.garmentType}",
-        topBadgeText = badgeText,
-        topBadgeTextColor = badgeText2Color,
-        topBadgeBgColor = badgeBg,
-        topBadgeInline = true,
-        footerAsRows = true,
-        footerFields = listOf(
-            DataCardField(
-                label = "Alteration",
-                text = item.alterationType
-            ),
-            DataCardField(
-                label = "Tailor",
-                text = item.assignedTailor
-            ),
-            DataCardField(
-                label = "Due Date",
-                text = item.dueDate
-            )
-        ),
-        content = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                OutlinedButton(
-                    onClick = onViewClick,
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF3D3DFF))
-                ) {
-                    Text("View →", fontSize = 13.sp)
-                }
-            }
-        }
-    )
-}
-
-// ─────────────────────────────────────────────
-// AlterationManagementScreen — full screen
-// ─────────────────────────────────────────────
 @Composable
 fun AlterationManagementScreen(
+    viewModel: ServicesViewModel,
     onClose: () -> Unit,
-    onViewClick: (AlterationItem) -> Unit,
+    onItemClick: (AlterationItemDto) -> Unit,
     onCreateNewAlteration: () -> Unit,
-    onBreadcrumbClick: () -> Unit
+    onBreadcrumbClick: () -> Unit = {}
 ) {
-    var searchQuery by remember { mutableStateOf("") }
+    val tokens = LocalAppTokens.current
+    val items by viewModel.alterationList.collectAsState()
+    val isLoading by viewModel.isAlterationsLoading.collectAsState()
+    val searchQuery by viewModel.alterationQuery.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.fetchAlterations()
+    }
 
     Scaffold(
         topBar = {
-            Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        TitleBar(title ="Alteration Management", onClose = onClose)
-
-                    }
-
-
-                }
-            }
+            // Header Bar with Close Icon
+            TitleBar(
+                title = "Alteration Management",
+                onClose = onClose
+            )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = Color.Transparent
@@ -142,39 +51,144 @@ fun AlterationManagementScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            fab = FabConfig(
-                label = "New Alteration",
-                icon = Icons.Default.Add,
-                onClick = onCreateNewAlteration,
-                endPadding = 16.dp,
-                bottomPadding = 16.dp,
-                draggable = true
-            )
+            fab = null
         ) {
-            Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
+            ) {
+                // Search and Filter Row
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = { viewModel.onAlterationSearch(it) },
+                    placeholder = "Search Alteration...",
+                    onFilterClick = { /* Handle Filter Dialog/Action */ }
+                )
 
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                ) {
-                    SearchFilterBar(
-                        query = searchQuery,
-                        onQueryChange = { searchQuery = it },
-                        placeholder = "Search Alterations...",
-                        onFilterClick = {  }
-                    )
-                }
-                LazyColumn {
-                    items(dummyAlterationItems) { item ->
-                        AlterationCard(
-                            item = item,
-                            onViewClick = { onViewClick(item) }
+                if (isLoading) {
+                    ListSkeleton()
+                } else if (items.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No Alteration requests found",
+                            fontSize = tokens.bodyMedium,
+                            color = mutedText
                         )
                     }
-                    item { Spacer(Modifier.height(80.dp)) } // FAB clearance
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(items) { item ->
+                            AlterationDataCard(
+                                item = item,
+                                onClick = { onItemClick(item) },
+                                onMenuClick = { /* Handle popup menu */ }
+                            )
+                        }
+
+                        // Bottom Spacer for FAB clearance
+                        item {
+                            Spacer(Modifier.height(80.dp))
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+/**
+ * Reusable Card wrapping DataCard to reproduce the exact visual layout from the reference image.
+ */
+@Composable
+fun AlterationDataCard(
+    item: AlterationItemDto,
+    onClick: () -> Unit,
+    onMenuClick: () -> Unit
+) {
+    val tokens = LocalAppTokens.current
+
+    // Status Pill color mapping based strictly on Colors.kt definitions
+    val rawStatus = item.status?.lowercase() ?: "in progress"
+    val (statusLabel, statusBg, statusText) = when {
+        rawStatus.contains("pending") || rawStatus.contains("draft") -> {
+            Triple("Pending", yellowBg, yellowText)
+        }
+        rawStatus.contains("completed") || rawStatus.contains("ready") -> {
+            Triple("Completed", greenBg, greentext)
+        }
+        rawStatus.contains("cancel") || rawStatus.contains("reject") -> {
+            Triple("Cancelled", redBg, redText)
+        }
+        else -> {
+            Triple("In Progress", background_light_purple, BluePrimary)
+        }
+    }
+
+    val typeText = if (item.isFreeCharge) "Free" else "Paid"
+
+    DataCard(
+        item = item,
+        onClick = { onClick() },
+        showDivider = false,
+        // Header Row: Ticket ID + "Ticket ID" label and Inlined Status Badge with Overflow Menu
+        eyebrowText = "${item.displayTicketCode}  •  Ticket ID",
+        eyebrowColor = title_color,
+        topBadgeText = statusLabel,
+        topBadgeBgColor = statusBg,
+        topBadgeTextColor = statusText,
+        topBadgeShowDot = false,
+        topBadgeInline = true,
+        showActionsInHeader = true,
+        actions = listOf(
+            MenuAction(
+                label = "View Details",
+                tint = headerGrey,
+                textColor = TextPrimary,
+                onClick = onClick
+            ),
+            MenuAction(
+                label = "Actions",
+                tint = headerGrey,
+                textColor = TextPrimary,
+                onClick = onMenuClick
+            )
+        ),
+        // Customer Name
+        title = item.customerDisplayName,
+        titleColor = textSubdued,
+        titleFontWeight = FontWeight.Normal,
+        // Type and Date Row
+        subtitle = "Type: $typeText · Date: ${item.formattedDate}",
+        // Key-Value rows: Order ID, Garment, and Tailor
+        footerAsRows = true,
+        footerFields = listOf(
+            DataCardField(
+                label = "Order ID",
+                text = item.orderIdDisplay,
+                labelColor = iconMuted,
+                textColor = textSubdued,
+                asRow = true
+            ),
+            DataCardField(
+                label = "Garment",
+                text = item.garmentDisplay,
+                labelColor = iconMuted,
+                textColor = textSubdued,
+                asRow = true
+            ),
+            DataCardField(
+                label = "Tailor",
+                text = item.tailorDisplay,
+                labelColor = iconMuted,
+                textColor = textSubdued,
+                asRow = true
+            )
+        )
+    )
 }

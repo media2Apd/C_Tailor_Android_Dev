@@ -1022,7 +1022,7 @@ private fun DashedAddButton(text: String, onClick: () -> Unit, enabled: Boolean)
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
-            .dashedBorder(color = BorderGray, strokeWidth = 1.dp, cornerRadius = tokens.cardCornerRadius * 0.8f),
+            .dashedBorder(color = BorderGray, cornerRadius = tokens.cardCornerRadius * 0.8f),
         shape = RoundedCornerShape(tokens.cardCornerRadius * 0.8f),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
         border = null,
@@ -1150,7 +1150,6 @@ private fun OutlinedIconActionButton(
             .fillMaxWidth()
             .dashedBorder(
                 color = if (enabled) Primary else mutedText,
-                strokeWidth = 1.dp,
                 cornerRadius = tokens.cardCornerRadius * 0.8f
             )
             .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.8f))

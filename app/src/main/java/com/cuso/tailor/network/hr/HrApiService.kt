@@ -1,11 +1,11 @@
+@file:Suppress("unused", "UNUSED_PARAMETER","DEPRECATION", "AssignedValueIsNeverRead")
+
 package com.cuso.tailor.network.hr
 
-import com.cuso.tailor.model.hr.ApplyLeaveRequest
-import com.cuso.tailor.model.hr.ApplyLeaveResponse
+
 import com.cuso.tailor.model.hr.AttendanceApproveRequest
 import com.cuso.tailor.model.hr.AttendanceApproveResponse
 import com.cuso.tailor.model.hr.AttendanceResponse
-import com.cuso.tailor.model.hr.CreateLeaveRequest
 import com.cuso.tailor.model.hr.CreateLeaveResponse
 import com.cuso.tailor.model.hr.CreateManualAttendanceRequest
 import com.cuso.tailor.model.hr.CreateManualAttendanceResponse
@@ -15,7 +15,6 @@ import com.cuso.tailor.model.hr.CreateShiftRequest
 import com.cuso.tailor.model.hr.CreateShiftResponse
 import com.cuso.tailor.model.hr.DeleteProfilePictureResponse
 import com.cuso.tailor.model.hr.GenericApiResponse
-import com.cuso.tailor.model.hr.LeaveActionResponse
 import com.cuso.tailor.model.hr.LeaveRequestsResponse
 import com.cuso.tailor.model.hr.LeaveTypeResponse
 import com.cuso.tailor.model.hr.MemberDetailResponse
@@ -185,7 +184,7 @@ interface HrApiService {
     //LEAVE MANAGEMENT
 
     // Fetch all leave requests
-    @GET("/api/hr/leave-request/by-status/pending")
+    @GET("/api/hr/leave-request/view-all")
     suspend fun getLeaveRequests(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,

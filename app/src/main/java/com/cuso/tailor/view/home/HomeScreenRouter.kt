@@ -172,7 +172,6 @@ import com.cuso.tailor.view.home.sales.settings.garment.garment_category_detail.
 import com.cuso.tailor.view.home.sales.settings.measurement_list.MeasurementListScreen
 import com.cuso.tailor.view.home.sales.settings.pricing_setup.*
 import com.cuso.tailor.view.home.services.alteration_management.AlterationManagementScreen
-import com.cuso.tailor.view.home.services.alteration_management.CreateAlterationManagementScreen
 import com.cuso.tailor.view.home.services.feedback.CustomerFeedbackScreen
 import com.cuso.tailor.view.home.services.feedback.FeedbackDetailScreen
 import com.cuso.tailor.view.home.services.service_order.ServiceOrderOverviewScreen
@@ -190,6 +189,7 @@ import com.cuso.tailor.view.home.services.settings.ServiceTemplateListScreen
 import com.cuso.tailor.view.home.subscriptions.SubscriptionFlowContainer
 import com.cuso.tailor.view.home.warehouse.WarehouseSettingsScreen
 import com.cuso.tailor.model.finance.InvoiceViewOneData
+import com.cuso.tailor.model.hr.ExpenseClaimDto
 import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.view.home.finance.account_receivable.sales_invoice.RecordPaymentReceiptScreen
 import com.cuso.tailor.view.home.finance.credit.CreateCreditNoteScreen
@@ -208,8 +208,15 @@ import com.cuso.tailor.view.home.finance.purchase.FinanceReturnScreen
 import com.cuso.tailor.view.home.finance.purchase.PurchaseReturnDetailScreen
 import com.cuso.tailor.view.home.finance.purchase.VendorCreditListScreen
 import com.cuso.tailor.view.home.finance.receipts.CreatePaymentReceiptScreen
+import com.cuso.tailor.view.home.hr.dashboard.TeamOperationsDashboardScreen
 import com.cuso.tailor.view.home.hr.organization_structure.OrganizationStructureScreen
 import com.cuso.tailor.view.home.inventory.dashboard.InventoryDashboardScreen
+import com.cuso.tailor.view.home.inventory.expense_management.approval.ExpenseClaimDetailScreen
+import com.cuso.tailor.view.home.inventory.expense_management.approval.ExpenseManagementScreen
+import com.cuso.tailor.view.home.inventory.expense_management.expense_type.AddExpenseTypeScreen
+import com.cuso.tailor.view.home.inventory.expense_management.expense_type.ExpenseTypeScreen
+import com.cuso.tailor.view.home.inventory.expense_management.new_claims.NewClaimsScreen
+import com.cuso.tailor.view.home.inventory.expense_management.new_claims.SubmitExpenseClaimScreen
 import com.cuso.tailor.view.home.inventory.inventory.packages.CreatePackageScreen
 import com.cuso.tailor.view.home.inventory.inventory.packages.PackageDetailScreen
 import com.cuso.tailor.view.home.inventory.inventory.packages.PackagesScreen
@@ -217,6 +224,14 @@ import com.cuso.tailor.view.home.inventory.inventory.picklist.CreatePicklistScre
 import com.cuso.tailor.view.home.inventory.inventory.picklist.PicklistDetailScreen
 import com.cuso.tailor.view.home.inventory.inventory.picklist.PicklistListScreen
 import com.cuso.tailor.view.home.inventory.pricing_list.NewPriceListScreen
+import com.cuso.tailor.view.home.inventory.expense_management.finance_reimbursement.FinanceReimbursementScreen
+import com.cuso.tailor.view.home.inventory.expense_management.finance_reimbursement.ProcessPaymentScreen
+import com.cuso.tailor.view.home.inventory.expense_management.new_claims.EditExpenseClaimScreen
+import com.cuso.tailor.view.home.legal.dashboard.LegalDashboardScreen
+import com.cuso.tailor.view.home.legal.legal_contract.LegalContractsScreen
+import com.cuso.tailor.view.home.services.alteration_management.ViewAlterationManagementScreen
+import com.cuso.tailor.view.home.services.dashboard.ServicesDashboardScreen
+import com.cuso.tailor.view.home.services.service_request.ReviewServiceRequestScreen
 import com.cuso.tailor.viewmodel.*
 
 private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
@@ -225,6 +240,14 @@ private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedAlterationId: String? = null,
+    onAlterationIdSelected: (String?) -> Unit = {},
+    selectedClaimForPayment: ExpenseClaimDto? = null,
+    onClaimForPaymentSelected: (ExpenseClaimDto?) -> Unit = {},
+    selectedExpenseTypeId: String? = null,
+    onExpenseTypeIdSelected: (String?) -> Unit = {},
+    selectedExpenseClaimId: String? = null,
+    onExpenseClaimIdSelected: (String?) -> Unit = {},
     selectedPriceListId: String? = null,
     onPriceListIdSelected: (String?) -> Unit = {},
     selectedPurchaseReturnId: String? = null,
@@ -596,7 +619,7 @@ fun HomeScreenRouter(
             )
         }
 
-        "hr_all_employees", "hr_employee_onboarding", "hr_attendance",
+        "hr_dashboard","hr_all_employees", "hr_employee_onboarding", "hr_attendance",
         "hr_attendance_detail", "hr_monthly_attendance", "hr_daily_attendance",
         "hr_attendance_manual_entry", "hr_attendance_shift_management","hr_payroll_salary_structure",
         "hr_payroll_salary_components",
@@ -611,9 +634,17 @@ fun HomeScreenRouter(
         "hr_document_categories",
         "hr_add_document_category",
         "hr_employee_document_upload",
-        "hr_new_document_upload", "hr_organization_structure",-> {
+        "hr_new_document_upload", "hr_organization_structure",
+        "hr_expense_claims","hr_expense_new_claim", "hr_expense_type", "hr_submit_expense_claim", "hr_expense_claim_detail","hr_expense_claim_detail_readonly",
+        "hr_expense_finance_reimbursement","hr_edit_expense_claim","hr_add_expense_type","hr_expense_process_payment"   -> {
             HrRouter(
                 screen = screen,
+                selectedClaimForPayment = selectedClaimForPayment,
+                onClaimForPaymentSelected = onClaimForPaymentSelected,
+                selectedExpenseTypeId = selectedExpenseTypeId,
+                onExpenseTypeIdSelected = onExpenseTypeIdSelected,
+                selectedExpenseClaimId = selectedExpenseClaimId,
+                onExpenseClaimIdSelected = onExpenseClaimIdSelected,
                 selectedDocumentCategoryId = selectedDocumentCategoryId,
                 onDocumentCategoryIdSelected = onDocumentCategoryIdSelected,
                 selectedDocumentId = selectedDocumentId,
@@ -652,15 +683,27 @@ fun HomeScreenRouter(
             )
         }
 
-        "services_service_status", "sales_orders", "service_status_detail",
+        // ── Legal Module Router ──
+        "legal_dashboard", "legal_contracts" -> {
+            LegalRouter(
+                screen = screen,
+                onGoBack = onGoBack
+            )
+        }
+
+        // Added "services_production_orders" and "services_service_orders" to the screen list
+        "services_dashboard", "services_service_status", "sales_orders", "service_status_detail",
         "order_management_overview", "services_delay_rework", "services_service_delivery",
-        "services_service_order", "service_order_overview", "services_service_request",
+        "services_production_orders", "services_service_orders", "services_service_order",
+        "service_order_overview", "services_service_request",
         "create_request", "review_services", "services_alteration_management",
-        "create_alteration", "services_customer_feedback", "feedback_detail",
+        "create_alteration", "view_alteration", "services_customer_feedback", "feedback_detail",
         "services_service_templates", "services_create_service_template",
-        "services_view_service_template" -> {
+        "services_view_service_template", "review_service_request" -> {
             ServicesRouter(
                 screen = screen,
+                selectedAlterationId = selectedAlterationId,
+                onAlterationIdSelected = onAlterationIdSelected,
                 selectedServiceRequestId = selectedServiceRequestId,
                 onServiceRequestIdSelected = onServiceRequestIdSelected,
                 navController = navController,
@@ -3353,7 +3396,13 @@ private fun InventoryProcurementRouter(
 @Composable
 private fun HrRouter(
     screen: String,
+    selectedClaimForPayment: ExpenseClaimDto? = null,
+    onClaimForPaymentSelected: (ExpenseClaimDto?) -> Unit = {},
+    selectedExpenseTypeId: String? = null,
+    onExpenseTypeIdSelected: (String?) -> Unit = {},
     hrViewModel: HrViewModel,
+    selectedExpenseClaimId: String? = null,
+    onExpenseClaimIdSelected: (String?) -> Unit = {},
     selectedDocumentCategoryId: String? = null,
     onDocumentCategoryIdSelected: (String?) -> Unit = {},
     selectedDocumentId: String? = null,
@@ -3379,6 +3428,8 @@ private fun HrRouter(
     onOpenModulesPanel: (String) -> Unit
 ) {
     when (screen) {
+        // HR Dashboard screen
+        "hr_dashboard" -> TeamOperationsDashboardScreen()
         "hr_all_employees", "hr_employee_management" -> AllEmployeesScreen(
             onDismiss = onGoBack,
             onAddEmployee = {
@@ -3666,10 +3717,175 @@ private fun HrRouter(
                 onGoBack()
             }
         )
+
+        // ─────────────────────────────────────────────
+        // EXPENSE CLAIMS & APPROVALS SCREEN
+        // ─────────────────────────────────────────────
+        "hr_expense_claims" -> ExpenseManagementScreen(
+            viewModel = hrViewModel,
+            onClose = onGoBack,
+            onViewClaimDetail = { claimId ->
+                onExpenseClaimIdSelected(claimId)
+                onNavigate("hr_expense_claim_detail")
+            }
+        )
+
+        // Read-only Details without Manager Approval actions
+        "hr_expense_claim_detail_readonly" -> {
+            selectedExpenseClaimId?.takeIf { it.isNotBlank() }?.let { id ->
+                ExpenseClaimDetailScreen(
+                    claimId = id,
+                    title = "Expense Details",      // Set header to Expense Details
+                    showApprovalActions = false,    // Hide approval actions
+                    viewModel = hrViewModel,
+                    onClose = {
+                        onExpenseClaimIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
+
+        // Full Details with Manager Approval actions
+        "hr_expense_claim_detail" -> {
+            selectedExpenseClaimId?.takeIf { it.isNotBlank() }?.let { id ->
+                ExpenseClaimDetailScreen(
+                    claimId = id,
+                    title = "Expense Details",
+                    showApprovalActions = true,
+                    viewModel = hrViewModel,
+                    onClose = {
+                        onExpenseClaimIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
+
+        // ─────────────────────────────────────────────
+        // EXPENSE TYPE LIST
+        // ─────────────────────────────────────────────
+        "hr_expense_type" -> ExpenseTypeScreen(
+            viewModel = hrViewModel,
+            onClose = onGoBack,
+            onExpenseTypeClick = { type ->
+                onExpenseClaimIdSelected(type.id)
+                onNavigate("hr_expense_claim_detail_readonly")
+            },
+            onAddNewExpenseType = {
+                onExpenseTypeIdSelected(null)
+                onNavigate("hr_add_expense_type")
+            },
+            onEditExpenseType = { id ->
+                onExpenseTypeIdSelected(id)
+                onNavigate("hr_add_expense_type")
+            }
+        )
+
+        // ─────────────────────────────────────────────
+        // ADD / EDIT EXPENSE TYPE SCREEN
+        // ─────────────────────────────────────────────
+        "hr_add_expense_type" -> AddExpenseTypeScreen(
+            expenseTypeId = selectedExpenseTypeId,
+            viewModel = hrViewModel,
+            onClose = {
+                onExpenseTypeIdSelected(null)
+                onGoBack()
+            },
+            onSavedSuccess = {
+                onExpenseTypeIdSelected(null)
+                onGoBack()
+            }
+        )
+        // ─────────────────────────────────────────────
+        // FINANCE REIMBURSEMENT SCREEN
+        // ─────────────────────────────────────────────
+        "hr_expense_finance_reimbursement" -> {
+            FinanceReimbursementScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onViewDetail = { claim ->
+                    onExpenseClaimIdSelected(claim.id)
+                    onNavigate("hr_expense_claim_detail_readonly")
+                },
+                onProcessPayClick = { claim ->
+                    onClaimForPaymentSelected(claim)
+                    onNavigate("hr_expense_process_payment")
+                }
+            )
+        }
+
+        // ─────────────────────────────────────────────
+        // PROCESS PAYMENT STANDALONE SCREEN
+        // ─────────────────────────────────────────────
+        "hr_expense_process_payment" -> {
+            selectedClaimForPayment?.let { claim ->
+                ProcessPaymentScreen(
+                    claim = claim,
+                    viewModel = hrViewModel,
+                    onClose = {
+                        onClaimForPaymentSelected(null)
+                        onGoBack()
+                    },
+                    onPaymentSuccess = {
+                        onClaimForPaymentSelected(null)
+                        hrViewModel.fetchReimbursementClaims()
+                        onGoBack()
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
+
+        // ─────────────────────────────────────────────
+        // NEW CLAIMS LIST (View goes to details without approvals)
+        // ─────────────────────────────────────────────
+        "hr_expense_new_claim" -> NewClaimsScreen(
+            viewModel = hrViewModel,
+            onClose = onGoBack,
+            onClaimClick = { claim ->
+                onExpenseClaimIdSelected(claim.id)
+                onNavigate("hr_expense_claim_detail_readonly")
+            },
+            onEditClaimClick = { claim ->
+                onExpenseClaimIdSelected(claim.id)
+                onNavigate("hr_edit_expense_claim") // Navigates to Edit Expense Claim Screen
+            },
+            onNavigateToSubmitClaim = {
+                onExpenseClaimIdSelected(null)
+                onNavigate("hr_submit_expense_claim") // Navigates to Submit Expense Claim Screen
+            }
+        )
+
+        "hr_submit_expense_claim" -> SubmitExpenseClaimScreen(
+            hrViewModel = hrViewModel,
+            onClose = onGoBack,
+            onSubmitSuccess = {
+                hrViewModel.fetchExpenseClaims(page = 1, limit = 10, status = null, search = null)
+                onGoBack()
+            }
+        )
+
+        "hr_edit_expense_claim" -> {
+            selectedExpenseClaimId?.let { id ->
+                EditExpenseClaimScreen(
+                    claimId = id,
+                    hrViewModel = hrViewModel,
+                    onClose = {
+                        onExpenseClaimIdSelected(null)
+                        onGoBack()
+                    },
+                    onSubmitSuccess = {
+                        onExpenseClaimIdSelected(null)
+                        hrViewModel.fetchExpenseClaims(page = 1, limit = 10, status = null, search = null)
+                        onGoBack()
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
     }
-
-
 }
+
+
 
 @Composable
 private fun LogisticsRouter(
@@ -3701,10 +3917,25 @@ private fun LogisticsRouter(
     }
 }
 
+@Composable
+private fun LegalRouter(
+    screen: String,
+    onGoBack: () -> Unit
+) {
+    when (screen) {
+        "legal_dashboard" -> LegalDashboardScreen()
+        "legal_contracts" -> LegalContractsScreen(
+            onBack = onGoBack,
+            onCreateContract = { /* Navigate to Create Contract Screen */ }
+        )
+    }
+}
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun ServicesRouter(
     screen: String,
+    selectedAlterationId: String? = null,
+    onAlterationIdSelected: (String?) -> Unit = {},
     selectedServiceRequestId: String?,
     onServiceRequestIdSelected: (String?) -> Unit,
     navController: NavHostController,
@@ -3725,6 +3956,10 @@ private fun ServicesRouter(
     onOpenModulesPanel: (String) -> Unit
 ) {
     when (screen) {
+        "services_dashboard" -> ServicesDashboardScreen(
+            onNavigateToRequests = { onNavigate("services_service_request") },
+            onNavigateToComplaints = { onNavigate("services_customer_feedback") }
+        )
         "services_service_status", "sales_orders" -> ServiceStatusScreen(
             navController = navController,
             onMenuClick = onOpenDrawer,
@@ -3767,6 +4002,9 @@ private fun ServicesRouter(
             onViewUrgentOrder = { }
         )
 
+        // Match "services_service_order", "services_service_orders", and "services_production_orders"
+        "services_production_orders",
+        "services_service_orders",
         "services_service_order" -> ServiceOrderScreen(
             navController = navController,
             onMenuClick = onOpenDrawer,
@@ -3777,7 +4015,7 @@ private fun ServicesRouter(
             },
             onViewOrder = { orderId ->
                 onOrderIdSelected(orderId)
-                onNavigate("service_order_overview")
+                onNavigate("service_order_overview") // Navigates to ServiceOrderOverviewScreen
             },
             onEditOrder = { orderId -> onEditOrderIdChange(orderId) },
             onBreadCrumbClick = { onOpenModulesPanel("Services") }
@@ -3800,24 +4038,32 @@ private fun ServicesRouter(
             } ?: run { onGoBack() }
         }
 
-        // Service Request List Route
         "services_service_request" -> ServiceRequestScreen(
             onClose = onGoBack,
             onCreateNewRequest = { onNavigate("create_request") },
             onViewClick = { requestId ->
-                android.util.Log.d("SERVICE_NAV", "Selected Request ID: $requestId")
                 onServiceRequestIdSelected(requestId)
                 onNavigate("review_services")
             }
         )
 
-        // Create Service Request Route
+// Create Service Request Route with Review Navigation Callback
         "create_request" -> CreateServiceRequest(
             onClose = onGoBack,
-            onCancel = onGoBack
+            onCancel = onGoBack,
+            onNavigateToReview = { onNavigate("review_service_request") }
         )
 
-        // Service Request Details (Real API Data)
+// In-Progress Creation Review Screen (Preserves Form Data)
+        "review_service_request" -> ReviewServiceRequestScreen(
+            onBackToEdit = onGoBack,
+            onSuccessSubmitted = {
+                onGoBack()
+                onGoBack()
+            }
+        )
+
+// View Existing Service Request Details
         "review_services" -> {
             if (!selectedServiceRequestId.isNullOrBlank()) {
                 ServiceRequestDetailsScreen(
@@ -3828,19 +4074,46 @@ private fun ServicesRouter(
                     }
                 )
             } else {
-                android.util.Log.e("SERVICE_NAV", "Error: selectedServiceRequestId is NULL!")
                 onGoBack()
             }
         }
 
-        "services_alteration_management" -> AlterationManagementScreen(
-            onClose = onGoBack,
-            onCreateNewAlteration = { onNavigate("create_alteration") },
-            onBreadcrumbClick = { onOpenModulesPanel("Services") },
-            onViewClick = { }
-        )
+        "services_alteration_management" -> {
+            val servicesViewModel: ServicesViewModel = hiltViewModel()
 
-        "create_alteration" -> CreateAlterationManagementScreen(onClose = onGoBack)
+            AlterationManagementScreen(
+                viewModel = servicesViewModel,
+                onClose = onGoBack,
+                onCreateNewAlteration = {
+                    onAlterationIdSelected(null)
+                    onNavigate("create_alteration")
+                },
+                onBreadcrumbClick = { onOpenModulesPanel("Services") },
+                onItemClick = { item ->
+                    if (item.id.isNotBlank()) {
+                        onAlterationIdSelected(item.id)
+                        onNavigate("view_alteration")
+                    }
+                }
+            )
+        }
+
+        // Handles both create and view cleanly without 'CreateAlterationManagementScreen'
+        "view_alteration", "create_alteration" -> {
+            selectedAlterationId?.takeIf { it.isNotBlank() }?.let { validId ->
+                val servicesViewModel: ServicesViewModel = hiltViewModel()
+                ViewAlterationManagementScreen(
+                    alterationId = validId,
+                    viewModel = servicesViewModel,
+                    onClose = {
+                        onAlterationIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
 
         "services_customer_feedback" -> CustomerFeedbackScreen(
             onDismiss = onGoBack,

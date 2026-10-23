@@ -295,10 +295,12 @@ fun ServiceOrderOverviewScreen(
                         .fillMaxSize()
                         .blurScrim(radius = combinedSheetBlur)
                 ) {
+                    // Enabled horizontal scroll with single-line tabs
                     AppUnderlineTabRow(
                         tabs = tabs,
                         selectedIndex = tabs.indexOf(selectedTab),
-                        onTabSelected = { index -> selectedTab = tabs[index] }
+                        onTabSelected = { index -> selectedTab = tabs[index] },
+                        isScrollable = true
                     )
 
                     Box(modifier = Modifier.weight(1f).fillMaxWidth()) {

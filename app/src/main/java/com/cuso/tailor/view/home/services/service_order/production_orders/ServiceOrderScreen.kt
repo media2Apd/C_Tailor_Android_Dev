@@ -6,7 +6,8 @@
     "unused_variable",
     "unused"
 )
-package com.cuso.tailor.view.home.services.service_order
+
+package com.cuso.tailor.view.home.services.service_order.production_orders
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -16,6 +17,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Visibility
@@ -33,11 +35,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.tailor.R
+import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.ServicesViewModel
-import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -52,12 +54,12 @@ fun ServiceOrderScreen(
     onBreadCrumbClick: () -> Unit = {},
     viewModel: ServicesViewModel = hiltViewModel()
 ) {
-    val tokens = LocalAppTokens.current
+    val tokens: AppDesignTokens = LocalAppTokens.current
 
-    // Observe API states from ServicesViewModel
-    val serviceRequests by viewModel.serviceRequestsList.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingServiceRequestsList.collectAsStateWithLifecycle()
-    val errorMessage by viewModel.serviceRequestsListError.collectAsStateWithLifecycle()
+    // Observe Service Orders state
+    val serviceOrders by viewModel.serviceOrdersList.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoadingServiceOrders.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.serviceOrdersError.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
@@ -65,13 +67,10 @@ fun ServiceOrderScreen(
     var searchQuery by remember { mutableStateOf("") }
     var statusFilter by remember { mutableStateOf("all") }
 
-    // Debounced search and filter triggering the API
+    // Fetch orders on search query or filter changes
     LaunchedEffect(searchQuery, statusFilter) {
-        delay(400)
-        viewModel.fetchServiceRequestsList(
-            page = 1,
-            limit = 20,
-            search = searchQuery.takeIf { it.isNotBlank() },
+        viewModel.onServiceOrderSearch(
+            query = searchQuery,
             status = statusFilter.takeIf { it != "all" }
         )
     }
@@ -81,12 +80,22 @@ fun ServiceOrderScreen(
         snackbarHostState = snackbarHostState,
         modifier = Modifier.fillMaxSize()
     ) {
-        Box(modifier = Modifier.fillMaxSize().background(Primary_background)) {
-            Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
-
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Primary_background)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
+            ) {
                 // Top Title Bar
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    TitleBar(title = "Service Orders", onClose = onBack)
+                    TitleBar(
+                        title = "Service Orders",
+                        onClose = onBack
+                    )
                 }
 
                 // Search & Filter Component
@@ -95,31 +104,39 @@ fun ServiceOrderScreen(
                         query = searchQuery,
                         onQueryChange = { searchQuery = it },
                         placeholder = "Search Customers, Code...",
-                        accentColor = BluePrimary,
+                        accentColor = Primary,
                         borderColor = BorderGray,
                         textSecondaryColor = TextSecondary,
-                        onFilterClick = { /* Handle filter drawer */ }
+                        onFilterClick = { /* Handle filter sheet */ }
                     )
                 }
-                HorizontalDivider(color = title_border)
+
+                HorizontalDivider(color = title_border, thickness = 1.dp)
 
                 // Main Content List Area
-                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
                     when {
-                        isLoading && serviceRequests.isEmpty() -> {
+                        isLoading && serviceOrders.isEmpty() -> {
                             ListSkeleton()
                         }
 
-                        errorMessage != null && serviceRequests.isEmpty() -> {
+                        errorMessage != null && serviceOrders.isEmpty() -> {
                             AppErrorState(
-                                title = "Failed to load service requests",
+                                title = "Failed to load service orders",
                                 message = errorMessage ?: "Please check your network and try again.",
-                                onRetry = { viewModel.fetchServiceRequestsList() }
+                                onRetry = { viewModel.fetchServiceOrders() }
                             )
                         }
 
-                        serviceRequests.isEmpty() -> {
-                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        serviceOrders.isEmpty() -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(
                                         imageVector = Icons.Default.Receipt,
@@ -127,7 +144,7 @@ fun ServiceOrderScreen(
                                         tint = mutedText,
                                         modifier = Modifier.size(tokens.iconSize * 2.2f)
                                     )
-                                    Spacer(Modifier.height(tokens.extraPadding / 2))
+                                    Spacer(Modifier.height(tokens.extraPadding * 0.5f))
                                     Text(
                                         text = "No service orders found",
                                         color = TextSecondary,
@@ -141,55 +158,107 @@ fun ServiceOrderScreen(
                         else -> {
                             LazyColumn(
                                 state = listState,
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = tokens.screenPadding)
                             ) {
-                                items(serviceRequests, key = { it.id }) { request ->
-                                    // Extract summary of garments
-                                    val garmentNames = request.items?.joinToString(", ") { item ->
-                                        val name = item.garmentName?.takeIf { it.isNotBlank() }
-                                            ?: item.garmentDescription?.takeIf { it.isNotBlank() }
-                                            ?: item.category
-                                            ?: "Garment"
-                                        "$name (${item.quantity ?: 1})"
-                                    }?.ifBlank { "—" } ?: "—"
+                                items(serviceOrders, key = { it.id }) { order ->
+                                    // 1. Fetch Customer Name & Phone
+                                    val customerDisplayName = order.customer?.name?.takeIf { it.isNotBlank() }
+                                        ?: order.customerSnapshot?.name?.takeIf { it.isNotBlank() }
+                                        ?: order.customerId?.fullName?.takeIf { it.isNotBlank() }
+                                        ?: "Unknown Customer"
 
-                                    // Dynamic status color mapping from theme
-                                    val cleanStatus = (request.status ?: "Draft").replace("_", " ")
+                                    val customerPhone = order.customer?.phone?.takeIf { it.isNotBlank() }
+                                        ?: order.customerSnapshot?.phone?.takeIf { it.isNotBlank() }
+                                        ?: order.customerId?.mobileNumber?.takeIf { it.isNotBlank() }
+                                        ?: ""
+
+                                    // 2. Fetch Garments / Job Cards summary from production
+                                    val totalJobCards = order.production?.totalJobCards ?: 1
+                                    val totalPieces = order.production?.totalPieces ?: 1
+                                    val completedPieces = order.production?.completedPieces ?: 0
+
+                                    val jobCardTitle = "$totalJobCards Job Cards ($totalPieces pcs)"
+                                    val jobCardProgress = "$completedPieces/$totalPieces completed"
+
+                                    // 3. Fetch Delivery / Due Date formatted as '15 Oct 2026'
+                                    val deliveryDateText = formatDisplayDate(order.dueDate ?: order.deliveryDate)
+
+                                    // 4. Fetch Status from production.overallStatus
+                                    val rawStatus = order.production?.overallStatus
+                                        ?: order.status
+                                        ?: "Pending_Allocation"
+                                    val cleanStatus = rawStatus.replace("_", " ")
+
                                     val (statusBg, statusText) = when (cleanStatus.lowercase()) {
-                                        "completed", "ready for delivery" -> Pair(greenBg, greentext)
-                                        "received in workshop"             -> Pair(cyanBg, chartBlue)
-                                        "pending approval"                 -> Pair(yellowBg, orangeText)
-                                        else                               -> Pair(cardBgLight, TextSecondary)
+                                        "completed"                                 -> Pair(greenBg, greentext)
+                                        "pending allocation", "pending"             -> Pair(yellowBg, orangeText)
+                                        "cutting", "stitching", "in progress"       -> Pair(cyanBg, blueText)
+                                        "cancelled", "rejected"                     -> Pair(redBg, redText)
+                                        else                                        -> Pair(light_blue, Primary)
                                     }
 
-                                    // Dynamic priority color mapping from theme
-                                    val priority = request.priority ?: "Medium"
+                                    // 5. Fetch Priority
+                                    val priority = order.priority?.takeIf { it.isNotBlank() } ?: "Medium"
                                     val priorityDotColor = when (priority.lowercase()) {
                                         "urgent", "high" -> redText
                                         "low"            -> greentext
                                         else             -> orangeText
                                     }
 
+                                    // 6. Order Code
+                                    val orderReferenceCode = order.orderCode?.takeIf { it.isNotBlank() }
+                                        ?: order.serviceOrderCode?.takeIf { it.isNotBlank() }
+                                        ?: "—"
+
+                                    // 7. Order Type badge (e.g. Sales Order)
+                                    val badgeText = order.orderType?.replace("_", " ")
+                                        ?: order.primaryCategory?.replace("_", " ")
+                                        ?: "Sales Order"
+
                                     DataCard(
-                                        item = request,
-                                        eyebrowText = "Request Code: ${request.serviceRequestCode ?: "—"}",
+                                        item = order,
+                                        eyebrowText = "Order Code: $orderReferenceCode",
                                         eyebrowColor = TextSecondary,
-                                        topBadgeText = request.primaryCategory?.replace("_", " ") ?: "Service",
+                                        topBadgeText = badgeText,
                                         topBadgeBgColor = primary_light,
                                         topBadgeTextColor = BluePrimary,
                                         topBadgeShowDot = false,
                                         topBadgeInline = false,
                                         showActionsInHeader = true,
-                                        title = request.customerSnapshot?.name ?: request.customerId?.fullName ?: "Unknown Customer",
-                                        titleFontWeight = FontWeight.Medium,
+                                        title = customerDisplayName,
+                                        titleFontWeight = FontWeight.Bold,
                                         titleColor = TextPrimary,
                                         actions = listOf(
-                                            MenuAction("View", Icons.Default.Visibility) { onViewOrder(request.id) },
-                                            MenuAction("Edit", Icons.Default.Edit) { onEditOrder(request.id) }
+                                            MenuAction("View", Icons.Default.Visibility) { onViewOrder(order.id) },
+                                            MenuAction("Edit", Icons.Default.Edit) { onEditOrder(order.id) }
                                         ),
-                                        onClick = { onViewOrder(request.id) },
+                                        onClick = { onViewOrder(order.id) },
                                         content = {
-                                            // Garments Summary Row
+                                            // Customer Phone Subtitle
+                                            if (customerPhone.isNotBlank()) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.padding(top = 2.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Call,
+                                                        contentDescription = null,
+                                                        tint = mutedText,
+                                                        modifier = Modifier.size(tokens.iconSize * 0.75f)
+                                                    )
+                                                    Spacer(Modifier.width(6.dp))
+                                                    Text(
+                                                        text = customerPhone,
+                                                        fontSize = tokens.caption,
+                                                        fontWeight = FontWeight.Medium,
+                                                        color = TextSecondary
+                                                    )
+                                                }
+                                                Spacer(Modifier.height(4.dp))
+                                            }
+
+                                            // Garments / Items Summary Row
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier.fillMaxWidth().padding(top = 2.dp)
@@ -202,7 +271,7 @@ fun ServiceOrderScreen(
                                                 )
                                                 Spacer(Modifier.width(8.dp))
                                                 Text(
-                                                    text = garmentNames,
+                                                    text = "$jobCardTitle  •  $jobCardProgress",
                                                     fontSize = tokens.caption,
                                                     fontWeight = FontWeight.Medium,
                                                     color = TextSecondary,
@@ -226,25 +295,29 @@ fun ServiceOrderScreen(
                                                 )
                                                 Spacer(Modifier.width(8.dp))
                                                 Text(
-                                                    text = "Delivery: ${formatIsoDate(request.deliveryDate)}",
+                                                    text = "Delivery: $deliveryDateText",
                                                     fontSize = tokens.caption,
                                                     fontWeight = FontWeight.Medium,
                                                     color = TextSecondary
                                                 )
                                             }
 
-                                            Spacer(Modifier.height(tokens.extraPadding / 2))
-                                            HorizontalDivider(color = light_grey, thickness = 2.dp)
-                                            Spacer(Modifier.height(tokens.extraPadding / 2))
+                                            Spacer(Modifier.height(tokens.extraPadding * 0.5f))
+                                            HorizontalDivider(color = light_grey, thickness = 1.dp)
+                                            Spacer(Modifier.height(tokens.extraPadding * 0.5f))
 
-                                            // Bottom Row: Priority & Status (Left) | Total & Paid (Right)
+                                            // Bottom Row: Priority & Status (Left) | Job Card Code (Right)
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.Bottom
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                // Left: Priority + Status Pill
-                                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                // Priority Dot & Status Pill
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                ) {
+                                                    // Priority Dot & Label
                                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                                         Box(
                                                             modifier = Modifier
@@ -254,54 +327,40 @@ fun ServiceOrderScreen(
                                                         )
                                                         Spacer(Modifier.width(6.dp))
                                                         Text(
-                                                            text = "$priority Priority",
+                                                            text = priority.uppercase(),
                                                             fontSize = tokens.label,
                                                             fontWeight = FontWeight.Medium,
                                                             color = TextPrimary
                                                         )
                                                     }
 
+                                                    // Status Pill
                                                     Surface(
-                                                        shape = RoundedCornerShape(tokens.cardCornerRadius / 1.5f),
+                                                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
                                                         color = statusBg
                                                     ) {
                                                         Text(
                                                             text = cleanStatus,
                                                             fontSize = tokens.label,
-                                                            fontWeight = FontWeight.Medium,
+                                                            fontWeight = FontWeight.SemiBold,
                                                             color = statusText,
-                                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
                                                         )
                                                     }
                                                 }
 
-                                                // Right: Grand Total & Advance Paid
-                                                Column(
-                                                    horizontalAlignment = Alignment.End,
-                                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                                ) {
+                                                // Right Stage or Primary Job Card Code
+                                                val stage = order.production?.currentStages?.firstOrNull()
+                                                    ?: order.production?.jobCardCodes?.firstOrNull()
+                                                    ?: ""
+
+                                                if (stage.isNotBlank()) {
                                                     Text(
-                                                        text = "Total: ₹${(request.grandTotal ?: 0.0).toInt()}",
+                                                        text = stage,
                                                         fontSize = tokens.label,
                                                         fontWeight = FontWeight.Medium,
                                                         color = TextSecondary
                                                     )
-                                                    Row(verticalAlignment = Alignment.Bottom) {
-                                                        Text(
-                                                            text = "₹${(request.advanceAmountPaid ?: 0.0).toInt()}",
-                                                            fontSize = tokens.bodyMedium,
-                                                            fontWeight = FontWeight.Medium,
-                                                            color = TextPrimary
-                                                        )
-                                                        Spacer(Modifier.width(4.dp))
-                                                        Text(
-                                                            text = "Paid",
-                                                            fontSize = tokens.label,
-                                                            fontWeight = FontWeight.Medium,
-                                                            color = mutedText,
-                                                            modifier = Modifier.padding(bottom = 1.dp)
-                                                        )
-                                                    }
                                                 }
                                             }
                                         }
@@ -316,14 +375,30 @@ fun ServiceOrderScreen(
     }
 }
 
-// Adaptive ISO date formatter
-private fun formatIsoDate(isoString: String?): String {
-    if (isoString.isNullOrBlank()) return "—"
-    return try {
-        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-        val date = parser.parse(isoString) ?: return isoString.take(10)
-        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(date)
-    } catch (_: Exception) {
-        isoString.take(10)
+/**
+ * Formats ISO date string to "15 Oct 2026"
+ */
+private fun formatDisplayDate(dateString: String?): String {
+    if (dateString.isNullOrBlank()) return "—"
+
+    val patterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss",
+        "yyyy-MM-dd"
+    )
+
+    for (pattern in patterns) {
+        try {
+            val parser = SimpleDateFormat(pattern, Locale.ENGLISH)
+            parser.isLenient = true
+            val parsed = parser.parse(dateString)
+            if (parsed != null) {
+                return SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH).format(parsed)
+            }
+        } catch (_: Exception) {}
     }
+
+    return if (dateString.length >= 10) dateString.take(10) else dateString
 }

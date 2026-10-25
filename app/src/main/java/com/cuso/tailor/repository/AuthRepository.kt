@@ -28,7 +28,6 @@ import com.cuso.tailor.model.login_forgotPassword_resetPassword.otpVerifyRespons
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.resetNewPasswordRequest
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.resetNewPasswordResponse
 import com.cuso.tailor.model.sales.meResponse
-import com.cuso.tailor.model.sales.myLayoutResponse
 import com.cuso.tailor.model.sales.myOrganizationResponse
 import com.cuso.tailor.network.auth.AuthApiService
 import com.cuso.tailor.network.user.UserApiService
@@ -76,11 +75,11 @@ class AuthRepository @Inject constructor(
         else Result.failure(Exception(res.message()))
     } catch (e: Exception) { Result.failure(e) }
 
-    suspend fun getMyLayout(token: String): Result<myLayoutResponse> = try {
-        val res = userApi.getMyLayout(token)
-        if (res.isSuccessful && res.body() != null) Result.success(res.body()!!)
-        else Result.failure(Exception(res.message()))
-    } catch (e: Exception) { Result.failure(e) }
+//    suspend fun getMyLayout(token: String): Result<myLayoutResponse> = try {
+//        val res = userApi.getMyLayout(token)
+//        if (res.isSuccessful && res.body() != null) Result.success(res.body()!!)
+//        else Result.failure(Exception(res.message()))
+//    } catch (e: Exception) { Result.failure(e) }
 
     // ---------------------------------------------------------
     // Sign Up & Email Verification (AuthApiService)

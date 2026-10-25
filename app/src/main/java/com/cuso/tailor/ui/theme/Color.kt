@@ -65,7 +65,7 @@
     // (each has text + bg + optional dark variant)
     // ===========================================================
     // Success / Green
-    val greentext = Color(0xFF0AB83E)
+    val greentext = Color(0xFF006241)
     val greenBg = Color(0xFFDBFCE7)
     val darkGreenBg = Color(0xFF16A34A)
     val complete_button_bg = Color(0xFF10B981)

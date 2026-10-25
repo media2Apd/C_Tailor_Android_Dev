@@ -179,35 +179,57 @@ fun SearchableDropdownContents(
             ) {
                 Column {
                     // ── Search Field ──
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { Text("Search...", color = Color.Gray, fontSize = 14.sp) },
-                        singleLine = true,
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
-                            .padding(horizontal = 8.dp)
-                            .focusRequester(focusRequester),
-                        leadingIcon = {
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                            .height(36.dp) // Compact height matching screenshot
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(1.dp, Color(0xFFD1D5DB), RoundedCornerShape(8.dp))
+                            .background(whiteBg)
+                            .padding(horizontal = 10.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Icon(
-                                Icons.Default.Search,
+                                imageVector = Icons.Default.Search,
                                 contentDescription = null,
-                                tint = Color.Gray
+                                tint = Color(0xFF9CA3AF),
+                                modifier = Modifier.size(18.dp)
                             )
-                        },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = blackTitle,
-                            unfocusedTextColor = blackTitle,
-                            focusedBorderColor = Color.Blue,
-                            unfocusedBorderColor = Color.LightGray,
-                            focusedContainerColor = whiteBg,
-                            unfocusedContainerColor = whiteBg,
-                            cursorColor = blackTitle
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    )
+
+                            Spacer(Modifier.width(8.dp))
+
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (searchQuery.isEmpty()) {
+                                    Text(
+                                        text = "Search...",
+                                        color = Color(0xFF9CA3AF),
+                                        fontSize = 13.sp
+                                    )
+                                }
+                                androidx.compose.foundation.text.BasicTextField(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    singleLine = true,
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        color = blackTitle,
+                                        fontSize = 13.sp
+                                    ),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .focusRequester(focusRequester)
+                                )
+                            }
+                        }
+                    }
 
                     HorizontalDivider(color = Color.LightGray)
 

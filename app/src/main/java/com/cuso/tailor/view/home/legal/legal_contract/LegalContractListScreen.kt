@@ -1,5 +1,7 @@
+@file:Suppress("AssignedValueIsNeverRead")
 package com.cuso.tailor.view.home.legal.legal_contract
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -22,6 +25,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.legal.LegalContractDto
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.DataCard
+import com.cuso.tailor.view.composable.DeleteModel
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.ListSkeleton
@@ -38,12 +42,53 @@ import java.util.concurrent.TimeUnit
 fun LegalContractsScreen(
     onBack: () -> Unit,
     onCreateContract: () -> Unit = {},
+    onContractClick: (String) -> Unit = {},
+    onEditContract: (String) -> Unit = {},
     viewModel: LegalViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
+    val context = LocalContext.current
     val contracts by viewModel.contracts.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoadingContracts.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
+
+    // State for managing contract deletion dialog
+    var contractToDelete by remember { mutableStateOf<LegalContractDto?>(null) }
+
+    // Re-fetch trigger counter to force reload on navigation or deletion
+    var refreshTrigger by remember { mutableIntStateOf(0) }
+    // Re-fetch contracts whenever this screen is navigated to or when refreshTrigger increments
+    LaunchedEffect(refreshTrigger) {
+        viewModel.fetchContracts(search = searchQuery.ifBlank { null })
+    }
+
+    // Delete Confirmation Dialog
+    contractToDelete?.let { contract ->
+        DeleteModel(
+            title = "Delete Contract",
+            message = "You're going to delete the contract \"${contract.contractName ?: contract.contractNumber}\".\nAre you sure?",
+            checkboxText = "I confirm this deletion",
+            confirmText = "Yes, Delete!",
+            cancelText = "No, Keep It.",
+            onDismiss = { contractToDelete = null },
+            onDelete = {
+                val targetId = contract.id
+                contractToDelete = null
+                viewModel.deleteContract(
+                    contractId = targetId,
+                    onSuccess = { msg ->
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        refreshTrigger++ // Forces LaunchedEffect to immediately re-run fetchContracts()
+                    },
+                    onError = { err ->
+                        Toast.makeText(context, err ?: "Failed to delete contract", Toast.LENGTH_LONG).show()
+                    }
+                )
+            }
+        )
+    }
+
+
 
     // Reusable FabScaffold wrapping the entire screen with a draggable Create button
     FabScaffold(
@@ -58,7 +103,8 @@ fun LegalContractsScreen(
             containerColor = Color.Transparent,
             topBar = {
                 TitleBar(
-                    title = "All Contracts", onClose = onBack
+                    title = "All Contracts",
+                    onClose = onBack
                 )
             }
         ) { innerPadding ->
@@ -67,7 +113,7 @@ fun LegalContractsScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // Reused SearchFilterBar
+                // Reusable SearchFilterBar
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = {
@@ -97,7 +143,12 @@ fun LegalContractsScreen(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(contracts, key = { it.id }) { contract ->
-                            LegalContractDataCardItem(contract = contract)
+                            LegalContractDataCardItem(
+                                contract = contract,
+                                onContractClick = onContractClick,
+                                onEditContract = onEditContract,
+                                onDeleteContract = { contractToDelete = it }
+                            )
                         }
                     }
                 }
@@ -110,10 +161,15 @@ fun LegalContractsScreen(
 // Reusable DataCard Integration
 // =============================================================================
 @Composable
-private fun LegalContractDataCardItem(contract: LegalContractDto) {
+private fun LegalContractDataCardItem(
+    contract: LegalContractDto,
+    onContractClick: (String) -> Unit,
+    onEditContract: (String) -> Unit,
+    onDeleteContract: (LegalContractDto) -> Unit
+) {
     val tokens = LocalAppTokens.current
 
-    // Clean status and styling
+    // Format clean status and badge styling
     val cleanStatus = (contract.renewalStatus ?: "Pending").replace("_", " ")
     val (statusBg, statusFg) = when (cleanStatus.lowercase()) {
         "active", "approved" -> Pair(greenBg, greentext)
@@ -127,14 +183,41 @@ private fun LegalContractDataCardItem(contract: LegalContractDto) {
     // Reusable Action Dropdown Items
     val actions = remember(contract) {
         listOf(
-            MenuAction(label = "View Details", icon = Icons.Outlined.Visibility, onClick = { /* View contract */ }),
-            MenuAction(label = "Edit", icon = Icons.Outlined.Edit, onClick = { /* Edit contract */ }),
-            MenuAction(label = "Delete", icon = Icons.Outlined.Delete, tint = redText, textColor = redText, onClick = { /* Delete contract */ })
+            MenuAction(
+                label = "View Details",
+                icon = Icons.Outlined.Visibility,
+                onClick = {
+                    if (contract.id.isNotBlank()) {
+                        onContractClick(contract.id)
+                    }
+                }
+            ),
+            MenuAction(
+                label = "Edit",
+                icon = Icons.Outlined.Edit,
+                onClick = {
+                    if (contract.id.isNotBlank()) {
+                        onEditContract(contract.id) // <-- CALL onEditContract INSTEAD OF onContractClick
+                    }
+                }
+            ),
+            MenuAction(
+                label = "Delete",
+                icon = Icons.Outlined.Delete,
+                tint = redText,
+                textColor = redText,
+                onClick = { onDeleteContract(contract) }
+            )
         )
     }
 
     DataCard(
         item = contract,
+        onClick = {
+            if (contract.id.isNotBlank()) {
+                onContractClick(contract.id)
+            }
+        },
         title = contract.contractName?.ifBlank { "Untitled Contract" } ?: "Untitled Contract",
         titleFontWeight = FontWeight.Medium,
         titleColor = TextPrimary,

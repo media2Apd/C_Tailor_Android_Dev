@@ -172,10 +172,9 @@ import com.cuso.tailor.view.home.sales.settings.garment.garment_category_detail.
 import com.cuso.tailor.view.home.sales.settings.measurement_list.MeasurementListScreen
 import com.cuso.tailor.view.home.sales.settings.pricing_setup.*
 import com.cuso.tailor.view.home.services.alteration_management.AlterationManagementScreen
-import com.cuso.tailor.view.home.services.feedback.CustomerFeedbackScreen
 import com.cuso.tailor.view.home.services.feedback.FeedbackDetailScreen
-import com.cuso.tailor.view.home.services.service_order.ServiceOrderOverviewScreen
-import com.cuso.tailor.view.home.services.service_order.ServiceOrderScreen
+import com.cuso.tailor.view.home.services.service_order.production_orders.ServiceOrderOverviewScreen
+import com.cuso.tailor.view.home.services.service_order.production_orders.ServiceOrderScreen
 import com.cuso.tailor.view.home.services.service_request.CreateServiceRequest
 import com.cuso.tailor.view.home.services.service_request.ServiceRequestDetailsScreen
 import com.cuso.tailor.view.home.services.service_request.ServiceRequestScreen
@@ -228,9 +227,17 @@ import com.cuso.tailor.view.home.inventory.expense_management.finance_reimbursem
 import com.cuso.tailor.view.home.inventory.expense_management.finance_reimbursement.ProcessPaymentScreen
 import com.cuso.tailor.view.home.inventory.expense_management.new_claims.EditExpenseClaimScreen
 import com.cuso.tailor.view.home.legal.dashboard.LegalDashboardScreen
+import com.cuso.tailor.view.home.legal.legal_contract.ContractOverviewScreen
+import com.cuso.tailor.view.home.legal.legal_contract.CreateLegalContractScreen
 import com.cuso.tailor.view.home.legal.legal_contract.LegalContractsScreen
 import com.cuso.tailor.view.home.services.alteration_management.ViewAlterationManagementScreen
+import com.cuso.tailor.view.home.services.customer_complaint.ComplaintDetailViewScreen
+import com.cuso.tailor.view.home.services.customer_complaint.ComplaintListScreen
+import com.cuso.tailor.view.home.services.feedback.CustomerFeedbackScreen
 import com.cuso.tailor.view.home.services.dashboard.ServicesDashboardScreen
+import com.cuso.tailor.view.home.services.service_order.production_work.OrderProductionPipelineScreen
+import com.cuso.tailor.view.home.services.service_order.production_work.ProductionWorksScreen
+import com.cuso.tailor.view.home.services.service_order.production_work.QualityDeliveryDispatchScreen
 import com.cuso.tailor.view.home.services.service_request.ReviewServiceRequestScreen
 import com.cuso.tailor.viewmodel.*
 
@@ -240,6 +247,10 @@ private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedLegalContractId: String? = null,
+    onLegalContractIdSelected: (String?) -> Unit = {},
+    selectedComplaintId: String? = null,
+    onComplaintIdSelected: (String?) -> Unit = {},
     selectedAlterationId: String? = null,
     onAlterationIdSelected: (String?) -> Unit = {},
     selectedClaimForPayment: ExpenseClaimDto? = null,
@@ -316,6 +327,7 @@ fun HomeScreenRouter(
     selectedBulkItemId: String?,
     onBulkItemIdSelected: (String?) -> Unit,
     hrViewModel: HrViewModel,
+    servicesViewModel: ServicesViewModel,
     customerViewModel: CustomerViewModel,
     settingsViewModel: SettingsViewModel,
     salesViewModel: SalesViewModel,
@@ -684,9 +696,12 @@ fun HomeScreenRouter(
         }
 
         // ── Legal Module Router ──
-        "legal_dashboard", "legal_contracts" -> {
+        "legal_dashboard", "legal_contracts", "legal_contract_detail", "legal_create_contract" -> {
             LegalRouter(
                 screen = screen,
+                selectedContractId = selectedLegalContractId,
+                onContractIdSelected = onLegalContractIdSelected,
+                onNavigate = onNavigate,
                 onGoBack = onGoBack
             )
         }
@@ -697,11 +712,17 @@ fun HomeScreenRouter(
         "services_production_orders", "services_service_orders", "services_service_order",
         "service_order_overview", "services_service_request",
         "create_request", "review_services", "services_alteration_management",
-        "create_alteration", "view_alteration", "services_customer_feedback", "feedback_detail",
+        "create_alteration", "view_alteration", "services_customer_complaints",
+        "services_customer_feedback", "feedback_detail",
         "services_service_templates", "services_create_service_template",
-        "services_view_service_template", "review_service_request" -> {
+        "services_production_works",
+        "services_view_service_template", "review_service_request", "complaint_detail",
+        "services_production_pipeline","services_qc_delivery"-> {
             ServicesRouter(
                 screen = screen,
+                servicesViewModel = servicesViewModel,
+                selectedComplaintId = selectedComplaintId,
+                onComplaintIdSelected = onComplaintIdSelected,
                 selectedAlterationId = selectedAlterationId,
                 onAlterationIdSelected = onAlterationIdSelected,
                 selectedServiceRequestId = selectedServiceRequestId,
@@ -721,7 +742,8 @@ fun HomeScreenRouter(
                 onNavigate = onNavigate,
                 onGoBack = onGoBack,
                 onOpenDrawer = onOpenDrawer,
-                onOpenModulesPanel = onOpenModulesPanel
+                onOpenModulesPanel = onOpenModulesPanel,
+                hrViewModel = hrViewModel
             )
         }
 
@@ -3920,20 +3942,68 @@ private fun LogisticsRouter(
 @Composable
 private fun LegalRouter(
     screen: String,
+    selectedContractId: String?,
+    onContractIdSelected: (String?) -> Unit,
+    onNavigate: (String) -> Unit,
     onGoBack: () -> Unit
 ) {
     when (screen) {
         "legal_dashboard" -> LegalDashboardScreen()
+
         "legal_contracts" -> LegalContractsScreen(
             onBack = onGoBack,
-            onCreateContract = { /* Navigate to Create Contract Screen */ }
+            onCreateContract = {
+                onContractIdSelected(null)
+                onNavigate("legal_create_contract")
+            },
+            onContractClick = { contractId ->
+                if (contractId.isNotBlank()) {
+                    onContractIdSelected(contractId)
+                    onNavigate("legal_contract_detail")
+                }
+            },
+            onEditContract = { contractId ->
+                if (contractId.isNotBlank()) {
+                    onContractIdSelected(contractId)
+                    onNavigate("legal_create_contract")
+                }
+            }
         )
+
+        "legal_contract_detail" -> {
+            selectedContractId?.takeIf { it.isNotBlank() }?.let { validId ->
+                ContractOverviewScreen(
+                    contractId = validId,
+                    onClose = {
+                        onContractIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        "legal_create_contract" -> {
+            CreateLegalContractScreen(
+                contractIdToEdit = selectedContractId,
+                onClose = {
+                    onContractIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
     }
 }
+
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun ServicesRouter(
     screen: String,
+    hrViewModel: HrViewModel,
+    servicesViewModel: ServicesViewModel,
+    selectedComplaintId: String? = null,
+    onComplaintIdSelected: (String?) -> Unit = {},
     selectedAlterationId: String? = null,
     onAlterationIdSelected: (String?) -> Unit = {},
     selectedServiceRequestId: String?,
@@ -4020,16 +4090,64 @@ private fun ServicesRouter(
             onEditOrder = { orderId -> onEditOrderIdChange(orderId) },
             onBreadCrumbClick = { onOpenModulesPanel("Services") }
         )
+        // ── Production Works Screen ──
+        "services_production_works" -> ProductionWorksScreen(
+            onClose = onGoBack,
+            onOrderClick = { orderId ->
+                // Ensure orderId is never null or blank before navigating
+                if (orderId.isNotBlank()) {
+                    onOrderIdSelected(orderId)
+                    onNavigate("services_production_pipeline")
+                }
+            },
+            viewModel = servicesViewModel
+        )
+
+        // ── Production Pipeline Screen ──
+        "services_production_pipeline" -> {
+            val orderIdToLoad = selectedOrderId?.takeIf { it.isNotBlank() }
+            if (orderIdToLoad != null) {
+                OrderProductionPipelineScreen(
+                    orderId = orderIdToLoad,
+                    viewModel = servicesViewModel,
+                    onBack = {
+                        onOrderIdSelected(null)
+                        onGoBack()
+                    },
+                    onVerifyClick = { id ->
+                        onOrderIdSelected(id)
+                        onNavigate("services_qc_delivery")
+                    }
+                )
+            } else {
+                // If ID is missing, safely pop back to prevent blank screen
+                onGoBack()
+            }
+        }
+
+        // ── QC & Delivery Dispatch Screen ──
+        "services_qc_delivery" -> {
+            val orderIdToLoad = selectedOrderId?.takeIf { it.isNotBlank() }
+            if (orderIdToLoad != null) {
+                QualityDeliveryDispatchScreen(
+                    orderId = orderIdToLoad,
+                    viewModel = servicesViewModel,
+                    onBack = onGoBack,
+                    onBackToOrders = {
+                        onOrderIdSelected(null)
+                        onNavigate("services_production_works")
+                    }
+                )
+            } else {
+                onGoBack()
+            }
+        }
 
         "service_order_overview" -> {
             selectedOrderId?.let { id ->
                 ServiceOrderOverviewScreen(
                     orderId = id,
                     onClose = onGoBack,
-                    onEditOrder = { reviewData ->
-                        onPendingOrderReviewDataChange(reviewData)
-                        onNavigate("create_order")
-                    },
                     onCreateNew = {
                         onPendingOrderReviewDataChange(null)
                         onNavigate("create_order")
@@ -4115,23 +4233,18 @@ private fun ServicesRouter(
             }
         }
 
-        "services_customer_feedback" -> CustomerFeedbackScreen(
-            onDismiss = onGoBack,
-            onView = { feedbackId ->
-                onFeedbackIdSelected(feedbackId)
-                onNavigate("feedback_detail")
-            },
-            onEdit = { },
-            onDelete = { },
-            onBreadCrumbClick = { onOpenModulesPanel("Services") }
-        )
+//        "services_customer_feedback" -> CustomerFeedbackScreen(
+//            onDismiss = onGoBack,
+//            onView = { feedbackId ->
+//                onFeedbackIdSelected(feedbackId)
+//                onNavigate("feedback_detail")
+//            },
+//            onEdit = { },
+//            onDelete = { },
+//            onBreadCrumbClick = { onOpenModulesPanel("Services") }
+//        )
 
-        "feedback_detail" -> FeedbackDetailScreen(
-            onDismiss = {
-                onFeedbackIdSelected(null)
-                onGoBack()
-            }
-        )
+
 
         "services_service_templates" -> ServiceTemplateListScreen(
             onClose = onGoBack,
@@ -4181,6 +4294,61 @@ private fun ServicesRouter(
                     onGoBack()
                 }
             )
+        }
+
+        // ── Customer Complaints Screen ──
+        "services_customer_complaints" -> {
+            ComplaintListScreen(
+                viewModel = servicesViewModel,
+                onBack = onGoBack,
+                onComplaintClick = { complaintId ->
+                    onComplaintIdSelected(complaintId)
+                    onNavigate("complaint_detail")
+                }
+            )
+        }
+
+        // In HomeScreenRouter.kt inside ServicesRouter:
+        "complaint_detail" -> {
+            selectedComplaintId?.let { id ->
+                ComplaintDetailViewScreen(
+                    complaintId = id,
+                    viewModel = servicesViewModel,
+                    hrViewModel = hrViewModel, // 👈 Pass hrViewModel here
+                    onBack = {
+                        onComplaintIdSelected(null)
+                        onGoBack()
+                    },
+                    onEditClick = { }
+                )
+            } ?: run { onGoBack() }
+        }
+        // ── Customer Feedback Screen ──
+        "services_customer_feedback" -> {
+            CustomerFeedbackScreen(
+                viewModel = servicesViewModel,
+                onBack = onGoBack,
+                onFeedbackClick = { feedbackId ->
+                    onFeedbackIdSelected(feedbackId)
+                    onNavigate("feedback_detail")
+                }
+            )
+        }
+
+        // ── Customer Feedback Detail Screen ──
+        "feedback_detail" -> {
+            selectedFeedbackId?.let { id ->
+                FeedbackDetailScreen(
+                    feedbackId = id,
+                    viewModel = servicesViewModel,
+                    onDismiss = {
+                        onFeedbackIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
         }
     }
 }

@@ -170,3 +170,53 @@ data class ComplaintResolutionDto(
     @SerializedName("approvalStatus") val approvalStatus: String?,
     @SerializedName("isCustomerAgreed") val isCustomerAgreed: Boolean?
 )
+
+data class UploadComplaintAttachmentResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String?,
+    @SerializedName("data") val data: ComplaintDetailDataDto?
+)
+
+data class UpdateComplaintStatusRequest(
+    @SerializedName("status") val status: String
+)
+
+data class UpdateComplaintStatusResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String?,
+    @SerializedName("data") val data: ComplaintDetailDataDto?
+)
+
+data class AssignComplaintStaffRequest(
+    @SerializedName("assignedTo") val assignedTo: String
+)
+
+data class AssignComplaintStaffResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String?,
+    @SerializedName("data") val data: ComplaintDetailDataDto?
+)
+
+data class AddComplaintInternalNoteRequest(
+    @SerializedName("investigationNotes") val investigationNotes: String
+)
+
+data class AddComplaintInternalNoteResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String?,
+    @SerializedName("data") val data: ComplaintDetailDataDto?
+)
+
+data class ResolveComplaintRequest(
+    @SerializedName("action") val action: String,
+    @SerializedName("compensationAmount") val compensationAmount: Int = 0,
+    @SerializedName("isCustomerAgreed") val isCustomerAgreed: Boolean = true,
+    @SerializedName("resolutionSummary") val resolutionSummary: String,
+    @SerializedName("voucherCode") val voucherCode: String = ""
+)
+
+data class ResolveComplaintResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String?,
+    @SerializedName("data") val data: ComplaintDetailDataDto?
+)

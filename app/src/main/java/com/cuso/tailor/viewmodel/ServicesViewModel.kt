@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import android.net.Uri
+import com.cuso.tailor.model.hr.GenericApiResponse
 
 data class ServiceRequestDraft(
     val modeIndex: Int = 0, // 0 = Pre Order, 1 = External
@@ -90,6 +91,7 @@ sealed class ServiceActionUiState {
     data class Success(val message: String) : ServiceActionUiState()
     data class Error(val message: String) : ServiceActionUiState()
 }
+private const val SERVICE_ORDERS_VIEW_ALL_URL = "/api/services/production/job-cards/view-all"
 private const val SALES_ORDERS_DROPDOWN_URL = "/api/sales/orders/dropdown-list"
 private const val SERVICE_ALTERATION_VIEW_ONE_URL = "/api/services/alterations/tickets/view-one"
 private const val SERVICES_ANALYTICS_URL = "/api/services/service-requests/dashboard/analytics"
@@ -98,6 +100,7 @@ private const val SERVICES_RECENT_REQUESTS_URL = "/api/services/service-requests
 private const val SERVICES_RECENT_COMPLAINTS_URL = "/api/services/complaints/dashboard/recent"
 private const val SERVICES_RECENT_JOBCARDS_URL = "/api/services/production/dashboard/recent-cards"
 private const val SERVICES_RECENT_FEEDBACKS_URL = "/api/services/feedbacks/dashboard/recent"
+private const val FEEDBACK_VIEW_ONE_URL = "/api/services/feedbacks/view-one"
 private const val SERVICE_REQUEST_VIEW_ONE_URL = "/api/services/service-requests/view-one"
 private const val SERVICE_REQUESTS_VIEW_ALL_URL = "/api/services/service-requests/view-all"
 private const val SERVICE_ALTERATION_VIEW_ALL_URL = "/api/services/alterations/tickets/view-all"
@@ -106,6 +109,21 @@ private const val SERVICE_ALTERATION_COMMENT_URL = "/api/services/alterations/ti
 private const val COMPLAINTS_VIEW_ALL_URL = "/api/services/complaints/view-all"
 private const val COMPLAINTS_VIEW_ONE_URL = "/api/services/complaints/view-one"
 private const val FEEDBACKS_VIEW_ALL_URL = "/api/services/feedbacks/view-all"
+private const val COMPLAINT_ATTACHMENT_UPLOAD_URL = "/api/services/complaints/upload-attachments"
+private const val COMPLAINT_UPDATE_URL = "/api/services/complaints/update-one"
+private const val COMPLAINT_RESOLVE_URL = "/api/services/complaints/resolve"
+private const val SERVICE_ORDER_DETAIL_URL = "/api/services/production/job-cards/order-view"
+private const val WORKSHOP_SPECIALISTS_WORKLOAD_URL = "/api/services/production/workers/workload/view-all"
+private const val JOB_CARD_VIEW_ONE_URL = "/api/services/production/job-cards/view-one"
+
+
+
+private const val UPDATE_STAGE_PROGRESS_URL = "/api/services/production/job-cards/update-stage"
+private const val ALLOCATE_WORKERS_URL = "/api/services/production/job-cards/bulk-assign"
+private const val LOG_ISSUE_TO_JOB_CARD_URL = "/api/services/production/job-cards/log-issue"
+private const val LOG_FABRIC_WASTAGE_URL = "/api/services/production/job-cards/fabric-wastage"
+private const val MARK_READY_FOR_DELIVERY_URL = "/api/services/production/job-cards/update-progress"
+
 
 
 
@@ -190,6 +208,302 @@ class ServicesViewModel @Inject constructor(
         loadStages()
         fetchDashboardData()
         fetchServiceRequestsList()
+    }
+
+    // ── Service Orders List State ──
+    private val _serviceOrdersList = MutableStateFlow<List<ServiceOrderItemDto>>(emptyList())
+    val serviceOrdersList: StateFlow<List<ServiceOrderItemDto>> = _serviceOrdersList.asStateFlow()
+
+    private val _serviceOrdersPagination = MutableStateFlow<ServiceOrderPagination?>(null)
+    val serviceOrdersPagination: StateFlow<ServiceOrderPagination?> = _serviceOrdersPagination.asStateFlow()
+
+    private val _isLoadingServiceOrders = MutableStateFlow<Boolean>(false)
+    val isLoadingServiceOrders: StateFlow<Boolean> = _isLoadingServiceOrders.asStateFlow()
+
+    private val _serviceOrdersError = MutableStateFlow<String?>(null)
+    val serviceOrdersError: StateFlow<String?> = _serviceOrdersError.asStateFlow()
+
+    private var serviceOrderSearchJob: Job? = null
+
+    /**
+     * Fetches paginated service orders / production orders with search and status filters
+     */
+    fun fetchServiceOrders(
+        page: Int = 1,
+        limit: Int = 20,
+        search: String? = null,
+        status: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingServiceOrders.value = true
+            _serviceOrdersError.value = null
+
+            val result = repo.request<ServiceOrderListResponse> {
+                get(
+                    SERVICE_ORDERS_VIEW_ALL_URL,
+                    repo.query(
+                        "page" to page,
+                        "limit" to limit,
+                        "search" to search,
+                        "status" to status
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _serviceOrdersList.value = res.data.orEmpty()
+                    _serviceOrdersPagination.value = res.pagination
+                },
+                onFailure = { error ->
+                    _serviceOrdersError.value = error.message ?: "Failed to load service orders"
+                    _serviceOrdersList.value = emptyList()
+                }
+            )
+            _isLoadingServiceOrders.value = false
+        }
+    }
+
+    // ── Workshop Specialists Workload State ──
+    private val _specialistWorkloadList = MutableStateFlow<List<SpecialistWorkloadDto>>(emptyList())
+    val specialistWorkloadList: StateFlow<List<SpecialistWorkloadDto>> = _specialistWorkloadList.asStateFlow()
+
+    private val _isLoadingSpecialists = MutableStateFlow(false)
+    val isLoadingSpecialists: StateFlow<Boolean> = _isLoadingSpecialists.asStateFlow()
+
+    private val _specialistsError = MutableStateFlow<String?>(null)
+    val specialistsError: StateFlow<String?> = _specialistsError.asStateFlow()
+
+    /**
+     * Fetches workshop specialists workload and active tasks via ApiRepository
+     */
+    fun fetchSpecialistWorkload() {
+        viewModelScope.launch {
+            _isLoadingSpecialists.value = true
+            _specialistsError.value = null
+
+            val result = repo.request<SpecialistWorkloadResponse> {
+                get(WORKSHOP_SPECIALISTS_WORKLOAD_URL)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _specialistWorkloadList.value = res.data.orEmpty()
+                },
+                onFailure = { err ->
+                    _specialistsError.value = err.message ?: "Failed to load specialists workload"
+                }
+            )
+            _isLoadingSpecialists.value = false
+        }
+    }
+
+    // Add state flows inside ServicesViewModel
+    private val _serviceOrderDetail = MutableStateFlow<ServiceOrderDetailData?>(null)
+    val serviceOrderDetail: StateFlow<ServiceOrderDetailData?> = _serviceOrderDetail.asStateFlow()
+
+    private val _isLoadingOrderDetail = MutableStateFlow(false)
+    val isLoadingOrderDetail: StateFlow<Boolean> = _isLoadingOrderDetail.asStateFlow()
+
+    private val _orderDetailError = MutableStateFlow<String?>(null)
+    val orderDetailError: StateFlow<String?> = _orderDetailError.asStateFlow()
+
+    /**
+     * Fetches the full service order details with job cards and workflow stages
+     */
+    fun fetchServiceOrderDetail(orderId: String) {
+        if (orderId.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingOrderDetail.value = true
+            _orderDetailError.value = null
+
+            val result = repo.request<ServiceOrderDetailResponse> {
+                get("$SERVICE_ORDER_DETAIL_URL/$orderId")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _serviceOrderDetail.value = res.data
+                    _isLoadingOrderDetail.value = false
+                },
+                onFailure = { err ->
+                    _orderDetailError.value = err.message ?: "Failed to load order details"
+                    _isLoadingOrderDetail.value = false
+                }
+            )
+        }
+    }
+
+    fun onServiceOrderSearch(query: String, status: String? = null) {
+        serviceOrderSearchJob?.cancel()
+        serviceOrderSearchJob = viewModelScope.launch {
+            delay(350)
+            fetchServiceOrders(
+                page = 1,
+                limit = 20,
+                search = query.takeIf { it.isNotBlank() },
+                status = status
+            )
+        }
+    }
+
+    // 2. Add these StateFlow variables inside ServicesViewModel class:
+    private val _jobCardDetail = MutableStateFlow<JobCardViewOneData?>(null)
+    val jobCardDetail: StateFlow<JobCardViewOneData?> = _jobCardDetail.asStateFlow()
+
+    private val _isLoadingJobCardDetail = MutableStateFlow(false)
+    val isLoadingJobCardDetail: StateFlow<Boolean> = _isLoadingJobCardDetail.asStateFlow()
+
+    private val _jobCardDetailError = MutableStateFlow<String?>(null)
+    val jobCardDetailError: StateFlow<String?> = _jobCardDetailError.asStateFlow()
+
+    /**
+     * Fetches single job card tracking, workbench details, and activity logs
+     */
+    fun fetchJobCardDetail(jobCardId: String) {
+        if (jobCardId.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingJobCardDetail.value = true
+            _jobCardDetailError.value = null
+
+            val result = repo.request<JobCardViewOneResponse> {
+                get("$JOB_CARD_VIEW_ONE_URL/$jobCardId")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _jobCardDetail.value = res.data
+                    _isLoadingJobCardDetail.value = false
+                },
+                onFailure = { err ->
+                    _jobCardDetailError.value = err.message ?: "Failed to load job card details"
+                    _isLoadingJobCardDetail.value = false
+                }
+            )
+        }
+    }
+
+    fun clearJobCardDetail() {
+        _jobCardDetail.value = null
+        _jobCardDetailError.value = null
+    }
+
+    // ── Update Stage Progress States ──
+    // ── Update Stage Progress States ──
+    private val _isUpdatingStageProgress = MutableStateFlow<Boolean>(false)
+    val isUpdatingStageProgress: StateFlow<Boolean> = _isUpdatingStageProgress.asStateFlow()
+
+    private val _updateStageProgressError = MutableStateFlow<String?>(null)
+    val updateStageProgressError: StateFlow<String?> = _updateStageProgressError.asStateFlow()
+
+    // ── Allocate Workers Across Workshop Stages State ──
+    private val _isAllocatingWorkers = MutableStateFlow<Boolean>(false)
+    val isAllocatingWorkers: StateFlow<Boolean> = _isAllocatingWorkers.asStateFlow()
+
+    private val _allocateWorkersError = MutableStateFlow<String?>(null)
+    val allocateWorkersError: StateFlow<String?> = _allocateWorkersError.asStateFlow()
+
+    /**
+     * Allocates assigned workers to job card stages and routes to workshop
+     * Endpoint: PUT /api/services/production/job-cards/allocate-workers/{jobCardId}
+     */
+    fun allocateWorkersToWorkshop(
+        jobCardId: String,
+        assignments: List<AllocateWorkersStageItem>,
+        forceReassign: Boolean = false,
+        replaceExisting: Boolean = true,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (jobCardId.isBlank()) {
+            onError("Invalid Job Card ID")
+            return
+        }
+
+        if (assignments.isEmpty()) {
+            onError("No worker assignments provided")
+            return
+        }
+
+        viewModelScope.launch {
+            _isAllocatingWorkers.value = true
+            _allocateWorkersError.value = null
+
+            val payload = AllocateWorkersRequest(
+                assignments = assignments,
+                forceReassign = forceReassign,
+                replaceExisting = replaceExisting
+            )
+
+            val result = repo.request<AllocateWorkersResponse> {
+                patch("$ALLOCATE_WORKERS_URL/$jobCardId", payload)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _isAllocatingWorkers.value = false
+                    if (res.data != null) {
+                        _jobCardDetail.value = res.data
+                    }
+                    onSuccess(res.message ?: "Workers successfully pre-allocated across stages.")
+                },
+                onFailure = { error ->
+                    _isAllocatingWorkers.value = false
+                    val errorMsg = error.message ?: "Failed to allocate workers to workshop"
+                    _allocateWorkersError.value = errorMsg
+                    onError(errorMsg)
+                }
+            )
+        }
+    }
+
+    /**
+     * Updates Job Card stage status (e.g. Trial -> Rework)
+     * Payload: { "notes": "...", "stageId": "...", "status": "Rework" }
+     */
+    fun updateStageProgress(
+        jobCardId: String,
+        stageId: String,
+        status: String,
+        notes: String = "",
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (jobCardId.isBlank() || stageId.isBlank()) {
+            onError("Invalid Job Card or Stage ID")
+            return
+        }
+
+        viewModelScope.launch {
+            _isUpdatingStageProgress.value = true
+            _updateStageProgressError.value = null
+
+            val payload = UpdateStageProgressRequest(
+                stageId = stageId,
+                status = status,
+                notes = notes.trim()
+            )
+
+            val result = repo.request<UpdateStageProgressResponse> {
+                put("$UPDATE_STAGE_PROGRESS_URL/$jobCardId", payload)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _isUpdatingStageProgress.value = false
+                    if (res.data != null) {
+                        _jobCardDetail.value = res.data
+                    }
+                    onSuccess(res.message ?: "Stage progress successfully updated.")
+                },
+                onFailure = { error ->
+                    _isUpdatingStageProgress.value = false
+                    val errorMsg = error.message ?: "Failed to update stage progress"
+                    _updateStageProgressError.value = errorMsg
+                    onError(errorMsg)
+                }
+            )
+        }
     }
 
     /**
@@ -823,7 +1137,7 @@ class ServicesViewModel @Inject constructor(
     private val _complaintDetail = MutableStateFlow<ComplaintDetailDataDto?>(null)
     val complaintDetail: StateFlow<ComplaintDetailDataDto?> = _complaintDetail.asStateFlow()
 
-    private val _isLoadingComplaintDetail = MutableStateFlow<Boolean>(false)
+    private val _isLoadingComplaintDetail = MutableStateFlow(false)
     val isLoadingComplaintDetail: StateFlow<Boolean> = _isLoadingComplaintDetail.asStateFlow()
 
     private val _complaintDetailError = MutableStateFlow<String?>(null)
@@ -860,7 +1174,7 @@ class ServicesViewModel @Inject constructor(
     private val _feedbackSearchQuery = MutableStateFlow("")
     val feedbackSearchQuery: StateFlow<String> = _feedbackSearchQuery.asStateFlow()
 
-    private val _isLoadingFeedbacks = MutableStateFlow<Boolean>(false)
+    private val _isLoadingFeedbacks = MutableStateFlow(false)
     val isLoadingFeedbacks: StateFlow<Boolean> = _isLoadingFeedbacks.asStateFlow()
 
     private val _feedbacksError = MutableStateFlow<String?>(null)
@@ -898,6 +1212,486 @@ class ServicesViewModel @Inject constructor(
             )
             _isLoadingFeedbacks.value = false
         }
+    }
+
+    // ── Upload Attachment States ──
+    private val _isUploadingAttachment = MutableStateFlow(false)
+    val isUploadingAttachment: StateFlow<Boolean> = _isUploadingAttachment.asStateFlow()
+
+    private val _uploadAttachmentError = MutableStateFlow<String?>(null)
+    val uploadAttachmentError: StateFlow<String?> = _uploadAttachmentError.asStateFlow()
+
+    /**
+     * Uploads evidence attachment files to the complaint ticket and automatically refreshes view-one
+     */
+    fun uploadComplaintAttachment(
+        complaintId: String,
+        imagePart: okhttp3.MultipartBody.Part,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (complaintId.isBlank()) return
+        viewModelScope.launch {
+            _isUploadingAttachment.value = true
+            _uploadAttachmentError.value = null
+
+            val result = repo.request<UploadComplaintAttachmentResponse> {
+                postMultipart(
+                    url = "$COMPLAINT_ATTACHMENT_UPLOAD_URL/$complaintId",
+                    files = listOf(imagePart)
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _isUploadingAttachment.value = false
+                    // Update current detail directly or re-fetch to refresh view-one
+                    if (res.data != null) {
+                        _complaintDetail.value = res.data
+                    } else {
+                        fetchComplaintDetail(complaintId)
+                    }
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _isUploadingAttachment.value = false
+                    val errorMsg = error.message ?: "Failed to upload attachment"
+                    _uploadAttachmentError.value = errorMsg
+                    onError(errorMsg)
+                }
+            )
+        }
+    }
+
+    // Inside ServicesViewModel class:
+    private val _feedbackDetail = MutableStateFlow<FeedbackDetailDataDto?>(null)
+    val feedbackDetail: StateFlow<FeedbackDetailDataDto?> = _feedbackDetail.asStateFlow()
+
+    private val _isLoadingFeedbackDetail = MutableStateFlow(false)
+    val isLoadingFeedbackDetail: StateFlow<Boolean> = _isLoadingFeedbackDetail.asStateFlow()
+
+    private val _feedbackDetailError = MutableStateFlow<String?>(null)
+    val feedbackDetailError: StateFlow<String?> = _feedbackDetailError.asStateFlow()
+
+    /**
+     * Fetches single feedback record by ID
+     */
+    fun fetchFeedbackDetail(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingFeedbackDetail.value = true
+            _feedbackDetailError.value = null
+
+            val result = repo.request<SingleFeedbackResponse> {
+                get("$FEEDBACK_VIEW_ONE_URL/$id")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _feedbackDetail.value = res.data
+                },
+                onFailure = { error ->
+                    _feedbackDetailError.value = error.message ?: "Failed to load feedback details"
+                }
+            )
+            _isLoadingFeedbackDetail.value = false
+        }
+    }
+
+    private val _isUpdatingComplaintStatus = MutableStateFlow<Boolean>(false)
+    val isUpdatingComplaintStatus: StateFlow<Boolean> = _isUpdatingComplaintStatus.asStateFlow()
+
+    private val _updateComplaintStatusError = MutableStateFlow<String?>(null)
+    val updateComplaintStatusError: StateFlow<String?> = _updateComplaintStatusError.asStateFlow()
+
+    /**
+     * Updates complaint status using PATCH /api/services/complaints/update/{id}
+     */
+    fun updateComplaintStatus(
+        complaintId: String,
+        status: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        android.util.Log.d("UPDATE_COMPLAINT", "updateComplaintStatus called with ID: '$complaintId', Status: '$status'")
+
+        if (complaintId.isBlank()) {
+            android.util.Log.e("UPDATE_COMPLAINT", "Error: complaintId is blank!")
+            onError("Invalid complaint ticket ID")
+            return
+        }
+
+        viewModelScope.launch {
+            _isUpdatingComplaintStatus.value = true
+            _updateComplaintStatusError.value = null
+
+            // Exact backend enum mapping
+            val backendStatus = when (status.trim().lowercase()) {
+                "open" -> "Open"
+                "in investigation / in progress", "in investigation", "in progress" -> "In_Investigation"
+                "pending customer response" -> "Pending_Customer_Response"
+                "resolution approved" -> "Resolution_Approved"
+                "resolved" -> "Resolved"
+                "closed" -> "Closed"
+                "rejected" -> "Rejected"
+                else -> status.trim().replace(" ", "_")
+            }
+
+            val payload = UpdateComplaintStatusRequest(status = backendStatus)
+            android.util.Log.d("UPDATE_COMPLAINT", "Sending PATCH to $COMPLAINT_UPDATE_URL/$complaintId with payload: $payload")
+
+            val result = repo.request<UpdateComplaintStatusResponse> {
+                put("$COMPLAINT_UPDATE_URL/$complaintId", payload)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _isUpdatingComplaintStatus.value = false
+                    android.util.Log.d("UPDATE_COMPLAINT", "Update SUCCESS: ${res.message}, new status: ${res.data?.status}")
+
+                    // Immediately update UI with returned response data or fetch
+                    if (res.data != null) {
+                        _complaintDetail.value = res.data
+                    } else {
+                        fetchComplaintDetail(complaintId)
+                    }
+                    onSuccess(res.message ?: "Complaint updated successfully.")
+                },
+                onFailure = { error ->
+                    _isUpdatingComplaintStatus.value = false
+                    val errorMsg = error.message ?: "Failed to update complaint status"
+                    android.util.Log.e("UPDATE_COMPLAINT", "Update FAILED: $errorMsg", error)
+                    _updateComplaintStatusError.value = errorMsg
+                    onError(errorMsg)
+                }
+            )
+        }
+    }
+
+    // ── Assign Staff States ──
+    private val _isAssigningStaff = MutableStateFlow<Boolean>(false)
+    val isAssigningStaff: StateFlow<Boolean> = _isAssigningStaff.asStateFlow()
+
+    private val _assignStaffError = MutableStateFlow<String?>(null)
+    val assignStaffError: StateFlow<String?> = _assignStaffError.asStateFlow()
+
+    /**
+     * Assigns operations staff to a complaint ticket
+     * Endpoint: PATCH /api/services/complaints/update-one/{complaintId}
+     * Payload: { "assignedTo": "<memberId>" }
+     */
+    fun assignComplaintStaff(
+        complaintId: String,
+        memberId: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (complaintId.isBlank()) {
+            onError("Invalid Complaint ID")
+            return
+        }
+        if (memberId.isBlank()) {
+            onError("Please select a staff member")
+            return
+        }
+
+        viewModelScope.launch {
+            _isAssigningStaff.value = true
+            _assignStaffError.value = null
+
+            val payload = AssignComplaintStaffRequest(assignedTo = memberId)
+
+            val result = repo.request<AssignComplaintStaffResponse> {
+                put("$COMPLAINT_UPDATE_URL/$complaintId", payload)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _isAssigningStaff.value = false
+                    // Update current detail in state or refresh view-one
+                    if (res.data != null) {
+                        _complaintDetail.value = res.data
+                    } else {
+                        fetchComplaintDetail(complaintId)
+                    }
+                    onSuccess(res.message ?: "Staff assigned successfully.")
+                },
+                onFailure = { error ->
+                    _isAssigningStaff.value = false
+                    val errorMsg = error.message ?: "Failed to assign staff"
+                    _assignStaffError.value = errorMsg
+                    onError(errorMsg)
+                }
+            )
+        }
+    }
+
+    // ── Add Internal Note States ──
+    private val _isSavingInternalNote = MutableStateFlow<Boolean>(false)
+    val isSavingInternalNote: StateFlow<Boolean> = _isSavingInternalNote.asStateFlow()
+
+    private val _saveInternalNoteError = MutableStateFlow<String?>(null)
+    val saveInternalNoteError: StateFlow<String?> = _saveInternalNoteError.asStateFlow()
+
+    /**
+     * Adds/Updates internal investigation notes for a complaint ticket
+     * Endpoint: PATCH /api/services/complaints/update-one/{complaintId}
+     * Payload: { "investigationNotes": "..." }
+     */
+    fun addComplaintInternalNote(
+        complaintId: String,
+        note: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (complaintId.isBlank()) {
+            onError("Invalid Complaint ID")
+            return
+        }
+        if (note.trim().isBlank()) {
+            onError("Please enter a note")
+            return
+        }
+
+        viewModelScope.launch {
+            _isSavingInternalNote.value = true
+            _saveInternalNoteError.value = null
+
+            val payload = AddComplaintInternalNoteRequest(investigationNotes = note.trim())
+
+            val result = repo.request<AddComplaintInternalNoteResponse> {
+                put("$COMPLAINT_UPDATE_URL/$complaintId", payload)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _isSavingInternalNote.value = false
+                    // Update state directly or refresh view-one
+                    if (res.data != null) {
+                        _complaintDetail.value = res.data
+                    } else {
+                        fetchComplaintDetail(complaintId)
+                    }
+                    onSuccess(res.message ?: "Internal note saved successfully.")
+                },
+                onFailure = { error ->
+                    _isSavingInternalNote.value = false
+                    val errorMsg = error.message ?: "Failed to save internal note"
+                    _saveInternalNoteError.value = errorMsg
+                    onError(errorMsg)
+                }
+            )
+        }
+    }
+
+    private val _isResolvingComplaint = MutableStateFlow<Boolean>(false)
+    val isResolvingComplaint: StateFlow<Boolean> = _isResolvingComplaint.asStateFlow()
+
+    private val _resolveComplaintError = MutableStateFlow<String?>(null)
+    val resolveComplaintError: StateFlow<String?> = _resolveComplaintError.asStateFlow()
+
+    /**
+     * Resolves a complaint ticket with the exact payload structure:
+     * {
+     *   "action": "Garment_Remake",
+     *   "compensationAmount": 0,
+     *   "isCustomerAgreed": true,
+     *   "resolutionSummary": "qwdqwd",
+     *   "voucherCode": ""
+     * }
+     */
+    fun resolveComplaint(
+        complaintId: String,
+        actionId: String,
+        summary: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (complaintId.isBlank()) {
+            onError("Invalid Complaint ID")
+            return
+        }
+        if (summary.trim().isBlank()) {
+            onError("Please enter a resolution summary")
+            return
+        }
+
+        viewModelScope.launch {
+            _isResolvingComplaint.value = true
+            _resolveComplaintError.value = null
+
+            // Exact JSON payload construction
+            val payload = ResolveComplaintRequest(
+                action = actionId,
+                compensationAmount = 0,
+                isCustomerAgreed = true,
+                resolutionSummary = summary.trim(),
+                voucherCode = ""
+            )
+
+            android.util.Log.d("RESOLVE_COMPLAINT", "Calling PUT to $COMPLAINT_RESOLVE_URL/$complaintId with payload: $payload")
+
+            val result = repo.request<ResolveComplaintResponse> {
+                patch("$COMPLAINT_RESOLVE_URL/$complaintId", payload)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _isResolvingComplaint.value = false
+                    android.util.Log.d("RESOLVE_COMPLAINT", "Success: ${res.message}, status=${res.data?.status}")
+
+                    // Immediately update UI state with returned data or re-fetch
+                    if (res.data != null) {
+                        _complaintDetail.value = res.data
+                    } else {
+                        fetchComplaintDetail(complaintId)
+                    }
+                    onSuccess(res.message ?: "Complaint resolved successfully.")
+                },
+                onFailure = { error ->
+                    _isResolvingComplaint.value = false
+                    val errorMsg = error.message ?: "Failed to resolve complaint"
+                    android.util.Log.e("RESOLVE_COMPLAINT", "Error: $errorMsg", error)
+                    _resolveComplaintError.value = errorMsg
+                    onError(errorMsg)
+                }
+            )
+        }
+    }
+
+    /**
+     * Updates Job Card stage progress (e.g., Mark Complete, Start Work, Put on Hold)
+     * Endpoint: PATCH /api/services/production/job-cards/update-stage/{jobCardId}
+     */
+    fun updateStageProgress(
+        jobCardId: String,
+        stageId: String,
+        status: String,
+        completedQuantity: Int? = null,
+        defectiveQuantity: Int? = null,
+        completedAt: String? = null,
+        startedAt: String? = null,
+        holdReason: String? = null,
+        notes: String? = null,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (jobCardId.isBlank() || stageId.isBlank()) {
+            onError("Invalid Job Card or Stage ID")
+            return
+        }
+
+        viewModelScope.launch {
+            _isUpdatingStageProgress.value = true
+            _updateStageProgressError.value = null
+
+            // Construct payload matching Screenshot 1
+            val payload = UpdateStageProgressRequestComplete(
+                stageId = stageId,
+                status = status,
+                completedQuantity = completedQuantity,
+                defectiveQuantity = defectiveQuantity,
+                completedAt = completedAt,
+                startedAt = startedAt,
+                holdReason = holdReason,
+                notes = notes?.trim()
+            )
+
+            val result = repo.request<UpdateStageProgressResponse> {
+                patch("$UPDATE_STAGE_PROGRESS_URL/$jobCardId", payload)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _isUpdatingStageProgress.value = false
+                    if (res.data != null) {
+                        _jobCardDetail.value = res.data
+                    }
+                    onSuccess(res.message ?: "Stage progress successfully updated.")
+                },
+                onFailure = { error ->
+                    _isUpdatingStageProgress.value = false
+                    val errorMsg = error.message ?: "Failed to update stage progress"
+                    _updateStageProgressError.value = errorMsg
+                    onError(errorMsg)
+                }
+            )
+        }
+    }
+
+    /**
+     * Logs an issue against a job card
+     * Endpoint: POST /api/services/production/job-cards/log-issue/{jobCardId}
+     */
+    fun logIssueToJobCard(
+        jobCardId: String,
+        issueType: String,
+        description: String,
+        affectedQuantity: Int = 1,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (jobCardId.isBlank() || description.isBlank()) {
+            onError("Description cannot be empty")
+            return
+        }
+
+        viewModelScope.launch {
+            // Construct payload matching Screenshot 2
+            val payload = LogIssueRequest(
+                issueType = issueType,
+                description = description.trim(),
+                affectedQuantity = affectedQuantity
+            )
+
+            val result = repo.request<LogIssueResponse> {
+                post("$LOG_ISSUE_TO_JOB_CARD_URL/$jobCardId", payload)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    onSuccess(res.message ?: "Issue successfully logged against job card.")
+                },
+                onFailure = { err ->
+                    onError(err.message ?: "Failed to log floor issue")
+                }
+            )
+        }
+    }
+
+    fun logFabricWastage(
+        jobCardId: String,
+        totalIssuedMeters: Double,
+        actualGarmentMeters: Double,
+        scrapType: String,
+        notes: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (jobCardId.isBlank()) return
+        viewModelScope.launch {
+            val payload = mapOf(
+                "totalIssuedMeters" to totalIssuedMeters,
+                "actualGarmentMeters" to actualGarmentMeters,
+                "scrapType" to scrapType,
+                "notes" to notes.trim()
+            )
+            val result = repo.request<GenericApiResponse> {
+                post("$LOG_FABRIC_WASTAGE_URL/$jobCardId", payload)
+            }
+            result.fold(
+                onSuccess = { res ->
+                    onSuccess(res.message ?: "Fabric scrap logged successfully!")
+                },
+                onFailure = { err ->
+                    onError(err.message ?: "Failed to log fabric scrap")
+                }
+            )
+        }
+    }
+    fun clearFeedbackDetail() {
+        _feedbackDetail.value = null
+        _feedbackDetailError.value = null
     }
 
     fun onFeedbackSearch(query: String) {

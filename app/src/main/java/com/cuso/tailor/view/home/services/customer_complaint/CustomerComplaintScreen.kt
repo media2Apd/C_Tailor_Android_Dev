@@ -2,17 +2,11 @@
 @file:Suppress("unused")
 package com.cuso.tailor.view.home.services.customer_complaint
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.FilterList
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,13 +14,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.service.ComplaintItemDto
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.DataCard
+import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.SearchFilterBar
+import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.ServicesViewModel
 
 @Composable
@@ -48,103 +46,12 @@ fun ComplaintListScreen(
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = whiteBg
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.7f)
-                ) {
-                    // Header Bar with Arrow Back and Title
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        IconButton(
-                            onClick = onBack,
-                            modifier = Modifier.size(tokens.buttonHeight * 0.8f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = title_color,
-                                modifier = Modifier.size(tokens.iconSize * 1.1f)
-                            )
-                        }
-                        Spacer(Modifier.width(tokens.extraPadding * 0.4f))
-                        Text(
-                            text = "Complaint List",
-                            fontSize = tokens.bodyLarge,
-                            fontWeight = FontWeight.Medium,
-                            color = title_color
-                        )
-                    }
+            // 1. Reusable TitleBar (Close click invokes onBack)
+            TitleBar(
+                title = "Complaint List",
+                onClose = onBack
+            )
 
-                    Spacer(Modifier.height(tokens.extraPadding))
-
-                    // Search & Filter Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { viewModel.onComplaintSearch(it) },
-                            placeholder = {
-                                Text(
-                                    text = "Search SO number, customer...",
-                                    fontSize = tokens.bodySmall,
-                                    color = mutedText,
-                                    fontWeight = FontWeight.Normal
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Search,
-                                    contentDescription = "Search",
-                                    tint = mutedText,
-                                    modifier = Modifier.size(tokens.iconSize)
-                                )
-                            },
-                            singleLine = true,
-                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = BorderGray,
-                                focusedBorderColor = Primary,
-                                unfocusedContainerColor = lightGray,
-                                focusedContainerColor = whiteBg
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(tokens.fieldHeight)
-                        )
-
-                        Spacer(Modifier.width(tokens.extraPadding * 0.8f))
-
-                        // Filter Button
-                        Surface(
-                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
-                            border = BorderStroke(1.dp, BorderGray),
-                            color = whiteBg,
-                            modifier = Modifier
-                                .size(tokens.fieldHeight)
-                                .clickable { /* Open filter sheet if needed */ }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Outlined.FilterList,
-                                    contentDescription = "Filter",
-                                    tint = title_color,
-                                    modifier = Modifier.size(tokens.iconSize)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
         }
     ) { padding ->
         Column(
@@ -152,18 +59,17 @@ fun ComplaintListScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            HorizontalDivider(
-                color = dividerColor,
-                thickness = 1.dp
+            // 2. Reusable SearchFilterBar
+            SearchFilterBar(
+                query = searchQuery,
+                onQueryChange = { viewModel.onComplaintSearch(it) },
+                placeholder = "Search SO number, customer...",
+                showFilterIcon = true,
+                onFilterClick = { /* Open filter sheet */ }
             )
 
             if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = Primary)
-                }
+                ListSkeleton()
             } else if (!errorMessage.isNullOrBlank()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -263,7 +169,7 @@ private fun ComplaintDataCardItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
-                    .background(light_blue)
+                    .background(Primary_background)
                     .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding)
             ) {
                 Row(
@@ -327,6 +233,8 @@ private fun ComplaintDataCardItem(
                             text = item.complaintDisplay,
                             fontSize = tokens.bodySmall,
                             color = title_color,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             fontWeight = FontWeight.Normal
                         )
                     }

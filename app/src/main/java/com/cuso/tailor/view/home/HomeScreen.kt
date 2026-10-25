@@ -122,6 +122,7 @@ import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import com.cuso.tailor.viewmodel.SalesViewModel
+import com.cuso.tailor.viewmodel.ServicesViewModel
 
 val LeadPrimary = Primary
 val LeadPrimarySoft = light_blue_border
@@ -136,6 +137,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     val hrViewModel: HrViewModel = hiltViewModel()
     val salesViewModel: SalesViewModel = hiltViewModel()
     val branchViewModel: BranchViewModel = hiltViewModel()
+    val servicesViewModel: ServicesViewModel = hiltViewModel()
     val customerViewModel: CustomerViewModel = hiltViewModel()
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val profileViewModel: ProfileViewModel = hiltViewModel()
@@ -219,7 +221,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     // Approvals State
     var selectedApprovalId by remember { mutableStateOf<String?>(null) }
     var selectedPriceListId by remember { mutableStateOf<String?>(null) }
-
+    // Legal State
+    var selectedLegalContractId by remember { mutableStateOf<String?>(null) }
 
     // HR State
     var employeeScreenMode by remember { mutableStateOf(ScreenMode.CREATE) }
@@ -242,6 +245,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
     // Services State
     var selectedFeedbackId by remember { mutableStateOf<String?>(null) }
+    var selectedComplaintId by remember { mutableStateOf<String?>(null) }
     var selectedServiceTemplate by remember { mutableStateOf<ProductionTemplateDto?>(null) }
     var selectedServiceRequestId by remember { mutableStateOf<String?>(null) }
     var selectedAlterationId by remember { mutableStateOf<String?>(null) }
@@ -685,6 +689,12 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "logistics_order_tracking",
             "tracking_overview",
 
+            // ── Legal ──
+            "legal_dashboard",
+            "legal_contracts",
+            "legal_contract_detail",
+            "legal_create_contract",
+
             // ── Services ──
             "services_service_status",
             "services_delay_rework",
@@ -692,7 +702,14 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "service_status_detail",
             "services_service_orders",
             "services_service_order",
+            "services_production_works",
             "service_order_overview",
+            "services_customer_complaints",
+            "complaint_detail",
+            "services_customer_feedback",
+            "feedback_detail",
+            "services_production_pipeline",
+            "services_qc_delivery",
             "services_customer_feedback",
             "feedback_detail",
             "services_alteration_management",
@@ -826,6 +843,14 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
+                "services_production_pipeline",
+                "services_qc_delivery",
+                "order_overview",
+                "service_order_overview" -> selectedOrderId = null
+                "legal_contract_detail", "legal_create_contract" -> selectedLegalContractId = null
+                "services_customer_complaints", "complaint_detail" -> selectedComplaintId = null
+                "services_customer_complaints" -> selectedComplaintId = null
+                "feedback_detail" -> selectedFeedbackId = null
                 "create_alteration", "view_alteration" -> selectedAlterationId = null
                 "hr_expense_process_payment" -> selectedClaimForPayment = null
                 "hr_add_expense_type" -> selectedExpenseTypeId = null
@@ -870,7 +895,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 "hr_employee_onboarding" -> selectedEmployeeId = null
                 "hr_attendance_detail" -> selectedAttendanceId = null
                 "hr_create_shift" -> selectedShiftId = null
-                "feedback_detail" -> selectedFeedbackId = null
                 "view_customer", "edit_customer" -> selectedCustomer = null
                 "view_customer_recent" -> selectedRecentCustomerId = null
                 "order_overview", "service_order_overview" -> selectedOrderId = null
@@ -1034,6 +1058,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+                            selectedLegalContractId = selectedLegalContractId,
+                            onLegalContractIdSelected = { selectedLegalContractId = it },
+                            selectedComplaintId = selectedComplaintId,
+                            onComplaintIdSelected = { selectedComplaintId = it },
                             selectedAlterationId = selectedAlterationId,
                             onAlterationIdSelected = { selectedAlterationId = it },
                             selectedClaimForPayment = selectedClaimForPayment,
@@ -1107,6 +1135,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             hrViewModel = hrViewModel,
                             salesViewModel = salesViewModel,
                             branchViewModel = branchViewModel,
+                            servicesViewModel = servicesViewModel,
                             customerViewModel = customerViewModel,
                             inventoryViewModel = inventoryViewModel,
                             settingsViewModel = settingsViewModel,
@@ -1977,16 +2006,19 @@ fun normalizeRoute(rawKey: String): String {
         "logistics_delivery" -> "logistics_delivery"
         "logistics_order_tracking" -> "logistics_order_tracking"
 
+        "services_customer_complaints" -> "services_customer_complaints"
+        "services_customer_feedback" -> "services_customer_feedback"
         "services_service_status" -> "services_service_status"
         "services_delay_rework" -> "services_delay_rework"
         "services_service_delivery" -> "services_service_delivery"
-        "services_customer_feedback" -> "services_customer_feedback"
         "services_alteration_management" -> "services_alteration_management"
         "services_service_request" -> "services_service_request"
         // Map Production Orders to Service Orders screen
         "services_production_orders",
         "services_service_orders",
         "services_service_order" -> "services_service_order"
+        "services_production_works",
+        "services_production_work" -> "services_production_works"
         "service_order_overview" -> "service_order_overview"
         "hr_dashboard", "hr_team_dashboard" -> "hr_dashboard"
         "hr_employees",
@@ -2058,6 +2090,7 @@ fun menuForScreen(screen: String): String = when {
         "service_order_overview",
         "review_services",
         "feedback_detail",
+        "complaint_detail",
         "create_alteration",
         "create_request"
     ) -> "Services"

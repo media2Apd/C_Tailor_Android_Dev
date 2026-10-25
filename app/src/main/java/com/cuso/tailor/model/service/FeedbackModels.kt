@@ -67,3 +67,72 @@ data class FeedbackCustomerDto(
     @SerializedName("phone") val phone: String?,
     @SerializedName("code") val code: String?
 )
+
+data class SingleFeedbackResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("data") val data: FeedbackDetailDataDto?
+)
+
+data class FeedbackDetailDataDto(
+    @SerializedName("_id") val id: String,
+    @SerializedName("feedbackCode") val feedbackCode: String?,
+    @SerializedName("targetType") val targetType: String?,
+    @SerializedName("customerSnapshot") val customerSnapshot: FeedbackCustomerSnapshot?,
+    @SerializedName("customerId") val customer: FeedbackCustomerDetail?,
+    @SerializedName("salesOrderId") val salesOrder: FeedbackSalesOrderDetail?,
+    @SerializedName("overallRating") val overallRating: Double?,
+    @SerializedName("fittingRating") val fittingRating: Double?,
+    @SerializedName("stitchingQualityRating") val stitchingQualityRating: Double?,
+    @SerializedName("deliveryTimelinessRating") val deliveryTimelinessRating: Double?,
+    @SerializedName("staffBehaviorRating") val staffBehaviorRating: Double?,
+    @SerializedName("npsScore") val npsScore: Int?,
+    @SerializedName("npsCategory") val npsCategory: String?,
+    @SerializedName("reviewTitle") val reviewTitle: String?,
+    @SerializedName("comments") val comments: String?,
+    @SerializedName("positiveAspects") val positiveAspects: List<String>?,
+    @SerializedName("improvementAreas") val improvementAreas: List<String>?,
+    @SerializedName("isPublicTestimonial") val isPublicTestimonial: Boolean?,
+    @SerializedName("isFeatured") val isFeatured: Boolean?,
+    @SerializedName("status") val status: String?,
+    @SerializedName("collectedChannel") val collectedChannel: String?,
+    @SerializedName("createdAt") val createdAt: String?,
+    @SerializedName("updatedAt") val updatedAt: String?
+)
+
+data class FeedbackCustomerSnapshot(
+    @SerializedName("customerCode") val customerCode: String?,
+    @SerializedName("name") val name: String?,
+    @SerializedName("email") val email: String?,
+    @SerializedName("phone") val phone: String?
+)
+
+data class FeedbackCustomerDetail(
+    @SerializedName("_id") val id: String?,
+    @SerializedName("customerCode") val customerCode: String?,
+    @SerializedName("fullName") val fullName: String?,
+    @SerializedName("mobileNumber") val mobileNumber: String?,
+    @SerializedName("email") val email: String?,
+    @SerializedName("customerLevel") val customerLevel: String?
+)
+
+data class FeedbackSalesOrderDetail(
+    @SerializedName("_id") val id: String?,
+    @SerializedName("orderCode") val orderCode: String?,
+    @SerializedName("orderDate") val orderDate: String?,
+    @SerializedName("grandTotal") val grandTotal: Double?,
+    @SerializedName("status") val status: String?,
+    @SerializedName("items") val items: List<FeedbackOrderItem>?
+)
+
+data class FeedbackOrderItem(
+    @SerializedName("_id") val id: String?,
+    @SerializedName("itemDescription") val itemDescription: String?,
+    @SerializedName("quantity") val quantity: Int?,
+    @SerializedName("unitPrice") val unitPrice: Double?,
+    @SerializedName("customGarment") val customGarment: FeedbackCustomGarment?
+)
+
+data class FeedbackCustomGarment(
+    @SerializedName("garmentName") val garmentName: String?,
+    @SerializedName("categoryDisplayName") val categoryDisplayName: String?
+)

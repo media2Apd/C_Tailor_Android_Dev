@@ -234,11 +234,11 @@ class Authenticate @Inject constructor(
                     coroutineScope {
                         val meDeferred = async { repository.getMe(token) }
                         val orgDeferred = async { repository.getMyOrganization(token) }
-                        val layoutDeferred = async { repository.getMyLayout(token) }
+//                        val layoutDeferred = async { repository.getMyLayout(token) }
 
                         val meResult = meDeferred.await()
                         val orgResult = orgDeferred.await()
-                        val layoutResult = layoutDeferred.await()
+//                        val layoutResult = layoutDeferred.await()
 
                         meResult.getOrNull()?.let { }
 
@@ -248,7 +248,7 @@ class Authenticate @Inject constructor(
                             loadSettings()
                         }
 
-                        layoutResult.getOrNull()?.let { }
+//                        layoutResult.getOrNull()?.let { }
                     }
 
                     loadTokens()

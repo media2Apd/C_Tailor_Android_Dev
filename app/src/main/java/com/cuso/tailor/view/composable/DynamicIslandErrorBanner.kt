@@ -91,7 +91,7 @@ private val SuccessDarkColors = ToastColors(
     pillBorder = Color(0xFF1F4D33),
     glow = Color.Black.copy(alpha = 0.6f),
     badge = Color(0xFF22C55E),
-    icon = Color(0xFF052E16),
+    icon = Color(0xFFFFFFFF),
     text = Color(0xFFDCFCE7)
 )
 
@@ -100,7 +100,7 @@ private val ErrorDarkColors = ToastColors(
     pillBorder = Color(0xFF5B2128),
     glow = Color.Black.copy(alpha = 0.6f),
     badge = Color(0xFFF87171),
-    icon = Color(0xFF450A0A),
+    icon = Color(0xFFFFFFFF),
     text = Color(0xFFFEE2E2)
 )
 

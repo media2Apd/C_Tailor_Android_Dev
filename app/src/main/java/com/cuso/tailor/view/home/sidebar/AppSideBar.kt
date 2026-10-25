@@ -203,11 +203,12 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
             "Services Dashboard", "Dashboard" -> "services_dashboard"
             "Production Orders", "Service Order", "Service Orders" -> "services_service_order"
             "Service Status"        -> "services_service_status"
+            "Production Works", "Production Work" -> "services_production_works"
             "Delay and Rework"      -> "services_delay_rework"
             "Service Delivery"      -> "services_service_delivery"
             "Service Request"       -> "services_service_request"
             "Alteration Management" -> "services_alteration_management"
-            "Customer Complaints"   -> "services_customer_feedback"
+            "Customer Complaints"   -> "services_customer_complaints"
             "Customer Feedback"     -> "services_customer_feedback"
             else -> "services_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }

@@ -11,13 +11,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Error
-import androidx.compose.material.icons.outlined.PauseCircle
+import com.cuso.tailor.R
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,23 +27,28 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.DatePickerField
 import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.TimePickerField
+import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.ServicesViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -231,15 +237,28 @@ private fun stageBadgeStyle(status: String): ChipStyle = when (status.lowercase(
     else -> ChipStyle(badgeGrey, mutedText, sectionBorder)
 }
 
-private fun alertStyle(type: String?): AlertStyle {
-    val t = type?.lowercase() ?: ""
+private fun alertStyle(type: String?, message: String? = null): AlertStyle {
+    val t = (type ?: "").lowercase()
+    val m = (message ?: "").lowercase()
     return when {
-        t.contains("error") || t.contains("critical") || t.contains("high") || t.contains("danger") ->
-            AlertStyle(roseBg, redText, redText, Icons.Default.Error)
-        t.contains("warn") || t.contains("overdue") || t.contains("delay") ->
+        // Red: Floor issues, machine breakdown, fabric damage, error
+        t.contains("error") || t.contains("issue") || t.contains("critical") ||
+                m.contains("floor issue") || m.contains("breakdown") || m.contains("damage") ->
+            AlertStyle(roseBg, chartRose, activity_brown, Icons.Outlined.Error)
+
+        // Green: Workflow stage completions
+        t.contains("complete") || t.contains("success") ||
+                m.contains("completed") || m.contains("ahead of schedule") ->
+            AlertStyle(activity_green_bg, complete_button_bg, activity_green, Icons.Outlined.CheckCircle)
+
+        // Amber: High priority orders, delivery overdues, delays, holds
+        t.contains("warn") || t.contains("overdue") || t.contains("delay") || t.contains("hold") ||
+                m.contains("overdue") || m.contains("priority") || m.contains("delivery") ->
             AlertStyle(yellowBg, chartAmber, activity_brown, Icons.Default.Warning)
+
+        // Blue: Client trial appointments, info updates, confirmations
         else ->
-            AlertStyle(activity_purple_bg, blueText, darkPurple, Icons.Default.Info)
+            AlertStyle(activity_purple_bg, chartBlue, darkPurple, Icons.Default.Info)
     }
 }
 
@@ -253,7 +272,9 @@ fun OrderProductionPipelineScreen(
     viewModel: ServicesViewModel = hiltViewModel(),
     onBack: () -> Unit = {},
     onMenuClick: () -> Unit = {},
-    onVerifyClick: (orderId: String) -> Unit = {}
+    onVerifyClick: (orderId: String) -> Unit = {},
+    // Opens the assignment screen from the 3-dot menu
+    onGoToAssignmentClick: (orderId: String, jobCardId: String) -> Unit = { _, _ -> }
 ) {
     val tokens = LocalAppTokens.current
     val context = LocalContext.current
@@ -263,6 +284,9 @@ fun OrderProductionPipelineScreen(
     val errorMessage by viewModel.orderDetailError.collectAsStateWithLifecycle()
 
     var selectedJobCardIndex by remember { mutableIntStateOf(0) }
+
+    // Controls the 3-dot dropdown menu in the order header
+    var assignmentMenuOpen by remember { mutableStateOf(false) }
 
     // Modal state
     var startModalOpen by remember { mutableStateOf(false) }
@@ -346,8 +370,82 @@ fun OrderProductionPipelineScreen(
         it.extractString("status") != "Pending_Allocation"
     }
 
-    // Activity and alerts
-    val alerts = detail.extractList("alerts", "activityAlerts", "activities", "activityLogs")
+    // Dynamic Activity & Alert data class
+    data class ProductionAlertItem(
+        val message: String,
+        val time: String,
+        val tag: String?,
+        val type: String,
+        val rawTimestamp: String
+    )
+
+    // Pulls all dynamic activities, job card issues, and workflow logs from API response
+    val dynamicAlerts = remember(detail, activeJobCard) {
+        val items = mutableListOf<ProductionAlertItem>()
+
+        // 1. Order-level activities & alerts from backend
+        val apiLogs = detail.extractList("activityLogs", "activities", "activityAlerts", "alerts", "timeline", "auditLogs")
+        apiLogs.forEach { log ->
+            val msg = log.extractString("message", "title", "description", "action", "text", "event", "note") ?: ""
+            val rawTime = log.extractString("createdAt", "timestamp", "date", "time", "updatedAt") ?: ""
+            val tag = log.extractString("tag", "stageName", "category", "stage", "label", "source")
+            val type = log.extractString("type", "severity", "level", "status", "alertType") ?: "info"
+
+            if (msg.isNotBlank()) {
+                items.add(
+                    ProductionAlertItem(
+                        message = msg,
+                        time = formatAlertTime(rawTime),
+                        tag = tag,
+                        type = type,
+                        rawTimestamp = rawTime
+                    )
+                )
+            }
+        }
+
+        // 2. Active Job Card reported floor issues from backend
+        val jobIssues = activeJobCard.extractList("issues", "jobCardIssues", "floorIssues")
+        jobIssues.forEach { issue ->
+            val issueType = issue.extractString("issueType", "category", "type") ?: "Floor Alert"
+            val desc = issue.extractString("description", "notes", "message") ?: ""
+            val rawTime = issue.extractString("createdAt", "timestamp", "date") ?: ""
+            val formattedMsg = if (desc.isNotBlank()) "Floor Issue: ${prettyStatus(issueType)} — \"$desc\"" else "Floor Issue: ${prettyStatus(issueType)}"
+
+            items.add(
+                ProductionAlertItem(
+                    message = formattedMsg,
+                    time = formatAlertTime(rawTime),
+                    tag = issue.extractString("tag") ?: "Floor Alert",
+                    type = "error",
+                    rawTimestamp = rawTime
+                )
+            )
+        }
+
+        // 3. Job Card specific activity logs if distinct from order
+        val jobCardLogs = activeJobCard.extractList("activityLogs", "activities", "timeline")
+        jobCardLogs.forEach { log ->
+            val msg = log.extractString("message", "title", "description", "action", "text") ?: ""
+            val rawTime = log.extractString("createdAt", "timestamp", "date") ?: ""
+            val tag = log.extractString("tag", "stageName", "stage", "category")
+            val type = log.extractString("type", "status", "severity") ?: "info"
+
+            if (msg.isNotBlank() && items.none { it.message == msg && it.rawTimestamp == rawTime }) {
+                items.add(
+                    ProductionAlertItem(
+                        message = msg,
+                        time = formatAlertTime(rawTime),
+                        tag = tag,
+                        type = type,
+                        rawTimestamp = rawTime
+                    )
+                )
+            }
+        }
+
+        items
+    }
 
     val priorityChip = priorityStyle(priority)
 
@@ -357,197 +455,17 @@ fun OrderProductionPipelineScreen(
             .background(Color.Transparent)
     ) {
         // ── Top header ──
-        // ── Top header ──
         Column(modifier = Modifier.fillMaxWidth().background(whiteBg)) {
 
             // Row 1: back arrow, order code with chips, overflow menu (all vertically centered)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = tokens.screenPadding, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.ChevronLeft,
-                        contentDescription = "Back",
-                        tint = headerGrey,
-                        modifier = Modifier.size(30.dp)
-                    )
-                }
-
-                Spacer(Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = orderCode,
-                            fontSize = tokens.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
-                            maxLines = 1
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        // Priority chip
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(priorityChip.bg)
-                                .border(1.dp, priorityChip.border, RoundedCornerShape(6.dp))
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = priority,
-                                fontSize = tokens.caption,
-                                color = priorityChip.fg,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-
-                    // Order status chip
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(greenBg)
-                            .border(1.dp, chartEmerald.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = prettyStatus(status),
-                            fontSize = tokens.caption,
-                            color = greentext,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
-                        )
-                    }
-                }
-
-                IconButton(onClick = onMenuClick, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Menu",
-                        tint = iconMuted,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                TitleBar(title = "Production Details", onClose = onBack)
             }
 
-            // Thin inset divider between the title area and the summary row
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = tokens.screenPadding),
-                color = PrimaryBorder
-            )
-
-            // Row 2: customer, delivery, garments and verify button
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = tokens.screenPadding, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Customer name and phone
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = customerName,
-                        fontSize = tokens.bodySmall,
-                        color = TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = customerPhone,
-                        fontSize = tokens.caption,
-                        color = iconMuted,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(Modifier.width(12.dp))
-
-                // Delivery date (right aligned under its label)
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "DELIVERY",
-                        fontSize = tokens.caption,
-                        color = iconMuted,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = deliveryDate,
-                        fontSize = tokens.bodySmall,
-                        color = TextPrimary,
-                        maxLines = 1
-                    )
-                }
-
-                Spacer(Modifier.width(16.dp))
-
-                // Garments count with a rounded Primary underline as wide as the text
-                Column(
-                    modifier = Modifier.width(IntrinsicSize.Max),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "GARMENTS",
-                        fontSize = tokens.caption,
-                        color = iconMuted,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = "$assignedGarmentsCount / $totalGarments assigned",
-                        fontSize = tokens.bodySmall,
-                        color = headerGrey,
-                        maxLines = 1
-                    )
-                    Spacer(Modifier.height(5.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(Primary)
-                    )
-                }
-
-                Spacer(Modifier.width(16.dp))
-
-                // Verify checklist button (grey until every stage is completed)
-                Button(
-                    onClick = { onVerifyClick(orderId) },
-                    enabled = isAllStagesCompleted,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isAllStagesCompleted) greenBg else grey_border,
-                        contentColor = if (isAllStagesCompleted) greentext else textSubdued,
-                        disabledContainerColor = grey_border,
-                        disabledContentColor = textSubdued
-                    ),
-                    border = BorderStroke(1.dp, sectionBorder),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.height(40.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Description,
-                        contentDescription = null,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = "Verify",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1
-                    )
-                }
-            }
         }
-
-        HorizontalDivider(color = title_border)
 
         // ── Scrollable body ──
         Column(
@@ -558,6 +476,243 @@ fun OrderProductionPipelineScreen(
                 .padding(tokens.screenPadding),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Header card: order row (code, chips, Verify, menu) and summary row below it
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(whiteBg)
+                    .border(1.dp, sectionBorder, RoundedCornerShape(12.dp))
+            ) {
+                // Row 1: order code with chips on the left, Verify button and 3-dot menu at the end
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 14.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = orderCode,
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            // Priority chip
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(priorityChip.bg)
+                                    .border(1.dp, priorityChip.border, RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = priority,
+                                    fontSize = tokens.caption,
+                                    color = priorityChip.fg,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(6.dp))
+
+                        // Order status chip
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(greenBg)
+                                .border(1.dp, chartEmerald.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = prettyStatus(status),
+                                fontSize = tokens.caption,
+                                color = greentext,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.width(8.dp))
+
+                    // Verify checklist button (grey until every stage is completed)
+                    Button(
+                        onClick = { onVerifyClick(orderId) },
+                        enabled = isAllStagesCompleted,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isAllStagesCompleted) greenBg else grey_border,
+                            contentColor = if (isAllStagesCompleted) greentext else textSubdued,
+                            disabledContainerColor = grey_border,
+                            disabledContentColor = textSubdued
+                        ),
+                        border = BorderStroke(1.dp, sectionBorder),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.height(36.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Description,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "Verify",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                    }
+
+                    // 3-dot button with its dropdown anchored to the same Box
+                    Box {
+                        IconButton(
+                            onClick = { assignmentMenuOpen = true },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                                tint = iconMuted,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = assignmentMenuOpen,
+                            onDismissRequest = { assignmentMenuOpen = false },
+                            // Small gap between the 3-dot button and the popup
+                            offset = DpOffset(x = 0.dp, y = 4.dp),
+                            // Rounded card look with a thin border and a soft shadow
+                            shape = RoundedCornerShape(10.dp),
+                            containerColor = whiteBg,
+                            tonalElevation = 0.dp,
+                            shadowElevation = 4.dp,
+                            border = BorderStroke(1.dp, sectionBorder)
+                        ) {
+                            DropdownMenuItem(
+                                // Fixed compact height with small top and bottom padding
+                                modifier = Modifier.height(36.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                text = {
+                                    Text(
+                                        text = "Go to assignment mode",
+                                        fontSize = tokens.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = TextPrimary,
+                                        maxLines = 1
+                                    )
+                                },
+                                leadingIcon = {
+                                    // Ruler icon, same as the reference design
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_ruler),
+                                        contentDescription = null,
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
+                                onClick = {
+                                    assignmentMenuOpen = false
+                                    onGoToAssignmentClick(orderId, activeJobCardId)
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Thin inset divider between the order row and the summary row
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 14.dp),
+                    color = PrimaryBorder
+                )
+
+                // Row 2: customer on the left, delivery and garments aligned on the right
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    // Customer name and phone (takes the remaining width)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = customerName,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = customerPhone,
+                            fontSize = tokens.caption,
+                            color = iconMuted,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Spacer(Modifier.width(12.dp))
+
+                    // Delivery date (right aligned under its label)
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "DELIVERY",
+                            fontSize = tokens.caption,
+                            color = iconMuted,
+                            maxLines = 1
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = deliveryDate,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary,
+                            maxLines = 1
+                        )
+                    }
+
+                    Spacer(Modifier.width(16.dp))
+
+                    // Garments count with a rounded Primary underline as wide as the text
+                    Column(
+                        modifier = Modifier.width(IntrinsicSize.Max),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "GARMENTS",
+                            fontSize = tokens.caption,
+                            color = iconMuted,
+                            maxLines = 1
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = "$assignedGarmentsCount / $totalGarments assigned",
+                            fontSize = tokens.bodySmall,
+                            color = headerGrey,
+                            maxLines = 1
+                        )
+                        Spacer(Modifier.height(5.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(Primary)
+                        )
+                    }
+                }
+            }
             // Item card
             Row(
                 modifier = Modifier
@@ -638,41 +793,43 @@ fun OrderProductionPipelineScreen(
                 }
             }
 
-            // Activity and alerts
-            if (alerts.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Dynamic Activity & Alerts list matching the screenshots
+            if (dynamicAlerts.isNotEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "ACTIVITY & ALERTS",
-                            fontSize = tokens.caption,
-                            fontWeight = FontWeight.SemiBold,
-                            color = PrimaryTextColor
+                            text = "Activity & Alerts",
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = TitleColor
                         )
                         Text(
-                            text = "${alerts.size} Total",
+                            text = "${dynamicAlerts.size} Total",
                             fontSize = tokens.caption,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Medium,
                             color = Primary
                         )
                     }
 
-                    alerts.forEach { alert ->
-                        val message = alert.extractString("message", "title", "description", "text") ?: ""
-                        val time = formatAlertTime(alert.extractString("createdAt", "date", "timestamp", "time"))
-                        val tag = alert.extractString("tag", "category", "label")
-                        val style = alertStyle(alert.extractString("type", "severity", "level"))
+                    dynamicAlerts.forEach { alert ->
+                        val style = alertStyle(alert.type, alert.message)
 
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(IntrinsicSize.Min)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(style.bg)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(style.bg),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Left vertical accent bar
                             Box(
                                 modifier = Modifier
                                     .width(4.dp)
@@ -682,44 +839,41 @@ fun OrderProductionPipelineScreen(
                             Row(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.Top
                             ) {
                                 Icon(
                                     imageVector = style.icon,
                                     contentDescription = null,
                                     tint = style.accent,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier
+                                        .padding(top = 2.dp)
+                                        .size(18.dp)
                                 )
                                 Spacer(Modifier.width(10.dp))
-                                Column {
+                                Column(verticalArrangement = Arrangement.Center) {
                                     Text(
-                                        text = message,
+                                        text = alert.message,
                                         fontSize = tokens.bodySmall,
                                         fontWeight = FontWeight.Medium,
-                                        color = style.text
+                                        color = style.text,
+                                        lineHeight = 18.sp
                                     )
-                                    Spacer(Modifier.height(2.dp))
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (alert.time.isNotBlank() || !alert.tag.isNullOrBlank()) {
+                                        Spacer(Modifier.height(4.dp))
+                                        val subLabel = buildString {
+                                            if (alert.time.isNotBlank()) append(alert.time)
+                                            if (!alert.tag.isNullOrBlank()) {
+                                                if (isNotEmpty()) append(" • ")
+                                                append(alert.tag)
+                                            }
+                                        }
                                         Text(
-                                            text = time,
+                                            text = subLabel,
                                             fontSize = tokens.caption,
+                                            fontWeight = FontWeight.Medium,
                                             color = style.accent
                                         )
-                                        if (!tag.isNullOrBlank()) {
-                                            Spacer(Modifier.width(6.dp))
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(4.dp)
-                                                    .background(style.accent, CircleShape)
-                                            )
-                                            Spacer(Modifier.width(6.dp))
-                                            Text(
-                                                text = tag,
-                                                fontSize = tokens.caption,
-                                                color = style.accent
-                                            )
-                                        }
                                     }
                                 }
                             }
@@ -1241,70 +1395,46 @@ fun OrderProductionPipelineScreen(
 
     // Modal 1: Mark Stage Complete
     if (completeModalOpen && targetStage != null) {
-        var completedQty by remember { mutableIntStateOf(1) }
-        var defectiveQty by remember { mutableIntStateOf(0) }
-        val stageId = targetStage!!.extractString("_id", "id", "stageId") ?: ""
-        val stageName = targetStage!!.extractString("stageName", "name") ?: "Stage"
+        val stg = targetStage!!
+        val stageId = stg.extractString("_id", "id", "stageId") ?: ""
+        val stageName = stg.extractString("stageName", "name") ?: "Stage"
+        val estimateMins = stg.extractInt("estimatedMinutes", default = 0)
+        val estimateLabel = if (estimateMins > 0) formatMinutes(estimateMins) else "0 mins"
 
-        AlertDialog(
-            onDismissRequest = { completeModalOpen = false },
-            title = { Text(text = "Complete Stage: $stageName", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = completedQty.toString(),
-                        onValueChange = { completedQty = it.toIntOrNull() ?: 1 },
-                        label = { Text("Completed Pieces *") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = defectiveQty.toString(),
-                        onValueChange = { defectiveQty = it.toIntOrNull() ?: 0 },
-                        label = { Text("Defective Pieces") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        // Generate UTC ISO-8601 timestamp (e.g. 2026-12-10T17:07:00.000Z)
-                        val nowIso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
-                            timeZone = TimeZone.getTimeZone("UTC")
-                        }.format(Date())
+        CompleteStageDialog(
+            stageName = stageName,
+            estimateLabel = estimateLabel,
+            jobCardCode = jobCardCode,
+            workerName = stageWorkerName(stg),
+            totalPieces = quantity,
+            onDismiss = { completeModalOpen = false },
+            onConfirm = { completedQty, defectiveQty, _ ->
+                val nowIso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }.format(Date())
 
-                        viewModel.updateStageProgress(
-                            jobCardId = activeJobCardId,
-                            stageId = stageId,
-                            status = "Completed",
-                            completedQuantity = completedQty,
-                            defectiveQuantity = defectiveQty,
-                            completedAt = nowIso,
-                            notes = "Stage fully completed and verified",
-                            onSuccess = {
-                                Toast.makeText(context, "Stage marked completed!", Toast.LENGTH_SHORT).show()
-                                completeModalOpen = false
-                                viewModel.fetchServiceOrderDetail(orderId)
-                            },
-                            onError = { err ->
-                                Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
-                            }
-                        )
+                viewModel.updateStageProgress(
+                    jobCardId = activeJobCardId,
+                    stageId = stageId,
+                    status = "Completed",
+                    completedQuantity = completedQty,
+                    defectiveQuantity = defectiveQty,
+                    completedAt = nowIso,
+                    notes = "Stage fully completed and verified",
+                    onSuccess = {
+                        Toast.makeText(context, "Stage marked completed!", Toast.LENGTH_SHORT).show()
+                        completeModalOpen = false
+                        viewModel.fetchServiceOrderDetail(orderId)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = greentext)
-                ) {
-                    Text(text = "Confirm Handover", color = whiteBg)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { completeModalOpen = false }) { Text("Cancel") }
+                    onError = { err ->
+                        Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                    }
+                )
             }
         )
     }
 
-    // Modal 2: Put On Hold
+    // Modal 2: Put Stage On Hold
     if (holdModalOpen && targetStage != null) {
         val stg = targetStage!!
         val stageId = stg.extractString("_id", "id", "stageId") ?: ""
@@ -1329,86 +1459,31 @@ fun OrderProductionPipelineScreen(
         )
     }
 
-    // Modal 3: Report Floor Issue
+    // Modal 3: Report Shop-Floor Issue
     if (issueModalOpen && targetStage != null) {
-        var issueType by remember { mutableStateOf("Customer_Mistake") }
-        var description by remember { mutableStateOf("") }
+        val stg = targetStage!!
+        val stageName = stg.extractString("stageName", "name") ?: "Stage"
 
-        val issueOptions = listOf(
-            "Customer_Mistake" to "Customer Mistake",
-            "Machine_Breakdown" to "Machine Breakdown",
-            "Fabric_Damage" to "Fabric Damage",
-            "Wrong_Cutting" to "Wrong Cutting"
-        )
-
-        AlertDialog(
-            onDismissRequest = { issueModalOpen = false },
-            title = { Text(text = "Report Floor Issue", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(text = "Category:", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold)
-
-                    // Category Selection Chips
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        issueOptions.take(2).forEach { (id, label) ->
-                            FilterChip(
-                                selected = issueType == id,
-                                onClick = { issueType = id },
-                                label = { Text(label, fontSize = tokens.caption) }
-                            )
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        issueOptions.drop(2).forEach { (id, label) ->
-                            FilterChip(
-                                selected = issueType == id,
-                                onClick = { issueType = id },
-                                label = { Text(label, fontSize = tokens.caption) }
-                            )
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = description,
-                        onValueChange = { description = it },
-                        label = { Text("Issue Description *") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (description.isBlank()) return@Button
-
-                        viewModel.logIssueToJobCard(
-                            jobCardId = activeJobCardId,
-                            issueType = issueType,
-                            description = description,
-                            affectedQuantity = 1,
-                            onSuccess = {
-                                Toast.makeText(context, "Issue logged successfully!", Toast.LENGTH_SHORT).show()
-                                issueModalOpen = false
-                                viewModel.fetchServiceOrderDetail(orderId)
-                            },
-                            onError = { err ->
-                                Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
-                            }
-                        )
+        ReportIssueDialog(
+            stageName = stageName,
+            jobCardCode = jobCardCode,
+            workerName = stageWorkerName(stg),
+            onDismiss = { issueModalOpen = false },
+            onConfirm = { issueType, description ->
+                viewModel.logIssueToJobCard(
+                    jobCardId = activeJobCardId,
+                    issueType = issueType,
+                    description = description,
+                    affectedQuantity = 1,
+                    onSuccess = {
+                        Toast.makeText(context, "Issue logged successfully!", Toast.LENGTH_SHORT).show()
+                        issueModalOpen = false
+                        viewModel.fetchServiceOrderDetail(orderId)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = redText)
-                ) {
-                    Text(text = "Submit Issue", color = whiteBg)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { issueModalOpen = false }) { Text("Cancel") }
+                    onError = { err ->
+                        Toast.makeText(context, err, Toast.LENGTH_SHORT).show()
+                    }
+                )
             }
         )
     }
@@ -1479,10 +1554,10 @@ fun OrderProductionPipelineScreen(
 
 
 // ─────────────────────────────────────────────────────────────
-// Shared dialog building blocks
+// Shared dialog building blocks using AppDesignTokens & Theme Colors
 // ─────────────────────────────────────────────────────────────
 
-// Returns the name of the first worker allocated to a stage
+// Extracts the worker full name from stage allocations
 private fun stageWorkerName(stage: Any): String {
     val workerObj = stage.extractList("allocations").firstOrNull()?.extractObject("workerId")
     return workerObj?.let {
@@ -1490,12 +1565,14 @@ private fun stageWorkerName(stage: Any): String {
     }?.takeIf { it.isNotBlank() } ?: "Unassigned"
 }
 
-// Rounded white container used by every stage dialog
+// Rounded dialog container adhering to tokens.cardCornerRadius and whiteBg
 @Composable
 private fun StageDialogContainer(
     onDismiss: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val tokens = LocalAppTokens.current
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -1503,19 +1580,21 @@ private fun StageDialogContainer(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            shape = RoundedCornerShape(20.dp),
+                .padding(horizontal = tokens.screenPadding),
+            shape = RoundedCornerShape(tokens.cardCornerRadius),
             color = whiteBg
         ) {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 content = content
             )
         }
     }
 }
 
-// Title row with icon, title, subtitle and a close button
+// Header with icon, title, subtitle, and close button
 @Composable
 private fun StageDialogHeader(
     icon: ImageVector,
@@ -1530,21 +1609,28 @@ private fun StageDialogHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 12.dp, top = 18.dp, bottom = 14.dp),
+            .padding(
+                start = tokens.cardPadding,
+                end = tokens.extraPadding,
+                top = tokens.cardPadding,
+                bottom = tokens.extraPadding
+            ),
         verticalAlignment = Alignment.Top
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = iconTint,
-            modifier = Modifier.padding(top = 2.dp).size(22.dp)
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .size(tokens.iconSize)
         )
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(tokens.extraPadding))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
                 fontSize = tokens.bodyMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Medium,
                 color = TextPrimary
             )
             Spacer(Modifier.height(2.dp))
@@ -1552,7 +1638,7 @@ private fun StageDialogHeader(
                 text = buildAnnotatedString {
                     append(subtitle)
                     if (subtitleHighlight != null) {
-                        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = textSubdued)) {
+                        withStyle(SpanStyle(fontWeight = FontWeight.Medium, color = textSubdued)) {
                             append(subtitleHighlight)
                         }
                     }
@@ -1561,18 +1647,22 @@ private fun StageDialogHeader(
                 color = headerGrey
             )
         }
-        IconButton(onClick = onClose, modifier = Modifier.size(32.dp)) {
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier.size(28.dp)
+        ) {
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Close",
-                tint = TextPrimary,
-                modifier = Modifier.size(20.dp)
+                tint = headerGrey,
+                modifier = Modifier.size(18.dp)
             )
         }
     }
+    HorizontalDivider(color = grey_border)
 }
 
-// Grey strip with the job card id and the assigned worker
+// Top strip displaying Job Card ID and Assigned Artisan cards
 @Composable
 private fun JobInfoStrip(jobCardCode: String, workerName: String) {
     val tokens = LocalAppTokens.current
@@ -1580,70 +1670,76 @@ private fun JobInfoStrip(jobCardCode: String, workerName: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Primary_background)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .height(IntrinsicSize.Min) // Forces both cards to match the maximum intrinsic height
+            .padding(horizontal = tokens.cardPadding, vertical = tokens.screenPadding),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Job Card ID card (fills height and centers content vertically)
         Column(
             modifier = Modifier
                 .weight(1f)
-                .clip(RoundedCornerShape(10.dp))
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(8.dp))
                 .background(whiteBg)
-                .border(1.dp, sectionBorder, RoundedCornerShape(10.dp))
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = "JOB CARD ID",
-                fontSize = tokens.caption,
-                fontWeight = FontWeight.SemiBold,
-                color = PrimaryTextColor
+                fontSize = tokens.label,
+                fontWeight = FontWeight.Medium,
+                color = iconMuted
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = jobCardCode.ifBlank { "-" },
                 fontSize = tokens.bodySmall,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Medium,
                 color = TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
-        Column(
+        // Assigned Worker card (fills height and centers content vertically)
+        Row(
             modifier = Modifier
                 .weight(1f)
-                .clip(RoundedCornerShape(10.dp))
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(8.dp))
                 .background(whiteBg)
-                .border(1.dp, sectionBorder, RoundedCornerShape(10.dp))
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "ASSIGNED",
-                fontSize = tokens.caption,
-                fontWeight = FontWeight.SemiBold,
-                color = PrimaryTextColor
-            )
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(20.dp)
-                        .background(background_light_purple, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = workerName.first().uppercase(),
-                        fontSize = tokens.caption,
-                        fontWeight = FontWeight.Bold,
-                        color = Primary
-                    )
-                }
-                Spacer(Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(primary_light),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = workerName.firstOrNull()?.uppercase() ?: "U",
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Medium,
+                    color = Primary
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Column(verticalArrangement = Arrangement.Center) {
+                Text(
+                    text = "ASSIGNED",
+                    fontSize = tokens.label,
+                    fontWeight = FontWeight.Medium,
+                    color = iconMuted
+                )
+                Spacer(Modifier.height(2.dp))
                 Text(
                     text = workerName,
                     fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Medium,
                     color = TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -1653,7 +1749,7 @@ private fun JobInfoStrip(jobCardCode: String, workerName: String) {
     }
 }
 
-// Footer with a Cancel button and a custom confirm button
+// Dialog footer with Cancel button and primary action button
 @Composable
 private fun StageDialogFooter(
     onCancel: () -> Unit,
@@ -1661,47 +1757,35 @@ private fun StageDialogFooter(
 ) {
     val tokens = LocalAppTokens.current
 
-    HorizontalDivider(color = title_border)
+    HorizontalDivider(color = grey_border)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = tokens.cardPadding, vertical = 14.dp),
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically
     ) {
         OutlinedButton(
             onClick = onCancel,
-            modifier = Modifier.height(40.dp),
+            modifier = Modifier.height(tokens.buttonHeight),
             shape = RoundedCornerShape(8.dp),
             border = BorderStroke(1.dp, sectionBorder),
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = whiteBg,
-                contentColor = TextPrimary
-            )
+                contentColor = textSubdued
+            ),
+            contentPadding = PaddingValues(horizontal = 18.dp)
         ) {
-            Text(text = "Cancel", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium)
+            Text(
+                text = "Cancel",
+                fontSize = tokens.bodySmall,
+                fontWeight = FontWeight.Medium
+            )
         }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(tokens.extraPadding))
         confirmButton()
     }
 }
-
-// Colors shared by all dialog text fields
-@Composable
-private fun dialogFieldColors(
-    container: Color = badgeGrey,
-    border: Color = sectionBorder,
-    focusedBorder: Color = Primary,
-    text: Color = TextPrimary
-) = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor = container,
-    unfocusedContainerColor = container,
-    focusedBorderColor = focusedBorder,
-    unfocusedBorderColor = border,
-    focusedTextColor = text,
-    unfocusedTextColor = text,
-    cursorColor = focusedBorder
-)
 
 // ─────────────────────────────────────────────────────────────
 // Dialog 1: Complete Stage
@@ -1714,149 +1798,219 @@ private fun CompleteStageDialog(
     jobCardCode: String,
     workerName: String,
     totalPieces: Int,
+    isLoading: Boolean = false,
     onDismiss: () -> Unit,
     onConfirm: (completed: Int, defective: Int, dateTime: String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
+
+    // Quantity states
     var completed by remember { mutableStateOf(totalPieces.toString()) }
     var defective by remember { mutableStateOf("0") }
-    val dateTime = remember {
-        SimpleDateFormat("dd-MM-yyyy hh:mm a", Locale.ENGLISH).format(Date())
-    }
-    val completedValue = completed.toIntOrNull() ?: 0
-    val canConfirm = completedValue > 0
 
-    StageDialogContainer(onDismiss = onDismiss) {
+    // Separate date and time states initialized with current timestamp
+    var selectedDate by remember {
+        mutableStateOf(SimpleDateFormat("dd-MM-yyyy", Locale.US).format(Date()))
+    }
+    var selectedTime by remember {
+        mutableStateOf(SimpleDateFormat("hh:mm a", Locale.US).format(Date()))
+    }
+
+    // Submission loading state
+    var isSubmitting by remember { mutableStateOf(false) }
+    val showLoading = isLoading || isSubmitting
+
+    val completedValue = completed.toIntOrNull() ?: 0
+    val canConfirm = completedValue > 0 && selectedDate.isNotBlank() && selectedTime.isNotBlank()
+
+    StageDialogContainer(onDismiss = { if (!showLoading) onDismiss() }) {
+        // Header
         StageDialogHeader(
             icon = Icons.Outlined.CheckCircle,
-            iconTint = greentext,
+            iconTint = darkGreenBg,
             title = "Complete Stage | $stageName",
             subtitle = "Estimated Standard: ",
             subtitleHighlight = estimateLabel,
-            onClose = onDismiss
+            onClose = { if (!showLoading) onDismiss() }
         )
 
+        // Job Card & Assigned Worker Info Strip
         JobInfoStrip(jobCardCode = jobCardCode, workerName = workerName)
 
         Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.padding(
+                start = tokens.cardPadding,
+                end = tokens.cardPadding,
+                bottom = tokens.cardPadding
+            ),
+            verticalArrangement = Arrangement.spacedBy(tokens.screenPadding)
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Row 1: Completed Pieces and Defective Pieces inputs
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Completed Pieces box
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Completed Pieces *",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = tokens.caption,
+                        fontWeight = FontWeight.Medium,
                         color = textSubdued
                     )
                     Spacer(Modifier.height(6.dp))
-                    OutlinedTextField(
+                    BasicTextField(
                         value = completed,
                         onValueChange = { v -> completed = v.filter { it.isDigit() } },
                         singleLine = true,
-                        shape = RoundedCornerShape(10.dp),
+                        enabled = !showLoading,
                         textStyle = TextStyle(
                             textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Medium,
+                            fontSize = tokens.bodyLarge,
+                            color = TextPrimary
                         ),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = dialogFieldColors(),
-                        modifier = Modifier.fillMaxWidth()
+                        decorationBox = { innerTextField ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(42.dp)
+                                    .background(whiteBg, RoundedCornerShape(8.dp))
+                                    .border(1.dp, sectionBorder, RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                innerTextField()
+                            }
+                        }
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = "Total in Job Card: $totalPieces pcs",
                         fontSize = tokens.caption,
-                        color = mutedText
+                        color = iconMuted
                     )
                 }
 
+                // Defective Pieces box
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Defective / Scrap Pieces",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = textSubdued,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        text = "Defective / Scrap",
+                        fontSize = tokens.caption,
+                        fontWeight = FontWeight.Medium,
+                        color = textSubdued
                     )
                     Spacer(Modifier.height(6.dp))
-                    OutlinedTextField(
+                    BasicTextField(
                         value = defective,
                         onValueChange = { v -> defective = v.filter { it.isDigit() } },
                         singleLine = true,
-                        shape = RoundedCornerShape(10.dp),
+                        enabled = !showLoading,
                         textStyle = TextStyle(
                             textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Medium,
+                            fontSize = tokens.bodyLarge,
+                            color = redText
                         ),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = dialogFieldColors(text = redText),
-                        modifier = Modifier.fillMaxWidth()
+                        decorationBox = { innerTextField ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(42.dp)
+                                    .background(whiteBg, RoundedCornerShape(8.dp))
+                                    .border(1.dp, sectionBorder, RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                innerTextField()
+                            }
+                        }
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = "Damaged/Rework pieces",
                         fontSize = tokens.caption,
-                        color = mutedText
+                        color = iconMuted
                     )
                 }
             }
 
-            Column {
-                Text(
-                    text = "Completion Date & Time *",
-                    fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = textSubdued
-                )
-                Spacer(Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = dateTime,
-                    onValueChange = {},
-                    readOnly = true,
-                    singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.CalendarMonth,
-                            contentDescription = null,
-                            tint = TextPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    },
-                    colors = dialogFieldColors(),
-                    modifier = Modifier.fillMaxWidth()
-                )
+            // Row 2: Completion Date and Completion Time side-by-side pickers
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Completion Date Field
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Completion Date *",
+                        fontSize = tokens.caption,
+                        fontWeight = FontWeight.Medium,
+                        color = textSubdued
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    DatePickerField(
+                        value = selectedDate,
+                        onDateSelected = { selectedDate = it },
+                        enabled = !showLoading
+                    )
+                }
+
+                // Completion Time Field
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Completion Time *",
+                        fontSize = tokens.caption,
+                        fontWeight = FontWeight.Medium,
+                        color = textSubdued
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    TimePickerField(
+                        value = selectedTime,
+                        onTimeSelected = { selectedTime = it },
+                        enabled = !showLoading
+                    )
+                }
             }
         }
 
-        StageDialogFooter(onCancel = onDismiss) {
+        // Dialog Footer with loader
+        StageDialogFooter(onCancel = { if (!showLoading) onDismiss() }) {
             Button(
                 onClick = {
-                    onConfirm(completedValue, defective.toIntOrNull() ?: 0, dateTime)
+                    isSubmitting = true
+                    onConfirm(completedValue, defective.toIntOrNull() ?: 0, "$selectedDate $selectedTime")
                 },
-                enabled = canConfirm,
-                modifier = Modifier.height(40.dp),
+                enabled = canConfirm && !showLoading,
+                modifier = Modifier.height(tokens.buttonHeight),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = chartGreenDeep,
+                    containerColor = darkGreenBg,
                     contentColor = whiteBg,
-                    disabledContainerColor = disabled,
+                    disabledContainerColor = greenBg,
                     disabledContentColor = whiteBg
-                )
+                ),
+                contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(6.dp))
+                if (showLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = whiteBg,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                }
                 Text(
-                    text = "Confirm Stage Handover",
+                    text = if (showLoading) "Submitting..." else "Confirm Stage Handover",
                     fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -1871,75 +2025,95 @@ private fun CompleteStageDialog(
 private fun HoldStageDialog(
     jobCardCode: String,
     workerName: String,
+    isLoading: Boolean = false,
     onDismiss: () -> Unit,
     onConfirm: (reason: String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
     var reason by remember { mutableStateOf("") }
 
-    StageDialogContainer(onDismiss = onDismiss) {
+    // Submission loading state
+    var isSubmitting by remember { mutableStateOf(false) }
+    val showLoading = isLoading || isSubmitting
+
+    StageDialogContainer(onDismiss = { if (!showLoading) onDismiss() }) {
         StageDialogHeader(
-            icon = Icons.Outlined.PauseCircle,
+            icon = Icons.Default.Pause,
             iconTint = yellowText,
             title = "Put Stage On Hold",
             subtitle = "Specify reason for pausing the bench",
-            onClose = onDismiss
+            onClose = { if (!showLoading) onDismiss() }
         )
 
         JobInfoStrip(jobCardCode = jobCardCode, workerName = workerName)
 
-        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+        Column(modifier = Modifier.padding(start = tokens.cardPadding, end = tokens.cardPadding, bottom = tokens.cardPadding)) {
             Text(
                 text = "Why is this stage being put on hold? *",
                 fontSize = tokens.bodySmall,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
                 color = textSubdued
             )
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = reason,
                 onValueChange = { reason = it },
-                minLines = 3,
-                shape = RoundedCornerShape(10.dp),
+                minLines = 4,
+                enabled = !showLoading,
+                shape = RoundedCornerShape(8.dp),
                 placeholder = {
                     Text(
                         text = "E.g. Awaiting client trial measurement clarification, thread shade mismatch...",
                         fontSize = tokens.bodySmall,
-                        color = mutedText
+                        color = iconMuted
                     )
                 },
-                colors = dialogFieldColors(
-                    container = yellowBg,
-                    border = chartAmber.copy(alpha = 0.4f),
-                    focusedBorder = chartAmber
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = whiteBg,
+                    unfocusedContainerColor = whiteBg,
+                    focusedBorderColor = chartAmber,
+                    unfocusedBorderColor = chartAmber
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
         }
 
-        StageDialogFooter(onCancel = onDismiss) {
+        StageDialogFooter(onCancel = { if (!showLoading) onDismiss() }) {
             Button(
-                onClick = { onConfirm(reason) },
-                enabled = reason.isNotBlank(),
-                modifier = Modifier.height(40.dp),
+                onClick = {
+                    isSubmitting = true
+                    onConfirm(reason)
+                },
+                enabled = reason.isNotBlank() && !showLoading,
+                modifier = Modifier.height(tokens.buttonHeight),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = yellowText,
                     contentColor = whiteBg,
                     disabledContainerColor = orangeBg,
                     disabledContentColor = whiteBg
-                )
+                ),
+                contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Pause,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(6.dp))
+                if (showLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = whiteBg,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Pause,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                }
                 Text(
-                    text = "Confirm Hold",
+                    text = if (showLoading) "Holding..." else "Confirm Hold",
                     fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -1955,69 +2129,85 @@ private fun ReportIssueDialog(
     stageName: String,
     jobCardCode: String,
     workerName: String,
+    isLoading: Boolean = false,
     onDismiss: () -> Unit,
     onConfirm: (issueType: String, description: String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
+
+    // Matches the React chip items and exact backend payload keys
     val categories = listOf(
-        "Machine_Breakdown",
-        "Fabric_Damage",
-        "Cutting_Mistake",
-        "Customer_Mistake"
+        "Machine_Breakdown" to "Machine Breakdown",
+        "Fabric_Damage" to "Fabric Damage",
+        "Wrong_Cutting" to "Cutting Mistake",
+        "Customer_Mistake" to "Customer Mistake"
     )
-    var selectedType by remember { mutableStateOf(categories.first()) }
+    var selectedType by remember { mutableStateOf(categories.first().first) }
     var description by remember { mutableStateOf("") }
 
-    StageDialogContainer(onDismiss = onDismiss) {
+    // Submission loading state
+    var isSubmitting by remember { mutableStateOf(false) }
+    val showLoading = isLoading || isSubmitting
+
+    StageDialogContainer(onDismiss = { if (!showLoading) onDismiss() }) {
+        // Header
         StageDialogHeader(
             icon = Icons.Outlined.Error,
             iconTint = chartRose,
             title = "Report Shop-Floor Issue | $stageName",
             subtitle = "Logged directly to job card issues register",
-            onClose = onDismiss
+            onClose = { if (!showLoading) onDismiss() }
         )
 
+        // Job Card & Assigned Worker Info Strip
         JobInfoStrip(jobCardCode = jobCardCode, workerName = workerName)
 
         Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.padding(
+                start = tokens.cardPadding,
+                end = tokens.cardPadding,
+                bottom = tokens.cardPadding
+            ),
+            verticalArrangement = Arrangement.spacedBy(tokens.screenPadding)
         ) {
+            // Category Selection (2x2 Grid)
             Column {
                 Text(
                     text = "Issue Category *",
                     fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = textSubdued
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
 
-                // Two-column grid of selectable categories
-                categories.chunked(2).forEachIndexed { rowIdx, rowItems ->
-                    if (rowIdx > 0) Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        rowItems.forEach { type ->
-                            val isSelected = type == selectedType
+                categories.chunked(2).forEachIndexed { index, pair ->
+                    if (index > 0) Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        pair.forEach { (key, label) ->
+                            val isSelected = selectedType == key
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(40.dp)
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .defaultMinSize(minHeight = 42.dp)
+                                    .clip(RoundedCornerShape(8.dp))
                                     .background(if (isSelected) roseBg else whiteBg)
                                     .border(
-                                        1.dp,
-                                        if (isSelected) chartRose.copy(alpha = 0.6f) else sectionBorder,
-                                        RoundedCornerShape(10.dp)
+                                        width = if (isSelected) 1.5.dp else 1.dp,
+                                        color = if (isSelected) chartRose.copy(alpha = 0.5f) else sectionBorder,
+                                        shape = RoundedCornerShape(8.dp)
                                     )
-                                    .clickable { selectedType = type }
-                                    .padding(horizontal = 12.dp),
+                                    .clickable(enabled = !showLoading) { selectedType = key }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                                 contentAlignment = Alignment.CenterStart
                             ) {
                                 Text(
-                                    text = prettyStatus(type),
-                                    fontSize = tokens.bodySmall,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) redText else TextPrimary,
+                                    text = label,
+                                    fontSize = tokens.caption,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isSelected) redText else textSubdued,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -2027,55 +2217,76 @@ private fun ReportIssueDialog(
                 }
             }
 
+            // Description Input
             Column {
                 Text(
                     text = "Issue Description *",
                     fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     color = textSubdued
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     minLines = 4,
-                    shape = RoundedCornerShape(10.dp),
+                    enabled = !showLoading,
+                    shape = RoundedCornerShape(8.dp),
                     placeholder = {
                         Text(
                             text = "Detail the issue (e.g. Needle broke on organza)...",
                             fontSize = tokens.bodySmall,
-                            color = mutedText
+                            color = iconMuted
                         )
                     },
-                    colors = dialogFieldColors(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = whiteBg,
+                        unfocusedContainerColor = whiteBg,
+                        focusedBorderColor = sectionBorder,
+                        unfocusedBorderColor = sectionBorder
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         }
 
-        StageDialogFooter(onCancel = onDismiss) {
+        // Footer with loader
+        StageDialogFooter(onCancel = { if (!showLoading) onDismiss() }) {
             Button(
-                onClick = { onConfirm(selectedType, description.trim()) },
-                enabled = description.isNotBlank(),
-                modifier = Modifier.height(40.dp),
+                onClick = {
+                    isSubmitting = true
+                    onConfirm(selectedType, description.trim())
+                },
+                enabled = description.isNotBlank() && !showLoading,
+                modifier = Modifier.height(tokens.buttonHeight),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = chartRose,
                     contentColor = whiteBg,
                     disabledContainerColor = redBg,
                     disabledContentColor = whiteBg
-                )
+                ),
+                contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Error,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(6.dp))
+                if (showLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = whiteBg,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Error,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                }
                 Text(
-                    text = "Submit Floor Issue",
+                    text = if (showLoading) "Submitting..." else "Submit Floor Issue",
                     fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Medium
                 )
             }
         }

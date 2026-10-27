@@ -227,9 +227,24 @@ import com.cuso.tailor.view.home.inventory.expense_management.finance_reimbursem
 import com.cuso.tailor.view.home.inventory.expense_management.finance_reimbursement.ProcessPaymentScreen
 import com.cuso.tailor.view.home.inventory.expense_management.new_claims.EditExpenseClaimScreen
 import com.cuso.tailor.view.home.legal.dashboard.LegalDashboardScreen
+import com.cuso.tailor.view.home.legal.legal_compliance.CreateLegalComplianceScreen
+import com.cuso.tailor.view.home.legal.legal_compliance.LegalComplianceDetailScreen
+import com.cuso.tailor.view.home.legal.legal_compliance.LegalComplianceScreen
 import com.cuso.tailor.view.home.legal.legal_contract.ContractOverviewScreen
 import com.cuso.tailor.view.home.legal.legal_contract.CreateLegalContractScreen
 import com.cuso.tailor.view.home.legal.legal_contract.LegalContractsScreen
+import com.cuso.tailor.view.home.legal.legal_customer.CreateLegalCustomerScreen
+import com.cuso.tailor.view.home.legal.legal_customer.LegalCustomerDetailScreen
+import com.cuso.tailor.view.home.legal.legal_customer.LegalCustomerListScreen
+import com.cuso.tailor.view.home.legal.legal_documents.CreateUpdateLegalDocumentScreen
+import com.cuso.tailor.view.home.legal.legal_documents.LegalDocumentDetailScreen
+import com.cuso.tailor.view.home.legal.legal_documents.LegalDocumentsScreen
+import com.cuso.tailor.view.home.legal.legal_employee.LegalEmployeeCreateEditScreen
+import com.cuso.tailor.view.home.legal.legal_employee.LegalEmployeeDetailScreen
+import com.cuso.tailor.view.home.legal.legal_employee.LegalEmployeeListScreen
+import com.cuso.tailor.view.home.legal.legal_license.CreateLegalLicenseScreen
+import com.cuso.tailor.view.home.legal.legal_license.LegalLicenseDetailScreen
+import com.cuso.tailor.view.home.legal.legal_license.LegalLicenseScreen
 import com.cuso.tailor.view.home.services.alteration_management.ViewAlterationManagementScreen
 import com.cuso.tailor.view.home.services.customer_complaint.ComplaintDetailViewScreen
 import com.cuso.tailor.view.home.services.customer_complaint.ComplaintListScreen
@@ -247,8 +262,16 @@ private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedLegalEmployeeId: String? = null,
+    onLegalEmployeeIdSelected: (String?) -> Unit = {},
+    selectedLegalDocumentId: String? = null,
+    onLegalDocumentIdSelected: (String?) -> Unit = {},
+    selectedLegalLicenseId: String? = null,
+    onLegalLicenseIdSelected: (String?) -> Unit = {},
     selectedLegalContractId: String? = null,
     onLegalContractIdSelected: (String?) -> Unit = {},
+    selectedLegalComplianceId: String? = null,
+    onLegalComplianceIdSelected: (String?) -> Unit = {},
     selectedComplaintId: String? = null,
     onComplaintIdSelected: (String?) -> Unit = {},
     selectedAlterationId: String? = null,
@@ -305,6 +328,8 @@ fun HomeScreenRouter(
     onShiftIdSelected: (String?) -> Unit = {},
     selectedServiceRequestId: String? = null,
     onServiceRequestIdSelected: (String?) -> Unit = {},
+    selectedAssignmentJobCardId: String? = null,
+    onAssignmentJobCardIdSelected: (String?) -> Unit = {},
     selectedOpportunityId: String? = null,
     onOpportunityIdSelected: (String?) -> Unit = {},
     selectedMeasurementItem: MeasurementItem? = null,
@@ -337,6 +362,8 @@ fun HomeScreenRouter(
     onNavigate: (String) -> Unit,
     onSafeNavigate: (String) -> Unit,
     onGoBack: () -> Unit,
+    // Pops the stack back to a specific screen in one step
+    onPopToScreen: (String) -> Unit = {},
     onOpenDrawer: () -> Unit,
     onOpenModulesPanel: (String) -> Unit,
     onShowComingSoon: (String) -> Unit,
@@ -375,6 +402,8 @@ fun HomeScreenRouter(
     selectedFeedbackId: String?,
     onFeedbackIdSelected: (String?) -> Unit,
     selectedRecentCustomerId: String?,
+    selectedLegalCustomerId: String?,
+    onLegalCustomerIdSelected: (String?) -> Unit,
     onRecentCustomerIdSelected: (String?) -> Unit,
     editingPricingId: String?,
     onEditingPricingIdChange: (String?) -> Unit,
@@ -696,13 +725,29 @@ fun HomeScreenRouter(
         }
 
         // ── Legal Module Router ──
-        "legal_dashboard", "legal_contracts", "legal_contract_detail", "legal_create_contract" -> {
+        "legal_dashboard", "legal_contracts", "legal_contract_detail", "legal_create_contract", "legal_compliance",
+        "legal_compliance_detail", "legal_create_compliance", "legal_documents", "legal_document_detail", "legal_create_document",
+        "legal_licenses", "legal_license_detail", "legal_create_license",
+        "legal_customer", "legal_customer_detail", "legal_create_customer_record",
+        "legal_employee", "legal_employee_detail", "legal_create_employee" -> {
             LegalRouter(
                 screen = screen,
                 selectedContractId = selectedLegalContractId,
                 onContractIdSelected = onLegalContractIdSelected,
+                selectedComplianceId = selectedLegalComplianceId,
+                onComplianceIdSelected = onLegalComplianceIdSelected,
+                selectedLegalDocumentId = selectedLegalDocumentId,
+                onLegalDocumentIdSelected = onLegalDocumentIdSelected,
+                selectedLegalLicenseId = selectedLegalLicenseId,
+                onLegalLicenseIdSelected = onLegalLicenseIdSelected,
+                selectedLegalCustomerId = selectedLegalCustomerId,
+                onLegalCustomerIdSelected = onLegalCustomerIdSelected,
+                selectedLegalEmployeeId = selectedLegalEmployeeId,
+                onLegalEmployeeIdSelected = onLegalEmployeeIdSelected,
                 onNavigate = onNavigate,
-                onGoBack = onGoBack
+                onGoBack = onGoBack,
+                hrViewModel = hrViewModel,
+                branchViewModel = branchViewModel
             )
         }
 
@@ -717,10 +762,12 @@ fun HomeScreenRouter(
         "services_service_templates", "services_create_service_template",
         "services_production_works",
         "services_view_service_template", "review_service_request", "complaint_detail",
-        "services_production_pipeline","services_qc_delivery"-> {
+        "services_production_pipeline", "services_qc_delivery", "services_assignment_mode" -> {
             ServicesRouter(
                 screen = screen,
                 servicesViewModel = servicesViewModel,
+                selectedAssignmentJobCardId = selectedAssignmentJobCardId,
+                onAssignmentJobCardIdSelected = onAssignmentJobCardIdSelected,
                 selectedComplaintId = selectedComplaintId,
                 onComplaintIdSelected = onComplaintIdSelected,
                 selectedAlterationId = selectedAlterationId,
@@ -739,8 +786,10 @@ fun HomeScreenRouter(
                 onServiceTemplateSelected = onServiceTemplateSelected,
                 pendingOrderReviewData = pendingOrderReviewData,
                 onPendingOrderReviewDataChange = onPendingOrderReviewDataChange,
+                // inside the services block
                 onNavigate = onNavigate,
                 onGoBack = onGoBack,
+                onPopToScreen = onPopToScreen,
                 onOpenDrawer = onOpenDrawer,
                 onOpenModulesPanel = onOpenModulesPanel,
                 hrViewModel = hrViewModel
@@ -3942,8 +3991,21 @@ private fun LogisticsRouter(
 @Composable
 private fun LegalRouter(
     screen: String,
+    hrViewModel: HrViewModel,
+    branchViewModel: BranchViewModel,
     selectedContractId: String?,
     onContractIdSelected: (String?) -> Unit,
+    selectedComplianceId: String? = null,
+    onComplianceIdSelected: (String?) -> Unit = {},
+    selectedLegalDocumentId: String? = null,
+    onLegalDocumentIdSelected: (String?) -> Unit = {},
+    selectedLegalLicenseId: String? = null,
+    onLegalLicenseIdSelected: (String?) -> Unit = {},
+    selectedLegalCustomerId: String? = null,
+    onLegalCustomerIdSelected: (String?) -> Unit = {},
+    selectedLegalEmployeeId: String? = null,
+    onLegalEmployeeIdSelected: (String?) -> Unit = {},
+    legalViewModel: LegalViewModel = hiltViewModel(),
     onNavigate: (String) -> Unit,
     onGoBack: () -> Unit
 ) {
@@ -3993,15 +4055,287 @@ private fun LegalRouter(
                 }
             )
         }
+
+        "legal_compliance" -> {
+            LegalComplianceScreen(
+                onBack = onGoBack,
+                onAddCompliance = {
+                    onComplianceIdSelected(null)
+                    onNavigate("legal_create_compliance")
+                },
+                onComplianceClick = { compliance ->
+                    if (compliance.id.isNotBlank()) {
+                        onComplianceIdSelected(compliance.id)
+                        onNavigate("legal_compliance_detail")
+                    }
+                },
+                onEditCompliance = { complianceId ->
+                    if (complianceId.isNotBlank()) {
+                        onComplianceIdSelected(complianceId)
+                        onNavigate("legal_create_compliance")
+                    }
+                }
+            )
+        }
+
+        "legal_compliance_detail" -> {
+            selectedComplianceId?.takeIf { it.isNotBlank() }?.let { validId ->
+                LegalComplianceDetailScreen(
+                    complianceId = validId,
+                    onClose = {
+                        onComplianceIdSelected(null)
+                        onGoBack()
+                    },
+                    onEdit = { id ->
+                        if (id.isNotBlank()) {
+                            onComplianceIdSelected(id)
+                            onNavigate("legal_create_compliance")
+                        }
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        "legal_create_compliance" -> {
+            CreateLegalComplianceScreen(
+                complianceIdToEdit = selectedComplianceId,
+                onClose = {
+//                    onComplianceIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
+
+        "legal_documents" -> {
+            LegalDocumentsScreen(
+                onBack = onGoBack,
+                onAddDocument = {
+                    onLegalDocumentIdSelected(null)
+                    onNavigate("legal_create_document")
+                },
+                onDocumentClick = { doc ->
+                    if (doc.id.isNotBlank()) {
+                        onLegalDocumentIdSelected(doc.id)
+                        onNavigate("legal_document_detail")
+                    }
+                },
+                onEditDocument = { docId ->
+                    if (docId.isNotBlank()) {
+                        onLegalDocumentIdSelected(docId)
+                        onNavigate("legal_create_document")
+                    }
+                }
+            )
+        }
+
+        "legal_document_detail" -> {
+            selectedLegalDocumentId?.takeIf { it.isNotBlank() }?.let { validId ->
+                LegalDocumentDetailScreen(
+                    documentId = validId,
+                    onClose = {
+                        onLegalDocumentIdSelected(null)
+                        onGoBack()
+                    },
+                    onEdit = { id ->
+                        if (id.isNotBlank()) {
+                            onLegalDocumentIdSelected(id)
+                            onNavigate("legal_create_document")
+                        }
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        "legal_create_document" -> {
+            CreateUpdateLegalDocumentScreen(
+                documentIdToEdit = selectedLegalDocumentId,
+                onClose = {
+                    onGoBack()
+                }
+            )
+        }
+
+        // ── Legal License List ──
+        "legal_licenses" -> {
+            LegalLicenseScreen(
+                onBack = onGoBack,
+                onAddLicense = {
+                    onLegalLicenseIdSelected(null)
+                    onNavigate("legal_create_license")
+                },
+                onLicenseClick = { license ->
+                    if (license.id.isNotBlank()) {
+                        onLegalLicenseIdSelected(license.id)
+                        onNavigate("legal_license_detail")
+                    }
+                },
+                onEditLicense = { licenseId ->
+                    if (licenseId.isNotBlank()) {
+                        onLegalLicenseIdSelected(licenseId)
+                        onNavigate("legal_create_license")
+                    }
+                }
+            )
+        }
+
+        // ── Legal License Detail (Protected against null ID) ──
+        "legal_license_detail" -> {
+            selectedLegalLicenseId?.takeIf { it.isNotBlank() }?.let { validId ->
+                LegalLicenseDetailScreen(
+                    licenseId = validId,
+                    onClose = {
+                        onLegalLicenseIdSelected(null)
+                        onGoBack()
+                    },
+                    onEditLicense = { id ->
+                        if (id.isNotBlank()) {
+                            onLegalLicenseIdSelected(id)
+                            onNavigate("legal_create_license")
+                        }
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // ── Legal License Create / Edit ──
+        "legal_create_license" -> {
+            CreateLegalLicenseScreen(
+                licenseIdToEdit = selectedLegalLicenseId,
+                onClose = {
+                    onLegalLicenseIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
+
+        "legal_customer" -> {
+            LegalCustomerListScreen(
+                onBack = onGoBack,
+                onAddCustomerRecord = {
+                    onLegalCustomerIdSelected(null)
+                    onNavigate("legal_create_customer_record")
+                },
+                onRecordClick = { item ->
+                    if (item.id.isNotBlank()) {
+                        onLegalCustomerIdSelected(item.id)
+                        onNavigate("legal_customer_detail")
+                    }
+                },
+                onEditRecord = { id ->
+                    if (id.isNotBlank()) {
+                        onLegalCustomerIdSelected(id)
+                        onNavigate("legal_create_customer_record")
+                    }
+                }
+            )
+        }
+
+        "legal_customer_detail" -> {
+            selectedLegalCustomerId?.takeIf { it.isNotBlank() }?.let { validId ->
+                LegalCustomerDetailScreen(
+                    recordId = validId,
+                    onClose = {
+                        onLegalCustomerIdSelected(null)
+                        onGoBack()
+                    },
+                    onEditRecord = { id ->
+                        if (id.isNotBlank()) {
+                            onLegalCustomerIdSelected(id)
+                            onNavigate("legal_create_customer_record")
+                        }
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
+
+        "legal_create_customer_record" -> {
+            CreateLegalCustomerScreen(
+                recordIdToEdit = selectedLegalCustomerId,
+                onClose = {
+//                    onLegalCustomerIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
+
+        // ── Employee & Labour Legal List ──
+        "legal_employee" -> {
+            LegalEmployeeListScreen(
+                viewModel = legalViewModel,
+                onNavigateBack = onGoBack,
+                onNavigateToCreate = {
+                    onLegalEmployeeIdSelected(null)
+                    onNavigate("legal_create_employee")
+                },
+                onNavigateToEdit = { employeeId ->
+                    if (employeeId.isNotBlank()) {
+                        onLegalEmployeeIdSelected(employeeId)
+                        onNavigate("legal_create_employee")
+                    }
+                },
+                onNavigateToDetail = { employeeId ->
+                    if (employeeId.isNotBlank()) {
+                        onLegalEmployeeIdSelected(employeeId)
+                        onNavigate("legal_employee_detail")
+                    }
+                }
+            )
+        }
+
+        // ── Employee & Labour Legal Detail (Null-safe guard) ──
+        "legal_employee_detail" -> {
+            selectedLegalEmployeeId?.takeIf { it.isNotBlank() }?.let { validId ->
+                LegalEmployeeDetailScreen(
+                    recordId = validId,
+                    viewModel = legalViewModel,
+                    hrViewModel = hrViewModel, // Pass hrViewModel to resolve member names
+                    onNavigateBack = {
+                        onLegalEmployeeIdSelected(null)
+                        onGoBack()
+                    },
+                    onNavigateToEdit = { id ->
+                        if (id.isNotBlank()) {
+                            onLegalEmployeeIdSelected(id)
+                            onNavigate("legal_create_employee")
+                        }
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // ── Employee & Labour Legal Create / Edit ──
+        "legal_create_employee" -> {
+            val departmentViewModel: DepartmentViewModel = hiltViewModel()
+            LegalEmployeeCreateEditScreen(
+                idToEdit = selectedLegalEmployeeId,
+                viewModel = legalViewModel,
+                hrViewModel = hrViewModel,
+                branchViewModel = branchViewModel,
+                departmentViewModel = departmentViewModel,
+                onNavigateBack = {
+                    onLegalEmployeeIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
     }
 }
-
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun ServicesRouter(
     screen: String,
     hrViewModel: HrViewModel,
     servicesViewModel: ServicesViewModel,
+    selectedAssignmentJobCardId: String? = null,
+    onAssignmentJobCardIdSelected: (String?) -> Unit = {},
     selectedComplaintId: String? = null,
     onComplaintIdSelected: (String?) -> Unit = {},
     selectedAlterationId: String? = null,
@@ -4022,6 +4356,7 @@ private fun ServicesRouter(
     onPendingOrderReviewDataChange: (OrderReviewData?) -> Unit,
     onNavigate: (String) -> Unit,
     onGoBack: () -> Unit,
+    onPopToScreen: (String) -> Unit = {},
     onOpenDrawer: () -> Unit,
     onOpenModulesPanel: (String) -> Unit
 ) {
@@ -4117,10 +4452,39 @@ private fun ServicesRouter(
                     onVerifyClick = { id ->
                         onOrderIdSelected(id)
                         onNavigate("services_qc_delivery")
+                    },
+                    onGoToAssignmentClick = { id, jobCardId ->
+                        // Keep the order id and remember which garment to open for assignment
+                        onOrderIdSelected(id)
+                        onAssignmentJobCardIdSelected(jobCardId)
+                        onNavigate("services_assignment_mode")
                     }
                 )
             } else {
                 // If ID is missing, safely pop back to prevent blank screen
+                onGoBack()
+            }
+        }
+
+        // ── Assignment Mode: opens Assign Garment Production for one job card ──
+        "services_assignment_mode" -> {
+            val orderIdToLoad = selectedOrderId?.takeIf { it.isNotBlank() }
+            val jobCardId = selectedAssignmentJobCardId?.takeIf { it.isNotBlank() }
+            if (orderIdToLoad != null && jobCardId != null) {
+                ServiceOrderOverviewScreen(
+                    orderId = orderIdToLoad,
+                    initialAssignJobCardId = jobCardId,
+                    // Back arrow / back gesture returns to Production Details
+                    onClose = onGoBack,
+                    // "Assign & Route to Workshop" success returns to Production Details
+                    onAssignmentRouted = onGoBack,
+                    onCreateNew = {
+                        onPendingOrderReviewDataChange(null)
+                        onNavigate("create_order")
+                    }
+                )
+            } else {
+                // Missing ids: safely pop back to avoid a blank screen
                 onGoBack()
             }
         }
@@ -4134,8 +4498,12 @@ private fun ServicesRouter(
                     viewModel = servicesViewModel,
                     onBack = onGoBack,
                     onBackToOrders = {
-                        onOrderIdSelected(null)
-                        onNavigate("services_production_works")
+                        // Pop QC and pipeline screens in one step and land on Production Works.
+                        // selectedOrderId is intentionally NOT cleared here: clearing it while
+                        // the QC/pipeline routes are still composing triggers their
+                        // "missing id" fallback (onGoBack) and causes the blank screen.
+                        // Production Works sets it again on the next order click.
+                        onPopToScreen("services_production_works")
                     }
                 )
             } else {

@@ -65,7 +65,7 @@ interface OrganizationApiService {
         @Body request: UpdateBranchRequest
     ): Response<UpdateBranchResponse>
 
-    @GET("/api/departments/view-all")
+    @GET("/api/home/departments/view-all")
     suspend fun getDepartments(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String

@@ -121,6 +121,7 @@ import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.InventoryViewModel
+import com.cuso.tailor.viewmodel.LegalViewModel
 import com.cuso.tailor.viewmodel.SalesViewModel
 import com.cuso.tailor.viewmodel.ServicesViewModel
 
@@ -163,11 +164,26 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         lastBackPressTime = now
         if (screenStack.size > 1) screenStack.removeAt(screenStack.lastIndex)
     }
+
+    // Pops the stack until the given screen is on top, in a single step.
+    // Falls back to a normal push if the screen is not in the stack.
+    fun popBackTo(screen: String) {
+        // Block any stray goBack() fired right after this call (e.g. from an exiting screen)
+        lastBackPressTime = System.currentTimeMillis()
+        val targetIndex = screenStack.lastIndexOf(screen)
+        if (targetIndex >= 0) {
+            while (screenStack.lastIndex > targetIndex) {
+                screenStack.removeAt(screenStack.lastIndex)
+            }
+        } else {
+            navigateTo(screen)
+        }
+    }
+
     fun resetToHome() {
         screenStack.clear()
         screenStack.add("home")
     }
-
     var previousStackSize by remember { mutableIntStateOf(screenStack.size) }
     val isForwardNavigation = screenStack.size >= previousStackSize
     LaunchedEffect(screenStack.size) {
@@ -223,7 +239,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedPriceListId by remember { mutableStateOf<String?>(null) }
     // Legal State
     var selectedLegalContractId by remember { mutableStateOf<String?>(null) }
-
+    var selectedLegalComplianceId by remember { mutableStateOf<String?>(null) }
+    var selectedLegalDocumentId by remember { mutableStateOf<String?>(null) }
+    var selectedLegalLicenseId by remember { mutableStateOf<String?>(null) }
+    var selectedLegalCustomerId by remember { mutableStateOf<String?>(null) }
+    var selectedLegalEmployeeId by remember { mutableStateOf<String?>(null) }
     // HR State
     var employeeScreenMode by remember { mutableStateOf(ScreenMode.CREATE) }
     var selectedEmployeeId by remember { mutableStateOf<String?>(null) }
@@ -249,6 +269,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedServiceTemplate by remember { mutableStateOf<ProductionTemplateDto?>(null) }
     var selectedServiceRequestId by remember { mutableStateOf<String?>(null) }
     var selectedAlterationId by remember { mutableStateOf<String?>(null) }
+    // Job card opened by "Go to assignment mode" from Production Details
+    var selectedAssignmentJobCardId by remember { mutableStateOf<String?>(null) }
 
     // Dashboard recent-customer navigation state
     var selectedRecentCustomerId by remember { mutableStateOf<String?>(null) }
@@ -694,6 +716,21 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "legal_contracts",
             "legal_contract_detail",
             "legal_create_contract",
+            "legal_compliance",
+            "legal_compliance_detail",
+            "legal_create_compliance",
+            "legal_document_detail",
+            "legal_documents",
+            "legal_create_document",
+            "legal_licenses",
+            "legal_license_detail",
+            "legal_create_license",
+            "legal_customer",
+            "legal_customer_detail",
+            "legal_create_customer_record",
+            "legal_employee",
+            "legal_employee_detail",
+            "legal_create_employee",
 
             // ── Services ──
             "services_service_status",
@@ -710,6 +747,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "feedback_detail",
             "services_production_pipeline",
             "services_qc_delivery",
+            "services_assignment_mode",
             "services_customer_feedback",
             "feedback_detail",
             "services_alteration_management",
@@ -799,9 +837,13 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         }
     }
 
+    val legalViewModel: LegalViewModel = hiltViewModel()
+
     LaunchedEffect(currentScreen) {
         if (currentScreen == "sales_customers") {
             customerViewModel.loadCustomers()
+        } else if (currentScreen == "legal_employee") {
+            legalViewModel.fetchLegalEmployees()
         }
     }
 
@@ -843,11 +885,16 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
+                "legal_employee_detail", "legal_create_employee" -> selectedLegalEmployeeId = null
+                "legal_customer_detail", "legal_create_customer_record" -> selectedLegalCustomerId = null
+                "legal_document_detail", "legal_create_document" -> selectedLegalDocumentId = null
+                "legal_license_detail", "legal_create_license" -> selectedLegalLicenseId = null
                 "services_production_pipeline",
                 "services_qc_delivery",
                 "order_overview",
                 "service_order_overview" -> selectedOrderId = null
                 "legal_contract_detail", "legal_create_contract" -> selectedLegalContractId = null
+                "legal_compliance_detail" -> selectedLegalComplianceId = null
                 "services_customer_complaints", "complaint_detail" -> selectedComplaintId = null
                 "services_customer_complaints" -> selectedComplaintId = null
                 "feedback_detail" -> selectedFeedbackId = null
@@ -1058,8 +1105,18 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+                            selectedLegalEmployeeId = selectedLegalEmployeeId,
+                            onLegalEmployeeIdSelected = { selectedLegalEmployeeId = it },
+                            selectedLegalCustomerId = selectedLegalCustomerId,
+                            onLegalCustomerIdSelected = { selectedLegalCustomerId = it },
+                            selectedLegalDocumentId = selectedLegalDocumentId,
+                            onLegalDocumentIdSelected = { selectedLegalDocumentId = it },
+                            selectedLegalLicenseId = selectedLegalLicenseId,
+                            onLegalLicenseIdSelected = { selectedLegalLicenseId = it },
                             selectedLegalContractId = selectedLegalContractId,
                             onLegalContractIdSelected = { selectedLegalContractId = it },
+                            selectedLegalComplianceId = selectedLegalComplianceId,
+                            onLegalComplianceIdSelected = { selectedLegalComplianceId = it },
                             selectedComplaintId = selectedComplaintId,
                             onComplaintIdSelected = { selectedComplaintId = it },
                             selectedAlterationId = selectedAlterationId,
@@ -1113,6 +1170,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             onApprovalIdSelected = { selectedApprovalId = it },
                             selectedServiceRequestId = selectedServiceRequestId,
                             onServiceRequestIdSelected = { selectedServiceRequestId = it },
+                            selectedAssignmentJobCardId = selectedAssignmentJobCardId,
+                            onAssignmentJobCardIdSelected = { selectedAssignmentJobCardId = it },
                             selectedOpportunityId = selectedOpportunityId,
                             onOpportunityIdSelected = { selectedOpportunityId = it },
                             selectedServiceTemplate = selectedServiceTemplate,
@@ -1143,6 +1202,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             onNavigate = { navigateTo(it) },
                             onSafeNavigate = { safeNavigate(it) },
                             onGoBack = { goBack() },
+                            onPopToScreen = { popBackTo(it) },
                             onOpenDrawer = { isDrawerOpen = true },
                             onOpenModulesPanel = {
                                 modulesPanelInitialExpanded = it
@@ -1234,16 +1294,24 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 val isSubItem = menuItem?.subItems?.values?.any { list -> list.contains(clickedItem) } == true
                 val parentCategory = menuItem?.subItems?.entries?.find { it.value.contains(clickedItem) }?.key
 
-                val rawNavKey = if (menu == "Finance" && clickedItem.contains("return", ignoreCase = true)) {
-                    // 👉 Purchase Return கிளிக் செய்யப்பட்டால் சரியாக Returns-க்கு போகும்!
-                    "finance_purchase_returns"
-                } else if (menu == "Finance" && (parentCategory == "Purchase" && clickedItem.contains("credit", ignoreCase = true) || clickedItem.contains("Supplier Credit", ignoreCase = true))) {
-                    "finance_vendor_credits"
-                } else if (!isSubItem && menuItem?.subItems?.containsKey(clickedItem) == true) {
-                    val firstSubItem = menuItem.subItems[clickedItem]?.firstOrNull() ?: clickedItem
-                    buildNavigationKey(menu, firstSubItem, clickedItem)
-                } else {
-                    buildNavigationKey(menu, clickedItem, parentCategory)
+                val rawNavKey = when {
+                    // Direct match for Employee & Labour Legal click
+                    menu == "Legal" && (clickedItem.contains("employee", ignoreCase = true) || clickedItem.contains("labour", ignoreCase = true)) -> {
+                        "legal_employee"
+                    }
+                    menu == "Finance" && clickedItem.contains("return", ignoreCase = true) -> {
+                        "finance_purchase_returns"
+                    }
+                    menu == "Finance" && (parentCategory == "Purchase" && clickedItem.contains("credit", ignoreCase = true) || clickedItem.contains("Supplier Credit", ignoreCase = true)) -> {
+                        "finance_vendor_credits"
+                    }
+                    !isSubItem && menuItem?.subItems?.containsKey(clickedItem) == true -> {
+                        val firstSubItem = menuItem.subItems[clickedItem]?.firstOrNull() ?: clickedItem
+                        buildNavigationKey(menu, firstSubItem, clickedItem)
+                    }
+                    else -> {
+                        buildNavigationKey(menu, clickedItem, parentCategory)
+                    }
                 }
 
                 showModulesPanel = false
@@ -2045,6 +2113,17 @@ fun normalizeRoute(rawKey: String): String {
         "hr_expense_claim_detail" -> "hr_expense_claim_detail"
 
         "legal_dashboard" -> "legal_dashboard"
+        "legal_compliance_management", "legal_compliance" -> "legal_compliance"
+        "legal_licenses", "legal_license", "legal_license_and_registerations", "legal_license_and_registrations" -> "legal_licenses"
+        "legal_customer", "legal_customer_legal", "customer_legal" -> "legal_customer"
+
+        // Handle all possible variations generated from "Employee & Labour Legal"
+        "legal_employee", "legal_employees", "employee_&_labour_legal",
+        "employee_labour_legal", "employee_and_labour_legal",
+        "legal_employee_and_labour", "legal_employee_labour",
+        "legal_employee_&_labour_legal", "legal_employee___labour_legal",
+        "legal_employee_and_labour_legal", "legal_employee_labour_legal",
+        "employee_&_labour", "legal_employee_&_labour" -> "legal_employee"
 
         "hr_document_categories" -> "hr_document_categories"
         "hr_employee_document_upload" -> "hr_employee_document_upload"
@@ -2094,6 +2173,7 @@ fun menuForScreen(screen: String): String = when {
         "create_alteration",
         "create_request"
     ) -> "Services"
+    screen.startsWith("legal_") -> "Legal"
     screen.startsWith("finance_") -> "Finance"
     screen.startsWith("inventory_") -> "Inventory"
     screen.startsWith("hr_") -> "HR"

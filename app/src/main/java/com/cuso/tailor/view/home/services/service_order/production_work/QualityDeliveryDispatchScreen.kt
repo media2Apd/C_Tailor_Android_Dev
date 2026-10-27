@@ -3,6 +3,7 @@
 package com.cuso.tailor.view.home.services.service_order.production_work
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -158,6 +159,10 @@ fun QualityDeliveryDispatchScreen(
             viewModel.fetchServiceOrderDetail(orderId)
         }
     }
+
+    // System back gesture / back button goes to the previous state in the stack.
+    // Registered before any early return so it works in the loading and closed states too.
+    BackHandler { onBack() }
 
     if (isLoading && orderDetail == null) {
         Box(modifier = Modifier.fillMaxSize().background(Primary_background)) {

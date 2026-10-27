@@ -77,13 +77,18 @@ data class DetailStat(
     val showDot: Boolean = false
 )
 
-/** Button or quick action. */
+data class DetailMenuItem(
+    val label: String,
+    val onClick: () -> Unit
+)
+
 data class DetailAction(
     val label: String,
     val icon: ImageVector? = null,
-    val onClick: () -> Unit = {}
+    val enabled: Boolean = true,
+    val onClick: () -> Unit = {},
+    val menuItems: List<DetailMenuItem> = emptyList()
 )
-
 /** Everything the top header card needs. */
 data class DetailHeaderData(
     val icon: ImageVector,
@@ -275,14 +280,20 @@ fun DetailHeaderCard(data: DetailHeaderData) {
             }
 
             data.primaryAction?.let { action ->
+                val isCompliantFinal = action.label.equals("Compliant", ignoreCase = true)
                 Spacer(Modifier.height(tokens.extraPadding))
                 Button(
                     onClick = action.onClick,
+                    enabled = action.enabled && !isCompliantFinal,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(tokens.buttonHeight),
                     shape = RoundedCornerShape(tokens.cardCornerRadius),
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Primary,
+                        disabledContainerColor = Primary.copy(alpha = 0.6f),
+                        disabledContentColor = whiteBg
+                    )
                 ) {
                     action.icon?.let {
                         Icon(

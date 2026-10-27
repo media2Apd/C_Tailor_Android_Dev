@@ -147,6 +147,10 @@ fun ServiceOrderOverviewScreen(
     orderId: String,
     onClose: () -> Unit = {},
     onCreateNew: () -> Unit = {},
+    // When set, the screen opens Assign Garment Production for this job card directly
+    initialAssignJobCardId: String? = null,
+    // Called after workers are routed successfully while in assignment mode
+    onAssignmentRouted: () -> Unit = {},
     viewModel: ServicesViewModel = hiltViewModel(),
     salesViewModel: SalesViewModel = hiltViewModel()
 ) {
@@ -179,6 +183,10 @@ fun ServiceOrderOverviewScreen(
     // State for viewing Assignment (Assign Garment Production screen)
     var activeAssignProductionGarment by remember { mutableStateOf<ServiceGarmentDetail?>(null) }
 
+    // True when this screen was opened from Production Details in assignment mode
+    val isAssignmentMode = initialAssignJobCardId != null
+    // Becomes true once the target garment has been opened (or could not be found)
+    var autoOpenedAssignment by remember { mutableStateOf(false) }
     var selectedGarmentForMeasurements by remember { mutableStateOf<ServiceGarmentDetail?>(null) }
     var measurementSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var measurementSheetBlur by remember { mutableStateOf(0.dp) }
@@ -247,7 +255,8 @@ fun ServiceOrderOverviewScreen(
                 viewModel.clearJobCardDetail()
             }
             isViewingAssignmentProduction -> {
-                activeAssignProductionGarment = null
+                // In assignment mode go back to Production Details instead of the overview tabs
+                if (isAssignmentMode) onClose() else activeAssignProductionGarment = null
             }
             isMeasurementSheetOpen -> closeMeasurementSheet()
             isAssignTailorsSheetOpen -> {
@@ -267,6 +276,23 @@ fun ServiceOrderOverviewScreen(
 
     val paymentInfo: ServicePaymentInfo? = remember(orderDetail) {
         orderDetail?.orderHeader?.let { extractPaymentInfo(it) }
+    }
+
+    // Opens Assign Garment Production for the requested job card as soon as garments are loaded
+    LaunchedEffect(garments, isLoading, initialAssignJobCardId) {
+        if (initialAssignJobCardId == null || autoOpenedAssignment) return@LaunchedEffect
+
+        val match = garments.firstOrNull { it.id == initialAssignJobCardId }
+        when {
+            match != null -> {
+                activeAssignProductionGarment = match
+                autoOpenedAssignment = true
+            }
+            // Data finished loading but the garment was not found: fall back to the normal tabs
+            !isLoading && garments.isNotEmpty() -> autoOpenedAssignment = true
+            // Loading failed: fall back to the normal screen so the retry UI is visible
+            !isLoading && errorMessage != null -> autoOpenedAssignment = true
+        }
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -297,7 +323,8 @@ fun ServiceOrderOverviewScreen(
                     specialistWorkloadList = specialistWorkloadList,
                     isAllocating = isAllocating,
                     onBack = {
-                        activeAssignProductionGarment = null
+                        // In assignment mode go back to Production Details
+                        if (isAssignmentMode) onClose() else activeAssignProductionGarment = null
                     },
                     onRouteToWorkshop = { updatedStages ->
                         val targetGarment = activeAssignProductionGarment ?: return@AssignGarmentProductionScreen
@@ -328,9 +355,14 @@ fun ServiceOrderOverviewScreen(
                             forceReassign = false,
                             replaceExisting = true,
                             onSuccess = { msg ->
-                                activeAssignProductionGarment = null
                                 successMessage = msg
                                 viewModel.fetchServiceOrderDetail(orderId)
+                                if (isAssignmentMode) {
+                                    // Route done: return to Production Details (it refreshes itself on open)
+                                    onAssignmentRouted()
+                                } else {
+                                    activeAssignProductionGarment = null
+                                }
                             },
                             onError = { err ->
                                 localErrorMessage = err
@@ -338,6 +370,13 @@ fun ServiceOrderOverviewScreen(
                         )
                     }
                 )
+            }
+
+            // Waiting for the assignment screen to open directly (assignment mode only)
+            isAssignmentMode && !autoOpenedAssignment -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CirculerProgressIndicatorReuse()
+                }
             }
 
             // 3. Default Order Overview tabs screen

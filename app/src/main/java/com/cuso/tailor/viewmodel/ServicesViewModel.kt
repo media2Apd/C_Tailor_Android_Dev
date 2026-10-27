@@ -485,7 +485,7 @@ class ServicesViewModel @Inject constructor(
             )
 
             val result = repo.request<UpdateStageProgressResponse> {
-                put("$UPDATE_STAGE_PROGRESS_URL/$jobCardId", payload)
+                patch("$MARK_READY_FOR_DELIVERY_URL/$jobCardId", payload)
             }
 
             result.fold(
@@ -1598,7 +1598,7 @@ class ServicesViewModel @Inject constructor(
             )
 
             val result = repo.request<UpdateStageProgressResponse> {
-                patch("$UPDATE_STAGE_PROGRESS_URL/$jobCardId", payload)
+                patch("$MARK_READY_FOR_DELIVERY_URL/$jobCardId", payload)
             }
 
             result.fold(

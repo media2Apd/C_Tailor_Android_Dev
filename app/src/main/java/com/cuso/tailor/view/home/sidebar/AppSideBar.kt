@@ -259,6 +259,10 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
         return when (subItem) {
             "Legal Dashboard", "Dashboard" -> "legal_dashboard"
             "Contracts & Agreements", "Contracts" -> "legal_contracts"
+            "Compliance Management", "Compliance" -> "legal_compliance"
+            "Legal Documents", "Documents" -> "legal_documents"
+            "License & Registerations", "License & Registrations", "Licenses", "License" -> "legal_licenses"
+            "Customer Legal" -> "legal_customer"
             else -> "legal_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }
     }
@@ -483,7 +487,19 @@ object SidebarConfig {
             MenuItem(
                 R.drawable.legal, "Legal",
                 isPanel = true,
-                categories = listOf("Legal Dashboard", "Contracts & Agreements")
+                categories = listOf(
+                    "Legal Dashboard",
+                    "Contracts & Agreements",
+                    "Compliance Management",
+                    "Legal Documents",
+                    "License & Registerations",
+                    "Customer Legal",
+                    "Employee & Labour Legal",
+                    "Vendor & Supplier Legal",
+                    "Legal Notices & Dispute",
+                    "Audit & Legal Calendar",
+                    "Approvals"
+                )
             ),
             MenuItem(
                 R.drawable.security, "Security",

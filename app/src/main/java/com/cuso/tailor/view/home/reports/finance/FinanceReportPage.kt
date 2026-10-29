@@ -1,176 +1,172 @@
-@file:Suppress(
-    "UNUSED_VALUE",
-    "AssignedValueIsNeverRead",
-    "unusedvariable",
-    "unused",
-    "NAME_SHADOWING",
-    "GrazieInspection",
-    "SpellCheckingInspection", "VariableNeverRead"
-)
+@file:Suppress("unused")
 
 package com.cuso.tailor.view.home.reports.finance
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
-import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.view.composable.AccordionSection
-import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.R
-import com.cuso.tailor.view.home.reports.inventory.ReportCountBadge
-import com.cuso.tailor.view.home.reports.inventory.ReportListItem
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import com.cuso.tailor.view.composable.FilterOption
+import com.cuso.tailor.view.composable.FilterSection
+import com.cuso.tailor.view.composable.FilterSectionType
+import com.cuso.tailor.view.home.reports.ReportCategory
+import com.cuso.tailor.view.home.reports.ReportItem
+import com.cuso.tailor.view.home.reports.ReportsScreenTemplate
 
 @Composable
-fun FinanceReportPage(
+fun FinanceReportsScreen(
     onClose: () -> Unit,
-    onBreadCrumbClick: () -> Unit,
-    onReportClick: (String) -> Unit = {}
+    onBreadCrumbClick: () -> Unit = {},
+    onReportClick: (ReportItem) -> Unit = {}
 ) {
-    val tokens = LocalAppTokens.current
-    val scrollState = rememberScrollState()
-    var expandedSection by remember { mutableStateOf("Financial Statements") }
+    // Categories and reports configured for the Finance module
+    val categories = remember {
+        listOf(
+            // Category 1: Financial Overview & P&L (Image 1)
+            ReportCategory(
+                id = "financial_overview_pnl",
+                title = "Financial Overview & P&L",
+                reports = listOf(
+                    ReportItem(
+                        id = "fin_rev_exp_summary",
+                        title = "Revenue & Expense Summary Report",
+                        description = "Top-level financial KPIs (Total Revenue, Total Expense, Net Profit) and grouped account ledgers",
+                        isFavorite = true
+                    ),
+                    ReportItem(
+                        id = "fin_cash_flow_indirect",
+                        title = "Cash Flow Statement (Indirect Method)",
+                        description = "Tracks operating, investing, and financing cash movements across business periods",
+                        isFavorite = true
+                    )
+                )
+            ),
 
-    Scaffold(
-        topBar = {
-            Column(
-                Modifier.fillMaxWidth()
-            ) {
-                TitleBar(title = "Finance", onClose = onClose)
-            }
-        },
-        containerColor = Color.Transparent
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(scrollState)
-        ) {
+            // Category 2: Receivables & Payables Aging (Image 2)
+            ReportCategory(
+                id = "receivables_payables_aging",
+                title = "Receivables & Payables Aging",
+                reports = listOf(
+                    ReportItem(
+                        id = "fin_ar_aging",
+                        title = "Receivables Aging Report (AR)",
+                        description = "Buckets outstanding customer balances by overdue days (Current, 1-30, 31-60, 61-90, 90+)",
+                        isFavorite = true
+                    ),
+                    ReportItem(
+                        id = "fin_ap_aging",
+                        title = "Payables Aging Report (AP)",
+                        description = "Buckets outstanding supplier bills by overdue days to manage cash disbursements effectively",
+                        isFavorite = false
+                    )
+                )
+            ),
 
-            AccordionSection(
-                title = "Financial Statements",
-                iconPainter = painterResource(R.drawable.box),
-                expanded = expandedSection == "Financial Statements",
-                onHeaderClick = { expandedSection = if (expandedSection == "Financial Statements") "" else "Financial Statements" },
-                trailing = { ReportCountBadge(4) }
-            ) {
-                ReportListItem(
-                    "Profit & Loss Report",
-                    "View income, expenses, and net profit for the selected period",
-                    initialFavorite = true,
-                    onClick = { onReportClick("reports_finance_profit_and_loss_report") })
-                ReportListItem(
-                    "Balance Sheet", "View assets, liabilities, and equity at a specific date.",
-                    initialFavorite = true,
-                    onClick = { onReportClick("reports_finance_balance_sheet") })
-                ReportListItem(
-                    "Cash Flow Report", "Track cash inflows, outflows, and overall cash position.",
-                    initialFavorite = false,
-                    onClick = { onReportClick("reports_finance_cash_flow") })
-                ReportListItem(
-                    "Trial Balance",
-                    "Verify debit and credit balances before financial statements.",
-                    initialFavorite = false,
-                    onClick = { onReportClick("reports_finance_trial_balance") })
-            }
+            // Category 3: Taxation & GST Compliance (Image 3)
+            ReportCategory(
+                id = "taxation_gst_compliance",
+                title = "Taxation & GST Compliance",
+                reports = listOf(
+                    ReportItem(
+                        id = "fin_gst_tax_summary",
+                        title = "GST / Tax Summary Report",
+                        description = "GSTR-3B audit register tracking output tax, input tax credit (ITC), and net tax payable",
+                        isFavorite = true
+                    )
+                )
+            ),
 
-            AccordionSection(
-                title = "Receivables & Payables",
-                icon = Icons.Default.WarningAmber,
-                expanded = expandedSection == "Receivables & Payables",
-                onHeaderClick = { expandedSection = if (expandedSection == "Receivables & Payables") "" else "Receivables & Payables" },
-                trailing = { ReportCountBadge(4) }
-            ) {
-                ReportListItem(
-                    "Accounts Receivable Report", "Monitor outstanding customer payments.",
-                    initialFavorite = true,
-                    onClick = { onReportClick("reports_finance_accounts_receivable") })
-                ReportListItem(
-                    "Accounts Payable Report", "Track pending supplier payments.",
-                    initialFavorite = false,
-                    onClick = { onReportClick("reports_finance_accounts_payable") })
-                ReportListItem(
-                    "Customer Outstanding Report", "View unpaid customer balances.",
-                    initialFavorite = false,
-                    onClick = { onReportClick("reports_finance_customer_outstanding") })
-                ReportListItem(
-                    "Supplier Outstanding Report", "View unpaid supplier balances.",
-                    initialFavorite = false,
-                    onClick = { onReportClick("reports_finance_supplier_outstanding") })
-            }
+            // Category 4: Payments & Collections (Image 4)
+            ReportCategory(
+                id = "payments_collections",
+                title = "Payments & Collections",
+                reports = listOf(
+                    ReportItem(
+                        id = "fin_payment_collection",
+                        title = "Payment Collection Report",
+                        description = "Tracks customer payments, invoice settlements, and mode-wise breakdown (Cash, UPI, Card, Bank)",
+                        isFavorite = true
+                    ),
+                    ReportItem(
+                        id = "fin_advance_payment",
+                        title = "Advance Payment Report",
+                        description = "Monitors customer advances against sales orders and remaining unallocated balances",
+                        isFavorite = false
+                    ),
+                    ReportItem(
+                        id = "fin_payment_mode_breakdown",
+                        title = "Payment Mode Breakdown Report",
+                        description = "Comprehensive breakdown of all incoming collections and outgoing payments grouped by mode",
+                        isFavorite = false
+                    )
+                )
+            ),
 
-            AccordionSection(
-                title = "Transaction Reports",
-                icon = Icons.Default.Receipt,
-                expanded = expandedSection == "Transaction Reports",
-                onHeaderClick = { expandedSection = if (expandedSection == "Transaction Reports") "" else "Transaction Reports" },
-                trailing = { ReportCountBadge(4) }
-            ) {
-                ReportListItem(
-                    "Sales Invoice Report", "Review sales invoices and payment status.",
-                    initialFavorite = true,
-                    onClick = { onReportClick("reports_finance_sales_invoice") })
-                ReportListItem(
-                    "Purchase Invoice Report", "Review purchase invoices and supplier details.",
-                    initialFavorite = false,
-                    onClick = { onReportClick("reports_finance_purchase_invoice") })
-                ReportListItem(
-                    "Expense Report", "Monitor business expenses by category",
-                    initialFavorite = false,
-                    onClick = { onReportClick("reports_finance_expense") })
-                ReportListItem(
-                    "Journal Entry Report", "Review accounting journal entries.",
-                    initialFavorite = false,
-                    onClick = { onReportClick("reports_finance_journal_entry") })
-            }
-
-            AccordionSection(
-                title = "Payment Reports",
-                iconPainter = painterResource(R.drawable.cart),
-                expanded = expandedSection == "Payment Reports",
-                onHeaderClick = { expandedSection = if (expandedSection == "Payment Reports") "" else "Payment Reports" },
-                trailing = { ReportCountBadge(2) }
-            ) {
-                ReportListItem(
-                    "Payment Report", "View all incoming and outgoing payments",
-                    initialFavorite = true,
-                    onClick = { onReportClick("reports_finance_payment") })
-                ReportListItem(
-                    "Payment Status Report", "Monitor paid, pending, and failed payments.",
-                    initialFavorite = false,
-                    onClick = { onReportClick("reports_finance_payment_status") })
-            }
-
-            AccordionSection(
-                title = "Financial Analysis",
-                icon = Icons.Default.BarChart,
-                expanded = expandedSection == "Financial Analysis",
-                onHeaderClick = { expandedSection = if (expandedSection == "Financial Analysis") "" else "Financial Analysis" },
-                trailing = { ReportCountBadge(3) }
-            ) {
-                ReportListItem(
-                    "Revenue Report", "Analyze revenue across selected periods.",
-                    initialFavorite = true,
-                    onClick = { onReportClick("reports_finance_revenue") })
-                ReportListItem(
-                    "Expense Analysis Report", "Compare expenses by category.",
-                    initialFavorite = false,
-                    onClick = { onReportClick("reports_finance_expense_analysis") })
-                ReportListItem(
-                    "Tax Summary Report", "Review collected and payable taxes.",
-                    initialFavorite = false,
-                    onClick = { onReportClick("reports_finance_tax_summary") })
-            }
-
-            Spacer(modifier = Modifier.height(40.dp))
-        }
+            // Category 5: Outstanding & Overdue Audits (Image 5)
+            ReportCategory(
+                id = "outstanding_overdue_audits",
+                title = "Outstanding & Overdue Audits",
+                reports = listOf(
+                    ReportItem(
+                        id = "fin_balance_pending",
+                        title = "Balance Pending Report",
+                        description = "Lists all unpaid or partially paid sales invoices with pending balances due",
+                        isFavorite = true
+                    ),
+                    ReportItem(
+                        id = "fin_overdue_payment",
+                        title = "Overdue Payment Report",
+                        description = "Actionable audit of receivables and payables past their statutory due dates",
+                        isFavorite = false
+                    )
+                )
+            )
+        )
     }
+
+    // Filter drawer options configured for finance reports
+    val filterSections = remember {
+        listOf(
+            FilterSection(
+                title = "Accounting Type",
+                icon = Icons.Filled.Category,
+                type = FilterSectionType.CHIP_ROW,
+                isMultiSelect = true,
+                options = listOf(
+                    FilterOption("all", "All Records", isSelected = true),
+                    FilterOption("ar", "Receivables"),
+                    FilterOption("ap", "Payables"),
+                    FilterOption("tax", "Tax & GST")
+                )
+            ),
+            FilterSection(
+                title = "Favorite Status",
+                icon = Icons.Filled.Star,
+                type = FilterSectionType.CHIP_ROW,
+                options = listOf(
+                    FilterOption("all", "All", isSelected = true),
+                    FilterOption("starred", "Starred Only")
+                )
+            )
+        )
+    }
+
+    // Render using the common reusable reports template
+    ReportsScreenTemplate(
+        title = "Finance & Accounts Reports",
+        searchPlaceholder = "Search finance reports by name, module or author...",
+        categories = categories,
+        filterSections = filterSections,
+        initialSelectedDateRange = "Last 30 Days",
+        onClose = onClose,
+        onReportClick = onReportClick,
+        onExportExcel = { report -> /* Handle Excel export */ },
+        onExportPdf = { report -> /* Handle PDF export */ }
+    )
 }

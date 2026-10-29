@@ -146,9 +146,7 @@ import com.cuso.tailor.view.home.profile_settings.all_settings.OrganizationSetti
 import com.cuso.tailor.view.home.profile_settings.all_settings.SettingsOverviewScreen
 import com.cuso.tailor.view.home.profile_settings.setup_pages.BusinessSetupScreen
 import com.cuso.tailor.view.home.profile_settings.setup_pages.SettingsScreen
-import com.cuso.tailor.view.home.reports.finance.FinanceReportPage
-import com.cuso.tailor.view.home.reports.finance.ProfitAndLossReportScreen
-import com.cuso.tailor.view.home.reports.inventory.*
+import com.cuso.tailor.view.home.logistics.dashboard.LogisticsDashboardScreen
 import com.cuso.tailor.view.home.reports.sales.SalesOrderReportsScreen
 import com.cuso.tailor.view.home.role.RoleSettingsScreen
 import com.cuso.tailor.view.home.sales.customer.*
@@ -227,6 +225,7 @@ import com.cuso.tailor.view.home.inventory.expense_management.finance_reimbursem
 import com.cuso.tailor.view.home.inventory.expense_management.finance_reimbursement.ProcessPaymentScreen
 import com.cuso.tailor.view.home.inventory.expense_management.new_claims.EditExpenseClaimScreen
 import com.cuso.tailor.view.home.legal.dashboard.LegalDashboardScreen
+import com.cuso.tailor.view.home.legal.legal_calendar.AuditLegalCalendarScreen
 import com.cuso.tailor.view.home.legal.legal_compliance.CreateLegalComplianceScreen
 import com.cuso.tailor.view.home.legal.legal_compliance.LegalComplianceDetailScreen
 import com.cuso.tailor.view.home.legal.legal_compliance.LegalComplianceScreen
@@ -245,6 +244,18 @@ import com.cuso.tailor.view.home.legal.legal_employee.LegalEmployeeListScreen
 import com.cuso.tailor.view.home.legal.legal_license.CreateLegalLicenseScreen
 import com.cuso.tailor.view.home.legal.legal_license.LegalLicenseDetailScreen
 import com.cuso.tailor.view.home.legal.legal_license.LegalLicenseScreen
+import com.cuso.tailor.view.home.legal.legal_notice.CreateEditLegalNoticeScreen
+import com.cuso.tailor.view.home.legal.legal_notice.LegalNoticeDetailScreen
+import com.cuso.tailor.view.home.legal.legal_notice.LegalNoticeListScreen
+import com.cuso.tailor.view.home.reports.marketing.MarketingReportsScreen
+import com.cuso.tailor.view.home.reports.finance.FinanceReportsScreen
+import com.cuso.tailor.view.home.reports.inventory.InventoryReportsScreen
+import com.cuso.tailor.view.home.reports.logistics.LogisticsReportsScreen
+import com.cuso.tailor.view.home.reports.service.ServiceReportsScreen
+import com.cuso.tailor.view.home.reports.hr.HrPayrollReportsScreen
+import com.cuso.tailor.view.home.reports.it.ItReportsScreen
+import com.cuso.tailor.view.home.reports.security.SecurityReportsScreen
+import com.cuso.tailor.view.home.reports.legal.LegalReportsScreen
 import com.cuso.tailor.view.home.services.alteration_management.ViewAlterationManagementScreen
 import com.cuso.tailor.view.home.services.customer_complaint.ComplaintDetailViewScreen
 import com.cuso.tailor.view.home.services.customer_complaint.ComplaintListScreen
@@ -255,6 +266,11 @@ import com.cuso.tailor.view.home.services.service_order.production_work.Producti
 import com.cuso.tailor.view.home.services.service_order.production_work.QualityDeliveryDispatchScreen
 import com.cuso.tailor.view.home.services.service_request.ReviewServiceRequestScreen
 import com.cuso.tailor.viewmodel.*
+import com.cuso.tailor.view.home.legal.legal_vendor.CreateEditLegalVendorScreen
+import com.cuso.tailor.view.home.legal.legal_vendor.LegalVendorDetailScreen
+import com.cuso.tailor.view.home.legal.legal_vendor.LegalVendorListScreen
+import com.cuso.tailor.view.home.logistics.order_list.OrderListScreen
+import com.cuso.tailor.view.home.logistics.order_list.LogisticsOrderDetailScreen
 
 private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @RequiresApi(Build.VERSION_CODES.O)
@@ -262,6 +278,10 @@ private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedLegalNoticeId: String? = null,
+    onLegalNoticeIdSelected: (String?) -> Unit = {},
+    selectedLegalVendorId: String? = null,
+    onLegalVendorIdSelected: (String?) -> Unit = {},
     selectedLegalEmployeeId: String? = null,
     onLegalEmployeeIdSelected: (String?) -> Unit = {},
     selectedLegalDocumentId: String? = null,
@@ -298,6 +318,8 @@ fun HomeScreenRouter(
     onPackageIdForDetailSelected: (String?) -> Unit = {},
     selectedPackageIdForEdit: String? = null,
     onPackageIdForEditSelected: (String?) -> Unit = {},
+    selectedLogisticsPackageId: String? = null,
+    onLogisticsPackageIdSelected: (String?) -> Unit = {},
     selectedPicklistId: String? = null,
     onPicklistIdSelected: (String?) -> Unit = {},
     selectedReceiptId: String? = null,
@@ -713,10 +735,12 @@ fun HomeScreenRouter(
             )
         }
 
-        "logistics_delivery", "delivery_detail", "logistics_order_tracking",
+        "logistics_dashboard", "logistics_orders", "logistics_order_detail", "logistics_delivery", "delivery_detail", "logistics_order_tracking",
         "tracking_overview" -> {
             LogisticsRouter(
                 screen = screen,
+                selectedLogisticsPackageId = selectedLogisticsPackageId,
+                onLogisticsPackageIdSelected = onLogisticsPackageIdSelected,
                 onOrderIdSelected = onOrderIdSelected,
                 onNavigate = onNavigate,
                 onGoBack = onGoBack,
@@ -724,12 +748,14 @@ fun HomeScreenRouter(
             )
         }
 
-        // ── Legal Module Router ──
-        "legal_dashboard", "legal_contracts", "legal_contract_detail", "legal_create_contract", "legal_compliance",
+        // Legal Module Router
+        "legal_dashboard", "legal_calendar", "legal_contracts", "legal_contract_detail", "legal_create_contract", "legal_compliance",
         "legal_compliance_detail", "legal_create_compliance", "legal_documents", "legal_document_detail", "legal_create_document",
         "legal_licenses", "legal_license_detail", "legal_create_license",
         "legal_customer", "legal_customer_detail", "legal_create_customer_record",
-        "legal_employee", "legal_employee_detail", "legal_create_employee" -> {
+        "legal_employee", "legal_employee_detail", "legal_create_employee",
+        "legal_vendor", "legal_vendor_detail", "legal_create_vendor",
+        "legal_notice", "legal_notice_detail", "legal_create_notice" -> {
             LegalRouter(
                 screen = screen,
                 selectedContractId = selectedLegalContractId,
@@ -744,10 +770,15 @@ fun HomeScreenRouter(
                 onLegalCustomerIdSelected = onLegalCustomerIdSelected,
                 selectedLegalEmployeeId = selectedLegalEmployeeId,
                 onLegalEmployeeIdSelected = onLegalEmployeeIdSelected,
+                selectedLegalVendorId = selectedLegalVendorId,
+                onLegalVendorIdSelected = onLegalVendorIdSelected,
+                selectedLegalNoticeId = selectedLegalNoticeId,
+                onLegalNoticeIdSelected = onLegalNoticeIdSelected,
                 onNavigate = onNavigate,
                 onGoBack = onGoBack,
                 hrViewModel = hrViewModel,
-                branchViewModel = branchViewModel
+                branchViewModel = branchViewModel,
+                inventoryViewModel = inventoryViewModel
             )
         }
 
@@ -796,10 +827,9 @@ fun HomeScreenRouter(
             )
         }
 
-        "reports_sales", "reports_inventory", "reports_inventory_stock_summary",
-        "reports_inventory_low_stock", "reports_inventory_warehouse_report",
-        "reports_inventory_purchase_report", "reports_inventory_dead_stock",
-        "reports_finance", "reports_finance_profit_and_loss_report" -> {
+        "reports_sales", "reports_marketing", "reports_finance", "reports_inventory",
+        "reports_logistics", "reports_services", "reports_human_resource",
+        "reports_it", "reports_security", "reports_legal" -> {
             ReportsRouter(
                 screen = screen,
                 onNavigate = onNavigate,
@@ -3961,12 +3991,61 @@ private fun HrRouter(
 @Composable
 private fun LogisticsRouter(
     screen: String,
+    selectedLogisticsPackageId: String? = null,
+    onLogisticsPackageIdSelected: (String?) -> Unit = {},
     onOrderIdSelected: (String?) -> Unit,
     onNavigate: (String) -> Unit,
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit
 ) {
+    // Inject the LogisticsViewModel
+    val logisticsViewModel: LogisticsViewModel = hiltViewModel()
+
     when (screen) {
+        // Logistics Dashboard Route
+        "logistics_dashboard" -> LogisticsDashboardScreen(
+            onNavigateBack = onGoBack,
+            onViewAllShipments = { onNavigate("logistics_order_tracking") },
+            onViewAllCodOrders = { onNavigate("logistics_delivery") }
+        )
+
+        // Orders List Route
+        "logistics_orders" -> OrderListScreen(
+            viewModel = logisticsViewModel,
+            onClose = onGoBack,
+            onViewOrderDetails = { packageItem ->
+                // Ensure a non-null, non-blank ID is picked: MongoDB _id > packageId > orderId
+                val targetId = packageItem._id.ifBlank {
+                    packageItem.packageId ?: packageItem.orderId ?: ""
+                }
+                if (targetId.isNotBlank()) {
+                    onLogisticsPackageIdSelected(targetId)
+                    onNavigate("logistics_order_detail")
+                }
+            }
+        )
+
+        // Order Detail Route (Guarded against blank/null ID)
+        "logistics_order_detail" -> {
+            selectedLogisticsPackageId?.takeIf { it.isNotBlank() }?.let { id ->
+                LogisticsOrderDetailScreen(
+                    orderId = id,
+                    viewModel = logisticsViewModel,
+                    onClose = {
+                        onLogisticsPackageIdSelected(null)
+                        onGoBack()
+                    },
+                    onCancelOrderClick = {
+                        // Optional: Handle cancel order action (e.g., API call or navigate back)
+                        onLogisticsPackageIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
         "logistics_delivery" -> DeliveryManagementScreen(
             onDismiss = onGoBack,
             onView = { onNavigate("delivery_detail") },
@@ -3992,6 +4071,7 @@ private fun LogisticsRouter(
 private fun LegalRouter(
     screen: String,
     hrViewModel: HrViewModel,
+    inventoryViewModel: InventoryViewModel,
     branchViewModel: BranchViewModel,
     selectedContractId: String?,
     onContractIdSelected: (String?) -> Unit,
@@ -4005,12 +4085,77 @@ private fun LegalRouter(
     onLegalCustomerIdSelected: (String?) -> Unit = {},
     selectedLegalEmployeeId: String? = null,
     onLegalEmployeeIdSelected: (String?) -> Unit = {},
+    selectedLegalVendorId: String? = null,
+    onLegalVendorIdSelected: (String?) -> Unit = {},
+    selectedLegalNoticeId: String? = null,
+    onLegalNoticeIdSelected: (String?) -> Unit = {},
     legalViewModel: LegalViewModel = hiltViewModel(),
     onNavigate: (String) -> Unit,
     onGoBack: () -> Unit
 ) {
     when (screen) {
         "legal_dashboard" -> LegalDashboardScreen()
+
+        // ── Audit & Legal Calendar Route ──
+        "legal_calendar" -> AuditLegalCalendarScreen(
+            onNavigateBack = onGoBack,
+            onScheduleClick = {
+                onNavigate("legal_create_compliance")
+            },
+            onEventClick = { event ->
+                when (event.module?.lowercase()) {
+                    "compliance" -> {
+                        event.recordId?.let { id ->
+                            onComplianceIdSelected(id)
+                            onNavigate("legal_compliance_detail")
+                        }
+                    }
+                    "contract" -> {
+                        event.recordId?.let { id ->
+                            onContractIdSelected(id)
+                            onNavigate("legal_contract_detail")
+                        }
+                    }
+                    "license" -> {
+                        event.recordId?.let { id ->
+                            onLegalLicenseIdSelected(id)
+                            onNavigate("legal_license_detail")
+                        }
+                    }
+                    "employee" -> {
+                        event.recordId?.let { id ->
+                            onLegalEmployeeIdSelected(id)
+                            onNavigate("legal_employee_detail")
+                        }
+                    }
+                    "vendor" -> {
+                        event.recordId?.let { id ->
+                            onLegalVendorIdSelected(id)
+                            onNavigate("legal_vendor_detail")
+                        }
+                    }
+                    "customer" -> {
+                        event.recordId?.let { id ->
+                            onLegalCustomerIdSelected(id)
+                            onNavigate("legal_customer_detail")
+                        }
+                    }
+                    "notice" -> {
+                        event.recordId?.let { id ->
+                            onLegalNoticeIdSelected(id)
+                            onNavigate("legal_notice_detail")
+                        }
+                    }
+                    "document" -> {
+                        event.recordId?.let { id ->
+                            onLegalDocumentIdSelected(id)
+                            onNavigate("legal_document_detail")
+                        }
+                    }
+                }
+            },
+            viewModel = legalViewModel
+        )
 
         "legal_contracts" -> LegalContractsScreen(
             onBack = onGoBack,
@@ -4322,6 +4467,127 @@ private fun LegalRouter(
                 departmentViewModel = departmentViewModel,
                 onNavigateBack = {
                     onLegalEmployeeIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
+
+        // ── Legal Vendor & Supplier List ──
+        "legal_vendor" -> {
+            LegalVendorListScreen(
+                viewModel = legalViewModel,
+                onNavigateBack = onGoBack,
+                onNavigateToCreate = {
+                    onLegalVendorIdSelected(null)
+                    onNavigate("legal_create_vendor")
+                },
+                onNavigateToDetail = { vendorId ->
+                    if (vendorId.isNotBlank()) {
+                        onLegalVendorIdSelected(vendorId)
+                        onNavigate("legal_vendor_detail")
+                    }
+                },
+                onNavigateToEdit = { vendorId ->
+                    if (vendorId.isNotBlank()) {
+                        onLegalVendorIdSelected(vendorId)
+                        onNavigate("legal_create_vendor")
+                    }
+                }
+            )
+        }
+
+        // ── Legal Vendor & Supplier Detail ──
+        "legal_vendor_detail" -> {
+            selectedLegalVendorId?.takeIf { it.isNotBlank() }?.let { validId ->
+                LegalVendorDetailScreen(
+                    vendorId = validId,
+                    viewModel = legalViewModel,
+                    onNavigateBack = {
+                        onLegalVendorIdSelected(null)
+                        onGoBack()
+                    },
+                    onNavigateToEdit = { id ->
+                        if (id.isNotBlank()) {
+                            onLegalVendorIdSelected(id)
+                            onNavigate("legal_create_vendor")
+                        }
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // ── Legal Vendor & Supplier Create / Edit ──
+        "legal_create_vendor" -> {
+            CreateEditLegalVendorScreen(
+                idToEdit = selectedLegalVendorId,
+                viewModel = legalViewModel,
+                hrViewModel = hrViewModel,
+                branchViewModel = branchViewModel,
+                inventoryViewModel = inventoryViewModel,
+                onNavigateBack = {
+                    onLegalVendorIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
+
+        // ── Legal Notice & Dispute List ──
+        "legal_notice" -> {
+            LegalNoticeListScreen(
+                viewModel = legalViewModel,
+                onNavigateBack = onGoBack,
+                onNavigateToCreate = {
+                    onLegalNoticeIdSelected(null)
+                    onNavigate("legal_create_notice")
+                },
+                onNavigateToDetail = { noticeId ->
+                    if (noticeId.isNotBlank()) {
+                        onLegalNoticeIdSelected(noticeId)
+                        onNavigate("legal_notice_detail")
+                    }
+                },
+                onNavigateToEdit = { noticeId ->
+                    if (noticeId.isNotBlank()) {
+                        onLegalNoticeIdSelected(noticeId)
+                        onNavigate("legal_create_notice")
+                    }
+                }
+            )
+        }
+
+        // ── Legal Notice & Dispute Detail ──
+        "legal_notice_detail" -> {
+            selectedLegalNoticeId?.takeIf { it.isNotBlank() }?.let { validId ->
+                LegalNoticeDetailScreen(
+                    noticeId = validId,
+                    viewModel = legalViewModel,
+                    onNavigateBack = {
+                        onLegalNoticeIdSelected(null)
+                        onGoBack()
+                    },
+                    onNavigateToEdit = { id ->
+                        if (id.isNotBlank()) {
+                            onLegalNoticeIdSelected(id)
+                            onNavigate("legal_create_notice")
+                        }
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // ── Legal Notice & Dispute Create / Edit ──
+        "legal_create_notice" -> {
+            CreateEditLegalNoticeScreen(
+                idToEdit = selectedLegalNoticeId,
+                viewModel = legalViewModel,
+                hrViewModel = hrViewModel,
+                branchViewModel = branchViewModel,
+                onNavigateBack = {
+                    onLegalNoticeIdSelected(null)
                     onGoBack()
                 }
             )
@@ -4730,39 +4996,64 @@ private fun ReportsRouter(
     onShowComingSoon: (String) -> Unit
 ) {
     when (screen) {
+        // 1. Sales & Order Reports
         "reports_sales" -> SalesOrderReportsScreen(
             onClose = onGoBack,
             onBreadCrumbClick = { onOpenModulesPanel("Reports") }
         )
 
-        "reports_inventory" -> InventoryReportPage(
+        // 2. Marketing Reports
+        "reports_marketing" -> MarketingReportsScreen(
             onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") },
-            onReportClick = { route ->
-                val implemented = setOf(
-                    "reports_inventory_stock_summary", "reports_inventory_low_stock",
-                    "reports_inventory_warehouse_report", "reports_inventory_purchase_report",
-                    "reports_inventory_dead_stock"
-                )
-                if (route in implemented) onNavigate(route) else onShowComingSoon("Coming Soon, Stay tuned !")
-            }
+            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
         )
 
-        "reports_inventory_stock_summary" -> StockSummaryScreen(onClose = onGoBack)
-        "reports_inventory_low_stock" -> LowStockScreen(onClose = onGoBack)
-        "reports_inventory_warehouse_report" -> WarehouseReportScreen(onClose = onGoBack)
-        "reports_inventory_purchase_report" -> PurchaseReportScreen(onClose = onGoBack)
-        "reports_inventory_dead_stock" -> DeadStockReportScreen(onClose = onGoBack)
-
-        "reports_finance" -> FinanceReportPage(
+        // 3. Finance & Accounts Reports
+        "reports_finance" -> FinanceReportsScreen(
             onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") },
-            onReportClick = { route ->
-                if (route == "reports_finance_profit_and_loss_report") onNavigate(route)
-                else onShowComingSoon("Coming Soon, Stay tuned !")
-            }
+            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
         )
 
-        "reports_finance_profit_and_loss_report" -> ProfitAndLossReportScreen(onClose = onGoBack)
+        // 4. Inventory Reports
+        "reports_inventory" -> InventoryReportsScreen(
+            onClose = onGoBack,
+            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
+        )
+
+        // 5. Logistics & Delivery Reports
+        "reports_logistics" -> LogisticsReportsScreen(
+            onClose = onGoBack,
+            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
+        )
+
+        // 6. Customer Service Reports
+        "reports_services" -> ServiceReportsScreen(
+            onClose = onGoBack,
+            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
+        )
+
+        // 7. HR & Payroll Reports
+        "reports_human_resource" -> HrPayrollReportsScreen(
+            onClose = onGoBack,
+            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
+        )
+
+        // 8. IT & Systems Reports
+        "reports_it" -> ItReportsScreen(
+            onClose = onGoBack,
+            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
+        )
+
+        // 9. Security Reports
+        "reports_security" -> SecurityReportsScreen(
+            onClose = onGoBack,
+            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
+        )
+
+        // 10. Legal & Audit Reports
+        "reports_legal" -> LegalReportsScreen(
+            onClose = onGoBack,
+            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
+        )
     }
 }

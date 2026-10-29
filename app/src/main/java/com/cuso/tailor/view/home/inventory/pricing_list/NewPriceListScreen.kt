@@ -60,9 +60,9 @@ data class EditableSkuLineItem(
             val base = if (basedOn == "COST_PRICE") baseCost else sellingPrice
             return when (adjustmentType) {
                 "MARKUP %" -> base + (base * (v / 100.0))
-                "MARKUP ₹" -> base + v
+                "MARKUP ${currencySymbol()}" -> base + v
                 "DISCOUNT %" -> base - (base * (v / 100.0))
-                "DISCOUNT ₹" -> (base - v).coerceAtLeast(0.0)
+                "DISCOUNT ${currencySymbol()}" -> (base - v).coerceAtLeast(0.0)
                 "FIXED PRICE" -> v
                 else -> base
             }
@@ -185,9 +185,9 @@ fun NewPriceListScreen(
             rule?.let {
                 allItemsAdjustmentType = when (it.adjustmentType) {
                     "MARKUP_PERCENT" -> "MARKUP %"
-                    "MARKUP_AMOUNT" -> "MARKUP ₹"
+                    "MARKUP_AMOUNT" -> "MARKUP ${currencySymbol()}"
                     "DISCOUNT_PERCENT" -> "DISCOUNT %"
-                    "DISCOUNT_AMOUNT" -> "DISCOUNT ₹"
+                    "DISCOUNT_AMOUNT" -> "DISCOUNT ${currencySymbol()}"
                     "FIXED_PRICE" -> "FIXED PRICE"
                     else -> "MARKUP %"
                 }
@@ -205,9 +205,9 @@ fun NewPriceListScreen(
                 val popItem = itemDto.item
                 val adjDisplay = when (itemDto.adjustmentType) {
                     "MARKUP_PERCENT" -> "MARKUP %"
-                    "MARKUP_AMOUNT" -> "MARKUP ₹"
+                    "MARKUP_AMOUNT" -> "MARKUP ${currencySymbol()}"
                     "DISCOUNT_PERCENT" -> "DISCOUNT %"
-                    "DISCOUNT_AMOUNT" -> "DISCOUNT ₹"
+                    "DISCOUNT_AMOUNT" -> "DISCOUNT ${currencySymbol()}"
                     "FIXED_PRICE" -> "FIXED PRICE"
                     else -> "MARKUP %"
                 }
@@ -270,9 +270,9 @@ fun NewPriceListScreen(
 
             val universalApiAdjType = when (allItemsAdjustmentType) {
                 "MARKUP %" -> "MARKUP_PERCENT"
-                "MARKUP ₹" -> "MARKUP_AMOUNT"
+                "MARKUP ${currencySymbol()}" -> "MARKUP_AMOUNT"
                 "DISCOUNT %" -> "DISCOUNT_PERCENT"
-                "DISCOUNT ₹" -> "DISCOUNT_AMOUNT"
+                "DISCOUNT ${currencySymbol()}" -> "DISCOUNT_AMOUNT"
                 "FIXED PRICE" -> "FIXED_PRICE"
                 else -> "MARKUP_PERCENT"
             }
@@ -298,9 +298,9 @@ fun NewPriceListScreen(
                     skuItems.filter { it.isSelected }.map { sku ->
                         val apiAdjType = when (sku.adjustmentType) {
                             "MARKUP %" -> "MARKUP_PERCENT"
-                            "MARKUP ₹" -> "MARKUP_AMOUNT"
+                            "MARKUP ${currencySymbol()}" -> "MARKUP_AMOUNT"
                             "DISCOUNT %" -> "DISCOUNT_PERCENT"
-                            "DISCOUNT ₹" -> "DISCOUNT_AMOUNT"
+                            "DISCOUNT ${currencySymbol()}" -> "DISCOUNT_AMOUNT"
                             "FIXED PRICE" -> "FIXED_PRICE"
                             else -> "MARKUP_PERCENT"
                         }
@@ -347,9 +347,9 @@ fun NewPriceListScreen(
                     skuItems.filter { it.isSelected }.map { sku ->
                         val apiAdjType = when (sku.adjustmentType) {
                             "MARKUP %" -> "MARKUP_PERCENT"
-                            "MARKUP ₹" -> "MARKUP_AMOUNT"
+                            "MARKUP ${currencySymbol()}" -> "MARKUP_AMOUNT"
                             "DISCOUNT %" -> "DISCOUNT_PERCENT"
-                            "DISCOUNT ₹" -> "DISCOUNT_AMOUNT"
+                            "DISCOUNT ${currencySymbol()}" -> "DISCOUNT_AMOUNT"
                             "FIXED PRICE" -> "FIXED_PRICE"
                             else -> "MARKUP_PERCENT"
                         }
@@ -654,7 +654,7 @@ fun NewPriceListScreen(
                                         value = allItemsAdjustmentType,
                                         expanded = adjExpanded,
                                         onExpandChange = { adjExpanded = it },
-                                        options = listOf("MARKUP %", "MARKUP ₹", "DISCOUNT %", "DISCOUNT ₹"),
+                                        options = listOf("MARKUP %", "MARKUP ${currencySymbol()}", "DISCOUNT %", "DISCOUNT ${currencySymbol()}"),
                                         onOptionSelected = { allItemsAdjustmentType = it }
                                     )
 
@@ -831,7 +831,7 @@ fun NewPriceListScreen(
             // ── Bulk Update Confirmation Dialog ──
             if (showBulkUpdateDialog) {
                 val bulkAdjustmentOptions = remember {
-                    listOf("Select an option", "MARKUP %", "MARKUP ₹", "DISCOUNT %", "DISCOUNT ₹", "FIXED PRICE")
+                    listOf("Select an option", "MARKUP %", "MARKUP ${currencySymbol()}", "DISCOUNT %", "DISCOUNT ${currencySymbol()}", "FIXED PRICE")
                 }
                 var bulkDropdownExpanded by remember { mutableStateOf(false) }
 
@@ -937,7 +937,7 @@ private fun ApiSkuProductCardRow(
     var dropdownExpanded by remember { mutableStateOf(false) }
 
     val markupOptions = remember {
-        listOf("option", "MARKUP %", "MARKUP ₹", "DISCOUNT %", "DISCOUNT ₹", "FIXED PRICE")
+        listOf("option", "MARKUP %", "MARKUP ${currencySymbol()}", "DISCOUNT %", "DISCOUNT ${currencySymbol()}", "FIXED PRICE")
     }
 
     Column(
@@ -968,7 +968,7 @@ private fun ApiSkuProductCardRow(
         ) {
             Column {
                 Text("Base Cost", fontSize = tokens.caption, color = TextSecondary)
-                Text("₹${"%.2f".format(itemSku.baseCost)}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TextPrimary)
+                Text("${currencySymbol()}${"%.2f".format(itemSku.baseCost)}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TextPrimary)
             }
 
             Box {
@@ -1045,7 +1045,7 @@ private fun ApiSkuProductCardRow(
             Column(horizontalAlignment = Alignment.End) {
                 Text("Computed", fontSize = tokens.caption, color = TextSecondary)
                 Text(
-                    text = "₹${"%.2f".format(itemSku.computedPrice)}",
+                    text = "${currencySymbol()}${"%.2f".format(itemSku.computedPrice)}",
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = TextPrimary

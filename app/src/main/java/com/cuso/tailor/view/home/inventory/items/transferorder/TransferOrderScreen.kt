@@ -280,9 +280,6 @@ fun TransferOrdersStockListScreen(
                 }
             }
         )
-
-        DynamicIslandSuccess(message = adjustmentSuccessMessage, onDismiss = { viewModel.clearAdjustmentAlerts() })
-        DynamicIslandError(message = adjustmentErrorMessage?.takeIf { it.isNotBlank() && adjustmentsList.isNotEmpty() }?.let { ErrorMapper.map(it) }, onDismiss = { viewModel.clearAdjustmentAlerts() })
     }
 }
 

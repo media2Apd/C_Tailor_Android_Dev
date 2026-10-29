@@ -308,18 +308,6 @@ fun OpportunitiesListScreen(
                 }
             )
         }
-
-        DynamicIslandSuccess(
-            message = actionMessage,
-            onDismiss = { actionMessage = null },
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null },
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
     }
 }
 
@@ -337,7 +325,7 @@ fun OpportunityMetricsGrid() {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            MetricCard(label = "Total Pipeline", value = "₹24.8L", modifier = Modifier.weight(1f))
+            MetricCard(label = "Total Pipeline", value = "${currencySymbol()}24.8L", modifier = Modifier.weight(1f))
             MetricCard(label = "Active Deals", value = "42", modifier = Modifier.weight(1f))
         }
 

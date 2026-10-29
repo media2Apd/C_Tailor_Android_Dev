@@ -180,17 +180,6 @@ fun ConfigurationPreviewScreen(
                 onClick = { showActivateDialog = true }
             )
         )
-
-        // Dynamic Island Overlay
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 
     // Activate Configuration Confirmation Dialog

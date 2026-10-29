@@ -260,17 +260,6 @@ fun WarehouseSettingsScreen(
                 }
             )
         }
-
-        // Dynamic Island Alerts
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { viewModel.clearWarehouseActionAlerts() }
-        )
-
-        DynamicIslandError(
-            message = errorMessage?.takeIf { it.isNotBlank() }?.let { ErrorMapper.map(it) },
-            onDismiss = { viewModel.clearWarehouseActionAlerts() }
-        )
     }
 }
 

@@ -41,7 +41,6 @@ fun ActionRowButtons(
     borderColor: Color = sectionBorder,
     textColor: Color = Color(0xFF1E2238)
 ) {
-    // Material 3-ன் 48.dp default minimum touch target-ஐ override செய்து exact 40.dp height வரவைக்க
     CompositionLocalProvider(
         LocalMinimumInteractiveComponentEnforcement provides false
     ) {

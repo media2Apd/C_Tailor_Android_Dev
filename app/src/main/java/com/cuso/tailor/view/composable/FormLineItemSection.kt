@@ -42,6 +42,7 @@ import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.utils.currencySymbol
 import java.util.Locale
 import java.util.UUID
 
@@ -289,7 +290,7 @@ fun FormLineItemsSection(
                                 contentAlignment = Alignment.CenterStart
                             ) {
                                 Text(
-                                    text = if (itemEntry.total.isNotBlank()) "₹ ${itemEntry.total}" else "-",
+                                    text = if (itemEntry.total.isNotBlank()) "${currencySymbol()} ${itemEntry.total}" else "-",
                                     fontSize = tokens.bodySmall,
                                     fontWeight = FontWeight.Bold,
                                     color = title_color

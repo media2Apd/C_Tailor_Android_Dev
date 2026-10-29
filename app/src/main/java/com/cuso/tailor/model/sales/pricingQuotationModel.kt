@@ -25,7 +25,7 @@ data class PricingStats(
 
 data class PricingStatValue(
     @SerializedName("value")
-    val value: String,              // e.g. "24", "₹2,450", "78%", "₹58.8k"
+    val value: String,              // e.g. "24", "${currencySymbol()}2,450", "78%", "${currencySymbol()}58.8k"
     @SerializedName("changePercent")
     val changePercent: Double = 0.0, // e.g. 12.0, 8.0, 5.0, 15.0
     @SerializedName("changeLabel")

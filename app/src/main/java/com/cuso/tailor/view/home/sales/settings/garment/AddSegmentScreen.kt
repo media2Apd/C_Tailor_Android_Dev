@@ -215,16 +215,5 @@ fun AddSegmentScreen(
                 }
             )
         )
-
-        // Dynamic Island Overlay
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 }

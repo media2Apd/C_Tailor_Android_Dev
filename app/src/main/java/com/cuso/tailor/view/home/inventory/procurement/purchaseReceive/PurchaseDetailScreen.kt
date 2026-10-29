@@ -61,6 +61,7 @@ import com.cuso.tailor.view.composable.ActionRowButtons
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.util.Locale
 
@@ -378,9 +379,6 @@ fun PurchaseDetailScreen(
                 Spacer(modifier = Modifier.height(24.dp).background(Color.Transparent))
             }
         }
-
-        DynamicIslandSuccess(message = successMsg, onDismiss = { successMsg = null })
-        DynamicIslandError(message = errorMessage, onDismiss = { viewModel.clearErrors() })
     }
 }
 
@@ -428,7 +426,7 @@ fun ItemProgressCard(item: PoItemOverviewDto, isFirst: Boolean) {
             }
 
             Text(
-                text = String.format(Locale.US, "₹%,.2f", item.rate),
+                text = String.format(Locale.US, "${currencySymbol()}%,.2f", item.rate),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF1E2238)
@@ -571,7 +569,7 @@ fun ShipmentHistoryRow(
 
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = String.format(Locale.US, "₹%,.2f", item.grandTotal),
+                text = String.format(Locale.US, "${currencySymbol()}%,.2f", item.grandTotal),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1E2238)

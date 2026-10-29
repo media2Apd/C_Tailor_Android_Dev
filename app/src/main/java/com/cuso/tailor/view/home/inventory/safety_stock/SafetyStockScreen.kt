@@ -365,14 +365,6 @@ fun SafetyStockScreen(
                 }
             }
         }
-
-        DynamicIslandError(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = errorMessage?.takeIf { safetyStockItems.isNotEmpty() },
-            onDismiss = { viewModel.clearSafetyStockAlerts() }
-        )
     }
 }
 

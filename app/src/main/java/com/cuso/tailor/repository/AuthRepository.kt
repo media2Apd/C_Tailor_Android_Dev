@@ -71,9 +71,19 @@ class AuthRepository @Inject constructor(
 
     suspend fun getMyOrganization(token: String): Result<myOrganizationResponse> = try {
         val res = userApi.getMyOrganization(token)
-        if (res.isSuccessful && res.body() != null) Result.success(res.body()!!)
-        else Result.failure(Exception(res.message()))
-    } catch (e: Exception) { Result.failure(e) }
+        val body = res.body()
+        if (res.isSuccessful && body != null) {
+            Result.success(body)
+        } else {
+            // Log the real server error to make debugging easier
+            Log.e("MY_ORG_API", "Failed: ${res.code()} ${res.errorBody()?.string()}")
+            Result.failure(Exception(res.message()))
+        }
+    } catch (e: Exception) {
+        // Covers JsonParseException, network errors, etc. Never crashes the caller.
+        Log.e("MY_ORG_API", "Exception: ${e.message}", e)
+        Result.failure(e)
+    }
 
 //    suspend fun getMyLayout(token: String): Result<myLayoutResponse> = try {
 //        val res = userApi.getMyLayout(token)

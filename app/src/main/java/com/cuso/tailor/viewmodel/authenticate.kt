@@ -31,6 +31,8 @@ import com.cuso.tailor.model.login_forgotPassword_resetPassword.GoogleLoginResul
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.LoginData
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Organization
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.OrganizationDetails
+// OrganizationDetails import removed (no longer used here)
+import com.cuso.tailor.model.sales.toOrganization
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.RegisterVerifyOtpResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Settings
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Subscription
@@ -40,11 +42,13 @@ import com.cuso.tailor.model.login_forgotPassword_resetPassword.organizationSetU
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.otpSendResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.otpVerifyResponse
 import com.cuso.tailor.utils.launchBusy
+import com.cuso.tailor.utils.toCurrencySymbol
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.async
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 sealed class UiState {
@@ -109,6 +113,18 @@ class Authenticate @Inject constructor(
     // ── Settings State ──
     private val _settings = MutableStateFlow<SettingsEntity?>(null)
     val settings: StateFlow<SettingsEntity?> = _settings.asStateFlow()
+
+    // ── Currency Symbol State (Observed directly from Room DB) ──
+    val currencySymbol: StateFlow<String> = settingsDao.getSettingsFlow()
+        .map { entity ->
+            // Reads currency column from Room DB and converts to symbol
+            entity?.currency.toCurrencySymbol()
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = ""
+        )
 
     // ── Tokens State ──
     private val _tokens = MutableStateFlow<TokensEntity?>(null)
@@ -243,9 +259,19 @@ class Authenticate @Inject constructor(
                         meResult.getOrNull()?.let { }
 
                         orgResult.getOrNull()?.let { orgResponse ->
-                            loginRepository.saveOrganizationData(orgResponse.data.organization.toOrganization())
-                            loadOrganization()
-                            loadSettings()
+                            // Wrapped in try/catch: an organization problem must never break the login flow
+                            try {
+                                val org = orgResponse.data?.organization?.toOrganization()
+                                if (org != null) {
+                                    loginRepository.saveOrganizationData(org)
+                                    loadOrganization()
+                                    loadSettings()
+                                } else {
+                                    Log.w("MY_ORG_API", "Organization data was empty")
+                                }
+                            } catch (e: Exception) {
+                                Log.e("MY_ORG_API", "Saving organization failed: ${e.message}", e)
+                            }
                         }
 
 //                        layoutResult.getOrNull()?.let { }

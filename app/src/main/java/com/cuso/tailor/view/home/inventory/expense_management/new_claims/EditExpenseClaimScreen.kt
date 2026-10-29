@@ -208,7 +208,7 @@ fun EditExpenseClaimScreen(
                         FormTextField(
                             value = baseAmount,
                             onValueChange = { baseAmount = it },
-                            placeholder = "₹ 0",
+                            placeholder = "${currencySymbol()} 0",
                             keyboardType = KeyboardType.Number
                         )
 
@@ -218,7 +218,7 @@ fun EditExpenseClaimScreen(
                         FormTextField(
                             value = taxAmount,
                             onValueChange = { taxAmount = it },
-                            placeholder = "₹ 0",
+                            placeholder = "${currencySymbol()} 0",
                             keyboardType = KeyboardType.Number
                         )
 
@@ -244,7 +244,7 @@ fun EditExpenseClaimScreen(
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    text = "₹${String.format(Locale.US, "%.2f", grandTotal)}",
+                                    text = "${currencySymbol()}${String.format(Locale.US, "%.2f", grandTotal)}",
                                     fontSize = tokens.bodyLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = Primary

@@ -280,7 +280,7 @@ fun CreatePurchaseOrderScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = "₹",
+                                            text = "${currencySymbol()}",
                                             fontSize = tokens.bodySmall,
                                             color = TextSecondary,
                                             fontWeight = FontWeight.Medium
@@ -339,7 +339,7 @@ fun CreatePurchaseOrderScreen(
                             }
 
                             Text(
-                                text = "₹ ${String.format(Locale.US, "%,.0f", totalOrderValue)}",
+                                text = "${currencySymbol()} ${String.format(Locale.US, "%,.0f", totalOrderValue)}",
                                 fontSize = tokens.bodyLarge,
                                 fontWeight = FontWeight.Medium,
                                 color = Primary
@@ -593,17 +593,6 @@ fun CreatePurchaseOrderScreen(
                 }
             }
         }
-
-        // ── Dynamic Island Message Notifications ──
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 }
 

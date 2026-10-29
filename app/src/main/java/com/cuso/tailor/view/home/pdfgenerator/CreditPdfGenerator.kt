@@ -27,6 +27,7 @@ import android.webkit.WebViewClient
 import androidx.core.graphics.createBitmap
 import com.cuso.tailor.model.finance.CreditNoteAllocationItem
 import com.cuso.tailor.model.finance.CreditNoteItemDto
+import com.cuso.tailor.utils.currencySymbol
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -235,7 +236,7 @@ class CreditNotePdfGenerator(private val context: Context) {
         allocations: List<CreditNoteAllocationItem>
     ): String {
         fun esc(v: String): String = v.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        fun money(v: Double): String = "₹" + String.format(Locale.US, if (v % 1.0 == 0.0) "%,.0f" else "%,.2f", v)
+        fun money(v: Double): String = "${currencySymbol()}" + String.format(Locale.US, if (v % 1.0 == 0.0) "%,.0f" else "%,.2f", v)
 
         fun formatDate(raw: String): String {
             return try {

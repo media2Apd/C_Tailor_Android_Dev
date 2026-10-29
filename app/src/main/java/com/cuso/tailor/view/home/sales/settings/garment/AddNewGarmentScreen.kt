@@ -240,17 +240,6 @@ fun AddNewGarmentScreen(
                 }
             )
         )
-
-        // Dynamic Island Overlay
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 }
 
@@ -432,17 +421,6 @@ fun AddNewGarmentCategoryScreen(
                     )
                 }
             )
-        )
-
-        // Dynamic Island Overlay
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
         )
     }
 }

@@ -175,16 +175,7 @@ fun LegalCustomerListScreen(
                     .padding(paddingValues)
             ) {
                 if (isLoading && records.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = Primary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
+                    ListSkeleton()
                 } else if (!errorMessage.isNullOrBlank() && records.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),

@@ -202,7 +202,7 @@ fun CashBookDetailScreen(
                 ) {
                     MetricBox(
                         title = "Opening Float",
-                        amount = "₹${formatAmount(item.openingBalance)}",
+                        amount = "${currencySymbol()}${formatAmount(item.openingBalance)}",
                         caption = "Starting drawer balance",
                         icon = Icons.Outlined.AccountBalanceWallet,
                         iconTint = headerGrey,
@@ -210,7 +210,7 @@ fun CashBookDetailScreen(
                     )
                     MetricBox(
                         title = "Cash Inflows (Sales)",
-                        amount = "+₹${formatAmount(item.totalCashCollected)}",
+                        amount = "+${currencySymbol()}${formatAmount(item.totalCashCollected)}",
                         caption = "POS Receipts & Sales",
                         icon = Icons.AutoMirrored.Outlined.CallReceived,
                         iconTint = greentext,
@@ -225,7 +225,7 @@ fun CashBookDetailScreen(
                 ) {
                     MetricBox(
                         title = "Cash Outflows",
-                        amount = "-₹${formatAmount(item.totalCashWithdrawn)}",
+                        amount = "-${currencySymbol()}${formatAmount(item.totalCashWithdrawn)}",
                         caption = "Expenses & Contra Deposits",
                         icon = Icons.AutoMirrored.Outlined.CallMade,
                         iconTint = orangeText,
@@ -234,7 +234,7 @@ fun CashBookDetailScreen(
                     )
                     MetricBox(
                         title = "Expected In Drawer",
-                        amount = "₹${formatAmount(item.expectedClosingBalance)}",
+                        amount = "${currencySymbol()}${formatAmount(item.expectedClosingBalance)}",
                         caption = "Calculated running total",
                         icon = Icons.Outlined.Storefront,
                         iconTint = Primary,
@@ -280,7 +280,7 @@ fun CashBookDetailScreen(
                                 Text("Counted Cash", fontSize = tokens.label, color = mutedText)
                                 Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                                 Text(
-                                    text = "₹${formatAmount(item.actualClosingBalance)}",
+                                    text = "${currencySymbol()}${formatAmount(item.actualClosingBalance)}",
                                     fontSize = tokens.bodyLarge,
                                     fontWeight = FontWeight.Medium,
                                     color = TitleColor
@@ -290,7 +290,7 @@ fun CashBookDetailScreen(
                             Column(horizontalAlignment = Alignment.End) {
                                 Text("Discrepancy", fontSize = tokens.label, color = mutedText)
                                 Spacer(Modifier.height(tokens.extraPadding * 0.2f))
-                                val diffPrefix = if (diff >= 0) "+₹" else "-₹"
+                                val diffPrefix = if (diff >= 0) "+${currencySymbol()}" else "-${currencySymbol()}"
                                 val diffColor = when {
                                     diff > 0 -> greentext
                                     diff < 0 -> redText
@@ -518,7 +518,7 @@ fun CloseCashDrawerShiftDialog(
                             Text("Opening Float", fontSize = tokens.label, color = mutedText)
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = "₹${formatAmount(item.openingBalance)}",
+                                text = "${currencySymbol()}${formatAmount(item.openingBalance)}",
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = TitleColor
@@ -528,7 +528,7 @@ fun CloseCashDrawerShiftDialog(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("Net Activity", fontSize = tokens.label, color = mutedText)
                             Spacer(Modifier.height(2.dp))
-                            val netPrefix = if (netActivity >= 0) "+₹" else "-₹"
+                            val netPrefix = if (netActivity >= 0) "+${currencySymbol()}" else "-${currencySymbol()}"
                             val netColor = if (netActivity >= 0) greentext else redText
                             Text(
                                 text = "$netPrefix${formatAmount(abs(netActivity))}",
@@ -542,7 +542,7 @@ fun CloseCashDrawerShiftDialog(
                             Text("Expected Drawer", fontSize = tokens.label, color = mutedText)
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = "₹${formatAmount(item.expectedClosingBalance)}",
+                                text = "${currencySymbol()}${formatAmount(item.expectedClosingBalance)}",
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = TitleColor

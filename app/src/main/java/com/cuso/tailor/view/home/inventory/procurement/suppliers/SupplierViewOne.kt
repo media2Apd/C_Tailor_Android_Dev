@@ -1251,7 +1251,7 @@ private fun formatCurrency(value: Double): String {
     format.maximumFractionDigits = 2
     format.minimumFractionDigits = 2
 
-    return "₹${format.format(value)}"
+    return "${currencySymbol()}${format.format(value)}"
 }
 
 private fun formatDateString(isoDate: String?): String? {

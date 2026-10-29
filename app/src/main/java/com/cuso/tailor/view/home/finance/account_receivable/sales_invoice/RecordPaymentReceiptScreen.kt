@@ -54,6 +54,7 @@ import com.cuso.tailor.ui.theme.close_color
 import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.primary_light
 import com.cuso.tailor.ui.theme.title_color
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.AppCheckbox
 import com.cuso.tailor.view.composable.BackFabButton
 import com.cuso.tailor.view.composable.DatePickerField
@@ -290,7 +291,7 @@ fun RecordPaymentReceiptScreen(
                 ) {
                     FormLabel(text = "Amount Received (INR)", isRequired = true)
                     Text(
-                        text = "Pay Full (₹${formatIndianNumber(outstandingBalance.toLong())})",
+                        text = "Pay Full (${currencySymbol()}${formatIndianNumber(outstandingBalance.toLong())})",
                         fontSize = tokens.caption,
                         fontWeight = FontWeight.Medium,
                         color = Primary,
@@ -332,7 +333,7 @@ fun RecordPaymentReceiptScreen(
                     )
                     Spacer(Modifier.width(tokens.extraPadding))
                     Text(
-                        text = "Remaining balance for this invoice is ₹${formatIndianNumber(outstandingBalance.toLong())}.",
+                        text = "Remaining balance for this invoice is ${currencySymbol()}${formatIndianNumber(outstandingBalance.toLong())}.",
                         fontSize = tokens.caption,
                         fontWeight = FontWeight.Medium,
                         color = Primary

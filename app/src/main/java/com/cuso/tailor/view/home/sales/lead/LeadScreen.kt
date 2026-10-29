@@ -949,7 +949,7 @@ fun LeadFormScreen(
                             Text("Customer Expected Budget Range (INR)", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = TextPrimary)
                             Spacer(Modifier.height(8.dp))
 
-                            FormLabel("MINIMUM BUDGET (₹)")
+                            FormLabel("MINIMUM BUDGET (${currencySymbol()})")
                             FormTextField(
                                 value = minBudget,
                                 onValueChange = { minBudget = it },
@@ -959,7 +959,7 @@ fun LeadFormScreen(
                             )
 
                             Spacer(Modifier.height(14.dp))
-                            FormLabel("MAXIMUM BUDGET (₹)")
+                            FormLabel("MAXIMUM BUDGET (${currencySymbol()})")
                             FormTextField(
                                 value = maxBudget,
                                 onValueChange = { maxBudget = it },
@@ -1152,17 +1152,6 @@ fun LeadFormScreen(
                 },
                 showTrailingArrow = false,
                 modifier = Modifier.align(Alignment.BottomCenter)
-            )
-
-            DynamicIslandError(
-                modifier = Modifier.align(Alignment.TopCenter),
-                message = validationError,
-                onDismiss = { validationError = null }
-            )
-            DynamicIslandSuccess(
-                modifier = Modifier.align(Alignment.TopCenter),
-                message = successMessage,
-                onDismiss = { successMessage = null }
             )
         }
     }
@@ -1556,7 +1545,7 @@ fun LeadScreenContent(
                                                             iconTint = Primary,
                                                             iconBackgroundColor = primary_light,
                                                             iconCircleSize = 24.dp,
-                                                            text = "₹${formatIndianNumber(lead.minBudget)} - ₹${formatIndianNumber(lead.maxBudget)}",
+                                                            text = "${currencySymbol()}${formatIndianNumber(lead.minBudget)} - ${currencySymbol()}${formatIndianNumber(lead.maxBudget)}",
                                                             textColor = TextLog
                                                         )
                                                     ),
@@ -1590,18 +1579,6 @@ fun LeadScreenContent(
                 }
             }
         }
-
-        DynamicIslandSuccess(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 
     if (leadToDelete != null) {
@@ -1721,8 +1698,8 @@ fun BudgetRangeLabels(
 ) {
     val tokens = LocalAppTokens.current
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text("₹${formatIndianNumber(min)}", fontSize = tokens.caption, color = headerGrey)
-        Text("₹${formatIndianNumber(currentValue)}", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = Primary)
-        Text("₹${formatIndianNumber(max)}", fontSize = tokens.caption, color = headerGrey)
+        Text("${currencySymbol()}${formatIndianNumber(min)}", fontSize = tokens.caption, color = headerGrey)
+        Text("${currencySymbol()}${formatIndianNumber(currentValue)}", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = Primary)
+        Text("${currencySymbol()}${formatIndianNumber(max)}", fontSize = tokens.caption, color = headerGrey)
     }
 }

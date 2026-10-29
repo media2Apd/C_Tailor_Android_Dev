@@ -213,7 +213,7 @@ private fun PriceListItemCard(
         .replaceFirstChar { it.uppercase() }
 
     val roundOffDisplay = if (item.roundOff?.enabled == true) {
-        "₹${item.roundOff.value}"
+        "${currencySymbol()}${item.roundOff.value}"
     } else {
         "—"
     }

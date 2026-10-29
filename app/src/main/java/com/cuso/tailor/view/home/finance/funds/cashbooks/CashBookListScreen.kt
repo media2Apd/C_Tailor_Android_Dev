@@ -188,7 +188,7 @@ fun CashBookListScreen(
                                         ) {
                                             Text("Debit (Inflow)", fontSize = tokens.bodySmall, color = mutedText)
                                             Text(
-                                                text = "₹${String.format(Locale.US, "%,.2f", item.totalCashCollected)}",
+                                                text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.totalCashCollected)}",
                                                 fontSize = tokens.bodySmall,
                                                 color = greentext,
                                                 fontWeight = FontWeight.Medium
@@ -203,7 +203,7 @@ fun CashBookListScreen(
                                         ) {
                                             Text("Credit (Outflow)", fontSize = tokens.bodySmall, color = mutedText)
                                             Text(
-                                                text = "₹${String.format(Locale.US, "%,.2f", item.totalCashWithdrawn)}",
+                                                text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.totalCashWithdrawn)}",
                                                 fontSize = tokens.bodySmall,
                                                 color = redText,
                                                 fontWeight = FontWeight.Medium
@@ -218,7 +218,7 @@ fun CashBookListScreen(
                                         ) {
                                             Text("Balance", fontSize = tokens.bodySmall, color = mutedText)
                                             Text(
-                                                text = "₹${String.format(Locale.US, "%,.2f", item.actualClosingBalance)}",
+                                                text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.actualClosingBalance)}",
                                                 fontSize = tokens.bodySmall,
                                                 color = TitleColor,
                                                 fontWeight = FontWeight.Medium

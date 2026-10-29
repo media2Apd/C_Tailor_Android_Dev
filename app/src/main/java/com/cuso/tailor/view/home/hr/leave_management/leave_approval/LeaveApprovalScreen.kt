@@ -338,17 +338,6 @@ fun LeaveApprovalScreen(
                 }
             )
         }
-
-        // Dynamic Island Notifications
-        DynamicIslandSuccess(
-            message = successFeedback,
-            onDismiss = { successFeedback = null }
-        )
-
-        DynamicIslandError(
-            message = errorFeedback,
-            onDismiss = { errorFeedback = null }
-        )
     }
 }
 

@@ -43,7 +43,7 @@ import com.cuso.tailor.database.entities.WorkingDayEntity
         LeadEntity::class,
         SelectedGarment::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -56,9 +56,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun salesStatusDao(): SalesStatusDao
     abstract fun salesSummaryDao(): SalesSummaryDao
     abstract fun leadDao(): LeadDao
-    abstract fun selectedGarmentDao():  SelectedGarmentDao
+    abstract fun selectedGarmentDao(): SelectedGarmentDao
 
-    abstract class AppDatabase : RoomDatabase() {
-//        abstract fun profileDao(): ProfileDao
-    }
+    // Removed the duplicate nested "AppDatabase" class. It was unused and confusing.
 }

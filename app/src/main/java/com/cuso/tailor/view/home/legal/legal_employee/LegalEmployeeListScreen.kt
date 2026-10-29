@@ -61,7 +61,7 @@ fun LegalEmployeeListScreen(
                 .background(Color.Transparent)
         ) {
             TitleBar(
-                title = "Legal",
+                title = "Legal Employee",
                 onClose = onNavigateBack
             )
 
@@ -231,7 +231,6 @@ private fun LegalEmployeeCard(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(tokens.cardCornerRadius))
                         .background(Primary_background)
-                        .border(1.dp, sectionBorder, RoundedCornerShape(tokens.cardCornerRadius))
                         .padding(tokens.extraPadding),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {

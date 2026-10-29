@@ -33,6 +33,7 @@ import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import androidx.core.content.ContextCompat
 import com.cuso.tailor.R
+import com.cuso.tailor.utils.currencySymbol
 import java.io.ByteArrayOutputStream
 
 
@@ -415,8 +416,8 @@ class QuotationPdfGenerator(private val context: Context) {
         <tr>
             <td class="desc">${item.description}</td>
             <td class="num">${item.quantity}</td>
-            <td class="num">₹${String.format(Locale.US, "%.0f", item.rate)}</td>
-            <td class="num">₹${String.format(Locale.US, "%.0f", item.amount)}</td>
+            <td class="num">${currencySymbol()}${String.format(Locale.US, "%.0f", item.rate)}</td>
+            <td class="num">${currencySymbol()}${String.format(Locale.US, "%.0f", item.amount)}</td>
         </tr>
         """.trimIndent()
         }
@@ -732,17 +733,17 @@ class QuotationPdfGenerator(private val context: Context) {
         <div class="totals">
           <div class="row">
             <span>SUBTOTAL</span>
-            <span class="amt">₹${String.format(Locale.US, "%.2f", data.subtotal)}</span>
+            <span class="amt">${currencySymbol()}${String.format(Locale.US, "%.2f", data.subtotal)}</span>
           </div>
           ${if (data.discountPercent > 0) """
           <div class="row">
             <span>DISCOUNT ${String.format(Locale.US, "%.0f", data.discountPercent)}%</span>
-            <span class="amt">-₹${String.format(Locale.US, "%.2f", data.discountAmount)}</span>
+            <span class="amt">-${currencySymbol()}${String.format(Locale.US, "%.2f", data.discountAmount)}</span>
           </div>
           """ else ""}
           <div class="row total">
             <span>TOTAL</span>
-            <span class="amt">₹${String.format(Locale.US, "%.2f", data.total)}</span>
+            <span class="amt">${currencySymbol()}${String.format(Locale.US, "%.2f", data.total)}</span>
           </div>
         </div>
 

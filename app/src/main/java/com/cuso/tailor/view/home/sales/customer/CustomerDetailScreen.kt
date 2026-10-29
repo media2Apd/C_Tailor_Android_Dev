@@ -189,7 +189,7 @@ fun CustomerDetailScreen(
                         isEditMode -> "Edit Customer"
                         else -> "View Customer"
                     }
-                    TitleBar(title = "Sales & Order Reports", onClose = onClose)
+                    TitleBar(title = title, onClose = onClose)
                 }
             }
         ) { padding ->
@@ -283,19 +283,6 @@ fun CustomerDetailScreen(
                 }
             )
         }
-
-        // Dynamic Island Overlays
-        DynamicIslandSuccess(
-            message = apiSuccessMessage,
-            onDismiss = { apiSuccessMessage = null },
-            modifier = Modifier.align(Alignment.TopCenter).zIndex(10f)
-        )
-
-        DynamicIslandError(
-            message = apiErrorMessage,
-            onDismiss = { apiErrorMessage = null },
-            modifier = Modifier.align(Alignment.TopCenter).zIndex(10f)
-        )
     }
 }
 
@@ -792,7 +779,7 @@ private fun OrderPaymentStep() {
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OrderStatBox(modifier = Modifier.weight(1f), label = "Last orders", value = "Jan 2026")
-                OrderStatBox(modifier = Modifier.weight(1f), label = "Avg. order value", value = "₹15.6K", highlight = true)
+                OrderStatBox(modifier = Modifier.weight(1f), label = "Avg. order value", value = "${currencySymbol()}15.6K", highlight = true)
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -811,7 +798,7 @@ private fun OrderPaymentStep() {
                 Column {
                     Text("Total Spend", fontSize = tokens.bodySmall, color = greentext)
                     Spacer(Modifier.height(4.dp))
-                    Text("₹4,36,800", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = greentext)
+                    Text("${currencySymbol()}4,36,800", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = greentext)
                 }
             }
             Spacer(Modifier.height(10.dp))
@@ -824,7 +811,7 @@ private fun OrderPaymentStep() {
                 Column {
                     Text("Pending Payment", fontSize = tokens.bodySmall, color = redText)
                     Spacer(Modifier.height(4.dp))
-                    Text("₹8,500", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = redText)
+                    Text("${currencySymbol()}8,500", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = redText)
                 }
             }
         }
@@ -847,9 +834,9 @@ private fun OrderPaymentStep() {
 
             OrderHistoryTable(
                 orders = listOf(
-                    OrderHistoryRow("ORD-01", "Jan 6, 2026", "Wedding Sherwani", "₹3,500", "Completed"),
-                    OrderHistoryRow("ORD-02", "Jan 6, 2026", "Designer Blouse", "₹3,500", "Pending"),
-                    OrderHistoryRow("ORD-03", "Jan 6, 2026", "Custom Suit", "₹3,500", "In Progress")
+                    OrderHistoryRow("ORD-01", "Jan 6, 2026", "Wedding Sherwani", "${currencySymbol()}3,500", "Completed"),
+                    OrderHistoryRow("ORD-02", "Jan 6, 2026", "Designer Blouse", "${currencySymbol()}3,500", "Pending"),
+                    OrderHistoryRow("ORD-03", "Jan 6, 2026", "Custom Suit", "${currencySymbol()}3,500", "In Progress")
                 )
             )
         }

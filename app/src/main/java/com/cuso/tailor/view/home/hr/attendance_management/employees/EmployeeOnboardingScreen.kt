@@ -2080,18 +2080,6 @@ fun EmployeeOnboardingScreen(
                 color = whiteBg
             )
         }
-
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = topError,
-            onDismiss = { topError = null }
-        )
-
-        DynamicIslandSuccess(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = topSuccess,
-            onDismiss = { topSuccess = null }
-        )
     }
 
     if (showProfileOptionsDialog && isEditable) {

@@ -218,14 +218,6 @@ fun AllOrdersScreen(
                 }
             }
         }
-
-        DynamicIslandError(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = errorMessage?.takeIf { receives.isNotEmpty() },
-            onDismiss = { viewModel.clearErrors() }
-        )
     }
 }
 

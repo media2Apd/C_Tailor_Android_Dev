@@ -263,7 +263,39 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
             "Legal Documents", "Documents" -> "legal_documents"
             "License & Registerations", "License & Registrations", "Licenses", "License" -> "legal_licenses"
             "Customer Legal" -> "legal_customer"
+            "Employee & Labour Legal" -> "legal_employee"
+            // Vendor & Supplier Legal mapping
+            "Vendor & Supplier Legal", "Vendor & Supplier", "Vendor Legal", "Vendors", "Vendor" -> "legal_vendor"
+            // Audit & Legal Calendar mapping
+            "Audit & Legal Calendar", "Legal Calendar", "Audit Calendar", "Calendar" -> "legal_calendar"
             else -> "legal_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
+        }
+    }
+    // Add Logistics navigation key mapping
+    if (menu == "Logistics") {
+        return when (subItem) {
+            "Logistics Dashboard", "Dashboard" -> "logistics_dashboard"
+            "Orders", "Order List", "Services & Orders", "Orders List" -> "logistics_orders"
+            "Delivery"                         -> "logistics_delivery"
+            "Returns", "Return"                -> "logistics_returns"
+            "Order Tracking"                   -> "logistics_order_tracking"
+            else -> "logistics_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
+        }
+    }
+
+    if (menu == "Reports") {
+        return when (subItem) {
+            "Sales"                  -> "reports_sales"
+            "Marketing"              -> "reports_marketing"
+            "Finance"                -> "reports_finance"
+            "Inventory"              -> "reports_inventory"
+            "Logistics"              -> "reports_logistics"
+            "Services"               -> "reports_services"
+            "Human Resource", "HR"   -> "reports_human_resource"
+            "IT"                     -> "reports_it"
+            "Security"               -> "reports_security"
+            "Legal"                  -> "reports_legal"
+            else -> "reports_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }
     }
 
@@ -402,7 +434,7 @@ object SidebarConfig {
             MenuItem(
                 R.drawable.logistics, "Logistics",
                 isPanel = true,
-                categories = listOf("Delivery", "Returns", "Order Tracking")
+                categories = listOf("Logistics Dashboard", "Orders", "Delivery", "Returns", "Order Tracking")
             ),
             MenuItem(
                 R.drawable.services, "Services",
@@ -514,7 +546,18 @@ object SidebarConfig {
             MenuItem(
                 R.drawable.reports, "Reports",
                 isPanel = true,
-                categories = listOf("Sales", "Marketing", "Finance", "Inventory", "Human Resource", "Logistics", "IT", "Legal")
+                categories = listOf(
+                    "Sales",
+                    "Marketing",
+                    "Finance",
+                    "Inventory",
+                    "Logistics",
+                    "Services",
+                    "Human Resource",
+                    "IT",
+                    "Security",
+                    "Legal"
+                )
             )
         )
     }

@@ -2,6 +2,9 @@
 
 package com.cuso.tailor.view.home.legal.legal_employee
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,6 +24,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -30,6 +35,7 @@ import com.cuso.tailor.model.settings.BranchItem
 import com.cuso.tailor.model.settings.DepartmentItem
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.utils.uriToMultipartPart
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.toIsoDate
 import com.cuso.tailor.viewmodel.*
@@ -37,7 +43,6 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -65,6 +70,9 @@ private val LABOUR_DOCUMENT_TYPES = listOf(
 private val NOTICE_PERIODS = listOf("15 Days", "30 Days", "45 Days", "60 Days", "90 Days")
 private val RISK_LEVELS = listOf("Low", "Medium", "High")
 
+// Maximum number of files allowed per upload section
+private const val MAX_FILES_PER_SECTION = 5
+
 @Composable
 fun LegalEmployeeCreateEditScreen(
     idToEdit: String? = null,
@@ -75,6 +83,7 @@ fun LegalEmployeeCreateEditScreen(
     onNavigateBack: () -> Unit
 ) {
     val tokens = LocalAppTokens.current
+    val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val isEditMode = !idToEdit.isNullOrEmpty()
 
@@ -82,12 +91,13 @@ fun LegalEmployeeCreateEditScreen(
     val isDetailLoading by viewModel.isLoadingEmployeeDetail.collectAsState()
     val isSaving by viewModel.isSavingEmployee.collectAsState()
 
-    // Remote dropdown sources
+    // Remote data sources
     val membersList by hrViewModel.members.collectAsState()
     val branchUiState by branchViewModel.uiState.collectAsState()
     val departmentUiState by departmentViewModel.uiState.collectAsState()
     val contractList by viewModel.contracts.collectAsState()
 
+    // Parse branch list from state
     val branchList: List<BranchItem> = remember(branchUiState) {
         if (branchUiState is BranchUiState.Success) {
             (branchUiState as BranchUiState.Success).branches
@@ -104,6 +114,13 @@ fun LegalEmployeeCreateEditScreen(
         }
     }
 
+    // Dynamic Legal Entity options derived directly from the Branch API response
+    val legalEntityOptions = remember(branchList) {
+        branchList.mapNotNull { it.name }
+            .filter { it.isNotBlank() }
+            .distinct()
+    }
+
     // Form states
     var recordNumber by remember { mutableStateOf("") }
     var selectedEmployeeId by remember { mutableStateOf("") }
@@ -111,7 +128,7 @@ fun LegalEmployeeCreateEditScreen(
     var selectedEmploymentType by remember { mutableStateOf("") }
     var selectedDepartmentId by remember { mutableStateOf("") }
     var selectedBranchId by remember { mutableStateOf("") }
-    var legalEntity by remember { mutableStateOf("Nexus Boutique") }
+    var legalEntity by remember { mutableStateOf("") }
 
     var selectedLegalRecordType by remember { mutableStateOf("") }
     var selectedContractId by remember { mutableStateOf("") }
@@ -127,14 +144,15 @@ fun LegalEmployeeCreateEditScreen(
     var selectedLegalOwnerId by remember { mutableStateOf("") }
     var selectedRiskLevel by remember { mutableStateOf("") }
 
-    // Upload files & existing documents from server
+    // Existing documents saved on the server
     var existingContractDocs by remember { mutableStateOf<List<LegalDocumentItem>>(emptyList()) }
     var existingLabourDocs by remember { mutableStateOf<List<LegalDocumentItem>>(emptyList()) }
     var existingSupportingDocs by remember { mutableStateOf<List<LegalDocumentItem>>(emptyList()) }
 
-    var newContractFiles by remember { mutableStateOf<List<File>>(emptyList()) }
-    var newLabourFiles by remember { mutableStateOf<List<File>>(emptyList()) }
-    var newSupportingFiles by remember { mutableStateOf<List<File>>(emptyList()) }
+    // Newly picked files stored as URIs
+    val newContractFiles = remember { mutableStateListOf<Uri>() }
+    val newLabourFiles = remember { mutableStateListOf<Uri>() }
+    val newSupportingFiles = remember { mutableStateListOf<Uri>() }
 
     // Dropdown expanded states
     var empExpanded by remember { mutableStateOf(false) }
@@ -150,7 +168,40 @@ fun LegalEmployeeCreateEditScreen(
     var legalOwnerExpanded by remember { mutableStateOf(false) }
     var riskExpanded by remember { mutableStateOf(false) }
 
-    // Trigger initial data loads
+    // Multi-file launcher for contract documents
+    val contractPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        uris.forEach { uri ->
+            if (newContractFiles.size < MAX_FILES_PER_SECTION && !newContractFiles.contains(uri)) {
+                newContractFiles.add(uri)
+            }
+        }
+    }
+
+    // Multi-file launcher for labour documents
+    val labourPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        uris.forEach { uri ->
+            if (newLabourFiles.size < MAX_FILES_PER_SECTION && !newLabourFiles.contains(uri)) {
+                newLabourFiles.add(uri)
+            }
+        }
+    }
+
+    // Multi-file launcher for supporting documents
+    val supportingPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        uris.forEach { uri ->
+            if (newSupportingFiles.size < MAX_FILES_PER_SECTION && !newSupportingFiles.contains(uri)) {
+                newSupportingFiles.add(uri)
+            }
+        }
+    }
+
+    // Fetch initial data sources
     LaunchedEffect(Unit) {
         hrViewModel.fetchMembers()
         branchViewModel.loadBranches()
@@ -158,7 +209,7 @@ fun LegalEmployeeCreateEditScreen(
         viewModel.fetchContracts()
     }
 
-    // Trigger record detail fetch in edit mode
+    // Fetch detail in edit mode
     LaunchedEffect(idToEdit) {
         if (!idToEdit.isNullOrEmpty()) {
             viewModel.fetchLegalEmployeeDetail(idToEdit)
@@ -171,7 +222,7 @@ fun LegalEmployeeCreateEditScreen(
         }
     }
 
-    // Prefill form states when detail response arrives
+    // Prefill form states when editing
     LaunchedEffect(detailRecord) {
         val item = detailRecord
         if (item != null && isEditMode) {
@@ -181,7 +232,7 @@ fun LegalEmployeeCreateEditScreen(
             selectedEmploymentType = item.employmentType
             selectedDepartmentId = item.departmentId?.id ?: ""
             selectedBranchId = item.branchId?.id ?: ""
-            legalEntity = item.legalEntity.ifEmpty { "Nexus Boutique" }
+            legalEntity = item.legalEntity
             selectedLegalRecordType = item.legalRecordType
             selectedContractId = item.contractId?.id ?: ""
             selectedLabourDocumentType = item.labourDocumentType
@@ -210,11 +261,9 @@ fun LegalEmployeeCreateEditScreen(
         }
     }
 
-    // Contract Reference is required only when Labour Document Type is "Employment Contract"
     val isContractRequired = selectedLabourDocumentType == "Employment Contract"
     val isFormLoading = isEditMode && isDetailLoading
 
-    // Validation matching business logic
     fun validate(): Boolean {
         if (selectedEmployeeId.isBlank()) {
             DynamicIslandManager.showError("Employee is required")
@@ -255,10 +304,18 @@ fun LegalEmployeeCreateEditScreen(
                 }
             } catch (_: Exception) {}
         }
+        if (newContractFiles.size > MAX_FILES_PER_SECTION ||
+            newLabourFiles.size > MAX_FILES_PER_SECTION ||
+            newSupportingFiles.size > MAX_FILES_PER_SECTION
+        ) {
+            DynamicIslandManager.showError("You can upload up to $MAX_FILES_PER_SECTION files per section")
+            return false
+        }
         return true
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             TitleBar(
                 title = if (isEditMode) "Update Record" else "Create Records",
@@ -268,10 +325,7 @@ fun LegalEmployeeCreateEditScreen(
         bottomBar = {
             Surface(
                 color = whiteBg,
-                shadowElevation = 8.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.navigationBars)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     modifier = Modifier
@@ -322,11 +376,8 @@ fun LegalEmployeeCreateEditScreen(
                             addField("legalOwner", selectedLegalOwnerId)
                             addField("riskLevel", selectedRiskLevel)
 
-                            fun toParts(files: List<File>, partName: String): List<MultipartBody.Part> {
-                                return files.map { file ->
-                                    val req = file.readBytes().toRequestBody("application/octet-stream".toMediaTypeOrNull())
-                                    MultipartBody.Part.createFormData(partName, file.name, req)
-                                }
+                            fun toParts(uris: List<Uri>, partName: String): List<MultipartBody.Part> {
+                                return uris.mapNotNull { uri -> uriToMultipartPart(context, uri, partName) }
                             }
 
                             val cDocs = toParts(newContractFiles, "employmentContractDocuments")
@@ -395,7 +446,7 @@ fun LegalEmployeeCreateEditScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .background(Primary_background)
+                    .background(Color.Transparent)
                     .verticalScroll(rememberScrollState())
                     .padding(tokens.screenPadding),
                 verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
@@ -428,7 +479,6 @@ fun LegalEmployeeCreateEditScreen(
 
                     Spacer(modifier = Modifier.height(tokens.extraPadding))
                     FormLabel(text = "EMPLOYEE ID")
-                    // Strictly disabled matching React code: BaseInput value={employeeCode} placeholder="Filled from the employee" disabled
                     FormTextField(
                         value = employeeCode,
                         onValueChange = {},
@@ -479,17 +529,23 @@ fun LegalEmployeeCreateEditScreen(
                         onExpandChange = { branchExpanded = it },
                         options = branchOptions,
                         onOptionSelected = { name ->
-                            selectedBranchId = branchList.find { it.name == name }?.id.orEmpty()
+                            val selectedBranch = branchList.find { it.name == name }
+                            selectedBranchId = selectedBranch?.id.orEmpty()
+                            // Automatically align legal entity if it is not selected yet
+                            if (legalEntity.isBlank()) {
+                                legalEntity = name
+                            }
                         }
                     )
 
                     Spacer(modifier = Modifier.height(tokens.extraPadding))
+                    // Legal Entity options populated dynamically from Branch API
                     FormDropdown(
                         label = "LEGAL ENTITY",
                         value = legalEntity.ifEmpty { "Select Legal Entity..." },
                         expanded = entityExpanded,
                         onExpandChange = { entityExpanded = it },
-                        options = listOf("Nexus Boutique", "Global Apparel Corp"),
+                        options = legalEntityOptions,
                         onOptionSelected = { legalEntity = it }
                     )
                 }
@@ -631,60 +687,77 @@ fun LegalEmployeeCreateEditScreen(
 
                 // Section 5: Documents
                 FormCardWrapper(number = "5", title = "Documents") {
-                    // Employment Contract Documents
-                    ExistingDocumentsSection(
-                        title = "EMPLOYMENT CONTRACT",
-                        documents = existingContractDocs,
-                        onDocClick = { doc -> if (doc.documentUrl.isNotBlank()) uriHandler.openUri(doc.documentUrl) }
-                    )
-                    ImageUploadSection(
-                        selectedImages = newContractFiles,
-                        onBrowseClick = { /* File picker action */ },
-                        onRemoveImage = { file -> newContractFiles = newContractFiles.filter { it != file } },
-                        maxFiles = 5,
-                        title = "",
-                        subtitle = "Click to upload or drag & drop",
-                        supportedFormatsText = "PDF, JPG, PNG or WEBP up to 5 MB"
-                    )
+
+                    // Employment Contract documents
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        FormLabel(text = "EMPLOYMENT CONTRACT")
+
+                        ExistingDocumentsSection(
+                            title = "",
+                            documents = existingContractDocs,
+                            onDocClick = { doc -> if (doc.documentUrl.isNotBlank()) uriHandler.openUri(doc.documentUrl) }
+                        )
+
+                        ImageUploadSection(
+                            selectedImages = newContractFiles,
+                            onBrowseClick = { contractPicker.launch("*/*") },
+                            onRemoveImage = { uri -> newContractFiles.remove(uri) },
+                            maxFiles = MAX_FILES_PER_SECTION,
+                            title = "Employment Contract",
+                            subtitle = "Click to upload or drag & drop (PDF, JPG, PNG or WEBP up to 5 MB)",
+                            supportedFormatsText = "Max 5 files (PDF, JPG, PNG or WEBP up to 5 MB)"
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(tokens.extraPadding))
 
-                    // Labour Documents
-                    ExistingDocumentsSection(
-                        title = "LABOUR DOCUMENTS",
-                        documents = existingLabourDocs,
-                        onDocClick = { doc -> if (doc.documentUrl.isNotBlank()) uriHandler.openUri(doc.documentUrl) }
-                    )
-                    ImageUploadSection(
-                        selectedImages = newLabourFiles,
-                        onBrowseClick = { /* File picker action */ },
-                        onRemoveImage = { file -> newLabourFiles = newLabourFiles.filter { it != file } },
-                        maxFiles = 5,
-                        title = "",
-                        subtitle = "Click to upload or drag & drop",
-                        supportedFormatsText = "PDF, JPG, PNG or WEBP up to 5 MB"
-                    )
+                    // Labour documents
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        FormLabel(text = "LABOUR DOCUMENTS")
+
+                        ExistingDocumentsSection(
+                            title = "",
+                            documents = existingLabourDocs,
+                            onDocClick = { doc -> if (doc.documentUrl.isNotBlank()) uriHandler.openUri(doc.documentUrl) }
+                        )
+
+                        ImageUploadSection(
+                            selectedImages = newLabourFiles,
+                            onBrowseClick = { labourPicker.launch("*/*") },
+                            onRemoveImage = { uri -> newLabourFiles.remove(uri) },
+                            maxFiles = MAX_FILES_PER_SECTION,
+                            title = "Labour Documents",
+                            subtitle = "Click to upload or drag & drop (PDF, JPG, PNG or WEBP up to 5 MB)",
+                            supportedFormatsText = "Max 5 files (PDF, JPG, PNG or WEBP up to 5 MB)"
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(tokens.extraPadding))
 
-                    // Supporting Documents
-                    ExistingDocumentsSection(
-                        title = "SUPPORTING DOCUMENTS",
-                        documents = existingSupportingDocs,
-                        onDocClick = { doc -> if (doc.documentUrl.isNotBlank()) uriHandler.openUri(doc.documentUrl) }
-                    )
-                    ImageUploadSection(
-                        selectedImages = newSupportingFiles,
-                        onBrowseClick = { /* File picker action */ },
-                        onRemoveImage = { file -> newSupportingFiles = newSupportingFiles.filter { it != file } },
-                        maxFiles = 5,
-                        title = "",
-                        subtitle = "Click to upload or drag & drop",
-                        supportedFormatsText = "PDF, JPG, PNG or WEBP up to 5 MB"
-                    )
+                    // Supporting documents
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        FormLabel(text = "SUPPORTING DOCUMENTS")
+
+                        ExistingDocumentsSection(
+                            title = "",
+                            documents = existingSupportingDocs,
+                            onDocClick = { doc -> if (doc.documentUrl.isNotBlank()) uriHandler.openUri(doc.documentUrl) }
+                        )
+
+                        ImageUploadSection(
+                            selectedImages = newSupportingFiles,
+                            onBrowseClick = { supportingPicker.launch("*/*") },
+                            onRemoveImage = { uri -> newSupportingFiles.remove(uri) },
+                            maxFiles = MAX_FILES_PER_SECTION,
+                            title = "Supporting Documents",
+                            subtitle = "Click to upload or drag & drop (PDF, JPG, PNG or WEBP up to 5 MB)",
+                            supportedFormatsText = "Max 5 files (PDF, JPG, PNG or WEBP up to 5 MB)"
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(tokens.screenPadding))
 
+                    // AES retention and security policy banner
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -716,6 +789,7 @@ fun LegalEmployeeCreateEditScreen(
     }
 }
 
+// Shows documents already uploaded to the server as clickable chips
 @Composable
 private fun ExistingDocumentsSection(
     title: String,
@@ -768,6 +842,7 @@ private fun ExistingDocumentsSection(
     }
 }
 
+// Numbered section wrapper card
 @Composable
 private fun FormCardWrapper(
     number: String,
@@ -817,6 +892,7 @@ private fun FormCardWrapper(
     }
 }
 
+// Converts ISO date strings to dd-MM-yyyy format for pickers
 private fun formatDateOnly(raw: String): String {
     if (raw.isBlank()) return ""
     return try {

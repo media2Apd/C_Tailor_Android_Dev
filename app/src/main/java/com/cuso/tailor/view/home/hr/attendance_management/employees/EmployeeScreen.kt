@@ -307,13 +307,5 @@ fun AllEmployeesScreen(
                 }
             }
         }
-
-        DynamicIslandError(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = error?.takeIf { members.isNotEmpty() },
-            onDismiss = { }
-        )
     }
 }

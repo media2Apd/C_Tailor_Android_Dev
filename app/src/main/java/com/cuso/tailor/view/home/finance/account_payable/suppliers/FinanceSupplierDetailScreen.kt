@@ -65,6 +65,7 @@ import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.viewmodel.FinanceViewModel
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import androidx.core.net.toUri
+import com.cuso.tailor.utils.currencySymbol
 
 @Composable
 fun FinanceSupplierDetailScreen(
@@ -482,7 +483,7 @@ private fun SupplierOverviewTab(
                 Spacer(Modifier.height(6.dp))
 
                 Text(
-                    text = "₹${formatIndianNumber(outstandingPayable)}.00",
+                    text = "${currencySymbol()}${formatIndianNumber(outstandingPayable)}.00",
                     fontSize = tokens.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = title_color
@@ -499,7 +500,7 @@ private fun SupplierOverviewTab(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "Total Purchases: ₹${formatIndianNumber(totalPurchaseValue)}",
+                        text = "Total Purchases: ${currencySymbol()}${formatIndianNumber(totalPurchaseValue)}",
                         fontSize = tokens.caption,
                         fontWeight = FontWeight.Medium,
                         color = greentext
@@ -547,14 +548,14 @@ private fun SupplierOverviewTab(
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        text = "₹${formatIndianNumber(advanceGiven)}.00",
+                        text = "${currencySymbol()}${formatIndianNumber(advanceGiven)}.00",
                         fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = if (advanceGiven > 0) greentext else title_color
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "Credit Limit: ₹${formatIndianNumber(payment?.creditLimit ?: 0)}",
+                        text = "Credit Limit: ${currencySymbol()}${formatIndianNumber(payment?.creditLimit ?: 0)}",
                         fontSize = tokens.caption,
                         color = mutedText
                     )
@@ -1149,7 +1150,7 @@ private fun SupplierTransactionsTab(
                 Spacer(Modifier.width(10.dp))
                 Text(
                     text = if (lastOrder != null) {
-                        "Last Order: ${lastOrder.poNumber ?: "PO"} (${lastOrder.poDate?.take(10) ?: "Recent"}) - ₹${formatIndianNumber(lastOrder.grandTotal)}"
+                        "Last Order: ${lastOrder.poNumber ?: "PO"} (${lastOrder.poDate?.take(10) ?: "Recent"}) - ${currencySymbol()}${formatIndianNumber(lastOrder.grandTotal)}"
                     } else {
                         "No transaction records available for this supplier"
                     },
@@ -1206,8 +1207,8 @@ private fun SupplierTransactionsTab(
                     poNumber = po.poNumber ?: "PO",
                     type = po.poType.ifBlank { "Standard" },
                     description = if (po.items.isNotEmpty()) "${po.items.size} item(s) ordered" else "Purchase Order",
-                    debit = "₹${formatIndianNumber(po.grandTotal)}.00",
-                    credit = if (po.paymentStatus.equals("Paid", ignoreCase = true)) "₹${formatIndianNumber(po.grandTotal)}.00" else "-",
+                    debit = "${currencySymbol()}${formatIndianNumber(po.grandTotal)}.00",
+                    credit = if (po.paymentStatus.equals("Paid", ignoreCase = true)) "${currencySymbol()}${formatIndianNumber(po.grandTotal)}.00" else "-",
                     balance = po.paymentStatus.ifBlank { "Unpaid" }
                 )
             }
@@ -1335,14 +1336,14 @@ private fun SupplierLedgerTab(
 //            LedgerKpiCard(
 //                modifier = Modifier.weight(1f),
 //                title = "OPENING BAL",
-//                amount = "₹${formatIndianNumber(openingBalance)}",
+//                amount = "${currencySymbol()}${formatIndianNumber(openingBalance)}",
 //                subtitle = "Initial forwarded balance",
 //                icon = Icons.Outlined.Schedule
 //            )
 //            LedgerKpiCard(
 //                modifier = Modifier.weight(1f),
 //                title = "PURCHASES",
-//                amount = "₹${formatIndianNumber(if (totalPurchases > 0) totalPurchases else overview?.financialSummary?.totalPurchaseValue ?: 0.0)}",
+//                amount = "${currencySymbol()}${formatIndianNumber(if (totalPurchases > 0) totalPurchases else overview?.financialSummary?.totalPurchaseValue ?: 0.0)}",
 //                subtitle = "Invoices (+)",
 //                icon = Icons.Default.Add
 //            )
@@ -1355,7 +1356,7 @@ private fun SupplierLedgerTab(
 //            LedgerKpiCard(
 //                modifier = Modifier.weight(1f),
 //                title = "PAID",
-//                amount = "₹${formatIndianNumber(totalPaid)}",
+//                amount = "${currencySymbol()}${formatIndianNumber(totalPaid)}",
 //                subtitle = "Disbursed (-)",
 //                icon = Icons.Default.Check,
 //                iconTint = greentext
@@ -1363,7 +1364,7 @@ private fun SupplierLedgerTab(
 //            LedgerKpiCard(
 //                modifier = Modifier.weight(1f),
 //                title = "• CLOSING DUE",
-//                amount = "₹${formatIndianNumber(closingDue)}",
+//                amount = "${currencySymbol()}${formatIndianNumber(closingDue)}",
 //                subtitle = "Net owed balance",
 //                icon = Icons.Default.CalendarMonth,
 //                isHighlighted = true
@@ -1421,9 +1422,9 @@ private fun SupplierLedgerTab(
                     status = "Posted",
                     reference = entry.refNo.ifBlank { "—" },
                     type = entry.type.ifBlank { "General" },
-                    debit = if (entry.debit > 0) "₹${formatIndianNumber(entry.debit)}" else "—",
-                    credit = if (entry.credit > 0) "₹${formatIndianNumber(entry.credit)}" else "—",
-                    runningBal = "₹${formatIndianNumber(entry.balance)}",
+                    debit = if (entry.debit > 0) "${currencySymbol()}${formatIndianNumber(entry.debit)}" else "—",
+                    credit = if (entry.credit > 0) "${currencySymbol()}${formatIndianNumber(entry.credit)}" else "—",
+                    runningBal = "${currencySymbol()}${formatIndianNumber(entry.balance)}",
                     description = entry.description.ifBlank { "Supplier transaction" }
                 )
             }
@@ -1512,15 +1513,15 @@ private fun LedgerRecordCardItem(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text("DEBIT (₹)", fontSize = tokens.caption, color = mutedText)
+                        Text("DEBIT (${currencySymbol()})", fontSize = tokens.caption, color = mutedText)
                         Text(debit, fontSize = tokens.bodySmall, color = title_color)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("CREDIT (₹)", fontSize = tokens.caption, color = mutedText)
+                        Text("CREDIT (${currencySymbol()})", fontSize = tokens.caption, color = mutedText)
                         Text(credit, fontSize = tokens.bodySmall, color = title_color)
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("RUNNING BAL (₹)", fontSize = tokens.caption, color = mutedText)
+                        Text("RUNNING BAL (${currencySymbol()})", fontSize = tokens.caption, color = mutedText)
                         Text(runningBal, fontSize = tokens.bodySmall, color = title_color)
                     }
                 }
@@ -1561,13 +1562,13 @@ private fun SupplierStatementsTab() {
             LedgerKpiCard(
                 modifier = Modifier.weight(1f),
                 title = "TOTAL STATEMENTS",
-                amount = "₹24,80,000",
+                amount = "${currencySymbol()}24,80,000",
                 subtitle = "As of 01 Apr 2026"
             )
             LedgerKpiCard(
                 modifier = Modifier.weight(1f),
                 title = "CURRENT PERIOD BILLS",
-                amount = "₹72,40,000",
+                amount = "${currencySymbol()}72,40,000",
                 subtitle = "8 Invoices (+)"
             )
         }
@@ -1579,13 +1580,13 @@ private fun SupplierStatementsTab() {
             LedgerKpiCard(
                 modifier = Modifier.weight(1f),
                 title = "CURRENT PERIOD PAYMENTS",
-                amount = "₹48,20,000",
+                amount = "${currencySymbol()}48,20,000",
                 subtitle = "5 Disbursed (-)"
             )
             LedgerKpiCard(
                 modifier = Modifier.weight(1f),
                 title = "• CURRENT NET OUTSTANDING",
-                amount = "₹49,00,000",
+                amount = "${currencySymbol()}49,00,000",
                 subtitle = "Reconciled with GL",
                 isHighlighted = true
             )
@@ -1594,11 +1595,11 @@ private fun SupplierStatementsTab() {
         StatementRecordCardItem(
             stmtCode = "STMT-2026-003",
             status = "Generated",
-            opening = "₹32,30,000",
+            opening = "${currencySymbol()}32,30,000",
             generatedOn = "01 Oct 2026",
-            totalBills = "₹23,60,000",
-            payments = "₹15,70,000",
-            closingBal = "₹49,00,000",
+            totalBills = "${currencySymbol()}23,60,000",
+            payments = "${currencySymbol()}15,70,000",
+            closingBal = "${currencySymbol()}49,00,000",
             period = "01 Sep 2026 - 30 Sep 2026"
         )
     }
@@ -1664,7 +1665,7 @@ private fun StatementRecordCardItem(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("OPENING (₹)", fontSize = tokens.caption, color = mutedText)
+                    Text("OPENING (${currencySymbol()})", fontSize = tokens.caption, color = mutedText)
                     Text(opening, fontSize = tokens.bodySmall, color = title_color)
                 }
                 Column(horizontalAlignment = Alignment.End) {
@@ -1685,15 +1686,15 @@ private fun StatementRecordCardItem(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text("TOTAL BILLS (₹)", fontSize = tokens.caption, color = mutedText)
+                        Text("TOTAL BILLS (${currencySymbol()})", fontSize = tokens.caption, color = mutedText)
                         Text(totalBills, fontSize = tokens.bodySmall, color = title_color)
                     }
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("PAYMENTS (₹)", fontSize = tokens.caption, color = mutedText)
+                        Text("PAYMENTS (${currencySymbol()})", fontSize = tokens.caption, color = mutedText)
                         Text(payments, fontSize = tokens.bodySmall, color = title_color)
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text("CLOSING BAL (₹)", fontSize = tokens.caption, color = mutedText)
+                        Text("CLOSING BAL (${currencySymbol()})", fontSize = tokens.caption, color = mutedText)
                         Text(closingBal, fontSize = tokens.bodySmall, color = title_color)
                     }
                 }

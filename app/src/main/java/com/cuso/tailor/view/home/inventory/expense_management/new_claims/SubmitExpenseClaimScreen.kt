@@ -204,7 +204,7 @@ fun SubmitExpenseClaimScreen(
                     FormTextField(
                         value = amount,
                         onValueChange = { amount = it },
-                        placeholder = "₹0.00",
+                        placeholder = "${currencySymbol()}0.00",
                         keyboardType = KeyboardType.Decimal
                     )
 
@@ -214,7 +214,7 @@ fun SubmitExpenseClaimScreen(
                     FormTextField(
                         value = taxInput,
                         onValueChange = { taxInput = it },
-                        placeholder = "₹0.00",
+                        placeholder = "${currencySymbol()}0.00",
                         keyboardType = KeyboardType.Decimal
                     )
                 }

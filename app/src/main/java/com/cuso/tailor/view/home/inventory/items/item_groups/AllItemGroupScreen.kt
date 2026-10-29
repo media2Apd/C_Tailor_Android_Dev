@@ -241,9 +241,6 @@ fun AllItemGroupScreen(
                     }
                 )
             }
-
-            DynamicIslandSuccess(message = deleteSuccessMessage, onDismiss = { viewModel.clearDeleteSuccessMessage() })
-            DynamicIslandError(message = displayedErrorMessage, onDismiss = { displayedErrorMessage = null })
         }
     }
 }

@@ -286,17 +286,5 @@ fun ShiftListOverviewScreen(
                 }
             )
         }
-
-        // Dynamic Island Success Notification Layer
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        // Dynamic Island Error Notification Layer
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 }

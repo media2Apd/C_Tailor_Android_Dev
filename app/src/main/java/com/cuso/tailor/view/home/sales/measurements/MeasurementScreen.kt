@@ -428,19 +428,6 @@ fun MeasurementsScreen(
                     )
                 }
             }
-
-            // Notification banners
-            DynamicIslandSuccess(
-                message = deleteSuccessMessage,
-                onDismiss = { deleteSuccessMessage = null },
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
-
-            DynamicIslandError(
-                message = errorMessage,
-                onDismiss = { errorMessage = null },
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
         }
     }
 

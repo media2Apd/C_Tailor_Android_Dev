@@ -150,22 +150,6 @@ fun MeasurementListScreen(
                 }
             )
         }
-
-        DynamicIslandSuccess(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = successMsg,
-            onDismiss = { viewModel.clearSuccessMessage() }
-        )
-
-        DynamicIslandError(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = screenError?.takeIf { measurementFields.isNotEmpty() },
-            onDismiss = { viewModel.clearDynamicErrorMessage() }
-        )
     }
 }
 

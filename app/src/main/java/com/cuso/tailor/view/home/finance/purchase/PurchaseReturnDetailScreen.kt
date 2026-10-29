@@ -35,6 +35,7 @@ import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.viewmodel.FinanceViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -246,8 +247,8 @@ fun PurchaseReturnDetailScreen(
                 val totalQty = data.items.sumOf { it.qty }
                 SectionCard(title = "Return Value Summary") {
                     SummaryRow(label = "Total Return Qty", value = formatDouble(totalQty))
-                    SummaryRow(label = "Item Return Subtotal", value = "₹${formatDouble(data.subtotal)}")
-                    SummaryRow(label = "Tax", value = "₹${formatDouble(data.taxTotal)}")
+                    SummaryRow(label = "Item Return Subtotal", value = "${currencySymbol()}${formatDouble(data.subtotal)}")
+                    SummaryRow(label = "Tax", value = "${currencySymbol()}${formatDouble(data.taxTotal)}")
                     HorizontalDivider(color = sectionBorder, modifier = Modifier.padding(vertical = tokens.extraPadding * 0.6f))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -261,7 +262,7 @@ fun PurchaseReturnDetailScreen(
                             color = TextPrimary
                         )
                         Text(
-                            text = "₹${formatDouble(data.grandTotal)}",
+                            text = "${currencySymbol()}${formatDouble(data.grandTotal)}",
                             fontSize = tokens.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             color = Primary
@@ -387,7 +388,7 @@ fun PurchaseReturnDetailScreen(
                     Spacer(Modifier.height(tokens.extraPadding))
 
                     Row(modifier = Modifier.fillMaxWidth()) {
-                        InfoColumn(label = "PO VALUE", value = "₹${formatDouble(data.po?.grandTotal ?: 0.0)}", modifier = Modifier.weight(1f))
+                        InfoColumn(label = "PO VALUE", value = "${currencySymbol()}${formatDouble(data.po?.grandTotal ?: 0.0)}", modifier = Modifier.weight(1f))
                         InfoColumn(label = "SHIPPED ON", value = formatDate(data.shippedAt), modifier = Modifier.weight(1f))
                     }
                     Spacer(Modifier.height(tokens.extraPadding))
@@ -566,7 +567,7 @@ fun PurchaseReturnDetailScreen(
                                 )
                             }
                             Text(
-                                text = "₹${formatDouble(item.total)}",
+                                text = "${currencySymbol()}${formatDouble(item.total)}",
                                 fontSize = tokens.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = TextPrimary
@@ -580,7 +581,7 @@ fun PurchaseReturnDetailScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             InfoColumn(label = "RETURN QTY", value = formatDouble(item.qty), modifier = Modifier.weight(1f))
-                            InfoColumn(label = "UNIT COST", value = "₹${formatDouble(item.rate)}", modifier = Modifier.weight(1f))
+                            InfoColumn(label = "UNIT COST", value = "${currencySymbol()}${formatDouble(item.rate)}", modifier = Modifier.weight(1f))
                             InfoColumn(label = "TAX", value = "${formatDouble(item.taxPercent)}%", modifier = Modifier.weight(1f))
                             InfoColumn(label = "REASON", value = item.reason.ifBlank { "—" }, modifier = Modifier.weight(1.2f))
                         }

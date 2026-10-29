@@ -26,6 +26,7 @@ import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
 
@@ -167,7 +168,7 @@ fun ApprovalsListScreen(
                                             }
                                             Spacer(modifier = Modifier.height(3.dp))
                                             Text(
-                                                text = "₹${item.totalAmount.toInt()}",
+                                                text = "${currencySymbol()}${item.totalAmount.toInt()}",
                                                 fontSize = tokens.bodyMedium,
                                                 fontWeight = FontWeight.Medium,
                                                 color = title_color

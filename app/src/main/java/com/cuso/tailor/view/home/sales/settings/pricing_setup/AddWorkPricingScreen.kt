@@ -17,6 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.settings.WorkPricingRequest
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FormDropdown
@@ -197,7 +198,7 @@ fun AddWorkPricingScreen(
                     FormTextField(
                         value = baseWorkPrice,
                         onValueChange = { baseWorkPrice = it },
-                        placeholder = "₹600",
+                        placeholder = "${currencySymbol()}600",
                         keyboardType = KeyboardType.Number
                     )
 
@@ -285,16 +286,6 @@ fun AddWorkPricingScreen(
                     }
                 }
             )
-        )
-
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
         )
     }
 }

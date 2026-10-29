@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.DatePickerField
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
@@ -128,7 +129,7 @@ fun AddFabricPriceScreen(
                         FormTextField(
                             value = newSalesPrice,
                             onValueChange = { newSalesPrice = it },
-                            placeholder = "₹ 500",
+                            placeholder = "${currencySymbol()} 500",
                             keyboardType = KeyboardType.Number
                         )
                     }
@@ -177,7 +178,7 @@ fun AddFabricPriceScreen(
                         FormTextField(
                             value = pricePerMeter,
                             onValueChange = { pricePerMeter = it },
-                            placeholder = "₹ 600",
+                            placeholder = "${currencySymbol()} 600",
                             keyboardType = KeyboardType.Number
                         )
                     }
@@ -214,16 +215,6 @@ fun AddFabricPriceScreen(
                 }
             ),
             showTrailingArrow = false
-        )
-
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
         )
     }
 }

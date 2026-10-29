@@ -61,6 +61,7 @@ import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
@@ -185,7 +186,7 @@ fun InventoryScreen(
 
                 val matchesType = selectedTypes.isEmpty() || selectedTypes.any { it.equals(item.type, ignoreCase = true) }
 
-                val itemStockStatus = item.stockStatus?.lowercase().orEmpty()
+                val itemStockStatus = item.stockStatus.lowercase()
                 val matchesStatus = selectedStatuses.isEmpty() || selectedStatuses.any { status ->
                     when (status) {
                         "in stock" -> itemStockStatus.contains("in stock", ignoreCase = true)
@@ -312,7 +313,7 @@ fun InventoryScreen(
                                     footerFields = listOf(
                                         DataCardField(label = "Type", text = itemType),
                                         DataCardField(label = "Stock", text = stockText),
-                                        DataCardField(label = "Selling Price", text = "₹${"%.2f".format(item.sellingPrice)}")
+                                        DataCardField(label = "Selling Price", text = "${currencySymbol()}${"%.2f".format(item.sellingPrice)}")
                                     ),
                                     actions = listOf(
                                         MenuAction(label = "View", icon = Icons.Default.Visibility, onClick = { onViewItem(item) }),
@@ -348,8 +349,5 @@ fun InventoryScreen(
                 }
             }
         )
-
-        DynamicIslandSuccess(message = successToastMessage, onDismiss = { successToastMessage = null })
-        DynamicIslandError(message = errorToastMessage ?: errorMessage, onDismiss = { errorToastMessage = null })
     }
 }

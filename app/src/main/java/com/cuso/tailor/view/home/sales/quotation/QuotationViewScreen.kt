@@ -31,6 +31,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.sales.QuotationItemDto
 import com.cuso.tailor.model.sales.QuotationLineItemDto
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.*
 import java.text.SimpleDateFormat
@@ -714,7 +715,7 @@ private fun QuotationLineItemDto.lineAmount(): Double =
 
 private fun viewFormatPrice(amount: Double): String {
     val pattern = if (amount % 1.0 == 0.0) "%,.0f" else "%,.2f"
-    return "₹" + String.format(Locale.US, pattern, amount)
+    return "${currencySymbol()}" + String.format(Locale.US, pattern, amount)
 }
 
 private fun viewFormatQty(qty: Double): String =

@@ -40,6 +40,7 @@ import com.cuso.tailor.view.composable.HomeSkeleton
 import com.cuso.tailor.viewmodel.HomeViewModel
 import java.time.LocalTime
 import androidx.core.graphics.toColorInt
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.view.composable.FormDropdown
@@ -355,11 +356,11 @@ private fun KeyMetricsSection(kpis: HomeKpisGroup?) {
 
     val metrics = remember(kpis) {
         listOf(
-            MetricItem("Sales Revenue", "₹${formatCurrency(kpis?.salesRevenue?.amount ?: 0.0)}", kpis?.salesRevenue?.growth ?: "0%", kpis?.salesRevenue?.trendUp),
+            MetricItem("Sales Revenue", "${currencySymbol()}${formatCurrency(kpis?.salesRevenue?.amount ?: 0.0)}", kpis?.salesRevenue?.growth ?: "0%", kpis?.salesRevenue?.trendUp),
             MetricItem("Total Orders", "${kpis?.totalOrders?.count ?: 0}", kpis?.totalOrders?.growth ?: "0%", kpis?.totalOrders?.trendUp),
-            MetricItem("Net Profit", "₹${formatCurrency(kpis?.netProfit?.amount ?: 0.0)}", kpis?.netProfit?.growth ?: "0%", kpis?.netProfit?.trendUp),
-            MetricItem("Receivables", "₹${formatCurrency(kpis?.receivables?.amount ?: 0.0)}", kpis?.receivables?.overdueLabel ?: "Outstanding claims", null),
-            MetricItem("Inventory Value", "₹${formatCurrency(kpis?.inventoryValue?.amount ?: 0.0)}", kpis?.inventoryValue?.reorderLabel ?: "Total stock assets", null),
+            MetricItem("Net Profit", "${currencySymbol()}${formatCurrency(kpis?.netProfit?.amount ?: 0.0)}", kpis?.netProfit?.growth ?: "0%", kpis?.netProfit?.trendUp),
+            MetricItem("Receivables", "${currencySymbol()}${formatCurrency(kpis?.receivables?.amount ?: 0.0)}", kpis?.receivables?.overdueLabel ?: "Outstanding claims", null),
+            MetricItem("Inventory Value", "${currencySymbol()}${formatCurrency(kpis?.inventoryValue?.amount ?: 0.0)}", kpis?.inventoryValue?.reorderLabel ?: "Total stock assets", null),
             MetricItem("Delivery Success", kpis?.deliverySuccess?.percentage ?: "100%", kpis?.deliverySuccess?.comparisonLabel ?: "On-time fulfillment", true)
         )
     }
@@ -484,7 +485,7 @@ private fun SalesTargetsSection(revenueData: RevenueTrendData?) {
             ) {
                 Text(text = "Achieved Revenue", fontSize = tokens.bodySmall, color = headerGrey)
                 Text(
-                    text = "₹${formatCurrency(currentTotal)}",
+                    text = "${currencySymbol()}${formatCurrency(currentTotal)}",
                     fontSize = tokens.bodySmall,
                     fontWeight = FontWeight.Medium,
                     color = darkGreenBg
@@ -679,7 +680,7 @@ private fun MarketingPerformanceSection(marketingData: HomeMarketingData?) {
                     ) {
                         Text(text = item.channel, fontSize = tokens.caption, color = headerGrey)
                         Text(
-                            text = "₹${formatCurrency(item.amount)}",
+                            text = "${currencySymbol()}${formatCurrency(item.amount)}",
                             fontSize = tokens.caption,
                             fontWeight = FontWeight.Medium,
                             color = TextPrimary
@@ -748,7 +749,7 @@ private fun TopProductsSection(
                         )
                         Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                         Text(
-                            text = "Orders: ${item.orders}   ₹${formatCurrency(item.revenue)}",
+                            text = "Orders: ${item.orders}   ${currencySymbol()}${formatCurrency(item.revenue)}",
                             fontSize = tokens.caption,
                             color = headerGrey
                         )

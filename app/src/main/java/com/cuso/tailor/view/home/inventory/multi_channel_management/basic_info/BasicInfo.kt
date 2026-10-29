@@ -1259,7 +1259,7 @@ private fun StepVariants(
                                     )
 
                                     Text(
-                                        text = "₹ ${variant.price}",
+                                        text = "${currencySymbol()} ${variant.price}",
                                         fontSize = tokens.bodyMedium,
                                         fontWeight = FontWeight.Medium,
                                         color = TextPrimary
@@ -1388,7 +1388,7 @@ private fun StepPricing(
                 Spacer(Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Column(modifier = Modifier.weight(1f)) {
-                        FormLabel("Selling Price (₹)")
+                        FormLabel("Selling Price (${currencySymbol()})")
                         FormTextField(
                             value = sellingPrice,
                             onValueChange = onSellingPriceChange,
@@ -1397,7 +1397,7 @@ private fun StepPricing(
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        FormLabel("Discount Price (₹)")
+                        FormLabel("Discount Price (${currencySymbol()})")
                         FormTextField(
                             value = discountPrice,
                             onValueChange = onDiscountPriceChange,
@@ -2275,7 +2275,7 @@ private fun StepPreview(
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = if (sellingPrice.isNotBlank()) "₹$sellingPrice.00" else "₹45.00",
+                                text = if (sellingPrice.isNotBlank()) "${currencySymbol()}$sellingPrice.00" else "${currencySymbol()}45.00",
                                 fontSize = tokens.bodyLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
@@ -2490,7 +2490,7 @@ private fun StepPreview(
                 ) {
                     Text("Selling Price", fontSize = tokens.bodySmall, color = headerGrey)
                     Text(
-                        text = if (sellingPrice.isNotBlank()) "₹$sellingPrice.00" else "$45.00",
+                        text = if (sellingPrice.isNotBlank()) "${currencySymbol()}$sellingPrice.00" else "$45.00",
                         fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = TextPrimary
@@ -2762,7 +2762,7 @@ private fun PriceInputField(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "₹ ",
+                text = "${currencySymbol()} ",
                 fontSize = tokens.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = headerGrey

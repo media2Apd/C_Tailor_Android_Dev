@@ -38,6 +38,7 @@ import com.cuso.tailor.ui.theme.TextSecondary
 import com.cuso.tailor.ui.theme.blackTitle
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.title_border
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.tailor.view.composable.DataCard
@@ -243,14 +244,14 @@ private fun ServiceStatusCard(
                 )
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "Total: ₹${formatIndianNumber((order.totalAmount ?: 0.0).toInt())}",
+                        text = "Total: ${currencySymbol()}${formatIndianNumber((order.totalAmount ?: 0.0).toInt())}",
                         fontSize = tokens.bodySmall,
                         color = mutedText
                     )
                     Spacer(Modifier.height(2.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
-                            text = "₹${formatIndianNumber(order.balanceAmount.toInt())}",
+                            text = "${currencySymbol()}${formatIndianNumber(order.balanceAmount.toInt())}",
                             fontSize = tokens.bodyLarge,
                             color = blackTitle
                         )

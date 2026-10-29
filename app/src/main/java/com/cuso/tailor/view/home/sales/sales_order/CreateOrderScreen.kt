@@ -64,6 +64,7 @@ import com.cuso.tailor.model.settings.GarmentItem
 import com.cuso.tailor.model.settings.GarmentStyleItem
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.*
 import com.google.gson.Gson
@@ -2574,7 +2575,7 @@ fun CreateOrderScreen(
                                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                                     ) {
                                                         Text(
-                                                            text = "₹${String.format(Locale.US, "%.2f", lineGrandTotal)}",
+                                                            text = "${currencySymbol()}${String.format(Locale.US, "%.2f", lineGrandTotal)}",
                                                             fontSize = tokens.bodyLarge,
                                                             fontWeight = FontWeight.Medium,
                                                             color = Primary,
@@ -2593,18 +2594,18 @@ fun CreateOrderScreen(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                                 ) {
-                                                    QuickPriceBox("Stitching", "₹${stitchingLineSubtotal.toInt()}", Modifier.weight(1f))
-                                                    QuickPriceBox("Fabric", "₹${fabricLineSubtotal.toInt()}", Modifier.weight(1f))
+                                                    QuickPriceBox("Stitching", "${currencySymbol()}${stitchingLineSubtotal.toInt()}", Modifier.weight(1f))
+                                                    QuickPriceBox("Fabric", "${currencySymbol()}${fabricLineSubtotal.toInt()}", Modifier.weight(1f))
                                                     QuickPriceBox(
                                                         label = "Addl. Work",
-                                                        value = "₹${addlWorkTotal.toInt()}",
+                                                        value = "${currencySymbol()}${addlWorkTotal.toInt()}",
                                                         modifier = Modifier.weight(1.1f),
                                                         bg = primary_light,
                                                         tint = Primary
                                                     )
                                                     QuickPriceBox(
                                                         label = "GST",
-                                                        value = "₹${lineTotalTax.toInt()}",
+                                                        value = "${currencySymbol()}${lineTotalTax.toInt()}",
                                                         modifier = Modifier.weight(0.9f),
                                                         tint = darkGreenBg
                                                     )
@@ -2656,7 +2657,7 @@ fun CreateOrderScreen(
                                                                     val updated = garmentConfig.copy(fabricMeters = parsedMeters)
                                                                     dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                                 },
-                                                                rateLabel = "Rate (₹/m)",
+                                                                rateLabel = "Rate (${currencySymbol()}/m)",
                                                                 rateValue = if (garmentConfig.fabricRate == 0.0) "" else garmentConfig.fabricRate.toInt().toString(),
                                                                 onRateChange = { input ->
                                                                     val parsedRate = input.toDoubleOrNull() ?: 0.0
@@ -2670,8 +2671,8 @@ fun CreateOrderScreen(
                                                                     dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                                 },
                                                                 onDropdownOpen = { inventoryViewModel.fetchTaxGroups() },
-                                                                gstComputed = "₹${fabricGstAmount.toInt()}",
-                                                                lineTotal = "₹${(fabricLineSubtotal + fabricGstAmount).toInt()}",
+                                                                gstComputed = "${currencySymbol()}${fabricGstAmount.toInt()}",
+                                                                lineTotal = "${currencySymbol()}${(fabricLineSubtotal + fabricGstAmount).toInt()}",
                                                                 onDelete = {
                                                                     val updated = garmentConfig.copy(fabricSource = "Customer Provided", fabricRate = 0.0)
                                                                     dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
@@ -2689,7 +2690,7 @@ fun CreateOrderScreen(
                                                                 val updated = garmentConfig.copy(quantity = parsedQty)
                                                                 dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                             },
-                                                            rateLabel = "Rate (₹/pc)",
+                                                            rateLabel = "Rate (${currencySymbol()}/pc)",
                                                             rateValue = if (garmentConfig.stitchingPrice == 0.0) "" else garmentConfig.stitchingPrice.toInt().toString(),
                                                             onRateChange = { input ->
                                                                 val parsedPrice = input.toDoubleOrNull() ?: 0.0
@@ -2703,8 +2704,8 @@ fun CreateOrderScreen(
                                                                 dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                             },
                                                             onDropdownOpen = { inventoryViewModel.fetchTaxGroups() },
-                                                            gstComputed = "₹${stitchingGstAmount.toInt()}",
-                                                            lineTotal = "₹${(stitchingLineSubtotal + stitchingGstAmount).toInt()}",
+                                                            gstComputed = "${currencySymbol()}${stitchingGstAmount.toInt()}",
+                                                            lineTotal = "${currencySymbol()}${(stitchingLineSubtotal + stitchingGstAmount).toInt()}",
                                                             onDelete = {
                                                                 val updated = garmentConfig.copy(stitchingPrice = 0.0)
                                                                 dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
@@ -2759,8 +2760,8 @@ fun CreateOrderScreen(
                                                                                 dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                                             },
                                                                             onDropdownOpen = { inventoryViewModel.fetchTaxGroups() },
-                                                                            gstComputed = "₹${workGst.toInt()}",
-                                                                            total = "₹${(currentAmount + workGst).toInt()}",
+                                                                            gstComputed = "${currencySymbol()}${workGst.toInt()}",
+                                                                            total = "${currencySymbol()}${(currentAmount + workGst).toInt()}",
                                                                             onDelete = {
                                                                                 val updatedIds = garmentConfig.selectedWorkPricingIds - workItem.id
                                                                                 val updated = garmentConfig.copy(selectedWorkPricingIds = updatedIds)
@@ -3234,7 +3235,7 @@ fun CreateOrderScreen(
 
                             Spacer(Modifier.height(14.dp))
                             Text(
-                                text = "Currency: INR (₹) • GST: Standard live tax engine applied",
+                                text = "Currency: INR (${currencySymbol()}) • GST: Standard live tax engine applied",
                                 fontSize = tokens.label,
                                 color = TextSecondary
                             )
@@ -3242,7 +3243,7 @@ fun CreateOrderScreen(
                             Spacer(Modifier.height(10.dp))
                             HorizontalDivider(color = BorderGray)
                             Spacer(Modifier.height(10.dp))
-                            FormLabel("Total Discount (₹)")
+                            FormLabel("Total Discount (${currencySymbol()})")
                             FormTextField(
                                 value = discountText,
                                 onValueChange = { discountText = it.filter { c -> c.isDigit() || c == '.' } },
@@ -3253,13 +3254,13 @@ fun CreateOrderScreen(
 
                             val grandTotalCalculated = (dynamicSubtotal - totalDiscount + dynamicTaxTotal).coerceAtLeast(0.0)
 
-                            SummaryRow("Subtotal", "₹${String.format(Locale.US, "%.2f", dynamicSubtotal)}")
+                            SummaryRow("Subtotal", "${currencySymbol()}${String.format(Locale.US, "%.2f", dynamicSubtotal)}")
                             Spacer(Modifier.height(6.dp))
-                            SummaryRow("Total Discount", "-₹${String.format(Locale.US, "%.2f", totalDiscount)}", valueColor = redText)
+                            SummaryRow("Total Discount", "-${currencySymbol()}${String.format(Locale.US, "%.2f", totalDiscount)}", valueColor = redText)
                             Spacer(Modifier.height(6.dp))
-                            SummaryRow("Total Tax (GST)", "+₹${String.format(Locale.US, "%.2f", dynamicTaxTotal)}")
+                            SummaryRow("Total Tax (GST)", "+${currencySymbol()}${String.format(Locale.US, "%.2f", dynamicTaxTotal)}")
                             Spacer(Modifier.height(6.dp))
-                            SummaryRow("Delivery Charges", "₹0.00")
+                            SummaryRow("Delivery Charges", "${currencySymbol()}0.00")
 
                             Spacer(Modifier.height(12.dp))
                             HorizontalDivider(color = BorderGray)
@@ -3277,7 +3278,7 @@ fun CreateOrderScreen(
                                     color = TextPrimary
                                 )
                                 Text(
-                                    text = "₹${String.format(Locale.US, "%.2f", grandTotalCalculated)}",
+                                    text = "${currencySymbol()}${String.format(Locale.US, "%.2f", grandTotalCalculated)}",
                                     fontSize = tokens.bodyLarge,
                                     fontWeight = FontWeight.Medium,
                                     color = Primary
@@ -4078,7 +4079,7 @@ private fun EditableBreakdownItemCard(
                                 .padding(horizontal = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("₹ ", fontSize = tokens.caption, color = TextSecondary)
+                            Text("${currencySymbol()} ", fontSize = tokens.caption, color = TextSecondary)
                             BasicTextField(
                                 value = rateValue,
                                 onValueChange = onRateChange,
@@ -4287,7 +4288,7 @@ private fun EditableCraftLineItemCard(
                 }
 
                 Column(Modifier.weight(1f)) {
-                    Text("Amount (₹)", fontSize = tokens.label, color = TextSecondary)
+                    Text("Amount (${currencySymbol()})", fontSize = tokens.label, color = TextSecondary)
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -4302,7 +4303,7 @@ private fun EditableCraftLineItemCard(
                                 .padding(horizontal = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("₹ ", fontSize = tokens.label, color = TextSecondary)
+                            Text("${currencySymbol()} ", fontSize = tokens.label, color = TextSecondary)
                             BasicTextField(
                                 value = amount,
                                 onValueChange = onAmountChange,

@@ -43,7 +43,7 @@ private const val LEGAL_DOCUMENT_STATUS_URL = "/api/legal/legal-document/status"
 private const val LEGAL_DOCUMENTS_CREATE_URL = "/api/legal/legal-document/create"
 private const val LEGAL_DOCUMENTS_UPDATE_URL = "/api/legal/legal-document/update"
 
-// ── Legal License Endpoints ──
+// Legal License Endpoints
 private const val LEGAL_LICENSE_VIEW_ALL_URL = "/api/legal/legal-license/view-all"
 private const val LEGAL_LICENSE_VIEW_ONE_URL = "/api/legal/legal-license/view-one"
 private const val LEGAL_LICENSE_CREATE_URL = "/api/legal/legal-license/create"
@@ -51,7 +51,7 @@ private const val LEGAL_LICENSE_UPDATE_URL = "/api/legal/legal-license/update"
 private const val LEGAL_LICENSE_DELETE_URL = "/api/legal/legal-license/delete"
 private const val LEGAL_LICENSE_RENEWAL_URL = "/api/legal/legal-license/renew"
 
-// ── Customer Legal Endpoints ──
+// Customer Legal Endpoints
 private const val LEGAL_CUSTOMER_VIEW_ALL_URL = "/api/legal/legal-customer/view-all"
 private const val LEGAL_CUSTOMER_VIEW_ONE_URL = "/api/legal/legal-customer/view-one"
 private const val LEGAL_CUSTOMER_CREATE_URL = "/api/legal/legal-customer/create"
@@ -59,14 +59,31 @@ private const val LEGAL_CUSTOMER_UPDATE_URL = "/api/legal/legal-customer/update"
 private const val LEGAL_CUSTOMER_DELETE_URL = "/api/legal/legal-customer/delete"
 private const val LEGAL_CUSTOMER_STATUS_URL = "/api/legal/legal-customer/status"
 
-
-// ── Legal Employee & Labour Endpoints ──
+// Legal Employee & Labour Endpoints
 private const val LEGAL_EMPLOYEE_VIEW_ALL_URL = "/api/legal/legal-employee/view-all"
 private const val LEGAL_EMPLOYEE_VIEW_ONE_URL = "/api/legal/legal-employee/view-one"
 private const val LEGAL_EMPLOYEE_CREATE_URL = "/api/legal/legal-employee/create"
 private const val LEGAL_EMPLOYEE_UPDATE_URL = "/api/legal/legal-employee/update"
 private const val LEGAL_EMPLOYEE_DELETE_URL = "/api/legal/legal-employee/delete"
 private const val LEGAL_EMPLOYEE_STATUS_URL = "/api/legal/legal-employee/status"
+
+// Legal Vendor & Supplier Endpoints
+private const val LEGAL_VENDOR_VIEW_ALL_URL = "/api/legal/legal-vendor/view-all"
+private const val LEGAL_VENDOR_VIEW_ONE_URL = "/api/legal/legal-vendor/view-one"
+private const val LEGAL_VENDOR_CREATE_URL = "/api/legal/legal-vendor/create"
+private const val LEGAL_VENDOR_UPDATE_URL = "/api/legal/legal-vendor/update"
+private const val LEGAL_VENDOR_DELETE_URL = "/api/legal/legal-vendor/delete"
+private const val LEGAL_VENDOR_STATUS_URL = "/api/legal/legal-vendor/status"
+
+// ── Legal Notice & Dispute Endpoints ──
+private const val LEGAL_NOTICE_VIEW_ALL_URL = "/api/legal/legal-notice/view-all"
+private const val LEGAL_NOTICE_VIEW_ONE_URL = "/api/legal/legal-notice/view-one"
+private const val LEGAL_NOTICE_CREATE_URL = "/api/legal/legal-notice/create"
+private const val LEGAL_NOTICE_UPDATE_URL = "/api/legal/legal-notice/update"
+private const val LEGAL_NOTICE_DELETE_URL = "/api/legal/legal-notice/delete"
+private const val LEGAL_NOTICE_STATUS_URL = "/api/legal/legal-notice/case-status"
+
+private const val LEGAL_CALENDAR_EVENTS_URL = "/api/legal/legal-calendar/events"
 
 // Page size used when the detail screen has to reload the list to find a contract
 private const val DETAIL_LOOKUP_LIMIT = 100
@@ -84,7 +101,7 @@ class LegalViewModel @Inject constructor(
     private val _dashboardData = MutableStateFlow<LegalDashboardData?>(null)
     val dashboardData: StateFlow<LegalDashboardData?> = _dashboardData.asStateFlow()
 
-    // ── Legal Contracts List State ──
+    // Legal Contracts List State
     private val _contracts = MutableStateFlow<List<LegalContractDto>>(emptyList())
     val contracts: StateFlow<List<LegalContractDto>> = _contracts.asStateFlow()
 
@@ -94,7 +111,7 @@ class LegalViewModel @Inject constructor(
     private val _contractsError = MutableStateFlow<String?>(null)
     val contractsError: StateFlow<String?> = _contractsError.asStateFlow()
 
-    // ── Contract Detail State ──
+    // Contract Detail State
     private val _contractDetail = MutableStateFlow<LegalContractDto?>(null)
     val contractDetail: StateFlow<LegalContractDto?> = _contractDetail.asStateFlow()
 
@@ -104,11 +121,11 @@ class LegalViewModel @Inject constructor(
     private val _contractDetailError = MutableStateFlow<String?>(null)
     val contractDetailError: StateFlow<String?> = _contractDetailError.asStateFlow()
 
-    // ── Save / Update Contract Loading State ──
+    // Save / Update Contract Loading State
     private val _isSavingContract = MutableStateFlow(false)
     val isSavingContract: StateFlow<Boolean> = _isSavingContract.asStateFlow()
 
-    // ── Renew Contract State ──
+    // Renew Contract State
     private val _isRenewingContract = MutableStateFlow(false)
     val isRenewingContract: StateFlow<Boolean> = _isRenewingContract.asStateFlow()
 
@@ -118,6 +135,7 @@ class LegalViewModel @Inject constructor(
         fetchCompliances()
         fetchLegalLicenses()
         fetchLegalEmployees()
+        fetchLegalVendors()
     }
 
     fun fetchDashboardSummary(year: Int = _selectedYear.value) {
@@ -642,7 +660,7 @@ class LegalViewModel @Inject constructor(
         }
     }
 
-    // ── Document List State ──
+    // Document List State
     private val _legalDocuments = MutableStateFlow<List<LegalDocumentItemDto>>(emptyList())
     val legalDocuments: StateFlow<List<LegalDocumentItemDto>> = _legalDocuments.asStateFlow()
 
@@ -652,7 +670,7 @@ class LegalViewModel @Inject constructor(
     private val _legalDocumentsError = MutableStateFlow<String?>(null)
     val legalDocumentsError: StateFlow<String?> = _legalDocumentsError.asStateFlow()
 
-    // ── Document Detail State ──
+    // Document Detail State
     private val _legalDocumentDetail = MutableStateFlow<LegalDocumentDetailDto?>(null)
     val legalDocumentDetail: StateFlow<LegalDocumentDetailDto?> = _legalDocumentDetail.asStateFlow()
 
@@ -870,10 +888,9 @@ class LegalViewModel @Inject constructor(
     }
 
     // =========================================================================
-    // ── LEGAL LICENSE STATE & API INTEGRATIONS ──
+    // LEGAL LICENSE STATE & API INTEGRATIONS
     // =========================================================================
 
-    // ── Legal Licenses List State ──
     private val _legalLicenses = MutableStateFlow<List<LegalLicenseItemDto>>(emptyList())
     val legalLicenses: StateFlow<List<LegalLicenseItemDto>> = _legalLicenses.asStateFlow()
 
@@ -883,7 +900,6 @@ class LegalViewModel @Inject constructor(
     private val _licensesError = MutableStateFlow<String?>(null)
     val licensesError: StateFlow<String?> = _licensesError.asStateFlow()
 
-    // ── Legal License Detail State (View One) ──
     private val _licenseDetail = MutableStateFlow<LegalLicenseItemDto?>(null)
     val licenseDetail: StateFlow<LegalLicenseItemDto?> = _licenseDetail.asStateFlow()
 
@@ -893,13 +909,9 @@ class LegalViewModel @Inject constructor(
     private val _licenseDetailError = MutableStateFlow<String?>(null)
     val licenseDetailError: StateFlow<String?> = _licenseDetailError.asStateFlow()
 
-    // ── License Save / Mutate State ──
     private val _isSavingLicense = MutableStateFlow(false)
     val isSavingLicense: StateFlow<Boolean> = _isSavingLicense.asStateFlow()
 
-    /**
-     * Fetches all legal licenses: GET /api/legal/legal-license/view-all
-     */
     fun fetchLegalLicenses(search: String? = null, page: Int = 1, limit: Int = 20) {
         viewModelScope.launch {
             _isLoadingLicenses.value = true
@@ -928,9 +940,6 @@ class LegalViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Fetches a single license detail: GET /api/legal/legal-license/view-one/{id}
-     */
     fun fetchLicenseDetail(licenseId: String) {
         viewModelScope.launch {
             _isLoadingLicenseDetail.value = true
@@ -962,10 +971,6 @@ class LegalViewModel @Inject constructor(
         _licenseDetailError.value = null
     }
 
-    /**
-     * Creates a new legal license using multipart/form-data: POST /api/legal/legal-license/create
-     * Binary files: licenseCertificate, supportingDocuments
-     */
     fun createLegalLicense(
         fields: Map<String, RequestBody>,
         certificateFiles: List<MultipartBody.Part>,
@@ -1001,9 +1006,6 @@ class LegalViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Updates an existing legal license using multipart/form-data: PUT /api/legal/legal-license/update/{id}
-     */
     fun updateLegalLicense(
         licenseId: String,
         fields: Map<String, RequestBody>,
@@ -1048,9 +1050,6 @@ class LegalViewModel @Inject constructor(
     private val _isRenewingLicense = MutableStateFlow(false)
     val isRenewingLicense: StateFlow<Boolean> = _isRenewingLicense.asStateFlow()
 
-    /**
-     * Renews an existing legal license: POST /api/legal/legal-license/renewal/{id}
-     */
     fun renewLegalLicense(
         licenseId: String,
         effectiveDate: String,
@@ -1103,16 +1102,12 @@ class LegalViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Deletes a legal license by ID: DELETE /api/legal/legal-license/delete/{id}
-     */
     fun deleteLegalLicense(
         licenseId: String,
         onSuccess: (String) -> Unit = {},
         onError: (String?) -> Unit = {}
     ) {
         viewModelScope.launch {
-            // JsonObject used to prevent parsing failures if backend returns string ID in data
             val result = repo.request<JsonObject> {
                 delete("$LEGAL_LICENSE_DELETE_URL/$licenseId")
             }
@@ -1137,7 +1132,10 @@ class LegalViewModel @Inject constructor(
         }
     }
 
-    // ── Customer Legal List State ──
+    // =========================================================================
+    // CUSTOMER LEGAL STATE & API INTEGRATIONS
+    // =========================================================================
+
     private val _legalCustomers = MutableStateFlow<List<LegalCustomerItemDto>>(emptyList())
     val legalCustomers: StateFlow<List<LegalCustomerItemDto>> = _legalCustomers.asStateFlow()
 
@@ -1147,7 +1145,6 @@ class LegalViewModel @Inject constructor(
     private val _customersError = MutableStateFlow<String?>(null)
     val customersError: StateFlow<String?> = _customersError.asStateFlow()
 
-    // ── Customer Legal Detail State ──
     private val _customerDetail = MutableStateFlow<LegalCustomerItemDto?>(null)
     val customerDetail: StateFlow<LegalCustomerItemDto?> = _customerDetail.asStateFlow()
 
@@ -1221,7 +1218,6 @@ class LegalViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _isSavingCustomer.value = true
-            // Combine all 3 document categories matching Customer Legal API
             val allFiles = supportingDocuments + consentDocuments + legalCorrespondence
 
             val result = repo.request<LegalCustomerDetailResponse> {
@@ -1256,7 +1252,6 @@ class LegalViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _isSavingCustomer.value = true
-            // Combine all 3 document categories matching Customer Legal API
             val allFiles = supportingDocuments + consentDocuments + legalCorrespondence
 
             val result = repo.request<LegalCustomerDetailResponse> {
@@ -1310,10 +1305,6 @@ class LegalViewModel @Inject constructor(
     private val _isUpdatingCustomerStatus = MutableStateFlow(false)
     val isUpdatingCustomerStatus: StateFlow<Boolean> = _isUpdatingCustomerStatus.asStateFlow()
 
-    /**
-     * Updates legal customer status (e.g., "Active", "Dispute").
-     * Endpoint: PATCH /api/legal/legal-customer/status/{recordId}
-     */
     fun updateLegalCustomerStatus(
         recordId: String,
         status: String,
@@ -1353,7 +1344,10 @@ class LegalViewModel @Inject constructor(
         }
     }
 
-    // ── Legal Employee & Labour List State ──
+    // =========================================================================
+    // LEGAL EMPLOYEE & LABOUR STATE & API INTEGRATIONS
+    // =========================================================================
+
     private val _legalEmployees = MutableStateFlow<List<LegalEmployeeItem>>(emptyList())
     val legalEmployees: StateFlow<List<LegalEmployeeItem>> = _legalEmployees.asStateFlow()
 
@@ -1363,7 +1357,6 @@ class LegalViewModel @Inject constructor(
     private val _employeesError = MutableStateFlow<String?>(null)
     val employeesError: StateFlow<String?> = _employeesError.asStateFlow()
 
-    // ── Legal Employee Detail State (View One) ──
     private val _employeeDetail = MutableStateFlow<LegalEmployeeItem?>(null)
     val employeeDetail: StateFlow<LegalEmployeeItem?> = _employeeDetail.asStateFlow()
 
@@ -1373,7 +1366,6 @@ class LegalViewModel @Inject constructor(
     private val _employeeDetailError = MutableStateFlow<String?>(null)
     val employeeDetailError: StateFlow<String?> = _employeeDetailError.asStateFlow()
 
-    // ── Employee Save / Mutate State ──
     private val _isSavingEmployee = MutableStateFlow(false)
     val isSavingEmployee: StateFlow<Boolean> = _isSavingEmployee.asStateFlow()
 
@@ -1383,13 +1375,6 @@ class LegalViewModel @Inject constructor(
     private val _isUpdatingEmployeeStatus = MutableStateFlow(false)
     val isUpdatingEmployeeStatus: StateFlow<Boolean> = _isUpdatingEmployeeStatus.asStateFlow()
 
-    // =========================================================================
-    // ── LEGAL EMPLOYEE & LABOUR STATE & API INTEGRATIONS ──
-    // =========================================================================
-
-    /**
-     * Fetches all legal employee records: GET /api/legal/legal-employee/view-all
-     */
     fun fetchLegalEmployees(search: String? = null, page: Int = 1, limit: Int = 10) {
         viewModelScope.launch {
             _isLoadingEmployees.value = true
@@ -1418,9 +1403,6 @@ class LegalViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Fetches single legal employee record: GET /api/legal/legal-employee/view-one/{id}
-     */
     fun fetchLegalEmployeeDetail(recordId: String) {
         viewModelScope.launch {
             _isLoadingEmployeeDetail.value = true
@@ -1452,13 +1434,6 @@ class LegalViewModel @Inject constructor(
         _employeeDetailError.value = null
     }
 
-    /**
-     * Creates new legal employee record: POST /api/legal/legal-employee/create
-     * Handles 3 multipart file categories:
-     * - employmentContractDocuments
-     * - labourDocuments
-     * - supportingDocuments
-     */
     fun createLegalEmployee(
         fields: Map<String, RequestBody>,
         contractDocs: List<MultipartBody.Part> = emptyList(),
@@ -1494,9 +1469,6 @@ class LegalViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Updates an existing legal employee record: PUT /api/legal/legal-employee/update/{id}
-     */
     fun updateLegalEmployee(
         recordId: String,
         fields: Map<String, RequestBody>,
@@ -1539,10 +1511,6 @@ class LegalViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Deletes a legal employee record: DELETE /api/legal/legal-employee/delete/{id}
-     * Uses JsonObject to prevent crashes when backend returns string or object in data.
-     */
     fun deleteLegalEmployee(
         recordId: String,
         onSuccess: (String) -> Unit = {},
@@ -1577,11 +1545,6 @@ class LegalViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Updates legal employee record status.
-     * Flow: Pending -> InReview -> Approved -> Active -> Inactive
-     * Endpoint: PATCH /api/legal/legal-employee/status/{id}
-     */
     fun updateLegalEmployeeStatus(
         recordId: String,
         status: String,
@@ -1605,7 +1568,6 @@ class LegalViewModel @Inject constructor(
                 onSuccess = { res ->
                     if (res.success) {
                         res.data?.let { updated ->
-                            // Keep populated fields of existing detail, only refresh status + activities
                             _employeeDetail.value = _employeeDetail.value?.copy(
                                 status = updated.status,
                                 activities = updated.activities
@@ -1624,6 +1586,581 @@ class LegalViewModel @Inject constructor(
                 }
             )
         }
+    }
+
+    // =========================================================================
+    // LEGAL VENDOR & SUPPLIER STATE & API INTEGRATIONS
+    // =========================================================================
+
+    // Vendor List State
+    private val _legalVendors = MutableStateFlow<List<LegalVendorItem>>(emptyList())
+    val legalVendors: StateFlow<List<LegalVendorItem>> = _legalVendors.asStateFlow()
+
+    private val _isLoadingVendors = MutableStateFlow(false)
+    val isLoadingVendors: StateFlow<Boolean> = _isLoadingVendors.asStateFlow()
+
+    private val _vendorsError = MutableStateFlow<String?>(null)
+    val vendorsError: StateFlow<String?> = _vendorsError.asStateFlow()
+
+    // Vendor Detail State (View One)
+    private val _vendorDetail = MutableStateFlow<LegalVendorItem?>(null)
+    val vendorDetail: StateFlow<LegalVendorItem?> = _vendorDetail.asStateFlow()
+
+    private val _isLoadingVendorDetail = MutableStateFlow(false)
+    val isLoadingVendorDetail: StateFlow<Boolean> = _isLoadingVendorDetail.asStateFlow()
+
+    private val _vendorDetailError = MutableStateFlow<String?>(null)
+    val vendorDetailError: StateFlow<String?> = _vendorDetailError.asStateFlow()
+
+    // Mutation States
+    private val _isSavingVendor = MutableStateFlow(false)
+    val isSavingVendor: StateFlow<Boolean> = _isSavingVendor.asStateFlow()
+
+    private val _isDeletingVendor = MutableStateFlow(false)
+    val isDeletingVendor: StateFlow<Boolean> = _isDeletingVendor.asStateFlow()
+
+    private val _isUpdatingVendorStatus = MutableStateFlow(false)
+    val isUpdatingVendorStatus: StateFlow<Boolean> = _isUpdatingVendorStatus.asStateFlow()
+
+    /**
+     * Fetches all legal vendor and supplier records: GET /api/legal/legal-vendor/view-all
+     */
+    fun fetchLegalVendors(search: String? = null, page: Int = 1, limit: Int = 20) {
+        viewModelScope.launch {
+            _isLoadingVendors.value = true
+            _vendorsError.value = null
+
+            val result = repo.request<LegalVendorResponse<List<LegalVendorItem>>> {
+                val queryParams = mutableListOf<Pair<String, Any?>>(
+                    "page" to page,
+                    "limit" to limit
+                )
+                if (!search.isNullOrBlank()) {
+                    queryParams.add("search" to search)
+                }
+                get(LEGAL_VENDOR_VIEW_ALL_URL, repo.query(*queryParams.toTypedArray()))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _legalVendors.value = res.data.orEmpty()
+                },
+                onFailure = { error ->
+                    _vendorsError.value = error.message ?: "Failed to fetch legal vendor records"
+                }
+            )
+            _isLoadingVendors.value = false
+        }
+    }
+
+    /**
+     * Fetches single legal vendor detail: GET /api/legal/legal-vendor/view-one
+     */
+    fun fetchLegalVendorDetail(vendorId: String) {
+        viewModelScope.launch {
+            _isLoadingVendorDetail.value = true
+            _vendorDetailError.value = null
+            _vendorDetail.value = null
+
+            val result = repo.request<LegalVendorResponse<LegalVendorItem>> {
+                get("$LEGAL_VENDOR_VIEW_ONE_URL/$vendorId")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        _vendorDetail.value = res.data
+                    } else {
+                        _vendorDetailError.value = res.message ?: "Failed to load vendor detail"
+                    }
+                },
+                onFailure = { error ->
+                    _vendorDetailError.value = error.message ?: "Failed to load vendor detail"
+                }
+            )
+            _isLoadingVendorDetail.value = false
+        }
+    }
+
+    fun clearLegalVendorDetail() {
+        _vendorDetail.value = null
+        _vendorDetailError.value = null
+    }
+
+    /**
+     * Creates new legal vendor record: POST /api/legal/legal-vendor/create
+     * Handles 3 multipart document categories:
+     * - vendorAgreement
+     * - slaDocuments
+     * - supportingDocuments
+     */
+    fun createLegalVendor(
+        fields: Map<String, RequestBody>,
+        vendorAgreementFiles: List<MultipartBody.Part> = emptyList(),
+        slaFiles: List<MultipartBody.Part> = emptyList(),
+        supportingFiles: List<MultipartBody.Part> = emptyList(),
+        onSuccess: (LegalVendorItem?) -> Unit,
+        onError: (String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSavingVendor.value = true
+
+            val allFiles = vendorAgreementFiles + slaFiles + supportingFiles
+
+            val result = repo.request<LegalVendorResponse<LegalVendorItem>> {
+                postMultipart(LEGAL_VENDOR_CREATE_URL, fields, allFiles)
+            }
+
+            _isSavingVendor.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchLegalVendors()
+                        onSuccess(res.data)
+                    } else {
+                        onError(res.message ?: "Failed to create legal vendor record")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to create legal vendor record")
+                }
+            )
+        }
+    }
+
+    /**
+     * Updates an existing legal vendor record: PUT /api/legal/legal-vendor/update/{id}
+     */
+    fun updateLegalVendor(
+        vendorId: String,
+        fields: Map<String, RequestBody>,
+        vendorAgreementFiles: List<MultipartBody.Part> = emptyList(),
+        slaFiles: List<MultipartBody.Part> = emptyList(),
+        supportingFiles: List<MultipartBody.Part> = emptyList(),
+        onSuccess: (LegalVendorItem?) -> Unit,
+        onError: (String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSavingVendor.value = true
+
+            val allFiles = vendorAgreementFiles + slaFiles + supportingFiles
+
+            val result = repo.request<LegalVendorDetailResponse> {
+                putMultipart("$LEGAL_VENDOR_UPDATE_URL/$vendorId", fields, allFiles)
+            }
+
+            _isSavingVendor.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        res.data?.let { updated ->
+                            _vendorDetail.value = updated
+                            _legalVendors.value = _legalVendors.value.map { item ->
+                                if (item.id == vendorId) updated else item
+                            }
+                        }
+                        fetchLegalVendors()
+                        onSuccess(res.data)
+                    } else {
+                        onError(res.message ?: "Failed to update legal vendor record")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to update legal vendor record")
+                }
+            )
+        }
+    }
+
+    /**
+     * Deletes a legal vendor record: DELETE /api/legal/legal-vendor/delete
+     * Uses JsonObject to prevent parsing crashes when backend returns string or object.
+     */
+    fun deleteLegalVendor(
+        vendorId: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String?) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isDeletingVendor.value = true
+
+            val result = repo.request<JsonObject> {
+                delete("$LEGAL_VENDOR_DELETE_URL/$vendorId")
+            }
+
+            _isDeletingVendor.value = false
+
+            result.fold(
+                onSuccess = { json ->
+                    val success = json.get("success")?.asBoolean ?: false
+                    val message = json.get("message")?.asString ?: "Legal vendor record deleted successfully"
+
+                    if (success) {
+                        _legalVendors.value = _legalVendors.value.filter { it.id != vendorId }
+                        fetchLegalVendors()
+                        onSuccess(message)
+                    } else {
+                        onError(message)
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to delete legal vendor record")
+                }
+            )
+        }
+    }
+
+    /**
+     * Updates legal vendor status: PATCH /api/legal/legal-vendor/status/{id}
+     */
+    fun updateLegalVendorStatus(
+        vendorId: String,
+        status: String,
+        onSuccess: () -> Unit = {},
+        onError: (String?) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isUpdatingVendorStatus.value = true
+
+            val request = JsonObject().apply {
+                addProperty("status", status)
+            }
+
+            val result = repo.request<LegalVendorResponse<LegalVendorItem>> {
+                patch("$LEGAL_VENDOR_STATUS_URL/$vendorId", request)
+            }
+
+            _isUpdatingVendorStatus.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        _vendorDetail.value = res.data
+                        _legalVendors.value = _legalVendors.value.map { item ->
+                            if (item.id == vendorId) item.copy(status = res.data.status) else item
+                        }
+                        fetchLegalVendors()
+                        onSuccess()
+                    } else {
+                        onError(res.message ?: "Failed to update vendor status")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to update vendor status")
+                }
+            )
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // LEGAL NOTICE & DISPUTE STATE & OPERATIONS
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private val _legalNotices = MutableStateFlow<List<LegalNoticeItem>>(emptyList())
+    val legalNotices: StateFlow<List<LegalNoticeItem>> = _legalNotices.asStateFlow()
+
+    private val _isLoadingNotices = MutableStateFlow(false)
+    val isLoadingNotices: StateFlow<Boolean> = _isLoadingNotices.asStateFlow()
+
+    private val _noticesError = MutableStateFlow<String?>(null)
+    val noticesError: StateFlow<String?> = _noticesError.asStateFlow()
+
+    private val _noticeDetail = MutableStateFlow<LegalNoticeItem?>(null)
+    val noticeDetail: StateFlow<LegalNoticeItem?> = _noticeDetail.asStateFlow()
+
+    private val _isLoadingNoticeDetail = MutableStateFlow(false)
+    val isLoadingNoticeDetail: StateFlow<Boolean> = _isLoadingNoticeDetail.asStateFlow()
+
+    private val _noticeDetailError = MutableStateFlow<String?>(null)
+    val noticeDetailError: StateFlow<String?> = _noticeDetailError.asStateFlow()
+
+    private val _isSavingNotice = MutableStateFlow(false)
+    val isSavingNotice: StateFlow<Boolean> = _isSavingNotice.asStateFlow()
+
+    private val _isDeletingNotice = MutableStateFlow(false)
+    val isDeletingNotice: StateFlow<Boolean> = _isDeletingNotice.asStateFlow()
+
+    private val _isUpdatingNoticeStatus = MutableStateFlow(false)
+    val isUpdatingNoticeStatus: StateFlow<Boolean> = _isUpdatingNoticeStatus.asStateFlow()
+
+    /**
+     * Fetches all legal notices: GET /api/legal/legal-notice/view-all
+     */
+    fun fetchLegalNotices(search: String? = null, page: Int = 1, limit: Int = 20) {
+        viewModelScope.launch {
+            _isLoadingNotices.value = true
+            _noticesError.value = null
+
+            val result = repo.request<LegalNoticeListResponse> {
+                val queryParams = mutableListOf<Pair<String, Any?>>(
+                    "page" to page,
+                    "limit" to limit
+                )
+                if (!search.isNullOrBlank()) {
+                    queryParams.add("search" to search)
+                }
+                get(LEGAL_NOTICE_VIEW_ALL_URL, repo.query(*queryParams.toTypedArray()))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _legalNotices.value = res.data.orEmpty()
+                },
+                onFailure = { error ->
+                    _noticesError.value = error.message ?: "Failed to fetch legal notices"
+                }
+            )
+            _isLoadingNotices.value = false
+        }
+    }
+
+    /**
+     * Fetches a single notice by ID: GET /api/legal/legal-notice/view-one?id={id}
+     */
+    fun fetchLegalNoticeDetail(noticeId: String) {
+        viewModelScope.launch {
+            _isLoadingNoticeDetail.value = true
+            _noticeDetailError.value = null
+            _noticeDetail.value = null
+
+            val result = repo.request<LegalNoticeDetailResponse> {
+                get("$LEGAL_NOTICE_VIEW_ONE_URL/$noticeId")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        _noticeDetail.value = res.data
+                    } else {
+                        _noticeDetailError.value = res.message ?: "Failed to load notice detail"
+                    }
+                },
+                onFailure = { error ->
+                    _noticeDetailError.value = error.message ?: "Failed to load notice detail"
+                }
+            )
+            _isLoadingNoticeDetail.value = false
+        }
+    }
+
+    fun clearLegalNoticeDetail() {
+        _noticeDetail.value = null
+        _noticeDetailError.value = null
+    }
+
+    /**
+     * Creates a new notice: POST /api/legal/legal-notice/create
+     */
+    fun createLegalNotice(
+        fields: Map<String, RequestBody>,
+        caseDocuments: List<MultipartBody.Part> = emptyList(),
+        supportingEvidence: List<MultipartBody.Part> = emptyList(),
+        onSuccess: (LegalNoticeItem?) -> Unit,
+        onError: (String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSavingNotice.value = true
+            val allFiles = caseDocuments + supportingEvidence
+
+            val result = repo.request<LegalNoticeDetailResponse> {
+                postMultipart(LEGAL_NOTICE_CREATE_URL, fields, allFiles)
+            }
+
+            _isSavingNotice.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchLegalNotices()
+                        onSuccess(res.data)
+                    } else {
+                        onError(res.message ?: "Failed to create notice record")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to create notice record")
+                }
+            )
+        }
+    }
+
+    /**
+     * Updates an existing notice: PUT /api/legal/legal-notice/update/{id}
+     */
+    fun updateLegalNotice(
+        noticeId: String,
+        fields: Map<String, RequestBody>,
+        caseDocuments: List<MultipartBody.Part> = emptyList(),
+        supportingEvidence: List<MultipartBody.Part> = emptyList(),
+        onSuccess: (LegalNoticeItem?) -> Unit,
+        onError: (String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSavingNotice.value = true
+            val allFiles = caseDocuments + supportingEvidence
+
+            val result = repo.request<LegalNoticeDetailResponse> {
+                putMultipart("$LEGAL_NOTICE_UPDATE_URL/$noticeId", fields, allFiles)
+            }
+
+            _isSavingNotice.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        res.data?.let { updated ->
+                            _noticeDetail.value = updated
+                            _legalNotices.value = _legalNotices.value.map { item ->
+                                if (item.id == noticeId) updated else item
+                            }
+                        }
+                        fetchLegalNotices()
+                        onSuccess(res.data)
+                    } else {
+                        onError(res.message ?: "Failed to update notice record")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to update notice record")
+                }
+            )
+        }
+    }
+
+    /**
+     * Deletes a notice record: DELETE /api/legal/legal-notice/delete/{id}
+     */
+    fun deleteLegalNotice(
+        noticeId: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String?) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isDeletingNotice.value = true
+
+            val result = repo.request<JsonObject> {
+                delete("$LEGAL_NOTICE_DELETE_URL/$noticeId")
+            }
+
+            _isDeletingNotice.value = false
+
+            result.fold(
+                onSuccess = { json ->
+                    val success = json.get("success")?.asBoolean ?: false
+                    val message = json.get("message")?.asString ?: "Notice deleted successfully"
+
+                    if (success) {
+                        _legalNotices.value = _legalNotices.value.filter { it.id != noticeId }
+                        fetchLegalNotices()
+                        onSuccess(message)
+                    } else {
+                        onError(message)
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to delete notice")
+                }
+            )
+        }
+    }
+
+    /**
+     * Updates notice status: PATCH /api/legal/legal-notice/status/{id}
+     */
+    fun updateLegalNoticeStatus(
+        noticeId: String,
+        status: String,
+        onSuccess: () -> Unit = {},
+        onError: (String?) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isUpdatingNoticeStatus.value = true
+
+            val request = UpdateNoticeStatusRequest(caseStatus = status)
+
+            val result = repo.request<LegalNoticeDetailResponse> {
+                patch("$LEGAL_NOTICE_STATUS_URL/$noticeId", request)
+            }
+
+            _isUpdatingNoticeStatus.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        _noticeDetail.value = res.data
+                        _legalNotices.value = _legalNotices.value.map { item ->
+                            if (item.id == noticeId) item.copy(status = res.data.status) else item
+                        }
+                        fetchLegalNotices()
+                        onSuccess()
+                    } else {
+                        onError(res.message ?: "Failed to update notice status")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to update notice status")
+                }
+            )
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // LEGAL CALENDAR EVENTS STATE & API INTEGRATION
+    // ═════════════════════════════════════════════════════════════════════════
+
+    private val _calendarData = MutableStateFlow<LegalCalendarData?>(null)
+    val calendarData: StateFlow<LegalCalendarData?> = _calendarData.asStateFlow()
+
+    private val _isLoadingCalendar = MutableStateFlow(false)
+    val isLoadingCalendar: StateFlow<Boolean> = _isLoadingCalendar.asStateFlow()
+
+    private val _calendarError = MutableStateFlow<String?>(null)
+    val calendarError: StateFlow<String?> = _calendarError.asStateFlow()
+
+    /**
+     * Fetches legal calendar events:
+     * GET /api/legal/legal-calendar/events?from=2026-09-27&to=2026-11-07
+     */
+    fun fetchLegalCalendar(from: String, to: String) {
+        viewModelScope.launch {
+            _isLoadingCalendar.value = true
+            _calendarError.value = null
+
+            // Clean date string to standard yyyy-MM-dd format expected by query params
+            val cleanFrom = from.take(10)
+            val cleanTo = to.take(10)
+
+            val result = repo.request<LegalCalendarResponse> {
+                get(
+                    LEGAL_CALENDAR_EVENTS_URL,
+                    repo.query(
+                        "from" to cleanFrom,
+                        "to" to cleanTo
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _calendarData.value = res.data
+                    } else {
+                        _calendarError.value = res.message ?: "Failed to fetch calendar events"
+                    }
+                },
+                onFailure = { error ->
+                    _calendarError.value = error.message ?: "Failed to fetch calendar events"
+                }
+            )
+            _isLoadingCalendar.value = false
+        }
+    }
+
+    fun clearCalendarData() {
+        _calendarData.value = null
+        _calendarError.value = null
     }
 
     private fun formatToApiIso(raw: String): String {

@@ -4,6 +4,7 @@ import android.content.Context
 import android.print.PrintManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.cuso.tailor.utils.currencySymbol
 import com.itextpdf.kernel.colors.ColorConstants
 import com.itextpdf.kernel.font.PdfFontFactory
 import com.itextpdf.kernel.geom.PageSize
@@ -93,11 +94,11 @@ class OrderReceiptPdfGenerator(private val context: Context) {
 
             data.items.forEach { item ->
                 // Main Item Row: Qty x Name
-                addReceiptRow(itemTable, "${item.quantity} x ${item.name}", "₹${item.price.toInt()}", font)
+                addReceiptRow(itemTable, "${item.quantity} x ${item.name}", "${currencySymbol()}${item.price.toInt()}", font)
 
                 // Additional Charges Sub-Row
                 if (item.additionalCharge > 0) {
-                    addReceiptRow(itemTable, "  + Addl Charges", "₹${item.additionalCharge.toInt()}", font, 10f, ColorConstants.GRAY)
+                    addReceiptRow(itemTable, "  + Addl Charges", "${currencySymbol()}${item.additionalCharge.toInt()}", font, 10f, ColorConstants.GRAY)
                 }
             }
             document.add(itemTable)
@@ -106,17 +107,17 @@ class OrderReceiptPdfGenerator(private val context: Context) {
 
             // Charges and Payments
             val summaryTable = Table(UnitValue.createPercentArray(floatArrayOf(70f, 30f))).useAllAvailableWidth()
-            addReceiptRow(summaryTable, "Extra Charges:", "₹${data.otherCharges.toInt()}", font)
-            addReceiptRow(summaryTable, "Discount:", "- ₹${0}", font) // Placeholder for discount if needed
-            addReceiptRow(summaryTable, "PAID NOW:", "₹${data.paidAmount.toInt()}", fontBold)
+            addReceiptRow(summaryTable, "Extra Charges:", "${currencySymbol()}${data.otherCharges.toInt()}", font)
+            addReceiptRow(summaryTable, "Discount:", "- ${currencySymbol()}${0}", font) // Placeholder for discount if needed
+            addReceiptRow(summaryTable, "PAID NOW:", "${currencySymbol()}${data.paidAmount.toInt()}", fontBold)
             document.add(summaryTable)
 
             document.add(Paragraph("-----------------------------").setTextAlignment(TextAlignment.CENTER))
 
             // Final Bill and Balance
             val finalTable = Table(UnitValue.createPercentArray(floatArrayOf(70f, 30f))).useAllAvailableWidth()
-            addReceiptRow(finalTable, "Total Bill:", "₹${data.totalAmount.toInt()}", font)
-            addReceiptRow(finalTable, "Balance:", "₹${data.balanceAmount.toInt()}", font)
+            addReceiptRow(finalTable, "Total Bill:", "${currencySymbol()}${data.totalAmount.toInt()}", font)
+            addReceiptRow(finalTable, "Balance:", "${currencySymbol()}${data.balanceAmount.toInt()}", font)
             document.add(finalTable)
 
             document.add(Paragraph("-----------------------------").setTextAlignment(TextAlignment.CENTER))
@@ -150,12 +151,12 @@ class OrderReceiptPdfGenerator(private val context: Context) {
             """
             <div class="row">
                 <span>${item.quantity} x ${item.name}</span>
-                <span>₹${item.price.toInt()}</span>
+                <span>${currencySymbol()}${item.price.toInt()}</span>
             </div>
             ${if (item.additionalCharge > 0) """
             <div class="row sub-item">
                 <span>&nbsp;&nbsp;+ Addl Charges</span>
-                <span>₹${item.additionalCharge.toInt()}</span>
+                <span>${currencySymbol()}${item.additionalCharge.toInt()}</span>
             </div>
             """ else ""}
             """.trimIndent()
@@ -199,14 +200,14 @@ class OrderReceiptPdfGenerator(private val context: Context) {
             
             <div class="divider"></div>
             
-            <div class="row"><span>Extra Charges:</span><span>₹${data.otherCharges.toInt()}</span></div>
-            <div class="row"><span>Discount:</span><span>- ₹0</span></div>
-            <div class="row bold"><span>PAID NOW:</span><span>₹${data.paidAmount.toInt()}</span></div>
+            <div class="row"><span>Extra Charges:</span><span>${currencySymbol()}${data.otherCharges.toInt()}</span></div>
+            <div class="row"><span>Discount:</span><span>- ${currencySymbol()}0</span></div>
+            <div class="row bold"><span>PAID NOW:</span><span>${currencySymbol()}${data.paidAmount.toInt()}</span></div>
             
             <div class="divider"></div>
             
-            <div class="row"><span>Total Bill:</span><span>₹${data.totalAmount.toInt()}</span></div>
-            <div class="row"><span>Balance:</span><span>₹${data.balanceAmount.toInt()}</span></div>
+            <div class="row"><span>Total Bill:</span><span>${currencySymbol()}${data.totalAmount.toInt()}</span></div>
+            <div class="row"><span>Balance:</span><span>${currencySymbol()}${data.balanceAmount.toInt()}</span></div>
             
             <div class="divider"></div>
             

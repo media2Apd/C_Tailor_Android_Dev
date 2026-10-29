@@ -770,18 +770,6 @@ fun CreateItemScreen(
                 }
             }
         }
-
-        // ── Floating Notifications ──
-        DynamicIslandError(
-            message = currentError,
-            onDismiss = { currentError = null }
-        )
-
-        DynamicIslandSuccess(
-            message = successToastMessage,
-            onDismiss = { successToastMessage = null }
-        )
-
         // ── Floating Action Buttons ──
         StepNavigationFab(
             showBack = true,

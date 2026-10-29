@@ -413,7 +413,7 @@ private fun newChargeId(): String = "charge_${System.nanoTime()}"
 //                                HorizontalDivider(color = BorderColor, modifier = Modifier.padding(vertical = 12.dp))
 //                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
 //                                    Text("Total Items: ${orderData.garments.size}", fontSize = 14.sp, color = TextSecond)
-//                                    Text("Subtotal   ₹${"%.2f".format(subtotal)}", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+//                                    Text("Subtotal   ${currencySymbol()}${"%.2f".format(subtotal)}", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
 //                                }
 //                            }
 //                        }
@@ -444,7 +444,7 @@ private fun newChargeId(): String = "charge_${System.nanoTime()}"
 //                                ) {
 //                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
 //                                        Text("Subtotal", fontSize = 14.sp, color = TextSecond)
-//                                        Text("₹${"%.2f".format(subtotal)}", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+//                                        Text("${currencySymbol()}${"%.2f".format(subtotal)}", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
 //                                    }
 //
 //                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -466,7 +466,7 @@ private fun newChargeId(): String = "charge_${System.nanoTime()}"
 //                                    horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
 //                                ) {
 //                                    Text("Grand Total", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
-//                                    Text("₹${"%.2f".format(grandTotal)}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+//                                    Text("${currencySymbol()}${"%.2f".format(grandTotal)}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
 //                                }
 //
 //                                Column(
@@ -479,11 +479,11 @@ private fun newChargeId(): String = "charge_${System.nanoTime()}"
 //                                ) {
 //                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
 //                                        Text("Paid So Far", fontSize = 13.sp, color = TextSecond)
-//                                        Text("₹${"%.2f".format(orderData.paidSoFar)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = SuccessGreen)
+//                                        Text("${currencySymbol()}${"%.2f".format(orderData.paidSoFar)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = SuccessGreen)
 //                                    }
 //                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
 //                                        Text("Balance Due", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextSecond)
-//                                        Text("₹${"%.2f".format(balanceDue)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = SuccessGreen)
+//                                        Text("${currencySymbol()}${"%.2f".format(balanceDue)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = SuccessGreen)
 //                                    }
 //                                }
 //                            }
@@ -707,7 +707,7 @@ private fun newChargeId(): String = "charge_${System.nanoTime()}"
 //            .padding(horizontal = 8.dp),
 //        verticalAlignment = Alignment.CenterVertically
 //    ) {
-//        Text("₹", fontSize = 13.sp, color = LabelGray)
+//        Text("${currencySymbol()}", fontSize = 13.sp, color = LabelGray)
 //        Spacer(Modifier.width(4.dp))
 //        BasicTextField(
 //            value = value,

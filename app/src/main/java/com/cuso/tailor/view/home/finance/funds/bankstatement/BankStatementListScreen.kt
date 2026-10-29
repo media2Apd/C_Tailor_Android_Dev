@@ -158,19 +158,19 @@ fun BankStatementListScreen(
                             footerFields = listOf(
                                 DataCardField(
                                     label = "Debit",
-                                    text = "₹${String.format(LocalLocale.current.platformLocale, "%,.2f", line.withdrawal)}",
+                                    text = "${currencySymbol()}${String.format(LocalLocale.current.platformLocale, "%,.2f", line.withdrawal)}",
                                     textColor = greentext,
                                     asRow = true
                                 ),
                                 DataCardField(
                                     label = "Credit",
-                                    text = "₹${String.format(LocalLocale.current.platformLocale, "%,.2f", line.deposit)}",
+                                    text = "${currencySymbol()}${String.format(LocalLocale.current.platformLocale, "%,.2f", line.deposit)}",
                                     textColor = redText,
                                     asRow = true
                                 ),
                                 DataCardField(
                                     label = "Run Balance",
-                                    text = "₹${String.format(LocalLocale.current.platformLocale, "%,.2f", line.runningBalance ?: 0.0)}",
+                                    text = "${currencySymbol()}${String.format(LocalLocale.current.platformLocale, "%,.2f", line.runningBalance ?: 0.0)}",
                                     textColor = TextPrimary,
                                     asRow = true
                                 )

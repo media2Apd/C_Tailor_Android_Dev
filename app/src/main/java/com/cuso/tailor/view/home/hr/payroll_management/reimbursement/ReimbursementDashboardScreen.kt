@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.currencySymbol
 
 // -----------------------------------------------------------------------------
 // Data Classes for Dashboard Screen
@@ -154,7 +155,7 @@ fun ReimbursementBonusDashboardScreen(
                     row2Label = "Pending Payment",
                     row2Value = "12 Claims",
                     row3Label = "Total Pending Value",
-                    row3Value = "₹2,46,800",
+                    row3Value = "${currencySymbol()}2,46,800",
                     actionText = "Manage Claims",
                     onActionClick = onManageClaimsClick
                 )
@@ -171,7 +172,7 @@ fun ReimbursementBonusDashboardScreen(
                     row2Label = "Pending Approval",
                     row2Value = "8 Batches",
                     row3Label = "Planned Payout",
-                    row3Value = "₹18,72,500",
+                    row3Value = "${currencySymbol()}18,72,500",
                     actionText = "Manage Bonus & Incentives",
                     onActionClick = onManageBonusClick
                 )
@@ -188,7 +189,7 @@ fun ReimbursementBonusDashboardScreen(
                     row2Label = "In Review",
                     row2Value = "3 Batches",
                     row3Label = "Approval Value",
-                    row3Value = "₹12,48,000",
+                    row3Value = "${currencySymbol()}12,48,000",
                     actionText = "Review Bonus Approvals",
                     onActionClick = onReviewBonusApprovalsClick
                 )
@@ -355,7 +356,7 @@ private fun TopMetricsSection() {
                 iconTint = Color(0xFF6366F1),
                 value = "18",
                 label = "Pending Claims",
-                subText = "₹2,46,800",
+                subText = "${currencySymbol()}2,46,800",
                 badgeText = "Requires Review",
                 badgeBg = orangeBg,
                 badgeTextTint = orangeText,
@@ -367,7 +368,7 @@ private fun TopMetricsSection() {
                 iconTint = greentext,
                 value = "42",
                 label = "Approved Claims",
-                subText = "₹6,84,500",
+                subText = "${currencySymbol()}6,84,500",
                 badgeText = "Sep 2026",
                 badgeBg = modelBg,
                 badgeTextTint = TextSecondary
@@ -386,14 +387,14 @@ private fun TopMetricsSection() {
                 iconTint = orangeText,
                 value = "5",
                 label = "Awaiting Approval",
-                subText = "₹12,48,000",
+                subText = "${currencySymbol()}12,48,000",
                 subTextColor = orangeText
             ),
             MetricCardData(
                 icon = Icons.Default.AccountBalanceWallet,
                 iconBg = greenBg,
                 iconTint = greentext,
-                value = "₹18.72L",
+                value = "${currencySymbol()}18.72L",
                 label = "Approved Bonus",
                 subText = "Final planned val",
                 badgeText = "Sep 2026",
@@ -493,7 +494,7 @@ private fun MetricCardItem(
                 }
             }
 
-            // Metric Value (e.g., "18", "42", "₹18.72L")
+            // Metric Value (e.g., "18", "42", "${currencySymbol()}18.72L")
             Text(
                 text = data.value,
                 fontSize = tokens.bodyMedium,
@@ -513,7 +514,7 @@ private fun MetricCardItem(
                 lineHeight = 14.sp
             )
 
-            // Subtitle / Amount (e.g., "₹2,46,800", "264 Employees")
+            // Subtitle / Amount (e.g., "${currencySymbol()}2,46,800", "264 Employees")
             Text(
                 text = data.subText,
                 fontSize = tokens.caption,
@@ -1010,10 +1011,10 @@ private fun RecentClaimsTableSection(onViewAllClick: () -> Unit) {
 
     val claims = remember {
         listOf(
-            RecentClaimItem("RC-2026-0148", "Anita Sharma", "Travel • Sep 2026", "₹8,400", null, "Pending Review", true),
-            RecentClaimItem("RC-2026-0145", "Rahul Verma", "Medical • Sep 2026", "₹12,800", "₹10,000", "Partially Approved", false),
-            RecentClaimItem("RC-2026-0142", "Priya Nair", "Client Expense • Sep", "₹6,250", "₹6,250", "Approved", false),
-            RecentClaimItem("RC-2026-0138", "Sneha Iyer", "Travel • Sep 2026", "₹4,800", "₹4,800", "Pending Payment", false)
+            RecentClaimItem("RC-2026-0148", "Anita Sharma", "Travel • Sep 2026", "${currencySymbol()}8,400", null, "Pending Review", true),
+            RecentClaimItem("RC-2026-0145", "Rahul Verma", "Medical • Sep 2026", "${currencySymbol()}12,800", "${currencySymbol()}10,000", "Partially Approved", false),
+            RecentClaimItem("RC-2026-0142", "Priya Nair", "Client Expense • Sep", "${currencySymbol()}6,250", "${currencySymbol()}6,250", "Approved", false),
+            RecentClaimItem("RC-2026-0138", "Sneha Iyer", "Travel • Sep 2026", "${currencySymbol()}4,800", "${currencySymbol()}4,800", "Pending Payment", false)
         )
     }
 
@@ -1162,10 +1163,10 @@ private fun BonusBatchesTableSection(onViewAllClick: () -> Unit) {
 
     val batches = remember {
         listOf(
-            BonusBatchItem("Q2 Performance", "Performance • 86 Employees", 86, "₹8,42,000", "Pending Approval", "Not Processed"),
-            BonusBatchItem("August Sales", "Sales • 32 Employees", 32, "₹3,18,500", "In Review", "Not Processed"),
-            BonusBatchItem("Attendance Incentive", "Attendance • 64 Employees", 64, "₹1,92,000", "Changes Requested", "Not Processed"),
-            BonusBatchItem("Festival Bonus", "Festival • 248 Employees", 248, "₹24,80,000", "Draft", "Not Processed")
+            BonusBatchItem("Q2 Performance", "Performance • 86 Employees", 86, "${currencySymbol()}8,42,000", "Pending Approval", "Not Processed"),
+            BonusBatchItem("August Sales", "Sales • 32 Employees", 32, "${currencySymbol()}3,18,500", "In Review", "Not Processed"),
+            BonusBatchItem("Attendance Incentive", "Attendance • 64 Employees", 64, "${currencySymbol()}1,92,000", "Changes Requested", "Not Processed"),
+            BonusBatchItem("Festival Bonus", "Festival • 248 Employees", 248, "${currencySymbol()}24,80,000", "Draft", "Not Processed")
         )
     }
 
@@ -1301,9 +1302,9 @@ private fun PendingBonusApprovalsTableSection(onViewAllClick: () -> Unit) {
 
     val pendingList = remember {
         listOf(
-            PendingApprovalItem("Q2 Performance", "By Ananya Iyer • 86 Employees", 86, "₹8,42,000", "High", "Pending"),
-            PendingApprovalItem("August Sales", "By Rajesh Kumar • 32 Employees", 32, "₹3,18,500", "Medium", "In Review"),
-            PendingApprovalItem("Retention Bonus", "By Ananya Iyer • 12 Employees", 12, "₹6,00,000", "High", "Pending")
+            PendingApprovalItem("Q2 Performance", "By Ananya Iyer • 86 Employees", 86, "${currencySymbol()}8,42,000", "High", "Pending"),
+            PendingApprovalItem("August Sales", "By Rajesh Kumar • 32 Employees", 32, "${currencySymbol()}3,18,500", "Medium", "In Review"),
+            PendingApprovalItem("Retention Bonus", "By Ananya Iyer • 12 Employees", 12, "${currencySymbol()}6,00,000", "High", "Pending")
         )
     }
 
@@ -1484,9 +1485,9 @@ private fun PayrollImpactCard(onViewPayrollClick: () -> Unit) {
 
             HorizontalDivider(color = modelBorder)
 
-            SummaryKeyValueRow(label = "Approved Reimbursements", value = "₹6,84,500")
-            SummaryKeyValueRow(label = "Approved Bonus Payout", value = "₹18,72,500")
-            SummaryKeyValueRow(label = "Total Additional Payout", value = "₹25,57,000", valueColor = Primary)
+            SummaryKeyValueRow(label = "Approved Reimbursements", value = "${currencySymbol()}6,84,500")
+            SummaryKeyValueRow(label = "Approved Bonus Payout", value = "${currencySymbol()}18,72,500")
+            SummaryKeyValueRow(label = "Total Additional Payout", value = "${currencySymbol()}25,57,000", valueColor = Primary)
             SummaryKeyValueRow(label = "Employees Affected", value = "286 Employees")
             SummaryKeyValueRow(label = "Pending Payroll Mapping", value = "19 Items", valueColor = orangeText)
             SummaryKeyValueRow(label = "Payroll Status", value = "Not Processed")
@@ -1544,9 +1545,9 @@ private fun UpcomingPayrollPayoutsCard(onViewPayrollClick: () -> Unit) {
             HorizontalDivider(color = modelBorder)
 
             SummaryKeyValueRow(label = "Payroll Cycle", value = "September 2026 Payroll")
-            SummaryKeyValueRow(label = "Reimbursements Share", value = "₹6,84,500")
-            SummaryKeyValueRow(label = "Bonus & Incentives Share", value = "₹18,72,500")
-            SummaryKeyValueRow(label = "Total Expected Payout", value = "₹25,57,000", valueColor = Primary)
+            SummaryKeyValueRow(label = "Reimbursements Share", value = "${currencySymbol()}6,84,500")
+            SummaryKeyValueRow(label = "Bonus & Incentives Share", value = "${currencySymbol()}18,72,500")
+            SummaryKeyValueRow(label = "Total Expected Payout", value = "${currencySymbol()}25,57,000", valueColor = Primary)
             SummaryKeyValueRow(label = "Payment Method", value = "Bank Transfer via Payroll")
             SummaryKeyValueRow(label = "Expected Date", value = "30 Sep 2026")
         }

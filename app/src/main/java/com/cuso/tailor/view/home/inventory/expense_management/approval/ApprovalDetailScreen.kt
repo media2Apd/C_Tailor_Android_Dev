@@ -159,18 +159,6 @@ fun ExpenseClaimDetailScreen(
                 }
             }
         }
-
-//        DynamicIslandSuccess(
-//            message = successMessage,
-//            onDismiss = { successMessage = null },
-//            modifier = Modifier.align(Alignment.TopCenter).zIndex(10f)
-//        )
-//
-//        DynamicIslandError(
-//            message = errorMessage,
-//            onDismiss = { errorMessage = null },
-//            modifier = Modifier.align(Alignment.TopCenter).zIndex(10f)
-//        )
     }
 }
 
@@ -309,7 +297,7 @@ private fun AmountBreakdownCard(claim: ExpenseClaimDto) {
                         .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "INR (₹)",
+                        text = "INR (${currencySymbol()})",
                         fontSize = tokens.label,
                         fontWeight = FontWeight.Medium,
                         color = Primary

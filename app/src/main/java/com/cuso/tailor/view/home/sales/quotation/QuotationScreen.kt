@@ -44,6 +44,7 @@ import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.ui.theme.yellowBg
 import com.cuso.tailor.ui.theme.yellowText
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
@@ -84,7 +85,7 @@ private fun QuotationItemDto.toPricingItem(): PricingItem {
     return PricingItem(
         id = id,
         title = "$customerName - $garmentName",
-        price = "₹${String.format(java.util.Locale.US, "%.2f", grandTotal)}",
+        price = "${currencySymbol()}${String.format(java.util.Locale.US, "%.2f", grandTotal)}",
         isActive = status.equals("draft", ignoreCase = true).not(),
         status = status.replaceFirstChar { it.uppercase() },
         branchId = branchId ?: "",

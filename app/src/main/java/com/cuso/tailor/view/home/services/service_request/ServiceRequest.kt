@@ -20,6 +20,7 @@ import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.ServiceRequestUiState
 import com.cuso.tailor.viewmodel.ServicesViewModel
 import androidx.compose.foundation.lazy.items
+import com.cuso.tailor.utils.currencySymbol
 
 import kotlinx.coroutines.delay
 
@@ -172,7 +173,7 @@ fun ServiceRequestCard(
             ),
             DataCardField(
                 label = "Amount",
-                text = "₹${item.grandTotal.toInt()}"
+                text = "${currencySymbol()}${item.grandTotal.toInt()}"
             ),
             DataCardField(
                 label = "Priority",

@@ -74,6 +74,7 @@ import com.cuso.tailor.view.composable.StepNavigationFab
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.view.composable.ValidationField
+import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.CreateAccountState
@@ -294,7 +295,7 @@ fun ExpensesScreen(
                                     DataCardField(
                                         asRow = true,
                                         label = "Amount",
-                                        text = "₹${formatAmount(expense.amount)}"
+                                        text = "${currencySymbol()}${formatAmount(expense.amount)}"
                                     )
                                 ),
                                 actions = listOf(
@@ -378,7 +379,7 @@ fun ExpenseDetailScreen(
             ExpenseDetailField(label = "Expense Date", value = formatExpenseDate(expense.expenseDate))
             ExpenseDetailField(label = "Expense Account", value = expenseAccountName)
             ExpenseDetailField(label = "Payment Mode", value = paymentAccountName)
-            ExpenseDetailField(label = "Amount", value = "₹${formatAmount(expense.amount)}")
+            ExpenseDetailField(label = "Amount", value = "${currencySymbol()}${formatAmount(expense.amount)}")
 
             if (!expense.referenceNumber.isNullOrBlank()) {
                 ExpenseDetailField(label = "Reference Number", value = expense.referenceNumber)
@@ -795,12 +796,6 @@ fun AddExpenseScreen(
                     )
                 }
             )
-        )
-
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = if (showError) errorMessage else null,
-            onDismiss = { showError = false }
         )
 
         if (showPlanLimitDialog) {

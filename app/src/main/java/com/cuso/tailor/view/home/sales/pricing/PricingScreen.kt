@@ -37,6 +37,7 @@ import com.cuso.tailor.ui.theme.blackTitle
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.FabConfig
@@ -174,7 +175,7 @@ private fun PricingDashboard(items: List<GarmentPricingListItemDto>) {
             )
             DashboardStatCard(
                 label = "Avg. Quote Value",
-                value = "₹${avgBasePrice.toInt()}",
+                value = "${currencySymbol()}${avgBasePrice.toInt()}",
                 trend = "+8% from last month",
                 modifier = Modifier.weight(1f)
             )
@@ -192,7 +193,7 @@ private fun PricingDashboard(items: List<GarmentPricingListItemDto>) {
             )
             DashboardStatCard(
                 label = "This Month",
-                value = "₹${highestPriced.toInt()}",
+                value = "${currencySymbol()}${highestPriced.toInt()}",
                 trend = "+15% from last month",
                 modifier = Modifier.weight(1f)
             )
@@ -308,7 +309,7 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Base Range ₹",
+                        "Base Range ${currencySymbol()}",
                         fontSize = tokens.bodySmall,
                         color = blackTitle
                     )

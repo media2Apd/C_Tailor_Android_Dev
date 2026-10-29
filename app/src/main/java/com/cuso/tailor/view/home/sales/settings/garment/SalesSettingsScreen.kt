@@ -568,22 +568,6 @@ fun GarmentTypeContent(
                 }
             )
         }
-
-        DynamicIslandSuccess(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = transientErrorMessage,
-            onDismiss = { transientErrorMessage = null }
-        )
     }
 }
 

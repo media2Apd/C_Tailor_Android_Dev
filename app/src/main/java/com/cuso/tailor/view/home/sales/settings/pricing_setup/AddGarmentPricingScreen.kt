@@ -16,6 +16,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FormDropdown
@@ -156,7 +157,7 @@ fun AddNewGarmentPricingScreen(
                     FormTextField(
                         value = basePrice,
                         onValueChange = { basePrice = it },
-                        placeholder = "₹1,200",
+                        placeholder = "${currencySymbol()}1,200",
                         keyboardType = KeyboardType.Number
                     )
 
@@ -224,8 +225,5 @@ fun AddNewGarmentPricingScreen(
             ),
             showTrailingArrow = false
         )
-
-        DynamicIslandSuccess(message = successMessage, onDismiss = { successMessage = null })
-        DynamicIslandError(message = errorMessage, onDismiss = { errorMessage = null })
     }
 }

@@ -194,14 +194,6 @@ fun AllStockLocationScreen(
                 }
             }
         }
-
-        DynamicIslandError(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = errorMessage?.takeIf { stockList.isNotEmpty() },
-            onDismiss = { }
-        )
     }
 }
 

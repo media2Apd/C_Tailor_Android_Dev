@@ -50,6 +50,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.sales.StaffDto
 import com.cuso.tailor.model.service.*
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.composable.SheetValue
 import com.cuso.tailor.viewmodel.SalesViewModel
@@ -1326,9 +1327,9 @@ private fun ServiceOverviewTab(data: ServiceOrderDetailData) {
                 color = TextPrimary
             )
             Spacer(Modifier.height(tokens.extraPadding))
-            OverviewFieldRow("Net Order Amount", "₹${payment?.grandTotal?.toInt() ?: 0}")
-            OverviewFieldRow("Paid Amount", "₹${payment?.advanceAmountPaid?.toInt() ?: 0}")
-            OverviewFieldRow("Balance Due", "₹${payment?.balanceAmount?.toInt() ?: 0}", valueColor = redText)
+            OverviewFieldRow("Net Order Amount", "${currencySymbol()}${payment?.grandTotal?.toInt() ?: 0}")
+            OverviewFieldRow("Paid Amount", "${currencySymbol()}${payment?.advanceAmountPaid?.toInt() ?: 0}")
+            OverviewFieldRow("Balance Due", "${currencySymbol()}${payment?.balanceAmount?.toInt() ?: 0}", valueColor = redText)
             OverviewFieldRow("Payment Mode", payment?.paymentMode ?: "Cash")
 
             Row(
@@ -4077,7 +4078,7 @@ private fun ReceiveServicePaymentSheet(
 
                 Spacer(Modifier.height(tokens.screenPadding))
 
-                FormLabel("Amount to Pay (₹)")
+                FormLabel("Amount to Pay (${currencySymbol()})")
                 Spacer(Modifier.height(6.dp))
                 FormTextField(
                     value = amountText,

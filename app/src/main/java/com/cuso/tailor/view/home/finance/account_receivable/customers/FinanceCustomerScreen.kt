@@ -44,6 +44,7 @@ import com.cuso.tailor.model.finance.CreateCustomerPayload
 import com.cuso.tailor.model.finance.CustomerAddressPayload
 import com.cuso.tailor.model.finance.CustomerCustomFieldsPayload
 import com.cuso.tailor.model.settings.BranchItem
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.CreateCustomerState
@@ -539,7 +540,7 @@ fun CreateCustomerScreen(
                                 )
 
                                 Spacer(Modifier.height(tokens.extraPadding))
-                                FormLabel(text = "Credit Limit (₹)")
+                                FormLabel(text = "Credit Limit (${currencySymbol()})")
                                 FormTextField(
                                     value = creditLimit,
                                     onValueChange = { creditLimit = it },
@@ -845,7 +846,7 @@ private fun CustomerCardItem(
                 text = "$codeAndType | $address"
             ),
             DataCardField(
-                text = "Outstanding: ₹${formatIndianNumber(customer.outstanding ?: 0.0)}"
+                text = "Outstanding: ${currencySymbol()}${formatIndianNumber(customer.outstanding ?: 0.0)}"
             )
         ),
         actions = listOf(

@@ -362,18 +362,6 @@ fun ConvertLeadToOpportunityScreen(
                 showTrailingArrow = false,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
-
-            DynamicIslandError(
-                modifier = Modifier.align(Alignment.TopCenter),
-                message = validationError,
-                onDismiss = { validationError = null }
-            )
-
-            DynamicIslandSuccess(
-                modifier = Modifier.align(Alignment.TopCenter),
-                message = successMessage,
-                onDismiss = { successMessage = null }
-            )
         }
     }
 }

@@ -49,6 +49,7 @@ import com.cuso.tailor.ui.theme.BluePrimary
 import com.cuso.tailor.ui.theme.close_color
 import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.title_border
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DynamicIslandError
@@ -326,7 +327,7 @@ fun BranchSettingsScreen(
                                                                         modifier = Modifier.size(18.dp)
                                                                     )
                                                                     Text(
-                                                                        text = "₹ Active Orders",
+                                                                        text = "${currencySymbol()} Active Orders",
                                                                         fontSize = 14.sp,
                                                                         color = textBodyColor
                                                                     )
@@ -432,17 +433,6 @@ fun BranchSettingsScreen(
                 onUpgrade = { }
             )
         }
-
-        DynamicIslandSuccess(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 }
 

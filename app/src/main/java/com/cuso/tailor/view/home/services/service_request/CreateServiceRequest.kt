@@ -47,6 +47,7 @@ import com.cuso.tailor.model.service.CreateServiceRequestPayload
 import com.cuso.tailor.model.service.SalesOrderDropdownItem
 import com.cuso.tailor.model.service.ServiceAlterationAction
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.sales.lead.MiniSwitch
 import com.cuso.tailor.viewmodel.CustomerViewModel
@@ -941,7 +942,7 @@ fun CreateServiceRequest(
                 if (isChargeableService) {
                     Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
-                    FormLabel(text = "Rate per piece (₹)")
+                    FormLabel(text = "Rate per piece (${currencySymbol()})")
                     FormTextField(
                         value = ratePerPiece,
                         onValueChange = { ratePerPiece = it },
@@ -993,7 +994,7 @@ fun CreateServiceRequest(
                         contentAlignment = Alignment.CenterEnd
                     ) {
                         Text(
-                            text = "Line Total: ₹ ${rawLineTotal.toInt()} (₹$ratePerPiece × $garmentPiecesCount pcs)",
+                            text = "Line Total: ${currencySymbol()} ${rawLineTotal.toInt()} (${currencySymbol()}$ratePerPiece × $garmentPiecesCount pcs)",
                             fontSize = tokens.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = TitleColor
@@ -1667,7 +1668,7 @@ fun ReviewServiceRequestScreen(
                         text = if (!currentDraft.isChargeableService) {
                             "Free Warranty Service (No billing or invoice generated)"
                         } else {
-                            "Chargeable Service (₹${currentDraft.ratePerPiece} per pc | Total: ₹${(currentDraft.ratePerPiece.toDoubleOrNull() ?: 0.0) * currentDraft.garmentPiecesCount})"
+                            "Chargeable Service (${currencySymbol()}${currentDraft.ratePerPiece} per pc | Total: ${currencySymbol()}${(currentDraft.ratePerPiece.toDoubleOrNull() ?: 0.0) * currentDraft.garmentPiecesCount})"
                         },
                         fontSize = tokens.caption,
                         fontWeight = FontWeight.SemiBold,

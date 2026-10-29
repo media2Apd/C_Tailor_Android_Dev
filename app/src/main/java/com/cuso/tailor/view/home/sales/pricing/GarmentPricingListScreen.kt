@@ -35,6 +35,7 @@ import com.cuso.tailor.model.sales.GarmentPricingListItemDto
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
@@ -166,7 +167,7 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
                         color = TextDark
                     )
                     Text(
-                        "Base ₹${item.basePrice.toInt()}",
+                        "Base ${currencySymbol()}${item.basePrice.toInt()}",
                         fontSize = 12.sp,
                         color = mutedText
                     )
@@ -189,7 +190,7 @@ private fun GarmentPricingCard(item: GarmentPricingListItemDto, onClick: () -> U
             ) {
                 Text("Total Price", fontSize = 12.sp, color = mutedText)
                 Text(
-                    "₹${item.totalPrice.toInt()}",
+                    "${currencySymbol()}${item.totalPrice.toInt()}",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Primary

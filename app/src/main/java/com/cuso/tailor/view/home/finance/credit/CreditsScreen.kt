@@ -266,7 +266,7 @@ fun CreditNotesListScreen(
                                                     )
                                                     Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                                                     Text(
-                                                        text = "₹${String.format(Locale.US, "%,.2f", item.grandTotal)}",
+                                                        text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.grandTotal)}",
                                                         fontSize = tokens.bodySmall,
                                                         color = TitleColor,
                                                         fontWeight = FontWeight.Medium
@@ -280,7 +280,7 @@ fun CreditNotesListScreen(
                                                     )
                                                     Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                                                     Text(
-                                                        text = "₹${String.format(Locale.US, "%,.2f", item.remainingBalance)}",
+                                                        text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.remainingBalance)}",
                                                         fontSize = tokens.bodySmall,
                                                         color = TitleColor,
                                                         fontWeight = FontWeight.Medium

@@ -210,18 +210,6 @@ fun LoginOtpSelection(
             BackToSignIn(navController)
         }
 
-        // Dynamic Island Overlay Feedback
-        DynamicIslandSuccess(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = resendSuccessMessage,
-            onDismiss = { resendSuccessMessage = null }
-        )
-
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 
     // Handle OTP verification result

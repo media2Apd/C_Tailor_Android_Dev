@@ -25,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -402,7 +403,7 @@ fun CreateLegalCustomerScreen(
     }
 
     Scaffold(
-        containerColor = Primary_background,
+        containerColor = Color.Transparent,
         topBar = {
             TitleBar(
                 title = if (isEditMode) "Update Record" else "Create Records",
@@ -456,14 +457,7 @@ fun CreateLegalCustomerScreen(
         }
     ) { innerPadding ->
         if (isLoadingDetail && isEditMode) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Primary)
-            }
+            ListSkeleton()
         } else {
             Column(
                 modifier = Modifier

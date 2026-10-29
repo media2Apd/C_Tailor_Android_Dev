@@ -96,6 +96,7 @@ import com.cuso.tailor.ui.theme.iconMuted
 import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.SalesDashboardSkeleton
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.viewmodel.SalesViewModel
@@ -219,7 +220,7 @@ fun SalesDashboardScreen(
     val kpiItems = listOf(
         KpiUi(
             Icons.Default.CurrencyRupee, "Total Revenue",
-            cards?.totalRevenue?.formattedValue ?: "₹0",
+            cards?.totalRevenue?.formattedValue ?: "${currencySymbol()}0",
             cards?.totalRevenue?.trend ?: "0%",
             cards?.totalRevenue?.trendUp ?: true,
             cards?.totalRevenue?.sparkline?.map { it.toFloat() }.orEmpty(),
@@ -251,7 +252,7 @@ fun SalesDashboardScreen(
         ),
         KpiUi(
             Icons.Default.Schedule, "Pending Payments",
-            cards?.pendingReceivables?.formattedValue ?: "₹0",
+            cards?.pendingReceivables?.formattedValue ?: "${currencySymbol()}0",
             cards?.pendingReceivables?.trend ?: "0%",
             cards?.pendingReceivables?.trendUp ?: true,
             cards?.pendingReceivables?.sparkline?.map { it.toFloat() }.orEmpty(),
@@ -513,7 +514,7 @@ private fun RevenueOrdersTrendCard(
         )
         SectionDivider()
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            LegendDot(color = Indigo, label = "Revenue (₹ $unit)")
+            LegendDot(color = Indigo, label = "Revenue (${currencySymbol()} $unit)")
             LegendDot(color = Emerald, label = "Orders")
         }
         Spacer(Modifier.height(16.dp))
@@ -851,7 +852,7 @@ private fun RecentSalesOrdersCard(rows: List<OrderRowUi>, isLoading: Boolean, on
                 { StatusPill(text = titleCase(row.status)) },
                 {
                     Text(
-                        text = "₹${formatIndianNumber(row.amount)}",
+                        text = "${currencySymbol()}${formatIndianNumber(row.amount)}",
                         fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary,
@@ -1333,9 +1334,9 @@ private fun shortName(raw: String?): String {
 }
 
 private fun formatRupeeShort(value: Double): String = when {
-    value >= 1e7 -> "₹" + String.format(Locale.US, "%.2f", value / 1e7) + " Cr"
-    value >= 1e5 -> "₹" + String.format(Locale.US, "%.2f", value / 1e5) + " L"
-    else -> "₹" + formatIndianNumber(value.toLong())
+    value >= 1e7 -> "${currencySymbol()}" + String.format(Locale.US, "%.2f", value / 1e7) + " Cr"
+    value >= 1e5 -> "${currencySymbol()}" + String.format(Locale.US, "%.2f", value / 1e5) + " L"
+    else -> "${currencySymbol()}" + formatIndianNumber(value.toLong())
 }
 
 private fun formatPercent(value: Float): String = String.format(Locale.US, "%.1f", value)

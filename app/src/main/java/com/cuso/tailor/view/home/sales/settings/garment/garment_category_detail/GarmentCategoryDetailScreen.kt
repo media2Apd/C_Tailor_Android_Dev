@@ -40,6 +40,7 @@ import com.cuso.tailor.model.settings.MeasurementFieldItem
 import com.cuso.tailor.model.settings.StyleMeasurementFieldDetail
 import com.cuso.tailor.model.settings.StyleMeasurementFieldEntry
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.sales.lead.MiniSwitch
 import com.cuso.tailor.view.home.sales.settings.garment.ToggleSegmentStatusDialog
@@ -275,11 +276,6 @@ fun GarmentCategoryDetailScreen(
             )
         }
     }
-
-    DynamicIslandError(
-        message = apiError,
-        onDismiss = { viewModel.clearErrorMessage() }
-    )
 }
 
 @Composable
@@ -360,7 +356,7 @@ fun GarmentCategoryListView(
                             val fieldsCount = item.measurementFields.size
                             val requiredCount = item.measurementFields.count { it.isRequired }
                             val charge = item.stitchingCharge.toInt()
-                            val metaInfoText = "$fieldsCount Fields · $requiredCount Required · Stitching Charge: ₹$charge"
+                            val metaInfoText = "$fieldsCount Fields · $requiredCount Required · Stitching Charge: ${currencySymbol()}$charge"
 
                             Card(
                                 shape = RoundedCornerShape(tokens.cardCornerRadius),
@@ -512,16 +508,6 @@ fun GarmentCategoryListView(
                 }
             )
         }
-
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 }
 
@@ -962,16 +948,6 @@ fun GarmentProfileConfigScreen(
                 }
             )
         }
-
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 
     fieldToDelete?.let { field ->
@@ -1242,19 +1218,6 @@ fun AddExistingFieldScreen(
                     }
                 }
             )
-        )
-
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            message = errorMessage ?: apiError,
-            onDismiss = {
-                errorMessage = null
-                viewModel.clearErrorMessage()
-            }
         )
     }
 }
@@ -1548,16 +1511,6 @@ fun CreateMeasurementFieldScreen(
                 }
             )
         )
-
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 }
 
@@ -1755,16 +1708,6 @@ fun AddMeasurementGroupScreen(
                     )
                 }
             )
-        )
-
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
         )
     }
 }

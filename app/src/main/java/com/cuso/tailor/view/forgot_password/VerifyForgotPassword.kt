@@ -39,10 +39,5 @@ fun VerifyForgotPassword(
                 onError = { message -> errorMessage = message }
             )
         }
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 }

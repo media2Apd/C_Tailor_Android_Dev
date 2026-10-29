@@ -65,6 +65,7 @@ import com.cuso.tailor.ui.theme.primary_light
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.currencySymbol
 
 @Composable
 fun PreviewPdfScreen(
@@ -341,7 +342,7 @@ fun PreviewPdfScreen(
                                 color = modelGray
                             ) {
                                 Text(
-                                    text = "$  /  ₹  /  €  /  AED",
+                                    text = "$  /  ${currencySymbol()}  /  €  /  AED",
                                     fontSize = tokens.caption,
                                     fontWeight = FontWeight.Medium,
                                     color = mutedText,
@@ -503,11 +504,11 @@ fun PreviewPdfScreen(
                         title = "Enterprise ERP Software License",
                         sub = "(Annual subscription)",
                         sku = "SKU-ERP-001",
-                        totalPrice = "₹11,340.00",
+                        totalPrice = "${currencySymbol()}11,340.00",
                         tax = "Tax: 10%",
                         qty = "10",
-                        unitPrice = "₹1,200.00",
-                        discount = "₹800.00",
+                        unitPrice = "${currencySymbol()}1,200.00",
+                        discount = "${currencySymbol()}800.00",
                         tokens = tokens
                     )
 
@@ -517,10 +518,10 @@ fun PreviewPdfScreen(
                         title = "Implementation Services",
                         sub = "(50 Hours)",
                         sku = "SKU-SERV-IMP",
-                        totalPrice = "₹8,250.00",
+                        totalPrice = "${currencySymbol()}8,250.00",
                         tax = "Tax: 10%",
                         qty = "50",
-                        unitPrice = "₹150.00",
+                        unitPrice = "${currencySymbol()}150.00",
                         discount = "—",
                         tokens = tokens
                     )
@@ -531,10 +532,10 @@ fun PreviewPdfScreen(
                         title = "Custom Module Development",
                         sub = "",
                         sku = "SKU-DEV-CUST",
-                        totalPrice = "₹3,850.00",
+                        totalPrice = "${currencySymbol()}3,850.00",
                         tax = "Tax: 10%",
                         qty = "1",
-                        unitPrice = "₹3,500.00",
+                        unitPrice = "${currencySymbol()}3,500.00",
                         discount = "—",
                         tokens = tokens
                     )
@@ -594,10 +595,10 @@ fun PreviewPdfScreen(
                     Spacer(modifier = Modifier.height(tokens.extraPadding * 1.4f))
 
                     // Cost Calculation Breakdown
-                    PdfCostRow(label = "Subtotal:", value = "₹23,050.00", tokens = tokens)
-                    PdfCostRow(label = "Discount:", value = "-₹800.00", isPrimaryHighlight = true, tokens = tokens)
-                    PdfCostRow(label = "Tax Breakdown (VAT 10%):", value = "₹2,245.00", tokens = tokens)
-                    PdfCostRow(label = "Shipping/Handling:", value = "₹150.00", tokens = tokens)
+                    PdfCostRow(label = "Subtotal:", value = "${currencySymbol()}23,050.00", tokens = tokens)
+                    PdfCostRow(label = "Discount:", value = "-${currencySymbol()}800.00", isPrimaryHighlight = true, tokens = tokens)
+                    PdfCostRow(label = "Tax Breakdown (VAT 10%):", value = "${currencySymbol()}2,245.00", tokens = tokens)
+                    PdfCostRow(label = "Shipping/Handling:", value = "${currencySymbol()}150.00", tokens = tokens)
 
                     Spacer(modifier = Modifier.height(tokens.extraPadding * 0.8f))
 
@@ -620,7 +621,7 @@ fun PreviewPdfScreen(
                                 color = TextPrimary
                             )
                             Text(
-                                text = "₹24,845.00",
+                                text = "${currencySymbol()}24,845.00",
                                 fontSize = tokens.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary

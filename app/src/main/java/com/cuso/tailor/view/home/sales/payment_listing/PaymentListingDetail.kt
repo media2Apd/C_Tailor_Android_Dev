@@ -392,13 +392,13 @@ private fun OrderSummaryCard(
                             color = TextPrimary
                         )
                         Text(
-                            text = "Qty: ${item.quantity} ${item.unit} | Rate: ₹${formatIndianNumber(item.unitPrice)}",
+                            text = "Qty: ${item.quantity} ${item.unit} | Rate: ${currencySymbol()}${formatIndianNumber(item.unitPrice)}",
                             fontSize = tokens.caption,
                             color = mutedText
                         )
                     }
                     Text(
-                        text = "₹${formatIndianNumber(item.lineTotal)}",
+                        text = "${currencySymbol()}${formatIndianNumber(item.lineTotal)}",
                         fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = TextPrimary
@@ -407,15 +407,15 @@ private fun OrderSummaryCard(
                 HorizontalDivider(color = dividerColor, modifier = Modifier.padding(vertical = 3.dp))
             }
 
-            SummaryRow("Subtotal", "₹${formatIndianNumber(subtotal)}")
-            if (tax > 0.0) SummaryRow("Total Tax", "₹${formatIndianNumber(tax)}")
-            if (discount > 0.0) SummaryRow("Discount", "-₹${formatIndianNumber(discount)}")
-            if (deliveryCharge > 0.0) SummaryRow("Delivery Charge", "₹${formatIndianNumber(deliveryCharge)}")
+            SummaryRow("Subtotal", "${currencySymbol()}${formatIndianNumber(subtotal)}")
+            if (tax > 0.0) SummaryRow("Total Tax", "${currencySymbol()}${formatIndianNumber(tax)}")
+            if (discount > 0.0) SummaryRow("Discount", "-${currencySymbol()}${formatIndianNumber(discount)}")
+            if (deliveryCharge > 0.0) SummaryRow("Delivery Charge", "${currencySymbol()}${formatIndianNumber(deliveryCharge)}")
 
             HorizontalDivider(color = dividerColor, modifier = Modifier.padding(vertical = 6.dp))
 
-            SummaryRow("Total Amount", "₹${formatIndianNumber(totalAmount)}", valueColor = Primary)
-            SummaryRow("Amount Paid", "₹${formatIndianNumber(amountPaid)}", valueColor = greentext)
+            SummaryRow("Total Amount", "${currencySymbol()}${formatIndianNumber(totalAmount)}", valueColor = Primary)
+            SummaryRow("Amount Paid", "${currencySymbol()}${formatIndianNumber(amountPaid)}", valueColor = greentext)
 
             Spacer(Modifier.height(10.dp))
 
@@ -429,7 +429,7 @@ private fun OrderSummaryCard(
             ) {
                 Text("Balance Due", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = redText)
                 Text(
-                    text = "₹${formatIndianNumber(balanceDue)}",
+                    text = "${currencySymbol()}${formatIndianNumber(balanceDue)}",
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = redText
@@ -524,7 +524,7 @@ private fun SendPaymentLinkCard(
                 Column {
                     Text("Balance Due", fontSize = tokens.caption, color = TextSecondary)
                     Text(
-                        text = "₹${formatIndianNumber(balanceDue)}",
+                        text = "${currencySymbol()}${formatIndianNumber(balanceDue)}",
                         fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = redText
@@ -584,7 +584,7 @@ private fun ReceivePaymentCard(
                 colors = ButtonDefaults.buttonColors(containerColor = Primary)
             ) {
                 Text(
-                    text = "Record Payment (₹${formatIndianNumber(totalDue)})",
+                    text = "Record Payment (${currencySymbol()}${formatIndianNumber(totalDue)})",
                     color = whiteBg,
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium
@@ -674,7 +674,7 @@ private fun PaymentHistoryRow(entry: BillingHistoryItemDto) {
             }
             Spacer(Modifier.width(10.dp))
             Text(
-                text = "₹${formatIndianNumber(entry.amount)}",
+                text = "${currencySymbol()}${formatIndianNumber(entry.amount)}",
                 fontSize = tokens.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = TextPrimary
@@ -753,7 +753,7 @@ fun ReceivePaymentSheet(
                     Text("For Order #$orderRef", fontSize = tokens.caption, color = mutedText)
                 }
                 Text(
-                    text = "₹${formatIndianNumber(totalDue)}",
+                    text = "${currencySymbol()}${formatIndianNumber(totalDue)}",
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = Primary
@@ -779,7 +779,7 @@ fun ReceivePaymentSheet(
 
             Spacer(Modifier.height(12.dp))
 
-            FormLabel("Amount (₹)")
+            FormLabel("Amount (${currencySymbol()})")
             Spacer(Modifier.height(4.dp))
 //            OutlinedTextField(
 //                value = amountText,

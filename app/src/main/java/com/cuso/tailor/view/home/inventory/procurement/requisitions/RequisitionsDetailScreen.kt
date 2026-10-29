@@ -98,6 +98,7 @@ import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.view.home.pdfgenerator.RequisitionPdfExporter
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.text.SimpleDateFormat
@@ -320,7 +321,7 @@ fun RequisitionDetailScreen(
                                     )
                                     Spacer(Modifier.height(tokens.extraPadding * 0.4f))
                                     Text(
-                                        text = "₹${"%.2f".format(totalEst)}",
+                                        text = "${currencySymbol()}${"%.2f".format(totalEst)}",
                                         fontSize = tokens.h1,
                                         fontWeight = FontWeight.Bold,
                                         color = whiteBg
@@ -334,7 +335,7 @@ fun RequisitionDetailScreen(
                                     ) {
                                         Text("Estimated Subtotal", fontSize = tokens.bodySmall, color = light_grey)
                                         Text(
-                                            text = "₹${"%.2f".format(subtotalEst)}",
+                                            text = "${currencySymbol()}${"%.2f".format(subtotalEst)}",
                                             fontSize = tokens.bodySmall,
                                             fontWeight = FontWeight.Bold,
                                             color = whiteBg
@@ -347,7 +348,7 @@ fun RequisitionDetailScreen(
                                     ) {
                                         Text("Estimated Tax", fontSize = tokens.bodySmall, color = light_grey)
                                         Text(
-                                            text = "₹${"%.2f".format(taxEst)}",
+                                            text = "${currencySymbol()}${"%.2f".format(taxEst)}",
                                             fontSize = tokens.bodySmall,
                                             fontWeight = FontWeight.Bold,
                                             color = whiteBg
@@ -629,7 +630,7 @@ fun RequisitionDetailScreen(
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Text("Rate", fontSize = tokens.label, color = mutedText)
                                         Text(
-                                            text = "₹${"%.2f".format(item.rate)}",
+                                            text = "${currencySymbol()}${"%.2f".format(item.rate)}",
                                             fontSize = tokens.caption,
                                             color = title_color
                                         )
@@ -637,7 +638,7 @@ fun RequisitionDetailScreen(
                                     Column(horizontalAlignment = Alignment.End) {
                                         Text("Total", fontSize = tokens.label, color = mutedText)
                                         Text(
-                                            text = "₹${"%.2f".format(item.total)}",
+                                            text = "${currencySymbol()}${"%.2f".format(item.total)}",
                                             fontSize = tokens.caption,
                                             color = title_color,
                                             fontWeight = FontWeight.Bold
@@ -759,16 +760,6 @@ fun RequisitionDetailScreen(
                 }
             }
         }
-
-        DynamicIslandSuccess(
-            message = successMessage,
-            onDismiss = { viewModel.clearRequisitionAlerts() }
-        )
-
-        DynamicIslandError(
-            message = errorMessage,
-            onDismiss = { viewModel.clearRequisitionAlerts() }
-        )
     }
 }
 

@@ -23,37 +23,39 @@ data class User(
 )
 
 //   This is the Login API version of Organization (branches = List<String>)
+// Every field has a default value, so Kotlin generates a no-arg constructor.
+// Gson uses it, so a MISSING field in the JSON keeps its default instead of becoming null.
 data class Organization(
-    val subscription: Subscription,
-    val settings: Settings,
-    val isInternalOrganization: Boolean,
-    val _id: String,
-    val businessId: String,
-    val name: String,
-    val industry: String,
-    val orgType: String,
-    val organizationPicture: String?,
-    val organizationPictureId: String?,
-    val domains: List<String>,
-    val email: String,
-    val mobile: String,
-    val orgSetupComplete: Boolean,
-    val totalMembers: Int,
-    val activeMembers: Int,
-    val segments: List<String>,
-    val branches: List<String>,  //   Login API returns List<String>
-    val isTaxId: Boolean,
-    val status: String,
-    val createdAt: String,
-    val updatedAt: String,
-    val slug: String,
-    val __v: Int,
-    val defaultBranch: String="",
-    val ownerId: String,
-    val ownerMemberId: String,
-    val businessType: String,
-    val taxId: String,
-    val plan: String? = null  // Login API returns plan as String ID
+    val subscription: Subscription = Subscription(),   // login API sends no subscription object
+    val settings: Settings = Settings(),
+    val isInternalOrganization: Boolean = false,
+    val _id: String = "",
+    val businessId: String = "",
+    val name: String = "",
+    val industry: String = "",                          // login API does NOT send this
+    val orgType: String = "",
+    val organizationPicture: String? = null,
+    val organizationPictureId: String? = null,
+    val domains: List<String> = emptyList(),
+    val email: String = "",
+    val mobile: String = "",
+    val orgSetupComplete: Boolean = false,
+    val totalMembers: Int = 0,
+    val activeMembers: Int = 0,
+    val segments: List<String> = emptyList(),
+    val branches: List<String> = emptyList(),
+    val isTaxId: Boolean = false,
+    val status: String = "",
+    val createdAt: String = "",
+    val updatedAt: String = "",
+    val slug: String = "",
+    val __v: Int = 0,
+    val defaultBranch: String = "",
+    val ownerId: String = "",
+    val ownerMemberId: String = "",
+    val businessType: String = "",
+    val taxId: String = "",
+    val plan: String? = null
 )
 
 //   This is the Organization API version (branches = List<Branch>)
@@ -141,30 +143,34 @@ data class Plan(
     val __v: Int
 )
 
-// ... rest of your data classes (Subscription, Settings, Tokens) remain the same
-
+// All defaults, so the class has a no-arg constructor and can be created as Subscription()
 data class Subscription(
     val startDate: String = "",
     val endDate: String = "",
     val status: String = "",
-    val memberLimit: Int,
-    val featuresEnabled: List<String>
+    val memberLimit: Int = 0,
+    val featuresEnabled: List<String> = emptyList()
 )
 
 data class Settings(
-    val country: String,
-    val state: String,
-    val portalName: String,
-    val termsAccepted: Boolean,
-    val marketingEmails: Boolean,
-    val workingDays: List<String>,
-    val timezone: String,
-    val currency: String,
-    val language: String,
-    val address: String,
-    val city: String,
-    val pincode: String,
-    val companySize: String = "")
+    // Login API sends "countryName" / "subdivisionName"; other APIs may send "country" / "state".
+    // "alternate" makes Gson accept both names.
+    @SerializedName(value = "country", alternate = ["countryName"])
+    val country: String = "",
+    @SerializedName(value = "state", alternate = ["subdivisionName"])
+    val state: String = "",
+    val portalName: String = "",
+    val termsAccepted: Boolean = false,
+    val marketingEmails: Boolean = false,
+    val workingDays: List<String> = emptyList(),
+    val timezone: String = "",
+    val currency: String = "",
+    val language: String = "",
+    val address: String = "",
+    val city: String = "",
+    val pincode: String = "",
+    val companySize: String = ""
+)
 
 data class Tokens(
     val accessToken: String,

@@ -123,3 +123,5 @@ fun AppErrorState(
         }
     }
 }
+
+fun currencySymbol(code: String? = null): String = com.cuso.tailor.utils.CurrencyHelper.getSymbol(code ?: "INR")

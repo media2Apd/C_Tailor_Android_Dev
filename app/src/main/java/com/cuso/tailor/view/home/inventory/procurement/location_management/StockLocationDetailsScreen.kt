@@ -191,11 +191,6 @@ fun StockLocationDetailsScreen(
                     }
                 }
             }
-
-            DynamicIslandError(
-                message = errorMessage,
-                onDismiss = { inventoryViewModel.clearSelectedStockLocationDetail() }
-            )
         }
     }
 }

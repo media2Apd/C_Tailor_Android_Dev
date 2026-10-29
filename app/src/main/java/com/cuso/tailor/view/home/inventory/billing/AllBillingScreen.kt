@@ -29,6 +29,7 @@ import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.currencySymbol
 
 data class BillItem(
     val id: String,
@@ -296,7 +297,7 @@ fun BillRowCard(
                     letterSpacing = 0.5.sp
                 )
                 Text(
-                    text = "₹${"%.0f".format(bill.amount)}",
+                    text = "${currencySymbol()}${"%.0f".format(bill.amount)}",
                     fontSize = tokens.bodyMedium,
                     color = Primary
                 )

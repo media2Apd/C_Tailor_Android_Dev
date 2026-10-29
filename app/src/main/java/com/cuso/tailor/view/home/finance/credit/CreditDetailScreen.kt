@@ -42,6 +42,7 @@ import com.cuso.tailor.model.finance.ApplyCreditToInvoiceRequest
 import com.cuso.tailor.model.finance.CreditNoteItemDto
 import com.cuso.tailor.model.finance.CustomerOutstandingInvoiceItem
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextField
@@ -494,7 +495,7 @@ fun CreditNoteDetailScreen(
                                 )
                                 Spacer(Modifier.height(2.dp))
                                 Text(
-                                    text = "credits remaining ₹${String.format(Locale.US, "%.2f", item.remainingBalance)}",
+                                    text = "credits remaining ${currencySymbol()}${String.format(Locale.US, "%.2f", item.remainingBalance)}",
                                     fontSize = tokens.caption,
                                     color = TextSecondary,
                                     fontWeight = FontWeight.Medium
@@ -688,7 +689,7 @@ fun CreditNoteDetailScreen(
                                         modifier = Modifier.weight(1.3f)
                                     )
                                     Text(
-                                        text = "₹${String.format(Locale.US, "%.2f", rateAmount)}",
+                                        text = "${currencySymbol()}${String.format(Locale.US, "%.2f", rateAmount)}",
                                         fontSize = tokens.bodySmall,
                                         color = TitleColor,
                                         fontWeight = FontWeight.Normal,
@@ -697,7 +698,7 @@ fun CreditNoteDetailScreen(
                                         modifier = Modifier.weight(1.1f)
                                     )
                                     Text(
-                                        text = "₹${String.format(Locale.US, "%.2f", alloc.amountApplied)}",
+                                        text = "${currencySymbol()}${String.format(Locale.US, "%.2f", alloc.amountApplied)}",
                                         fontSize = tokens.bodySmall,
                                         fontWeight = FontWeight.Medium,
                                         color = TitleColor,
@@ -725,7 +726,7 @@ fun CreditNoteDetailScreen(
                                 color = TitleColor
                             )
                             Text(
-                                text = "₹${String.format(Locale.US, "%.2f", item.grandTotal)}",
+                                text = "${currencySymbol()}${String.format(Locale.US, "%.2f", item.grandTotal)}",
                                 fontSize = tokens.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = TitleColor
@@ -747,7 +748,7 @@ fun CreditNoteDetailScreen(
                                 fontWeight = FontWeight.Normal
                             )
                             Text(
-                                text = "₹${String.format(Locale.US, "%.2f", item.remainingBalance)}",
+                                text = "${currencySymbol()}${String.format(Locale.US, "%.2f", item.remainingBalance)}",
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = TitleColor
@@ -996,7 +997,7 @@ fun ApplyCreditToInvoiceDialog(
     // Map outstanding invoice objects to dropdown display labels
     val invoiceDisplayOptions = remember(outstandingInvoices) {
         outstandingInvoices.map { inv ->
-            "${inv.invoiceNumber} (Due: ₹${String.format(Locale.US, "%.2f", inv.balanceDue)})"
+            "${inv.invoiceNumber} (Due: ${currencySymbol()}${String.format(Locale.US, "%.2f", inv.balanceDue)})"
         }
     }
 
@@ -1087,7 +1088,7 @@ fun ApplyCreditToInvoiceDialog(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "₹${String.format(Locale.US, "%,.2f", creditNote.remainingBalance)}",
+                            text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", creditNote.remainingBalance)}",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Medium,
                             color = greentext
@@ -1102,14 +1103,14 @@ fun ApplyCreditToInvoiceDialog(
                     label = "Select Outstanding Invoice",
                     isRequired = true,
                     value = selectedInvoice?.let {
-                        "${it.invoiceNumber} (Due: ₹${String.format(Locale.US, "%.2f", it.balanceDue)})"
+                        "${it.invoiceNumber} (Due: ${currencySymbol()}${String.format(Locale.US, "%.2f", it.balanceDue)})"
                     } ?: if (isLoadingInvoices) "Loading invoices..." else "Choose Invoice",
                     expanded = isDropdownExpanded,
                     onExpandChange = { isDropdownExpanded = it },
                     options = invoiceDisplayOptions,
                     onOptionSelected = { selectedLabel ->
                         val matched = outstandingInvoices.find { inv ->
-                            "${inv.invoiceNumber} (Due: ₹${String.format(Locale.US, "%.2f", inv.balanceDue)})" == selectedLabel
+                            "${inv.invoiceNumber} (Due: ${currencySymbol()}${String.format(Locale.US, "%.2f", inv.balanceDue)})" == selectedLabel
                         }
                         if (matched != null) {
                             onInvoiceSelected(matched)

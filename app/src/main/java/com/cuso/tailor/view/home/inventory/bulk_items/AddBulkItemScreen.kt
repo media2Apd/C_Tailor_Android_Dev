@@ -339,7 +339,7 @@ fun AddBulkItemScreen(
                             }
                         }
                         Spacer(Modifier.height(4.dp))
-                        FormTextField(value = "₹$computedCostPrice", onValueChange = {}, enabled = false)
+                        FormTextField(value = "${currencySymbol()}$computedCostPrice", onValueChange = {}, enabled = false)
 
                         Spacer(Modifier.height(12.dp))
                         FormDropdown(
@@ -601,7 +601,7 @@ private fun ComponentSearchResultRow(
             )
         }
         Text(
-            text = "₹${"%.2f".format(item.costPrice)}",
+            text = "${currencySymbol()}${"%.2f".format(item.costPrice)}",
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = Primary
@@ -703,7 +703,7 @@ fun ComponentFormCard(
 
             Column(horizontalAlignment = Alignment.End) {
                 Text("Cost", fontSize = tokens.label, color = iconMuted)
-                Text("₹${"%.2f".format(comp.unitCost * comp.requiredQty)}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+                Text("${currencySymbol()}${"%.2f".format(comp.unitCost * comp.requiredQty)}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
             }
         }
     }

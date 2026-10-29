@@ -52,6 +52,7 @@ import com.cuso.tailor.view.composable.PlanLimitDialog
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.view.composable.TrailingFabButton
+import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.view.home.toIsoDate
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
@@ -511,7 +512,7 @@ fun JournalEntryFormScreen(
                     ) {
                         Text("Total Debit", fontSize = 14.sp, color = TextSecondary)
                         Text(
-                            "₹${"%.2f".format(totalDebit)}",
+                            "${currencySymbol()}${"%.2f".format(totalDebit)}",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF111827)
@@ -525,7 +526,7 @@ fun JournalEntryFormScreen(
                     ) {
                         Text("Total Credit", fontSize = 14.sp, color = TextSecondary)
                         Text(
-                            "₹${"%.2f".format(totalCredit)}",
+                            "${currencySymbol()}${"%.2f".format(totalCredit)}",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF111827)
@@ -539,7 +540,7 @@ fun JournalEntryFormScreen(
                     ) {
                         Text("Difference", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
                         Text(
-                            "₹${"%.2f".format(abs(totalDebit - totalCredit))}",
+                            "${currencySymbol()}${"%.2f".format(abs(totalDebit - totalCredit))}",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = if (isBalanced) GreenText else RedText

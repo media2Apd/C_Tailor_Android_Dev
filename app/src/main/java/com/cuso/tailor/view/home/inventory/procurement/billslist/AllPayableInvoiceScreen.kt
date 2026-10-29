@@ -37,8 +37,8 @@ data class PayableInvoiceItemModel(
     val status: String = "Draft",
     val date: String = "-",
     val dueDate: String = "-",
-    val balanceDueDate: String = "₹0",
-    val totalAmount: String = "₹0",
+    val balanceDueDate: String = "${currencySymbol()}0",
+    val totalAmount: String = "${currencySymbol()}0",
     val raw: ProcurementBillItem? = null
 )
 
@@ -358,8 +358,8 @@ private fun ProcurementBillItem.toUiModel(): PayableInvoiceItemModel {
         status = status.ifBlank { "Draft" },
         date = formatIsoDate(billDate),
         dueDate = formatIsoDate(dueDate),
-        balanceDueDate = "₹${formatIndianNumber(balanceDue)}",
-        totalAmount = "₹${formatIndianNumber(grandTotal)}",
+        balanceDueDate = "${currencySymbol()}${formatIndianNumber(balanceDue)}",
+        totalAmount = "${currencySymbol()}${formatIndianNumber(grandTotal)}",
         raw = this
     )
 }

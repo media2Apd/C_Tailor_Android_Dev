@@ -28,6 +28,7 @@ import com.cuso.tailor.model.sales.PriceAdjustmentDto
 import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_border
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.AccordionSection
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
@@ -530,20 +531,6 @@ fun AddGarmentPricingScreen(
                 onClick = { handleSave() }
             )
         )
-
-        // ── Dynamic Island success toast ──
-        DynamicIslandSuccess(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = if (showSuccess) successMessage else null,
-            onDismiss = { showSuccess = false }
-        )
-
-        // ── Dynamic Island error toast ──
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = if (showError) errorMessage else null,
-            onDismiss = { showError = false }
-        )
     }
 }
 
@@ -588,7 +575,7 @@ private fun PriceAdjustmentField(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Add, contentDescription = null, tint = LeadPrimary, modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(6.dp))
-            Text("₹", fontSize = 13.sp, color = Color(0xFF374151))
+            Text("${currencySymbol()}", fontSize = 13.sp, color = Color(0xFF374151))
             BasicTextField(
                 value = price,
                 onValueChange = onPriceChange,

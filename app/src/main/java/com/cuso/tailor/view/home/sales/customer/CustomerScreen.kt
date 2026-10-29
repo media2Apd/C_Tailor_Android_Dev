@@ -444,25 +444,6 @@ fun CustomerScreen(
                     )
                 }
             }
-
-            DynamicIslandSuccess(
-                message = when {
-                    showCreateSuccess -> "Customer Created Successfully"
-                    showDeleteSuccess -> deleteSuccessMessage
-                    else -> null
-                },
-                onDismiss = {
-                    showCreateSuccess = false
-                    showDeleteSuccess = false
-                },
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
-
-            DynamicIslandError(
-                message = errorMessage,
-                onDismiss = { errorMessage = null },
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
         }
     }
 

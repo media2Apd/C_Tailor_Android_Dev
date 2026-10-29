@@ -325,22 +325,6 @@ fun AllRequisitionsScreen(
                 }
             )
         }
-
-        DynamicIslandSuccess(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = successMessage,
-            onDismiss = { viewModel.clearRequisitionAlerts() }
-        )
-
-        DynamicIslandError(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = errorMessage?.takeIf { requisitionsList.isNotEmpty() }?.let { ErrorMapper.map(it) },
-            onDismiss = { viewModel.clearRequisitionAlerts() }
-        )
     }
 }
 

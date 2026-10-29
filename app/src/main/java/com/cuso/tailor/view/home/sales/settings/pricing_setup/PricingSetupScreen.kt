@@ -31,6 +31,7 @@ import com.cuso.tailor.model.sales.FabricPricingItem
 import com.cuso.tailor.model.settings.GarmentStyleItem
 import com.cuso.tailor.model.settings.WorkPricingItem
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.sales.settings.garment.ToggleSegmentStatusDialog
 import com.cuso.tailor.viewmodel.SettingsViewModel
@@ -230,22 +231,6 @@ fun PricingSetupScreen(
                 }
             )
         }
-
-        DynamicIslandSuccess(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = successMsg,
-            onDismiss = { viewModel.clearSuccessMessage() }
-        )
-
-        DynamicIslandError(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = errorMsg,
-            onDismiss = { viewModel.clearDynamicErrorMessage() }
-        )
     }
 }
 
@@ -309,7 +294,7 @@ private fun GarmentPricingListContent(
                             ) {
                                 Text(text = style.displayName ?: style.name, fontSize = 13.sp, color = iconMuted)
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(text = "₹${style.stitchingCharge.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = title_color)
+                                    Text(text = "${currencySymbol()}${style.stitchingCharge.toInt()}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = title_color)
                                     if (isActive) {
                                         Box(
                                             modifier = Modifier.background(Color(0xFFE6F7ED), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp)
@@ -419,7 +404,7 @@ private fun FabricPricingListContent(
                                 color = headerGrey
                             )
                             Text(
-                                text = "₹${item.sellingPrice.toInt()}",
+                                text = "${currencySymbol()}${item.sellingPrice.toInt()}",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = title_color
@@ -465,7 +450,7 @@ private fun EditFabricPriceDialog(
                     color = headerGrey
                 )
                 Spacer(Modifier.height(14.dp))
-                FormLabel("Selling Price (₹ per meter)", isRequired = true)
+                FormLabel("Selling Price (${currencySymbol()} per meter)", isRequired = true)
                 FormTextField(
                     value = priceText,
                     onValueChange = { priceText = it },
@@ -611,7 +596,7 @@ private fun WorkPricingListContent(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(text = "Segment: ${item.segmentId?.name ?: "N/A"}", fontSize = 12.sp, color = close_color)
-                            Text(text = "₹${item.basePrice.toInt()}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = title_color)
+                            Text(text = "${currencySymbol()}${item.basePrice.toInt()}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = title_color)
                         }
                         Spacer(Modifier.height(12.dp))
                         HorizontalDivider(color = title_border, thickness = 0.8.dp)

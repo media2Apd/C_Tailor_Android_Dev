@@ -239,20 +239,6 @@ fun DesignSetupScreen(
                 }
             )
         }
-
-        // Real-time Success Notification
-        DynamicIslandSuccess(
-            modifier = Modifier.padding(top = tokens.fieldHeight * 1.5f),
-            message = dynamicSuccess,
-            onDismiss = { viewModel.clearSuccessMessage() }
-        )
-
-        // Real-time Error Notification
-        DynamicIslandError(
-            modifier = Modifier.padding(top = tokens.fieldHeight * 1.5f),
-            message = dynamicError?.let { ErrorMapper.map(it) },
-            onDismiss = { viewModel.clearDynamicErrorMessage() }
-        )
     }
 }
 

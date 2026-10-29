@@ -191,8 +191,8 @@ private fun ReceiptCardItem(
         ?: "INV-0011"
 
     val paymentTypeBadge = if (item.isAdvancePayment || item.invoice == null) "ADVANCE PAYMENT" else "INVOICE PAYMENT"
-    val formattedReceiptAmount = "₹ ${String.format("%,.0f", item.amount)}"
-    val formattedUnusedBalance = "₹ ${String.format("%,.0f", item.unallocatedAmount)}"
+    val formattedReceiptAmount = "${currencySymbol()} ${String.format("%,.0f", item.amount)}"
+    val formattedUnusedBalance = "${currencySymbol()} ${String.format("%,.0f", item.unallocatedAmount)}"
 
     // Dropdown overflow actions
     val menuActions = remember {

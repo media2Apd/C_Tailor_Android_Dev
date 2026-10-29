@@ -136,14 +136,6 @@ fun ResetPassword(
                 modifier = Modifier.fillMaxWidth()
             )
         }
-
-        // Floating error pill, shown at the top of the screen whenever
-        // the API returns UiState.Error
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = islandErrorMessage,
-            onDismiss = { islandErrorMessage = null }
-        )
     }
 }
 

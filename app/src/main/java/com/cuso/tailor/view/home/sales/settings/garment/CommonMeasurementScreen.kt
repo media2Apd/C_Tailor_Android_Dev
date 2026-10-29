@@ -395,18 +395,6 @@ fun CommonMeasurementsScreen(
                         }
                     )
                 )
-
-                // Dynamic Island Success Message
-                DynamicIslandSuccess(
-                    message = successMessage,
-                    onDismiss = { successMessage = null }
-                )
-
-                // Dynamic Island Error Message
-                DynamicIslandError(
-                    message = errorMessage,
-                    onDismiss = { errorMessage = null }
-                )
             }
 
             // Delete Confirmation Dialog

@@ -38,6 +38,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.*
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.util.Locale
 
@@ -131,7 +132,7 @@ fun InventoryDashboardScreen(
                         ),
                         MetricCardUiData(
                             title = "Inventory Value",
-                            value = summary?.inventoryValue?.displayValue ?: "₹${summary?.inventoryValue?.value ?: 0}",
+                            value = summary?.inventoryValue?.displayValue ?: "${currencySymbol()}${summary?.inventoryValue?.value ?: 0}",
                             changePercent = summary?.inventoryValue?.changePercent ?: 0.0,
                             isPositive = (summary?.inventoryValue?.changePercent ?: 0.0) >= 0,
                             icon = Icons.AutoMirrored.Outlined.TrendingUp,
@@ -465,7 +466,7 @@ fun InventoryValueStockCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ChartLegendItem(color = Primary, text = "Value (₹)", isCircle = true)
+                ChartLegendItem(color = Primary, text = "Value (${currencySymbol()})", isCircle = true)
                 ChartLegendItem(color = Color(0xFF14B8A6), text = "Incoming", isCircle = false)
                 ChartLegendItem(color = Color(0xFF3B82F6), text = "Outgoing", isCircle = false)
             }
@@ -1119,7 +1120,7 @@ fun SlowMovingSectionCard(products: List<SlowMovingProductItem>) {
                     modifier = Modifier.weight(1.1f)
                 )
                 Text(
-                    text = "Value (₹)",
+                    text = "Value (${currencySymbol()})",
                     fontSize = tokens.caption,
                     color = mutedText,
                     fontWeight = FontWeight.Medium,

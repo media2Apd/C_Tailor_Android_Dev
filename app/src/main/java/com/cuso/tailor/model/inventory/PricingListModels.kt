@@ -3,6 +3,7 @@
 package com.cuso.tailor.model.inventory
 
 import com.cuso.tailor.model.finance.ReturnPaginationDto
+import com.cuso.tailor.utils.currencySymbol
 import com.google.gson.annotations.SerializedName
 
 enum class PriceListTransactionType(val label: String) {
@@ -46,7 +47,7 @@ data class CurrencyOption(
 )
 
 val DefaultCurrencyOptions = listOf(
-    CurrencyOption("INR", "INR - Indian Rupee (₹)"),
+    CurrencyOption("INR", "INR - Indian Rupee (${currencySymbol()})"),
     CurrencyOption("USD", "USD - US Dollar ($)"),
     CurrencyOption("EUR", "EUR - Euro (€)"),
     CurrencyOption("GBP", "GBP - British Pound (£)")

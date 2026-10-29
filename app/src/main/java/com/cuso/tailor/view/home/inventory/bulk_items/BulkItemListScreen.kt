@@ -191,9 +191,7 @@ fun BulkListScreen(
             }
         )
 
-        DynamicIslandSuccess(message = successMessage, onDismiss = { viewModel.clearBulkSuccessMessage() })
-        DynamicIslandError(message = errorMessage?.takeIf { bulkList.isNotEmpty() }, onDismiss = { viewModel.clearBulkError() })
-    }
+        }
 }
 
 private data class BulkStatusTheme(

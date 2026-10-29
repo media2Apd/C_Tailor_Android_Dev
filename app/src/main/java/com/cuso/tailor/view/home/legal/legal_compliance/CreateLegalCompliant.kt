@@ -60,6 +60,11 @@ fun CreateLegalComplianceScreen(
         }
     }
 
+    // Dynamic Legal Entity options loaded from Branch API
+    val legalEntityOptions = remember(branchList) {
+        branchList.mapNotNull { it.name }.filter { it.isNotBlank() }.distinct()
+    }
+
     val memberList by hrViewModel.members.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
@@ -75,7 +80,7 @@ fun CreateLegalComplianceScreen(
         }
     }
 
-    // ── Static Option Lists (from React code) ──
+    // ── Static Option Lists ──
     val requirementTypeOptions = remember {
         listOf("Filing", "Registration", "License", "Permit", "Certification", "Audit", "Report", "Payment", "Policy", "Training")
     }
@@ -84,9 +89,6 @@ fun CreateLegalComplianceScreen(
     }
     val applicabilityOptions = remember {
         listOf("All Entities", "Specific Entity", "Specific Branch", "Specific Department", "All Employees")
-    }
-    val countryOptions = remember {
-        listOf("India", "United States", "United Kingdom", "United Arab Emirates", "Singapore", "Germany", "Australia")
     }
     val frequencyOptions = remember {
         listOf("One Time", "Monthly", "Quarterly", "Half Yearly", "Annually", "Event Based")
@@ -99,9 +101,6 @@ fun CreateLegalComplianceScreen(
     }
     val priorityOptions = remember {
         listOf("Low", "Medium", "High", "Urgent")
-    }
-    val legalEntityOptions = remember {
-        listOf("Nexus Boutique", "Cuso Tailor Private Limited", "Holdings Ltd")
     }
 
     // ── Form State: Section 1 (Compliance Information) ──
@@ -117,7 +116,6 @@ fun CreateLegalComplianceScreen(
 
     // ── Form State: Section 2 (Jurisdiction) ──
     var countryName by remember { mutableStateOf("") }
-    var isCountryExpanded by remember { mutableStateOf(false) }
     var region by remember { mutableStateOf("") }
     var jurisdiction by remember { mutableStateOf("") }
     var legalEntity by remember { mutableStateOf("") }
@@ -205,7 +203,7 @@ fun CreateLegalComplianceScreen(
         }
     }
 
-    // ── Form Submission with React Validation Logic ──
+    // ── Form Submission ──
     fun handleSubmit() {
         if (complianceName.isBlank()) {
             Toast.makeText(context, "Compliance name is required", Toast.LENGTH_SHORT).show()
@@ -271,6 +269,7 @@ fun CreateLegalComplianceScreen(
 
         // 2. Jurisdiction
         addField("countryName", countryName)
+        addField("country", countryName)
         addField("region", region)
         addField("jurisdiction", jurisdiction)
         addField("legalEntity", legalEntity)
@@ -478,24 +477,13 @@ fun CreateLegalComplianceScreen(
 
             // ── Section 2: Jurisdiction ──
             ComplianceSectionCard(stepNumber = "2", title = "Jurisdiction") {
-                FormDropdown(
-                    label = "COUNTRY",
-                    isRequired = true,
-                    value = countryName,
-                    expanded = isCountryExpanded,
-                    onExpandChange = { isCountryExpanded = it },
-                    options = countryOptions,
-                    onOptionSelected = { countryName = it }
+                // Integrated Country and State Picker
+                CountryAndStatePicker(
+                    selectedCountry = countryName,
+                    selectedState = region,
+                    onCountryChange = { countryName = it },
+                    onStateChange = { region = it }
                 )
-
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    FormLabel(text = "REGION")
-                    FormTextField(
-                        value = region,
-                        onValueChange = { region = it },
-                        placeholder = "Enter region or territory"
-                    )
-                }
 
                 Column(modifier = Modifier.fillMaxWidth()) {
                     FormLabel(text = "JURISDICTION")
@@ -506,12 +494,13 @@ fun CreateLegalComplianceScreen(
                     )
                 }
 
+                // Dynamic Legal Entity from Branch API
                 FormDropdown(
                     label = "LEGAL ENTITY",
-                    value = legalEntity,
+                    value = legalEntity.ifEmpty { "Select Legal Entity..." },
                     expanded = isLegalEntityExpanded,
                     onExpandChange = { isLegalEntityExpanded = it },
-                    options = legalEntityOptions,
+                    options = if (legalEntityOptions.isNotEmpty()) legalEntityOptions else listOf("Nexus Boutique"),
                     onOptionSelected = { legalEntity = it }
                 )
 
@@ -520,9 +509,14 @@ fun CreateLegalComplianceScreen(
                     value = selectedBranchName,
                     expanded = isBranchExpanded,
                     onExpandChange = { isBranchExpanded = it },
-                    options = branchList.map { it.name.orEmpty() },
+                    options = branchList.mapNotNull { it.name },
                     onOptionSelected = { name ->
-                        selectedBranchId = branchList.find { it.name == name }?.id.orEmpty()
+                        val matchedBranch = branchList.find { it.name == name }
+                        selectedBranchId = matchedBranch?.id.orEmpty()
+                        // Automatically sync legal entity with selected branch if empty
+                        if (legalEntity.isBlank()) {
+                            legalEntity = name
+                        }
                     }
                 )
             }

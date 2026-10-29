@@ -98,6 +98,7 @@ import java.util.UUID
 import androidx.core.net.toUri
 import com.cuso.tailor.view.composable.AttributeTypeSelector
 import com.cuso.tailor.view.composable.AttributeValueSelector
+import com.cuso.tailor.view.composable.currencySymbol
 
 data class AttributeEntry(
     val id: String = UUID.randomUUID().toString(),
@@ -600,7 +601,7 @@ fun CreateItemGroupScreen(
                             costPrice = it
                             recalculateVariants()
                         },
-                        placeholder = "₹0",
+                        placeholder = "${currencySymbol()}0",
                         keyboardType = KeyboardType.Number
                     )
                     Text("Default cost for all generated variants", fontSize = tokens.label, color = TextSecondary, modifier = Modifier.padding(top = 4.dp))
@@ -613,7 +614,7 @@ fun CreateItemGroupScreen(
                             sellingPrice = it
                             recalculateVariants()
                         },
-                        placeholder = "₹0",
+                        placeholder = "${currencySymbol()}0",
                         keyboardType = KeyboardType.Number
                     )
                     Text("Default selling price for all generated variants", fontSize = tokens.label, color = TextSecondary, modifier = Modifier.padding(top = 4.dp))
@@ -867,7 +868,7 @@ fun CreateItemGroupScreen(
                                             onValueChange = {
                                                 if (actualIndex != -1) variants[actualIndex] = variant.copy(cost = it)
                                             },
-                                            placeholder = "₹0",
+                                            placeholder = "${currencySymbol()}0",
                                             keyboardType = KeyboardType.Number
                                         )
                                         Spacer(Modifier.height(14.dp))
@@ -877,7 +878,7 @@ fun CreateItemGroupScreen(
                                             onValueChange = {
                                                 if (actualIndex != -1) variants[actualIndex] = variant.copy(price = it)
                                             },
-                                            placeholder = "₹0",
+                                            placeholder = "${currencySymbol()}0",
                                             keyboardType = KeyboardType.Number
                                         )
                                         Spacer(Modifier.height(14.dp))
@@ -934,11 +935,11 @@ fun CreateItemGroupScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Column(modifier = Modifier.weight(1f)) {
                                 FormLabel("Cost")
-                                FormTextField(value = bulkCost, onValueChange = { bulkCost = it }, placeholder = "₹0", keyboardType = KeyboardType.Number)
+                                FormTextField(value = bulkCost, onValueChange = { bulkCost = it }, placeholder = "${currencySymbol()}0", keyboardType = KeyboardType.Number)
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 FormLabel("Price")
-                                FormTextField(value = bulkPrice, onValueChange = { bulkPrice = it }, placeholder = "₹0", keyboardType = KeyboardType.Number)
+                                FormTextField(value = bulkPrice, onValueChange = { bulkPrice = it }, placeholder = "${currencySymbol()}0", keyboardType = KeyboardType.Number)
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 FormLabel("Re-Order Point")
@@ -978,22 +979,6 @@ fun CreateItemGroupScreen(
                 label = if (isCreating) "Saving..." else if (isEditMode) "Update Item Group" else "Save Item Group",
                 onClick = { if (!isCreating) onSubmit() }
             )
-        )
-
-        DynamicIslandSuccess(
-            message = successMessage ?: confirmationSuccessMessage,
-            onDismiss = {
-                inventoryViewModel.clearItemGroupAlerts()
-                confirmationSuccessMessage = null
-            }
-        )
-
-        DynamicIslandError(
-            message = errorMessage ?: validationError,
-            onDismiss = {
-                inventoryViewModel.clearItemGroupAlerts()
-                validationError = null
-            }
         )
     }
 }

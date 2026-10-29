@@ -77,6 +77,7 @@ import com.cuso.tailor.R
 import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.title_color
+import com.cuso.tailor.view.composable.currencySymbol
 
 @Composable
 fun ItemGroupDetailScreen(
@@ -304,8 +305,8 @@ fun ItemGroupDetailScreen(
                             icon = Icons.Outlined.ShoppingCart,
                             tokens = tokens
                         ) {
-                            DetailRowItem(label = "Average Cost", value = "₹%.2f".format(costPrice))
-                            DetailRowItem(label = "Cost Range", value = "₹%.0f".format(costPrice))
+                            DetailRowItem(label = "Average Cost", value = "${currencySymbol()}%.2f".format(costPrice))
+                            DetailRowItem(label = "Cost Range", value = "${currencySymbol()}%.0f".format(costPrice))
                             DetailRowItem(
                                 label = "Purchase Account",
                                 value = "Cost of Goods Sold",
@@ -325,8 +326,8 @@ fun ItemGroupDetailScreen(
                             icon = Icons.Outlined.LocalOffer,
                             tokens = tokens
                         ) {
-                            DetailRowItem(label = "Average Cost", value = "₹%.2f".format(sellingPrice))
-                            DetailRowItem(label = "Price Range", value = "₹%.0f".format(sellingPrice))
+                            DetailRowItem(label = "Average Cost", value = "${currencySymbol()}%.2f".format(sellingPrice))
+                            DetailRowItem(label = "Price Range", value = "${currencySymbol()}%.0f".format(sellingPrice))
                             DetailRowItem(
                                 label = "Average Margin",
                                 value = "%.1f%%".format(margin),

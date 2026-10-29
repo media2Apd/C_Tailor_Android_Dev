@@ -198,13 +198,13 @@ fun CreatePaymentReceiptScreen(
                 // Allocate to Invoice FormDropdown (Dynamically populated from outstanding invoices API)
                 val invoiceOptions = remember(outstandingInvoices) {
                     listOf("None (Direct Advance)") + outstandingInvoices.map {
-                        "${it.invoiceNumber}  •  Due: ₹${it.balanceDue.toInt()}"
+                        "${it.invoiceNumber}  •  Due: ${currencySymbol()}${it.balanceDue.toInt()}"
                     }
                 }
 
                 val invoiceDisplayValue = when {
                     selectedCustomerId.isBlank() -> "Select customer first to view unpaid in..."
-                    selectedInvoice != null -> "${selectedInvoice?.invoiceNumber}  •  Due: ₹${selectedInvoice?.balanceDue?.toInt()}"
+                    selectedInvoice != null -> "${selectedInvoice?.invoiceNumber}  •  Due: ${currencySymbol()}${selectedInvoice?.balanceDue?.toInt()}"
                     outstandingInvoices.isEmpty() -> "No outstanding invoices found"
                     else -> "Select Invoice (Optional)"
                 }
@@ -224,7 +224,7 @@ fun CreatePaymentReceiptScreen(
                             selectedInvoice = null
                         } else {
                             val matchedInvoice = outstandingInvoices.find {
-                                "${it.invoiceNumber}  •  Due: ₹${it.balanceDue.toInt()}" == selectedOption
+                                "${it.invoiceNumber}  •  Due: ${currencySymbol()}${it.balanceDue.toInt()}" == selectedOption
                             }
                             selectedInvoice = matchedInvoice
                             // Pre-fill amount received with outstanding balance due
@@ -352,7 +352,7 @@ fun CreatePaymentReceiptScreen(
                         color = TextPrimary
                     )
                     Text(
-                        text = "₹${amountReceived.ifBlank { "0" }}",
+                        text = "${currencySymbol()}${amountReceived.ifBlank { "0" }}",
                         fontSize = tokens.bodyLarge,
                         fontWeight = FontWeight.Medium,
                         color = Primary

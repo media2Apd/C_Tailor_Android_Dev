@@ -234,6 +234,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedPicklistId by remember { mutableStateOf<String?>(null) }
     var selectedPackageIdForDetail by remember { mutableStateOf<String?>(null) }
     var selectedPackageIdForEdit by remember { mutableStateOf<String?>(null) }
+    var selectedLogisticsPackageId by remember { mutableStateOf<String?>(null) }
+
     // Approvals State
     var selectedApprovalId by remember { mutableStateOf<String?>(null) }
     var selectedPriceListId by remember { mutableStateOf<String?>(null) }
@@ -244,6 +246,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedLegalLicenseId by remember { mutableStateOf<String?>(null) }
     var selectedLegalCustomerId by remember { mutableStateOf<String?>(null) }
     var selectedLegalEmployeeId by remember { mutableStateOf<String?>(null) }
+    var selectedLegalVendorId by remember { mutableStateOf<String?>(null) }
+    var selectedLegalNoticeId by remember { mutableStateOf<String?>(null) }
+
     // HR State
     var employeeScreenMode by remember { mutableStateOf(ScreenMode.CREATE) }
     var selectedEmployeeId by remember { mutableStateOf<String?>(null) }
@@ -706,6 +711,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "hr_add_document_category",
 
             // ── Logistics ──
+            "logistics_dashboard",
             "logistics_delivery",
             "delivery_detail",
             "logistics_order_tracking",
@@ -713,6 +719,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
             // ── Legal ──
             "legal_dashboard",
+            "legal_calendar",
             "legal_contracts",
             "legal_contract_detail",
             "legal_create_contract",
@@ -731,6 +738,12 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "legal_employee",
             "legal_employee_detail",
             "legal_create_employee",
+            "legal_vendor",
+            "legal_vendor_detail",
+            "legal_create_vendor",
+            "legal_notice",
+            "legal_notice_detail",
+            "legal_create_notice",
 
             // ── Services ──
             "services_service_status",
@@ -760,16 +773,20 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "services_create_service_template",
             "services_view_service_template",
 
+            "logistics_orders",
+            "logistics_order_detail",
+
             // ── Reports ──
             "reports_sales",
-            "reports_inventory",
-            "reports_inventory_stock_summary",
-            "reports_inventory_low_stock",
-            "reports_inventory_warehouse_report",
-            "reports_inventory_purchase_report",
-            "reports_inventory_dead_stock",
+            "reports_marketing",
             "reports_finance",
-            "reports_finance_profit_and_loss_report"
+            "reports_inventory",
+            "reports_logistics",
+            "reports_services",
+            "reports_human_resource",
+            "reports_it",
+            "reports_security",
+            "reports_legal"
         )
     }
 
@@ -885,6 +902,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
+                "legal_notice_detail", "legal_create_notice" -> selectedLegalNoticeId = null
+                "legal_vendor_detail", "legal_create_vendor" -> selectedLegalVendorId = null
                 "legal_employee_detail", "legal_create_employee" -> selectedLegalEmployeeId = null
                 "legal_customer_detail", "legal_create_customer_record" -> selectedLegalCustomerId = null
                 "legal_document_detail", "legal_create_document" -> selectedLegalDocumentId = null
@@ -893,6 +912,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 "services_qc_delivery",
                 "order_overview",
                 "service_order_overview" -> selectedOrderId = null
+                "logistics_order_detail" -> selectedLogisticsPackageId = null
                 "legal_contract_detail", "legal_create_contract" -> selectedLegalContractId = null
                 "legal_compliance_detail" -> selectedLegalComplianceId = null
                 "services_customer_complaints", "complaint_detail" -> selectedComplaintId = null
@@ -1105,6 +1125,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+                            selectedLegalNoticeId = selectedLegalNoticeId,
+                            onLegalNoticeIdSelected = { selectedLegalNoticeId = it },
+                            selectedLegalVendorId = selectedLegalVendorId,
+                            onLegalVendorIdSelected = { selectedLegalVendorId = it },
                             selectedLegalEmployeeId = selectedLegalEmployeeId,
                             onLegalEmployeeIdSelected = { selectedLegalEmployeeId = it },
                             selectedLegalCustomerId = selectedLegalCustomerId,
@@ -1143,6 +1167,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             onPackageIdForDetailSelected = { selectedPackageIdForDetail = it },
                             selectedPackageIdForEdit = selectedPackageIdForEdit,
                             onPackageIdForEditSelected = { selectedPackageIdForEdit = it },
+                            selectedLogisticsPackageId = selectedLogisticsPackageId,
+                            onLogisticsPackageIdSelected = { selectedLogisticsPackageId = it },
                             selectedPicklistId = selectedPicklistId,
                             onPicklistIdSelected = { selectedPicklistId = it },
                             isOrderFromFinance = isOrderFromFinance,
@@ -1290,17 +1316,26 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             onModuleCategoryClick = { menu, clickedItem ->
                 val menuItem = SidebarConfig.getFullMenuItems().find { it.label == menu }
 
-                // Check if the clicked item is a child sub-item
                 val isSubItem = menuItem?.subItems?.values?.any { list -> list.contains(clickedItem) } == true
                 val parentCategory = menuItem?.subItems?.entries?.find { it.value.contains(clickedItem) }?.key
 
                 val rawNavKey = when {
-                    // Direct match for Employee & Labour Legal click
+                    // Direct match for Audit & Legal Calendar click
+                    menu == "Legal" && clickedItem.contains("calendar", ignoreCase = true) -> {
+                        "legal_calendar"
+                    }
+                    // Direct match for Vendor & Supplier Legal click
+                    menu == "Legal" && (clickedItem.contains("vendor", ignoreCase = true) || clickedItem.contains("supplier", ignoreCase = true)) -> {
+                        "legal_vendor"
+                    }
                     menu == "Legal" && (clickedItem.contains("employee", ignoreCase = true) || clickedItem.contains("labour", ignoreCase = true)) -> {
                         "legal_employee"
                     }
                     menu == "Finance" && clickedItem.contains("return", ignoreCase = true) -> {
                         "finance_purchase_returns"
+                    }
+                    menu == "Legal" && (clickedItem.contains("notice", ignoreCase = true) || clickedItem.contains("dispute", ignoreCase = true)) -> {
+                        "legal_notice"
                     }
                     menu == "Finance" && (parentCategory == "Purchase" && clickedItem.contains("credit", ignoreCase = true) || clickedItem.contains("Supplier Credit", ignoreCase = true)) -> {
                         "finance_vendor_credits"
@@ -1976,6 +2011,8 @@ fun formatIndianNumber(number: Number): String {
     return "$grouped,$last3"
 }
 
+fun currencySymbol(code: String? = null): String = com.cuso.tailor.utils.CurrencyHelper.getSymbol(code ?: "INR")
+
 fun normalizeRoute(rawKey: String): String {
     return when (rawKey) {
         "sales_dashboard", "sales_sales_dashboard" -> "sales_dashboard"
@@ -2071,6 +2108,7 @@ fun normalizeRoute(rawKey: String): String {
         "inventory_multichannel_category_listing", "inventory_category_listing" -> "inventory_category_listing"
         "inventory_create_category" -> "inventory_create_category"
 
+        "logistics_dashboard", "logistics_logistics_dashboard" -> "logistics_dashboard"
         "logistics_delivery" -> "logistics_delivery"
         "logistics_order_tracking" -> "logistics_order_tracking"
 
@@ -2113,6 +2151,7 @@ fun normalizeRoute(rawKey: String): String {
         "hr_expense_claim_detail" -> "hr_expense_claim_detail"
 
         "legal_dashboard" -> "legal_dashboard"
+        "legal_calendar", "audit_and_legal_calendar", "audit_&_legal_calendar", "legal_audit_calendar" -> "legal_calendar"
         "legal_compliance_management", "legal_compliance" -> "legal_compliance"
         "legal_licenses", "legal_license", "legal_license_and_registerations", "legal_license_and_registrations" -> "legal_licenses"
         "legal_customer", "legal_customer_legal", "customer_legal" -> "legal_customer"
@@ -2136,13 +2175,16 @@ fun normalizeRoute(rawKey: String): String {
         "hr_expense_claim_detail_readonly" -> "hr_expense_claim_detail_readonly"
         "hr_expense_finance_reimbursement" -> "hr_expense_finance_reimbursement"
         "hr_expense_process_payment" -> "hr_expense_process_payment"
+
         "reports_sales" -> "reports_sales"
         "reports_marketing" -> "reports_marketing"
         "reports_inventory", "reports_reports_inventory" -> "reports_inventory"
         "reports_finance", "reports_reports_finance" -> "reports_finance"
-        "reports_human_resource" -> "reports_human_resource"
         "reports_logistics" -> "reports_logistics"
+        "reports_services" -> "reports_services"
+        "reports_human_resource", "reports_hr" -> "reports_human_resource"
         "reports_it" -> "reports_it"
+        "reports_security" -> "reports_security"
         "reports_legal" -> "reports_legal"
 
         else -> rawKey

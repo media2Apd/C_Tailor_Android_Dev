@@ -617,7 +617,7 @@ fun CreatePurchaseReturnScreen(
                                         Column {
                                             Text("UNIT COST", fontSize = tokens.label, color = iconMuted)
                                             Text(
-                                                text = "₹${formatDouble(rowItem.rate)}",
+                                                text = "${currencySymbol()}${formatDouble(rowItem.rate)}",
                                                 fontSize = tokens.caption,
                                                 fontWeight = FontWeight.Medium,
                                                 color = TextPrimary
@@ -637,7 +637,7 @@ fun CreatePurchaseReturnScreen(
                                         Column(horizontalAlignment = Alignment.End) {
                                             Text("RETURN VALUE", fontSize = tokens.label, color = iconMuted)
                                             Text(
-                                                text = "₹${formatDouble(itemReturnValue)}",
+                                                text = "${currencySymbol()}${formatDouble(itemReturnValue)}",
                                                 fontSize = tokens.caption,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = Primary
@@ -889,8 +889,8 @@ fun CreatePurchaseReturnScreen(
 
                     HorizontalDivider(color = sectionBorder, modifier = Modifier.padding(vertical = tokens.extraPadding * 0.6f))
 
-                    SummaryRow("Item Return Subtotal", "₹${formatDouble(subtotal)}")
-                    SummaryRow("Tax", "₹${formatDouble(taxTotal)}")
+                    SummaryRow("Item Return Subtotal", "${currencySymbol()}${formatDouble(subtotal)}")
+                    SummaryRow("Tax", "${currencySymbol()}${formatDouble(taxTotal)}")
 
                     Spacer(Modifier.height(tokens.extraPadding * 0.6f))
 
@@ -900,7 +900,7 @@ fun CreatePurchaseReturnScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Return Total", fontSize = tokens.bodySmall, color = TextPrimary)
-                        Text("₹${formatDouble(grandTotal)}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Primary)
+                        Text("${currencySymbol()}${formatDouble(grandTotal)}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Primary)
                     }
                 }
             }

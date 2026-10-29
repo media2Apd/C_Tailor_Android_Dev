@@ -306,17 +306,6 @@ fun AllOrdersStockListScreen(
                 )
             }
         }
-
-        DynamicIslandSuccess(
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = tokens.fieldHeight * 1.5f),
-            message = adjustmentSuccessMessage,
-            onDismiss = { viewModel.clearAdjustmentAlerts() }
-        )
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter).padding(top = tokens.fieldHeight * 1.5f),
-            message = adjustmentErrorMessage?.takeIf { it.isNotBlank() }?.let { ErrorMapper.map(it) },
-            onDismiss = { viewModel.clearAdjustmentAlerts() }
-        )
     }
 }
 

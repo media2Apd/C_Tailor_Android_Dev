@@ -22,6 +22,7 @@ import com.cuso.tailor.ui.theme.BluePrimary
 import com.cuso.tailor.ui.theme.BorderGray
 import com.cuso.tailor.ui.theme.TextSecondary
 import com.cuso.tailor.ui.theme.redText
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.TitleBar
 
 // ── Static data model ──
@@ -37,10 +38,10 @@ data class PaymentItem(
 
 // ── Static dummy list ──
 private val dummyPayments = listOf(
-    PaymentItem("PAY-001", "Ravi", "Completed", "25 Feb 2026", "Cash", "₹500", "INV-001"),
-    PaymentItem("PAY-001", "Ravi", "Completed", "25 Feb 2026", "Cash", "₹500", "INV-001"),
-    PaymentItem("PAY-001", "Ravi", "Completed", "25 Feb 2026", "Cash", "₹500", "INV-001"),
-    PaymentItem("PAY-001", "Ravi", "Completed", "25 Feb 2026", "Cash", "₹500", "INV-001")
+    PaymentItem("PAY-001", "Ravi", "Completed", "25 Feb 2026", "Cash", "${currencySymbol()}500", "INV-001"),
+    PaymentItem("PAY-001", "Ravi", "Completed", "25 Feb 2026", "Cash", "${currencySymbol()}500", "INV-001"),
+    PaymentItem("PAY-001", "Ravi", "Completed", "25 Feb 2026", "Cash", "${currencySymbol()}500", "INV-001"),
+    PaymentItem("PAY-001", "Ravi", "Completed", "25 Feb 2026", "Cash", "${currencySymbol()}500", "INV-001")
 )
 
 private fun statusColorOf(status: String): Color = when (status.lowercase()) {

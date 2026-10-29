@@ -27,6 +27,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
+import com.cuso.tailor.utils.currencySymbol
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -346,7 +347,7 @@ class InvoicePdfGenerator(private val context: Context) {
         // Whole amounts are shown without decimals, like the reference design
         fun money(v: Double): String {
             val pattern = if (v % 1.0 == 0.0) "%,.0f" else "%,.2f"
-            return "₹" + String.format(Locale.US, pattern, v)
+            return "${currencySymbol()}" + String.format(Locale.US, pattern, v)
         }
 
         // Strip the branch suffix such as "- Main Branch"

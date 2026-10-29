@@ -443,7 +443,7 @@ fun BarcodeGeneratorScreen(
                                             letterSpacing = 0.5.sp
                                         )
                                         Text(
-                                            text = "₹${"%.2f".format(displayPrice)}",
+                                            text = "${currencySymbol()}${"%.2f".format(displayPrice)}",
                                             fontSize = 18.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = TextPrimary
@@ -531,22 +531,6 @@ fun BarcodeGeneratorScreen(
                 }
             }
         }
-
-        DynamicIslandSuccess(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = successMessage,
-            onDismiss = { viewModel.clearBarcodeAlerts() }
-        )
-
-        DynamicIslandError(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = tokens.fieldHeight * 1.5f),
-            message = errorMessage?.takeIf { !isLoadingBarcodes },
-            onDismiss = { viewModel.clearBarcodeAlerts() }
-        )
     }
 }
 

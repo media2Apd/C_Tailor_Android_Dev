@@ -322,17 +322,6 @@ fun ChartOfAccountScreen(
                 }
             }
         }
-
-        DynamicIslandSuccess(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = errorToastMessage,
-            onDismiss = { errorToastMessage = null }
-        )
     }
 
     accountPendingDelete?.let { account ->
@@ -661,12 +650,6 @@ fun AddAccountScreen(
                     }
                 )
             }
-        )
-
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = if (showError) errorMessage2 else null,
-            onDismiss = { showError = false }
         )
     }
 }

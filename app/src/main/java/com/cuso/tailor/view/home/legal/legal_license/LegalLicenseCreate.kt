@@ -478,18 +478,7 @@ fun CreateLegalLicenseScreen(
         }
     ) { innerPadding ->
         if (isEditMode && isLoadingDetail) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    color = Primary,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            ListSkeleton()
         } else {
             Column(
                 modifier = Modifier

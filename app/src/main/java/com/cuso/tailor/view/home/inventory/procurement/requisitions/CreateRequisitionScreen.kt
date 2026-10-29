@@ -57,6 +57,7 @@ import com.cuso.tailor.view.composable.FormTextField
 import com.cuso.tailor.view.composable.ImageUploadSection
 import com.cuso.tailor.view.composable.LineItemFormEntry
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.viewmodel.DepartmentUiState
 import com.cuso.tailor.viewmodel.DepartmentViewModel
 import com.cuso.tailor.viewmodel.InventoryViewModel
@@ -589,7 +590,7 @@ fun CreateRequisitionScreen(
                         ) {
                             Text("Subtotal", fontSize = tokens.bodySmall, color = mutedText)
                             Text(
-                                text = String.format(Locale.US, "₹ %,.2f", calculatedSubtotal),
+                                text = String.format(Locale.US, "${currencySymbol()} %,.2f", calculatedSubtotal),
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = title_color
@@ -604,7 +605,7 @@ fun CreateRequisitionScreen(
                         ) {
                             Text("Estimated Tax", fontSize = tokens.bodySmall, color = mutedText)
                             Text(
-                                text = String.format(Locale.US, "₹ %,.2f", calculatedTax),
+                                text = String.format(Locale.US, "${currencySymbol()} %,.2f", calculatedTax),
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = title_color
@@ -640,7 +641,7 @@ fun CreateRequisitionScreen(
                         ) {
                             Text("Grand Total", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = title_color)
                             Text(
-                                text = String.format(Locale.US, "₹ %,.2f", calculatedGrandTotal),
+                                text = String.format(Locale.US, "${currencySymbol()} %,.2f", calculatedGrandTotal),
                                 fontSize = tokens.h2,
                                 fontWeight = FontWeight.Bold,
                                 color = Primary

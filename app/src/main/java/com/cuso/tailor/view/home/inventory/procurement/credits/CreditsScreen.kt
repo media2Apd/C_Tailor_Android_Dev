@@ -40,8 +40,8 @@ data class CreditItemModel(
     val customerInitial: String = "H",
     val customerName: String = "Siva",
     val createdBy: String = "Rahman",
-    val amount: String = "₹ 50,000",
-    val balance: String = "₹ 20,000",
+    val amount: String = "${currencySymbol()} 50,000",
+    val balance: String = "${currencySymbol()} 20,000",
     val billNo: String = "BILL-88940",
     val reason: String = "Price Adjustments"
 )

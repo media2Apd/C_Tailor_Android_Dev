@@ -463,7 +463,7 @@ fun PurchaseDetailScreen(
                                                 Text("Balance Due", fontSize = tokens.bodySmall, color = close_color)
                                                 Spacer(Modifier.height(2.dp))
                                                 Text(
-                                                    text = "₹${formatIndianNumber(detail.balanceDue)}",
+                                                    text = "${currencySymbol()}${formatIndianNumber(detail.balanceDue)}",
                                                     fontSize = tokens.bodySmall,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = title_color
@@ -552,7 +552,7 @@ fun PurchaseDetailScreen(
                                                             color = close_color
                                                         )
                                                         Text(
-                                                            text = "₹${formatIndianNumber(line.lineTotal)}",
+                                                            text = "${currencySymbol()}${formatIndianNumber(line.lineTotal)}",
                                                             fontSize = tokens.bodyMedium,
                                                             fontWeight = FontWeight.Medium,
                                                             color = title_color
@@ -574,7 +574,7 @@ fun PurchaseDetailScreen(
                                                             color = close_color
                                                         )
                                                         Text(
-                                                            text = "Rate:  ₹${formatIndianNumber(line.rate)}",
+                                                            text = "Rate:  ${currencySymbol()}${formatIndianNumber(line.rate)}",
                                                             fontSize = tokens.caption,
                                                             color = close_color
                                                         )
@@ -602,7 +602,7 @@ fun PurchaseDetailScreen(
                                             ) {
                                                 Text(text = "Subtotal", fontSize = tokens.bodySmall, color = title_color)
                                                 Text(
-                                                    text = "₹${formatIndianNumber(detail.subtotal)}",
+                                                    text = "${currencySymbol()}${formatIndianNumber(detail.subtotal)}",
                                                     fontSize = tokens.bodySmall,
                                                     fontWeight = FontWeight.Normal,
                                                     color = title_color
@@ -618,7 +618,7 @@ fun PurchaseDetailScreen(
                                             ) {
                                                 Text(text = "Due", fontSize = tokens.bodySmall, color = title_color)
                                                 Text(
-                                                    text = "₹${formatIndianNumber(detail.balanceDue)}",
+                                                    text = "${currencySymbol()}${formatIndianNumber(detail.balanceDue)}",
                                                     fontSize = tokens.bodySmall,
                                                     fontWeight = FontWeight.Normal,
                                                     color = title_color
@@ -641,7 +641,7 @@ fun PurchaseDetailScreen(
                                                     color = title_color
                                                 )
                                                 Text(
-                                                    text = "₹${formatIndianNumber(detail.grandTotal)}",
+                                                    text = "${currencySymbol()}${formatIndianNumber(detail.grandTotal)}",
                                                     fontSize = tokens.bodyMedium,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = Primary
@@ -735,7 +735,7 @@ fun PurchaseDetailScreen(
                                                         color = close_color
                                                     )
                                                     Text(
-                                                        text = "₹${formatIndianNumber(detail.amountPaid)}",
+                                                        text = "${currencySymbol()}${formatIndianNumber(detail.amountPaid)}",
                                                         fontSize = tokens.bodyMedium,
                                                         fontWeight = FontWeight.Medium,
                                                         color = title_color
@@ -763,16 +763,6 @@ fun PurchaseDetailScreen(
                     }
                 }
             }
-
-            DynamicIslandSuccess(
-                message = actionSuccessMessage,
-                onDismiss = { viewModel.clearBillActionAlerts() }
-            )
-
-            DynamicIslandError(
-                message = actionErrorMessage,
-                onDismiss = { viewModel.clearBillActionAlerts() }
-            )
         }
     }
 
@@ -1232,7 +1222,7 @@ fun BillPreviewReceiptCard(
 
             ReceiptSummaryRow(
                 label = "Subtotal",
-                value = "₹${formatIndianNumber(detail.subtotal)}",
+                value = "${currencySymbol()}${formatIndianNumber(detail.subtotal)}",
                 textColor = TextPrimary,
                 tokens = tokens
             )
@@ -1241,7 +1231,7 @@ fun BillPreviewReceiptCard(
                 Spacer(Modifier.height(tokens.extraPadding * 0.8f))
                 ReceiptSummaryRow(
                     label = "Discount",
-                    value = "-₹${formatIndianNumber(detail.totalDiscount)}",
+                    value = "-${currencySymbol()}${formatIndianNumber(detail.totalDiscount)}",
                     textColor = greentext,
                     tokens = tokens
                 )
@@ -1250,7 +1240,7 @@ fun BillPreviewReceiptCard(
             Spacer(Modifier.height(tokens.extraPadding * 0.8f))
             ReceiptSummaryRow(
                 label = "Tax",
-                value = "₹${formatIndianNumber(detail.totalTax)}",
+                value = "${currencySymbol()}${formatIndianNumber(detail.totalTax)}",
                 textColor = TextPrimary,
                 tokens = tokens
             )
@@ -1272,7 +1262,7 @@ fun BillPreviewReceiptCard(
                     letterSpacing = 0.5.sp
                 )
                 Text(
-                    text = "₹${formatIndianNumber(detail.grandTotal)}",
+                    text = "${currencySymbol()}${formatIndianNumber(detail.grandTotal)}",
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = blackTitle
@@ -1463,7 +1453,7 @@ private fun ReceiptItemCard(
                     }
                 }
                 Text(
-                    text = "₹${formatIndianNumber(line.lineTotal)}",
+                    text = "${currencySymbol()}${formatIndianNumber(line.lineTotal)}",
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = blackTitle
@@ -1481,7 +1471,7 @@ private fun ReceiptItemCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Unit: ", fontSize = tokens.caption, color = close_color)
-                    Text("₹${formatIndianNumber(line.rate)}", fontSize = tokens.caption, fontWeight = FontWeight.Medium, color = blackTitle)
+                    Text("${currencySymbol()}${formatIndianNumber(line.rate)}", fontSize = tokens.caption, fontWeight = FontWeight.Medium, color = blackTitle)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Qty: ", fontSize = tokens.caption, color = close_color)

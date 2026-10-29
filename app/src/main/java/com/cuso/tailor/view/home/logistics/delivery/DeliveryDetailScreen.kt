@@ -52,6 +52,7 @@ import com.cuso.tailor.view.composable.FormTextField
 import com.cuso.tailor.view.composable.SmoothBottomSheet
 import com.cuso.tailor.view.composable.SheetValue
 import com.cuso.tailor.view.composable.blurScrim
+import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.view.home.sales.customer.OrderStatusStepper
 
 // ── Design tokens (colors only — sizing now comes from AppDesignTokens) ──
@@ -116,9 +117,9 @@ fun DeliveryDetailScreen(
     var height by remember { mutableStateOf("") }
 
     val totalQuantity = "1"
-    val subtotal = "₹299.00"
-    val deliveryCharge = "₹12.50"
-    val grandTotal = "₹311.50"
+    val subtotal = "${currencySymbol()}299.00"
+    val deliveryCharge = "${currencySymbol()}12.50"
+    val grandTotal = "${currencySymbol()}311.50"
 
     // Bottom sheet states
     var assignStaffSheetState by remember { mutableStateOf(SheetValue.Hidden) }

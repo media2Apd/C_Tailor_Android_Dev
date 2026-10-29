@@ -25,6 +25,7 @@ import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.viewmodel.FinanceViewModel
 
 @SuppressLint("DefaultLocale")
@@ -223,7 +224,7 @@ private fun VendorCreditCard(
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = "₹${String.format(platformLocale, "%,.2f", item.grandTotal)}",
+                                text = "${currencySymbol()}${String.format(platformLocale, "%,.2f", item.grandTotal)}",
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = TextPrimary
@@ -242,7 +243,7 @@ private fun VendorCreditCard(
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = "₹${String.format(platformLocale, "%,.2f", item.remainingBalance)}",
+                                text = "${currencySymbol()}${String.format(platformLocale, "%,.2f", item.remainingBalance)}",
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = TextPrimary

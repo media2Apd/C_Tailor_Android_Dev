@@ -250,7 +250,7 @@ fun BankAccountsListScreen(
                                                     )
                                                     Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                                                     Text(
-                                                        text = "₹${String.format(Locale.US, "%,.2f", item.chartOfAccountId?.openingBalance ?: 0.0)}",
+                                                        text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.chartOfAccountId?.openingBalance ?: 0.0)}",
                                                         fontSize = tokens.bodyMedium,
                                                         fontWeight = FontWeight.Medium,
                                                         color = TitleColor

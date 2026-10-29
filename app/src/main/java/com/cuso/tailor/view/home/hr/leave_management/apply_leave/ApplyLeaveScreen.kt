@@ -492,11 +492,5 @@ fun ApplyLeaveScreen(
                 Spacer(Modifier.height(tokens.screenPadding * 2f))
             }
         }
-
-        // Dynamic Island Notifications
-        DynamicIslandSuccess(
-            message = successFeedback,
-            onDismiss = { successFeedback = null }
-        )
     }
 }

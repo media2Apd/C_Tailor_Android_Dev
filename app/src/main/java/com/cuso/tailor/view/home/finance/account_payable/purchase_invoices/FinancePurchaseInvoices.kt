@@ -37,6 +37,7 @@ import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.blackTitle
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_border
+import com.cuso.tailor.utils.currencySymbol
 
 private val InvPrimary = Color(0xFF3B3BF9)
 private val InvTextDark = Color(0xFF111827)
@@ -199,9 +200,9 @@ private fun PurchaseInvoiceDataCard(invoice: PurchaseInvoiceItem, onClick: () ->
         topBadgeInline = true,
         footerAsRows = true,
         footerFields = listOf(
-            DataCardField(label = "Amount", text = "₹${formatIndianNumber(invoice.totalAmount)}"),
-            DataCardField(label = "Paid", text = "₹${formatIndianNumber(invoice.paidAmount)}"),
-            DataCardField(label = "Balance", text = "₹${formatIndianNumber(invoice.balanceAmount)}"),
+            DataCardField(label = "Amount", text = "${currencySymbol()}${formatIndianNumber(invoice.totalAmount)}"),
+            DataCardField(label = "Paid", text = "${currencySymbol()}${formatIndianNumber(invoice.paidAmount)}"),
+            DataCardField(label = "Balance", text = "${currencySymbol()}${formatIndianNumber(invoice.balanceAmount)}"),
             DataCardField(
                 label = "Due Date",
                 text = formatPurchaseInvoiceDate(invoice.dueDate ?: invoice.invoiceDate)

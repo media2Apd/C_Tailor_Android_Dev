@@ -160,7 +160,7 @@ fun OpportunityDetailScreen(
                         ) {
                             DetailMetricBox(
                                 label = "VALUE",
-                                value = "₹${item.estimatedValue?.toLong() ?: 0}",
+                                value = "${currencySymbol()}${item.estimatedValue?.toLong() ?: 0}",
                                 valueColor = Primary,
                                 modifier = Modifier.weight(1f)
                             )
@@ -264,7 +264,7 @@ fun OpportunityDetailScreen(
                         DealInfoRow(label = "Mobile", value = item.customer?.mobileNumber ?: "—")
                         DealInfoRow(label = "Store", value = item.branch?.name ?: "Main Branch")
                         DealInfoRow(label = "Stage", value = item.stage?.name ?: "—", leadingDotColor = Primary, valueColor = Primary)
-                        DealInfoRow(label = "Value", value = "₹${item.estimatedValue ?: 0.0}")
+                        DealInfoRow(label = "Value", value = "${currencySymbol()}${item.estimatedValue ?: 0.0}")
                         DealInfoRow(label = "Closing Date", value = item.expectedClosingDate?.take(10) ?: "—")
 
                         // Probability Progress Bar
@@ -380,7 +380,7 @@ fun OpportunityDetailScreen(
                                 color = TextPrimary
                             )
                             Text(
-                                text = "₹${item.estimatedValue ?: 0.0}",
+                                text = "${currencySymbol()}${item.estimatedValue ?: 0.0}",
                                 fontSize = tokens.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = Primary

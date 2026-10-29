@@ -317,7 +317,7 @@ private fun RecordPaymentFormContent(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "₹ ",
+                                text = "${currencySymbol()} ",
                                 fontSize = tokens.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = title_color
@@ -359,7 +359,7 @@ private fun RecordPaymentFormContent(
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(Modifier.width(8.dp))
-                            val formattedBalance = if (detail.balanceDue > 0) "₹${formatIndianNumber(detail.balanceDue)}" else "₹0"
+                            val formattedBalance = if (detail.balanceDue > 0) "${currencySymbol()}${formatIndianNumber(detail.balanceDue)}" else "${currencySymbol()}0"
                             Text(
                                 text = "Remaining balance for this vendor is $formattedBalance.",
                                 fontSize = tokens.caption,

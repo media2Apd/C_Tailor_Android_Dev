@@ -2,6 +2,7 @@ package com.cuso.tailor.viewmodel
 
 import androidx.lifecycle.ViewModel
 import com.cuso.tailor.model.sales.OrganizationDataWrapper
+import com.cuso.tailor.model.sales.toUiData
 import com.cuso.tailor.model.settings.UpdateOrganizationRequest
 import com.cuso.tailor.repository.AuthRepository
 import com.cuso.tailor.repository.SalesRepository
@@ -57,8 +58,10 @@ class ProfileViewModel @Inject constructor(
             val result = authRepository.getMyOrganization("Bearer $token")
             result.fold(
                 onSuccess = { response ->
-                    if (response.success) {
-                        _uiState.value = ProfileUiState.Success(response.data)
+                    // success is Boolean? now; only an explicit "false" counts as failure.
+                    // An empty/missing data object still gives a valid (empty) UI model.
+                    if (response.success != false) {
+                        _uiState.value = ProfileUiState.Success(response.toUiData())
                     } else {
                         _uiState.value = ProfileUiState.Error("Failed to load organization")
                     }
@@ -76,8 +79,8 @@ class ProfileViewModel @Inject constructor(
             val result = authRepository.getMyOrganization("Bearer $token")
             result.fold(
                 onSuccess = { response ->
-                    if (response.success) {
-                        _uiState.value = ProfileUiState.Success(response.data)
+                    if (response.success != false) {
+                        _uiState.value = ProfileUiState.Success(response.toUiData())
                     }
                 },
                 onFailure = { /* keep existing state if refresh fails */ }

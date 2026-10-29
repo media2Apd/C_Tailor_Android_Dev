@@ -351,17 +351,6 @@ fun DesignationScreen(
                 onDelete = { viewModel.deleteDesignation(designation.id) }
             )
         }
-
-        DynamicIslandSuccess(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 }
 

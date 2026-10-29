@@ -43,6 +43,7 @@ import com.cuso.tailor.model.inventory.WarehouseDropdownItem
 import com.cuso.tailor.model.sales.OrderOverviewData
 import com.cuso.tailor.model.sales.OrderReviewData
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.CirculerProgressIndicatorReuse
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
@@ -185,18 +186,6 @@ fun OrderOverviewScreen(
                 }
             )
         }
-
-        DynamicIslandSuccess(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = successMessage,
-            onDismiss = { successMessage = null }
-        )
-
-        DynamicIslandError(
-            modifier = Modifier.align(Alignment.TopCenter),
-            message = errorMessage,
-            onDismiss = { errorMessage = null }
-        )
     }
 }
 
@@ -545,8 +534,8 @@ private fun OrderOverviewContent(
                         InnerProductRow("Product", itemName)
                         InnerProductRow("SKU", skuDisplay)
                         InnerProductRow("Quantity", quantityDisplay)
-                        InnerProductRow("Unit Price", "₹${formatIndianNumber(unitPrice)}")
-                        InnerProductRow("Total", "₹${formatIndianNumber(lineTotal)}", isBold = true)
+                        InnerProductRow("Unit Price", "${currencySymbol()}${formatIndianNumber(unitPrice)}")
+                        InnerProductRow("Total", "${currencySymbol()}${formatIndianNumber(lineTotal)}", isBold = true)
                     }
                     if (index != items.lastIndex) {
                         Spacer(Modifier.height(8.dp))
@@ -560,8 +549,8 @@ private fun OrderOverviewContent(
             val gstAmount = orderData.totalTax ?: (order.totalAmount * 0.05)
             val grandTotal = orderData.grandTotal ?: (subtotal + gstAmount)
 
-            PriceSummaryRow("Subtotal", "₹${formatIndianNumber(subtotal)}")
-            PriceSummaryRow("GST", "₹${formatIndianNumber(gstAmount)}")
+            PriceSummaryRow("Subtotal", "${currencySymbol()}${formatIndianNumber(subtotal)}")
+            PriceSummaryRow("GST", "${currencySymbol()}${formatIndianNumber(gstAmount)}")
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -570,7 +559,7 @@ private fun OrderOverviewContent(
             ) {
                 Text("Shipping Fee", fontSize = tokens.bodySmall, color = headerGrey)
                 Text(
-                    text = if ((orderData.deliveryCharge ?: 0.0) > 0.0) "₹${formatIndianNumber(orderData.deliveryCharge!!)}" else "FREE",
+                    text = if ((orderData.deliveryCharge ?: 0.0) > 0.0) "${currencySymbol()}${formatIndianNumber(orderData.deliveryCharge!!)}" else "FREE",
                     fontSize = tokens.bodySmall,
                     fontWeight = FontWeight.SemiBold,
                     color = darkGreenBg
@@ -589,7 +578,7 @@ private fun OrderOverviewContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Grand Total", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = title_color)
-                Text("₹${formatIndianNumber(grandTotal)}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Primary)
+                Text("${currencySymbol()}${formatIndianNumber(grandTotal)}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Primary)
             }
         }
 
@@ -660,7 +649,7 @@ private fun OrderOverviewContent(
             KeyValueRow(label = "Payment Date", value = formatOverviewDate(orderData.createdAt ?: orderData.orderDate))
             KeyValueRow(
                 label = "Amount Paid",
-                value = "₹${formatIndianNumber(orderData.advanceAmountPaid ?: order.totalPaid)}",
+                value = "${currencySymbol()}${formatIndianNumber(orderData.advanceAmountPaid ?: order.totalPaid)}",
                 isValueBold = true
             )
         }
@@ -983,7 +972,7 @@ private fun generatePosReceiptHtml(orderData: OrderOverviewData): String {
                 <td style="padding: 6px 0; vertical-align: top; text-align: center; font-weight: bold; width: 30%;">
                     $qty<br/><span style="font-weight: normal; font-size: 11px;">$unit</span>
                 </td>
-                <td style="padding: 6px 0; vertical-align: top; text-align: right; font-weight: bold; width: 25%;">₹${formatIndianNumber(lineTotal)}</td>
+                <td style="padding: 6px 0; vertical-align: top; text-align: right; font-weight: bold; width: 25%;">${currencySymbol()}${formatIndianNumber(lineTotal)}</td>
             </tr>
             """.trimIndent()
         )
@@ -1142,36 +1131,36 @@ private fun generatePosReceiptHtml(orderData: OrderOverviewData): String {
 
         <div class="row-split">
             <span>Subtotal:</span>
-            <span>₹${formatIndianNumber(subtotal)}</span>
+            <span>${currencySymbol()}${formatIndianNumber(subtotal)}</span>
         </div>
         <div class="row-split">
             <span>CGST 2.5%:</span>
-            <span>+₹${formatIndianNumber(cgst)}</span>
+            <span>+${currencySymbol()}${formatIndianNumber(cgst)}</span>
         </div>
         <div class="row-split">
             <span>SGST 2.5%:</span>
-            <span>+₹${formatIndianNumber(sgst)}</span>
+            <span>+${currencySymbol()}${formatIndianNumber(sgst)}</span>
         </div>
 
         <div class="solid-line"></div>
 
         <div class="row-split bold" style="font-size: 15px;">
             <span>GRAND TOTAL:</span>
-            <span>₹${formatIndianNumber(grandTotal)}</span>
+            <span>${currencySymbol()}${formatIndianNumber(grandTotal)}</span>
         </div>
 
         <div class="dotted-line"></div>
 
         <div class="row-split bold">
             <span>Total Paid ($paymentMode):</span>
-            <span>₹${formatIndianNumber(totalPaid)}</span>
+            <span>${currencySymbol()}${formatIndianNumber(totalPaid)}</span>
         </div>
 
         <div class="dashed-line"></div>
 
         <div class="row-split bold" style="font-size: 14px;">
             <span>BALANCE DUE:</span>
-            <span>₹${formatIndianNumber(balanceDue)}</span>
+            <span>${currencySymbol()}${formatIndianNumber(balanceDue)}</span>
         </div>
 
         <div class="dashed-line"></div>

@@ -108,6 +108,7 @@ import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.ui.theme.yellowBg
 import com.cuso.tailor.ui.theme.yellowText
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.AppRadioButton
 import com.cuso.tailor.view.composable.StepNavigationFab
 import com.cuso.tailor.view.composable.TitleBar
@@ -703,7 +704,7 @@ fun UpgradeSubscriptionFlow(
                 0 -> TrailingFabAction.Next(label = "Continue") { onContinueToStep(1) }
                 1 -> TrailingFabAction.Next(label = "Review Order") { onContinueToStep(2) }
                 2 -> TrailingFabAction.Next(label = "Proceed to Payment") { onContinueToStep(3) }
-                3 -> TrailingFabAction.Update(label = "Pay ₹21,239") { onContinueToStep(4) }
+                3 -> TrailingFabAction.Update(label = "Pay ${currencySymbol()}21,239") { onContinueToStep(4) }
                 4 -> {
                     if (isPaymentFailed) {
                         TrailingFabAction.Next(label = "Retry Payment") { onRetryPayment() }
@@ -737,7 +738,7 @@ private fun Step1ChoosePlan(
             ) {
                 Column {
                     Text("From: STANDARD", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = TextLog)
-                    Text("₹9,999/mo", fontSize = tokens.caption, color = TextSecondary)
+                    Text("${currencySymbol()}9,999/mo", fontSize = tokens.caption, color = TextSecondary)
                 }
 
                 Icon(
@@ -752,8 +753,8 @@ private fun Step1ChoosePlan(
                     Text(selectedPlan, fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = Primary)
                     Text(
                         when (selectedPlan) {
-                            "LITE" -> "₹3,999/mo"
-                            "PROFESSIONAL" -> "₹19,999/mo"
+                            "LITE" -> "${currencySymbol()}3,999/mo"
+                            "PROFESSIONAL" -> "${currencySymbol()}19,999/mo"
                             else -> "Custom/mo"
                         },
                         fontSize = tokens.caption,
@@ -770,7 +771,7 @@ private fun Step1ChoosePlan(
             tokens = tokens,
             title = "LITE",
             subtitle = "For small tailor businesses",
-            price = "₹3,999/mo",
+            price = "${currencySymbol()}3,999/mo",
             badgeText = "Downgrade",
             badgeBg = yellowBg,
             badgeColor = yellowText,
@@ -792,7 +793,7 @@ private fun Step1ChoosePlan(
             tokens = tokens,
             title = "PROFESSIONAL",
             subtitle = "For multi-branch operations",
-            price = "₹19,999/mo",
+            price = "${currencySymbol()}19,999/mo",
             badgeText = "Recommended",
             badgeBg = primary_light,
             badgeColor = Primary,
@@ -921,7 +922,7 @@ private fun Step2SelectCycle(
                     Text("Pay month-to-month. Cancel anytime.", fontSize = tokens.bodySmall, color = TextSecondary)
                     Spacer(Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
-                        Text("₹19,999", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        Text("${currencySymbol()}19,999", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
                         Text(" /month", fontSize = tokens.caption, color = TextSecondary)
                     }
                 }
@@ -958,17 +959,17 @@ private fun Step2SelectCycle(
                     )
                     Spacer(Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("₹16,999", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = Primary)
+                        Text("${currencySymbol()}16,999", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = Primary)
                         Text(" /month  ", fontSize = tokens.bodySmall, color = TextSecondary)
                         Text(
-                            "₹19,999",
+                            "${currencySymbol()}19,999",
                             fontSize = tokens.caption,
                             color = mutedText,
                             textDecoration = TextDecoration.LineThrough
                         )
                     }
                     Spacer(Modifier.height(4.dp))
-                    Text("₹2,03,988 billed annually", fontSize = tokens.caption, color = greentext, fontWeight = FontWeight.Medium)
+                    Text("${currencySymbol()}2,03,988 billed annually", fontSize = tokens.caption, color = greentext, fontWeight = FontWeight.Medium)
                 }
                 AppRadioButton(
                     selected = isAnnualBilling,
@@ -994,7 +995,7 @@ private fun Step3ReviewOrder(
         Spacer(Modifier.height(8.dp))
 
         WhiteCard(tokens = tokens) {
-            SummaryPriceRow(tokens, label = "PROFESSIONAL Plan (monthly)", value = "₹19,999")
+            SummaryPriceRow(tokens, label = "PROFESSIONAL Plan (monthly)", value = "${currencySymbol()}19,999")
             Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1005,10 +1006,10 @@ private fun Step3ReviewOrder(
                     Text("Unused STANDARD credit", fontSize = tokens.bodySmall, color = TextLog)
                     Text("Prorated credit", fontSize = tokens.label, color = mutedText)
                 }
-                Text("-₹2,000", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = greentext)
+                Text("-${currencySymbol()}2,000", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = greentext)
             }
             Spacer(Modifier.height(8.dp))
-            SummaryPriceRow(tokens, label = "GST (18%)", value = "₹3,240")
+            SummaryPriceRow(tokens, label = "GST (18%)", value = "${currencySymbol()}3,240")
             Spacer(Modifier.height(8.dp))
             SummaryPriceRow(tokens, label = "Coupon discount", value = "—", valueColor = mutedText)
 
@@ -1022,7 +1023,7 @@ private fun Step3ReviewOrder(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Total Due Today", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
-                Text("₹21,239", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = Primary)
+                Text("${currencySymbol()}21,239", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = Primary)
             }
         }
 
@@ -1176,7 +1177,7 @@ private fun Step4Payment(
         Spacer(Modifier.height(8.dp))
 
         WhiteCard(tokens = tokens) {
-            SummaryPriceRow(tokens, label = "PROFESSIONAL Plan (monthly)", value = "₹19,999")
+            SummaryPriceRow(tokens, label = "PROFESSIONAL Plan (monthly)", value = "${currencySymbol()}19,999")
             Spacer(Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1187,10 +1188,10 @@ private fun Step4Payment(
                     Text("Unused STANDARD credit", fontSize = tokens.bodySmall, color = TextLog)
                     Text("Prorated credit", fontSize = tokens.label, color = mutedText)
                 }
-                Text("-₹2,000", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = greentext)
+                Text("-${currencySymbol()}2,000", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = greentext)
             }
             Spacer(Modifier.height(8.dp))
-            SummaryPriceRow(tokens, label = "GST (18%)", value = "₹3,240")
+            SummaryPriceRow(tokens, label = "GST (18%)", value = "${currencySymbol()}3,240")
 
             Spacer(Modifier.height(12.dp))
             HorizontalDivider(color = grey_border)
@@ -1202,7 +1203,7 @@ private fun Step4Payment(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Total Due Today", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
-                Text("₹21,239", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = Primary)
+                Text("${currencySymbol()}21,239", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = Primary)
             }
         }
 
@@ -1766,7 +1767,7 @@ private fun CurrentPlanCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("STANDARD", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = TextPrimary)
-            Text("Price post trial: ₹9,999/mo", fontSize = tokens.bodySmall, color = TextSecondary, fontWeight = FontWeight.Medium)
+            Text("Price post trial: ${currencySymbol()}9,999/mo", fontSize = tokens.bodySmall, color = TextSecondary, fontWeight = FontWeight.Medium)
         }
 
         Spacer(Modifier.height(16.dp))
@@ -1956,7 +1957,7 @@ private fun SubscriptionSummaryGrid(tokens: AppDesignTokens) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SummaryItem(tokens, Modifier.weight(1f), "Current Plan", "STANDARD", "Trial active", darkGreenBg)
-                SummaryItem(tokens, Modifier.weight(1f), "Monthly Price", "₹9,999", "Post-Trial", mutedText)
+                SummaryItem(tokens, Modifier.weight(1f), "Monthly Price", "${currencySymbol()}9,999", "Post-Trial", mutedText)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SummaryItem(tokens, Modifier.weight(1f), "Active Users", "12 / 15", "80% used", orangeText)

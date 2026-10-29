@@ -316,7 +316,7 @@ fun PaymentListingScreen(
                                                         )
                                                         Spacer(Modifier.height(2.dp))
                                                         Text(
-                                                            text = "₹${formatIndianNumber(billing?.paidAmount ?: 0.0)}",
+                                                            text = "${currencySymbol()}${formatIndianNumber(billing?.paidAmount ?: 0.0)}",
                                                             color = TextPrimary,
                                                             fontSize = tokens.bodyMedium,
                                                             fontWeight = FontWeight.Medium
@@ -343,7 +343,7 @@ fun PaymentListingScreen(
                                                         )
                                                         Spacer(Modifier.height(2.dp))
                                                         Text(
-                                                            text = "₹${formatIndianNumber(balance)}",
+                                                            text = "${currencySymbol()}${formatIndianNumber(balance)}",
                                                             color = if (balance <= 0.0) greentext else redText,
                                                             fontSize = tokens.bodyMedium,
                                                             fontWeight = FontWeight.Medium

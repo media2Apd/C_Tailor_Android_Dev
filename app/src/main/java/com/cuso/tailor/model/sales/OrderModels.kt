@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION", "AssignedValueIsNeverRead", "unused")
+
 package com.cuso.tailor.model.sales
 
 import com.google.gson.annotations.SerializedName
@@ -438,6 +440,15 @@ fun GarmentApiResponse.toGarment() = Garment(
     price = price,
     total = total
 )
+
+val OrderItem.orderCode: String
+    get() = orderNumber
+
+val OrderItem.customerName: String
+    get() = customerId?.name.orEmpty()
+
+val OrderItem.phone: String
+    get() = customerId?.mobile.orEmpty()
 
 private fun String.toEpochMillis(): Long? {
     if (isBlank()) return null

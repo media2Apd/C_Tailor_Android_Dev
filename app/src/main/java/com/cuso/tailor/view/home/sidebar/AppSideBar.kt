@@ -272,14 +272,22 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
         }
     }
     // Add Logistics navigation key mapping
+    // In SidebarConfig.kt -> buildNavigationKey()
     if (menu == "Logistics") {
-        return when (subItem) {
-            "Logistics Dashboard", "Dashboard" -> "logistics_dashboard"
-            "Orders", "Order List", "Services & Orders", "Orders List" -> "logistics_orders"
-            "Delivery"                         -> "logistics_delivery"
-            "Returns", "Return"                -> "logistics_returns"
-            "Order Tracking"                   -> "logistics_order_tracking"
-            else -> "logistics_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
+        val cleanSubItem = subItem.trim().lowercase()
+        return when (cleanSubItem) {
+            "logistics dashboard", "dashboard" -> "logistics_dashboard"
+            "orders", "order list", "orders list" -> "logistics_orders"
+            "delivery" -> "logistics_delivery"
+            "dispatched" -> "logistics_dispatched"
+            "shipment", "shipments" -> "logistics_shipments" // Maps sidebar category to route
+            "courier management" -> "logistics_courier_management"
+            "courier partner list", "courier partner" -> "logistics_courier_partner_list"
+// In buildNavigationKey() for Logistics:
+            "tracking events", "tracking event" -> "logistics_tracking_events"
+            "order tracking" -> "logistics_order_tracking"            "returns management", "returns", "return" -> "logistics_returns"
+            "cod orders dashboard", "cod orders" -> "logistics_cod_orders_dashboard"
+            else -> "logistics_${cleanSubItem.replace(" ", "_").replace("&", "and")}"
         }
     }
 
@@ -431,10 +439,28 @@ object SidebarConfig {
                     )
                 )
             ),
+            // In SidebarConfig.kt -> getFullMenuItems()
             MenuItem(
-                R.drawable.logistics, "Logistics",
+                icon = R.drawable.logistics,
+                label = "Logistics",
                 isPanel = true,
-                categories = listOf("Logistics Dashboard", "Orders", "Delivery", "Returns", "Order Tracking")
+                categories = listOf(
+                    "Dashboard",
+                    "Order List",
+                    "Delivery Management",
+                    "Shipment",
+                    "Courier Management",
+                    "Courier Partner List",
+                    "Tracking Events",
+                    "Returns Management",
+                    "COD Orders Dashboard"
+                ),
+                subItems = mapOf(
+                    "Delivery Management" to listOf(
+                        "Delivery",
+                        "Dispatched"
+                    )
+                )
             ),
             MenuItem(
                 R.drawable.services, "Services",

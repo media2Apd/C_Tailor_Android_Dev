@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package com.cuso.tailor.view.home.logistics.delivery
+package com.cuso.tailor.view.home.logistics.delivery_management.delivery
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

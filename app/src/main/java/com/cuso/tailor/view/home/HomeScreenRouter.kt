@@ -135,9 +135,7 @@ import com.cuso.tailor.view.home.inventory.procurement.suppliers.InventorySuppli
 import com.cuso.tailor.view.home.inventory.procurement.suppliers.InventorySuppliersScreen
 import com.cuso.tailor.view.home.inventory.safety_stock.SafetyStockScreen
 import com.cuso.tailor.view.home.inventory.settings.*
-import com.cuso.tailor.view.home.logistics.delivery.DeliveryDetailScreen
-import com.cuso.tailor.view.home.logistics.delivery.DeliveryManagementScreen
-import com.cuso.tailor.view.home.logistics.order_tracking.OrderTrackingScreen
+import com.cuso.tailor.view.home.logistics.delivery_management.delivery.DeliveryDetailScreen
 import com.cuso.tailor.view.home.logistics.order_tracking.TrackingOverviewScreen
 import com.cuso.tailor.view.home.opening_balance.OpeningBalancesScreen
 import com.cuso.tailor.view.home.profile_settings.ProfileSettingsScreen
@@ -269,8 +267,19 @@ import com.cuso.tailor.viewmodel.*
 import com.cuso.tailor.view.home.legal.legal_vendor.CreateEditLegalVendorScreen
 import com.cuso.tailor.view.home.legal.legal_vendor.LegalVendorDetailScreen
 import com.cuso.tailor.view.home.legal.legal_vendor.LegalVendorListScreen
+import com.cuso.tailor.view.home.logistics.courier_management.AllCourierScreen
+import com.cuso.tailor.view.home.logistics.courier_management.CourierOverviewScreen
+import com.cuso.tailor.view.home.logistics.courier_partners.AddEditCourierPartnerScreen
+import com.cuso.tailor.view.home.logistics.courier_partners.CourierPartnerListScreen // Added Import
+import com.cuso.tailor.view.home.logistics.courier_partners.CourierPartnerOverviewScreen
+import com.cuso.tailor.view.home.logistics.delivery_management.delivery.DeliveryListScreen
+import com.cuso.tailor.view.home.logistics.delivery_management.dispatch.DispatchListScreen
 import com.cuso.tailor.view.home.logistics.order_list.OrderListScreen
 import com.cuso.tailor.view.home.logistics.order_list.LogisticsOrderDetailScreen
+import com.cuso.tailor.view.home.logistics.order_tracking.TrackingEventsListScreen
+import com.cuso.tailor.view.home.logistics.shipment.CreateShipmentScreen
+import com.cuso.tailor.view.home.logistics.shipment.ShipmentDetailScreen
+import com.cuso.tailor.view.logistics.ShipmentListScreen
 
 private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @RequiresApi(Build.VERSION_CODES.O)
@@ -278,6 +287,8 @@ private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedShipmentId: String? = null,
+    onShipmentIdSelected: (String?) -> Unit = {},
     selectedLegalNoticeId: String? = null,
     onLegalNoticeIdSelected: (String?) -> Unit = {},
     selectedLegalVendorId: String? = null,
@@ -735,12 +746,17 @@ fun HomeScreenRouter(
             )
         }
 
-        "logistics_dashboard", "logistics_orders", "logistics_order_detail", "logistics_delivery", "delivery_detail", "logistics_order_tracking",
-        "tracking_overview" -> {
+        "logistics_dashboard", "logistics_orders", "logistics_order_detail", "logistics_delivery",
+        "delivery_detail", "logistics_order_tracking", "tracking_overview", "logistics_dispatched",
+        "logistics_shipments", "shipment_detail", "create_shipment", "logistics_courier_management",
+        "courier_overview", "logistics_courier_partner_list", "courier_partner_overview", "add_courier_partner",
+        "logistics_tracking_events" -> {
             LogisticsRouter(
                 screen = screen,
                 selectedLogisticsPackageId = selectedLogisticsPackageId,
                 onLogisticsPackageIdSelected = onLogisticsPackageIdSelected,
+                selectedShipmentId = selectedShipmentId,
+                onShipmentIdSelected = onShipmentIdSelected,
                 onOrderIdSelected = onOrderIdSelected,
                 onNavigate = onNavigate,
                 onGoBack = onGoBack,
@@ -3993,28 +4009,29 @@ private fun LogisticsRouter(
     screen: String,
     selectedLogisticsPackageId: String? = null,
     onLogisticsPackageIdSelected: (String?) -> Unit = {},
+    selectedShipmentId: String? = null,
+    onShipmentIdSelected: (String?) -> Unit = {},
     onOrderIdSelected: (String?) -> Unit,
     onNavigate: (String) -> Unit,
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit
 ) {
-    // Inject the LogisticsViewModel
+    // Shared Hilt LogisticsViewModel instance
     val logisticsViewModel: LogisticsViewModel = hiltViewModel()
 
     when (screen) {
-        // Logistics Dashboard Route
+        // Logistics Dashboard
         "logistics_dashboard" -> LogisticsDashboardScreen(
             onNavigateBack = onGoBack,
             onViewAllShipments = { onNavigate("logistics_order_tracking") },
             onViewAllCodOrders = { onNavigate("logistics_delivery") }
         )
 
-        // Orders List Route
+        // Orders List
         "logistics_orders" -> OrderListScreen(
             viewModel = logisticsViewModel,
             onClose = onGoBack,
             onViewOrderDetails = { packageItem ->
-                // Ensure a non-null, non-blank ID is picked: MongoDB _id > packageId > orderId
                 val targetId = packageItem._id.ifBlank {
                     packageItem.packageId ?: packageItem.orderId ?: ""
                 }
@@ -4025,7 +4042,7 @@ private fun LogisticsRouter(
             }
         )
 
-        // Order Detail Route (Guarded against blank/null ID)
+        // Order Detail Screen
         "logistics_order_detail" -> {
             selectedLogisticsPackageId?.takeIf { it.isNotBlank() }?.let { id ->
                 LogisticsOrderDetailScreen(
@@ -4036,7 +4053,6 @@ private fun LogisticsRouter(
                         onGoBack()
                     },
                     onCancelOrderClick = {
-                        // Optional: Handle cancel order action (e.g., API call or navigate back)
                         onLogisticsPackageIdSelected(null)
                         onGoBack()
                     }
@@ -4046,23 +4062,181 @@ private fun LogisticsRouter(
             }
         }
 
-        "logistics_delivery" -> DeliveryManagementScreen(
-            onDismiss = onGoBack,
-            onView = { onNavigate("delivery_detail") },
-            onBreadCrumbClick = { onOpenModulesPanel("Logistics") }
+        // Dispatch List Screen
+        "logistics_dispatched" -> DispatchListScreen(
+            viewModel = logisticsViewModel,
+            onClose = onGoBack
         )
 
-        "delivery_detail" -> DeliveryDetailScreen(onDismiss = onGoBack)
+        // Delivery Management Screen
+        "logistics_delivery" -> DeliveryListScreen(
+            viewModel = logisticsViewModel,
+            onNavigateBack = onGoBack,
+            onViewDeliveryDetail = { deliveryId ->
+                if (deliveryId.isNotBlank()) {
+                    onLogisticsPackageIdSelected(deliveryId)
+                    onNavigate("delivery_detail")
+                }
+            }
+        )
 
-        "logistics_order_tracking" -> OrderTrackingScreen(
-            onClose = onGoBack,
-            onViewOrder = { order ->
-                onOrderIdSelected(order.id)
-                onNavigate("tracking_overview")
+        // Delivery Detail Screen
+        "delivery_detail" -> {
+            selectedLogisticsPackageId?.takeIf { it.isNotBlank() }?.let { id ->
+                DeliveryDetailScreen(
+                    deliveryId = id,
+                    viewModel = logisticsViewModel,
+                    onBack = {
+                        onLogisticsPackageIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // ── 1. SHIPMENTS LIST SCREEN ──
+        "logistics_shipments" -> ShipmentListScreen(
+            viewModel = logisticsViewModel,
+            onNavigateBack = onGoBack,
+            onNavigateToDetails = { shipmentId ->
+                val cleanId = shipmentId.trim()
+                if (cleanId.isNotBlank()) {
+                    onShipmentIdSelected(cleanId)
+                    onNavigate("shipment_detail")
+                }
             },
-            onBreadCrumbClick = { onOpenModulesPanel("Logistics") }
+            onCreateShipmentClick = {
+                // Navigates to Create Shipment Screen
+                onNavigate("create_shipment")
+            }
         )
 
+        // ── 2. CREATE SHIPMENT SCREEN ──
+        "create_shipment" -> {
+            CreateShipmentScreen(
+                logisticsViewModel = logisticsViewModel,
+                onClose = onGoBack,
+                onSuccessCreated = onGoBack
+            )
+        }
+
+        // ── 3. SHIPMENT DETAIL SCREEN ──
+        "shipment_detail" -> {
+            selectedShipmentId?.takeIf { it.isNotBlank() }?.let { validId ->
+                ShipmentDetailScreen(
+                    shipmentId = validId,
+                    viewModel = logisticsViewModel,
+                    onBack = {
+                        onShipmentIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // ── ALL COURIER LIST SCREEN ──
+        "logistics_courier_management" -> {
+            AllCourierScreen(
+                viewModel = logisticsViewModel,
+                onBack = onGoBack,
+                onViewDeliveryDetail = { deliveryId ->
+                    // Guard against null or blank IDs before navigating
+                    val cleanId = deliveryId.trim()
+                    if (cleanId.isNotBlank()) {
+                        onLogisticsPackageIdSelected(cleanId)
+                        onNavigate("courier_overview")
+                    }
+                }
+            )
+        }
+
+        // ── COURIER OVERVIEW DETAIL SCREEN ──
+        "courier_overview" -> {
+            // Null-safe guard: only render screen when ID is present
+            selectedLogisticsPackageId?.takeIf { it.isNotBlank() }?.let { validId ->
+                CourierOverviewScreen(
+                    deliveryId = validId,
+                    viewModel = logisticsViewModel,
+                    onBack = {
+                        onLogisticsPackageIdSelected(null) // Cleanly reset ID on exit
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                // Safe fallback to prevent blank screens
+                onGoBack()
+            }
+        }
+
+        // ── COURIER PARTNERS LIST SCREEN ──
+        "logistics_courier_partner_list" -> {
+            CourierPartnerListScreen(
+                viewModel = logisticsViewModel,
+                onBack = onGoBack,
+                onNewShipmentClick = {
+                    // Clear ID so the screen opens in Create / Add mode
+                    onLogisticsPackageIdSelected(null)
+                    onNavigate("add_courier_partner")
+                },
+                onViewCourierDetail = { courierId ->
+                    val cleanId = courierId.trim()
+                    if (cleanId.isNotBlank()) {
+                        onLogisticsPackageIdSelected(cleanId)
+                        onNavigate("courier_partner_overview")
+                    }
+                }
+            )
+        }
+
+        // ── COURIER PARTNER OVERVIEW SCREEN ──
+        "courier_partner_overview" -> {
+            selectedLogisticsPackageId?.takeIf { it.isNotBlank() }?.let { validId ->
+                CourierPartnerOverviewScreen(
+                    courierId = validId,
+                    viewModel = logisticsViewModel,
+                    onBack = {
+                        onLogisticsPackageIdSelected(null)
+                        onGoBack()
+                    },
+                    onEditCourierClick = {
+                        // Keeps selectedLogisticsPackageId to open in Edit mode
+                        onNavigate("add_courier_partner")
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // ── ADD / EDIT COURIER PARTNER SCREEN ──
+        "add_courier_partner" -> {
+            AddEditCourierPartnerScreen(
+                courierIdToEdit = selectedLogisticsPackageId,
+                viewModel = logisticsViewModel,
+                onBack = {
+                    onGoBack()
+                }
+            )
+        }
+
+        // ── TRACKING EVENTS LIST SCREEN ──
+        "logistics_tracking_events", "logistics_order_tracking" -> TrackingEventsListScreen(
+            viewModel = logisticsViewModel,
+            onNavigateBack = onGoBack,
+            onViewEventDetail = { shipmentId ->
+                val cleanId = shipmentId.trim()
+                if (cleanId.isNotBlank()) {
+                    onShipmentIdSelected(cleanId)
+                    onNavigate("tracking_overview")
+                }
+            }
+        )
+
+        // Tracking Overview Screen
         "tracking_overview" -> TrackingOverviewScreen(onClose = onGoBack)
     }
 }

@@ -18,10 +18,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
@@ -29,7 +26,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -47,6 +43,8 @@ import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.utils.LocalIsAppBusy
 import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.DynamicIslandSuccess
+import com.cuso.tailor.view.composable.SESSION_EXPIRED_DEFAULT_MESSAGE
+import com.cuso.tailor.view.composable.SessionExpiredDialog
 import com.cuso.tailor.view.forgot_password.ForgotUserPassword
 import com.cuso.tailor.view.forgot_password.ResetPassword
 import com.cuso.tailor.view.forgot_password.VerifyForgotPassword
@@ -171,32 +169,20 @@ fun AppNav(
 
     LaunchedEffect(Unit) {
         AuthEventManager.sessionExpiredEvent.collect { message ->
-            sessionExpiredMessage = message.ifBlank { "Session timeout. Please relog." }
+            sessionExpiredMessage = message.ifBlank { SESSION_EXPIRED_DEFAULT_MESSAGE }
         }
     }
 
     if (sessionExpiredMessage != null) {
-        AlertDialog(
-            onDismissRequest = { },
-            title = { Text(text = "Session Expired") },
-            text = { Text(text = sessionExpiredMessage ?: "Session timeout. Please relog.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        sessionExpiredMessage = null
-                        navController.navigate("login?message=") {
-                            popUpTo(0) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    }
-                ) {
-                    Text("OK")
+        SessionExpiredDialog(
+            message = sessionExpiredMessage ?: SESSION_EXPIRED_DEFAULT_MESSAGE,
+            onLoginAgain = {
+                sessionExpiredMessage = null
+                navController.navigate("login?message=") {
+                    popUpTo(0) { inclusive = true }
+                    launchSingleTop = true
                 }
-            },
-            properties = DialogProperties(
-                dismissOnBackPress = false,
-                dismissOnClickOutside = false
-            )
+            }
         )
     }
 

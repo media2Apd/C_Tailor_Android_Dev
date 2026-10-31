@@ -249,8 +249,14 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedLegalVendorId by remember { mutableStateOf<String?>(null) }
     var selectedLegalNoticeId by remember { mutableStateOf<String?>(null) }
 
+    // IT State
+    var selectedItDeviceId by remember { mutableStateOf<String?>(null) }
+    var selectedPosTerminalId by remember { mutableStateOf<String?>(null) }
+    var selectedBackupSnapshotId by remember { mutableStateOf<String?>(null) }
+
     // Logistics State
     var selectedShipmentId by remember { mutableStateOf<String?>(null) }
+    var selectedReturnId by remember { mutableStateOf<String?>(null) }
 
     // HR State
     var employeeScreenMode by remember { mutableStateOf(ScreenMode.CREATE) }
@@ -731,6 +737,20 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "courier_partner_overview",
             "add_courier_partner",
             "logistics_tracking_events",
+            "logistics_returns",
+            "return_detail",
+            "create_return",
+            "logistics_cod_screen",
+
+            "it_dashboard",
+            "it_device_management",
+            "it_pos_billing",
+            "it_integrations",
+            "it_backup_recovery",
+            "it_backup_recovery_detail",
+            "it_asset_management",
+            "it_service_desk"
+            ,
             "legal_dashboard",
             "legal_calendar",
             "legal_contracts",
@@ -915,7 +935,12 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
-                "shipment_detail" -> selectedShipmentId = null
+                "it_backup_recovery_detail" -> selectedBackupSnapshotId = null
+                "it_pos_billing_detail" -> selectedPosTerminalId = null
+                "it_device_detail" -> selectedItDeviceId = null
+                "logistics_order_detail", "courier_overview", "logistics_cod_detail" -> selectedLogisticsPackageId = null
+                "shipment_detail", "tracking_overview" -> selectedShipmentId = null
+                "return_detail", "create_return" -> selectedReturnId = null
                 "legal_notice_detail", "legal_create_notice" -> selectedLegalNoticeId = null
                 "legal_vendor_detail", "legal_create_vendor" -> selectedLegalVendorId = null
                 "legal_employee_detail", "legal_create_employee" -> selectedLegalEmployeeId = null
@@ -1139,6 +1164,14 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+                            selectedBackupSnapshotId = selectedBackupSnapshotId,
+                            onBackupSnapshotIdSelected = { selectedBackupSnapshotId = it },
+                            selectedPosTerminalId = selectedPosTerminalId,
+                            onPosTerminalIdSelected = { selectedPosTerminalId = it },
+                            selectedItDeviceId = selectedItDeviceId,
+                            onItDeviceIdSelected = { selectedItDeviceId = it },
+                            selectedReturnId = selectedReturnId,
+                            onReturnIdSelected = { selectedReturnId = it },
                             selectedShipmentId = selectedShipmentId,
                             onShipmentIdSelected = { selectedShipmentId = it },
                             selectedLegalNoticeId = selectedLegalNoticeId,
@@ -2138,6 +2171,8 @@ fun normalizeRoute(rawKey: String): String {
         "courier_overview" -> "courier_overview"
         "logistics_courier_partner_list", "courier_partner_list", "courier_partner", "courier_partners" -> "logistics_courier_partner_list"
         "courier_partner_overview" -> "courier_partner_overview"
+        "create_return", "logistics_create_return" -> "create_return"
+        "logistics_cod_orders_dashboard", "cod_orders_dashboard", "logistics_cod_dashboard", "logistics_cod_screen" -> "logistics_cod_screen"
 
 
         "services_customer_complaints" -> "services_customer_complaints"
@@ -2204,6 +2239,16 @@ fun normalizeRoute(rawKey: String): String {
         "hr_expense_finance_reimbursement" -> "hr_expense_finance_reimbursement"
         "hr_expense_process_payment" -> "hr_expense_process_payment"
 
+        "it_dashboard", "it_it_dashboard" -> "it_dashboard"
+        "it_device_management", "device_management" -> "it_device_management"
+        "it_pos_billing_technology", "it_pos_billing", "pos_billing_technology" -> "it_pos_billing"
+        "it_integrations", "integrations" -> "it_integrations"
+        "it_backup_recovery", "backup_recovery", "it_backups", "backups" -> "it_backup_recovery"
+        "it_backup_recovery_detail", "backup_detail" -> "it_backup_recovery_detail"
+        "it_asset_management", "it_assets", "asset_management" -> "it_asset_management"
+        "it_service_desk", "service_desk", "it_support_triage" -> "it_service_desk"
+
+
         "reports_sales" -> "reports_sales"
         "reports_marketing" -> "reports_marketing"
         "reports_inventory", "reports_reports_inventory" -> "reports_inventory"
@@ -2247,8 +2292,8 @@ fun menuForScreen(screen: String): String = when {
     screen.startsWith("finance_") -> "Finance"
     screen.startsWith("inventory_") -> "Inventory"
     screen.startsWith("hr_") -> "HR"
-    // In menuForScreen in HomeScreen.kt
-    screen.startsWith("logistics_") || screen == "tracking_overview" || screen == "delivery_detail" -> "Logistics"
+    screen.startsWith("it_") || screen == "it_dashboard" -> "IT"
+    screen.startsWith("logistics_") || screen in setOf("tracking_overview", "delivery_detail", "return_detail", "create_return", "create_shipment", "courier_overview", "courier_partner_overview") -> "Logistics"
     screen.startsWith("reports_") -> "Reports"
     else -> "Home"
 }

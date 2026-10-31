@@ -1,7 +1,6 @@
 package com.cuso.tailor.view.home.logistics.order_tracking
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -88,7 +87,6 @@ fun TrackingEventsListScreen(
             topBar = {
                 TitleBar(
                     title = "Tracking Events",
-                    subtitle = "Logistics • Order Tracking",
                     onClose = onNavigateBack
                 )
             }
@@ -103,7 +101,7 @@ fun TrackingEventsListScreen(
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { viewModel.onTrackingSearchQueryChange(it) },
-                    placeholder = "Search Shipment ID, Location, Tracking ID...",
+                    placeholder = "Search Tracking...",
                     showFilterIcon = true,
                     filterCount = activeFilterCount,
                     onFilterClick = { filterDrawerState.open() },
@@ -134,12 +132,7 @@ fun TrackingEventsListScreen(
 
                     else -> {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                horizontal = tokens.screenPadding,
-                                vertical = 8.dp
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            modifier = Modifier.fillMaxSize()
                         ) {
                             items(
                                 items = trackingEvents,
@@ -201,7 +194,8 @@ private fun TrackingEventCardItem(
     }
 
     val targetId = remember(item.id, item.shipmentId) {
-        item.id.trim().ifBlank { item.shipmentId.trim() }
+//        item.id.trim().ifBlank { item.shipmentId.trim() }
+        item.shipmentId.trim().ifBlank { item.shipmentId.trim() }
     }
 
     DataCard(
@@ -238,12 +232,7 @@ private fun TrackingEventCardItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                    .background(PanelBg)
-                    .border(
-                        width = 1.dp,
-                        color = sectionBorder,
-                        shape = RoundedCornerShape(tokens.cardCornerRadius)
-                    )
+                    .background(Primary_background)
                     .padding(
                         horizontal = tokens.extraPadding,
                         vertical = tokens.extraPadding

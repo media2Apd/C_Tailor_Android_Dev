@@ -285,9 +285,23 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
             "courier partner list", "courier partner" -> "logistics_courier_partner_list"
 // In buildNavigationKey() for Logistics:
             "tracking events", "tracking event" -> "logistics_tracking_events"
-            "order tracking" -> "logistics_order_tracking"            "returns management", "returns", "return" -> "logistics_returns"
-            "cod orders dashboard", "cod orders" -> "logistics_cod_orders_dashboard"
+            "order tracking" -> "logistics_order_tracking"
+            "returns management", "returns", "return" -> "logistics_returns"
+            "cod orders dashboard", "cod orders", "cod dashboard", "all cod" -> "logistics_cod_screen"
             else -> "logistics_${cleanSubItem.replace(" ", "_").replace("&", "and")}"
+        }
+    }
+    if (menu == "IT") {
+        val cleanSubItem = subItem.trim().lowercase()
+        return when (cleanSubItem) {
+            "dashboard", "it dashboard" -> "it_dashboard"
+            "device management", "devices" -> "it_device_management"
+            "pos & billing technology", "pos & billing", "pos and billing" -> "it_pos_billing"
+            "integrations" -> "it_integrations"
+            "backup & recovery", "backup and recovery" -> "it_backup_recovery"
+            "it asset management", "it assets", "assets" -> "it_asset_management"
+            "it service desk", "service desk", "support & triage" -> "it_service_desk"
+            else -> "it_${cleanSubItem.replace(" ", "_").replace("&", "and")}"
         }
     }
 
@@ -538,9 +552,19 @@ object SidebarConfig {
                 )
             ),
             MenuItem(
-                R.drawable.it, "IT",
+                icon = R.drawable.it,
+                label = "IT",
                 isPanel = true,
-                categories = listOf("Integrations")
+                categories = listOf(
+                    "Dashboard",
+                    "Device Management",
+                    "POS & Billing Technology",
+                    "Integrations",
+                    "Backup & Recovery",
+                    "IT Asset Management",
+                    "IT Service Desk"
+                ),
+                subItems = emptyMap()
             ),
             MenuItem(
                 R.drawable.legal, "Legal",

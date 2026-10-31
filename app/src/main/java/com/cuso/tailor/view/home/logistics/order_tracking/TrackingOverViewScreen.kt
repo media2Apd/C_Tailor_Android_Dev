@@ -1,12 +1,10 @@
+@file:Suppress("AssignedValueIsNeverRead")
 package com.cuso.tailor.view.home.logistics.order_tracking
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import android.widget.Toast
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -15,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.TwoWheeler
@@ -28,87 +27,78 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.ui.theme.Primary
-import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.getAdaptiveTokens
-import com.cuso.tailor.ui.theme.grey_border
-import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.model.logistics.TrackingTimelineItemDto
+import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.viewmodel.LogisticsViewModel
 
-// ── Colors (sizing now comes from AppDesignTokens) ──────────────────────────
-private val ActiveHalo    = Color(0xFFECEBFF)
-private val GreenActive   = Color(0xFF22C55E)
-private val GrayLight     = grey_border
-private val GrayBorder    = Color(0xFFE5E5E5)
-private val GrayText      = Color(0xFF9CA3AF)
-private val DarkText      = Color(0xFF111827)
-private val InTransitBg   = Color(0xFFEEEEFF)
-private val InTransitText = Color(0xFF4F46E5)
+/**
+ * Returns matching icon for tracking stage.
+ */
+private fun getTimelineIcon(stage: String): ImageVector {
+    val clean = stage.replace("_", " ").trim()
+    return when {
+        clean.contains("Shipped", ignoreCase = true) -> Icons.Default.Warehouse
+        clean.contains("Transit", ignoreCase = true) -> Icons.Default.LocalShipping
+        clean.contains("Delivery", ignoreCase = true) && !clean.contains("Delivered", ignoreCase = true) -> Icons.Default.Layers
+        clean.contains("Delivered", ignoreCase = true) -> Icons.Default.Home
+        else -> Icons.Default.Check
+    }
+}
 
-// ── Data ─────────────────────────────────────────────────────────────────────
-private data class TimelineStep(
-    val title: String,
-    val subtitle: String,
-    val description: String?,
-    val time: String?,
-    val icon: ImageVector,
-    val defaultActive: Boolean,
-    val activeColor: Color
-)
-
-private val timelineSteps = listOf(
-    TimelineStep(
-        title = "Shipped",
-        subtitle = "Warehouse A",
-        description = "Parcel picked up from primary hub.",
-        time = "Oct 24 • 10:00 AM",
-        icon = Icons.Default.Warehouse,
-        defaultActive = true,
-        activeColor = Primary
-    ),
-    TimelineStep(
-        title = "In Transit",
-        subtitle = "Sorting Center",
-        description = "Processing through regional distribution network.",
-        time = "Oct 25 • 02:00 PM",
-        icon = Icons.Default.LocalShipping,
-        defaultActive = false,
-        activeColor = Primary
-    ),
-    TimelineStep(
-        title = "Out for Delivery",
-        subtitle = "Local Hub",
-        description = "Estimated: Tomorrow",
-        time = null,
-        icon = Icons.Default.Layers,
-        defaultActive = false,
-        activeColor = Primary
-    ),
-    TimelineStep(
-        title = "Delivered",
-        subtitle = "Customer Address",
-        description = null,
-        time = null,
-        icon = Icons.Default.Home,
-        defaultActive = false,
-        activeColor = Primary
-    ),
-)
-
-// ── Screen ───────────────────────────────────────────────────────────────────
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
+fun TrackingOverviewScreen(
+    viewModel: LogisticsViewModel,
+    trackingIdentifier: String,
+    onViewShipment: (shipmentId: String) -> Unit = {},
+    onClose: () -> Unit = {}
+) {
     val tokens = LocalAppTokens.current
+    val context = LocalContext.current
 
-    // Each step tracks whether it has been completed/ticked
-    val tickedStates = remember { mutableStateListOf(*timelineSteps.map { it.defaultActive }.toTypedArray()) }
+    val trackingData by viewModel.trackingOverview.collectAsState()
+    val isLoading by viewModel.isLoadingTrackingOverview.collectAsState()
+    val isUpdating by viewModel.isUpdatingTrackingStatus.collectAsState()
+    val updateError by viewModel.updateTrackingStatusError.collectAsState()
+    val errorMessage by viewModel.trackingOverviewError.collectAsState()
+
+    var showStatusModal by remember { mutableStateOf(false) }
+
+    LaunchedEffect(trackingIdentifier) {
+        if (trackingIdentifier.isNotBlank()) {
+            viewModel.fetchTrackingOverview(trackingIdentifier)
+        }
+    }
+
+    if (showStatusModal) {
+        UpdateTrackingStatusModal(
+            identifier = trackingData?.trackingId ?: trackingIdentifier,
+            overview = trackingData,
+            isSaving = isUpdating,
+            errorMessage = updateError,
+            onDismiss = { showStatusModal = false },
+            onSubmit = { status, location, note ->
+                viewModel.updateTrackingStatus(
+                    identifier = trackingIdentifier,
+                    status = status,
+                    location = location,
+                    note = note,
+                    onSuccess = { successMsg ->
+                        showStatusModal = false
+                        Toast.makeText(context, successMsg, Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -118,26 +108,43 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                 shadowElevation = 0.dp
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TitleBar(title = "Tracking Overview", onClose = onClose)
-
-                    }
-                    HorizontalDivider(color = GrayBorder)
+                    TitleBar(title = "Tracking Overview", onClose = onClose)
+                    HorizontalDivider(color = dividerColor)
                 }
             }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = Color.Transparent
     ) { innerPadding ->
+
+        if (isLoading) {
+            ListSkeleton()
+            return@Scaffold
+        }
+
+        if (trackingData == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = errorMessage ?: "Tracking details not found.",
+                    color = mutedText,
+                    fontSize = tokens.bodyMedium
+                )
+            }
+            return@Scaffold
+        }
+
+        val data = trackingData!!
+        val timeline = data.trackingTimeline
+        val lastCompletedIndex = timeline.indexOfLast { it.isCompleted }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Transparent)
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -148,30 +155,44 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                     .fillMaxWidth()
                     .padding(horizontal = tokens.screenPadding)
             ) {
-
-                // ── Order ID + Badge ──────────────────────────────────────────────
+                // Header row: Order ID & Status Badge
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "ORD-88294-LX",
-                        fontSize = tokens.h2,
-                        fontWeight = FontWeight.Bold,
-                        color = DarkText
+                        text = data.orderCode ?: data.orderId ?: "—",
+                        fontSize = tokens.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = TextPrimary
                     )
+
+                    val statusText = data.currentStatus?.replace("_", " ") ?: "Created"
+                    val isDelivered = statusText.equals("Delivered", ignoreCase = true)
+                    val isFailed = statusText.equals("Failed", ignoreCase = true)
+
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(InTransitBg)
+                            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.4f))
+                            .background(
+                                when {
+                                    isDelivered -> greenBg
+                                    isFailed -> redBg
+                                    else -> background_light_purple
+                                }
+                            )
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            "IN TRANSIT",
+                            text = statusText.uppercase(),
                             fontSize = tokens.label,
-                            fontWeight = FontWeight.Bold,
-                            color = InTransitText,
+                            fontWeight = FontWeight.Medium,
+                            color = when {
+                                isDelivered -> greentext
+                                isFailed -> redText
+                                else -> BluePrimary
+                            },
                             letterSpacing = 0.5.sp
                         )
                     }
@@ -179,43 +200,54 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
 
                 Spacer(Modifier.height(tokens.screenPadding * 0.7f))
 
-                // ── Info row ──────────────────────────────────────────────────────
+                // Info row
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    InfoCell("Tracking No", "TRK-99210045IX", Modifier.weight(1f))
+                    InfoCell("Tracking ID", data.trackingId ?: "—", Modifier.weight(1f))
                     VerticalDividerLine()
-                    InfoCell("Courier", "Velocity Express", Modifier.weight(1f))
+                    InfoCell("Courier", data.courierPartner ?: "—", Modifier.weight(1f))
                     VerticalDividerLine()
-                    InfoCell("Est. Delivery", "Oct 27, 2023", Modifier.weight(1f))
+                    InfoCell("Est. Delivery", viewModel.formatTrackingDate(data.estDeliveryDate), Modifier.weight(1f))
                 }
 
                 Spacer(Modifier.height(tokens.screenPadding * 0.8f))
 
-                // ── Buttons ───────────────────────────────────────────────────────
+                // Action buttons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
-                        onClick = {},
-                        modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
+                        onClick = {
+                            data.shipmentId?.let { onViewShipment(it) }
+                        },
+                        enabled = !data.shipmentId.isNullOrBlank(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(tokens.buttonHeight),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
-                        border = BorderStroke(1.5.dp, Primary)
-                    ) { Text("View Shipment", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold) }
+                        border = BorderStroke(1.2.dp, if (!data.shipmentId.isNullOrBlank()) Primary else sectionBorder)
+                    ) {
+                        Text("View Shipment", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium)
+                    }
 
                     Button(
-                        onClick = {},
-                        modifier = Modifier.weight(1f).height(tokens.buttonHeight),
-                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
+                        onClick = { showStatusModal = true },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(tokens.buttonHeight),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
                         colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                    ) { Text("Update Status", fontSize = tokens.bodySmall, color = whiteBg, fontWeight = FontWeight.SemiBold) }
+                    ) {
+                        Text("Update Status", fontSize = tokens.bodySmall, color = whiteBg, fontWeight = FontWeight.Medium)
+                    }
                 }
             }
 
             Spacer(Modifier.height(tokens.screenPadding * 1.2f))
-            HorizontalDivider(color = GrayBorder)
+            HorizontalDivider(color = dividerColor)
 
-            // ── Tracking Timeline ─────────────────────────────────────────────
+            // Timeline Header
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -223,39 +255,38 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                     .padding(horizontal = tokens.screenPadding, vertical = tokens.cardPadding * 0.35f)
             ) {
                 Text(
-                    "Tracking Timeline",
-                    fontSize = tokens.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = DarkText
+                    text = "Tracking Timeline",
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary
                 )
             }
             Spacer(Modifier.height(tokens.screenPadding * 0.8f))
 
-            // Find active step index (first unticked step)
-            val activeIndex = tickedStates.indexOfFirst { !it }
+            // Timeline items
             Column(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = tokens.screenPadding)
             ) {
+                timeline.forEachIndexed { index, item ->
+                    val isDone = item.isCompleted && (data.currentStatus == "Delivered" || index < lastCompletedIndex)
+                    val isCurrent = index == lastCompletedIndex && data.currentStatus != "Delivered"
 
-                timelineSteps.forEachIndexed { index, step ->
-                    val isTicked = tickedStates[index]
-                    val isActive = index == activeIndex
-
-                    AnimatedTimelineItem(
-                        step = step,
-                        isTicked = isTicked,
-                        isActive = isActive,
-                        isLast = index == timelineSteps.lastIndex,
-                        onToggle = { tickedStates[index] = !tickedStates[index] }
+                    TimelineItemRow(
+                        item = item,
+                        isDone = isDone,
+                        isCurrent = isCurrent,
+                        isLast = index == timeline.lastIndex,
+                        formattedTime = viewModel.formatDateTimeToHuman(item.timestamp)
                     )
                 }
             }
 
             Spacer(Modifier.height(8.dp))
-            HorizontalDivider(color = GrayBorder)
+            HorizontalDivider(color = dividerColor)
 
+            // Shipment Information section
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -263,28 +294,38 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                     .padding(horizontal = tokens.screenPadding * 0.5f, vertical = tokens.cardPadding * 0.35f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Image(painter = painterResource(R.drawable.ic_info), contentDescription = "shipment information")
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(tokens.iconSize)
+                )
                 Spacer(Modifier.width(8.dp))
-                Text("Shipment Information", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = DarkText)
+                Text(
+                    text = "Shipment Information",
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary
+                )
             }
+
             Column(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = tokens.screenPadding)
             ) {
-
-                Spacer(Modifier.height(tokens.screenPadding * 0.6f))
-                ShipmentInfoRow("Origin", "Warehouse A, New Delhi")
-                HorizontalDivider(color = GrayBorder)
-                ShipmentInfoRow("Destination", "742 Evergreen Terrace, Springfield")
-                HorizontalDivider(color = GrayBorder)
-                ShipmentInfoRow("Package Weight", "2.5 KG")
+                Spacer(Modifier.height(tokens.screenPadding * 0.4f))
+                ShipmentInfoRow("Origin", data.shipmentInfo?.origin ?: "—")
+                HorizontalDivider(color = dividerColor)
+                ShipmentInfoRow("Destination", data.shipmentInfo?.destination ?: "—")
+                HorizontalDivider(color = dividerColor)
+                ShipmentInfoRow("Package Weight", data.shipmentInfo?.packageWeightKg ?: "—")
             }
 
             Spacer(Modifier.height(tokens.screenPadding))
-            HorizontalDivider(color = GrayBorder)
+            HorizontalDivider(color = dividerColor)
 
-            // ── Courier Details ───────────────────────────────────────────────
+            // Courier Details section
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -292,191 +333,186 @@ fun TrackingOverviewScreen(onClose: () -> Unit = {}) {
                     .padding(horizontal = tokens.screenPadding * 0.5f, vertical = tokens.cardPadding * 0.35f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier.size(tokens.iconSize * 1.55f),
-                    contentAlignment = Alignment.Center
-                ) { Icon(Icons.Default.TwoWheeler, contentDescription = null, tint = Primary, modifier = Modifier.size(tokens.iconSize * 0.9f)) }
+                Icon(
+                    imageVector = Icons.Default.TwoWheeler,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(tokens.iconSize)
+                )
                 Spacer(Modifier.width(8.dp))
-                Text("Courier Details", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = DarkText)
+                Text(
+                    text = "Courier Details",
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = TextPrimary
+                )
             }
+
             Column(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = tokens.screenPadding)
             ) {
-
-                Spacer(Modifier.height(tokens.screenPadding * 0.6f))
-                CourierDetailRow("Courier", "Velocity Express")
-                HorizontalDivider(color = GrayBorder)
-                CourierDetailRow("Service Type", "Next Day Air")
+                Spacer(Modifier.height(tokens.screenPadding * 0.4f))
+                CourierDetailRow("Courier", data.courierPartner ?: "—")
+                HorizontalDivider(color = dividerColor)
+                CourierDetailRow("Service Type", data.serviceType ?: "—")
                 Spacer(Modifier.height(tokens.screenPadding * 1.6f))
             }
         }
     }
 }
 
-// ── Animated Timeline Item ────────────────────────────────────────────────────
 @Composable
-private fun AnimatedTimelineItem(
-    step: TimelineStep,
-    isTicked: Boolean,
-    isActive: Boolean,
+private fun TimelineItemRow(
+    item: TrackingTimelineItemDto,
+    isDone: Boolean,
+    isCurrent: Boolean,
     isLast: Boolean,
-    onToggle: () -> Unit
+    formattedTime: String
 ) {
     val tokens = LocalAppTokens.current
 
-    // Bounce scale when ticked/active
+    val circleOuterSize = tokens.iconSize * 2.2f
+    val circleInnerSize = tokens.iconSize * 1.8f
+
     val scale by animateFloatAsState(
-        targetValue = if (isTicked || isActive) 1f else 0.95f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-        label = "iconScale"
+        targetValue = if (isDone || isCurrent) 1f else 0.95f,
+        label = "scale"
     )
-
-    // Animated fill fraction for the connector bar (0f -> 1f)
-    val lineFill by animateFloatAsState(
-        targetValue = if (isTicked) 1f else 0f,
-        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
-        label = "lineFill"
-    )
-
-    val circleOuterSize = tokens.iconSize * 2.4f
-    val circleInnerSize = tokens.iconSize * 2.0f
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
     ) {
-        // ── Icon column + halo + connector ─────────────────────────────
         Box(
             modifier = Modifier
                 .width(circleOuterSize)
                 .fillMaxHeight(),
             contentAlignment = Alignment.TopCenter
         ) {
-            // 1. Connector bar drawn BEHIND circle (starts from center of circle down to bottom of row)
             if (!isLast) {
                 Box(
                     modifier = Modifier
                         .padding(top = circleOuterSize / 2)
-                        .width(2.5.dp)
+                        .width(2.dp)
                         .fillMaxHeight()
-                        .background(GrayBorder)
-                ) {
-                    // Filled green portion animates from top down
-                    Box(
-                        modifier = Modifier
-                            .width(2.5.dp)
-                            .fillMaxHeight(lineFill)
-                            .align(Alignment.TopCenter)
-                            .background(GreenActive)
-                    )
-                }
+                        .background(if (isDone) darkGreenBg else grey_border)
+                )
             }
 
-            // 2. Circle container drawn ON TOP of the connector line
             Box(
                 modifier = Modifier
                     .scale(scale)
                     .size(circleOuterSize),
                 contentAlignment = Alignment.Center
             ) {
-                // Soft purple halo behind active step (e.g. "In Transit")
-                if (isActive && !isTicked) {
+                if (isCurrent) {
                     Box(
                         modifier = Modifier
                             .size(circleOuterSize)
-                            .background(ActiveHalo, CircleShape)
+                            .background(primary_light, CircleShape)
                     )
                 }
 
-                // Inner Step Icon Circle
                 Box(
                     modifier = Modifier
                         .size(circleInnerSize)
                         .clip(CircleShape)
                         .background(
                             when {
-                                isTicked -> GreenActive
-                                isActive -> step.activeColor
-                                else -> GrayLight
+                                isDone -> darkGreenBg
+                                isCurrent -> Primary
+                                else -> grey_border
                             }
-                        )
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { onToggle() },
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Crossfade(
-                        targetState = isTicked,
-                        animationSpec = tween(300),
-                        label = "iconCrossfade"
-                    ) { ticked ->
-                        if (ticked) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Completed",
-                                tint = whiteBg,
-                                modifier = Modifier.size(tokens.iconSize)
-                            )
-                        } else {
-                            Icon(
-                                imageVector = step.icon,
-                                contentDescription = null,
-                                tint = if (isActive) whiteBg else Color(0xFF6B7280),
-                                modifier = Modifier.size(tokens.iconSize)
-                            )
-                        }
-                    }
+                    Icon(
+                        imageVector = if (isDone) Icons.Default.Check else getTimelineIcon(item.stage),
+                        contentDescription = null,
+                        tint = if (isDone || isCurrent) whiteBg else iconMuted,
+                        modifier = Modifier.size(tokens.iconSize * 0.85f)
+                    )
                 }
             }
         }
 
         Spacer(Modifier.width(14.dp))
 
-        // ── Text Labels ──────────────────────────────────────────────────
         Column(
             modifier = Modifier
-                .padding(top = 4.dp, bottom = if (isLast) 0.dp else 24.dp)
+                .padding(top = 2.dp, bottom = if (isLast) 0.dp else 24.dp)
         ) {
-            Text(
-                text = step.title,
-                fontSize = tokens.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = DarkText
-            )
-            Text(step.subtitle, fontSize = tokens.bodySmall, color = GrayText)
-            step.description?.let { Text(it, fontSize = tokens.bodySmall, color = GrayText) }
-            step.time?.let { Text(it, fontSize = tokens.caption, color = GrayText) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = item.stage.replace("_", " "),
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = if (isCurrent) FontWeight.Medium else FontWeight.Normal,
+                    color = if (isCurrent) Primary else if (item.isCompleted) TextPrimary else mutedText
+                )
+                Text(
+                    text = if (item.isCompleted) formattedTime else "Pending",
+                    fontSize = tokens.caption,
+                    color = mutedText
+                )
+            }
+
+            item.location?.let {
+                if (it.isNotBlank()) {
+                    Text(
+                        text = it,
+                        fontSize = tokens.bodySmall,
+                        color = if (isDone) greentext else mutedText
+                    )
+                }
+            }
+
+            item.note?.let {
+                if (it.isNotBlank()) {
+                    Text(
+                        text = it,
+                        fontSize = tokens.bodySmall,
+                        color = if (item.isCompleted) TextSecondary else mutedText
+                    )
+                }
+            }
         }
     }
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
 @Composable
 private fun InfoCell(label: String, value: String, modifier: Modifier = Modifier) {
     val tokens = LocalAppTokens.current
     Column(modifier = modifier.padding(horizontal = 4.dp)) {
-        Text(label, fontSize = tokens.caption, color = GrayText)
+        Text(label, fontSize = tokens.caption, color = mutedText)
         Spacer(Modifier.height(2.dp))
-        Text(value, fontSize = tokens.caption, fontWeight = FontWeight.Medium, color = DarkText)
+        Text(value, fontSize = tokens.caption, fontWeight = FontWeight.Medium, color = TextPrimary)
     }
 }
 
 @Composable
 private fun VerticalDividerLine() {
-    Box(modifier = Modifier.width(1.dp).height(36.dp).background(GrayBorder))
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .height(36.dp)
+            .background(dividerColor)
+    )
 }
 
 @Composable
 private fun ShipmentInfoRow(label: String, value: String) {
     val tokens = LocalAppTokens.current
     Column(modifier = Modifier.padding(vertical = 10.dp)) {
-        Text(label, fontSize = tokens.caption, color = GrayText)
+        Text(label, fontSize = tokens.caption, color = mutedText)
         Spacer(Modifier.height(2.dp))
-        Text(value, fontSize = tokens.bodyMedium, color = DarkText)
+        Text(value, fontSize = tokens.bodyMedium, color = TextPrimary)
     }
 }
 
@@ -484,25 +520,27 @@ private fun ShipmentInfoRow(label: String, value: String) {
 private fun CourierDetailRow(label: String, value: String) {
     val tokens = LocalAppTokens.current
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, fontSize = tokens.bodySmall, color = GrayText)
-        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = DarkText)
+        Text(label, fontSize = tokens.bodySmall, color = mutedText)
+        Text(value, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
     }
 }
 
-// ── Preview ───────────────────────────────────────────────────────────────────
 @Preview(showBackground = true, widthDp = 380, heightDp = 900)
 @Composable
-fun TrackingOverviewPreview() {
+fun TrackingOverviewScreenPreview() {
     MaterialTheme {
         CompositionLocalProvider(
-            LocalAppTokens provides getAdaptiveTokens(
-                WindowWidthSizeClass.Compact
-            )
+            LocalAppTokens provides getAdaptiveTokens(WindowWidthSizeClass.Compact)
         ) {
-            TrackingOverviewScreen()
+            Surface(color = whiteBg) {
+                // Design preview container
+            }
         }
     }
 }

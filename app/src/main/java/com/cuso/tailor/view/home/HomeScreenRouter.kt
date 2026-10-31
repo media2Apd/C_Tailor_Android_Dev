@@ -222,6 +222,14 @@ import com.cuso.tailor.view.home.inventory.pricing_list.NewPriceListScreen
 import com.cuso.tailor.view.home.inventory.expense_management.finance_reimbursement.FinanceReimbursementScreen
 import com.cuso.tailor.view.home.inventory.expense_management.finance_reimbursement.ProcessPaymentScreen
 import com.cuso.tailor.view.home.inventory.expense_management.new_claims.EditExpenseClaimScreen
+import com.cuso.tailor.view.home.it.all_devices.AllDeviceScreen
+import com.cuso.tailor.view.home.it.all_devices.DeviceDetailScreen
+import com.cuso.tailor.view.home.it.backup.BackupRecoveryDetailScreen
+import com.cuso.tailor.view.home.it.backup.BackupRecoveryListScreen
+import com.cuso.tailor.view.home.it.backup.RestoreBackupScreen
+import com.cuso.tailor.view.home.it.dashboard.ItDashboardScreen
+import com.cuso.tailor.view.home.it.pos_billing.PosDetailScreen
+import com.cuso.tailor.view.home.it.pos_billing.TerminalFleetStatusScreen
 import com.cuso.tailor.view.home.legal.dashboard.LegalDashboardScreen
 import com.cuso.tailor.view.home.legal.legal_calendar.AuditLegalCalendarScreen
 import com.cuso.tailor.view.home.legal.legal_compliance.CreateLegalComplianceScreen
@@ -267,6 +275,8 @@ import com.cuso.tailor.viewmodel.*
 import com.cuso.tailor.view.home.legal.legal_vendor.CreateEditLegalVendorScreen
 import com.cuso.tailor.view.home.legal.legal_vendor.LegalVendorDetailScreen
 import com.cuso.tailor.view.home.legal.legal_vendor.LegalVendorListScreen
+import com.cuso.tailor.view.home.logistics.cod.AllCodScreen
+import com.cuso.tailor.view.home.logistics.cod.CodOrderOverviewScreen
 import com.cuso.tailor.view.home.logistics.courier_management.AllCourierScreen
 import com.cuso.tailor.view.home.logistics.courier_management.CourierOverviewScreen
 import com.cuso.tailor.view.home.logistics.courier_partners.AddEditCourierPartnerScreen
@@ -277,6 +287,9 @@ import com.cuso.tailor.view.home.logistics.delivery_management.dispatch.Dispatch
 import com.cuso.tailor.view.home.logistics.order_list.OrderListScreen
 import com.cuso.tailor.view.home.logistics.order_list.LogisticsOrderDetailScreen
 import com.cuso.tailor.view.home.logistics.order_tracking.TrackingEventsListScreen
+import com.cuso.tailor.view.home.logistics.returns.CreateReturnRequestScreen
+import com.cuso.tailor.view.home.logistics.returns.LogisticsReturnScreen
+import com.cuso.tailor.view.home.logistics.returns.ReturnRequestDetailsScreen
 import com.cuso.tailor.view.home.logistics.shipment.CreateShipmentScreen
 import com.cuso.tailor.view.home.logistics.shipment.ShipmentDetailScreen
 import com.cuso.tailor.view.logistics.ShipmentListScreen
@@ -287,6 +300,14 @@ private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    selectedBackupSnapshotId: String? = null,
+    onBackupSnapshotIdSelected: (String?) -> Unit = {},
+    selectedPosTerminalId: String? = null,
+    onPosTerminalIdSelected: (String?) -> Unit = {},
+    selectedItDeviceId: String? = null,
+    onItDeviceIdSelected: (String?) -> Unit = {},
+    selectedReturnId: String? = null,
+    onReturnIdSelected: (String?) -> Unit = {},
     selectedShipmentId: String? = null,
     onShipmentIdSelected: (String?) -> Unit = {},
     selectedLegalNoticeId: String? = null,
@@ -750,9 +771,11 @@ fun HomeScreenRouter(
         "delivery_detail", "logistics_order_tracking", "tracking_overview", "logistics_dispatched",
         "logistics_shipments", "shipment_detail", "create_shipment", "logistics_courier_management",
         "courier_overview", "logistics_courier_partner_list", "courier_partner_overview", "add_courier_partner",
-        "logistics_tracking_events" -> {
+        "logistics_tracking_events", "logistics_returns", "return_detail", "create_return", "logistics_cod_screen", "logistics_cod_detail" -> {
             LogisticsRouter(
                 screen = screen,
+                selectedReturnId = selectedReturnId,
+                onReturnIdSelected = onReturnIdSelected,
                 selectedLogisticsPackageId = selectedLogisticsPackageId,
                 onLogisticsPackageIdSelected = onLogisticsPackageIdSelected,
                 selectedShipmentId = selectedShipmentId,
@@ -851,6 +874,25 @@ fun HomeScreenRouter(
                 onNavigate = onNavigate,
                 onGoBack = onGoBack,
                 onOpenModulesPanel = onOpenModulesPanel,
+                onShowComingSoon = onShowComingSoon
+            )
+        }
+
+        // ── IT Module Router Dispatch ──
+        "it_dashboard", "it_device_management", "it_device_detail",
+        "it_pos_billing", "it_pos_billing_detail",
+        "it_integrations", "it_backup_recovery", "it_backup_recovery_detail", "it_backup_restore", // <-- Add route
+        "it_asset_management", "it_service_desk" -> {
+            ItRouter(
+                screen = screen,
+                selectedBackupSnapshotId = selectedBackupSnapshotId,
+                onBackupSnapshotIdSelected = onBackupSnapshotIdSelected,
+                selectedItDeviceId = selectedItDeviceId,
+                onItDeviceIdSelected = onItDeviceIdSelected,
+                selectedPosTerminalId = selectedPosTerminalId,
+                onPosTerminalIdSelected = onPosTerminalIdSelected,
+                onNavigate = onNavigate,
+                onGoBack = onGoBack,
                 onShowComingSoon = onShowComingSoon
             )
         }
@@ -4007,6 +4049,8 @@ private fun HrRouter(
 @Composable
 private fun LogisticsRouter(
     screen: String,
+    selectedReturnId: String? = null,
+    onReturnIdSelected: (String?) -> Unit = {},
     selectedLogisticsPackageId: String? = null,
     onLogisticsPackageIdSelected: (String?) -> Unit = {},
     selectedShipmentId: String? = null,
@@ -4024,7 +4068,7 @@ private fun LogisticsRouter(
         "logistics_dashboard" -> LogisticsDashboardScreen(
             onNavigateBack = onGoBack,
             onViewAllShipments = { onNavigate("logistics_order_tracking") },
-            onViewAllCodOrders = { onNavigate("logistics_delivery") }
+            onViewAllCodOrders = { onNavigate("logistics_cod_screen") }
         )
 
         // Orders List
@@ -4237,7 +4281,112 @@ private fun LogisticsRouter(
         )
 
         // Tracking Overview Screen
-        "tracking_overview" -> TrackingOverviewScreen(onClose = onGoBack)
+        "tracking_overview" -> {
+            selectedShipmentId?.takeIf { it.isNotBlank() }?.let { trackingId ->
+                TrackingOverviewScreen(
+                    viewModel = logisticsViewModel,
+                    trackingIdentifier = trackingId,
+                    onViewShipment = { shipmentId ->
+                        onShipmentIdSelected(shipmentId)
+                        onNavigate("shipment_detail")
+                    },
+                    onClose = {
+                        onShipmentIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // Returns List Screen
+        "logistics_returns" -> LogisticsReturnScreen(
+            onNavigateBack = onGoBack,
+            onCreateReturnClick = {
+                onReturnIdSelected(null)
+                onNavigate("create_return")
+            },
+            onEditReturnClick = { returnId ->
+                onReturnIdSelected(returnId)
+                onNavigate("create_return")
+            },
+            onReturnClick = { returnItem ->
+                val targetId = returnItem.id.ifBlank { returnItem.returnId }
+                if (targetId.isNotBlank()) {
+                    onReturnIdSelected(targetId)
+                    onNavigate("return_detail")
+                }
+            },
+            viewModel = logisticsViewModel
+        )
+
+        // Create / Edit Return Request Screen
+        "create_return" -> {
+            CreateReturnRequestScreen(
+                returnIdToEdit = selectedReturnId,
+                onNavigateBack = {
+                    onReturnIdSelected(null)
+                    onGoBack()
+                },
+                viewModel = logisticsViewModel
+            )
+        }
+
+        // Return Details Screen (Protected against null or blank ID)
+        "return_detail" -> {
+            selectedReturnId?.takeIf { it.isNotBlank() }?.let { validReturnId ->
+                ReturnRequestDetailsScreen(
+                    returnId = validReturnId,
+                    onNavigateBack = {
+                        onReturnIdSelected(null)
+                        onGoBack()
+                    },
+                    viewModel = logisticsViewModel
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // ── ALL COURIER LIST SCREEN ──
+        // ── ALL COD SCREEN ──
+        "logistics_cod_screen" -> {
+            AllCodScreen(
+                viewModel = logisticsViewModel,
+                onBack = onGoBack,
+                onCreateOrderClick = {
+                    onNavigate("create_order")
+                },
+                onViewDeliveryDetail = { deliveryId ->
+                    val cleanId = deliveryId.trim()
+                    if (cleanId.isNotBlank()) {
+                        onLogisticsPackageIdSelected(cleanId)
+                        onNavigate("logistics_cod_detail")
+                    }
+                }
+            )
+        }
+
+        // ── COD ORDER DETAIL OVERVIEW SCREEN ──
+        "logistics_cod_detail" -> {
+            selectedLogisticsPackageId?.takeIf { it.isNotBlank() }?.let { validId ->
+                CodOrderOverviewScreen(
+                    codOrderId = validId,
+                    viewModel = logisticsViewModel,
+                    onBack = {
+                        onLogisticsPackageIdSelected(null)
+                        onGoBack()
+                    },
+                    onViewTrackingHistory = { trackingId ->
+                        onShipmentIdSelected(trackingId)
+                        onNavigate("tracking_overview")
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
     }
 }
 
@@ -5161,6 +5310,142 @@ private fun ServicesRouter(
     }
 }
 
+/**
+ * Router dedicated to IT Module screens.
+ */
+@Composable
+private fun ItRouter(
+    screen: String,
+    selectedBackupSnapshotId: String? = null,
+    onBackupSnapshotIdSelected: (String?) -> Unit = {},
+    selectedItDeviceId: String? = null,
+    onItDeviceIdSelected: (String?) -> Unit = {},
+    selectedPosTerminalId: String? = null,
+    onPosTerminalIdSelected: (String?) -> Unit = {},
+    itViewModel: ItViewModel = hiltViewModel(),
+    onNavigate: (String) -> Unit,
+    onGoBack: () -> Unit,
+    onShowComingSoon: (String) -> Unit
+) {
+    when (screen) {
+        "it_dashboard" -> {
+            ItDashboardScreen(
+                onNavigateToRoute = { route -> onNavigate(route) },
+                viewModel = itViewModel
+            )
+        }
+
+        // All Device Screen
+        "it_device_management" -> {
+            AllDeviceScreen(
+                viewModel = itViewModel,
+                onBack = onGoBack,
+                onDeviceClick = { deviceId ->
+                    onItDeviceIdSelected(deviceId)
+                    onNavigate("it_device_detail")
+                }
+            )
+        }
+
+        // Device Detail Screen
+        "it_device_detail" -> {
+            selectedItDeviceId?.takeIf { it.isNotBlank() }?.let { id ->
+                DeviceDetailScreen(
+                    deviceId = id,
+                    viewModel = itViewModel,
+                    onBack = {
+                        onItDeviceIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // POS Billing Fleet Status
+        "it_pos_billing" -> {
+            TerminalFleetStatusScreen(
+                viewModel = itViewModel,
+                onBack = onGoBack,
+                onTerminalClick = { id ->
+                    onPosTerminalIdSelected(id)
+                    onNavigate("it_pos_billing_detail")
+                }
+            )
+        }
+
+        // POS Details Screen
+        "it_pos_billing_detail" -> {
+            selectedPosTerminalId?.takeIf { it.isNotBlank() }?.let { id ->
+                PosDetailScreen(
+                    posTerminalId = id,
+                    viewModel = itViewModel,
+                    onBack = {
+                        onPosTerminalIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+        "it_integrations" -> onShowComingSoon("Integrations Coming Soon")
+// ── IT Backup & Recovery ──
+        "it_backup_recovery" -> {
+            BackupRecoveryListScreen(
+                viewModel = itViewModel,
+                onBack = onGoBack,
+                onBackupClick = { snapshotId ->
+                    onBackupSnapshotIdSelected(snapshotId)
+                    onNavigate("it_backup_recovery_detail")
+                }
+            )
+        }
+
+        "it_backup_recovery_detail" -> {
+            selectedBackupSnapshotId?.takeIf { it.isNotBlank() }?.let { validSnapshotId ->
+                BackupRecoveryDetailScreen(
+                    snapshotId = validSnapshotId,
+                    viewModel = itViewModel,
+                    onBack = {
+                        onBackupSnapshotIdSelected(null)
+                        onGoBack()
+                    },
+                    onRestoreClick = { targetBackupId ->
+                        onBackupSnapshotIdSelected(targetBackupId)
+                        onNavigate("it_backup_restore")
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // ── IT Backup Restore Configuration Screen ──
+        "it_backup_restore" -> {
+            selectedBackupSnapshotId?.takeIf { it.isNotBlank() }?.let { validSnapshotId ->
+                RestoreBackupScreen(
+                    snapshotId = validSnapshotId,
+                    viewModel = itViewModel,
+                    onBack = onGoBack,
+                    onRestoreTriggered = {
+                        // After triggering restore successfully, pop back to the list
+                        onBackupSnapshotIdSelected(null)
+                        onGoBack()
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+        "it_asset_management" -> onShowComingSoon("IT Asset Management Coming Soon")
+        "it_service_desk" -> onShowComingSoon("IT Service Desk Coming Soon")
+
+        else -> onGoBack()
+    }
+}
 @Composable
 private fun ReportsRouter(
     screen: String,

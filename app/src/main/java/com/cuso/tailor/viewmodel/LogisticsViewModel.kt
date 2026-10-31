@@ -4,9 +4,13 @@ package com.cuso.tailor.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.tailor.model.logistics.AllCourierItemDto
+import com.cuso.tailor.model.logistics.AllCourierListResponse
 import com.cuso.tailor.model.logistics.AssignCourierRequest
 import com.cuso.tailor.model.logistics.AssignCourierResponse
 import com.cuso.tailor.model.logistics.AssignDeliveryRequest
+import com.cuso.tailor.model.logistics.CodOrderDetailData
+import com.cuso.tailor.model.logistics.CodOrderDetailResponse
 import com.cuso.tailor.model.logistics.ConfirmAllocationRequest
 import com.cuso.tailor.model.logistics.ConfirmInStorePickupRequest
 import com.cuso.tailor.model.logistics.ConfirmInStorePickupResponse
@@ -19,9 +23,13 @@ import com.cuso.tailor.model.logistics.CourierPartnerDetailResponse
 import com.cuso.tailor.model.logistics.CourierPartnerItemDto
 import com.cuso.tailor.model.logistics.CourierPartnersResponse
 import com.cuso.tailor.model.logistics.CreateCourierPartnerResponse
+import com.cuso.tailor.model.logistics.CreateReturnCustomerPayload
+import com.cuso.tailor.model.logistics.CreateReturnGarmentSummaryPayload
 import com.cuso.tailor.model.logistics.CreateShipmentApiRequest
 import com.cuso.tailor.model.logistics.CreateShipmentApiResponse
 import com.cuso.tailor.model.logistics.CreateUpdateCourierPartnerRequest
+import com.cuso.tailor.model.logistics.DeliveredOrderDto
+import com.cuso.tailor.model.logistics.DeliveredOrdersResponse
 import com.cuso.tailor.model.logistics.DeliveryDetailData
 import com.cuso.tailor.model.logistics.DeliveryDetailResponse
 import com.cuso.tailor.model.logistics.DeliveryItemDto
@@ -35,10 +43,15 @@ import com.cuso.tailor.model.logistics.LogisticsOrderDetailData
 import com.cuso.tailor.model.logistics.LogisticsOrderDetailResponse
 import com.cuso.tailor.model.logistics.LogisticsPackagesResponse
 import com.cuso.tailor.model.logistics.LogisticsShipmentsResponse
+import com.cuso.tailor.model.logistics.MarkCodCollectedRequest
 import com.cuso.tailor.model.logistics.MarkDeliveryCompletedResponse
 import com.cuso.tailor.model.logistics.MarkDispatchedRequest
 import com.cuso.tailor.model.logistics.PackageDimensionDto
 import com.cuso.tailor.model.logistics.PackageItemData
+import com.cuso.tailor.model.logistics.ReturnAttachmentDto
+import com.cuso.tailor.model.logistics.ReturnDetailResponse
+import com.cuso.tailor.model.logistics.ReturnItemDto
+import com.cuso.tailor.model.logistics.ReturnsListResponse
 import com.cuso.tailor.model.logistics.ShipmentAllocationDto
 import com.cuso.tailor.model.logistics.ShipmentDetailData
 import com.cuso.tailor.model.logistics.ShipmentDetailResponse
@@ -50,14 +63,19 @@ import com.cuso.tailor.model.logistics.TimelineTimestampsDto
 import com.cuso.tailor.model.logistics.ToggleCourierStatusRequest
 import com.cuso.tailor.model.logistics.TrackingEventItemDto
 import com.cuso.tailor.model.logistics.TrackingEventsResponse
+import com.cuso.tailor.model.logistics.TrackingOverviewData
+import com.cuso.tailor.model.logistics.TrackingOverviewResponse
 import com.cuso.tailor.model.logistics.UpdateDeliveryStatusRequest
 import com.cuso.tailor.model.logistics.UpdateDeliveryStatusResponse
 import com.cuso.tailor.model.logistics.UpdateOrderStatusRequest
 import com.cuso.tailor.model.logistics.UpdateOrderStatusResponse
+import com.cuso.tailor.model.logistics.UpdateReturnStatusRequest
 import com.cuso.tailor.model.logistics.UpdateShipmentStatusRequest
+import com.cuso.tailor.model.logistics.UpdateTrackingStatusRequest
 import com.cuso.tailor.model.logistics.WarehouseAllocationData
 import com.cuso.tailor.model.logistics.WarehouseAllocationResponse
 import com.cuso.tailor.repository.ApiRepository
+import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -66,6 +84,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -108,7 +128,35 @@ private const val COURIER_PARTNER_TOGGLE_STATUS_URL = "/api/logistics/courier-pa
 
 private const val COURIER_PARTNER_CREATE_URL = "/api/logistics/courier-partner/create"
 private const val COURIER_PARTNER_UPDATE_URL = "/api/logistics/courier-partner/update"
-private const val LOGISTICS_TRACKING_EVENTS_URL = "/api/logistics/tracking-events/list"
+private const val LOGISTICS_TRACKING_EVENTS_URL = "/api/logistics/tracking/list"
+
+// Add to your top-level API constants
+private const val LOGISTICS_TRACKING_OVERVIEW_URL = "/api/logistics/tracking/overview"
+private const val LOGISTICS_TRACKING_UPDATE_STATUS_URL = "/api/logistics/tracking/update-status"
+// --- RETURNS API ENDPOINTS ---
+private const val LOGISTICS_RETURNS_LIST_URL = "/api/logistics/returns/view-all"
+private const val LOGISTICS_RETURN_DETAIL_URL = "/api/logistics/returns/view-one"
+private const val LOGISTICS_UPDATE_RETURN_STATUS_URL = "/api/logistics/returns/update-one"
+
+private const val LOGISTICS_DELIVERED_ORDERS_URL = "/api/logistics/returns/delivered-without-rr"
+private const val LOGISTICS_CREATE_RETURN_URL = "/api/logistics/returns/create"
+private const val LOGISTICS_UPDATE_RETURN_FULL_URL = "/api/logistics/returns/update-one"
+private const val LOGISTICS_DELETE_RETURN_URL = "/api/logistics/returns/delete-one"
+
+private const val LOGISTICS_ALL_COURIER_LIST_URL = "/api/logistics/cod/list"
+private const val LOGISTICS_COD_OVERVIEW_URL = "/api/logistics/cod/overview"
+private const val LOGISTICS_MARK_COD_COLLECTED_URL = "/api/logistics/cod/mark-collected"
+
+
+
+data class TrackingStatusOption(val id: String, val name: String)
+val TRACKING_STATUS_OPTIONS = listOf(
+    TrackingStatusOption("Created", "Shipped"),
+    TrackingStatusOption("In_Transit", "In Transit"),
+    TrackingStatusOption("Out_for_Delivery", "Out for Delivery"),
+    TrackingStatusOption("Delivered", "Delivered"),
+    TrackingStatusOption("Failed", "Failed")
+)
 
 
 @HiltViewModel
@@ -215,6 +263,7 @@ class LogisticsViewModel @Inject constructor(
 
     private val _deliveryError = MutableStateFlow<String?>(null)
     val deliveryError: StateFlow<String?> = _deliveryError.asStateFlow()
+
 
     /**
      * Combined reactive list for deliveries filtered by search query, status, and delivery type.
@@ -1534,6 +1583,169 @@ class LogisticsViewModel @Inject constructor(
             _isLoadingTrackingEvents.value = false
         }
     }
+    // =========================================================================
+    // TRACKING OVERVIEW & UPDATE STATE
+    // =========================================================================
+    private val _trackingOverview = MutableStateFlow<TrackingOverviewData?>(null)
+    val trackingOverview: StateFlow<TrackingOverviewData?> = _trackingOverview.asStateFlow()
+
+    private val _isLoadingTrackingOverview = MutableStateFlow(false)
+    val isLoadingTrackingOverview: StateFlow<Boolean> = _isLoadingTrackingOverview.asStateFlow()
+
+    private val _trackingOverviewError = MutableStateFlow<String?>(null)
+    val trackingOverviewError: StateFlow<String?> = _trackingOverviewError.asStateFlow()
+
+    private val _isUpdatingTrackingStatus = MutableStateFlow(false)
+    val isUpdatingTrackingStatus: StateFlow<Boolean> = _isUpdatingTrackingStatus.asStateFlow()
+
+    private val _updateTrackingStatusError = MutableStateFlow<String?>(null)
+    val updateTrackingStatusError: StateFlow<String?> = _updateTrackingStatusError.asStateFlow()
+
+    /**
+     * Fetches tracking overview detail by tracking identifier or shipment ID.
+     */
+    fun fetchTrackingOverview(identifier: String) {
+        if (identifier.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingTrackingOverview.value = true
+            _trackingOverviewError.value = null
+
+            val result = repo.request<TrackingOverviewResponse> {
+                get("$LOGISTICS_TRACKING_OVERVIEW_URL/$identifier")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        _trackingOverview.value = res.data
+                    } else {
+                        _trackingOverviewError.value = res.message ?: "Failed to load tracking overview"
+                    }
+                },
+                onFailure = { err ->
+                    _trackingOverviewError.value = err.message ?: "Network error loading tracking overview"
+                }
+            )
+            _isLoadingTrackingOverview.value = false
+        }
+    }
+
+    /**
+     * Submits tracking status update matching the React modal logic and endpoint.
+     */
+    fun updateTrackingStatus(
+        identifier: String,
+        status: String,
+        location: String?,
+        note: String?,
+        onSuccess: (message: String) -> Unit
+    ) {
+        if (identifier.isBlank() || status.isBlank()) return
+        viewModelScope.launch {
+            _isUpdatingTrackingStatus.value = true
+            _updateTrackingStatusError.value = null
+
+            val requestBody = UpdateTrackingStatusRequest(
+                status = status,
+                location = location?.trim()?.ifBlank { null },
+                note = note?.trim()?.ifBlank { null }
+            )
+
+            val result = repo.request<SimpleLogisticsActionResponse> {
+                put("$LOGISTICS_TRACKING_UPDATE_STATUS_URL/$identifier", requestBody)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchTrackingOverview(identifier)
+                        onSuccess(res.message ?: "Tracking status updated successfully")
+                    } else {
+                        _updateTrackingStatusError.value = res.message ?: "Failed to update tracking status"
+                    }
+                },
+                onFailure = { err ->
+                    _updateTrackingStatusError.value = err.message ?: "Network error updating tracking status"
+                }
+            )
+            _isUpdatingTrackingStatus.value = false
+        }
+    }
+
+    fun clearTrackingOverview() {
+        _trackingOverview.value = null
+        _trackingOverviewError.value = null
+        _updateTrackingStatusError.value = null
+    }
+
+    // =========================================================================
+    // RETURNS MANAGEMENT STATE
+    // =========================================================================
+    private val _returnsList = MutableStateFlow<List<ReturnItemDto>>(emptyList())
+    val returnsList: StateFlow<List<ReturnItemDto>> = _returnsList.asStateFlow()
+
+    private val _returnSearchQuery = MutableStateFlow("")
+    val returnSearchQuery: StateFlow<String> = _returnSearchQuery.asStateFlow()
+
+    private val _selectedReturnStatus = MutableStateFlow<String?>(null)
+    val selectedReturnStatus: StateFlow<String?> = _selectedReturnStatus.asStateFlow()
+
+    private val _selectedReturnType = MutableStateFlow<String?>(null)
+    val selectedReturnType: StateFlow<String?> = _selectedReturnType.asStateFlow()
+
+    private val _selectedReturnPriority = MutableStateFlow<String?>(null)
+    val selectedReturnPriority: StateFlow<String?> = _selectedReturnPriority.asStateFlow()
+
+    private val _isLoadingReturns = MutableStateFlow(false)
+    val isLoadingReturns: StateFlow<Boolean> = _isLoadingReturns.asStateFlow()
+
+    private val _returnsError = MutableStateFlow<String?>(null)
+    val returnsError: StateFlow<String?> = _returnsError.asStateFlow()
+
+    // Single Return Detail State
+    private val _currentReturnDetail = MutableStateFlow<ReturnItemDto?>(null)
+    val currentReturnDetail: StateFlow<ReturnItemDto?> = _currentReturnDetail.asStateFlow()
+
+    private val _isLoadingReturnDetail = MutableStateFlow(false)
+    val isLoadingReturnDetail: StateFlow<Boolean> = _isLoadingReturnDetail.asStateFlow()
+
+    private val _returnDetailError = MutableStateFlow<String?>(null)
+    val returnDetailError: StateFlow<String?> = _returnDetailError.asStateFlow()
+
+    private val _isUpdatingReturnStatus = MutableStateFlow(false)
+    val isUpdatingReturnStatus: StateFlow<Boolean> = _isUpdatingReturnStatus.asStateFlow()
+
+    private val _updateReturnStatusError = MutableStateFlow<String?>(null)
+    val updateReturnStatusError: StateFlow<String?> = _updateReturnStatusError.asStateFlow()
+
+    /**
+     * Combined reactive list for Returns filtered by search query, status, return type, and priority.
+     */
+    val filteredReturns: StateFlow<List<ReturnItemDto>> = combine(
+        _returnsList,
+        _returnSearchQuery,
+        _selectedReturnStatus,
+        _selectedReturnType,
+        _selectedReturnPriority
+    ) { returns, query, status, type, priority ->
+        val cleanQuery = query.trim().lowercase()
+        returns.filter { item ->
+            val customerName = item.customer?.name ?: item.orderId?.customerSnapshot?.name ?: ""
+            val orderCode = item.orderCode.ifBlank { item.orderId?.orderCode ?: "" }
+
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.returnId.lowercase().contains(cleanQuery) ||
+                    orderCode.lowercase().contains(cleanQuery) ||
+                    customerName.lowercase().contains(cleanQuery) ||
+                    (item.customer?.phone?.contains(cleanQuery) == true)
+
+            val matchesStatus = status.isNullOrBlank() || item.status.equals(status, ignoreCase = true)
+            val matchesType = type.isNullOrBlank() || item.returnType.equals(type, ignoreCase = true)
+            val matchesPriority = priority.isNullOrBlank() || item.priority.equals(priority, ignoreCase = true)
+
+            matchesQuery && matchesStatus && matchesType && matchesPriority
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
      * Formats ISO date to "Oct 29 2026" matching desktop screenshot.
@@ -1549,6 +1761,579 @@ class LogisticsViewModel @Inject constructor(
             date?.let { formatter.format(it) } ?: isoDate
         } catch (e: Exception) {
             isoDate
+        }
+    }
+
+    // =========================================================================
+    // RETURNS METHODS
+    // =========================================================================
+
+    fun onReturnSearchQueryChange(query: String) {
+        _returnSearchQuery.value = query
+    }
+
+    fun onReturnStatusFilterChange(status: String?) {
+        _selectedReturnStatus.value = status
+    }
+
+    fun onReturnTypeFilterChange(type: String?) {
+        _selectedReturnType.value = type
+    }
+
+    fun onReturnPriorityFilterChange(priority: String?) {
+        _selectedReturnPriority.value = priority
+    }
+
+    fun clearReturnFilters() {
+        _returnSearchQuery.value = ""
+        _selectedReturnStatus.value = null
+        _selectedReturnType.value = null
+        _selectedReturnPriority.value = null
+    }
+
+    /**
+     * Fetches Returns list from backend using ApiRepository.
+     * Endpoint: GET /api/logistics/returns/list
+     */
+    fun fetchReturns(page: Int = 1, limit: Int = 20) {
+        viewModelScope.launch {
+            _isLoadingReturns.value = true
+            _returnsError.value = null
+
+            val result = repo.request<ReturnsListResponse> {
+                get(LOGISTICS_RETURNS_LIST_URL, repo.query("page" to page, "limit" to limit))
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        _returnsList.value = response.data
+                    } else {
+                        _returnsError.value = response.message ?: "Failed to fetch returns"
+                    }
+                },
+                onFailure = { error ->
+                    _returnsError.value = error.message ?: "Network error while loading returns"
+                }
+            )
+            _isLoadingReturns.value = false
+        }
+    }
+
+    /**
+     * Fetches detailed information for a single return by returnId or MongoDB _id.
+     * Endpoint: GET /api/logistics/returns/details/:id
+     */
+    fun fetchReturnDetail(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingReturnDetail.value = true
+            _returnDetailError.value = null
+
+            val result = repo.request<ReturnDetailResponse> {
+                get("$LOGISTICS_RETURN_DETAIL_URL/$id")
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success && response.data != null) {
+                        _currentReturnDetail.value = response.data
+                    } else {
+                        _returnDetailError.value = response.message ?: "Failed to fetch return details"
+                    }
+                },
+                onFailure = { error ->
+                    _returnDetailError.value = error.message ?: "Network error loading return details"
+                }
+            )
+            _isLoadingReturnDetail.value = false
+        }
+    }
+
+    /**
+     * Updates Return workflow status and internal notes matching the backend payload.
+     * Endpoint: PUT /api/logistics/returns/update-status/:id
+     */
+    /**
+     * Updates Return workflow status, internal notes, and uploads binary attachment files.
+     * Endpoint: PUT /api/logistics/returns/update-one/:id
+     */
+    fun updateReturnStatus(
+        returnId: String,
+        newStatus: String,
+        internalNotes: String?,
+        attachmentParts: List<MultipartBody.Part> = emptyList(),
+        onSuccess: (message: String) -> Unit = {}
+    ) {
+        if (returnId.isBlank()) return
+        viewModelScope.launch {
+            _isUpdatingReturnStatus.value = true
+            _updateReturnStatusError.value = null
+
+            val trimmedNotes = internalNotes?.trim()?.ifBlank { null }
+            val requestBody = UpdateReturnStatusRequest(
+                status = newStatus,
+                internalNotes = trimmedNotes,
+                notes = trimmedNotes
+            )
+
+            val result = repo.request<SimpleLogisticsActionResponse> {
+                if (attachmentParts.isNotEmpty()) {
+                    // Multipart upload with binary file attachments
+                    val parts = mutableMapOf<String, RequestBody>()
+                    parts["status"] = repo.text(newStatus)
+                    trimmedNotes?.let { parts["internalNotes"] = repo.text(it) }
+                    putMultipart("$LOGISTICS_UPDATE_RETURN_STATUS_URL/$returnId", parts, attachmentParts)
+                } else {
+                    // Standard JSON body payload
+                    put("$LOGISTICS_UPDATE_RETURN_STATUS_URL/$returnId", requestBody)
+                }
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        fetchReturnDetail(returnId)
+                        fetchReturns()
+                        onSuccess(response.message ?: "Return updated successfully")
+                    } else {
+                        _updateReturnStatusError.value = response.message ?: "Failed to update return"
+                    }
+                },
+                onFailure = { error ->
+                    _updateReturnStatusError.value = error.message ?: "Network error updating return"
+                }
+            )
+            _isUpdatingReturnStatus.value = false
+        }
+    }
+
+    private val _deliveredOrders = MutableStateFlow<List<DeliveredOrderDto>>(emptyList())
+    val deliveredOrders: StateFlow<List<DeliveredOrderDto>> = _deliveredOrders.asStateFlow()
+
+    private val _isLoadingDeliveredOrders = MutableStateFlow(false)
+    val isLoadingDeliveredOrders: StateFlow<Boolean> = _isLoadingDeliveredOrders.asStateFlow()
+
+    private val _isCreatingReturn = MutableStateFlow(false)
+    val isCreatingReturn: StateFlow<Boolean> = _isCreatingReturn.asStateFlow()
+
+    private val _createReturnError = MutableStateFlow<String?>(null)
+    val createReturnError: StateFlow<String?> = _createReturnError.asStateFlow()
+
+    /**
+     * Fetches all delivered orders available to create a return request.
+     */
+    fun fetchDeliveredOrders() {
+        viewModelScope.launch {
+            _isLoadingDeliveredOrders.value = true
+            val result = repo.request<DeliveredOrdersResponse> {
+                get(LOGISTICS_DELIVERED_ORDERS_URL)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _deliveredOrders.value = res.data
+                    }
+                },
+                onFailure = { /* Handle silently or set error message */ }
+            )
+            _isLoadingDeliveredOrders.value = false
+        }
+    }
+
+    /**
+     * Submits the create return request as multipart/form-data matching the exact payload format:
+     * - "customer" as JSON string and individual customer[...] fields
+     * - "garmentSummary" as JSON string {"itemName": "...", "orderedDate": "...", "deliveredDate": "..."}
+     * - "attachments" as binary files
+     */
+    fun submitCreateReturn(
+        orderId: String,
+        orderCode: String,
+        customer: CreateReturnCustomerPayload,
+        returnType: String,
+        serviceCategory: String,
+        priority: String,
+        preferredCompletionDate: String,
+        issueDescription: String,
+        preferredResolutionNotes: String,
+        internalNotes: String,
+        garmentSummary: CreateReturnGarmentSummaryPayload,
+        attachmentParts: List<MultipartBody.Part>,
+        onSuccess: (message: String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isCreatingReturn.value = true
+            _createReturnError.value = null
+
+            val randomId = "SR-${(1000..9999).random()}"
+            val parts = mutableMapOf<String, RequestBody>()
+
+            // 1. Core Identifiers
+            parts["returnId"] = repo.text(randomId)
+            parts["orderId"] = repo.text(orderId)
+            parts["orderCode"] = repo.text(orderCode)
+
+            // 2. Customer JSON string and customer[...] fields
+            val customerJson = Gson().toJson(customer)
+            parts["customer"] = repo.text(customerJson)
+            parts["customer[name]"] = repo.text(customer.name)
+            parts["customer[phone]"] = repo.text(customer.phone)
+            parts["customer[email]"] = repo.text(customer.email)
+            parts["customer[address]"] = repo.text(customer.address)
+
+            // 3. Return & Service Details
+            parts["returnType"] = repo.text(returnType)
+            parts["serviceCategory"] = repo.text(serviceCategory)
+            parts["priority"] = repo.text(priority)
+            if (preferredCompletionDate.isNotBlank()) {
+                parts["preferredCompletionDate"] = repo.text(preferredCompletionDate)
+            }
+
+            // 4. Issue and Resolution Notes
+            parts["issueDescription"] = repo.text(issueDescription)
+            parts["preferredResolutionNotes"] = repo.text(preferredResolutionNotes)
+            parts["internalNotes"] = repo.text(internalNotes)
+
+            // 5. Garment Summary JSON string
+            val garmentSummaryJson = Gson().toJson(garmentSummary)
+            parts["garmentSummary"] = repo.text(garmentSummaryJson)
+
+            // 6. Execute Multipart Request
+            val result = repo.request<SimpleLogisticsActionResponse> {
+                postMultipart(LOGISTICS_CREATE_RETURN_URL, parts, attachmentParts)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchReturns()
+                        onSuccess(res.message ?: "Return request created successfully")
+                    } else {
+                        _createReturnError.value = res.message ?: "Failed to create return request"
+                    }
+                },
+                onFailure = { err ->
+                    _createReturnError.value = err.message ?: "Network error creating return request"
+                }
+            )
+            _isCreatingReturn.value = false
+        }
+    }
+
+    private val _isUpdatingReturn = MutableStateFlow(false)
+    val isUpdatingReturn: StateFlow<Boolean> = _isUpdatingReturn.asStateFlow()
+
+    /**
+     * Submits Return update request matching the multipart/form-data payload format.
+     * Endpoint: PUT /api/logistics/returns/update-one/:id
+     */
+    fun submitUpdateReturn(
+        id: String,
+        returnId: String,
+        orderId: String,
+        orderCode: String,
+        customer: CreateReturnCustomerPayload,
+        returnType: String,
+        serviceCategory: String,
+        priority: String,
+        preferredCompletionDate: String,
+        issueDescription: String,
+        preferredResolutionNotes: String,
+        internalNotes: String,
+        garmentSummary: CreateReturnGarmentSummaryPayload,
+        existingAttachments: List<ReturnAttachmentDto>,
+        newAttachmentParts: List<MultipartBody.Part>,
+        onSuccess: (message: String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isUpdatingReturn.value = true
+            _createReturnError.value = null
+
+            val parts = mutableMapOf<String, RequestBody>()
+
+            // 1. Identifiers
+            parts["returnId"] = repo.text(returnId)
+            parts["orderId"] = repo.text(orderId)
+            parts["orderCode"] = repo.text(orderCode)
+
+            // 2. Customer fields & JSON
+            val customerJson = Gson().toJson(customer)
+            parts["customer"] = repo.text(customerJson)
+            parts["customer[name]"] = repo.text(customer.name)
+            parts["customer[phone]"] = repo.text(customer.phone)
+            parts["customer[email]"] = repo.text(customer.email)
+            parts["customer[address]"] = repo.text(customer.address)
+
+            // 3. Service & Return details
+            parts["returnType"] = repo.text(returnType)
+            parts["serviceCategory"] = repo.text(serviceCategory)
+            parts["priority"] = repo.text(priority)
+            if (preferredCompletionDate.isNotBlank()) {
+                parts["preferredCompletionDate"] = repo.text(preferredCompletionDate)
+            }
+
+            // 4. Descriptions & Notes
+            parts["issueDescription"] = repo.text(issueDescription)
+            parts["preferredResolutionNotes"] = repo.text(preferredResolutionNotes)
+            parts["internalNotes"] = repo.text(internalNotes)
+
+            // 5. Garment summary
+            val garmentJson = Gson().toJson(garmentSummary)
+            parts["garmentSummary"] = repo.text(garmentJson)
+
+            // 6. Retain existing attachments that were not removed
+            if (existingAttachments.isNotEmpty()) {
+                parts["existingAttachments"] = repo.text(Gson().toJson(existingAttachments))
+            }
+
+            val result = repo.request<SimpleLogisticsActionResponse> {
+                putMultipart("$LOGISTICS_UPDATE_RETURN_FULL_URL/$id", parts, newAttachmentParts)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchReturns()
+                        fetchReturnDetail(id)
+                        onSuccess(res.message ?: "Return updated successfully")
+                    } else {
+                        _createReturnError.value = res.message ?: "Failed to update return"
+                    }
+                },
+                onFailure = { err ->
+                    _createReturnError.value = err.message ?: "Network error updating return"
+                }
+            )
+            _isUpdatingReturn.value = false
+        }
+    }
+
+    fun deleteReturnItem(
+        id: String,
+        onSuccess: (message: String) -> Unit = {},
+        onError: (message: String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val result = repo.request<SimpleLogisticsActionResponse> {
+                delete("$LOGISTICS_DELETE_RETURN_URL/$id")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchReturns() // Refresh the returns list
+                        onSuccess(res.message ?: "Return request deleted successfully")
+                    } else {
+                        onError(res.message ?: "Failed to delete return request")
+                    }
+                },
+                onFailure = { err ->
+                    onError(err.message ?: "Network error while deleting return request")
+                }
+            )
+        }
+    }
+
+    fun clearReturnDetail() {
+        _currentReturnDetail.value = null
+        _returnDetailError.value = null
+    }
+
+    /**
+     * Formats ISO date (e.g. 2026-10-09T04:36:51.212Z) to "9 Mar, 10:00AM" matching the UI card.
+     */
+    fun formatReturnDateTime(isoDate: String?): String {
+        if (isoDate.isNullOrBlank()) return "--"
+        return try {
+            val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val date = parser.parse(isoDate)
+            val formatter = SimpleDateFormat("d MMM, hh:mma", Locale.getDefault())
+            date?.let { formatter.format(it) } ?: isoDate
+        } catch (e: Exception) {
+            isoDate
+        }
+    }
+
+    private val _allCourierList = MutableStateFlow<List<AllCourierItemDto>>(emptyList())
+    val allCourierList: StateFlow<List<AllCourierItemDto>> = _allCourierList.asStateFlow()
+
+    private val _allCourierSearchQuery = MutableStateFlow("")
+    val allCourierSearchQuery: StateFlow<String> = _allCourierSearchQuery.asStateFlow()
+
+    private val _selectedCourierStatus = MutableStateFlow<String?>(null)
+    val selectedCourierStatus: StateFlow<String?> = _selectedCourierStatus.asStateFlow()
+
+    private val _isLoadingAllCourier = MutableStateFlow(false)
+    val isLoadingAllCourier: StateFlow<Boolean> = _isLoadingAllCourier.asStateFlow()
+
+    private val _allCourierError = MutableStateFlow<String?>(null)
+    val allCourierError: StateFlow<String?> = _allCourierError.asStateFlow()
+
+    /**
+     * Filtered reactive list for All Courier screen matching search and status filter
+     */
+    val filteredAllCourier: StateFlow<List<AllCourierItemDto>> = combine(
+        _allCourierList,
+        _allCourierSearchQuery,
+        _selectedCourierStatus
+    ) { list, query, status ->
+        val cleanQuery = query.trim().lowercase()
+        list.filter { item ->
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.orderCode.lowercase().contains(cleanQuery) ||
+                    item.courierName.lowercase().contains(cleanQuery) ||
+                    (item.trackingId?.lowercase()?.contains(cleanQuery) == true)
+
+            val matchesStatus = status.isNullOrBlank() || item.status.equals(status, ignoreCase = true)
+
+            matchesQuery && matchesStatus
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun onAllCourierSearchQueryChange(query: String) {
+        _allCourierSearchQuery.value = query
+    }
+
+    fun onAllCourierStatusFilterChange(status: String?) {
+        _selectedCourierStatus.value = status
+    }
+
+    fun clearAllCourierFilters() {
+        _allCourierSearchQuery.value = ""
+        _selectedCourierStatus.value = null
+    }
+
+    /**
+     * Fetches All Courier list from API
+     */
+    fun fetchAllCourierList(page: Int = 1, limit: Int = 20) {
+        viewModelScope.launch {
+            _isLoadingAllCourier.value = true
+            _allCourierError.value = null
+
+            val result = repo.request<AllCourierListResponse> {
+                get(LOGISTICS_ALL_COURIER_LIST_URL, repo.query("page" to page, "limit" to limit))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _allCourierList.value = res.data
+                    } else {
+                        _allCourierError.value = res.message ?: "Failed to fetch courier list"
+                    }
+                },
+                onFailure = { err ->
+                    _allCourierError.value = err.message ?: "Network error while loading courier list"
+                }
+            )
+            _isLoadingAllCourier.value = false
+        }
+    }
+
+    private val _codDetail = MutableStateFlow<CodOrderDetailData?>(null)
+    val codDetail: StateFlow<CodOrderDetailData?> = _codDetail.asStateFlow()
+
+    private val _isLoadingCodDetail = MutableStateFlow(false)
+    val isLoadingCodDetail: StateFlow<Boolean> = _isLoadingCodDetail.asStateFlow()
+
+    private val _codDetailError = MutableStateFlow<String?>(null)
+    val codDetailError: StateFlow<String?> = _codDetailError.asStateFlow()
+
+    private val _isMarkingCodCollected = MutableStateFlow(false)
+    val isMarkingCodCollected: StateFlow<Boolean> = _isMarkingCodCollected.asStateFlow()
+
+    /**
+     * Fetches single COD Order Overview by delivery/order ID
+     */
+    fun fetchCodOrderDetail(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingCodDetail.value = true
+            _codDetailError.value = null
+
+            val result = repo.request<CodOrderDetailResponse> {
+                get("$LOGISTICS_COD_OVERVIEW_URL/$id")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        _codDetail.value = res.data
+                    } else {
+                        _codDetailError.value = res.message ?: "Failed to load COD order details"
+                    }
+                },
+                onFailure = { err ->
+                    _codDetailError.value = err.message ?: "Network error while loading details"
+                }
+            )
+            _isLoadingCodDetail.value = false
+        }
+    }
+
+    /**
+     * Marks COD payment as collected with optional settlement ID
+     */
+    fun markCodOrderCollected(
+        id: String,
+        settlementId: String? = null,
+        onSuccess: (message: String) -> Unit = {},
+        onError: (message: String) -> Unit = {}
+    ) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isMarkingCodCollected.value = true
+
+            val requestBody = MarkCodCollectedRequest(
+                settlementId = settlementId?.trim()?.ifBlank { null }
+            )
+
+            val result = repo.request<SimpleLogisticsActionResponse> {
+                put("$LOGISTICS_MARK_COD_COLLECTED_URL/$id", requestBody)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchCodOrderDetail(id)
+                        fetchAllCourierList()
+                        onSuccess(res.message ?: "Payment marked as collected successfully")
+                    } else {
+                        onError(res.message ?: "Failed to mark as collected")
+                    }
+                },
+                onFailure = { err ->
+                    onError(err.message ?: "Network error completing COD collection")
+                }
+            )
+            _isMarkingCodCollected.value = false
+        }
+    }
+
+    fun clearCodDetail() {
+        _codDetail.value = null
+        _codDetailError.value = null
+    }
+
+    /**
+     * Helper to format ISO date strings into "Oct 24, 2025"
+     */
+    fun formatCourierDate(isoString: String?): String {
+        if (isoString.isNullOrBlank()) return "--"
+        return try {
+            val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val date = parser.parse(isoString)
+            val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+            date?.let { formatter.format(it) } ?: isoString
+        } catch (_: Exception) {
+            isoString
         }
     }
 

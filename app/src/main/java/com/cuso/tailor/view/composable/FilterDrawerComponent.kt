@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,12 +56,9 @@ import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.Primary_background
 import com.cuso.tailor.ui.theme.TextPrimary
 import com.cuso.tailor.ui.theme.TextSecondary
-import com.cuso.tailor.ui.theme.blackTitle
-import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.orangeText
 import com.cuso.tailor.ui.theme.primary_light
-import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 
@@ -703,7 +701,10 @@ fun SearchFilterBar(
                                         text = placeholder,
                                         fontSize = 13.sp,
                                         lineHeight = 18.sp,
-                                        color = textSecondaryColor
+                                        color = textSecondaryColor,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                                 innerTextField()

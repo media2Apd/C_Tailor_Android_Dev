@@ -57,7 +57,7 @@ fun OrderListScreen(
     }
 
     Scaffold(
-        containerColor = Color.Transparent,
+        containerColor = Primary_background,
         contentWindowInsets = WindowInsets(0,0,0,0),
         topBar = {
             TitleBar(title = "Order List", onClose = onClose)
@@ -67,7 +67,7 @@ fun OrderListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color.Transparent)
+                .background(Primary_background)
         ) {
             // --- Header Section: Title and Search/Filter Bar ---
             SearchFilterBar(
@@ -149,17 +149,17 @@ fun LogisticsOrderCard(
     }
 
     // Determine status badge color
-    val statusText = item.statusBadge ?: item.shipment?.status ?: "Created"
+    val statusText = item.statusBadge ?: item.shipment?.status ?: ""
     val (statusBg, statusTextColor) = when (statusText.lowercase()) {
         "delivered", "shipped" -> Pair(Color(0xFFE8F5E9), Color(0xFF2E7D32))
         "ready", "created" -> Pair(Color(0xFFE0F2FE), Color(0xFF0284C7))
         else -> Pair(Color(0xFFF3F4F6), Color(0xFF4B5563))
     }
 
-    val warehouseName = item.shipment?.currentLocation ?: "Mumbai-N"
-    val paymentTypeText = item.paymentType ?: "COD"
-    val isPrepaid = paymentTypeText.equals("Prepaid", ignoreCase = true)
-    val subtitleText = "${item.primaryGarmentName ?: "Garment"} • ${item.location ?: "Mumbai"}"
+    val warehouseName = item.shipment?.currentLocation ?: ""
+    val paymentTypeText = item.paymentType ?: ""
+    val isPrepaid = paymentTypeText.equals("", ignoreCase = true)
+    val subtitleText = "${item.primaryGarmentName ?: ""} • ${item.location ?: ""}"
 
     Surface(
         modifier = Modifier

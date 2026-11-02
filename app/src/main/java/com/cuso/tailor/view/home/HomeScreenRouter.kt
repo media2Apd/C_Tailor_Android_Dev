@@ -293,6 +293,22 @@ import com.cuso.tailor.view.home.logistics.returns.ReturnRequestDetailsScreen
 import com.cuso.tailor.view.home.logistics.shipment.CreateShipmentScreen
 import com.cuso.tailor.view.home.logistics.shipment.ShipmentDetailScreen
 import com.cuso.tailor.view.logistics.ShipmentListScreen
+import com.cuso.tailor.view.home.it.asset_management.ItAssetDetailScreen
+import com.cuso.tailor.view.home.it.asset_management.ItAssetListScreen
+import com.cuso.tailor.view.home.it.asset_management.ItRegisterAssetScreen
+import com.cuso.tailor.view.home.it.service_desk.ItCreateTicketScreen
+import com.cuso.tailor.view.home.it.service_desk.ItServiceDeskListScreen
+import com.cuso.tailor.view.home.it.service_desk.ItTicketDetailScreen
+import com.cuso.tailor.view.home.marketing.advertisement.AdvertisingOverviewScreen
+import com.cuso.tailor.view.home.marketing.compaign.all_compaign.AllCampaignsListScreen
+import com.cuso.tailor.view.home.marketing.compaign.all_compaign.CampaignDetailOverviewScreen
+import com.cuso.tailor.view.home.marketing.dashboard.MarketingDashboardScreen
+import com.cuso.tailor.view.home.paywall.ModuleUpgradePaywallScreen
+import com.cuso.tailor.view.home.settings.ApprovalRulesScreen
+import com.cuso.tailor.view.home.settings.CreateEditApprovalRuleScreen
+import com.cuso.tailor.viewmodel.MarketingViewModel
+import com.cuso.tailor.model.permission.PaywallModuleConfig
+import com.cuso.tailor.viewmodel.PermissionViewModel
 
 private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @RequiresApi(Build.VERSION_CODES.O)
@@ -300,6 +316,17 @@ private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @Composable
 fun HomeScreenRouter(
     screen: String,
+    // Add these two parameters:
+    paywallModuleConfig: PaywallModuleConfig? = null,
+    permissionViewModel: PermissionViewModel = hiltViewModel(),
+    selectedApprovalRuleIdForEdit: String? = null,
+    onApprovalRuleIdForEditSelected: (String?) -> Unit = {},
+    selectedCampaignCode: String? = null,
+    onCampaignCodeSelected: (String?) -> Unit = {},
+    selectedTicketId: String? = null,
+    onTicketIdSelected: (String?) -> Unit = {},
+    selectedAssetId: String? = null,
+    onAssetIdSelected: (String?) -> Unit = {},
     selectedBackupSnapshotId: String? = null,
     onBackupSnapshotIdSelected: (String?) -> Unit = {},
     selectedPosTerminalId: String? = null,
@@ -469,13 +496,31 @@ fun HomeScreenRouter(
     onOrderSavedSuccessfully: (savedOrderId: String?) -> Unit
 ) {
     when (screen) {
+
+        // In HomeScreenRouter when(screen):
+        "module_upgrade_paywall" -> {
+            val config = paywallModuleConfig ?: permissionViewModel.getPaywallConfigForModule("inventory")
+            ModuleUpgradePaywallScreen(
+                config = config,
+                onClose = onGoBack,
+                onUpgradePlan = {
+                    onNavigate("manage_subscription")
+                },
+                onViewPricing = {
+                    onNavigate("manage_subscription")
+                }
+            )
+        }
+        // Also add "home_create_approval_rule" here so it routes to HomeAndSettingsRouter
         "home", "settings", "home_organization_profile", "home_branch_management",
-        "home_department_teams", "home_designation", "home_role_management",
+        "home_department_teams", "home_approval_rules", "home_create_approval_rule", "home_designation", "home_role_management",
         "home_opening_balance", "home_warehouse_management", "profile-settings",
         "settings_overview", "manage_subscription", "module_settings",
         "organization_settings", "home_business_setup" -> {
             HomeAndSettingsRouter(
                 screen = screen,
+                selectedApprovalRuleIdForEdit = selectedApprovalRuleIdForEdit,
+                onApprovalRuleIdForEditSelected = onApprovalRuleIdForEditSelected,
                 navController = navController,
                 widthSizeClass = widthSizeClass,
                 settingsViewModel = settingsViewModel,
@@ -623,7 +668,27 @@ fun HomeScreenRouter(
                 onNavigate = onNavigate,
                 onGoBack = onGoBack,
                 onOpenModulesPanel = onOpenModulesPanel
-                )
+            )
+        }
+
+        // ── Marketing Module Router Dispatch ──
+        "marketing_dashboard", "marketing_campaigns_overview",
+        "marketing_all_campaigns", "marketing_campaign_detail",
+        "marketing_advertising_overview", "marketing_advertising",
+        "marketing_social_overview", "marketing_social_media",
+        "marketing_promotions_overview", "marketing_all_promotions",
+        "marketing_customers_overview", "marketing_all_customers",
+        "marketing_website_overview", "marketing_traffic_engagement",
+        "marketing_pages", "marketing_sources", "marketing_channels",
+        "marketing_calendar", "marketing_insights" -> {
+            MarketingRouter(
+                screen = screen,
+                selectedCampaignCode = selectedCampaignCode,
+                onCampaignCodeSelected = onCampaignCodeSelected,
+                onNavigate = onNavigate,
+                onGoBack = onGoBack,
+                onShowComingSoon = onShowComingSoon
+            )
         }
 
         "inventory_dashboard", "inventory_items", "inventory_all_items", "inventory_create_item",
@@ -881,10 +946,15 @@ fun HomeScreenRouter(
         // ── IT Module Router Dispatch ──
         "it_dashboard", "it_device_management", "it_device_detail",
         "it_pos_billing", "it_pos_billing_detail",
-        "it_integrations", "it_backup_recovery", "it_backup_recovery_detail", "it_backup_restore", // <-- Add route
-        "it_asset_management", "it_service_desk" -> {
+        "it_integrations", "it_backup_recovery", "it_backup_recovery_detail", "it_backup_restore",
+        "it_asset_management", "it_asset_detail", "it_asset_register",
+        "it_service_desk", "it_service_desk_create", "it_service_desk_detail" -> {
             ItRouter(
                 screen = screen,
+                selectedTicketId = selectedTicketId,
+                onTicketIdSelected = onTicketIdSelected,
+                selectedAssetId = selectedAssetId,
+                onAssetIdSelected = onAssetIdSelected,
                 selectedBackupSnapshotId = selectedBackupSnapshotId,
                 onBackupSnapshotIdSelected = onBackupSnapshotIdSelected,
                 selectedItDeviceId = selectedItDeviceId,
@@ -904,6 +974,9 @@ fun HomeScreenRouter(
 @Composable
 private fun HomeAndSettingsRouter(
     screen: String,
+    // Add these two parameters:
+    selectedApprovalRuleIdForEdit: String? = null,
+    onApprovalRuleIdForEditSelected: (String?) -> Unit = {},
     navController: NavHostController,
     widthSizeClass: WindowWidthSizeClass,
     settingsViewModel: SettingsViewModel,
@@ -969,6 +1042,28 @@ private fun HomeAndSettingsRouter(
             navController = navController,
             onMenuClick = onOpenDrawer,
             onBack = onGoBack
+        )
+
+        // In HomeAndSettingsRouter:
+        "home_approval_rules" -> ApprovalRulesScreen(
+            navController = navController,
+            onBack = onGoBack,
+            onCreateRule = {
+                onApprovalRuleIdForEditSelected(null)
+                onNavigate("home_create_approval_rule")
+            },
+            onEditRule = { ruleId ->
+                onApprovalRuleIdForEditSelected(ruleId)
+                onNavigate("home_create_approval_rule")
+            }
+        )
+
+        "home_create_approval_rule" -> CreateEditApprovalRuleScreen(
+            ruleId = selectedApprovalRuleIdForEdit,
+            onClose = {
+                onApprovalRuleIdForEditSelected(null)
+                onGoBack()
+            }
         )
 
         "profile-settings" -> ProfileSettingsScreen(
@@ -1047,6 +1142,7 @@ private fun HomeAndSettingsRouter(
                 when (routeKey) {
                     "organization_profile" -> onNavigate("home_organization_profile")
                     "business_setup" -> onNavigate("home_business_setup")
+                    "approval_rules" -> onNavigate("home_approval_rules")
                     "tax_rates" -> onNavigate("finance_tax_rates")
                     "gst_settings" -> onNavigate("finance_gst_settings")
                     "branch_management" -> onNavigate("home_branch_management")
@@ -2679,6 +2775,77 @@ private fun FinanceRouter(
                 viewModel = financeViewModel,
                 onBack = onGoBack
             )
+        }
+    }
+}
+
+/**
+ * Router dedicated to Marketing Module screens.
+ */
+/**
+ * Router dedicated to Marketing Module screens.
+ */
+@Composable
+private fun MarketingRouter(
+    screen: String,
+    selectedCampaignCode: String? = null,
+    onCampaignCodeSelected: (String?) -> Unit = {},
+    marketingViewModel: MarketingViewModel = hiltViewModel(),
+    onNavigate: (String) -> Unit,
+    onGoBack: () -> Unit,
+    onShowComingSoon: (String) -> Unit
+) {
+    when (screen) {
+        // Main Marketing Dashboard Screen
+        "marketing_dashboard" -> {
+            MarketingDashboardScreen(
+                viewModel = marketingViewModel,
+                onNavigateBack = onGoBack,
+                onNavigateToFunnelDetails = { onNavigate("marketing_website_overview") },
+                onNavigateToChannels = { onNavigate("marketing_channels") },
+                onNavigateToCampaigns = { onNavigate("marketing_all_campaigns") }
+            )
+        }
+
+        // Advertising Overview Screen
+        "marketing_advertising_overview", "marketing_advertising" -> {
+            AdvertisingOverviewScreen(
+                viewModel = marketingViewModel,
+                onNavigateBack = onGoBack
+            )
+        }
+
+        // All Campaigns List Screen
+        "marketing_all_campaigns", "marketing_campaigns_overview", "marketing_campaigns" -> {
+            AllCampaignsListScreen(
+                viewModel = marketingViewModel,
+                onNavigateBack = onGoBack,
+                onNavigateToDetail = { campaignCode ->
+                    onCampaignCodeSelected(campaignCode)
+                    onNavigate("marketing_campaign_detail")
+                }
+            )
+        }
+
+        // Campaign Details Screen (Overview, Performance, Audience, Creative, Timeline)
+        "marketing_campaign_detail" -> {
+            selectedCampaignCode?.takeIf { it.isNotBlank() }?.let { code ->
+                CampaignDetailOverviewScreen(
+                    campaignCode = code,
+                    viewModel = marketingViewModel,
+                    onNavigateBack = {
+                        onCampaignCodeSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        else -> {
+            onShowComingSoon("Coming Soon, Stay tuned !")
+            onGoBack()
         }
     }
 }
@@ -5313,9 +5480,16 @@ private fun ServicesRouter(
 /**
  * Router dedicated to IT Module screens.
  */
+/**
+ * Router dedicated to IT Module screens.
+ */
 @Composable
 private fun ItRouter(
     screen: String,
+    selectedTicketId: String? = null,
+    onTicketIdSelected: (String?) -> Unit = {},
+    selectedAssetId: String? = null,
+    onAssetIdSelected: (String?) -> Unit = {},
     selectedBackupSnapshotId: String? = null,
     onBackupSnapshotIdSelected: (String?) -> Unit = {},
     selectedItDeviceId: String? = null,
@@ -5390,8 +5564,10 @@ private fun ItRouter(
                 onGoBack()
             }
         }
+
         "it_integrations" -> onShowComingSoon("Integrations Coming Soon")
-// ── IT Backup & Recovery ──
+
+        // IT Backup & Recovery List
         "it_backup_recovery" -> {
             BackupRecoveryListScreen(
                 viewModel = itViewModel,
@@ -5403,6 +5579,7 @@ private fun ItRouter(
             )
         }
 
+        // IT Backup & Recovery Detail
         "it_backup_recovery_detail" -> {
             selectedBackupSnapshotId?.takeIf { it.isNotBlank() }?.let { validSnapshotId ->
                 BackupRecoveryDetailScreen(
@@ -5422,7 +5599,7 @@ private fun ItRouter(
             }
         }
 
-        // ── IT Backup Restore Configuration Screen ──
+        // IT Backup Restore Configuration Screen
         "it_backup_restore" -> {
             selectedBackupSnapshotId?.takeIf { it.isNotBlank() }?.let { validSnapshotId ->
                 RestoreBackupScreen(
@@ -5430,9 +5607,6 @@ private fun ItRouter(
                     viewModel = itViewModel,
                     onBack = onGoBack,
                     onRestoreTriggered = {
-                        // After triggering restore successfully, pop back to the list
-                        onBackupSnapshotIdSelected(null)
-                        onGoBack()
                         onGoBack()
                     }
                 )
@@ -5440,8 +5614,88 @@ private fun ItRouter(
                 onGoBack()
             }
         }
-        "it_asset_management" -> onShowComingSoon("IT Asset Management Coming Soon")
-        "it_service_desk" -> onShowComingSoon("IT Service Desk Coming Soon")
+
+        // IT Asset Management List Screen
+        "it_asset_management" -> {
+            ItAssetListScreen(
+                viewModel = itViewModel,
+                onNavigateBack = onGoBack,
+                onNavigateDetail = { assetId ->
+                    onAssetIdSelected(assetId)
+                    onNavigate("it_asset_detail")
+                },
+                onNavigateRegister = {
+                    onNavigate("it_asset_register")
+                }
+            )
+        }
+
+        // IT Asset Detail Screen
+        "it_asset_detail" -> {
+            selectedAssetId?.takeIf { it.isNotBlank() }?.let { validAssetId ->
+                ItAssetDetailScreen(
+                    assetId = validAssetId,
+                    viewModel = itViewModel,
+                    onNavigateBack = {
+                        onAssetIdSelected(null)
+                        onGoBack()
+                    },
+                    onNavigateDevice = { deviceId ->
+                        onItDeviceIdSelected(deviceId)
+                        onNavigate("it_device_detail")
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // Register New Asset Screen
+        "it_asset_register" -> {
+            ItRegisterAssetScreen(
+                viewModel = itViewModel,
+                onNavigateBack = onGoBack
+            )
+        }
+
+        // ── IT Service Desk List Screen ──
+        "it_service_desk" -> {
+            ItServiceDeskListScreen(
+                viewModel = itViewModel,
+                onNavigateBack = onGoBack,
+                onNavigateDetail = { ticketId ->
+                    onTicketIdSelected(ticketId)
+                    onNavigate("it_service_desk_detail")
+                },
+                onNavigateCreate = {
+                    onNavigate("it_service_desk_create")
+                }
+            )
+        }
+
+        // ── IT Service Desk Create Ticket Screen ──
+        "it_service_desk_create" -> {
+            ItCreateTicketScreen(
+                viewModel = itViewModel,
+                onNavigateBack = onGoBack
+            )
+        }
+
+        // ── IT Service Desk Detail Screen ──
+        "it_service_desk_detail" -> {
+            selectedTicketId?.takeIf { it.isNotBlank() }?.let { validTicketId ->
+                ItTicketDetailScreen(
+                    ticketId = validTicketId,
+                    viewModel = itViewModel,
+                    onNavigateBack = {
+                        onTicketIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
 
         else -> onGoBack()
     }

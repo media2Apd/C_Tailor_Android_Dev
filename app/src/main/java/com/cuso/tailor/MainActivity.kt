@@ -12,6 +12,7 @@ package com.cuso.tailor
 
 import android.app.Activity
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -26,6 +27,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -65,6 +70,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import android.provider.Settings
+import com.cuso.tailor.view.composable.DeveloperModeBlockScreen
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -75,25 +82,60 @@ class MainActivity : ComponentActivity() {
     // Holds the authentication state
     private var isLoggedInState by mutableStateOf<Boolean?>(null)
 
+    // Developer mode state
+    private var isDeveloperModeOn by mutableStateOf(false)
+
+    private fun checkDeveloperMode(): Boolean =
+        Settings.Global.getInt(
+            contentResolver,
+            Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
+            0
+        ) != 0
+
+    // User settings poi developer mode off panni thirumbi vandha, recheck aagum
+    override fun onResume() {
+        super.onResume()
+        isDeveloperModeOn = checkDeveloperMode()
+    }
+
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        // Block screenshots, screen recording, recent-apps thumbnail
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
+
         enableEdgeToEdge()
 
-        // Splash screen waits until authentication status is resolved
-        splashScreen.setKeepOnScreenCondition { isLoggedInState == null }
+// setContent ku munnadiye check pannanum
+        isDeveloperModeOn = checkDeveloperMode()
+
+// Developer mode ON na splash la stuck aaga koodathu
+        splashScreen.setKeepOnScreenCondition {
+            isLoggedInState == null && !isDeveloperModeOn
+        }
 
         // Immediately invoke setContent to prevent Window Timeout ANR
         setContent {
-            // Check login state on background thread without blocking main thread
-            LaunchedEffect(Unit) {
-                val loggedIn = withContext(Dispatchers.IO) {
-                    sessionManager.isLoggedIn()
+            if (isDeveloperModeOn) {
+                // Developer mode ON: block screen mattum, API edhuvum hit aagadhu
+                CusoTailorTheme {
+                    DeveloperModeBlockScreen()
                 }
-                isLoggedInState = loggedIn
-            }
+            } else {
+                // Developer mode OFF: unga existing flow appadiye
 
+                // Check login state on background thread without blocking main thread
+                LaunchedEffect(Unit) {
+                    val loggedIn = withContext(Dispatchers.IO) {
+                        sessionManager.isLoggedIn()
+                    }
+                    isLoggedInState = loggedIn
+                }
             // Render UI once authentication check is complete
             isLoggedInState?.let { isLoggedIn ->
                 val windowSizeClass = calculateWindowSizeClass(this@MainActivity)
@@ -131,6 +173,7 @@ class MainActivity : ComponentActivity() {
                                         })
                                     }
                             ) {
+
                                 Scaffold(modifier = Modifier.fillMaxSize()) { _ ->
                                     AppNav(
                                         activity = this@MainActivity,
@@ -139,15 +182,46 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
 
-                                DynamicIslandSuccess(
-                                    message = globalSuccessMessage,
-                                    onDismiss = { globalSuccessMessage = null }
-                                )
+                                // Global Overlay Window: floats above any Dialog or Screen without dimming background
+                                if (globalSuccessMessage != null || globalErrorMessage != null) {
+                                    Dialog(
+                                        onDismissRequest = {
+                                            globalSuccessMessage = null
+                                            globalErrorMessage = null
+                                        },
+                                        properties = DialogProperties(
+                                            usePlatformDefaultWidth = false,
+                                            dismissOnBackPress = false,
+                                            dismissOnClickOutside = false,
+                                            decorFitsSystemWindows = false
+                                        )
+                                    ) {
+                                        // Remove window dim and shadow
+                                        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+                                        SideEffect {
+                                            dialogWindow?.let { window ->
+                                                window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+                                                window.setDimAmount(0f)
+                                                window.setFlags(
+                                                    WindowManager.LayoutParams.FLAG_SECURE,
+                                                    WindowManager.LayoutParams.FLAG_SECURE
+                                                )
+                                            }
+                                        }
 
-                                DynamicIslandError(
-                                    message = globalErrorMessage,
-                                    onDismiss = { globalErrorMessage = null }
-                                )
+                                        Box(modifier = Modifier.fillMaxSize()) {
+                                            DynamicIslandSuccess(
+                                                message = globalSuccessMessage,
+                                                onDismiss = { globalSuccessMessage = null }
+                                            )
+
+                                            DynamicIslandError(
+                                                message = globalErrorMessage,
+                                                onDismiss = { globalErrorMessage = null }
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -155,6 +229,8 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
 }
 
 @Composable

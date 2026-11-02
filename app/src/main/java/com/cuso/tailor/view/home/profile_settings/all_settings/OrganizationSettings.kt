@@ -145,6 +145,16 @@ fun OrganizationSettingsScreen(
                     tokens = tokens,
                     onClick = { onNavigate("department_teams") }
                 )
+                SettingsNavCard(
+                    title = "Approval Inbox",
+                    tokens = tokens,
+                    onClick = { onNavigate("department_teams") }
+                )
+                SettingsNavCard(
+                    title = "Approval Rules",
+                    tokens = tokens,
+                    onClick = { onNavigate("approval_rules") }
+                )
 
                 SettingsNavCard(
                     title = "Designation",

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +45,9 @@ import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.view.composable.FormDropdown
+
+private const val ALL_BRANCHES_LABEL = "All Branches"
+
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeDashboardScreen(
@@ -56,42 +60,48 @@ fun HomeDashboardScreen(
     val designTokens = getAdaptiveTokens(widthSizeClass)
     val baseDensity = LocalDensity.current
 
-    // Load branches from BranchViewModel
+    // Load the branch list only to populate the dropdown.
+    // It must never trigger a dashboard fetch on its own.
     val branchState by branchViewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
         branchViewModel.loadBranches()
     }
 
-    // Branch selection states
-    var selectedBranchId by remember { mutableStateOf<String?>(null) }
-    var selectedBranchLabel by remember { mutableStateOf("All Branches") }
+    // Branch selection state.
+    // null means "All Branches" (no branchId is sent to the API).
+    // rememberSaveable keeps the selection across recomposition and rotation.
+    var selectedBranchId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedBranchLabel by rememberSaveable { mutableStateOf(ALL_BRANCHES_LABEL) }
     var branchDropdownExpanded by remember { mutableStateOf(false) }
 
-    // Period options mapping
+    // Period options mapping (label shown to the user -> key sent to the API)
     val periodMapping = remember {
         listOf(
             "This Month (MTD)" to "this_month",
-            "This Quarter"     to "this_quarter",
-            "This Year (YTD)"   to "this_year"
+            "This Quarter" to "this_quarter",
+            "This Year (YTD)" to "this_year"
         )
     }
-    var selectedPeriodLabel by remember { mutableStateOf(periodMapping[0].first) }
-    var selectedPeriodKey by remember { mutableStateOf(periodMapping[0].second) }
+    var selectedPeriodLabel by rememberSaveable { mutableStateOf(periodMapping[0].first) }
+    var selectedPeriodKey by rememberSaveable { mutableStateOf(periodMapping[0].second) }
     var periodDropdownExpanded by remember { mutableStateOf(false) }
 
-    // Auto-select default/first branch once loaded
+    // Branch list used only for the dropdown options.
+    // No branch is auto-selected here. Auto-selecting a branch (for example the
+    // first one flagged isMainBranch) caused a second fetch that replaced the
+    // correct organization-wide data with an empty branch's data (all zeros).
     val branchItems = (branchState as? BranchUiState.Success)?.branches.orEmpty()
-    LaunchedEffect(branchItems) {
-        if (branchItems.isNotEmpty() && selectedBranchId == null) {
-            val defaultBranch = branchItems.find { it.isMainBranch } ?: branchItems.first()
-            selectedBranchId = defaultBranch.id
-            selectedBranchLabel = defaultBranch.name?:""
-            viewModel.fetchAllHomeDashboardData(
-                branchId = defaultBranch.id,
-                period = selectedPeriodKey
-            )
-        }
+
+    // Single source of truth for loading dashboard data.
+    // Runs once on first composition (All Branches + default period) and again
+    // only when the user explicitly changes the branch or the period.
+    // If the keys change while a previous run is active, that run is cancelled.
+    LaunchedEffect(selectedBranchId, selectedPeriodKey) {
+        viewModel.fetchAllHomeDashboardData(
+            branchId = selectedBranchId,
+            period = selectedPeriodKey
+        )
     }
 
     // Collect API states
@@ -126,8 +136,7 @@ fun HomeDashboardScreen(
                 verticalArrangement = Arrangement.spacedBy(tokens.screenPadding)
             ) {
 
-
-                // 1. Top Greeting Card
+                // 1. Top greeting card
                 item {
                     GreetingCard(
                         userName = adminName,
@@ -136,17 +145,19 @@ fun HomeDashboardScreen(
                     )
                 }
 
-                // 2. Top Filter Row: Branch & Period Dropdowns
+                // 2. Filter row: branch and period dropdowns.
+                // The handlers only update state. The LaunchedEffect above
+                // performs the actual fetch, so there is no duplicate request.
                 item {
                     val branchOptions = remember(branchItems) {
-                        listOf("All Branches") + branchItems.map { it.name?:"" }
+                        listOf(ALL_BRANCHES_LABEL) + branchItems.map { it.name ?: "" }
                     }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                     ) {
-                        // Branch Dropdown
+                        // Branch dropdown
                         Box(modifier = Modifier.weight(1f)) {
                             FormDropdown(
                                 label = "Branch",
@@ -156,20 +167,16 @@ fun HomeDashboardScreen(
                                 options = branchOptions,
                                 onOptionSelected = { chosen ->
                                     selectedBranchLabel = chosen
-                                    selectedBranchId = if (chosen == "All Branches") {
+                                    selectedBranchId = if (chosen == ALL_BRANCHES_LABEL) {
                                         null
                                     } else {
                                         branchItems.find { (it.name ?: "") == chosen }?.id
                                     }
-                                    viewModel.fetchAllHomeDashboardData(
-                                        branchId = selectedBranchId,
-                                        period = selectedPeriodKey
-                                    )
                                 }
                             )
                         }
 
-                        // Period Dropdown
+                        // Period dropdown
                         Box(modifier = Modifier.weight(1f)) {
                             FormDropdown(
                                 label = "Period",
@@ -179,30 +186,26 @@ fun HomeDashboardScreen(
                                 options = periodMapping.map { it.first },
                                 onOptionSelected = { chosenLabel ->
                                     selectedPeriodLabel = chosenLabel
-                                    selectedPeriodKey = periodMapping.firstOrNull { it.first == chosenLabel }?.second ?: "this_month"
-                                    viewModel.fetchAllHomeDashboardData(
-                                        branchId = selectedBranchId,
-                                        period = selectedPeriodKey
-                                    )
+                                    selectedPeriodKey = periodMapping
+                                        .firstOrNull { it.first == chosenLabel }?.second
+                                        ?: "this_month"
                                 }
                             )
                         }
                     }
                 }
 
-                // ... Remaining dashboard items (2 to 11) stay untouched ...
-
-                // 2. 6 Metrics Grid
+                // 3. Key metrics grid
                 item {
                     KeyMetricsSection(kpis = kpis)
                 }
 
-                // 3. Sales Targets Progress Bar (Animated)
+                // 4. Sales targets progress bar (animated)
                 item {
                     SalesTargetsSection(revenueData = revenueTrend)
                 }
 
-                // 4. Order Status Donut Chart (Animated)
+                // 5. Order status donut chart (animated)
                 item {
                     orderStatus?.let { data ->
                         DonutChartCard(
@@ -216,7 +219,7 @@ fun HomeDashboardScreen(
                     }
                 }
 
-                // 5. Stock Status Donut Chart (Animated)
+                // 6. Stock status donut chart (animated)
                 item {
                     stockStatus?.let { data ->
                         DonutChartCard(
@@ -230,7 +233,7 @@ fun HomeDashboardScreen(
                     }
                 }
 
-                // 6. Today's Attendance Donut Chart (Animated)
+                // 7. Today's attendance donut chart (animated)
                 item {
                     attendance?.let { data ->
                         DonutChartCard(
@@ -244,12 +247,12 @@ fun HomeDashboardScreen(
                     }
                 }
 
-                // 7. Marketing Performance Bars (Animated)
+                // 8. Marketing performance bars (animated)
                 item {
                     MarketingPerformanceSection(marketingData = marketing)
                 }
 
-                // 8. Service Status Donut Chart (Animated)
+                // 9. Service status donut chart (animated)
                 item {
                     serviceStatus?.let { data ->
                         DonutChartCard(
@@ -263,7 +266,7 @@ fun HomeDashboardScreen(
                     }
                 }
 
-                // 9. Top Products Ranking List
+                // 10. Top products ranking list
                 item {
                     TopProductsSection(
                         products = topProducts,
@@ -271,7 +274,7 @@ fun HomeDashboardScreen(
                     )
                 }
 
-                // 10. Action Required Task Cards
+                // 11. Action required task cards
                 item {
                     ActionRequiredSection(
                         actions = actionTasks,
@@ -279,7 +282,7 @@ fun HomeDashboardScreen(
                     )
                 }
 
-                // 11. Business Health Status Cards
+                // 12. Business health status cards
                 item {
                     BusinessHealthSection(onViewModule = { onNavigate("module_settings") })
                 }
@@ -292,9 +295,9 @@ fun HomeDashboardScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// 1. GREETING CARD
-// ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------
+// GREETING CARD
+// ---------------------------------------------------------------
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun GreetingCard(
@@ -347,9 +350,9 @@ private fun GreetingCard(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// 2. KEY METRICS (From KPI API)
-// ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------
+// KEY METRICS (from the KPI API)
+// ---------------------------------------------------------------
 @Composable
 private fun KeyMetricsSection(kpis: HomeKpisGroup?) {
     val tokens = LocalAppTokens.current
@@ -361,7 +364,7 @@ private fun KeyMetricsSection(kpis: HomeKpisGroup?) {
             MetricItem("Net Profit", "${currencySymbol()}${formatCurrency(kpis?.netProfit?.amount ?: 0.0)}", kpis?.netProfit?.growth ?: "0%", kpis?.netProfit?.trendUp),
             MetricItem("Receivables", "${currencySymbol()}${formatCurrency(kpis?.receivables?.amount ?: 0.0)}", kpis?.receivables?.overdueLabel ?: "Outstanding claims", null),
             MetricItem("Inventory Value", "${currencySymbol()}${formatCurrency(kpis?.inventoryValue?.amount ?: 0.0)}", kpis?.inventoryValue?.reorderLabel ?: "Total stock assets", null),
-            MetricItem("Delivery Success", kpis?.deliverySuccess?.percentage ?: "100%", kpis?.deliverySuccess?.comparisonLabel ?: "On-time fulfillment", true)
+            MetricItem("Delivery Success", kpis?.deliverySuccess?.percentage ?: "", kpis?.deliverySuccess?.comparisonLabel ?: "", true)
         )
     }
 
@@ -439,9 +442,9 @@ private data class MetricItem(
     val isPositive: Boolean? = null
 )
 
-// ─────────────────────────────────────────────────────────────
-// 3. SALES TARGETS (From Revenue Trends API)
-// ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------
+// SALES TARGETS (from the revenue trend API)
+// ---------------------------------------------------------------
 @Composable
 private fun SalesTargetsSection(revenueData: RevenueTrendData?) {
     val tokens = LocalAppTokens.current
@@ -505,9 +508,9 @@ private fun SalesTargetsSection(revenueData: RevenueTrendData?) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------
 // REUSABLE ANIMATED DONUT CHART COMPONENT
-// ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------
 private data class DonutSegment(val value: Float, val color: Color)
 private data class LegendItemData(val label: String, val count: String, val color: Color)
 
@@ -523,6 +526,7 @@ private fun DonutChartCard(
     val tokens = LocalAppTokens.current
     val animatedProgress = remember { Animatable(0f) }
 
+    // Restart the sweep animation whenever the segment data changes
     LaunchedEffect(segments) {
         animatedProgress.snapTo(0f)
         animatedProgress.animateTo(
@@ -633,9 +637,9 @@ private fun DonutChartCard(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// 7. MARKETING PERFORMANCE (From Marketing API)
-// ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------
+// MARKETING PERFORMANCE (from the marketing API)
+// ---------------------------------------------------------------
 @Composable
 private fun MarketingPerformanceSection(marketingData: HomeMarketingData?) {
     val tokens = LocalAppTokens.current
@@ -702,9 +706,9 @@ private fun MarketingPerformanceSection(marketingData: HomeMarketingData?) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// 9. TOP PRODUCTS (From Top Products API)
-// ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------
+// TOP PRODUCTS (from the top products API)
+// ---------------------------------------------------------------
 @Composable
 private fun TopProductsSection(
     products: List<LeaderboardProductItem>,
@@ -774,7 +778,7 @@ private fun TopProductsSection(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "View Details →",
+                    text = "View Details ->",
                     color = Primary,
                     fontSize = tokens.bodySmall,
                     fontWeight = FontWeight.Medium
@@ -784,9 +788,9 @@ private fun TopProductsSection(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// 10. ACTION REQUIRED (From Action Required API)
-// ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------
+// ACTION REQUIRED (from the action required API)
+// ---------------------------------------------------------------
 @Composable
 private fun ActionRequiredSection(
     actions: List<HomeActionTaskItem>,
@@ -872,9 +876,9 @@ private fun ActionRequiredSection(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// 11. BUSINESS HEALTH SECTION
-// ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------
+// BUSINESS HEALTH SECTION (static placeholder data)
+// ---------------------------------------------------------------
 @Composable
 private fun BusinessHealthSection(onViewModule: () -> Unit) {
     val tokens = LocalAppTokens.current
@@ -953,7 +957,7 @@ private fun BusinessHealthSection(onViewModule: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "View Module →",
+                text = "View Module ->",
                 color = Primary,
                 fontSize = tokens.bodySmall,
                 fontWeight = FontWeight.Medium
@@ -968,9 +972,9 @@ private data class HealthItem(
     val isHealthy: Boolean
 )
 
-// ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------
 // HELPERS
-// ─────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------
 @SuppressLint("DefaultLocale")
 private fun formatCurrency(amount: Double): String {
     return String.format("%,.0f", amount)

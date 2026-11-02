@@ -115,13 +115,16 @@ import com.cuso.tailor.viewmodel.OrderOverviewViewModel
 import com.cuso.tailor.viewmodel.ProfileViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
 import com.cuso.tailor.model.inventory.PurchaseOrder
+import com.cuso.tailor.model.permission.PaywallModuleConfig
 import com.cuso.tailor.model.sales.MeasurementItem
 import com.cuso.tailor.model.sales.OrderOverviewData
 import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.view.home.paywall.WorkspaceLockedScreen
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import com.cuso.tailor.viewmodel.LegalViewModel
+import com.cuso.tailor.viewmodel.PermissionViewModel
 import com.cuso.tailor.viewmodel.SalesViewModel
 import com.cuso.tailor.viewmodel.ServicesViewModel
 
@@ -133,6 +136,12 @@ val LeadmutedText = mutedText
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSizeClass) {
+
+    val permissionViewModel: PermissionViewModel = hiltViewModel()
+    // Paywall presentation state
+    var paywallModuleConfig by remember { mutableStateOf<PaywallModuleConfig?>(null) }
+    val isWorkspaceLocked by permissionViewModel.isWorkspaceLocked.collectAsStateWithLifecycle()
+
     val viewModel: HomeViewModel = hiltViewModel()
     val authViewModel: Authenticate = hiltViewModel()
     val hrViewModel: HrViewModel = hiltViewModel()
@@ -203,6 +212,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     val context = LocalContext.current
     val activity = context as ComponentActivity
 
+    var selectedApprovalRuleIdForEdit by remember { mutableStateOf<String?>(null) }
+
     // Finance State
     var selectedLedgerAccountId by remember { mutableStateOf<String?>(null) }
     var selectedLedgerAccountName by remember { mutableStateOf("Ledger") }
@@ -253,6 +264,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedItDeviceId by remember { mutableStateOf<String?>(null) }
     var selectedPosTerminalId by remember { mutableStateOf<String?>(null) }
     var selectedBackupSnapshotId by remember { mutableStateOf<String?>(null) }
+    var selectedAssetId by remember { mutableStateOf<String?>(null) }
+    var selectedTicketId by remember { mutableStateOf<String?>(null) }
+
+    //compaign state
+    var selectedCampaignCode by remember { mutableStateOf<String?>(null) }
 
     // Logistics State
     var selectedShipmentId by remember { mutableStateOf<String?>(null) }
@@ -275,7 +291,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedExpenseClaimId by remember { mutableStateOf<String?>(null) }
     var selectedExpenseTypeId by remember { mutableStateOf<String?>(null) }
     var selectedClaimForPayment by remember { mutableStateOf<ExpenseClaimDto?>(null) }
-
 
     // Services State
     var selectedFeedbackId by remember { mutableStateOf<String?>(null) }
@@ -421,6 +436,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "settings_overview",
             "module_settings",
             "organization_settings",
+            "home_approval_rules",
+            "home_create_approval_rule",
             "home_organization_profile",
             "home_business_setup",
             "home_branch_management",
@@ -485,7 +502,27 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "convert_lead_to_opportunity",
             "view_quotation",
 
-            // ── Finance ──
+            // ── Marketing ──
+            "marketing_dashboard",
+            "marketing_campaigns_overview",
+            "marketing_all_campaigns",
+            "marketing_campaign_detail",
+            "marketing_advertising_overview",
+            "marketing_advertising",
+            "marketing_social_overview",
+            "marketing_social_media",
+            "marketing_promotions_overview",
+            "marketing_all_promotions",
+            "marketing_customers_overview",
+            "marketing_all_customers",
+            "marketing_website_overview",
+            "marketing_traffic_engagement",
+            "marketing_pages",
+            "marketing_sources",
+            "marketing_channels",
+            "marketing_calendar",
+            "marketing_insights",
+
             // ── Finance ──
             "finance_dashboard",
             "finance_sales_orders",
@@ -749,7 +786,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "it_backup_recovery",
             "it_backup_recovery_detail",
             "it_asset_management",
-            "it_service_desk"
+            "it_asset_detail",
+            "it_asset_register",
+            "it_service_desk",
+            "it_service_desk_create",
+            "it_service_desk_detail"
             ,
             "legal_dashboard",
             "legal_calendar",
@@ -825,13 +866,23 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
     // Module prefixes that automatically allow navigation without manual registration
     val autoAllowedPrefixes = remember {
-        listOf("legal_", "hr_", "sales_", "finance_", "inventory_", "logistics_", "services_", "reports_", "home_")
+        listOf("marketing_", "it_", "legal_", "hr_", "sales_", "finance_", "inventory_", "logistics_", "services_", "reports_", "home_")
     }
 
     fun safeNavigate(route: String) {
         val navKey = normalizeRoute(route)
-        val isAutoAllowed = autoAllowedPrefixes.any { navKey.startsWith(it) }
 
+        // Check subscription permissions before opening
+        val hasAccess = permissionViewModel.hasRouteAccess(navKey)
+        if (!hasAccess) {
+            val mapping = permissionViewModel.getRouteFeatureMapping(navKey)
+            val moduleName = mapping?.first ?: "inventory"
+            paywallModuleConfig = permissionViewModel.getPaywallConfigForModule(moduleName)
+            navigateTo("module_upgrade_paywall")
+            return
+        }
+
+        val isAutoAllowed = autoAllowedPrefixes.any { navKey.startsWith(it) }
         if (navKey in implementedRoutes || isAutoAllowed) {
             isSalesSettingsMode = false
             navigateTo(navKey)
@@ -915,6 +966,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             currentScreen == "home_organization_profile" ||
             currentScreen == "home_branch_management" ||
             currentScreen == "home_department_teams" ||
+            currentScreen == "home_approval_rules" ||
             currentScreen == "home_designation" ||
             currentScreen == "home_role_management" ||
             currentScreen == "home_warehouse_management" ||
@@ -935,6 +987,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
+                "home_create_approval_rule" -> selectedApprovalRuleIdForEdit = null
+                "marketing_campaign_detail" -> selectedCampaignCode = null
+                "it_service_desk_detail" -> selectedTicketId = null
+                "it_asset_detail" -> selectedAssetId = null
                 "it_backup_recovery_detail" -> selectedBackupSnapshotId = null
                 "it_pos_billing_detail" -> selectedPosTerminalId = null
                 "it_device_detail" -> selectedItDeviceId = null
@@ -1028,6 +1084,31 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         show = showExitDialog,
         onDismiss = { showExitDialog = false }
     )
+    // ═════════════════════════════════════════════════════════════════════════
+    // ── TOTAL WORKSPACE LOCK ENFORCEMENT ──
+    // ═════════════════════════════════════════════════════════════════════════
+    val isSubscriptionScreen = currentScreen == "manage_subscription"
+
+    if (isWorkspaceLocked && !isSubscriptionScreen) {
+        // Blocks hardware back-press navigation
+        BackHandler(enabled = true) { /* Locked */ }
+
+        // Render ONLY the lock card - hiding TopBar, BottomBar, drawer, and all screens
+        WorkspaceLockedScreen(
+            onUnlockWorkspace = {
+                navigateTo("manage_subscription")
+            },
+            onBackToLogin = {
+                // Clear session and navigate to root login screen
+                authViewModel.logout {
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            }
+        )
+        return // Prevents rendering other UI components until unlocked
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalAppTokens provides tokens) {
@@ -1164,6 +1245,17 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         // ── 2. MODULARIZED SCREEN ROUTER ──
                         HomeScreenRouter(
                             screen = screen,
+                            // Pass both variables:
+                            paywallModuleConfig = paywallModuleConfig,
+                            permissionViewModel = permissionViewModel,
+                            selectedApprovalRuleIdForEdit = selectedApprovalRuleIdForEdit,
+                            onApprovalRuleIdForEditSelected = { selectedApprovalRuleIdForEdit = it },
+                            selectedCampaignCode = selectedCampaignCode,
+                            onCampaignCodeSelected = { selectedCampaignCode = it },
+                            selectedTicketId = selectedTicketId,
+                            onTicketIdSelected = { selectedTicketId = it },
+                            selectedAssetId = selectedAssetId,
+                            onAssetIdSelected = { selectedAssetId = it },
                             selectedBackupSnapshotId = selectedBackupSnapshotId,
                             onBackupSnapshotIdSelected = { selectedBackupSnapshotId = it },
                             selectedPosTerminalId = selectedPosTerminalId,
@@ -1362,39 +1454,38 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             isOpen = showModulesPanel,
             onClose = { showModulesPanel = false },
             initialExpandedModule = modulesPanelInitialExpanded,
-            onModuleCategoryClick = { menu, clickedItem ->
-                val menuItem = SidebarConfig.getFullMenuItems().find { it.label == menu }
-
-                val isSubItem = menuItem?.subItems?.values?.any { list -> list.contains(clickedItem) } == true
-                val parentCategory = menuItem?.subItems?.entries?.find { it.value.contains(clickedItem) }?.key
-
+            onModuleCategoryClick = { menu, category, subItem ->
                 val rawNavKey = when {
                     // Direct match for Audit & Legal Calendar click
-                    menu == "Legal" && clickedItem.contains("calendar", ignoreCase = true) -> {
+                    menu == "Legal" && category.contains("calendar", ignoreCase = true) -> {
                         "legal_calendar"
                     }
-                    // Direct match for Vendor & Supplier Legal click
-                    menu == "Legal" && (clickedItem.contains("vendor", ignoreCase = true) || clickedItem.contains("supplier", ignoreCase = true)) -> {
+                    menu == "Legal" && (category.contains("vendor", ignoreCase = true) || category.contains("supplier", ignoreCase = true)) -> {
                         "legal_vendor"
                     }
-                    menu == "Legal" && (clickedItem.contains("employee", ignoreCase = true) || clickedItem.contains("labour", ignoreCase = true)) -> {
+                    menu == "Legal" && (category.contains("employee", ignoreCase = true) || category.contains("labour", ignoreCase = true)) -> {
                         "legal_employee"
                     }
-                    menu == "Finance" && clickedItem.contains("return", ignoreCase = true) -> {
+                    menu == "Finance" && category.contains("return", ignoreCase = true) -> {
                         "finance_purchase_returns"
                     }
-                    menu == "Legal" && (clickedItem.contains("notice", ignoreCase = true) || clickedItem.contains("dispute", ignoreCase = true)) -> {
+                    menu == "Legal" && (category.contains("notice", ignoreCase = true) || category.contains("dispute", ignoreCase = true)) -> {
                         "legal_notice"
                     }
-                    menu == "Finance" && (parentCategory == "Purchase" && clickedItem.contains("credit", ignoreCase = true) || clickedItem.contains("Supplier Credit", ignoreCase = true)) -> {
+                    menu == "Finance" && (category == "Purchase" && subItem?.contains("credit", ignoreCase = true) == true || subItem?.contains("Supplier Credit", ignoreCase = true) == true) -> {
                         "finance_vendor_credits"
                     }
-                    !isSubItem && menuItem?.subItems?.containsKey(clickedItem) == true -> {
-                        val firstSubItem = menuItem.subItems[clickedItem]?.firstOrNull() ?: clickedItem
-                        buildNavigationKey(menu, firstSubItem, clickedItem)
+                    // ✅ ADVERTISING OVERVIEW நேரடி ROUTING:
+                    menu == "Marketing" && (category.equals("Advertising", ignoreCase = true) || subItem?.equals("Advertising", ignoreCase = true) == true) -> {
+                        "marketing_advertising_overview"
+                    }
+                    subItem != null -> {
+                        buildNavigationKey(menu, subItem, category)
                     }
                     else -> {
-                        buildNavigationKey(menu, clickedItem, parentCategory)
+                        val menuItem = SidebarConfig.getFullMenuItems().find { it.label == menu }
+                        val firstSubItem = menuItem?.subItems?.get(category)?.firstOrNull()
+                        buildNavigationKey(menu, firstSubItem ?: category, category)
                     }
                 }
 
@@ -2098,6 +2189,10 @@ fun normalizeRoute(rawKey: String): String {
         "finance_journal_entries" -> "finance_journal_screen"
         "finance_trial_balance" -> "finance_trial_balance"
 
+        "marketing_dashboard", "marketing_marketing_dashboard" -> "marketing_dashboard"
+        "marketing_campaigns_overview", "marketing_campaigns", "marketing_overview" -> "marketing_campaigns_overview"
+        "marketing_advertising_overview", "marketing_advertising", "advertising" -> "marketing_advertising_overview"
+
         // Inventory item and transfer mappings
         "inventory_dashboard" -> "inventory_dashboard"
         "inventory_all_items" -> "inventory_items"
@@ -2288,6 +2383,7 @@ fun menuForScreen(screen: String): String = when {
         "create_alteration",
         "create_request"
     ) -> "Services"
+    screen.startsWith("marketing_") -> "Marketing"
     screen.startsWith("legal_") -> "Legal"
     screen.startsWith("finance_") -> "Finance"
     screen.startsWith("inventory_") -> "Inventory"

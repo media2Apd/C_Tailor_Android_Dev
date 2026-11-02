@@ -3,28 +3,21 @@
 package com.cuso.tailor.view.home.it.backup
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.FilterList
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.model.it.BackupJobItemDto
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.ItViewModel
@@ -108,64 +101,20 @@ fun BackupRecoveryListScreen(
                     .padding(paddingValues)
             ) {
                 // Search and Filter Bar
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = tokens.screenPadding, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = viewModel::onBackupSearchQueryChange,
-                        placeholder = {
-                            Text(
-                                text = "Search SO number, customer...",
-                                color = mutedText,
-                                fontSize = 13.sp
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Search,
-                                contentDescription = null,
-                                tint = mutedText,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Primary,
-                            unfocusedBorderColor = BorderGray,
-                            focusedContainerColor = whiteBg,
-                            unfocusedContainerColor = whiteBg
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(tokens.fieldHeight)
-                    )
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = viewModel::onBackupSearchQueryChange,
+                    placeholder = "Search backup job, source...",
+                    showFilterIcon = true,
+                    filterCount = activeFilterCount,
+                    onFilterClick = { filterDrawerState.open() },
+                    accentColor = Primary,
+                    borderColor = BorderGray,
+                    textSecondaryColor = mutedText,
+                    height = tokens.fieldHeight
+                )
 
-                    Surface(
-                        modifier = Modifier
-                            .size(tokens.fieldHeight)
-                            .clip(RoundedCornerShape(10.dp))
-                            .clickable { filterDrawerState.open() },
-                        color = whiteBg,
-                        border = BorderStroke(1.dp, BorderGray),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Outlined.FilterList,
-                                contentDescription = "Filter",
-                                tint = title_color,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-
+                // Backup List with zero horizontal/vertical padding on items
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 32.dp)
@@ -214,7 +163,7 @@ fun BackupRecoveryListScreen(
                                 )
                             }
 
-                            // Next Backup Card
+                            // Next Backup Summary Card
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
@@ -246,7 +195,7 @@ fun BackupRecoveryListScreen(
 
                     item { Spacer(Modifier.height(10.dp)) }
 
-                    // Backup Job Items List
+                    // Backup Job Items Section
                     when {
                         isLoading && jobs.isEmpty() -> {
                             item { ListSkeleton() }
@@ -292,10 +241,95 @@ fun BackupRecoveryListScreen(
                                 items = jobs,
                                 key = { it.effectiveId }
                             ) { job ->
-                                BackupJobCard(
-                                    job = job,
-                                    timeAgoText = viewModel.formatTimeAgo(job.lastBackupAt),
-                                    onClick = { onBackupClick(job.effectiveId) }
+                                val isSuccessful = job.status.equals("Successful", ignoreCase = true)
+                                val statusBg = if (isSuccessful) greenBg else redBg
+                                val statusText = if (isSuccessful) greentext else redText
+
+                                // Reusable DataCard implementation without outer padding
+                                DataCard(
+                                    item = job,
+                                    title = job.sourceEntity ?: "CLOUD Database",
+                                    subtitle = job.jobName.ifBlank { "Database Backup" },
+                                    topBadgeText = job.status.toTitleCase(),
+                                    topBadgeBgColor = statusBg,
+                                    topBadgeTextColor = statusText,
+                                    topBadgeInline = true,
+                                    actions = listOf(
+                                        MenuAction(label = "View Details", onClick = { onBackupClick(job.effectiveId) })
+                                    ),
+                                    onClick = { onBackupClick(job.effectiveId) },
+                                    content = {
+                                        // Inner metrics container (Type, Last Backup, Size)
+                                        Surface(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = cardBgLight,
+                                            border = BorderStroke(1.dp, BorderGray)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text(text = "TYPE", fontSize = 10.sp, color = mutedText)
+                                                    Spacer(Modifier.height(3.dp))
+                                                    Text(
+                                                        text = job.backupType ?: "Full",
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = title_color
+                                                    )
+                                                }
+
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text(text = "LAST BACKUP", fontSize = 10.sp, color = mutedText)
+                                                    Spacer(Modifier.height(3.dp))
+                                                    Text(
+                                                        text = viewModel.formatTimeAgo(job.lastBackupAt),
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = title_color
+                                                    )
+                                                }
+
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text(text = "Backup Size", fontSize = 10.sp, color = mutedText)
+                                                    Spacer(Modifier.height(3.dp))
+                                                    Text(
+                                                        text = job.lastBackupSize ?: "0.01 MB",
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = title_color
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(Modifier.height(10.dp))
+
+                                        // Footer row: Next Run and Retention details
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "NEXT RUN : ${job.nextRunAt}",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = mutedText
+                                            )
+                                            Text(
+                                                text = "RETENTION : ${job.retentionDays} Days",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = mutedText
+                                            )
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -321,7 +355,7 @@ fun BackupRecoveryListScreen(
 }
 
 /**
- * Metric Card for Total Jobs, Successful, Failed, Running.
+ * Metric summary card for header metrics
  */
 @Composable
 private fun BackupMetricCard(
@@ -355,168 +389,6 @@ private fun BackupMetricCard(
                 fontWeight = FontWeight.Bold,
                 color = valueColor
             )
-        }
-    }
-}
-
-/**
- * Backup Job item card exactly matching Screenshot 1 bottom layout.
- */
-@Composable
-private fun BackupJobCard(
-    job: BackupJobItemDto,
-    timeAgoText: String,
-    onClick: () -> Unit
-) {
-    val isSuccessful = job.status.equals("Successful", ignoreCase = true)
-    val statusBg = if (isSuccessful) greenBg else redBg
-    val statusText = if (isSuccessful) greentext else redText
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        color = whiteBg,
-        border = BorderStroke(1.dp, BorderGray)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            // Header: CLOUD Database | Badge | Menu
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = job.sourceEntity ?: "CLOUD Database",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = title_color
-                )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(statusBg)
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = job.status.toTitleCase(),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = statusText
-                        )
-                    }
-                    Spacer(Modifier.width(6.dp))
-                    Icon(
-                        imageVector = Icons.Outlined.MoreVert,
-                        contentDescription = "Options",
-                        tint = mutedText,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(4.dp))
-
-            // Subheader: BACKUP JOB | Database Backup
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "BACKUP JOB",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = mutedText
-                )
-                Text(
-                    text = job.jobName.ifBlank { "Database Backup" },
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = title_color
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // Inner light container: TYPE | LAST BACKUP | Backup Size
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                color = cardBgLight,
-                border = BorderStroke(1.dp, BorderGray)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = "TYPE", fontSize = 10.sp, color = mutedText)
-                        Spacer(Modifier.height(3.dp))
-                        Text(
-                            text = job.backupType ?: "Full",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = title_color
-                        )
-                    }
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = "LAST BACKUP", fontSize = 10.sp, color = mutedText)
-                        Spacer(Modifier.height(3.dp))
-                        Text(
-                            text = timeAgoText,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = title_color
-                        )
-                    }
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(text = "Backup Size", fontSize = 10.sp, color = mutedText)
-                        Spacer(Modifier.height(3.dp))
-                        Text(
-                            text = job.lastBackupSize ?: "0.01 MB",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = title_color
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // Footer: NEXT RUN : 1:00 AM | RETENTION : 20 Days
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "NEXT RUN : 1:00 AM",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = mutedText
-                )
-                Text(
-                    text = "RETENTION : ${job.retentionDays} Days",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = mutedText
-                )
-            }
         }
     }
 }

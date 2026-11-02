@@ -34,6 +34,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -81,9 +82,7 @@ import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardImage
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
-import com.cuso.tailor.view.composable.ErrorMapper
+import com.cuso.tailor.view.composable.DeleteModel
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FormDropdown
@@ -114,6 +113,10 @@ fun WarehouseSettingsScreen(
 
     var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var isEditMode by remember { mutableStateOf(false) }
+
+    var warehouseToDelete by remember { mutableStateOf<WarehouseItem?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
 
     LaunchedEffect(Unit) {
         viewModel.loadWarehouses()
@@ -215,9 +218,42 @@ fun WarehouseSettingsScreen(
                                                 isEditMode = true
                                                 viewModel.populateWarehouseFormForEdit(warehouse)
                                                 sheetState = SheetValue.Expanded
+                                            },
+                                            onDelete = {
+                                                warehouseToDelete = warehouse
+                                                showDeleteDialog = true
                                             }
                                         )
                                     }
+                                }
+
+                                // 3. Render DeleteModel dialog when showDeleteDialog is true
+                                if (showDeleteDialog && warehouseToDelete != null) {
+                                    val target = warehouseToDelete!!
+                                    DeleteModel(
+                                        title = "Delete Warehouse",
+                                        message = "You are going to delete \"${target.name}\" (${target.code}). Are you sure?",
+                                        checkboxText = "I confirm this warehouse deletion",
+                                        cancelText = "No, Keep It.",
+                                        confirmText = "Yes, Delete!",
+                                        onDismiss = {
+                                            showDeleteDialog = false
+                                            warehouseToDelete = null
+                                        },
+                                        onDelete = {
+                                            showDeleteDialog = false
+                                            viewModel.deleteWarehouse(
+                                                warehouseId = target.id,
+                                                onSuccess = {
+                                                    warehouseToDelete = null
+                                                    viewModel.loadWarehouses()
+                                                },
+                                                onError = {
+                                                    warehouseToDelete = null
+                                                }
+                                            )
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -271,7 +307,8 @@ fun WarehouseSettingsScreen(
 private fun WarehouseCard(
     warehouse: WarehouseItem,
     tokens: AppDesignTokens,
-    onEdit: () -> Unit
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
 ) {
     val locality = warehouse.address.city.ifBlank { "Main Location" }
     val floorArea = if (warehouse.capacitySummary.totalFloorAreaSqft > 0) "${warehouse.capacitySummary.totalFloorAreaSqft.toInt()} sqft" else "—"
@@ -290,7 +327,8 @@ private fun WarehouseCard(
         titleColor = title_color,
         subtitle = "${warehouse.code} • $locality",
         actions = listOf(
-            MenuAction("Edit", Icons.Default.Edit) { onEdit() }
+            MenuAction("Edit", Icons.Default.Edit) { onEdit() },
+            MenuAction("Delete", Icons.Default.Delete) { onDelete() } // <-- Added
         ),
         content = {
             Column(modifier = Modifier.fillMaxWidth()) {

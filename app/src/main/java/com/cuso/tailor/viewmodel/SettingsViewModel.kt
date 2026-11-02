@@ -18,6 +18,7 @@ import com.cuso.tailor.utils.launchBusy
 import com.google.gson.JsonParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -2543,6 +2544,255 @@ class SettingsViewModel @Inject constructor(
 
             _isSavingAutoReorderSettings.value = false
         }
+    }
+
+    // =========================================================================
+// APPROVAL RULES STATE & OPERATIONS
+// =========================================================================
+
+    private val _approvalRules = MutableStateFlow<List<ApprovalRuleItemDto>>(emptyList())
+    val approvalRules: StateFlow<List<ApprovalRuleItemDto>> = _approvalRules.asStateFlow()
+
+    private val _isLoadingApprovalRules = MutableStateFlow(false)
+    val isLoadingApprovalRules: StateFlow<Boolean> = _isLoadingApprovalRules.asStateFlow()
+
+    private val _isLoadingMoreApprovalRules = MutableStateFlow(false)
+    val isLoadingMoreApprovalRules: StateFlow<Boolean> = _isLoadingMoreApprovalRules.asStateFlow()
+
+    private val _canLoadMoreApprovalRules = MutableStateFlow(true)
+    val canLoadMoreApprovalRules: StateFlow<Boolean> = _canLoadMoreApprovalRules.asStateFlow()
+
+    private val _currentApprovalRulesPage = MutableStateFlow(1)
+    val currentApprovalRulesPage: StateFlow<Int> = _currentApprovalRulesPage.asStateFlow()
+
+    private val _approvalRulesError = MutableStateFlow<String?>(null)
+    val approvalRulesError: StateFlow<String?> = _approvalRulesError.asStateFlow()
+
+    private val _approvalRuleSuccess = MutableStateFlow<String?>(null)
+    val approvalRuleSuccess: StateFlow<String?> = _approvalRuleSuccess.asStateFlow()
+
+    private var activeApprovalRulesSearch: String? = null
+    private var approvalRulesSearchJob: Job? = null
+
+    /**
+     * Fetch Approval Rules with pagination and search
+     * Endpoint: /api/approval/rules/view-all?page={page}&limit={limit}&isPaginated=true
+     */
+    fun fetchApprovalRules(page: Int = 1, limit: Int = 10, search: String? = null) {
+        viewModelScope.launch {
+            _isLoadingApprovalRules.value = true
+            _approvalRulesError.value = null
+            _currentApprovalRulesPage.value = page
+            _canLoadMoreApprovalRules.value = true
+            activeApprovalRulesSearch = search?.trim()?.ifBlank { null }
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to page,
+                "limit" to limit,
+                "isPaginated" to true
+            )
+            activeApprovalRulesSearch?.let { queryParams["search"] = it }
+
+            val result = apiRepository.request<ApprovalRulesResponse> {
+                get("/api/approval/rules/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _approvalRules.value = res.data
+                    val totalPages = res.pagination?.totalPages ?: 1
+                    _canLoadMoreApprovalRules.value = page < totalPages && res.data.isNotEmpty()
+                },
+                onFailure = { error ->
+                    _approvalRulesError.value = error.message ?: "Failed to fetch approval rules"
+                }
+            )
+            _isLoadingApprovalRules.value = false
+        }
+    }
+
+    /**
+     * Load next page for infinite scrolling
+     */
+    fun loadMoreApprovalRules(limit: Int = 10) {
+        if (_isLoadingMoreApprovalRules.value || _isLoadingApprovalRules.value || !_canLoadMoreApprovalRules.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreApprovalRules.value = true
+            val nextPage = _currentApprovalRulesPage.value + 1
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to nextPage,
+                "limit" to limit,
+                "isPaginated" to true
+            )
+            activeApprovalRulesSearch?.let { queryParams["search"] = it }
+
+            val result = apiRepository.request<ApprovalRulesResponse> {
+                get("/api/approval/rules/view-all", queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.data.isNotEmpty()) {
+                        _approvalRules.update { (it + res.data).distinctBy { item -> item.id } }
+                        _currentApprovalRulesPage.value = nextPage
+                        val totalPages = res.pagination?.totalPages ?: nextPage
+                        _canLoadMoreApprovalRules.value = nextPage < totalPages
+                    } else {
+                        _canLoadMoreApprovalRules.value = false
+                    }
+                },
+                onFailure = {
+                    _canLoadMoreApprovalRules.value = false
+                }
+            )
+            _isLoadingMoreApprovalRules.value = false
+        }
+    }
+
+    /**
+     * Debounced search query handler
+     */
+    fun onApprovalRulesSearchQueryChanged(newQuery: String) {
+        approvalRulesSearchJob?.cancel()
+        approvalRulesSearchJob = viewModelScope.launch {
+            delay(400)
+            fetchApprovalRules(page = 1, search = newQuery)
+        }
+    }
+
+    /**
+     * Toggle Active/Inactive status of an approval rule
+     */
+    fun toggleApprovalRuleStatus(id: String, onSuccess: () -> Unit = {}) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            apiRepository.request<Unit> {
+                put("/api/approval/rules/toggle-status/$id", emptyMap<String, Any>())
+            }.fold(
+                onSuccess = {
+                    _approvalRuleSuccess.value = "Status updated successfully"
+                    fetchApprovalRules(page = 1, search = activeApprovalRulesSearch)
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _approvalRulesError.value = error.message ?: "Failed to update status"
+                }
+            )
+        }
+    }
+
+    // ── Create, Update & Fetch View-One for Approval Rules ──
+    private val _selectedRuleDetail = MutableStateFlow<ApprovalRuleItemDto?>(null)
+    val selectedRuleDetail: StateFlow<ApprovalRuleItemDto?> = _selectedRuleDetail.asStateFlow()
+
+    private val _isSavingRule = MutableStateFlow(false)
+    val isSavingRule: StateFlow<Boolean> = _isSavingRule.asStateFlow()
+
+    /**
+     * Fetches a single approval rule by ID to populate edit form
+     */
+    fun fetchApprovalRuleById(ruleId: String, onLoaded: (ApprovalRuleItemDto) -> Unit = {}) {
+        if (ruleId.isBlank()) return
+        viewModelScope.launch {
+            apiRepository.request<ApprovalRulesResponse> {
+                get("/api/approval/rules/view-one/$ruleId")
+            }.fold(
+                onSuccess = { res ->
+                    val rule = res.data.firstOrNull()
+                    _selectedRuleDetail.value = rule
+                    if (rule != null) onLoaded(rule)
+                },
+                onFailure = { /* Fail silently or log error */ }
+            )
+        }
+    }
+
+    /**
+     * Creates a new approval rule
+     */
+    fun createApprovalRule(
+        request: CreateApprovalRuleRequest,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSavingRule.value = true
+            apiRepository.request<Unit> {
+                post("/api/approval/rules/create", request)
+            }.fold(
+                onSuccess = {
+                    _isSavingRule.value = false
+                    fetchApprovalRules(page = 1)
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _isSavingRule.value = false
+                    onError(error.message ?: "Failed to create approval rule")
+                }
+            )
+        }
+    }
+
+    /**
+     * Updates an existing approval rule
+     */
+    fun updateApprovalRule(
+        ruleId: String,
+        request: CreateApprovalRuleRequest,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (ruleId.isBlank()) return
+        viewModelScope.launch {
+            _isSavingRule.value = true
+            apiRepository.request<Unit> {
+                put("/api/approval/rules/update/$ruleId", request)
+            }.fold(
+                onSuccess = {
+                    _isSavingRule.value = false
+                    fetchApprovalRules(page = 1)
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    _isSavingRule.value = false
+                    onError(error.message ?: "Failed to update approval rule")
+                }
+            )
+        }
+    }
+
+    fun clearSelectedRuleDetail() {
+        _selectedRuleDetail.value = null
+    }
+
+    /**
+     * Delete an approval rule by ID
+     */
+    fun deleteApprovalRule(id: String, onSuccess: () -> Unit = {}, onError: (String) -> Unit = {}) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            apiRepository.request<Unit> {
+                delete("/api/approval/rules/delete-one/$id")
+            }.fold(
+                onSuccess = {
+                    _approvalRuleSuccess.value = "Approval rule deleted successfully"
+                    fetchApprovalRules(page = 1, search = activeApprovalRulesSearch)
+                    onSuccess()
+                },
+                onFailure = { error ->
+                    val errorMsg = error.message ?: "Failed to delete approval rule"
+                    _approvalRulesError.value = errorMsg
+                    onError(errorMsg)
+                }
+            )
+        }
+    }
+
+    fun clearApprovalRuleAlerts() {
+        _approvalRulesError.value = null
+        _approvalRuleSuccess.value = null
     }
 
     /**

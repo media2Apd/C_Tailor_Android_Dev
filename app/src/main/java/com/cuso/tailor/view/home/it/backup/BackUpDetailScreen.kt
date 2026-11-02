@@ -54,7 +54,6 @@ fun BackupRecoveryDetailScreen(
         topBar = {
             TitleBar(
                 title = "Database Backup",
-                subtitle = "IT • Backup & Recovery",
                 onClose = onBack
             )
         }

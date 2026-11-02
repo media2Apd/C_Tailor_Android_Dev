@@ -123,7 +123,29 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
             else -> "home_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
         }
     }
+    if (menu == "Marketing") {
+        val cleanSubItem = subItem.trim().lowercase()
+        val cleanCategory = category?.trim()?.lowercase()
 
+        // 1. Advertising Category check (First priority)
+        if (cleanCategory == "advertising" || cleanSubItem == "advertising") {
+            return "marketing_advertising_overview"
+        }
+
+        // 2. Campaigns Category check
+        if (cleanCategory == "campaigns" && (cleanSubItem == "overview" || cleanSubItem == "all campaigns")) {
+            return "marketing_all_campaigns"
+        }
+
+        return when (cleanSubItem) {
+            "campaigns", "all campaigns" -> "marketing_all_campaigns"
+            "overview", "dashboard" -> "marketing_dashboard"
+            "channels" -> "marketing_channels"
+            "social media", "social" -> "marketing_social_overview"
+            "website" -> "marketing_website_overview"
+            else -> "marketing_${cleanSubItem.replace(" ", "_").replace("&", "and")}"
+        }
+    }
     if (menu == "Finance") {
         val cleanSubItem = subItem.trim().lowercase()
 
@@ -300,7 +322,7 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
             "integrations" -> "it_integrations"
             "backup & recovery", "backup and recovery" -> "it_backup_recovery"
             "it asset management", "it assets", "assets" -> "it_asset_management"
-            "it service desk", "service desk", "support & triage" -> "it_service_desk"
+            "it service desk", "service desk", "support & triage", "tickets" -> "it_service_desk"
             else -> "it_${cleanSubItem.replace(" ", "_").replace("&", "and")}"
         }
     }
@@ -359,15 +381,33 @@ object SidebarConfig {
                 )
             ),
             MenuItem(
-                R.drawable.marketing, "Marketing",
+                icon = R.drawable.marketing,
+                label = "Marketing",
                 isPanel = true,
-                categories = listOf("Website", "Campaigns", "Leads & Audience", "Engagement", "Growth", "Pages", "Budget", "Team"),
+                categories = listOf(
+                    "Dashboard",
+                    "Campaigns",
+                    "Advertising",
+                    "Social Media",
+                    "Promotions",
+                    "Customers",
+                    "Website / Digital",
+                    "Marketing Channels",
+                    "Marketing Calendar",
+                    "Marketing Insights"
+                ),
                 subItems = mapOf(
-                    "Campaigns"        to listOf("Campaigns", "Promotions", "Marketing & Calendar"),
-                    "Leads & Audience" to listOf("Lead Generation", "Customer Segmentation"),
-                    "Engagement"       to listOf("Customer Engagement", "WhatsApp", "Social Media", "Review & Feedback"),
-                    "Growth"           to listOf("Referral Program", "Influencer"),
-                    "Team"             to listOf("Marketing Tasks", "Team Management")
+                    "Campaigns" to listOf("Overview", "All Campaigns"),
+                    "Advertising" to listOf("Overview", "Advertising"),
+                    "Social Media" to listOf("Overview", "Social Media"),
+                    "Promotions" to listOf("Overview", "All Promotions"),
+                    "Customers" to listOf("Overview", "All Customers"),
+                    "Website / Digital" to listOf(
+                        "Overview",
+                        "Traffic & Engagement",
+                        "Pages",
+                        "Sources"
+                    )
                 )
             ),
             MenuItem(
@@ -429,7 +469,7 @@ object SidebarConfig {
                     "Auto Reorder",
                     "Safety Stock",
                     "Payments Made",
-                    "Billing",
+//                    "Billing",
                     "Pricing", // Added Pricing category
                     "Multi-Channel",
                     "Approvals"
@@ -1246,7 +1286,7 @@ fun ModulesPanel(
     initialExpandedModule: String? = null,
     initialExpandedCategory: String? = null,
     initialActiveSubItem: String? = null,
-    onModuleCategoryClick: (menu: String, category: String) -> Unit
+    onModuleCategoryClick: (menu: String, category: String, subItem: String?) -> Unit // 👈 3 parameters
 ) {
     ModulesPanelContent(
         isOpen = isOpen,
@@ -1478,7 +1518,7 @@ fun ModulesPanelHeader(
 private fun ModulesPanelContent(
     isOpen: Boolean,
     onClose: () -> Unit,
-    onModuleCategoryClick: (menu: String, category: String) -> Unit,
+    onModuleCategoryClick: (menu: String, category: String, subItem: String?) -> Unit, // 👈 3 parameters
     menuItems: List<MenuItem>,
     showFrequentlyUsed: Boolean,
     initialExpandedModule: String? = null,
@@ -1614,7 +1654,7 @@ private fun ModulesPanelContent(
                                                         menuItems.find { it.label == fm.label }
                                                     val firstCat = menu?.categories?.firstOrNull()
                                                     if (menu != null && firstCat != null) {
-                                                        onModuleCategoryClick(menu.label, firstCat)
+                                                        onModuleCategoryClick(menu.label, firstCat, null)
                                                     }
                                                 }
                                                 .padding(vertical = 16.dp),
@@ -1790,7 +1830,8 @@ private fun ModulesPanelContent(
                                                         activeSubItem = null
                                                         onModuleCategoryClick(
                                                             module.label,
-                                                            category
+                                                            category,
+                                                            null
                                                         )
                                                     }
                                                 }
@@ -1877,7 +1918,8 @@ private fun ModulesPanelContent(
                                                                 activeSubItem = subItem
                                                                 onModuleCategoryClick(
                                                                     module.label,
-                                                                    subItem
+                                                                    category, // 👈 Parent category ("Advertising")
+                                                                    subItem   // 👈 Sub-item ("Overview")
                                                                 )
                                                             }
                                                             .padding(vertical = 8.dp)

@@ -2203,6 +2203,32 @@ class InventoryViewModel @Inject constructor(
             }
         }
     }
+    // ── Delete State ──
+    private val _isDeleting = MutableStateFlow(false)
+    val isDeleting: StateFlow<Boolean> = _isDeleting.asStateFlow()
+
+    fun deleteWarehouse(
+        warehouseId: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (warehouseId.isBlank()) return
+        viewModelScope.launch {
+            _isDeleting.value = true
+            apiRepository.request<Unit> {
+                delete("/api/inventory/settings/warehouse/delete-one/$warehouseId")
+            }.fold(
+                onSuccess = {
+                    _isDeleting.value = false
+                    onSuccess()
+                },
+                onFailure = { err ->
+                    _isDeleting.value = false
+                    onError(err.message ?: "Failed to delete campaign")
+                }
+            )
+        }
+    }
 
     fun loadWarehouseDropdown() {
         launchBusy {

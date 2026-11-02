@@ -291,7 +291,7 @@ fun DynamicIslandError(
     modifier: Modifier = Modifier,
     message: String?,
     onDismiss: () -> Unit,
-    durationMillis: Long = 3000
+    durationMillis: Long = 2000
 ) {
     DynamicIslandBase(modifier, message, onDismiss, durationMillis, isError = true)
 }
@@ -301,7 +301,7 @@ fun DynamicIslandSuccess(
     modifier: Modifier = Modifier,
     message: String?,
     onDismiss: () -> Unit,
-    durationMillis: Long = 3000
+    durationMillis: Long = 2000
 ) {
     DynamicIslandBase(modifier, message, onDismiss, durationMillis, isError = false)
 }

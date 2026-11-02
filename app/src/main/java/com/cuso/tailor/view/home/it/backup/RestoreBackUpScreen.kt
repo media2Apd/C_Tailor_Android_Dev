@@ -21,7 +21,10 @@ import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.view.composable.AppCheckbox
+import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.ItViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,33 +60,10 @@ fun RestoreBackupScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = Primary_background,
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = whiteBg,
-                shadowElevation = 0.5.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = tokens.screenPadding, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Restore Backup",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = title_color
-                        )
-                        Text(
-                            text = "Restore data from a verified recovery point.",
-                            fontSize = 11.sp,
-                            color = mutedText
-                        )
-                    }
-
+            TitleBar(
+                title = "Database Backup",
+                onClose = onBack,
+                trailingContent = {
                     OutlinedButton(
                         onClick = onBack,
                         shape = RoundedCornerShape(8.dp),
@@ -94,7 +74,7 @@ fun RestoreBackupScreen(
                         Text("Cancel", color = title_color, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     }
                 }
-            }
+            )
         }
     ) { paddingValues ->
         if (isLoadingDetail && detail == null) {
@@ -253,44 +233,15 @@ fun RestoreBackupScreen(
 
                         // Destination Dropdown
                         Column {
-                            Text(text = "Restore Destination", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = title_color)
-                            Spacer(Modifier.height(6.dp))
 
-                            ExposedDropdownMenuBox(
+                            FormDropdown(
+                                label = "Restore Destination",
+                                value = restoreDestination,
                                 expanded = expandedDropdown,
-                                onExpandedChange = { expandedDropdown = !expandedDropdown }
-                            ) {
-                                OutlinedTextField(
-                                    value = restoreDestination,
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDropdown) },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .menuAnchor(),
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = Primary,
-                                        unfocusedBorderColor = BorderGray,
-                                        focusedContainerColor = whiteBg,
-                                        unfocusedContainerColor = whiteBg
-                                    )
-                                )
-                                ExposedDropdownMenu(
-                                    expanded = expandedDropdown,
-                                    onDismissRequest = { expandedDropdown = false }
-                                ) {
-                                    destinationOptions.forEach { option ->
-                                        DropdownMenuItem(
-                                            text = { Text(option, fontSize = 13.sp) },
-                                            onClick = {
-                                                restoreDestination = option
-                                                expandedDropdown = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
+                                onExpandChange = { expandedDropdown = it },
+                                options = destinationOptions,
+                                onOptionSelected = { restoreDestination = it }
+                            )
 
                             Spacer(Modifier.height(4.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -339,11 +290,11 @@ fun RestoreBackupScreen(
                                     .clickable { verifyIntegrity = !verifyIntegrity }
                                     .padding(vertical = 4.dp)
                             ) {
-                                Checkbox(
+                                AppCheckbox(
                                     checked = verifyIntegrity,
-                                    onCheckedChange = { verifyIntegrity = it },
-                                    colors = CheckboxDefaults.colors(checkedColor = Primary)
+                                    onCheckedChange = { verifyIntegrity = it }
                                 )
+                                Spacer(Modifier.width(5.dp))
                                 Text("Verify data integrity after restore completes", fontSize = 12.sp, color = title_color)
                             }
 
@@ -354,11 +305,11 @@ fun RestoreBackupScreen(
                                     .clickable { createSafetySnapshot = !createSafetySnapshot }
                                     .padding(vertical = 4.dp)
                             ) {
-                                Checkbox(
+                                AppCheckbox(
                                     checked = createSafetySnapshot,
-                                    onCheckedChange = { createSafetySnapshot = it },
-                                    colors = CheckboxDefaults.colors(checkedColor = Primary)
+                                    onCheckedChange = { createSafetySnapshot = it }
                                 )
+                                Spacer(Modifier.width(5.dp))
                                 Text("Create safety snapshot before restore (Recommended)", fontSize = 12.sp, color = title_color)
                             }
                         }
@@ -442,12 +393,11 @@ fun RestoreBackupScreen(
                                 .fillMaxWidth()
                                 .clickable { userConfirmedOverwrite = !userConfirmedOverwrite }
                         ) {
-                            Checkbox(
+                            AppCheckbox(
                                 checked = userConfirmedOverwrite,
-                                onCheckedChange = { userConfirmedOverwrite = it },
-                                colors = CheckboxDefaults.colors(checkedColor = Primary)
+                                onCheckedChange = { userConfirmedOverwrite = it }
                             )
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(5.dp))
                             Text(
                                 text = "I confirm that this action will overwrite existing production data.",
                                 fontSize = 12.sp,

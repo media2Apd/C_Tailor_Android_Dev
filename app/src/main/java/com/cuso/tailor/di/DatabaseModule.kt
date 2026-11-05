@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.cuso.tailor.database.AppDatabase
 import com.cuso.tailor.database.dao.LeadDao
 import com.cuso.tailor.database.dao.OrganizationDao
+import com.cuso.tailor.database.dao.PermissionDao
 import com.cuso.tailor.database.dao.SalesStatusDao
 import com.cuso.tailor.database.dao.SalesSummaryDao
 import com.cuso.tailor.database.dao.SelectedGarmentDao
@@ -72,4 +73,7 @@ object DatabaseModule {
 
     @Provides
     fun provideSelectedGarmentDao(db: AppDatabase): SelectedGarmentDao = db.selectedGarmentDao()
+
+    @Provides
+    fun providePermissionDao(db: AppDatabase): PermissionDao = db.permissionDao()
 }

@@ -45,7 +45,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.22:5000/\""
+                "\"http://192.168.88.17:5000/\""
             )
         }
 
@@ -216,6 +216,6 @@ dependencies {
     implementation(libs.core)
 
     // Meta App Events SDK
-    implementation("com.facebook.android:facebook-core:19.0.0")
+    implementation(libs.facebook.core)
 
 }

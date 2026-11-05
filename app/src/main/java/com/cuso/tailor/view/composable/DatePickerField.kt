@@ -36,7 +36,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 // ─────────────────────────────────────────────────────────────
-// PALETTE (shared by the date picker and the time picker)
+// PALETTE (shared by the date picker, the date range picker and the time picker)
 // ─────────────────────────────────────────────────────────────
 
 // Holds every color used by the picker dialogs.
@@ -47,7 +47,7 @@ data class DatePickerPalette(
     val subtext: Color,       // Weekday letters, "SELECT DATE" label, unselected PM/AM
     val accent: Color,        // Selected day, selector, OK button
     val onAccent: Color,      // Text on top of accent
-    val accentSoft: Color,    // Tint behind selected hour box / selected AM-PM / pencil button
+    val accentSoft: Color,    // Tint behind selected hour box / selected AM-PM / range band
     val onAccentSoft: Color,  // Text on top of accentSoft
     val link: Color,          // Cancel text, today ring, pencil icon
     val icon: Color,          // Chevrons, keyboard icon
@@ -573,6 +573,506 @@ private fun DatePickerCalendarGrid(
                 }
             }
             if (week.size < 7) repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// DATE RANGE PICKER (start date + end date)
+// ─────────────────────────────────────────────────────────────
+
+// A date is stored as one comparable Int: yyyymmdd (the month is 1-based).
+private fun dateKey(day: Int, month: Int, year: Int): Int = year * 10000 + month * 100 + day
+
+// Converts a date key into the DD-MM-YYYY string used across the app
+private fun keyToString(key: Int): String =
+    String.format(Locale.US, "%02d-%02d-%04d", key % 100, (key / 100) % 100, key / 10000)
+
+// Converts a DD-MM-YYYY string into a date key, or null when the text is not a valid date
+private fun stringToKey(value: String): Int? {
+    val parsed = validateAndParseDate(value.filter { it.isDigit() }) ?: return null
+    return dateKey(parsed.first, parsed.second, parsed.third)
+}
+
+// Short label such as "Nov 2" used in the dialog header summary
+private fun keyToShortLabel(key: Int): String {
+    val c = Calendar.getInstance().apply {
+        clear()
+        set(key / 10000, (key / 100) % 100 - 1, key % 100)
+    }
+    return SimpleDateFormat("MMM d", Locale.getDefault()).format(c.time)
+}
+
+// The clickable filter field shown on the screen.
+// Shows "start to end" and opens the range dialog on click.
+@Composable
+fun DateRangePickerField(
+    startDate: String,
+    endDate: String,
+    onRangeSelected: (start: String, end: String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    isError: Boolean = false
+) {
+    val tokens = LocalAppTokens.current
+    var showPicker by remember { mutableStateOf(false) }
+
+    // Combine the caller's enabled flag with the global "app busy" state
+    val isAppBusy by AppLoadingManager.busyState.collectAsState()
+    val effectiveEnabled = enabled && !isAppBusy
+
+    val palette = rememberDatePickerPalette()
+    val shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+    val placeholderColor = Color(0xFF9CA3AF)
+    val valueColor = Color(0xFF374151)
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(tokens.fieldHeight)
+            .alpha(if (effectiveEnabled) 1f else 0.6f)
+            .background(whiteBg, shape)
+            .border(tokens.extraPadding / 10, if (isError) redText else grey_border, shape)
+            .clickable(enabled = effectiveEnabled) { showPicker = true }
+            .padding(horizontal = tokens.cardPadding * 0.6f),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = startDate.ifEmpty { "dd-mm-yyyy" },
+            fontSize = tokens.bodySmall,
+            color = if (startDate.isEmpty()) placeholderColor else valueColor,
+            maxLines = 1
+        )
+        Text(
+            text = "  to  ",
+            fontSize = tokens.bodySmall,
+            color = placeholderColor,
+            maxLines = 1
+        )
+        Text(
+            text = endDate.ifEmpty { "dd-mm-yyyy" },
+            fontSize = tokens.bodySmall,
+            color = if (endDate.isEmpty()) placeholderColor else valueColor,
+            maxLines = 1,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            painter = painterResource(R.drawable.ic_calendar_2),
+            contentDescription = "Select date range",
+            modifier = Modifier.size(tokens.iconSize)
+        )
+    }
+
+    if (showPicker && effectiveEnabled) {
+        CustomDateRangePickerDialog(
+            palette = palette,
+            initialStart = startDate,
+            initialEnd = endDate,
+            onDismiss = { showPicker = false },
+            onConfirm = { start, end ->
+                onRangeSelected(start, end)
+                showPicker = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun CustomDateRangePickerDialog(
+    palette: DatePickerPalette,
+    initialStart: String,
+    initialEnd: String,
+    onDismiss: () -> Unit,
+    onConfirm: (start: String, end: String) -> Unit
+) {
+    val tokens = LocalAppTokens.current
+    val today = remember { Calendar.getInstance() }
+    val todayKey = remember {
+        dateKey(
+            today.get(Calendar.DAY_OF_MONTH),
+            today.get(Calendar.MONTH) + 1,
+            today.get(Calendar.YEAR)
+        )
+    }
+
+    val firstStart = remember(initialStart) { stringToKey(initialStart) }
+    val firstEnd = remember(initialEnd) { stringToKey(initialEnd) }
+
+    var startKey by remember { mutableStateOf(firstStart) }
+    var endKey by remember { mutableStateOf(firstEnd) }
+
+    // true -> the next day tap sets the end date, false -> it sets the start date
+    var editingEnd by remember { mutableStateOf(firstStart != null && firstEnd == null) }
+
+    var displayMonth by remember {
+        mutableIntStateOf(firstStart?.let { (it / 100) % 100 - 1 } ?: today.get(Calendar.MONTH))
+    }
+    var displayYear by remember {
+        mutableIntStateOf(firstStart?.let { it / 10000 } ?: today.get(Calendar.YEAR))
+    }
+
+    // Moves the calendar by one month
+    fun shiftMonth(delta: Int) {
+        var m = displayMonth + delta
+        var y = displayYear
+        if (m < 0) { m = 11; y-- } else if (m > 11) { m = 0; y++ }
+        displayMonth = m
+        displayYear = y
+    }
+
+    // Applies the start / end selection rules for a tapped day
+    fun onDayTapped(key: Int) {
+        val currentStart = startKey
+        val currentEnd = endKey
+        if (!editingEnd || currentStart == null) {
+            // Setting the start date, drop the end date if it is now before the start
+            startKey = key
+            if (currentEnd != null && currentEnd < key) endKey = null
+            editingEnd = true
+        } else if (key < currentStart) {
+            // A day before the start becomes the new start
+            startKey = key
+            endKey = null
+        } else {
+            endKey = key
+            editingEnd = false
+        }
+    }
+
+    val summaryText = remember(startKey, endKey) {
+        val s = startKey
+        val e = endKey
+        when {
+            s == null -> "Select range"
+            e == null -> "${keyToShortLabel(s)} - End date"
+            else -> "${keyToShortLabel(s)} - ${keyToShortLabel(e)}"
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .padding(tokens.screenPadding)
+                .widthIn(max = tokens.imageDp * 6f)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(tokens.cardCornerRadius * 1.8f),
+            color = palette.surface
+        ) {
+            Column(modifier = Modifier.padding(tokens.cardPadding)) {
+
+                // Header: label and selected range summary
+                Text(
+                    text = "SELECT DATE RANGE",
+                    color = palette.subtext,
+                    fontSize = tokens.label,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = tokens.label * 0.12f
+                )
+                Spacer(Modifier.height(tokens.extraPadding / 2))
+                Text(
+                    text = summaryText,
+                    color = palette.text,
+                    fontSize = tokens.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+
+                Spacer(Modifier.height(tokens.screenPadding))
+
+                // Start / End selector chips
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                ) {
+                    RangeEndChip(
+                        palette = palette,
+                        label = "Start date",
+                        value = startKey?.let { keyToString(it) } ?: "dd-mm-yyyy",
+                        hasValue = startKey != null,
+                        active = !editingEnd,
+                        enabled = true,
+                        onClick = { editingEnd = false },
+                        modifier = Modifier.weight(1f)
+                    )
+                    RangeEndChip(
+                        palette = palette,
+                        label = "End date",
+                        value = endKey?.let { keyToString(it) } ?: "dd-mm-yyyy",
+                        hasValue = endKey != null,
+                        active = editingEnd,
+                        enabled = startKey != null,
+                        onClick = { editingEnd = true },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = tokens.screenPadding),
+                    color = palette.divider
+                )
+
+                DateRangeCalendarGrid(
+                    palette = palette,
+                    displayMonth = displayMonth,
+                    displayYear = displayYear,
+                    startKey = startKey,
+                    endKey = endKey,
+                    todayKey = todayKey,
+                    onDaySelected = { onDayTapped(it) },
+                    onPrevMonth = { shiftMonth(-1) },
+                    onNextMonth = { shiftMonth(1) }
+                )
+
+                Spacer(Modifier.height(tokens.screenPadding))
+
+                // Actions: Clear on the left, Cancel and OK on the right
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = { onConfirm("", "") }) {
+                        Text(
+                            text = "Clear",
+                            color = palette.subtext,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Spacer(Modifier.weight(1f))
+
+                    TextButton(onClick = onDismiss) {
+                        Text(
+                            text = "Cancel",
+                            color = palette.link,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Spacer(Modifier.width(tokens.extraPadding / 2))
+                    Button(
+                        onClick = {
+                            val s = startKey
+                            if (s != null) {
+                                // When only a start date was picked, the end date equals the start date
+                                val e = endKey ?: s
+                                onConfirm(keyToString(s), keyToString(e))
+                            }
+                        },
+                        enabled = startKey != null,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = palette.accent,
+                            contentColor = palette.onAccent,
+                            disabledContainerColor = palette.accentSoft,
+                            disabledContentColor = palette.subtext
+                        ),
+                        shape = RoundedCornerShape(50),
+                        contentPadding = PaddingValues(horizontal = tokens.cardPadding),
+                        modifier = Modifier.height(tokens.buttonHeight)
+                    ) {
+                        Text(
+                            text = "OK",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// One of the two chips (Start date / End date) at the top of the dialog
+@Composable
+private fun RangeEndChip(
+    palette: DatePickerPalette,
+    label: String,
+    value: String,
+    hasValue: Boolean,
+    active: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val tokens = LocalAppTokens.current
+    val shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f)
+
+    Column(
+        modifier = modifier
+            .alpha(if (enabled) 1f else 0.5f)
+            .clip(shape)
+            .background(if (active) palette.accentSoft else palette.fieldFill)
+            .border(
+                width = tokens.extraPadding / 7,
+                color = if (active) palette.accent else palette.outline,
+                shape = shape
+            )
+            .clickable(enabled = enabled) { onClick() }
+            .padding(
+                horizontal = tokens.extraPadding + tokens.extraPadding / 2,
+                vertical = tokens.extraPadding
+            )
+    ) {
+        Text(
+            text = label,
+            fontSize = tokens.caption,
+            color = if (active) palette.onAccentSoft else palette.subtext,
+            maxLines = 1
+        )
+        Spacer(Modifier.height(tokens.extraPadding / 5))
+        Text(
+            text = value,
+            fontSize = tokens.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = when {
+                active -> palette.onAccentSoft
+                hasValue -> palette.text
+                else -> palette.subtext
+            },
+            maxLines = 1
+        )
+    }
+}
+
+// Month grid with a continuous band between the start and end days
+@Composable
+private fun DateRangeCalendarGrid(
+    palette: DatePickerPalette,
+    displayMonth: Int,
+    displayYear: Int,
+    startKey: Int?,
+    endKey: Int?,
+    todayKey: Int,
+    onDaySelected: (Int) -> Unit,
+    onPrevMonth: () -> Unit,
+    onNextMonth: () -> Unit
+) {
+    val tokens = LocalAppTokens.current
+    val endpointShape = RoundedCornerShape(tokens.cardCornerRadius * 0.8f)
+
+    // Month title and previous / next chevrons
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "${MonthNames[displayMonth]} $displayYear",
+            color = palette.text,
+            fontWeight = FontWeight.Medium,
+            fontSize = tokens.bodyMedium
+        )
+        Row {
+            IconButton(onClick = onPrevMonth, modifier = Modifier.size(tokens.fieldHeight)) {
+                Icon(
+                    Icons.Default.ChevronLeft,
+                    contentDescription = "Previous month",
+                    tint = palette.icon
+                )
+            }
+            IconButton(onClick = onNextMonth, modifier = Modifier.size(tokens.fieldHeight)) {
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = "Next month",
+                    tint = palette.icon
+                )
+            }
+        }
+    }
+
+    Spacer(Modifier.height(tokens.extraPadding / 2))
+
+    // Weekday labels
+    Row(modifier = Modifier.fillMaxWidth()) {
+        listOf("S", "M", "T", "W", "T", "F", "S").forEach { d ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(tokens.fieldHeight * 0.8f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = d,
+                    color = palette.subtext,
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+
+    val calendar = Calendar.getInstance().apply {
+        clear()
+        set(displayYear, displayMonth, 1)
+    }
+    val firstDay = calendar.get(Calendar.DAY_OF_WEEK) - 1
+    val maxDays = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
+
+    // Leading blanks for the weekday offset, then every day of the month
+    val days = buildList<Int?> {
+        repeat(firstDay) { add(null) }
+        for (i in 1..maxDays) add(i)
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding / 5)) {
+        days.chunked(7).forEach { week ->
+            // Pad the last week so every row has seven equal cells
+            val cells: List<Int?> = week + List(7 - week.size) { null }
+
+            Row(modifier = Modifier.fillMaxWidth()) {
+                cells.forEach { day ->
+                    val key = if (day != null) dateKey(day, displayMonth + 1, displayYear) else null
+                    val isStart = key != null && key == startKey
+                    val isEnd = key != null && key == endKey
+                    val isEndpoint = isStart || isEnd
+                    val inRange = key != null && startKey != null && endKey != null &&
+                            key > startKey && key < endKey
+                    val isToday = key != null && key == todayKey && !isEndpoint && !inRange
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(tokens.fieldHeight)
+                            .background(if (inRange) palette.accentSoft else Color.Transparent)
+                            .clickable(enabled = key != null) { key?.let(onDaySelected) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (key != null && day != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(if (isEndpoint) endpointShape else RoundedCornerShape(0.dp))
+                                    .background(if (isEndpoint) palette.accent else Color.Transparent)
+                                    .then(
+                                        if (isToday) {
+                                            Modifier.border(
+                                                tokens.extraPadding / 7,
+                                                palette.link,
+                                                endpointShape
+                                            )
+                                        } else Modifier
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = day.toString(),
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = if (isEndpoint || isToday) FontWeight.Medium else FontWeight.Normal,
+                                    color = when {
+                                        isEndpoint -> palette.onAccent
+                                        inRange -> palette.onAccentSoft
+                                        isToday -> palette.link
+                                        else -> palette.text
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

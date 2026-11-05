@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -46,9 +47,28 @@ fun BankAccountsListScreen(
 
     val accounts by viewModel.bankAccounts.collectAsState()
     val isLoading by viewModel.isLoadingBankAccounts.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
 
     var accountToArchive by remember { mutableStateOf<BankAccountItemDto?>(null) }
+
+    val listState = rememberLazyListState()
+    var currentPage by remember { mutableIntStateOf(1) }
+    val itemsPerPage = 10
+
+// Slice items progressively for infinite scrolling
+    val pagedAccounts = accounts.take(currentPage * itemsPerPage)
+    val canLoadMore = pagedAccounts.size < accounts.size
+
+// Trigger next page when scrolling near the end
+    LaunchedEffect(listState, pagedAccounts.size, canLoadMore) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastIndex ->
+                if (lastIndex != null && lastIndex >= pagedAccounts.size - 1 && canLoadMore) {
+                    currentPage++
+                }
+            }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.fetchBankAccounts()
@@ -119,9 +139,10 @@ fun BankAccountsListScreen(
                                 value = searchQuery,
                                 onValueChange = {
                                     searchQuery = it
-                                    viewModel.fetchBankAccounts(it)
+                                    currentPage = 1 // Reset pagination upon search input
+                                    viewModel.fetchBankAccounts(it.trim().ifBlank { null })
                                 },
-                                placeholder = "Search SO number, customer...",
+                                placeholder = "Search bank accounts...",
                                 containerColor = Color.Transparent,
                                 borderColor = Color.Transparent,
                                 modifier = Modifier.fillMaxWidth()
@@ -147,13 +168,42 @@ fun BankAccountsListScreen(
                     }
                 }
 
-                if (isLoading && accounts.isEmpty()) {
-                    ListSkeleton()
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(accounts, key = { it.id }) { item ->
+                when {
+                    isLoading && accounts.isEmpty() -> {
+                        ListSkeleton()
+                    }
+
+                    errorMessage != null && accounts.isEmpty() -> {
+                        // AppErrorState with dynamic message and retry callback
+                        AppErrorState(
+                            title = "Failed to load bank accounts",
+                            message = errorMessage?.ifBlank { "Something went wrong. Please check your connection and try again." }
+                                ?: "Something went wrong. Please check your connection and try again.",
+                            onRetry = { viewModel.fetchBankAccounts(searchQuery.trim().ifBlank { null }) }
+                        )
+                    }
+
+                    accounts.isEmpty() -> {
+                        // Empty state placeholder
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (searchQuery.isNotBlank()) "No matching bank accounts found" else "No bank accounts found",
+                                fontSize = tokens.bodyMedium,
+                                color = mutedText
+                            )
+                        }
+                    }
+
+                    else -> {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            // Render paged accounts instead of the entire list
+                            items(pagedAccounts, key = { it.id }) { item ->
                             val isActive = item.status.equals("Active", ignoreCase = true)
                             val maskedNum = item.accountNumberMasked.ifBlank {
                                 if (item.accountNumber.length > 4) "****" + item.accountNumber.takeLast(4) else item.accountNumber
@@ -284,6 +334,17 @@ fun BankAccountsListScreen(
                                     }
                                 }
                             )
+                        }
+                            if (canLoadMore) {
+                                item {
+                                    ThreeDotLoading(
+                                        modifier = Modifier.padding(vertical = 16.dp)
+                                    )
+                                }
+                            }
+
+                            // Bottom spacing to prevent FAB overlap
+                            item { Spacer(Modifier.height(80.dp)) }
                         }
                     }
                 }

@@ -20,6 +20,7 @@ import com.cuso.tailor.model.hr.AttendanceRecord
 import com.cuso.tailor.model.hr.CreateEmployeeDocumentResponse
 import com.cuso.tailor.model.hr.CreateManualAttendanceRequest
 import com.cuso.tailor.model.hr.CreateMemberRequest
+import com.cuso.tailor.model.hr.CreateRoleRequest
 import com.cuso.tailor.model.hr.CreateShiftRequest
 import com.cuso.tailor.model.hr.CreatedMemberFullData
 import com.cuso.tailor.model.hr.DeleteDocumentCategoryResponse
@@ -48,7 +49,9 @@ import com.cuso.tailor.model.hr.MemberItem
 import com.cuso.tailor.model.hr.MonthlyAttendanceItem
 import com.cuso.tailor.model.hr.OrgMemberDto
 import com.cuso.tailor.model.hr.OrgStructureResponse
+import com.cuso.tailor.model.hr.RoleData
 import com.cuso.tailor.model.hr.RoleItem
+import com.cuso.tailor.model.hr.RoleResponse
 import com.cuso.tailor.model.hr.SalaryComponentItem
 import com.cuso.tailor.model.hr.SalaryComponentRequest
 import com.cuso.tailor.model.hr.ShiftDetailData
@@ -96,6 +99,8 @@ private const val SALARY_BASE = "/api/hr/salary-component"
 // Add constant at top of HrViewModel.kt
 private const val EXPENSE_TYPE_BASE = "/api/hr/expense-type"
 
+private const val CREATE_ROLE_URL = "/api/roles/create"
+
 sealed interface AttendanceUiState {
     object Loading : AttendanceUiState
     data class Success(val records: List<AttendanceRecord>, val canLoadMore: Boolean) : AttendanceUiState
@@ -135,6 +140,252 @@ class HrViewModel @Inject constructor(
             )
             _isLoadingRoles.value = false
         }
+    }
+
+    // =========================================================================
+    // ROLE MANAGEMENT (CREATE, VIEW-ONE, UPDATE-ONE)
+    // =========================================================================
+
+    private val _roleDetails = MutableStateFlow<RoleData?>(null)
+    val roleDetails: StateFlow<RoleData?> = _roleDetails.asStateFlow()
+
+    /**
+     * Fetch single role by ID: GET /api/roles/view-one/{roleId}
+     */
+    fun fetchRoleById(roleId: String) {
+        if (roleId.isBlank()) return
+        viewModelScope.launch {
+            _isRoleLoading.value = true
+            _roleErrorMessage.value = null
+
+            val result = repo.request<RoleResponse> {
+                get("/api/roles/view-one/$roleId")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        _roleDetails.value = res.data
+                    } else {
+                        _roleErrorMessage.value = res.message ?: "Failed to fetch role details"
+                    }
+                },
+                onFailure = { err ->
+                    _roleErrorMessage.value = err.message ?: "Network error fetching role"
+                }
+            )
+            _isRoleLoading.value = false
+        }
+    }
+
+    /**
+     * Create new role: POST /api/roles/create
+     * OR Update existing role: PUT /api/roles/update-one/{roleId}
+     */
+    fun saveRole(
+        roleIdToEdit: String?,
+        name: String,
+        roleCode: String,
+        description: String,
+        status: Boolean,
+        isDefault: Boolean,
+        accessScope: String,
+        sessionTimeoutMinutes: Int,
+        matrixPermissions: Map<String, Boolean>,
+        hiddenSubmodules: Set<String>, // Added hiddenSubmodules parameter
+        fieldPermissions: Map<String, Boolean>,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isRoleLoading.value = true
+            _roleErrorMessage.value = null
+
+            // 1. Build nested permissions map holding both submodule actions and "hidden": true
+            val nestedPermissions = mutableMapOf<String, MutableMap<String, Any>>()
+
+            // Populate granted actions
+            matrixPermissions.forEach { (key, isGranted) ->
+                if (isGranted) {
+                    val segments = key.split(".")
+                    if (segments.size == 3) {
+                        val (moduleKey, submoduleKey, actionKey) = segments
+                        val moduleMap = nestedPermissions.getOrPut(moduleKey) { mutableMapOf() }
+
+                        @Suppress("UNCHECKED_CAST")
+                        val subMap = moduleMap.getOrPut(submoduleKey) { mutableMapOf<String, Boolean>() } as MutableMap<String, Boolean>
+                        subMap[actionKey] = true
+                    }
+                }
+            }
+
+            // 2. Insert "hidden": true for modules/submodules that were toggled with eye icon
+            hiddenSubmodules.forEach { hiddenKey ->
+                val segments = hiddenKey.split(".")
+                if (segments.size == 2) {
+                    val (moduleKey, submoduleKey) = segments
+                    val moduleMap = nestedPermissions.getOrPut(moduleKey) { mutableMapOf() }
+
+                    // Check if the whole module is hidden or a specific submodule
+                    if (submoduleKey == "module_root") {
+                        moduleMap["hidden"] = true
+                    } else {
+                        @Suppress("UNCHECKED_CAST")
+                        val subMap = moduleMap.getOrPut(submoduleKey) { mutableMapOf<String, Any>() } as MutableMap<String, Any>
+                        subMap["hidden"] = true
+                    }
+                }
+            }
+
+            // 3. Convert field permissions
+            val nestedFieldPermissions = mutableMapOf<String, MutableMap<String, MutableMap<String, Boolean>>>()
+            fieldPermissions.forEach { (key, isGranted) ->
+                val segments = key.split("_")
+                if (segments.size == 3) {
+                    val (groupKey, fieldKey, actionKey) = segments
+                    nestedFieldPermissions
+                        .getOrPut(groupKey) { mutableMapOf() }
+                        .getOrPut(fieldKey) { mutableMapOf() }[actionKey] = isGranted
+                }
+            }
+
+            val payload = CreateRoleRequest(
+                name = name.trim(),
+                roleCode = roleCode.trim(),
+                description = description.trim(),
+                status = status,
+                isDefault = isDefault,
+                accessScope = accessScope,
+                sessionTimeoutMinutes = sessionTimeoutMinutes,
+                fieldPermissions = nestedFieldPermissions,
+                permissions = nestedPermissions
+            )
+
+            val isEditMode = !roleIdToEdit.isNullOrBlank()
+            val url = if (isEditMode) "/api/roles/update-one/$roleIdToEdit" else "/api/roles/create"
+
+            val result = repo.request<RoleResponse> {
+                if (isEditMode) put(url, payload) else post(url, payload)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) onSuccess() else _roleErrorMessage.value = res.message ?: "Failed to save role"
+                },
+                onFailure = { err ->
+                    _roleErrorMessage.value = err.message ?: "Network error saving role"
+                }
+            )
+            _isRoleLoading.value = false
+        }
+    }
+
+    fun clearRoleDetails() {
+        _roleDetails.value = null
+    }
+
+    // =========================================================================
+    // ROLE MANAGEMENT STATES & API CALLS
+    // =========================================================================
+
+    private val _isRoleLoading = MutableStateFlow(false)
+    val isRoleLoading: StateFlow<Boolean> = _isRoleLoading.asStateFlow()
+
+    private val _roleErrorMessage = MutableStateFlow<String?>(null)
+    val roleErrorMessage: StateFlow<String?> = _roleErrorMessage.asStateFlow()
+
+    private val _createdRoleData = MutableStateFlow<RoleData?>(null)
+    val createdRoleData: StateFlow<RoleData?> = _createdRoleData.asStateFlow()
+
+    /**
+     * Creates a new role using repository pattern matching the exact payload format.
+     */
+    fun createRole(
+        name: String,
+        roleCode: String,
+        description: String,
+        status: Boolean,
+        isDefault: Boolean,
+        accessScope: String,
+        sessionTimeoutMinutes: Int,
+        matrixPermissions: Map<String, Boolean>,
+        fieldPermissions: Map<String, Boolean>,
+        onSuccess: (RoleData) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isRoleLoading.value = true
+            _roleErrorMessage.value = null
+
+            // 1. Transform flat matrixPermissions ("home.branches.create" -> Boolean)
+            // into nested structure: Map<Module, Map<Submodule, Map<Action, Boolean>>>
+            val nestedPermissions = mutableMapOf<String, MutableMap<String, MutableMap<String, Boolean>>>()
+            matrixPermissions.forEach { (key, isGranted) ->
+                if (isGranted) {
+                    val segments = key.split(".")
+                    if (segments.size == 3) {
+                        val moduleKey = segments[0]
+                        val submoduleKey = segments[1]
+                        val actionKey = segments[2]
+
+                        nestedPermissions
+                            .getOrPut(moduleKey) { mutableMapOf() }
+                            .getOrPut(submoduleKey) { mutableMapOf() }[actionKey] = true
+                    }
+                }
+            }
+
+            // 2. Transform flat fieldPermissions ("sales_customerName_view" -> Boolean)
+            // into nested structure: Map<Group, Map<Field, Map<Action, Boolean>>>
+            val nestedFieldPermissions = mutableMapOf<String, MutableMap<String, MutableMap<String, Boolean>>>()
+            fieldPermissions.forEach { (key, isGranted) ->
+                val segments = key.split("_")
+                if (segments.size == 3) {
+                    val groupKey = segments[0]
+                    val fieldKey = segments[1]
+                    val actionKey = segments[2]
+
+                    nestedFieldPermissions
+                        .getOrPut(groupKey) { mutableMapOf() }
+                        .getOrPut(fieldKey) { mutableMapOf() }[actionKey] = isGranted
+                }
+            }
+
+            // 3. Prepare payload
+            val payload = CreateRoleRequest(
+                name = name.trim(),
+                roleCode = roleCode.trim(),
+                description = description.trim(),
+                status = status,
+                isDefault = isDefault,
+                accessScope = accessScope,
+                sessionTimeoutMinutes = sessionTimeoutMinutes,
+                fieldPermissions = nestedFieldPermissions,
+                permissions = nestedPermissions
+            )
+
+            // 4. API Request through repository
+            val result = repo.request<RoleResponse> {
+                post(CREATE_ROLE_URL, payload)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        _createdRoleData.value = res.data
+                        onSuccess(res.data)
+                    } else {
+                        _roleErrorMessage.value = res.message ?: "Failed to create role"
+                    }
+                },
+                onFailure = { err ->
+                    _roleErrorMessage.value = err.message ?: "Network error creating role"
+                }
+            )
+            _isRoleLoading.value = false
+        }
+    }
+
+    fun clearRoleError() {
+        _roleErrorMessage.value = null
     }
 
     // ═══════════════════════════════════════════════

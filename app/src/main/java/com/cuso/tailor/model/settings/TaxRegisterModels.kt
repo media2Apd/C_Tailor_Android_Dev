@@ -8,10 +8,18 @@ data class TaxRegistrationResponse(
     @SerializedName("pagination") val pagination: TaxRegistrationPagination? = null
 )
 
+data class TaxBranchDto(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("name") val name: String? = null
+)
+
 data class TaxRegistrationItemDto(
     @SerializedName("_id") val id: String = "",
     @SerializedName("organizationId") val organizationId: String? = null,
-    @SerializedName("branchId") val branchId: String? = null,
+
+    // Parsed as an object to prevent JsonSyntaxException
+    @SerializedName("branchId") val branch: TaxBranchDto? = null,
+
     @SerializedName("countryCode") val countryCode: String? = null,
     @SerializedName("country") val country: String? = null,
     @SerializedName("subdivisionCode") val subdivisionCode: String? = null,
@@ -53,7 +61,11 @@ data class TaxRegistrationItemDto(
     @SerializedName("updatedBy") val updatedBy: TaxUserDto? = null,
     @SerializedName("createdAt") val createdAt: String? = null,
     @SerializedName("updatedAt") val updatedAt: String? = null
-)
+) {
+    // Helper property to maintain backward compatibility with screens using item.branchId
+    val branchId: String?
+        get() = branch?.id
+}
 
 data class TaxUserDto(
     @SerializedName("_id") val id: String = "",
@@ -78,4 +90,44 @@ data class TaxRegistrationViewOneResponse(
     @SerializedName("success") val success: Boolean = false,
     @SerializedName("data") val data: TaxRegistrationItemDto? = null,
     @SerializedName("message") val message: String? = null
+)
+
+// ── Request Payload for both Create and Update ──
+data class SaveTaxRegistrationRequest(
+    @SerializedName("branchId") val branchId: String?,
+    @SerializedName("countryCode") val countryCode: String,
+    @SerializedName("subdivisionCode") val subdivisionCode: String?,
+    @SerializedName("subdivisionName") val subdivisionName: String?,
+    @SerializedName("registrationType") val registrationType: String,
+    @SerializedName("registrationNumber") val registrationNumber: String,
+    @SerializedName("registeredLegalName") val registeredLegalName: String,
+    @SerializedName("registeredAddress") val registeredAddress: String,
+    @SerializedName("taxRegime") val taxRegime: String,
+    @SerializedName("taxScheme") val taxScheme: String,
+    @SerializedName("isPrimary") val isPrimary: Boolean,
+    @SerializedName("validFrom") val validFrom: String?,
+    @SerializedName("validTo") val validTo: String? = null,
+    @SerializedName("defaultIntraStateTaxGroupId") val defaultIntraStateTaxGroupId: String?,
+    @SerializedName("defaultInterStateTaxGroupId") val defaultInterStateTaxGroupId: String?,
+    @SerializedName("isGroupRegistration") val isGroupRegistration: Boolean,
+    @SerializedName("groupRepresentativeName") val groupRepresentativeName: String?,
+    @SerializedName("groupRepresentativeRegistrationNumber") val groupRepresentativeRegistrationNumber: String?,
+    @SerializedName("filingMethod") val filingMethod: String,
+    @SerializedName("filingFrequency") val filingFrequency: String,
+    @SerializedName("taxRoundingRule") val taxRoundingRule: String,
+    @SerializedName("showTaxBreakdownOnInvoice") val showTaxBreakdownOnInvoice: Boolean,
+    @SerializedName("showHsnSacOnInvoice") val showHsnSacOnInvoice: Boolean,
+    @SerializedName("showPlaceOfSupplyOnInvoice") val showPlaceOfSupplyOnInvoice: Boolean,
+    @SerializedName("authorizedFilingUsers") val authorizedFilingUsers: List<String>,
+    @SerializedName("reminderDaysBeforeDeadline") val reminderDaysBeforeDeadline: Int,
+    @SerializedName("sendEmailReminder") val sendEmailReminder: Boolean,
+    @SerializedName("notifyOnValidator") val notifyOnValidator: Boolean,
+    @SerializedName("taxAgentNumber") val taxAgentNumber: String?
+)
+
+// ── Response for Create & Update Operations ──
+data class TaxRegistrationActionResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("data") val data: TaxRegistrationItemDto? = null
 )

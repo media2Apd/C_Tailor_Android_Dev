@@ -6,6 +6,7 @@ package com.cuso.tailor.view.home
 
 import android.annotation.SuppressLint
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
@@ -31,6 +32,7 @@ import com.cuso.tailor.model.sales.OrderOverviewData
 import com.cuso.tailor.model.sales.OrderReviewData
 import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.model.settings.SegmentItem
+import com.cuso.tailor.model.settings.TaxRateItemDto
 import com.cuso.tailor.utils.uriToMultipartPart
 import com.cuso.tailor.view.home.hr.attendance_management.attendance.AttendanceListScreen
 import com.cuso.tailor.view.home.branch.BranchSettingsScreen
@@ -178,9 +180,9 @@ import com.cuso.tailor.view.home.services.service_status.delay_rework.DelayRewor
 import com.cuso.tailor.view.home.services.service_status.service_delivery.ServiceDeliveryStatusScreen
 import com.cuso.tailor.view.home.services.service_status.status.ServiceStatusDetailScreen
 import com.cuso.tailor.view.home.services.service_status.status.ServiceStatusScreen
-import com.cuso.tailor.view.home.services.settings.CreateServiceTemplateWizardScreen
-import com.cuso.tailor.view.home.services.settings.ServiceTemplateDetailViewScreen
-import com.cuso.tailor.view.home.services.settings.ServiceTemplateListScreen
+import com.cuso.tailor.view.home.services.settings.template.CreateServiceTemplateWizardScreen
+import com.cuso.tailor.view.home.services.settings.template.ServiceTemplateDetailViewScreen
+import com.cuso.tailor.view.home.services.settings.template.ServiceTemplateListScreen
 import com.cuso.tailor.view.home.subscriptions.SubscriptionFlowContainer
 import com.cuso.tailor.view.home.warehouse.WarehouseSettingsScreen
 import com.cuso.tailor.model.finance.InvoiceViewOneData
@@ -308,6 +310,19 @@ import com.cuso.tailor.view.home.settings.ApprovalRulesScreen
 import com.cuso.tailor.view.home.settings.CreateEditApprovalRuleScreen
 import com.cuso.tailor.viewmodel.MarketingViewModel
 import com.cuso.tailor.model.permission.PaywallModuleConfig
+import com.cuso.tailor.model.settings.ServicesProductionStageDto
+import com.cuso.tailor.view.home.finance.settings.AddTaxRateScreen
+import com.cuso.tailor.view.home.finance.settings.TaxRateItem
+import com.cuso.tailor.view.home.hr.settings.leave_type.CreateLeaveTypeScreen
+import com.cuso.tailor.view.home.hr.settings.leave_type.LeaveTypesListScreen
+import com.cuso.tailor.view.home.hr.settings.leave_type.LeaveTypeViewScreen
+import com.cuso.tailor.view.home.it.integerations.IntegrationManagementScreen
+import com.cuso.tailor.view.home.role.CreateRoleScreen
+import com.cuso.tailor.view.home.security.dashboard.SecurityDashboardScreen
+import com.cuso.tailor.view.home.security.user.CreateUserScreen
+import com.cuso.tailor.view.home.security.user.UserManagementScreen
+import com.cuso.tailor.view.home.services.settings.production_stages.ProductionStagesListScreen
+import com.cuso.tailor.view.home.services.settings.workflow_stages.AddEditProductionStageScreen
 import com.cuso.tailor.viewmodel.PermissionViewModel
 
 private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
@@ -316,11 +331,16 @@ private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 @Composable
 fun HomeScreenRouter(
     screen: String,
-    // Add these two parameters:
+    selectedLeaveTypeIdForEdit: String? = null,
+    selectedLeaveTypeIdForView: String? = null,
+    onLeaveTypeIdForViewSelected: (String?) -> Unit = {},
+    onLeaveTypeIdForEditSelected: (String?) -> Unit = {},
     paywallModuleConfig: PaywallModuleConfig? = null,
     permissionViewModel: PermissionViewModel = hiltViewModel(),
     selectedApprovalRuleIdForEdit: String? = null,
     onApprovalRuleIdForEditSelected: (String?) -> Unit = {},
+    selectedRoleIdForEdit: String? = null,
+    onRoleIdForEditSelected: (String?) -> Unit = {},
     selectedCampaignCode: String? = null,
     onCampaignCodeSelected: (String?) -> Unit = {},
     selectedTicketId: String? = null,
@@ -415,8 +435,10 @@ fun HomeScreenRouter(
     onOpportunityIdSelected: (String?) -> Unit = {},
     selectedMeasurementItem: MeasurementItem? = null,
     selectedServiceTemplate: ProductionTemplateDto? = null,
-    onServiceTemplateSelected: (ProductionTemplateDto?) -> Unit = {},
+    selectedProductionStage: ServicesProductionStageDto? = null,
+    onProductionStageSelected: (ServicesProductionStageDto?) -> Unit = {},
     onMeasurementItemSelected: (MeasurementItem?) -> Unit = {},
+    onServiceTemplateSelected: (ProductionTemplateDto?) -> Unit = {},
     selectedBarcodeIdForDetail: String? = null,
     onBarcodeIdForDetailSelected: (String?) -> Unit = {},
     selectedSupplier: SupplierRow?,
@@ -512,8 +534,9 @@ fun HomeScreenRouter(
             )
         }
         // Also add "home_create_approval_rule" here so it routes to HomeAndSettingsRouter
+        // Added "home_create_role" to route into HomeAndSettingsRouter
         "home", "settings", "home_organization_profile", "home_branch_management",
-        "home_department_teams", "home_approval_rules", "home_create_approval_rule", "home_designation", "home_role_management",
+        "home_department_teams", "home_approval_rules", "home_create_approval_rule", "home_designation", "home_role_management", "home_create_role",
         "home_opening_balance", "home_warehouse_management", "profile-settings",
         "settings_overview", "manage_subscription", "module_settings",
         "organization_settings", "home_business_setup" -> {
@@ -521,6 +544,9 @@ fun HomeScreenRouter(
                 screen = screen,
                 selectedApprovalRuleIdForEdit = selectedApprovalRuleIdForEdit,
                 onApprovalRuleIdForEditSelected = onApprovalRuleIdForEditSelected,
+                // Forward role edit states
+                selectedRoleIdForEdit = selectedRoleIdForEdit,
+                onRoleIdForEditSelected = onRoleIdForEditSelected,
                 navController = navController,
                 widthSizeClass = widthSizeClass,
                 settingsViewModel = settingsViewModel,
@@ -615,7 +641,7 @@ fun HomeScreenRouter(
         "finance_purchase_returns", "finance_purchase_return_detail", "finance_create_purchase_return",
         "finance_sales_orders", "finance_cash_book", "finance_cash_book_detail",
         "finance_bank_accounts", "finance_create_bank_account", "finance_bank_account_detail",
-        "finance_bank_statements", "finance_bank_statement_detail", "finance_import_bank_statement" -> {
+        "finance_bank_statements", "finance_bank_statement_detail", "finance_import_bank_statement","finance_add_tax_rate" -> {
             FinanceRouter(
                 screen = screen,
                 selectedPurchaseReturnId = selectedPurchaseReturnId,
@@ -793,13 +819,20 @@ fun HomeScreenRouter(
         "hr_training_assignment_list", "hr_assign_training_form",
         "hr_document_categories",
         "hr_add_document_category",
-        "hr_employee_document_upload",
+        "hr_create_leave_type",
+        "hr_view_leave_type",
+        "hr_employee_document_upload","hr_leave_types",
         "hr_new_document_upload", "hr_organization_structure",
         "hr_expense_claims","hr_expense_new_claim", "hr_expense_type", "hr_submit_expense_claim", "hr_expense_claim_detail","hr_expense_claim_detail_readonly",
         "hr_expense_finance_reimbursement","hr_edit_expense_claim","hr_add_expense_type","hr_expense_process_payment"   -> {
             HrRouter(
                 screen = screen,
+                settingsViewModel = settingsViewModel,
                 selectedClaimForPayment = selectedClaimForPayment,
+                selectedLeaveTypeIdForView = selectedLeaveTypeIdForView,
+                onLeaveTypeIdForViewSelected = onLeaveTypeIdForViewSelected,
+                selectedLeaveTypeIdForEdit = selectedLeaveTypeIdForEdit,
+                onLeaveTypeIdForEditSelected = onLeaveTypeIdForEditSelected,
                 onClaimForPaymentSelected = onClaimForPaymentSelected,
                 selectedExpenseTypeId = selectedExpenseTypeId,
                 onExpenseTypeIdSelected = onExpenseTypeIdSelected,
@@ -897,10 +930,12 @@ fun HomeScreenRouter(
         "services_service_templates", "services_create_service_template",
         "services_production_works",
         "services_view_service_template", "review_service_request", "complaint_detail",
-        "services_production_pipeline", "services_qc_delivery", "services_assignment_mode" -> {
+        "services_production_pipeline", "services_qc_delivery", "services_assignment_mode",
+        "services_production_stages", "services_create_production_stage", "services_workflow_stages" -> {
             ServicesRouter(
                 screen = screen,
                 servicesViewModel = servicesViewModel,
+                settingsViewModel = settingsViewModel,
                 selectedAssignmentJobCardId = selectedAssignmentJobCardId,
                 onAssignmentJobCardIdSelected = onAssignmentJobCardIdSelected,
                 selectedComplaintId = selectedComplaintId,
@@ -919,6 +954,8 @@ fun HomeScreenRouter(
                 onFeedbackIdSelected = onFeedbackIdSelected,
                 selectedServiceTemplate = selectedServiceTemplate,
                 onServiceTemplateSelected = onServiceTemplateSelected,
+                selectedProductionStage = selectedProductionStage,
+                onProductionStageSelected = onProductionStageSelected,
                 pendingOrderReviewData = pendingOrderReviewData,
                 onPendingOrderReviewDataChange = onPendingOrderReviewDataChange,
                 // inside the services block
@@ -967,6 +1004,21 @@ fun HomeScreenRouter(
             )
         }
 
+        // ── Security Module Router Dispatch ──
+        "security_dashboard", "security_users", "security_roles",
+        "security_data_backup", "security_recovery", "security_api_integration",
+        "security_api_logs", "security_mobile_security", "security_help_center",
+        "security_support_ticket", "security_audit_logs","security_create_user" -> {
+            SecurityRouter(
+                screen = screen,
+                onNavigate = onNavigate,
+                onGoBack = onGoBack,
+                branchViewModel = branchViewModel,
+                hrViewModel = hrViewModel,
+                onShowComingSoon = onShowComingSoon
+            )
+        }
+
         else -> {}
     }
 }
@@ -974,9 +1026,11 @@ fun HomeScreenRouter(
 @Composable
 private fun HomeAndSettingsRouter(
     screen: String,
-    // Add these two parameters:
     selectedApprovalRuleIdForEdit: String? = null,
     onApprovalRuleIdForEditSelected: (String?) -> Unit = {},
+    // 1. Added role parameters
+    selectedRoleIdForEdit: String? = null,
+    onRoleIdForEditSelected: (String?) -> Unit = {},
     navController: NavHostController,
     widthSizeClass: WindowWidthSizeClass,
     settingsViewModel: SettingsViewModel,
@@ -1030,7 +1084,28 @@ private fun HomeAndSettingsRouter(
         "home_role_management" -> RoleSettingsScreen(
             navController = navController,
             onMenuClick = onOpenDrawer,
-            onBack = onGoBack
+            onBack = onGoBack,
+            onAddRoleClick = {
+                onRoleIdForEditSelected(null) // Ensures Create mode
+                onNavigate("home_create_role")
+            },
+            onEditRoleClick = { roleId ->
+                onRoleIdForEditSelected(roleId) // Passes ID for Edit mode
+                onNavigate("home_create_role")
+            }
+        )
+
+        // 3. Added dedicated Create / Edit Role Screen route
+        "home_create_role" -> CreateRoleScreen(
+            roleIdToEdit = selectedRoleIdForEdit,
+            onBack = {
+                onRoleIdForEditSelected(null)
+                onGoBack()
+            },
+            onRoleSaved = {
+                onRoleIdForEditSelected(null)
+                onGoBack()
+            }
         )
 
         "home_opening_balance" -> OpeningBalancesScreen(
@@ -1098,9 +1173,10 @@ private fun HomeAndSettingsRouter(
 
         "settings_overview" -> SettingsOverviewScreen(
             onClose = onGoBack,
-            onNavigateToOrganizationSettings = { onSafeNavigate("organization_settings") },
-            onNavigateToModuleSettings = { onSafeNavigate("module_settings") },
-            onNavigateToSubscriptionSettings = { onSafeNavigate("manage_subscription") }
+            // Open organization settings menu directly without blocking
+            onNavigateToOrganizationSettings = { onNavigate("organization_settings") },
+            onNavigateToModuleSettings = { onNavigate("module_settings") },
+            onNavigateToSubscriptionSettings = { onNavigate("manage_subscription") }
         )
 
         "manage_subscription" -> SubscriptionFlowContainer(
@@ -1113,6 +1189,9 @@ private fun HomeAndSettingsRouter(
             onNavigateToModule = { route -> onSafeNavigate(route) },
             onConfigureHome = { onSafeNavigate("home_organization_profile") },
             onConfigureSales = { onSafeNavigate("sales_garment_type") },
+            onNavigateLeaveTypes = { onSafeNavigate("hr_leave_types") },
+            onNavigateLeavePolicies = { onShowComingSoon("Leave Policies Coming Soon") },
+            onNavigatePieceRateSetup = { onShowComingSoon("Piece Rate Setup Coming Soon") },
             onConfigureSalesPricing = { onSafeNavigate("sales_garment_pricing_setup") },
             onConfigureMarketing = { onShowComingSoon("Marketing Settings Coming Soon") },
             onConfigureFinance = { onSafeNavigate("finance_chart_of_accounts") },
@@ -1123,6 +1202,7 @@ private fun HomeAndSettingsRouter(
             onNavigateLocationStructure = { onSafeNavigate("inventory_location_structure") },
             onNavigateFloorOverview = { onSafeNavigate("inventory_floor_overview") },
             onNavigateSectionOverview = { onSafeNavigate("inventory_section_overview") },
+            onNavigateProductionStages = { onSafeNavigate("services_production_stages") },
             onNavigateRackOverview = { onSafeNavigate("inventory_rack_overview") },
             onNavigateBinOverview = { onSafeNavigate("inventory_bin_overview") },
             onNavigateAutoReorder = { onSafeNavigate("inventory_auto_reorder_settings") },
@@ -1140,19 +1220,20 @@ private fun HomeAndSettingsRouter(
             onClose = onGoBack,
             onNavigate = { routeKey ->
                 when (routeKey) {
-                    "organization_profile" -> onNavigate("home_organization_profile")
-                    "business_setup" -> onNavigate("home_business_setup")
-                    "approval_rules" -> onNavigate("home_approval_rules")
-                    "tax_rates" -> onNavigate("finance_tax_rates")
-                    "gst_settings" -> onNavigate("finance_gst_settings")
-                    "branch_management" -> onNavigate("home_branch_management")
-                    "department_teams" -> onNavigate("home_department_teams")
-                    "designation" -> onNavigate("home_designation")
-                    "role" -> onNavigate("home_role_management")
-                    "opening_balance" -> onNavigate("home_opening_balance")
-                    "warehouse" -> onNavigate("home_warehouse_management")
+                    // Check permission only when user clicks the specific item
+                    "organization_profile" -> onSafeNavigate("home_organization_profile")
+                    "business_setup" -> onSafeNavigate("home_business_setup")
+                    "approval_rules" -> onSafeNavigate("home_approval_rules")
+                    "tax_rates" -> onSafeNavigate("finance_tax_rates")
+                    "gst_settings" -> onSafeNavigate("finance_gst_settings")
+                    "branch_management" -> onSafeNavigate("home_branch_management")
+                    "department_teams" -> onSafeNavigate("home_department_teams")
+                    "designation" -> onSafeNavigate("home_designation")
+                    "role" -> onSafeNavigate("home_role_management")
+                    "opening_balance" -> onSafeNavigate("home_opening_balance")
+                    "warehouse" -> onSafeNavigate("home_warehouse_management")
                     "manage_subcription", "overview", "current_plan" -> onNavigate("manage_subscription")
-                    else -> onNavigate(routeKey)
+                    else -> onSafeNavigate(routeKey)
                 }
             }
         )
@@ -1581,7 +1662,7 @@ private fun SalesRouter(
             },
             onViewMeasurement = { item ->
                 //  Check if customerId exists in clicked item
-                android.util.Log.d("MEASUREMENT_DEBUG", "STEP 1: Clicked Measurement Card -> id='${item.id}', customerId='${item.customerId}', customerName='${item.customerName}'")
+                Log.d("MEASUREMENT_DEBUG", "STEP 1: Clicked Measurement Card -> id='${item.id}', customerId='${item.customerId}', customerName='${item.customerName}'")
                 onMeasurementItemSelected(item)
                 onNavigate("measurements_available_view")
             },
@@ -1626,7 +1707,7 @@ private fun SalesRouter(
 
         "measurements_available_view" -> {
             //  Check if customerId is being passed into the dialog
-            android.util.Log.d("MEASUREMENT_DEBUG", "STEP 2: Router navigating to measurements_available_view -> customerId='${selectedMeasurementItem?.customerId}'")
+            Log.d("MEASUREMENT_DEBUG", "STEP 2: Router navigating to measurements_available_view -> customerId='${selectedMeasurementItem?.customerId}'")
             MeasurementsAvailableDialog(
                 customerId = selectedMeasurementItem?.customerId,
                 onGarmentSelected = { preset ->
@@ -2142,6 +2223,7 @@ private fun FinanceRouter(
 ) {
     val financeViewModel: FinanceViewModel = hiltViewModel()
     var selectedPurchaseOrderForEdit by remember { mutableStateOf<PurchaseOrder?>(null) }
+    var selectedTaxRateForEdit by remember { mutableStateOf<TaxRateItemDto?>(null) }
 
     when (screen) {
         // Finance Dashboard overview screen
@@ -2653,21 +2735,77 @@ private fun FinanceRouter(
             }
         )
 
+        // Tax Rates Directory
         "finance_tax_rates" -> TaxRatesScreen(
-            taxRates = emptyList(),
-            stats = emptyList(),
+            viewModel = settingsViewModel,
             onClose = onGoBack,
-            onAddTaxRate = { onNavigate("finance_add_gst") },
-            onAddTaxGroup = { onNavigate("finance_add_tax_group") },
-            onEditRate = { },
-            onDeleteRate = { }
+            onAddTaxRate = {
+                selectedTaxRateForEdit = null
+                onNavigate("finance_add_tax_rate")
+            },
+            onAddTaxGroup = {
+                onNavigate("finance_add_tax_group")
+            },
+            onEditRate = { rateItem ->
+                selectedTaxRateForEdit = rateItem
+                onNavigate("finance_add_tax_rate")
+            },
+            onDeleteRate = { rateItem ->
+                // Delete action if needed
+            }
         )
 
-        "finance_add_tax_group" -> AddTaxGroupScreen(
-            onClose = onGoBack,
-            onCreateGroup = { onGoBack() }
+        // Add / Edit Tax Rate Screen
+        "finance_add_tax_rate" -> AddTaxRateScreen(
+            onClose = {
+                selectedTaxRateForEdit = null
+                onGoBack()
+            },
+            onSaveTaxRate = { formState ->
+                selectedTaxRateForEdit = null
+                onGoBack()
+            }
         )
 
+        // Create Tax Group Screen
+        "finance_add_tax_group" -> {
+            // Trigger fetch for tax rates when entering the screen
+            LaunchedEffect(Unit) {
+                settingsViewModel.fetchTaxRates(page = 1, limit = 100)
+            }
+
+            // Correct StateFlow names from SettingsViewModel
+            val taxRatesList by settingsViewModel.taxRates.collectAsStateWithLifecycle()
+            val isSaving by settingsViewModel.isSubmittingTaxGroup.collectAsStateWithLifecycle()
+
+            // Map TaxRateItemDto list from ViewModel to TaxRateItem expected by AddTaxGroupScreen
+            val allTaxes = remember(taxRatesList) {
+                taxRatesList.map { dto ->
+                    TaxRateItem(
+                        id = dto.id,
+                        name = dto.name,
+                        rate = dto.rate
+                    )
+                }
+            }
+
+            AddTaxGroupScreen(
+                onClose = onGoBack,
+                allTaxes = allTaxes,
+                isLoading = isSaving,
+                onCreateGroup = { name, taxRateIds ->
+                    // Call ViewModel API function to create the tax group
+                    settingsViewModel.createTaxGroup(
+                        name = name,
+                        taxRateIds = taxRateIds,
+                        onSuccess = {
+                            onGoBack()
+                        }
+                    )
+                }
+            )
+        }
+        
         // ── Cash Books List Screen ──
         "finance_cash_book" -> {
             CashBookListScreen(
@@ -2895,7 +3033,7 @@ private fun InventoryMainRouter(
         )
 
         "inventory_create_item" -> {
-            android.util.Log.d("InventoryNav", ">> Entering inventory_create_item with ID: '$selectedInventoryItemId'")
+            Log.d("InventoryNav", ">> Entering inventory_create_item with ID: '$selectedInventoryItemId'")
             CreateItemScreen(
                 itemId = selectedInventoryItemId,
                 onDismiss = {
@@ -3106,12 +3244,12 @@ private fun InventoryMainRouter(
 //                }
 //            },
             onEditClick = { itemId ->
-                android.util.Log.d("InventoryNav", ">> SafetyStock 3-Dot Edit Clicked. ItemId: '$itemId'")
+                Log.d("InventoryNav", ">> SafetyStock 3-Dot Edit Clicked. ItemId: '$itemId'")
                 if (itemId.isNotBlank()) {
                     onInventoryItemIdSelected(itemId)
                     onNavigate("inventory_create_item")
                 } else {
-                    android.util.Log.e("InventoryNav", ">> SafetyStock Edit Click: ItemId is NULL or BLANK!")
+                    Log.e("InventoryNav", ">> SafetyStock Edit Click: ItemId is NULL or BLANK!")
                 }
             },
             onFilterClick = { }
@@ -3722,7 +3860,12 @@ private fun InventoryProcurementRouter(
 @Composable
 private fun HrRouter(
     screen: String,
+    settingsViewModel: SettingsViewModel,
     selectedClaimForPayment: ExpenseClaimDto? = null,
+    selectedLeaveTypeIdForEdit: String? = null,
+    selectedLeaveTypeIdForView: String? = null,
+    onLeaveTypeIdForViewSelected: (String?) -> Unit = {},
+    onLeaveTypeIdForEditSelected: (String?) -> Unit = {},
     onClaimForPaymentSelected: (ExpenseClaimDto?) -> Unit = {},
     selectedExpenseTypeId: String? = null,
     onExpenseTypeIdSelected: (String?) -> Unit = {},
@@ -4207,6 +4350,60 @@ private fun HrRouter(
                     }
                 )
             } ?: run { onGoBack() }
+        }
+
+        // 1. Leave Types List Screen
+        "hr_leave_types" -> {
+            LeaveTypesListScreen(
+                viewModel = settingsViewModel,
+                onClose = onGoBack,
+                onCreateNew = {
+                    onLeaveTypeIdForEditSelected(null)
+                    onNavigate("hr_create_leave_type")
+                },
+                onViewLeaveType = { leaveTypeId ->
+                    onLeaveTypeIdForViewSelected(leaveTypeId)
+                    onNavigate("hr_view_leave_type")
+                },
+                onEditLeaveType = { leaveTypeId ->
+                    onLeaveTypeIdForEditSelected(leaveTypeId)
+                    onNavigate("hr_create_leave_type")
+                }
+            )
+        }
+
+        // 2. Full Page View Details Screen
+        "hr_view_leave_type" -> {
+            LeaveTypeViewScreen(
+                leaveTypeId = selectedLeaveTypeIdForView.orEmpty(),
+                viewModel = settingsViewModel,
+                onClose = {
+                    onLeaveTypeIdForViewSelected(null)
+                    onGoBack()
+                },
+                onEdit = { leaveTypeId ->
+                    onLeaveTypeIdForViewSelected(null)
+                    onLeaveTypeIdForEditSelected(leaveTypeId)
+                    onNavigate("hr_create_leave_type")
+                }
+            )
+        }
+
+        // 3. Full Page Create / Edit Form Screen
+        "hr_create_leave_type" -> {
+            CreateLeaveTypeScreen(
+                leaveTypeIdToEdit = selectedLeaveTypeIdForEdit,
+                viewModel = settingsViewModel,
+                onClose = {
+                    onLeaveTypeIdForEditSelected(null)
+                    onGoBack()
+                },
+                onSavedSuccess = {
+                    onLeaveTypeIdForEditSelected(null)
+                    settingsViewModel.fetchLeaveTypes(page = 1)
+                    onGoBack()
+                }
+            )
         }
     }
 }
@@ -5090,6 +5287,7 @@ private fun ServicesRouter(
     screen: String,
     hrViewModel: HrViewModel,
     servicesViewModel: ServicesViewModel,
+    settingsViewModel: SettingsViewModel, // <-- 1. ADD THIS
     selectedAssignmentJobCardId: String? = null,
     onAssignmentJobCardIdSelected: (String?) -> Unit = {},
     selectedComplaintId: String? = null,
@@ -5108,6 +5306,8 @@ private fun ServicesRouter(
     onFeedbackIdSelected: (String?) -> Unit,
     selectedServiceTemplate: ProductionTemplateDto?,
     onServiceTemplateSelected: (ProductionTemplateDto?) -> Unit,
+    selectedProductionStage: ServicesProductionStageDto?, // <-- 2. ADD THIS
+    onProductionStageSelected: (ServicesProductionStageDto?) -> Unit, // <-- 3. ADD THIS
     pendingOrderReviewData: OrderReviewData?,
     onPendingOrderReviewDataChange: (OrderReviewData?) -> Unit,
     onNavigate: (String) -> Unit,
@@ -5116,6 +5316,9 @@ private fun ServicesRouter(
     onOpenDrawer: () -> Unit,
     onOpenModulesPanel: (String) -> Unit
 ) {
+    // Add state for editing a stage and inject the ViewModel
+    var selectedStageForEdit by remember { mutableStateOf<ServicesProductionStageDto?>(null) }
+    val productionStagesViewModel: SettingsViewModel = hiltViewModel()
     when (screen) {
         "services_dashboard" -> ServicesDashboardScreen(
             onNavigateToRequests = { onNavigate("services_service_request") },
@@ -5266,7 +5469,33 @@ private fun ServicesRouter(
                 onGoBack()
             }
         }
+        // ── Production / Workflow Stages List Screen ──
+        "services_production_stages", "services_workflow_stages" -> {
+            ProductionStagesListScreen(
+                viewModel = settingsViewModel,
+                onClose = onGoBack,
+                onAddNewStage = {
+                    onProductionStageSelected(null)
+                    onNavigate("services_create_production_stage")
+                },
+                onEditStage = { stage ->
+                    onProductionStageSelected(stage)
+                    onNavigate("services_create_production_stage")
+                }
+            )
+        }
 
+        // ── Add / Edit Production Stage Screen ──
+        "services_create_production_stage" -> {
+            AddEditProductionStageScreen(
+                stageToEdit = selectedProductionStage,
+                viewModel = settingsViewModel,
+                onClose = {
+                    onProductionStageSelected(null)
+                    onGoBack()
+                }
+            )
+        }
         "service_order_overview" -> {
             selectedOrderId?.let { id ->
                 ServiceOrderOverviewScreen(
@@ -5373,17 +5602,17 @@ private fun ServicesRouter(
         "services_service_templates" -> ServiceTemplateListScreen(
             onClose = onGoBack,
             onAddNewTemplate = {
-                android.util.Log.d("TEMPLATE_NAV_DEBUG", ">> Add New Clicked: clearing selected template")
+                Log.d("TEMPLATE_NAV_DEBUG", ">> Add New Clicked: clearing selected template")
                 onServiceTemplateSelected(null)
                 onNavigate("services_create_service_template")
             },
             onViewTemplate = { templateItem ->
-                android.util.Log.d("TEMPLATE_NAV_DEBUG", ">> View Template Clicked: id='${templateItem.id}', name='${templateItem.name}'")
+                Log.d("TEMPLATE_NAV_DEBUG", ">> View Template Clicked: id='${templateItem.id}', name='${templateItem.name}'")
                 onServiceTemplateSelected(templateItem)
                 onNavigate("services_view_service_template")
             },
             onEditTemplate = { templateItem ->
-                android.util.Log.d("TEMPLATE_NAV_DEBUG", ">> Edit Template Clicked: id='${templateItem.id}', name='${templateItem.name}'")
+                Log.d("TEMPLATE_NAV_DEBUG", ">> Edit Template Clicked: id='${templateItem.id}', name='${templateItem.name}'")
                 onServiceTemplateSelected(templateItem)
                 onNavigate("services_create_service_template")
             }
@@ -5406,7 +5635,7 @@ private fun ServicesRouter(
         }
 
         "services_create_service_template" -> {
-            android.util.Log.d("TEMPLATE_NAV_DEBUG", ">> Navigating to Create/Edit Screen with templateId: '${selectedServiceTemplate?.id}'")
+            Log.d("TEMPLATE_NAV_DEBUG", ">> Navigating to Create/Edit Screen with templateId: '${selectedServiceTemplate?.id}'")
             CreateServiceTemplateWizardScreen(
                 templateIdToEdit = selectedServiceTemplate?.id,
                 onClose = {
@@ -5565,7 +5794,13 @@ private fun ItRouter(
             }
         }
 
-        "it_integrations" -> onShowComingSoon("Integrations Coming Soon")
+        "it_integrations" -> {
+            val marketingViewModel: MarketingViewModel = hiltViewModel()
+            IntegrationManagementScreen(
+                viewModel = marketingViewModel,
+                onClose = onGoBack
+            )
+        }
 
         // IT Backup & Recovery List
         "it_backup_recovery" -> {
@@ -5698,6 +5933,79 @@ private fun ItRouter(
         }
 
         else -> onGoBack()
+    }
+}
+
+
+
+/**
+ * Router dedicated to Security Module screens.
+ */
+@Composable
+private fun SecurityRouter(
+    screen: String,
+    securityViewModel: SecurityViewModel = hiltViewModel(),
+    hrViewModel: HrViewModel,
+    branchViewModel: BranchViewModel,
+    permissionViewModel: PermissionViewModel = hiltViewModel(), // Injected for RBAC action checks
+    onNavigate: (String) -> Unit,
+    onGoBack: () -> Unit,
+    onShowComingSoon: (String) -> Unit
+) {
+    when (screen) {
+        "security_dashboard" -> {
+            SecurityDashboardScreen(
+                viewModel = securityViewModel,
+                onClose = onGoBack
+            )
+        }
+
+        // Navigate to UserManagementScreen when Security -> User Management is clicked
+        "security_users" -> {
+            UserManagementScreen(
+                securityViewModel = securityViewModel,
+                permissionViewModel = permissionViewModel,
+                onBack = onGoBack,
+                onCreateUserClick = {
+                    onNavigate("security_create_user") // Navigate to Create User screen
+                },
+                onViewUserClick = { userId ->
+                    // Handle view user details if needed
+                },
+                onEditUserClick = { userId ->
+                    // Handle edit user if needed
+                }
+            )
+        }
+
+        // Dedicated Create User screen route
+        // 2. Create User Screen
+        "security_create_user" -> {
+            val departmentViewModel: DepartmentViewModel = hiltViewModel()
+            val designationViewModel: DesignationViewModel = hiltViewModel()
+
+            CreateUserScreen(
+                securityViewModel = securityViewModel,
+                hrViewModel = hrViewModel,
+                branchViewModel = branchViewModel,
+                departmentViewModel = departmentViewModel,
+                designationViewModel = designationViewModel,
+                onBack = onGoBack,
+                onUserCreated = {
+                    securityViewModel.fetchUsers() // Refresh user list after creation
+                    onGoBack()
+                }
+            )
+        }
+
+        "security_roles" -> {
+            // Directs Security -> Roles Management to the same RoleSettingsScreen
+            onNavigate("home_role_management")
+        }
+        else -> {
+            onShowComingSoon("Coming Soon, Stay tuned !")
+            onGoBack()
+        }
     }
 }
 @Composable

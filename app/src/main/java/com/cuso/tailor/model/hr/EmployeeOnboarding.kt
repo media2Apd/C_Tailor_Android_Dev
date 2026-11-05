@@ -830,3 +830,38 @@ data class MemberDetail(
     val permissions: Map<String, Any>? = null,
     val __v: Int? = null
 )
+/**
+ * Request payload sent to POST /api/roles/create
+ */
+data class CreateRoleRequest(
+    @SerializedName("name") val name: String,
+    @SerializedName("roleCode") val roleCode: String,
+    @SerializedName("description") val description: String,
+    @SerializedName("status") val status: Boolean = true,
+    @SerializedName("isDefault") val isDefault: Boolean = false,
+    @SerializedName("accessScope") val accessScope: String = "branch",
+    @SerializedName("sessionTimeoutMinutes") val sessionTimeoutMinutes: Int = 30,
+    @SerializedName("fieldPermissions") val fieldPermissions: Map<String, Map<String, Map<String, Boolean>>>,
+    @SerializedName("permissions") val permissions: Map<String, Any>
+)
+
+data class RoleResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("data") val data: RoleData? = null
+)
+
+data class RoleData(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("name") val name: String,
+    @SerializedName("roleCode") val roleCode: String,
+    @SerializedName("description") val description: String? = null,
+    @SerializedName("organizationId") val organizationId: String? = null,
+    @SerializedName("isSystemRole") val isSystemRole: Boolean = false,
+    @SerializedName("isDefault") val isDefault: Boolean = false,
+    @SerializedName("accessScope") val accessScope: String? = null,
+    @SerializedName("sessionTimeoutMinutes") val sessionTimeoutMinutes: Int? = null,
+    @SerializedName("status") val status: Boolean = true,
+    @SerializedName("permissions") val permissions: Map<String, Map<String, Any>>? = null,
+    @SerializedName("fieldPermissions") val fieldPermissions: Map<String, Map<String, Map<String, Boolean>>>? = null
+)

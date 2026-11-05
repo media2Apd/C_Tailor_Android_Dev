@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import com.cuso.tailor.database.entities.SelectedGarment
 import com.cuso.tailor.database.dao.LeadDao
 import com.cuso.tailor.database.dao.OrganizationDao
+import com.cuso.tailor.database.dao.PermissionDao
 import com.cuso.tailor.database.dao.SalesStatusDao
 import com.cuso.tailor.database.dao.SalesSummaryDao
 import com.cuso.tailor.database.dao.SelectedGarmentDao
@@ -12,19 +13,7 @@ import com.cuso.tailor.database.dao.SettingsDao
 import com.cuso.tailor.database.dao.SubscriptionDao
 import com.cuso.tailor.database.dao.TokensDao
 import com.cuso.tailor.database.dao.UserDao
-import com.cuso.tailor.database.entities.FeatureEnabledEntity
-import com.cuso.tailor.database.entities.LeadEntity
-import com.cuso.tailor.database.entities.OrgBranchEntity
-import com.cuso.tailor.database.entities.OrgDomainEntity
-import com.cuso.tailor.database.entities.OrgSegmentEntity
-import com.cuso.tailor.database.entities.OrganizationEntity
-import com.cuso.tailor.database.entities.SalesStatusEntity
-import com.cuso.tailor.database.entities.SalesSummaryEntity
-import com.cuso.tailor.database.entities.SettingsEntity
-import com.cuso.tailor.database.entities.SubscriptionEntity
-import com.cuso.tailor.database.entities.TokensEntity
-import com.cuso.tailor.database.entities.UserEntity
-import com.cuso.tailor.database.entities.WorkingDayEntity
+import com.cuso.tailor.database.entities.*
 
 @Database(
     entities = [
@@ -41,9 +30,11 @@ import com.cuso.tailor.database.entities.WorkingDayEntity
         SalesStatusEntity::class,
         SalesSummaryEntity::class,
         LeadEntity::class,
-        SelectedGarment::class
+        SelectedGarment::class,
+        UserPermissionEntity::class,
+        PlanModuleEntity::class
     ],
-    version = 17,
+    version = 19,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -57,6 +48,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun salesSummaryDao(): SalesSummaryDao
     abstract fun leadDao(): LeadDao
     abstract fun selectedGarmentDao(): SelectedGarmentDao
+    abstract fun permissionDao(): PermissionDao
 
     // Removed the duplicate nested "AppDatabase" class. It was unused and confusing.
 }

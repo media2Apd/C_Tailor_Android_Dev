@@ -4,6 +4,16 @@ package com.cuso.tailor.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.tailor.model.it.ApiCredentialItemDto
+import com.cuso.tailor.model.it.ApiCredentialsResponse
+import com.cuso.tailor.model.it.CourierConfigData
+import com.cuso.tailor.model.it.CourierConfigResponse
+import com.cuso.tailor.model.it.ExternalApiItemDto
+import com.cuso.tailor.model.it.ExternalApisResponse
+import com.cuso.tailor.model.it.IntegrationKind
+import com.cuso.tailor.model.it.RazorpayIntegrationData
+import com.cuso.tailor.model.it.RazorpayIntegrationResponse
+import com.cuso.tailor.model.it.UnifiedIntegrationItem
 import com.cuso.tailor.model.marketing.*
 import com.cuso.tailor.repository.ApiRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,6 +50,13 @@ private const val ADVERTISING_CREATIVES_URL = "/api/marketing/advertising/creati
 
 private val AD_PLATFORM_SYNC_URL = "/api/marketing/sync/trigger"
 private val AD_ACCOUNTS_URL = "/api/it/oauth/GOOGLE_ADS/accounts"
+
+// --- Integration Management Endpoints ---
+private const val COURIER_CONFIG_STATUS_URL = "/api/it/courier-config/status"
+private const val EXTERNAL_APIS_URL = "/api/it/integrations/external-apis"
+private const val API_CREDENTIALS_URL = "/api/it/integrations/api-credentials"
+private const val RAZORPAY_INTEGRATION_URL = "/api/it/integrations/razorpay"
+
 
 
 @HiltViewModel
@@ -1073,6 +1090,277 @@ class MarketingViewModel @Inject constructor(
             }
             val formatter = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
             formatter.format(cal.time)
+        }
+    }
+
+    // ── Integration States ──
+    private val _courierConfig = MutableStateFlow<CourierConfigData?>(null)
+    val courierConfig: StateFlow<CourierConfigData?> = _courierConfig.asStateFlow()
+
+    private val _externalApis = MutableStateFlow<List<ExternalApiItemDto>>(emptyList())
+    val externalApis: StateFlow<List<ExternalApiItemDto>> = _externalApis.asStateFlow()
+
+    private val _apiCredentials = MutableStateFlow<List<ApiCredentialItemDto>>(emptyList())
+    val apiCredentials: StateFlow<List<ApiCredentialItemDto>> = _apiCredentials.asStateFlow()
+
+    private val _razorpayIntegration = MutableStateFlow<RazorpayIntegrationData?>(null)
+    val razorpayIntegration: StateFlow<RazorpayIntegrationData?> = _razorpayIntegration.asStateFlow()
+
+    private val _isIntegrationsLoading = MutableStateFlow(false)
+    val isIntegrationsLoading: StateFlow<Boolean> = _isIntegrationsLoading.asStateFlow()
+
+    private val _integrationsSearchQuery = MutableStateFlow("")
+    val integrationsSearchQuery: StateFlow<String> = _integrationsSearchQuery.asStateFlow()
+
+    private val _integrationsCategoryFilter = MutableStateFlow("All")
+    val integrationsCategoryFilter: StateFlow<String> = _integrationsCategoryFilter.asStateFlow()
+
+    private val _integrationsStatusFilter = MutableStateFlow("All")
+    val integrationsStatusFilter: StateFlow<String> = _integrationsStatusFilter.asStateFlow()
+
+    /**
+     * Static catalog of planned connectors and platform managed services.
+     */
+    private val PLANNED_CONNECTORS = listOf(
+        UnifiedIntegrationItem("catalog:linkedin-ads", IntegrationKind.PLANNED, "linkedin-ads", "LinkedIn Ads", "Marketing", "Campaigns, leads and audience performance", "Connector not available", "", null),
+        UnifiedIntegrationItem("catalog:pinterest-ads", IntegrationKind.PLANNED, "pinterest-ads", "Pinterest Ads", "Marketing", "Promoted pins, campaigns and conversion performance", "Connector not available", "", null),
+        UnifiedIntegrationItem("catalog:tiktok-ads", IntegrationKind.PLANNED, "tiktok-ads", "TikTok Ads", "Marketing", "Campaigns, creatives and video ad performance", "Connector not available", "", null),
+        UnifiedIntegrationItem("catalog:instagram-organic", IntegrationKind.PLANNED, "instagram-organic", "Instagram Business", "Marketing", "Organic publishing and account insights", "Connector not available", "", null),
+        UnifiedIntegrationItem("catalog:linkedin-pages", IntegrationKind.PLANNED, "linkedin-pages", "LinkedIn Pages", "Marketing", "Company page publishing and engagement analytics", "Connector not available", "", null),
+        UnifiedIntegrationItem("catalog:youtube", IntegrationKind.PLANNED, "youtube", "YouTube", "Marketing", "Channel publishing and video analytics", "Connector not available", "", null),
+        UnifiedIntegrationItem("catalog:shopify", IntegrationKind.PLANNED, "shopify", "Shopify", "Marketplace", "Store products, orders and inventory", "Connector not available", "", null),
+        UnifiedIntegrationItem("catalog:woocommerce", IntegrationKind.PLANNED, "woocommerce", "WooCommerce", "Marketplace", "Store products, orders and inventory", "Connector not available", "", null),
+        UnifiedIntegrationItem("catalog:amazon", IntegrationKind.PLANNED, "amazon", "Amazon Seller Central", "Marketplace", "Marketplace orders, listings and inventory", "Connector not available", "", null),
+        UnifiedIntegrationItem("catalog:delhivery", IntegrationKind.PLANNED, "delhivery", "Delhivery", "Shipping", "Shipment booking, labels and tracking", "Connector not available", "", null),
+        UnifiedIntegrationItem("catalog:bluedart", IntegrationKind.PLANNED, "bluedart", "Blue Dart", "Shipping", "Shipment booking and delivery tracking", "Connector not available", "", null),
+        UnifiedIntegrationItem("catalog:stripe", IntegrationKind.PLANNED, "stripe", "Stripe", "Payments", "Payment processing and settlement reconciliation", "Connector not available", "", null),
+        UnifiedIntegrationItem("catalog:hubspot", IntegrationKind.PLANNED, "hubspot", "HubSpot", "CRM", "Customer, lead and sales-pipeline sync", "Connector not available", "", null),
+        UnifiedIntegrationItem("catalog:quickbooks", IntegrationKind.PLANNED, "quickbooks", "QuickBooks Online", "Accounting", "Invoices, expenses and ledger sync", "Connector not available", "", null)
+    )
+
+    private val PLATFORM_SERVICES = listOf(
+        UnifiedIntegrationItem("platform:google-sign-in", IntegrationKind.PLATFORM_SERVICE, "google-sign-in", "Google Sign-In", "Platform services", "Platform-managed user authentication", "Platform managed", "", null),
+        UnifiedIntegrationItem("platform:email-delivery", IntegrationKind.PLATFORM_SERVICE, "email-delivery", "Email delivery", "Platform services", "Platform-managed transactional email", "Platform managed", "", null),
+        UnifiedIntegrationItem("platform:cloudinary", IntegrationKind.PLATFORM_SERVICE, "cloudinary", "Cloudinary", "Platform services", "Platform-managed media storage", "Platform managed", "", null),
+        UnifiedIntegrationItem("platform:razorpay-billing", IntegrationKind.PLATFORM_SERVICE, "razorpay-billing", "Razorpay Billing", "Platform services", "CUSO subscription and billing service", "Platform managed", "", null)
+    )
+
+    /**
+     * Combines all live connections, planned connectors, and platform services.
+     */
+    val allIntegrations: StateFlow<List<UnifiedIntegrationItem>> = combine(
+        oauthStatusList,
+        courierConfig,
+        externalApis,
+        apiCredentials,
+        razorpayIntegration
+    ) { ads, courier, externals, credentials, rzp ->
+        val items = mutableListOf<UnifiedIntegrationItem>()
+
+        // 1. Ads
+        val metaAd = ads.find { it.platform == "META_ADS" }
+        items.add(
+            UnifiedIntegrationItem(
+                id = "ads:META_ADS",
+                kind = IntegrationKind.AD,
+                providerId = "META_ADS",
+                name = "Meta Ads",
+                category = "Marketing",
+                description = "Campaign, audience and performance data",
+                status = if (metaAd?.status == "CONNECTED") "Connected" else "Inactive",
+                accountId = metaAd?.adAccountId.orEmpty(),
+                lastSync = metaAd?.lastSyncedAt
+            )
+        )
+
+        val googleAd = ads.find { it.platform == "GOOGLE_ADS" }
+        items.add(
+            UnifiedIntegrationItem(
+                id = "ads:GOOGLE_ADS",
+                kind = IntegrationKind.AD,
+                providerId = "GOOGLE_ADS",
+                name = "Google Ads",
+                category = "Marketing",
+                description = "Google Ads campaigns and performance data",
+                status = if (googleAd?.status == "CONNECTED") "Connected" else "Inactive",
+                accountId = googleAd?.adAccountId.orEmpty(),
+                lastSync = googleAd?.lastSyncedAt
+            )
+        )
+
+        // 2. Shipping (Shiprocket)
+        items.add(
+            UnifiedIntegrationItem(
+                id = "shipping:shiprocket",
+                kind = IntegrationKind.COURIER,
+                providerId = "SHIPROCKET",
+                name = "Shiprocket",
+                category = "Shipping",
+                description = "Shipping labels, pickup and delivery tracking",
+                status = if (courier?.shiprocketEnabled == true) "Connected" else "Inactive",
+                accountId = if (courier?.apiEmail == "Not Configured") "" else courier?.apiEmail.orEmpty(),
+                lastSync = null
+            )
+        )
+
+        // 3. Planned Catalog
+        items.addAll(PLANNED_CONNECTORS)
+
+        // 4. Razorpay Tenant Integration
+        items.add(
+            UnifiedIntegrationItem(
+                id = "razorpay:tenant",
+                kind = IntegrationKind.RAZORPAY,
+                providerId = "RAZORPAY",
+                name = "Razorpay",
+                category = "Payments",
+                description = "Tenant payment gateway, settlements and payment status",
+                status = if (rzp?.isEnabled == true) "Connected" else if (rzp?.isConfigured == true) "Inactive" else "Inactive",
+                accountId = rzp?.keyIdHint.orEmpty(),
+                lastSync = rzp?.lastTestedAt
+            )
+        )
+
+        // 5. External APIs
+        externals.forEach { ext ->
+            items.add(
+                UnifiedIntegrationItem(
+                    id = "external:${ext.id}",
+                    kind = IntegrationKind.EXTERNAL_API,
+                    providerId = ext.id,
+                    name = ext.name,
+                    category = ext.category,
+                    description = ext.description ?: ext.baseUrl,
+                    status = if (ext.status == "CONNECTED") "Connected" else if (ext.status == "FAILED") "Failed" else "Inactive",
+                    accountId = ext.baseUrl,
+                    lastSync = ext.lastTestedAt,
+                    externalConnection = ext
+                )
+            )
+        }
+
+        // 6. CUSO API Credentials
+        credentials.forEach { cred ->
+            items.add(
+                UnifiedIntegrationItem(
+                    id = "cuso:${cred.id}",
+                    kind = IntegrationKind.API_CREDENTIAL,
+                    providerId = cred.id,
+                    name = cred.name,
+                    category = cred.category,
+                    description = cred.description ?: "CUSO-issued API key and webhook credentials",
+                    status = if (cred.status == "Connected") "Connected" else "Inactive",
+                    accountId = cred.baseUrl ?: cred.webhookUrl.orEmpty(),
+                    lastSync = cred.lastSync,
+                    apiCredentialConnection = cred
+                )
+            )
+        }
+
+        // 7. Platform Managed Services
+        items.addAll(PLATFORM_SERVICES)
+
+        items
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Filtered Integrations by Search query, Category filter, and Status filter.
+     */
+    val filteredIntegrations: StateFlow<List<UnifiedIntegrationItem>> = combine(
+        allIntegrations,
+        _integrationsSearchQuery,
+        _integrationsCategoryFilter,
+        _integrationsStatusFilter
+    ) { list, query, category, status ->
+        val cleanQuery = query.trim().lowercase()
+        list.filter { item ->
+            val matchesCategory = category.equals("All", ignoreCase = true) || item.category.equals(category, ignoreCase = true)
+            val matchesStatus = when (status) {
+                "All" -> true
+                "Needs attention" -> item.status.equals("Warning", ignoreCase = true) || item.status.equals("Failed", ignoreCase = true)
+                else -> item.status.equals(status, ignoreCase = true)
+            }
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.name.lowercase().contains(cleanQuery) ||
+                    item.category.lowercase().contains(cleanQuery) ||
+                    item.description.lowercase().contains(cleanQuery)
+
+            matchesCategory && matchesStatus && matchesQuery
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun onIntegrationSearchQueryChange(query: String) {
+        _integrationsSearchQuery.value = query
+    }
+
+    fun onIntegrationCategoryFilterChange(category: String) {
+        _integrationsCategoryFilter.value = category
+    }
+
+    fun onIntegrationStatusFilterChange(status: String) {
+        _integrationsStatusFilter.value = status
+    }
+
+    /**
+     * Loads all integration connections concurrently.
+     */
+    fun fetchAllIntegrations() {
+        viewModelScope.launch {
+            _isIntegrationsLoading.value = true
+            fetchOAuthStatus()
+            fetchCourierConfig()
+            fetchExternalApis()
+            fetchApiCredentials()
+            fetchRazorpayIntegration()
+            _isIntegrationsLoading.value = false
+        }
+    }
+
+    fun fetchCourierConfig() {
+        viewModelScope.launch {
+            val result = repo.request<CourierConfigResponse> {
+                get(COURIER_CONFIG_STATUS_URL)
+            }
+            result.fold(
+                onSuccess = { res -> if (res.success) _courierConfig.value = res.data },
+                onFailure = { /* Fail silently */ }
+            )
+        }
+    }
+
+    fun fetchExternalApis() {
+        viewModelScope.launch {
+            val result = repo.request<ExternalApisResponse> {
+                get(EXTERNAL_APIS_URL)
+            }
+            result.fold(
+                onSuccess = { res -> if (res.success) _externalApis.value = res.data },
+                onFailure = { /* Fail silently */ }
+            )
+        }
+    }
+
+    fun fetchApiCredentials() {
+        viewModelScope.launch {
+            val result = repo.request<ApiCredentialsResponse> {
+                get(API_CREDENTIALS_URL, repo.query("limit" to 100))
+            }
+            result.fold(
+                onSuccess = { res -> if (res.success) _apiCredentials.value = res.data },
+                onFailure = { /* Fail silently */ }
+            )
+        }
+    }
+
+    fun fetchRazorpayIntegration() {
+        viewModelScope.launch {
+            val result = repo.request<RazorpayIntegrationResponse> {
+                get(RAZORPAY_INTEGRATION_URL)
+            }
+            result.fold(
+                onSuccess = { res -> if (res.success) _razorpayIntegration.value = res.data },
+                onFailure = { /* Fail silently */ }
+            )
         }
     }
 }

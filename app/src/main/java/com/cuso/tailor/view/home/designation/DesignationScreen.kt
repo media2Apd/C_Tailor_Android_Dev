@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -48,8 +49,6 @@ import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DeleteModel
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FormDropdown
@@ -59,6 +58,7 @@ import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StepNavigationFab
+import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.viewmodel.DepartmentViewModel
@@ -95,6 +95,8 @@ fun DesignationScreen(
     var searchQuery by remember { mutableStateOf("") }
     var currentPage by remember { mutableIntStateOf(1) }
     val itemsPerPage = 10
+
+    val listState = rememberLazyListState() // Tracks current scroll position
 
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -162,7 +164,20 @@ fun DesignationScreen(
     val filteredDesignations = allDesignations.filter { d ->
         searchQuery.isBlank() || d.name.contains(searchQuery, ignoreCase = true) || d.code.contains(searchQuery, ignoreCase = true)
     }
-    val pagedDesignations = filteredDesignations.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
+
+// Slice items up to current page so previous items remain visible
+    val pagedDesignations = filteredDesignations.take(currentPage * itemsPerPage)
+    val canLoadMore = pagedDesignations.size < filteredDesignations.size
+
+// Trigger next page when scrolling near the end
+    LaunchedEffect(listState, pagedDesignations.size, canLoadMore) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastIndex ->
+                if (lastIndex != null && lastIndex >= pagedDesignations.size - 1 && canLoadMore) {
+                    currentPage++
+                }
+            }
+    }
 
     Box(Modifier.fillMaxSize()) {
         when (currentScreenMode) {
@@ -188,7 +203,10 @@ fun DesignationScreen(
                         Column(modifier = Modifier.fillMaxWidth()) {
                             SearchFilterBar(
                                 query = searchQuery,
-                                onQueryChange = { searchQuery = it },
+                                onQueryChange = {
+                                    searchQuery = it
+                                    currentPage = 1 // Reset to first page whenever search query changes
+                                },
                                 placeholder = "Search Designations...",
                                 accentColor = BluePrimary,
                                 borderColor = BorderGray,
@@ -201,9 +219,12 @@ fun DesignationScreen(
                             when (uiState) {
                                 is DesignationUiState.Loading -> ListSkeleton()
                                 is DesignationUiState.Error -> {
+                                    // Pass real error message from state instead of static message
                                     AppErrorState(
-                                        title = "Failed to load designation",
-                                        message = "Something went wrong. Please check your connection and try again.",
+                                        title = "Failed to load designations",
+                                        message = (uiState as DesignationUiState.Error).message.ifBlank {
+                                            "Something went wrong. Please check your connection and try again."
+                                        },
                                         onRetry = { viewModel.loadDesignations() }
                                     )
                                 }
@@ -214,6 +235,7 @@ fun DesignationScreen(
                                         }
                                     } else {
                                         LazyColumn(
+                                            state = listState, // Attach LazyListState
                                             modifier = Modifier.fillMaxSize(),
                                             contentPadding = PaddingValues(bottom = 80.dp)
                                         ) {
@@ -311,6 +333,13 @@ fun DesignationScreen(
                                                         }
                                                     }
                                                 )
+                                            }
+                                            if (canLoadMore) {
+                                                item {
+                                                    ThreeDotLoading(
+                                                        modifier = Modifier.padding(bottom = 16.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }

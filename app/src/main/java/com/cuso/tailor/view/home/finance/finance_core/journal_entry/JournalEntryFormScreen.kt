@@ -298,10 +298,14 @@ fun JournalEntryFormScreen(
             ListSkeleton()
         }
         if (isPrefillMode && journalDetailError != null) {
+            // Pass dynamic error message and implement retry callback
             AppErrorState(
-                title = "Failed to load Journal entry form",
-                message = "Something went wrong. Please check your connection and try again.",
-                onRetry = {  }
+                title = "Failed to load Journal entry",
+                message = journalDetailError?.ifBlank { "Something went wrong. Please check your connection and try again." }
+                    ?: "Something went wrong. Please check your connection and try again.",
+                onRetry = {
+                    entryId?.let { financeViewModel.fetchJournalEntryDetail(it) }
+                }
             )
         }
 
@@ -694,12 +698,16 @@ fun JournalEntryFormScreen(
                     )
                 }
             }
-            if (updateJournalState is UpdateJournalState.Error) {
+            // Display error message for both Create and Update operations
+            val formSubmissionError = (updateJournalState as? UpdateJournalState.Error)?.message
+                ?: (createJournalState as? CreateJournalState.Error)?.message
+
+            if (!formSubmissionError.isNullOrBlank()) {
                 Text(
-                    (updateJournalState as UpdateJournalState.Error).message,
+                    text = formSubmissionError,
                     color = RedText,
                     fontSize = 12.sp,
-                    modifier = Modifier.padding(start = 8.dp)
+                    modifier = Modifier.padding(start = 8.dp, top = 4.dp)
                 )
             }
         }

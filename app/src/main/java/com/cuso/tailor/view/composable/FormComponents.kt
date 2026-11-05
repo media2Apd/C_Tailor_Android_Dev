@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -28,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -40,6 +43,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
@@ -249,8 +254,8 @@ fun FormTextField(
     containerColor: Color = whiteBg,
     keyboardCapitalization: androidx.compose.ui.text.input.KeyboardCapitalization =
         androidx.compose.ui.text.input.KeyboardCapitalization.None,
-    visualTransformation: androidx.compose.ui.text.input.VisualTransformation =
-        androidx.compose.ui.text.input.VisualTransformation.None
+    visualTransformation: VisualTransformation =
+        VisualTransformation.None
 ) {
     val tokens = LocalAppTokens.current
 
@@ -328,6 +333,113 @@ fun FormTextField(
             fontSize = tokens.label,
             color = redText,
             modifier = Modifier.padding(top = tokens.screenPadding * 0.25f, start = tokens.screenPadding * 0.25f)
+        )
+    }
+}
+
+@Composable
+fun FormPasswordField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String = "Enter password",
+    isError: Boolean = false,
+    errorMessage: String? = null,
+    enabled: Boolean = true,
+    borderColor: Color = grey_border,
+    textColor: Color = Color(0xFF374151),
+    placeholderColor: Color = Color(0xFF9CA3AF),
+    containerColor: Color = whiteBg
+) {
+    var passwordVisible by remember { mutableStateOf(false) }
+    val tokens = LocalAppTokens.current
+
+    val isAppBusy by AppLoadingManager.busyState.collectAsState()
+    val effectiveEnabled = enabled && !isAppBusy
+
+    val activeBorderColor = if (isError) redText else borderColor
+    val activeContainerColor = if (effectiveEnabled) containerColor else light_grey
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(tokens.fieldHeight)
+            .background(
+                activeContainerColor,
+                RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+            )
+            .border(
+                1.dp,
+                activeBorderColor,
+                RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+            )
+            .padding(horizontal = tokens.cardPadding * 0.6f),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (value.isEmpty() && placeholder.isNotEmpty()) {
+                    Text(
+                        text = placeholder,
+                        fontSize = tokens.bodySmall,
+                        color = placeholderColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    enabled = effectiveEnabled,
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password
+                    ),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    textStyle = TextStyle(
+                        fontSize = tokens.bodyMedium,
+                        color = if (effectiveEnabled) textColor else textColor.copy(alpha = 0.5f)
+                    )
+                )
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            // Password visibility toggle icon
+            Icon(
+                painter = if (passwordVisible) painterResource(R.drawable.ic_eye_open) else painterResource(R.drawable.ic_eye_close),
+                contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                tint = Color(0xFF9CA3AF),
+                modifier = Modifier
+                    .size(tokens.iconSize)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        if (effectiveEnabled) {
+                            passwordVisible = !passwordVisible
+                        }
+                    }
+            )
+        }
+    }
+
+    if (isError && !errorMessage.isNullOrBlank()) {
+        Text(
+            text = errorMessage,
+            fontSize = tokens.label,
+            color = redText,
+            modifier = Modifier.padding(
+                top = tokens.screenPadding * 0.25f,
+                start = tokens.screenPadding * 0.25f
+            )
         )
     }
 }

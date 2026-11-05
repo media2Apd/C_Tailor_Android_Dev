@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.settings.SaveTaxRegistrationRequest
 import com.cuso.tailor.model.settings.TaxRegistrationItemDto
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
@@ -103,15 +104,19 @@ fun GstSettingsOverviewScreen(
 
     var searchQuery by remember { mutableStateOf("") }
 
-    // ── Fetch Initial Data on Launch ──
-    LaunchedEffect(Unit) {
-        viewModel.fetchTaxRegistrations(page = 1)
-    }
+    // Single LaunchedEffect: loads immediately on open, debounces when user types
+    var isFirstLaunch by remember { mutableStateOf(true) }
 
-    // ── Debounced Search Query ──
     LaunchedEffect(searchQuery) {
-        delay(400)
-        viewModel.fetchTaxRegistrations(page = 1, search = searchQuery.takeIf { it.isNotBlank() })
+        if (isFirstLaunch) {
+            // First screen load without delay
+            isFirstLaunch = false
+            viewModel.fetchTaxRegistrations(page = 1)
+        } else {
+            // Debounce for search query input
+            delay(400)
+            viewModel.fetchTaxRegistrations(page = 1, search = searchQuery.takeIf { it.isNotBlank() })
+        }
     }
 
     // ── Infinite Scroll Detection ──
@@ -147,14 +152,14 @@ fun GstSettingsOverviewScreen(
         FabScaffold(
             modifier = Modifier.fillMaxSize(),
             fab = FabConfig(
-                label = "Add GST",
+                label = "Add Tax",
                 icon = Icons.Default.Add,
                 onClick = onAddGst,
                 bottomPadding = 50.dp
             )
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                TitleBar(title = "GST Settings", onClose = onClose)
+                TitleBar(title = "Tax Settings", onClose = onClose)
 
                 LazyColumn(
                     state = listState,
@@ -282,7 +287,13 @@ fun GstSettingsOverviewScreen(
                     ) { item ->
                         GstRegistrationCard(
                             item = item,
-                            onEditClick = { onEditGst(item) }
+                            onEditClick = { onEditGst(item) },
+                            onToggleStatus = {
+                                viewModel.toggleTaxRegistrationStatus(
+                                    id = item.id,
+                                    currentStatus = item.status
+                                )
+                            }
                         )
                     }
 
@@ -390,10 +401,14 @@ private fun MetricCard(
 @Composable
 fun GstRegistrationCard(
     item: TaxRegistrationItemDto,
-    onEditClick: () -> Unit = {}
+    onEditClick: () -> Unit = {},
+    onToggleStatus: () -> Unit = {} // Added toggle callback
 ) {
     val tokens = LocalAppTokens.current
     val isActive = item.status.equals("Active", ignoreCase = true)
+
+    // Dynamic menu action label based on current status
+    val toggleActionLabel = if (isActive) "Deactivate" else "Activate"
 
     // Format date string from "2026-10-12T..." or validFrom
     val effectiveDate = remember(item.validFrom, item.createdAt) {
@@ -422,6 +437,12 @@ fun GstRegistrationCard(
                 label = "Edit",
                 icon = Icons.Default.MoreVert,
                 onClick = onEditClick
+            ),
+            // "Deactivate" if Active, "Activate" if Inactive
+            MenuAction(
+                label = toggleActionLabel,
+                icon = if (isActive) Icons.Default.ArrowDropDown else Icons.Default.ArrowDropUp,
+                onClick = onToggleStatus
             )
         ),
         content = {
@@ -488,13 +509,15 @@ fun GstRegistrationCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Status Badge with dot
-                    StatusBadge(
-                        text = item.status,
-                        bgColor = if (isActive) greenBg else modelGray,
-                        textColor = if (isActive) greentext else close_color,
-                        cornerRadius = 20.dp
-                    )
+                    // Clickable Status Badge (User can tap badge to toggle status directly)
+                    Box(modifier = Modifier.clickable { onToggleStatus() }) {
+                        StatusBadge(
+                            text = item.status,
+                            bgColor = if (isActive) greenBg else modelGray,
+                            textColor = if (isActive) greentext else close_color,
+                            cornerRadius = 20.dp
+                        )
+                    }
 
                     // Effective Date
                     Row(
@@ -534,7 +557,7 @@ fun AddGstSettingsScreen(
     val tokens = LocalAppTokens.current
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
-    // ── 1. Fetch Dynamic Data on Screen Launch ──
+    // ── 1. Fetch Dynamic Dropdown Data on Launch ──
     LaunchedEffect(Unit) {
         branchViewModel.loadBranches()
         inventoryViewModel.fetchTaxGroups()
@@ -543,11 +566,12 @@ fun AddGstSettingsScreen(
 
     // ── 2. Observe ViewModel States ──
     val selectedTaxItem by settingsViewModel.selectedTaxRegistration.collectAsState()
+    val isSaving by settingsViewModel.isSavingTaxRegistration.collectAsState()
     val branchUiState by branchViewModel.uiState.collectAsState()
     val taxGroups by inventoryViewModel.taxGroups.collectAsState()
     val staffList by salesViewModel.staffList.collectAsState()
 
-    // ── 3. Derived Dropdown Options from APIs ──
+    // ── 3. Dropdown Options ──
     val branches = remember(branchUiState) {
         if (branchUiState is BranchUiState.Success) {
             (branchUiState as BranchUiState.Success).branches
@@ -555,7 +579,7 @@ fun AddGstSettingsScreen(
     }
 
     val branchOptions = remember(branches) {
-        branches.map { "${it.name} (${it.address.city?.ifBlank { "" }})" }
+        listOf("Global / Organization Level") + branches.map { "${it.name} (${it.address.city?.ifBlank { "" }})" }
     }
 
     val taxGroupOptions = remember(taxGroups) {
@@ -570,7 +594,6 @@ fun AddGstSettingsScreen(
         }
     }
 
-    // ── Tab Items for SettingsTabs Component ──
     val tabItems = remember {
         listOf(
             TabItem(label = "Tax Registration"),
@@ -590,12 +613,7 @@ fun AddGstSettingsScreen(
     var isRegTypeExpanded by remember { mutableStateOf(false) }
     val registrationTypes = listOf("GSTIN", "VAT", "EIN", "TRN", "ABN", "PAN")
 
-    var status by remember { mutableStateOf("") }
-    var isStatusExpanded by remember { mutableStateOf(false) }
-    val statusOptions = listOf("Active", "Draft", "Inactive")
-
     var registeredLegalName by remember { mutableStateOf("") }
-
     var branchJurisdiction by remember { mutableStateOf("") }
     var selectedBranchId by remember { mutableStateOf<String?>(null) }
     var isBranchExpanded by remember { mutableStateOf(false) }
@@ -609,11 +627,11 @@ fun AddGstSettingsScreen(
     // ── Tab 2: Tax Defaults & Regime ──
     var taxRegime by remember { mutableStateOf("") }
     var isTaxRegimeExpanded by remember { mutableStateOf(false) }
-    val taxRegimeList = listOf("GST (Goods & Services Tax)", "VAT (Value Added Tax)", "Sales Tax", "Other")
+    val taxRegimeList = listOf("GST", "VAT", "SalesTax", "Other")
 
-    var taxScheme by remember { mutableStateOf("") }
+    var taxScheme by remember { mutableStateOf("Regular") }
     var isTaxSchemeExpanded by remember { mutableStateOf(false) }
-    val taxSchemeList = listOf("Regular Scheme", "Composition Scheme", "Flat Rate Scheme", "Exempt", "Other")
+    val taxSchemeList = listOf("Regular", "Composition", "Flat_Rate", "Exempt", "Other")
 
     var defaultIntraStateTaxGroup by remember { mutableStateOf("") }
     var selectedIntraStateTaxGroupId by remember { mutableStateOf<String?>(null) }
@@ -625,19 +643,21 @@ fun AddGstSettingsScreen(
 
     var isPrimaryRegistration by remember { mutableStateOf(false) }
     var isGroupRegistration by remember { mutableStateOf(false) }
+    var groupRepresentativeName by remember { mutableStateOf("") }
+    var groupRepresentativeRegistrationNumber by remember { mutableStateOf("") }
 
     // ── Tab 3: Filing & Invoice Preferences ──
     var filingAccountingMethod by remember { mutableStateOf("") }
     var isFilingMethodExpanded by remember { mutableStateOf(false) }
-    val filingMethods = listOf("Accrual Basis", "Cash Basis")
+    val filingMethods = listOf("Accrual_Basis", "Cash_Basis")
 
     var filingFrequency by remember { mutableStateOf("") }
     var isFilingFrequencyExpanded by remember { mutableStateOf(false) }
-    val filingFrequencies = listOf("Monthly", "Quarterly", "Semi Annually", "Annually")
+    val filingFrequencies = listOf("Monthly", "Quarterly", "Semi_Annually", "Annually")
 
     var taxRoundingRule by remember { mutableStateOf("") }
     var isTaxRoundingExpanded by remember { mutableStateOf(false) }
-    val taxRoundingRules = listOf("Round Half Up (Standard)", "Round Half Down", "Round Down", "Round Up")
+    val taxRoundingRules = listOf("Round_Half_Up", "Round_Half_Down", "Round_Down", "Round_Up")
 
     var showTaxBreakdownOnInvoice by remember { mutableStateOf(true) }
     var showHsnSacOnInvoice by remember { mutableStateOf(true) }
@@ -654,30 +674,39 @@ fun AddGstSettingsScreen(
     var sendEmailReminders by remember { mutableStateOf(true) }
     var sendValidationAlerts by remember { mutableStateOf(true) }
 
-    // ── PRE-FILL DATA WHEN EDIT API DATA COMES ──
+    // ── PRE-FILL DATA WHEN EDITING ──
     LaunchedEffect(selectedTaxItem) {
         selectedTaxItem?.let { item ->
             // Tab 1
             registrationNumber = item.registrationNumber.orEmpty()
-            registrationType = item.registrationType.orEmpty()
-            status = item.status
+            registrationType = item.registrationType.orEmpty().ifBlank { "" }
             registeredLegalName = item.registeredLegalName.orEmpty()
-            countryCode = item.countryCode.orEmpty()
+            countryCode = item.countryCode.orEmpty().ifBlank { "" }
             subdivisionName = item.subdivisionName.orEmpty()
             subdivisionCode = item.subdivisionCode.orEmpty()
             registrationDate = item.validFrom?.take(10).orEmpty()
             registeredAddress = item.registeredAddress.orEmpty()
 
             selectedBranchId = item.branchId
-            branches.find { it.id == item.branchId }?.let { b ->
-                branchJurisdiction = "${b.name} (${b.address.city?.ifBlank { "" }})"
+            if (item.branchId != null) {
+                if (!item.branch?.name.isNullOrBlank()) {
+                    branchJurisdiction = item.branch.name
+                } else {
+                    branches.find { it.id == item.branchId }?.let { b ->
+                        branchJurisdiction = "${b.name} (${b.address.city?.ifBlank { "" }})"
+                    }
+                }
+            } else {
+                branchJurisdiction = "Global / Organization Level"
             }
 
             // Tab 2
-            taxRegime = item.taxRegime.orEmpty()
-            taxScheme = item.taxScheme.orEmpty()
+            taxRegime = item.taxRegime.orEmpty().ifBlank { "" }
+            taxScheme = item.taxScheme.orEmpty().ifBlank { "" }
             isPrimaryRegistration = item.isPrimary
             isGroupRegistration = item.isGroupRegistration
+            groupRepresentativeName = item.groupRepresentativeName.orEmpty()
+            groupRepresentativeRegistrationNumber = item.groupRepresentativeRegistrationNumber.orEmpty()
 
             selectedIntraStateTaxGroupId = item.defaultIntraStateTaxGroupId
             taxGroups.find { it.id == item.defaultIntraStateTaxGroupId }?.let { tg ->
@@ -690,9 +719,9 @@ fun AddGstSettingsScreen(
             }
 
             // Tab 3
-            filingAccountingMethod = if (item.filingMethod?.contains("Accrual", ignoreCase = true) == true) "Accrual Basis" else "Cash Basis"
-            filingFrequency = item.filingFrequency.orEmpty()
-            taxRoundingRule = if (item.taxRoundingRule?.contains("Half_Up", ignoreCase = true) == true) "Round Half Up (Standard)" else item.taxRoundingRule.orEmpty()
+            filingAccountingMethod = item.filingMethod.orEmpty().ifBlank { "" }
+            filingFrequency = item.filingFrequency.orEmpty().ifBlank { "" }
+            taxRoundingRule = item.taxRoundingRule.orEmpty().ifBlank { "" }
             showTaxBreakdownOnInvoice = item.showTaxBreakdownOnInvoice
             showHsnSacOnInvoice = item.showHsnSacOnInvoice
             showPlaceOfSupplyOnInvoice = item.showPlaceOfSupplyOnInvoice
@@ -715,10 +744,81 @@ fun AddGstSettingsScreen(
         }
     }
 
+    // ── Save/Update Form Handler ──
+    val handleSave = {
+        if (registrationNumber.isBlank()) {
+            selectedTabIndex = 0
+            settingsViewModel.showError("Registration Number is required")
+        } else if (countryCode.isBlank()) {
+            selectedTabIndex = 0
+            settingsViewModel.showError("Country Code is required")
+        } else {
+            val request = SaveTaxRegistrationRequest(
+                branchId = selectedBranchId,
+                countryCode = countryCode.trim().uppercase(),
+                subdivisionCode = subdivisionCode.trim().uppercase().ifBlank { null },
+                subdivisionName = subdivisionName.trim().ifBlank { null },
+                registrationType = registrationType.trim().uppercase(),
+                registrationNumber = registrationNumber.trim().uppercase(),
+                registeredLegalName = registeredLegalName.trim(),
+                registeredAddress = registeredAddress.trim(),
+                taxRegime = taxRegime.trim(),
+                taxScheme = taxScheme.trim(),
+                isPrimary = isPrimaryRegistration,
+                validFrom = registrationDate.trim().ifBlank { null },
+                validTo = null,
+                defaultIntraStateTaxGroupId = selectedIntraStateTaxGroupId,
+                defaultInterStateTaxGroupId = selectedInterStateTaxGroupId,
+                isGroupRegistration = isGroupRegistration,
+                groupRepresentativeName = if (isGroupRegistration) groupRepresentativeName.trim().ifBlank { null } else null,
+                groupRepresentativeRegistrationNumber = if (isGroupRegistration) groupRepresentativeRegistrationNumber.trim().uppercase().ifBlank { null } else null,
+                filingMethod = filingAccountingMethod,
+                filingFrequency = filingFrequency,
+                taxRoundingRule = taxRoundingRule,
+                showTaxBreakdownOnInvoice = showTaxBreakdownOnInvoice,
+                showHsnSacOnInvoice = showHsnSacOnInvoice,
+                showPlaceOfSupplyOnInvoice = showPlaceOfSupplyOnInvoice,
+                authorizedFilingUsers = selectedStaffId?.let { listOf(it) } ?: emptyList(),
+                reminderDaysBeforeDeadline = reminderLeadDays.toIntOrNull() ?: 5,
+                sendEmailReminder = sendEmailReminders,
+                notifyOnValidator = sendValidationAlerts,
+                taxAgentNumber = taxAgentNumber.trim()
+            )
+
+            val currentEditId = selectedTaxItem?.id
+            if (currentEditId.isNullOrBlank()) {
+                // CREATE CALL
+                settingsViewModel.createTaxRegistration(
+                    request = request,
+                    onSuccess = {
+                        settingsViewModel.clearSelectedTaxRegistration()
+                        onSave()
+                    },
+                    onError = { errorMessage ->
+                        settingsViewModel.showError(errorMessage)
+                    }
+                )
+            } else {
+                // UPDATE CALL
+                settingsViewModel.updateTaxRegistration(
+                    id = currentEditId,
+                    request = request,
+                    onSuccess = {
+                        settingsViewModel.clearSelectedTaxRegistration()
+                        onSave()
+                    },
+                    onError = { errorMessage ->
+                        settingsViewModel.showError(errorMessage)
+                    }
+                )
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         Column(modifier = Modifier.fillMaxSize()) {
             TitleBar(
-                title = if (selectedTaxItem != null) "Edit GST Settings" else "GST Settings",
+                title = if (selectedTaxItem != null) "Edit Tax Registration" else "New Tax Registration",
                 onClose = {
                     settingsViewModel.clearSelectedTaxRegistration()
                     onClose()
@@ -732,7 +832,7 @@ fun AddGstSettingsScreen(
                 contentPadding = PaddingValues(top = 10.dp, bottom = tokens.buttonHeight * 2),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // ── Reusable SettingsTabs Component ──
+                // Tabs Header
                 item {
                     SettingsTabs(
                         tabs = tabItems,
@@ -767,17 +867,6 @@ fun AddGstSettingsScreen(
                     }
 
                     item {
-                        FormLabel("Status")
-                        FormDropdown(
-                            value = status,
-                            expanded = isStatusExpanded,
-                            onExpandChange = { isStatusExpanded = it },
-                            options = statusOptions,
-                            onOptionSelected = { status = it }
-                        )
-                    }
-
-                    item {
                         FormLabel("Registered Legal Name")
                         FormTextField(
                             value = registeredLegalName,
@@ -789,24 +878,27 @@ fun AddGstSettingsScreen(
                     item {
                         FormLabel("Branch Jurisdiction")
                         FormDropdown(
-                            value = branchJurisdiction.ifBlank { "Select Branch" },
+                            value = branchJurisdiction,
                             expanded = isBranchExpanded,
                             onExpandChange = { isBranchExpanded = it },
-                            options = if (branchOptions.isNotEmpty()) branchOptions else listOf("Loading branches..."),
+                            options = branchOptions,
                             onOptionSelected = { selected ->
                                 branchJurisdiction = selected
-                                val index = branchOptions.indexOf(selected)
-                                if (index != -1 && index < branches.size) {
-                                    selectedBranchId = branches[index].id
-                                    // Auto-fill state if available
-                                    branches[index].address.state?.let { subdivisionName = it }
+                                if (selected == "Global / Organization Level") {
+                                    selectedBranchId = null
+                                } else {
+                                    val branchIdx = branchOptions.indexOf(selected) - 1
+                                    if (branchIdx in branches.indices) {
+                                        selectedBranchId = branches[branchIdx].id
+                                        branches[branchIdx].address.state?.let { subdivisionName = it }
+                                    }
                                 }
                             }
                         )
                     }
 
                     item {
-                        FormLabel("Country Code (ISO 3166-1)")
+                        FormLabel("Country Code (ISO 3166-1)", isRequired = true)
                         FormTextField(
                             value = countryCode,
                             onValueChange = { countryCode = it.uppercase() },
@@ -932,6 +1024,8 @@ fun AddGstSettingsScreen(
                             )
                         }
 
+                        Spacer(Modifier.height(8.dp))
+
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -948,6 +1042,46 @@ fun AddGstSettingsScreen(
                                 fontSize = tokens.bodySmall,
                                 color = TextPrimary
                             )
+                        }
+                    }
+
+                    // ── Conditional Group Representative Fields ──
+                    if (isGroupRegistration) {
+                        item {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                                color = modelGray.copy(alpha = 0.5f),
+                                border = BorderStroke(1.dp, sectionBorder)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Text(
+                                        text = "GROUP TAX REPRESENTATIVE DETAILS",
+                                        fontSize = tokens.caption,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+
+                                    FormLabel("Group Representative Legal Name")
+                                    FormTextField(
+                                        value = groupRepresentativeName,
+                                        onValueChange = { groupRepresentativeName = it },
+                                        placeholder = "Representative Entity Name"
+                                    )
+
+                                    FormLabel("Group Representative Tax Number")
+                                    FormTextField(
+                                        value = groupRepresentativeRegistrationNumber,
+                                        onValueChange = { groupRepresentativeRegistrationNumber = it.uppercase() },
+                                        placeholder = "Representative Tax ID"
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -1065,7 +1199,7 @@ fun AddGstSettingsScreen(
                         FormLabel("Reminder Lead Time (Days Before Deadline)")
                         FormTextField(
                             value = reminderLeadDays,
-                            onValueChange = { reminderLeadDays = it },
+                            onValueChange = { reminderLeadDays = it.filter { ch -> ch.isDigit() } },
                             placeholder = "5"
                         )
                     }
@@ -1178,8 +1312,8 @@ fun AddGstSettingsScreen(
             showBackArrow = false,
             showTrailingArrow = false,
             trailingAction = TrailingFabAction.Update(
-                label = if (selectedTaxItem != null) "Update Changes" else "Save Changes",
-                onClick = onSave
+                label = if (selectedTaxItem != null) (if (isSaving) "Updating..." else "Update Changes") else (if (isSaving) "Saving..." else "Save Changes"),
+                onClick = { if (!isSaving) handleSave() }
             ),
             backWidthFraction = 0.25f,
             trailingWidthFraction = 0.35f

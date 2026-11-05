@@ -6,9 +6,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,19 +27,18 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.cuso.tailor.ui.theme.Primary
-import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.ui.theme.*
 import kotlin.math.roundToInt
 
 /**
- * Common config for the fixed bottom-end FAB button used across
- * Branch / Department / Designation / Lead / Customer / Measurements /
- * SalesOrder screens.
+ * Common configuration for FabScaffold.
+ * Added 'menuActions' to support attached dropdown menus (e.g. Add Tax Rate, Add Tax Group).
  */
 data class FabConfig(
     val label: String,
-    val icon: ImageVector,
-    val onClick: () -> Unit,
+    val icon: ImageVector = Icons.Default.KeyboardArrowDown,
+    val onClick: () -> Unit = {},
+    val menuActions: List<MenuAction> = emptyList(), // Attached dropdown items
     val alignment: Alignment = Alignment.CenterEnd,
     val startPadding: Dp = 0.dp,
     val topPadding: Dp = 0.dp,
@@ -44,15 +47,6 @@ data class FabConfig(
     val draggable: Boolean = true
 )
 
-/**
- * Wraps screen content in a Box so a fixed/draggable FAB (and optional SnackbarHost)
- * can float above it — same pattern used in Branch/Department/Designation/
- * Lead/Customer/Measurements/SalesOrder screens.
- *
- * The FAB starts at its usual bottom-end position, but the user can drag it
- * anywhere on screen — position stays stuck there until moved again (it doesn't
- * reset back to bottom-end on recomposition, since offset is remembered).
- */
 @Composable
 fun FabScaffold(
     modifier: Modifier = Modifier,
@@ -61,11 +55,8 @@ fun FabScaffold(
     snackbarHostState: SnackbarHostState? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
-    // Screen container dimensions
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
-    // Button dimensions
     var fabSize by remember { mutableStateOf(IntSize.Zero) }
-    // User drag position
     var dragOffset by remember { mutableStateOf<Offset?>(null) }
 
     Box(
@@ -84,7 +75,6 @@ fun FabScaffold(
 
         if (fab != null) {
             val fabModifier = if (dragOffset != null) {
-                // Position driven by manual drag gestures
                 Modifier.offset {
                     IntOffset(
                         dragOffset!!.x.roundToInt(),
@@ -92,7 +82,6 @@ fun FabScaffold(
                     )
                 }
             } else {
-                // Static resting position based on configured alignment
                 Modifier
                     .align(fab.alignment)
                     .padding(
@@ -109,52 +98,99 @@ fun FabScaffold(
                 enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.8f),
                 exit = fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 0.8f)
             ) {
-                Button(
-                    onClick = fab.onClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    modifier = Modifier
-                        .onGloballyPositioned { fabSize = it.size }
-                        .let { m ->
-                            if (fab.draggable) {
-                                m.pointerInput(Unit) {
-                                    detectDragGestures(
-                                        onDragStart = {
-                                            if (dragOffset == null) {
-                                                val startX = containerSize.width.toFloat() - fabSize.width - with(this) { fab.endPadding.toPx() }
-                                                val startY = when (fab.alignment) {
-                                                    Alignment.CenterEnd, Alignment.Center, Alignment.CenterStart -> {
-                                                        (containerSize.height.toFloat() - fabSize.height) / 2f
+                var isMenuExpanded by remember { mutableStateOf(false) }
+
+                Box {
+                    Button(
+                        onClick = {
+                            if (fab.menuActions.isNotEmpty()) {
+                                isMenuExpanded = !isMenuExpanded
+                            } else {
+                                fab.onClick()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .onGloballyPositioned { fabSize = it.size }
+                            .let { m ->
+                                if (fab.draggable) {
+                                    m.pointerInput(Unit) {
+                                        detectDragGestures(
+                                            onDragStart = {
+                                                if (dragOffset == null) {
+                                                    val startX = containerSize.width.toFloat() - fabSize.width - with(this) { fab.endPadding.toPx() }
+                                                    val startY = when (fab.alignment) {
+                                                        Alignment.CenterEnd, Alignment.Center, Alignment.CenterStart -> {
+                                                            (containerSize.height.toFloat() - fabSize.height) / 2f
+                                                        }
+                                                        Alignment.TopEnd, Alignment.TopCenter, Alignment.TopStart -> {
+                                                            with(this) { fab.topPadding.toPx() }
+                                                        }
+                                                        else -> {
+                                                            containerSize.height.toFloat() - fabSize.height - with(this) { fab.bottomPadding.toPx() }
+                                                        }
                                                     }
-                                                    Alignment.TopEnd, Alignment.TopCenter, Alignment.TopStart -> {
-                                                        with(this) { fab.topPadding.toPx() }
-                                                    }
-                                                    else -> {
-                                                        containerSize.height.toFloat() - fabSize.height - with(this) { fab.bottomPadding.toPx() }
-                                                    }
+                                                    dragOffset = Offset(startX, startY)
                                                 }
-                                                dragOffset = Offset(startX, startY)
+                                            },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                val current = dragOffset ?: Offset.Zero
+                                                val newX = (current.x + dragAmount.x)
+                                                    .coerceIn(0f, (containerSize.width - fabSize.width).toFloat().coerceAtLeast(0f))
+                                                val newY = (current.y + dragAmount.y)
+                                                    .coerceIn(0f, (containerSize.height - fabSize.height).toFloat().coerceAtLeast(0f))
+                                                dragOffset = Offset(newX, newY)
                                             }
-                                        },
-                                        onDrag = { change, dragAmount ->
-                                            change.consume()
-                                            val current = dragOffset ?: Offset.Zero
-                                            val newX = (current.x + dragAmount.x)
-                                                .coerceIn(0f, (containerSize.width - fabSize.width).toFloat().coerceAtLeast(0f))
-                                            val newY = (current.y + dragAmount.y)
-                                                .coerceIn(0f, (containerSize.height - fabSize.height).toFloat().coerceAtLeast(0f))
-                                            dragOffset = Offset(newX, newY)
-                                        }
-                                    )
-                                }
-                            } else m
+                                        )
+                                    }
+                                } else m
+                            }
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(fab.label, color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Spacer(Modifier.width(6.dp))
+                            Icon(
+                                imageVector = if (fab.menuActions.isNotEmpty() && isMenuExpanded) Icons.Default.KeyboardArrowUp else fab.icon,
+                                contentDescription = null,
+                                tint = whiteBg,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(fab.label, color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                        Spacer(Modifier.width(6.dp))
-                        Icon(fab.icon, contentDescription = null, tint = whiteBg, modifier = Modifier.size(18.dp))
+                    }
+
+                    // Attached dropdown popup directly positioned with the button
+                    if (fab.menuActions.isNotEmpty()) {
+                        DropdownMenu(
+                            expanded = isMenuExpanded,
+                            onDismissRequest = { isMenuExpanded = false },
+                            shape = RoundedCornerShape(10.dp),
+                            containerColor = whiteBg,
+                            shadowElevation = 6.dp,
+                            modifier = Modifier
+                                .width(150.dp)
+                                .border(1.dp, sectionBorder, RoundedCornerShape(10.dp))
+                        ) {
+                            fab.menuActions.forEach { action ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = action.label,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = action.textColor
+                                        )
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                                    onClick = {
+                                        isMenuExpanded = false
+                                        action.onClick()
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }

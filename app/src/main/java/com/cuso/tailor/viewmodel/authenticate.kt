@@ -21,12 +21,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import android.util.Log
 import com.cuso.tailor.database.dao.OrganizationDao
+import com.cuso.tailor.database.dao.PermissionDao
 import com.cuso.tailor.database.dao.SettingsDao
 import com.cuso.tailor.database.dao.TokensDao
 import com.cuso.tailor.database.entities.OrganizationEntity
+import com.cuso.tailor.database.entities.PlanModuleEntity
 import com.cuso.tailor.database.entities.SettingsEntity
 import com.cuso.tailor.database.entities.TokensEntity
 import com.cuso.tailor.database.entities.UserEntity
+import com.cuso.tailor.database.entities.UserPermissionEntity
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.GoogleLoginResult
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.LoginData
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Organization
@@ -41,6 +44,7 @@ import com.cuso.tailor.model.login_forgotPassword_resetPassword.User
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.organizationSetUpRequest
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.otpSendResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.otpVerifyResponse
+import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.utils.launchBusy
 import com.cuso.tailor.utils.toCurrencySymbol
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,7 +54,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-
+import com.cuso.tailor.model.permission.ModulePermissionsData
+import com.cuso.tailor.model.permission.ModulePermissionsResponse
+import com.cuso.tailor.model.permission.MyPermissionsData
+import com.cuso.tailor.model.permission.MyPermissionsResponse
 sealed class UiState {
     object Idle : UiState()
     object Loading : UiState()
@@ -87,11 +94,16 @@ sealed class UiState {
 @HiltViewModel
 class Authenticate @Inject constructor(
     private val repository: AuthRepository,
+    private val apiRepo: ApiRepository,
     private val loginRepository: LoginRepository,
     private val organizationDao: OrganizationDao,
     private val settingsDao: SettingsDao,
-    private val tokensDao: TokensDao
+    private val tokensDao: TokensDao,
+    private val permissionDao: PermissionDao,
+    private val gson: com.google.gson.Gson
+
 ) : ViewModel() {
+
 
     // ── Login Data State ──
     private val _loginData = MutableStateFlow<LoginData?>(null)
@@ -109,6 +121,21 @@ class Authenticate @Inject constructor(
     // ── Organization State ──
     private val _organization = MutableStateFlow<OrganizationEntity?>(null)
     val organization: StateFlow<OrganizationEntity?> = _organization.asStateFlow()
+//
+//    val currentPlanName: StateFlow<String> = _organization
+//        .map { org ->
+//            // Adjust the field name based on your OrganizationEntity schema
+//            // (e.g., org?.planName, org?.plan, or org?.subscriptionPlan)
+//            org?.planName?.takeIf { it.isNotBlank() }
+//                ?: org?.plan?.takeIf { it.isNotBlank() }
+//                ?: "Standard Plan"
+//        }
+//        .stateIn(
+//            scope = viewModelScope,
+//            started = SharingStarted.WhileSubscribed(5000),
+//            initialValue = "Standard Plan"
+//        )
+
 
     // ── Settings State ──
     private val _settings = MutableStateFlow<SettingsEntity?>(null)
@@ -155,6 +182,13 @@ class Authenticate @Inject constructor(
 
     private val _resetPasswordState = MutableStateFlow<UiState>(UiState.Idle)
     val resetPasswordState: StateFlow<UiState> = _resetPasswordState
+
+    // ── Permissions State ──
+    private val _myPermissions = MutableStateFlow<MyPermissionsData?>(null)
+    val myPermissions: StateFlow<MyPermissionsData?> = _myPermissions.asStateFlow()
+
+    private val _modulePermissions = MutableStateFlow<ModulePermissionsData?>(null)
+    val modulePermissions: StateFlow<ModulePermissionsData?> = _modulePermissions.asStateFlow()
 
     // ─────────────────────────────────────────────────────────────
     // INIT - Load all data from Room DB
@@ -250,16 +284,28 @@ class Authenticate @Inject constructor(
                     coroutineScope {
                         val meDeferred = async { repository.getMe(token) }
                         val orgDeferred = async { repository.getMyOrganization(token) }
-//                        val layoutDeferred = async { repository.getMyLayout(token) }
+
+                        // FIXED: Clean Retrofit GET calls using ApiRepository directly
+                        val mePermissionDeferred = async {
+                            apiRepo.request<MyPermissionsResponse> {
+                                get("/api/permissions/me")
+                            }
+                        }
+
+                        val modulePermissionDeferred = async {
+                            apiRepo.request<ModulePermissionsResponse> {
+                                get("/api/common/plan-setups/customer/my-plan-modules")
+                            }
+                        }
 
                         val meResult = meDeferred.await()
                         val orgResult = orgDeferred.await()
-//                        val layoutResult = layoutDeferred.await()
+                        val mePermissionResult = mePermissionDeferred.await()
+                        val modulePermissionResult = modulePermissionDeferred.await()
 
                         meResult.getOrNull()?.let { }
 
                         orgResult.getOrNull()?.let { orgResponse ->
-                            // Wrapped in try/catch: an organization problem must never break the login flow
                             try {
                                 val org = orgResponse.data?.organization?.toOrganization()
                                 if (org != null) {
@@ -274,7 +320,43 @@ class Authenticate @Inject constructor(
                             }
                         }
 
-//                        layoutResult.getOrNull()?.let { }
+                        // Save User Me Permissions
+                        mePermissionResult.fold(
+                            onSuccess = { res ->
+                                _myPermissions.value = res.data
+                                res.data?.let { data ->
+                                    permissionDao.insertUserPermissions(
+                                        UserPermissionEntity(
+                                            id = 1,
+                                            isOwner = data.isOwner,
+                                            visiblePermissionsJson = gson.toJson(data.visible),
+                                            rawPermissionsJson = gson.toJson(data.permissions) // <-- Added this
+                                        )
+                                    )
+                                }
+                            },
+                            onFailure = { error ->
+                                Log.e("PERMISSIONS_API", "Failed me permissions: ${error.message}")
+                            }
+                        )
+
+                        // Save Module Plan Permissions
+                        modulePermissionResult.fold(
+                            onSuccess = { res ->
+                                _modulePermissions.value = res.data
+                                res.data?.let { data ->
+                                    permissionDao.insertPlanModules(
+                                        PlanModuleEntity(
+                                            id = 1,
+                                            modulesJson = gson.toJson(data)
+                                        )
+                                    )
+                                }
+                            },
+                            onFailure = { error ->
+                                Log.e("PERMISSIONS_API", "Failed module permissions: ${error.message}")
+                            }
+                        )
                     }
 
                     loadTokens()
@@ -691,16 +773,14 @@ class Authenticate @Inject constructor(
 
     fun logout(onLoggedOut: () -> Unit) {
         launchBusy {
-            //   1. Clear the Database
             loginRepository.clearAll()
-
-            //   2. The 'user' Flow will automatically emit 'null' because the DB is now empty.
-            // You don't need (and can't do) user.value = null.
-
+            permissionDao.clearAllPermissions()
             _organization.value = null
             _settings.value = null
             _tokens.value = null
             _loginData.value = null
+            _myPermissions.value = null       // Reset user permissions
+            _modulePermissions.value = null   // Reset module plan permissions
             _accountState.value = UiState.Idle
             onLoggedOut()
         }

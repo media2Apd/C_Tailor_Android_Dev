@@ -49,8 +49,6 @@ import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DeleteModel
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FieldValidator
@@ -61,6 +59,7 @@ import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StepNavigationFab
+import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.view.composable.ValidationField
@@ -109,6 +108,14 @@ fun ChartOfAccountScreen(
     var expandedIds by remember { mutableStateOf(setOf<String>()) }
     val listState = rememberLazyListState()
 
+    var currentPage by remember { mutableIntStateOf(1) }
+    val itemsPerPage = 15
+
+// Reset page count when tree nodes are expanded or collapsed
+    LaunchedEffect(expandedIds) {
+        currentPage = 1
+    }
+
     // Fetch initial tree accounts
     LaunchedEffect(Unit) {
         financeViewModel.fetchChartOfAccounts()
@@ -136,6 +143,20 @@ fun ChartOfAccountScreen(
         } else {
             buildVisibleTree(childrenOf[null].orEmpty(), childrenOf, expandedIds)
         }
+    }
+
+// Slice items progressively for infinite scrolling
+    val pagedAccounts = visibleAccounts.take(currentPage * itemsPerPage)
+    val canLoadMore = pagedAccounts.size < visibleAccounts.size
+
+// Trigger next page when user scrolls near the end
+    LaunchedEffect(listState, pagedAccounts.size, canLoadMore) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastIndex ->
+                if (lastIndex != null && lastIndex >= pagedAccounts.size - 1 && canLoadMore) {
+                    currentPage++
+                }
+            }
     }
 
     LaunchedEffect(deleteAccountState) {
@@ -197,10 +218,12 @@ fun ChartOfAccountScreen(
             }
 
             Column {
-
                 SearchFilterBar(
                     query = searchQuery,
-                    onQueryChange = { searchQuery = it },
+                    onQueryChange = {
+                        searchQuery = it
+                        currentPage = 1 // Reset pagination whenever search query changes
+                    },
                     placeholder = "Search account...",
                     accentColor = BluePrimary,
                     borderColor = BorderGray,
@@ -216,9 +239,11 @@ fun ChartOfAccountScreen(
                 }
 
                 errorMessage != null && accounts.isEmpty() -> {
+                    // Pass dynamic error message from state instead of hardcoded text
                     AppErrorState(
                         title = "Failed to load Chart Of accounts",
-                        message = "Something went wrong. Please check your connection and try again.",
+                        message = errorMessage?.ifBlank { "Something went wrong. Please check your connection and try again." }
+                            ?: "Something went wrong. Please check your connection and try again.",
                         onRetry = { financeViewModel.fetchChartOfAccounts() }
                     )
                 }
@@ -244,7 +269,8 @@ fun ChartOfAccountScreen(
                                 state = listState,
                                 modifier = Modifier.fillMaxSize()
                             ) {
-                                items(visibleAccounts, key = { it._id }) { account ->
+                                // Use pagedAccounts instead of all visibleAccounts
+                                items(pagedAccounts, key = { it._id }) { account ->
                                     val (badgeBg, badgeFg) = statusBadgeColors(account.status)
                                     val expandable = !isSearching && hasChildren(account._id)
                                     val isExpanded = expandedIds.contains(account._id)
@@ -314,6 +340,13 @@ fun ChartOfAccountScreen(
                                             }
                                         }
                                     )
+                                }
+                                if (canLoadMore) {
+                                    item {
+                                        ThreeDotLoading(
+                                            modifier = Modifier.padding(vertical = 16.dp)
+                                        )
+                                    }
                                 }
                                 item { Spacer(modifier = Modifier.height(80.dp)) }
                             }

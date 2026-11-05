@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
@@ -56,6 +57,7 @@ import com.cuso.tailor.ui.theme.PrimaryTextColor
 import com.cuso.tailor.ui.theme.blackTitle
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.viewmodel.Authenticate
+import com.cuso.tailor.viewmodel.PermissionViewModel
 import com.cuso.tailor.viewmodel.UiState
 
 @Composable
@@ -63,7 +65,8 @@ fun CardContentsLoginScreen(
     navController: NavController,
     activity: Activity,
     authViewModel: Authenticate,
-    prefilledEmail: String = ""
+    prefilledEmail: String = "",
+    permissionViewModel: PermissionViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
     val focusManager = LocalFocusManager.current
@@ -248,6 +251,14 @@ fun CardContentsLoginScreen(
             } else if (accountState is UiState.EmailNotFound) {
                 Log.d("LOGIN_STATE", "EMAIL NOT FOUND")
                 showEmailNotFound = true
+            } else if (accountState is UiState.LoginSuccess) {
+                // Trigger PermissionViewModel to sync route guards across the app
+                permissionViewModel.fetchPermissions()
+
+                // Navigate to main dashboard
+                navController.navigate("home") {
+                    popUpTo("login") { inclusive = true }
+                }
             }
         }
 

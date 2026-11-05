@@ -1,13 +1,25 @@
-@file:Suppress("unused")
+@file:Suppress("unused", "AssignedValueIsNeverRead", "UnusedVariable")
+
 package com.cuso.tailor.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.tailor.database.dao.PermissionDao
+import com.cuso.tailor.database.entities.PlanModuleEntity
+import com.cuso.tailor.database.entities.UserPermissionEntity
+import com.cuso.tailor.model.permission.ActionPermission
 import com.cuso.tailor.model.permission.ModulePermissionsData
 import com.cuso.tailor.model.permission.ModulePermissionsResponse
+import com.cuso.tailor.model.permission.MyPermissionsData
+import com.cuso.tailor.model.permission.MyPermissionsResponse
 import com.cuso.tailor.model.permission.PaywallModuleConfig
 import com.cuso.tailor.repository.ApiRepository
+import com.cuso.tailor.view.home.paywall.ModuleUpgradeConfig
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,74 +28,265 @@ import javax.inject.Inject
 
 @HiltViewModel
 class PermissionViewModel @Inject constructor(
-    private val apiRepository: ApiRepository
+    private val apiRepository: ApiRepository,
+    private val permissionDao: PermissionDao,
+    private val gson: Gson
 ) : ViewModel() {
 
-    private val _permissions = MutableStateFlow<ModulePermissionsData?>(null)
-    val permissions: StateFlow<ModulePermissionsData?> = _permissions.asStateFlow()
+    private val _modulePermissions = MutableStateFlow<ModulePermissionsData?>(null)
+    val modulePermissions: StateFlow<ModulePermissionsData?> = _modulePermissions.asStateFlow()
+
+    private val _myPermissions = MutableStateFlow<MyPermissionsData?>(null)
+    val myPermissions: StateFlow<MyPermissionsData?> = _myPermissions.asStateFlow()
 
     private val _isLoadingPermissions = MutableStateFlow(false)
     val isLoadingPermissions: StateFlow<Boolean> = _isLoadingPermissions.asStateFlow()
 
-    init {
-        fetchPermissions()
-    }
     private val _isWorkspaceLocked = MutableStateFlow(false)
     val isWorkspaceLocked: StateFlow<Boolean> = _isWorkspaceLocked.asStateFlow()
-    /**
-     * Fetches current subscription features from backend endpoint
-     */
-    fun fetchPermissions() {
+
+    init {
+        loadFromCache()
+        fetchPermissions(forceRefresh = false)
+    }
+
+    private fun loadFromCache() {
+        viewModelScope.launch {
+            val cachedUserPerms = permissionDao.getUserPermissions()
+            val cachedPlanModules = permissionDao.getPlanModules()
+
+            if (cachedUserPerms != null) {
+                val listType = object : TypeToken<List<String>>() {}.type
+                val mapType = object : TypeToken<Map<String, Map<String, ActionPermission>>>() {}.type
+
+                val visibleList: List<String> = try {
+                    gson.fromJson(cachedUserPerms.visiblePermissionsJson, listType) ?: emptyList()
+                } catch (e: Exception) {
+                    emptyList()
+                }
+
+                val permissionsMap: Map<String, Map<String, ActionPermission>> = try {
+                    gson.fromJson(cachedUserPerms.rawPermissionsJson, mapType) ?: emptyMap()
+                } catch (e: Exception) {
+                    emptyMap()
+                }
+
+                _myPermissions.value = MyPermissionsData(
+                    isOwner = cachedUserPerms.isOwner,
+                    permissions = permissionsMap,
+                    visible = visibleList
+                )
+            }
+
+            if (cachedPlanModules != null) {
+                try {
+                    _modulePermissions.value = gson.fromJson(
+                        cachedPlanModules.modulesJson,
+                        ModulePermissionsData::class.java
+                    )
+                } catch (e: Exception) {
+                    _modulePermissions.value = null
+                }
+            }
+
+            evaluateWorkspaceLock()
+        }
+    }
+
+    fun fetchPermissions(forceRefresh: Boolean = false, onComplete: (() -> Unit)? = null) {
         viewModelScope.launch {
             _isLoadingPermissions.value = true
-            apiRepository.request<ModulePermissionsResponse> {
-                get("/api/common/plan-setups/customer/my-plan-modules")
-            }.fold(
-                onSuccess = { res ->
-                    val data = res.data
-                    _permissions.value = data
-
-                    // Check if all module arrays are completely empty
-                    val isEmptyWorkspace = data == null || (
-                            data.home.isEmpty() &&
-                                    data.sales.isEmpty() &&
-                                    data.marketing.isEmpty() &&
-                                    data.finance.isEmpty() &&
-                                    data.inventory.isEmpty() &&
-                                    data.logistics.isEmpty() &&
-                                    data.services.isEmpty() &&
-                                    data.hr.isEmpty() &&
-                                    data.itModule.isEmpty() &&
-                                    data.legal.isEmpty() &&
-                                    data.security.isEmpty() &&
-                                    data.reports.isEmpty()
-                            )
-
-                    _isWorkspaceLocked.value = isEmptyWorkspace
-                },
-                onFailure = {
-                    // If API fails or no subscription found, keep workspace locked
-                    _isWorkspaceLocked.value = true
+            try {
+                if (forceRefresh) {
+                    permissionDao.clearAllPermissions()
                 }
-            )
-            _isLoadingPermissions.value = false
+
+                coroutineScope {
+                    val moduleDeferred = async {
+                        apiRepository.request<ModulePermissionsResponse> {
+                            get("/api/common/plan-setups/customer/my-plan-modules")
+                        }
+                    }
+
+                    val meDeferred = async {
+                        apiRepository.request<MyPermissionsResponse> {
+                            get("/api/permissions/me")
+                        }
+                    }
+
+                    val moduleResult = moduleDeferred.await()
+                    val meResult = meDeferred.await()
+
+                    moduleResult.fold(
+                        onSuccess = { res ->
+                            _modulePermissions.value = res.data
+                            res.data?.let { data ->
+                                permissionDao.insertPlanModules(
+                                    PlanModuleEntity(
+                                        id = 1,
+                                        modulesJson = gson.toJson(data)
+                                    )
+                                )
+                            }
+                        },
+                        onFailure = {
+                            if (forceRefresh) _modulePermissions.value = null
+                        }
+                    )
+
+                    meResult.fold(
+                        onSuccess = { res ->
+                            _myPermissions.value = res.data
+                            res.data?.let { data ->
+                                permissionDao.insertUserPermissions(
+                                    UserPermissionEntity(
+                                        id = 1,
+                                        isOwner = data.isOwner,
+                                        visiblePermissionsJson = gson.toJson(data.visible),
+                                        rawPermissionsJson = gson.toJson(data.permissions)
+                                    )
+                                )
+                            }
+                        },
+                        onFailure = {
+                            if (forceRefresh) _myPermissions.value = null
+                        }
+                    )
+
+                    evaluateWorkspaceLock()
+                }
+            } catch (e: Exception) {
+                evaluateWorkspaceLock()
+            } finally {
+                _isLoadingPermissions.value = false
+                onComplete?.invoke()
+            }
+        }
+    }
+
+    private fun evaluateWorkspaceLock() {
+        val moduleData = _modulePermissions.value
+        val myPermData = _myPermissions.value
+
+        val isPlanEmpty = moduleData == null || (
+                moduleData.home.isEmpty() &&
+                        moduleData.sales.isEmpty() &&
+                        moduleData.marketing.isEmpty() &&
+                        moduleData.finance.isEmpty() &&
+                        moduleData.inventory.isEmpty() &&
+                        moduleData.logistics.isEmpty() &&
+                        moduleData.services.isEmpty() &&
+                        moduleData.hr.isEmpty() &&
+                        moduleData.itModule.isEmpty() &&
+                        moduleData.legal.isEmpty() &&
+                        moduleData.security.isEmpty() &&
+                        moduleData.reports.isEmpty()
+                )
+
+        val isUserRestricted = myPermData != null && !myPermData.isOwner && myPermData.visible.isEmpty()
+        _isWorkspaceLocked.value = isPlanEmpty || isUserRestricted
+    }
+
+    /**
+     * Checks if plan includes the feature
+     */
+    fun isPlanFeatureSubscribed(module: String, feature: String): Boolean {
+        val moduleData = _modulePermissions.value ?: return true
+        return moduleData.isFeatureAllowed(module, feature)
+    }
+
+    /**
+     * Checks if user has access to a specific module feature (combining plan subscription and view permissions).
+     */
+    fun hasFeatureAccess(module: String, feature: String): Boolean {
+        if (!isPlanFeatureSubscribed(module, feature)) return false
+        val myData = _myPermissions.value ?: return true
+        if (myData.isOwner) return true
+        return myData.canView(module, feature)
+    }
+
+    /**
+     * View Permission check: Returns true if user can view the route.
+     */
+    fun canViewRoute(route: String): Boolean {
+        val mapping = getRouteFeatureMapping(route) ?: return true
+        val (module, feature) = mapping
+
+        // 1. Plan check
+        if (!isPlanFeatureSubscribed(module, feature)) return false
+
+        // 2. User action view check
+        val myData = _myPermissions.value ?: return true
+        if (myData.isOwner) return true
+        return myData.canView(module, feature)
+    }
+
+    /**
+     * Create Action check for current route or module.feature
+     */
+    fun canCreate(routeOrFeature: String): Boolean {
+        val mapping = getRouteFeatureMapping(routeOrFeature)
+        val myData = _myPermissions.value ?: return true
+        if (myData.isOwner) return true
+
+        return if (mapping != null) {
+            myData.canCreate(mapping.first, mapping.second)
+        } else {
+            true
         }
     }
 
     /**
-     * Maps any app route to its (module, featureKey) pair according to the subscription API response
+     * Edit Action check for current route or module.feature
      */
+    fun canEdit(routeOrFeature: String): Boolean {
+        val mapping = getRouteFeatureMapping(routeOrFeature)
+        val myData = _myPermissions.value ?: return true
+        if (myData.isOwner) return true
+
+        return if (mapping != null) {
+            myData.canEdit(mapping.first, mapping.second)
+        } else {
+            true
+        }
+    }
+
+    /**
+     * Delete Action check for current route or module.feature
+     */
+    fun canDelete(routeOrFeature: String): Boolean {
+        val mapping = getRouteFeatureMapping(routeOrFeature)
+        val myData = _myPermissions.value ?: return true
+        if (myData.isOwner) return true
+
+        return if (mapping != null) {
+            myData.canDelete(mapping.first, mapping.second)
+        } else {
+            true
+        }
+    }
+
+    fun hasRouteAccess(route: String): Boolean = canViewRoute(route)
+
+    fun getPaywallConfigForModule(moduleOrFeatureKey: String): PaywallModuleConfig {
+        val currentPlan = _myPermissions.value?.let { "Professional Plan" } ?: "Standard Plan"
+        return ModuleUpgradeConfig.getConfig(
+            key = moduleOrFeatureKey,
+            planName = currentPlan
+        )
+    }
+
     fun getRouteFeatureMapping(route: String): Pair<String, String>? {
         return when (route) {
-            // ── HOME & SETTINGS ──
-            "home_organization_profile", "organization_settings" -> "home" to "organizationProfile"
+            // ── 1. HOME & SETTINGS ──
+            "home_organization_profile"-> "home" to "organizationProfile"
             "home_branch_management" -> "home" to "branches"
             "home_department_teams" -> "home" to "departments"
             "home_designation" -> "home" to "designations"
             "home_warehouse_management" -> "home" to "warehouse"
             "home_approval_rules", "home_create_approval_rule" -> "home" to "approvalRules"
 
-            // ── SALES MODULE ──
+            // ── 2. SALES MODULE ──
             "sales_dashboard" -> "sales" to "dashboard"
             "sales_lead", "create_lead", "view_lead", "edit_lead", "convert_lead_to_opportunity" -> "sales" to "leadManagement"
             "sales_opportunity_pipeline", "sales_opportunities", "create_opportunity", "opportunity_detail" -> "sales" to "opportunities"
@@ -92,33 +295,26 @@ class PermissionViewModel @Inject constructor(
             "sales_measurements", "measurement_entry", "measurements_available_view", "measurement_management_view", "measurement_fields_config" -> "sales" to "measurements"
             "sales_pricing_overview", "garment_pricing_list", "create_garment_pricing", "sales_pricing_quotation", "create_quotation", "view_quotation" -> "sales" to "pricingQuotes"
             "sales_payment_and_billing", "payment_detail" -> "sales" to "billingAndPayments"
-            "sales_settings", "sales_garment_type", "sales_add_segment", "sales_category_detail", "sales_garment_profile", "sales_configuration_preview", "sales_add_existing_field", "sales_create_measurement_field", "sales_add_garment", "sales_add_garment_category" -> "sales" to "designSetup"
-            "sales_garment_pricing_setup", "sales_add_garment_pricing", "sales_add_fabric_pricing", "sales_add_work_pricing" -> "sales" to "pricingGarment"
+            "sales_garment_type", "sales_add_segment", "sales_category_detail", "sales_garment_profile", "sales_configuration_preview", "sales_add_existing_field", "sales_create_measurement_field", "sales_add_garment", "sales_add_garment_category" -> "sales" to "garmentMeasurement"
+            "sales_settings" -> "sales" to "designSetup"
+            "sales_garment_pricing_setup", "sales_add_garment_pricing" -> "sales" to "pricingGarment"
+            "sales_add_fabric_pricing" -> "sales" to "pricingFabric"
+            "sales_add_work_pricing" -> "sales" to "pricingWork"
             "sales_measurement_list" -> "sales" to "measurementList"
 
-            // ── MARKETING MODULE ──
-            "marketing_dashboard" -> "marketing" to "dashboard"
-            "marketing_campaigns_overview", "marketing_all_campaigns", "marketing_campaign_detail" -> "marketing" to "campaigns"
-            "marketing_advertising_overview", "marketing_advertising" -> "marketing" to "growth"
-            "marketing_social_overview", "marketing_social_media" -> "marketing" to "engagement"
-            "marketing_promotions_overview", "marketing_all_promotions" -> "marketing" to "budget"
-            "marketing_customers_overview", "marketing_all_customers" -> "marketing" to "leadsAudience"
-            "marketing_website_overview", "marketing_traffic_engagement", "marketing_pages", "marketing_sources", "marketing_channels" -> "marketing" to "website"
-            "marketing_calendar", "marketing_insights" -> "marketing" to "team"
-
-            // ── FINANCE MODULE ──
+            // ── 3. FINANCE MODULE ──
             "finance_dashboard" -> "finance" to "dashboard"
+            "finance_customers", "finance_customer_detail", "finance_create_customer" -> "finance" to "finCustomers"
             "finance_sales_orders" -> "finance" to "finOrders"
             "finance_sales_invoices", "finance_invoice_detail", "finance_create_sales_invoice" -> "finance" to "finInvoices"
             "finance_receipts", "finance_receipt_detail", "finance_create_payment_receipt", "finance_payments_received", "payment_detail_screen" -> "finance" to "finReceipts"
-            "finance_purchase_invoices", "finance_purchase_invoice_detail", "finance_bills_list" -> "finance" to "finPurchaseBills"
-            "finance_customers", "finance_customer_detail", "finance_create_customer" -> "finance" to "finCustomers"
+            "finance_credits", "finance_create_credit", "finance_credit_detail" -> "finance" to "finCustomerCredits"
             "finance_suppliers", "finance_supplier_detail", "finance_create_supplier" -> "finance" to "finSuppliers"
             "finance_purchase_orders" -> "finance" to "finPurchaseOrders"
             "finance_purchase_receive" -> "finance" to "finPurchaseReceives"
+            "finance_bills_list", "finance_purchase_invoices", "finance_purchase_invoice_detail" -> "finance" to "finPurchaseBills"
             "finance_payments_made", "finance_record_payment" -> "finance" to "finPaymentsMade"
             "finance_purchase_returns", "finance_purchase_return_detail", "finance_create_purchase_return" -> "finance" to "finPurchaseReturns"
-            "finance_credits", "finance_create_credit", "finance_credit_detail" -> "finance" to "finCustomerCredits"
             "finance_vendor_credits" -> "finance" to "finSupplierCredits"
             "finance_chart_of_accounts", "finance_trial_balance", "finance_ledger", "home_opening_balance" -> "finance" to "finChartOfAccounts"
             "finance_journal_screen" -> "finance" to "finJournalEntries"
@@ -129,7 +325,7 @@ class PermissionViewModel @Inject constructor(
             "finance_add_gst", "finance_gst_settings" -> "finance" to "finTaxRegistration"
             "finance_tax_rates", "finance_add_tax_group" -> "finance" to "finTaxRatesRules"
 
-            // ── INVENTORY MODULE ──
+            // ── 4. INVENTORY MODULE ──
             "inventory_dashboard" -> "inventory" to "dashboard"
             "inventory_items", "inventory_all_items", "inventory_create_item", "inventory_item_detail" -> "inventory" to "items"
             "inventory_item_groups", "inventory_create_item_group", "inventory_item_group_detail" -> "inventory" to "itemGroups"
@@ -153,52 +349,68 @@ class PermissionViewModel @Inject constructor(
             "inventory_picklist", "inventory_picklist_detail", "inventory_create_picklist" -> "inventory" to "picklist"
             "inventory_packages", "inventory_create_package", "inventory_package_detail" -> "inventory" to "packages"
             "inventory_category_listing", "inventory_create_category", "inventory_multichannel_category_listing" -> "inventory" to "category"
+            "inventory_approvals", "inventory_approval_detail" -> "inventory" to "approvals"
             "inventory_location_structure", "inventory_floor_overview", "inventory_add_floor", "inventory_section_overview", "inventory_add_section", "inventory_rack_overview", "inventory_add_rack", "inventory_bin_overview", "inventory_add_bin" -> "inventory" to "warehouseStructure"
             "inventory_auto_reorder_settings" -> "inventory" to "autoReorderSettings"
             "inventory_pdf_templates" -> "inventory" to "pdftemp"
-            "inventory_approvals", "inventory_approval_detail" -> "inventory" to "approvals"
-            "inventory_allocation_rules", "inventory_create_allocation", "inventory_multichannel_allocation_list" -> "inventory" to "custom"
 
-            // ── LOGISTICS MODULE ──
+            // ── 5. HR MODULE ──
+            "hr_dashboard" -> "hr" to "hrDashboard"
+            "hr_all_employees", "hr_employee_onboarding", "hr_employee_management" -> "hr" to "employeeManagement"
+            "hr_organization_structure" -> "hr" to "allEmployees"
+            "hr_daily_attendance", "hr_attendance", "hr_attendance_detail" -> "hr" to "dailyAttendance"
+            "hr_monthly_attendance" -> "hr" to "monthlyAttendance"
+            "hr_attendance_manual_entry" -> "hr" to "manualEntry"
+            "hr_attendance_shift_management", "hr_shift_list", "hr_create_shift" -> "hr" to "shiftManagement"
+            "hr_leave_approval" -> "hr" to "leaveApproval"
+            "hr_apply_leave" -> "hr" to "leaveDashboard"
+            "hr_payroll_salary_structure", "hr_payroll_salary_templates", "hr_payroll_salary_templates_form" -> "hr" to "salaryStructureMaster"
+            "hr_payroll_salary_components", "hr_payroll_salary_components_create" -> "hr" to "employeeSalaryAssignment"
+            "hr_expense_claims", "hr_expense_claim_detail", "hr_expense_claim_detail_readonly" -> "hr" to "approvals"
+            "hr_expense_new_claim", "hr_submit_expense_claim", "hr_edit_expense_claim" -> "hr" to "newClaims"
+            "hr_expense_type", "hr_add_expense_type" -> "hr" to "expenseType"
+            "hr_expense_finance_reimbursement", "hr_expense_process_payment" -> "hr" to "financeReimbursement"
+            "hr_training_management", "hr_add_edit_program" -> "hr" to "trainingProgram"
+            "hr_training_assignment_list", "hr_assign_training_form" -> "hr" to "assignmentManagement"
+            "hr_employee_document_upload", "hr_new_document_upload" -> "hr" to "employeeDocuments"
+            "hr_document_categories", "hr_add_document_category" -> "hr" to "documentCategories"
+
+            // ── 6. MARKETING MODULE ──
+            "marketing_dashboard" -> "marketing" to "dashboard"
+            "marketing_campaigns_overview", "marketing_all_campaigns", "marketing_campaign_detail" -> "marketing" to "campaigns"
+            "marketing_advertising_overview", "marketing_advertising" -> "marketing" to "advertising"
+            "marketing_social_overview", "marketing_social_media" -> "marketing" to "socialMedia"
+            "marketing_promotions_overview", "marketing_all_promotions" -> "marketing" to "promotions"
+            "marketing_customers_overview", "marketing_all_customers" -> "marketing" to "leadsAudience"
+            "marketing_website_overview", "marketing_traffic_engagement", "marketing_pages", "marketing_sources" -> "marketing" to "website"
+            "marketing_channels" -> "marketing" to "marketingChannels"
+            "marketing_calendar" -> "marketing" to "marketingCalendar"
+            "marketing_insights" -> "marketing" to "marketingInsights"
+
+            // ── 7. LOGISTICS MODULE ──
             "logistics_dashboard" -> "logistics" to "dashboard"
             "logistics_orders", "logistics_order_detail" -> "logistics" to "orderList"
-            "logistics_delivery", "delivery_detail", "logistics_dispatched" -> "logistics" to "delivery"
-            "logistics_order_tracking", "tracking_overview", "logistics_tracking_events" -> "logistics" to "trackingEvents"
+            "logistics_delivery", "delivery_detail" -> "logistics" to "delivery"
+            "logistics_dispatched" -> "logistics" to "dispatched"
+            "logistics_shipments", "shipment_detail", "create_shipment" -> "logistics" to "shipments"
             "logistics_courier_management", "courier_overview" -> "logistics" to "courierManagement"
             "logistics_courier_partner_list", "courier_partner_overview", "add_courier_partner" -> "logistics" to "courierPartners"
-            "logistics_shipments", "shipment_detail", "create_shipment" -> "logistics" to "shipments"
+            "logistics_tracking_events", "logistics_order_tracking", "tracking_overview" -> "logistics" to "trackingEvents"
             "logistics_returns", "return_detail", "create_return" -> "logistics" to "returns"
             "logistics_cod_screen", "logistics_cod_detail" -> "logistics" to "codOrders"
 
-            // ── SERVICES MODULE ──
+            // ── 8. SERVICES MODULE ──
             "services_dashboard" -> "services" to "dashboard"
             "services_production_orders", "services_service_orders", "services_service_order" -> "services" to "productionOrders"
             "services_production_works", "services_production_pipeline", "services_qc_delivery", "services_assignment_mode" -> "services" to "productionWorks"
             "services_service_request", "create_request", "review_services", "review_service_request" -> "services" to "serviceRequests"
             "services_alteration_management", "create_alteration", "view_alteration" -> "services" to "alterations"
-            "services_customer_feedback", "feedback_detail" -> "services" to "customerFeedback"
             "services_customer_complaints", "complaint_detail" -> "services" to "customerComplaints"
+            "services_customer_feedback", "feedback_detail" -> "services" to "customerFeedback"
             "services_service_templates", "services_create_service_template", "services_view_service_template" -> "services" to "serviceTemplates"
             "services_service_status", "service_status_detail", "services_service_delivery", "services_delay_rework" -> "services" to "workflowStages"
 
-            // ── HR MODULE ──
-            "hr_dashboard" -> "hr" to "hrDashboard"
-            "hr_all_employees", "hr_employee_onboarding", "hr_employee_management", "hr_organization_structure" -> "hr" to "allEmployees"
-            "hr_daily_attendance", "hr_attendance", "hr_attendance_detail" -> "hr" to "dailyAttendance"
-            "hr_attendance_manual_entry" -> "hr" to "manualEntry"
-            "hr_attendance_shift_management", "hr_shift_list", "hr_create_shift" -> "hr" to "shiftManagement"
-            "hr_monthly_attendance" -> "hr" to "monthlyAttendance"
-            "hr_leave_approval", "hr_apply_leave" -> "hr" to "leaveApproval"
-            "hr_payroll_salary_structure", "hr_payroll_salary_components", "hr_payroll_salary_components_create", "hr_payroll_salary_templates", "hr_payroll_salary_templates_form" -> "hr" to "salaryStructureMaster"
-            "hr_training_management", "hr_add_edit_program" -> "hr" to "trainingProgram"
-            "hr_training_assignment_list", "hr_assign_training_form" -> "hr" to "assignmentManagement"
-            "hr_employee_document_upload", "hr_new_document_upload" -> "hr" to "employeeDocuments"
-            "hr_document_categories", "hr_add_document_category" -> "hr" to "documentCategories"
-            "hr_expense_claims", "hr_expense_new_claim", "hr_expense_claim_detail", "hr_expense_claim_detail_readonly", "hr_submit_expense_claim", "hr_edit_expense_claim" -> "hr" to "expenses"
-            "hr_expense_type", "hr_add_expense_type" -> "hr" to "expenseType"
-            "hr_expense_finance_reimbursement", "hr_expense_process_payment" -> "hr" to "financeReimbursement"
-
-            // ── IT MODULE ──
+            // ── 9. IT MODULE ──
             "it_dashboard" -> "it" to "dashboard"
             "it_device_management", "it_device_detail" -> "it" to "deviceManagement"
             "it_pos_billing", "it_pos_billing_detail" -> "it" to "posAndBillingTechnology"
@@ -207,9 +419,8 @@ class PermissionViewModel @Inject constructor(
             "it_asset_management", "it_asset_detail", "it_asset_register" -> "it" to "itAssetManagement"
             "it_service_desk", "it_service_desk_create", "it_service_desk_detail" -> "it" to "itServiceDesk"
 
-            // ── LEGAL MODULE ──
+            // ── 10. LEGAL MODULE ──
             "legal_dashboard" -> "legal" to "dashboard"
-            "legal_calendar" -> "legal" to "auditCalendar"
             "legal_contracts", "legal_contract_detail", "legal_create_contract" -> "legal" to "contracts"
             "legal_compliance", "legal_compliance_detail", "legal_create_compliance" -> "legal" to "compliance"
             "legal_documents", "legal_document_detail", "legal_create_document" -> "legal" to "documents"
@@ -218,8 +429,22 @@ class PermissionViewModel @Inject constructor(
             "legal_employee", "legal_employee_detail", "legal_create_employee" -> "legal" to "employeeLegal"
             "legal_vendor", "legal_vendor_detail", "legal_create_vendor" -> "legal" to "vendorLegal"
             "legal_notice", "legal_notice_detail", "legal_create_notice" -> "legal" to "notices"
+            "legal_calendar" -> "legal" to "auditCalendar"
 
-            // ── REPORTS MODULE ──
+            // ── 11. SECURITY MODULE ──
+            "security_dashboard" -> "security" to "dashboard"
+            "security_roles", "home_role_management", "home_create_role" -> "security" to "roles"
+            "security_data_backup" -> "security" to "dataBackup"
+            "security_recovery" -> "security" to "recovery"
+            "security_api_integration" -> "security" to "apiSecurity"
+            "security_api_logs" -> "security" to "apiLogs"
+            "security_mobile_security" -> "security" to "mobileSecurity"
+            "security_help_center" -> "security" to "helpCenter"
+            "security_support_ticket" -> "security" to "supportTicket"
+            "security_audit_logs" -> "security" to "auditLogs"
+            "security_users", "security_create_user" -> "security" to "users"
+
+            // ── 12. REPORTS MODULE ──
             "reports_sales" -> "reports" to "orderMasterRegister"
             "reports_marketing" -> "reports" to "mktCampaignPerformance"
             "reports_finance" -> "reports" to "revenueExpenseSummary"
@@ -231,179 +456,7 @@ class PermissionViewModel @Inject constructor(
             "reports_security" -> "reports" to "secIncidentsAlerts"
             "reports_legal" -> "reports" to "legalContractsExpiry"
 
-            // ── SECURITY & ROLES ──
-            "home_role_management" -> "security" to "roles"
-
             else -> null
-        }
-    }
-
-    /**
-     * Checks if the given screen route is authorized under current subscription
-     */
-    fun hasRouteAccess(route: String): Boolean {
-        val mapping = getRouteFeatureMapping(route) ?: return true
-        val currentPermissions = _permissions.value ?: return true
-        return currentPermissions.isFeatureAllowed(mapping.first, mapping.second)
-    }
-
-    /**
-     * Returns module-specific upgrade paywall UI content
-     */
-    fun getPaywallConfigForModule(module: String): PaywallModuleConfig {
-        return when (module.lowercase()) {
-            "inventory" -> PaywallModuleConfig(
-                moduleKey = "inventory",
-                moduleTitle = "Inventory Module",
-                headline = "Upgrade to Unlock Inventory Tools",
-                description = "Track stock, suppliers, and warehouse operations easily.",
-                efficiencyBadge = "+30% Efficiency",
-                featuresIncluded = listOf(
-                    "Stock Tracking",
-                    "Warehouse Management",
-                    "Supplier Management",
-                    "Low Stock Alerts",
-                    "Inventory Reports"
-                )
-            )
-            "sales" -> PaywallModuleConfig(
-                moduleKey = "sales",
-                moduleTitle = "Sales Module",
-                headline = "Upgrade to Unlock Sales Tools",
-                description = "Manage pipeline, custom garment pricing, and client orders seamlessly.",
-                efficiencyBadge = "+45% Conversions",
-                featuresIncluded = listOf(
-                    "Lead Pipeline Tracking",
-                    "Custom Measurements Engine",
-                    "Quotation Generator",
-                    "Sales Billing & Payments",
-                    "Sales Performance Reports"
-                )
-            )
-            "finance" -> PaywallModuleConfig(
-                moduleKey = "finance",
-                moduleTitle = "Finance Module",
-                headline = "Upgrade to Unlock Finance Tools",
-                description = "Full accounting suite with general ledger, invoices, and bank reconciliation.",
-                efficiencyBadge = "+50% Automation",
-                featuresIncluded = listOf(
-                    "General Ledger & Journal Entries",
-                    "Bank Account Reconciliation",
-                    "Tax & GST Automation",
-                    "Vendor & Customer Credits",
-                    "Financial Balance Reports"
-                )
-            )
-            "marketing" -> PaywallModuleConfig(
-                moduleKey = "marketing",
-                moduleTitle = "Marketing Module",
-                headline = "Upgrade to Unlock Marketing Tools",
-                description = "Drive campaign growth, track social channels, and audience engagement.",
-                efficiencyBadge = "+35% Growth",
-                featuresIncluded = listOf(
-                    "Ad Campaign Tracking",
-                    "Audience Segmentation",
-                    "Social Media Sync",
-                    "Promotions & Budget Engine",
-                    "Traffic Analytics"
-                )
-            )
-            "logistics" -> PaywallModuleConfig(
-                moduleKey = "logistics",
-                moduleTitle = "Logistics Module",
-                headline = "Upgrade to Unlock Logistics Tools",
-                description = "Automate courier management, dispatch tracking, and return operations.",
-                efficiencyBadge = "+40% Delivery Speed",
-                featuresIncluded = listOf(
-                    "Courier Partner Integration",
-                    "Live Shipment Tracking",
-                    "Cash on Delivery Management",
-                    "Return Order Workflows",
-                    "Dispatch Dispatch Monitoring"
-                )
-            )
-            "services" -> PaywallModuleConfig(
-                moduleKey = "services",
-                moduleTitle = "Services Module",
-                headline = "Upgrade to Unlock Services Tools",
-                description = "Manage alterations, workshop job cards, quality control, and client feedback.",
-                efficiencyBadge = "+50% Faster Turnaround",
-                featuresIncluded = listOf(
-                    "Production Pipeline Tracking",
-                    "Workshop Job Assignment",
-                    "Alteration Management",
-                    "Quality Control Checks",
-                    "Client Feedback Management"
-                )
-            )
-            "hr" -> PaywallModuleConfig(
-                moduleKey = "hr",
-                moduleTitle = "HR & Payroll Module",
-                headline = "Upgrade to Unlock HR Tools",
-                description = "Automate employee onboarding, daily attendance, and expense reimbursements.",
-                efficiencyBadge = "+40% Productivity",
-                featuresIncluded = listOf(
-                    "Attendance & Shift Tracking",
-                    "Employee Leave Approvals",
-                    "Payroll Salary Components",
-                    "Staff Training Management",
-                    "Expense Claim Approvals"
-                )
-            )
-            "it" -> PaywallModuleConfig(
-                moduleKey = "it",
-                moduleTitle = "IT & Systems Module",
-                headline = "Upgrade to Unlock IT Tools",
-                description = "Manage terminal fleets, POS devices, asset lifecycles, and data backups.",
-                efficiencyBadge = "+99.9% Uptime",
-                featuresIncluded = listOf(
-                    "POS & Terminal Fleet Monitor",
-                    "Device & Hardware Inventory",
-                    "Cloud Backup & Snapshot Restore",
-                    "IT Helpdesk & Ticket Triage",
-                    "System Asset Register"
-                )
-            )
-            "legal" -> PaywallModuleConfig(
-                moduleKey = "legal",
-                moduleTitle = "Legal & Compliance Module",
-                headline = "Upgrade to Unlock Legal Tools",
-                description = "Maintain statutory licenses, contracts, audit calendars, and legal notices.",
-                efficiencyBadge = "100% Compliance",
-                featuresIncluded = listOf(
-                    "Contract Lifecycle Management",
-                    "Statutory License Renewals",
-                    "Legal Notice & Dispute Tracking",
-                    "Vendor & Employee Legal Files",
-                    "Regulatory Audit Calendar"
-                )
-            )
-            "reports" -> PaywallModuleConfig(
-                moduleKey = "reports",
-                moduleTitle = "Analytics & Reports Module",
-                headline = "Upgrade to Unlock Advanced Reports",
-                description = "Access executive dashboards, revenue insights, and multi-branch data.",
-                efficiencyBadge = "+60% Decision Clarity",
-                featuresIncluded = listOf(
-                    "Multi-Branch Sales Reports",
-                    "Inventory Valuation Registers",
-                    "Profit & Loss Ledgers",
-                    "Logistics SLA Performance",
-                    "Audit & Security Logs"
-                )
-            )
-            else -> PaywallModuleConfig(
-                moduleKey = module,
-                moduleTitle = "${module.replaceFirstChar { it.uppercase() }} Module",
-                headline = "Upgrade to Unlock Advanced Tools",
-                description = "Gain full enterprise access to scale your operations effortlessly.",
-                featuresIncluded = listOf(
-                    "Advanced Automation",
-                    "Multi-level Approvals",
-                    "Detailed Reports & Insights",
-                    "Priority Cloud Sync"
-                )
-            )
         }
     }
 }

@@ -1,3 +1,5 @@
+@file:Suppress("unused", "AssignedValueIsNeverRead", "UnusedVariable")
+
 package com.cuso.tailor.view.home.profile_settings.all_settings
 
 import androidx.compose.foundation.background
@@ -114,19 +116,19 @@ fun SettingsOverviewScreen(
                 onClick = onNavigateToModuleSettings
             )
 
-            Spacer(Modifier.height(16.dp))
-
-            // Card 3: Subscription & Billing Settings
-            SettingsOverviewCard(
-                icon = R.drawable.box,
-                iconBg = Color(0xFFEDE9FE),
-                iconTint = Color(0xFF4F46E5),
-                title = "Subscription & Billing",
-                description = "Manage your CUSO Tailor subscription, plans, active limits, invoices, add-ons and payment methods.",
-                tags = listOf("Manage Plan", "Usage Snapshot", "+ More"),
-                actionText = "Manage Subscription →",
-                onClick = onNavigateToSubscriptionSettings
-            )
+    //            Spacer(Modifier.height(16.dp))
+    //
+    //            // Card 3: Subscription & Billing Settings
+    //            SettingsOverviewCard(
+    //                icon = R.drawable.box,
+    //                iconBg = Color(0xFFEDE9FE),
+    //                iconTint = Color(0xFF4F46E5),
+    //                title = "Subscription & Billing",
+    //                description = "Manage your CUSO Tailor subscription, plans, active limits, invoices, add-ons and payment methods.",
+    //                tags = listOf("Manage Plan", "Usage Snapshot", "+ More"),
+    //                actionText = "Manage Subscription →",
+    //                onClick = onNavigateToSubscriptionSettings
+    //            )
         }
     }
 }

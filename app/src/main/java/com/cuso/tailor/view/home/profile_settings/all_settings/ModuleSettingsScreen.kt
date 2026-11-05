@@ -27,12 +27,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.home.sales.settings.design.DesignSetupScreen
+import com.cuso.tailor.viewmodel.PermissionViewModel
 
 // Sub-Item Model supporting optional nested children
 data class ModuleSubItem(
@@ -58,8 +60,12 @@ fun ModuleSettingsScreen(
     onClose: () -> Unit,
     onNavigateToModule: (String) -> Unit = {},
     onConfigureHome: () -> Unit = { onNavigateToModule("home") },
+    onNavigateLeaveTypes: () -> Unit = { onNavigateToModule("hr_leave_types") },
+    onNavigateLeavePolicies: () -> Unit = { onNavigateToModule("hr_leave_policies") },
+    onNavigatePieceRateSetup: () -> Unit = { onNavigateToModule("hr_piece_rate_setup") },
     onConfigureSales: () -> Unit = { onNavigateToModule("sales_garment_type") },
     onConfigureSalesPricing: () -> Unit = { onNavigateToModule("sales_garment_pricing_setup") },
+    onNavigateProductionStages: () -> Unit = { onNavigateToModule("services_production_stages") },
     onNavigateMeasurementList: () -> Unit = { onNavigateToModule("sales_measurement_list") },
     onNavigateDesignSetup: () -> Unit = { onNavigateToModule("sales_design_setup") },
     onConfigureMarketing: () -> Unit = {},
@@ -88,7 +94,15 @@ fun ModuleSettingsScreen(
 ) {
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
+    val permissionViewModel: PermissionViewModel = hiltViewModel()
 
+    fun checkAndNavigate(module: String, feature: String, action: () -> Unit) {
+        if (permissionViewModel.hasFeatureAccess(module, feature)) {
+            action()
+        } else {
+            onNavigateToModule("module_upgrade_paywall")
+        }
+    }
     // State to toggle the full Design Setup screen overlay
     var isDesignSetupOpen by remember { mutableStateOf(false) }
 
@@ -104,6 +118,7 @@ fun ModuleSettingsScreen(
         onConfigureSales,
         onConfigureSalesPricing,
         onNavigateMeasurementList,
+        onNavigateProductionStages,
         onNavigateDesignSetup,
         onConfigureMarketing,
         onConfigureFinance,
@@ -126,6 +141,7 @@ fun ModuleSettingsScreen(
         onConfigureReports
     ) {
         listOf(
+            // 1. Home
             ModuleSettingItem(
                 id = "home",
                 title = "Home",
@@ -133,8 +149,10 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.home,
                 tags = listOf("Dashboard", "Widgets", "Shortcuts"),
                 isConfigured = true,
-                onConfigure = onConfigureHome
+                onConfigure = { checkAndNavigate("home", "organizationProfile", onConfigureHome) }
             ),
+
+            // 2. Sales
             ModuleSettingItem(
                 id = "sales",
                 title = "Sales",
@@ -143,19 +161,23 @@ fun ModuleSettingsScreen(
                 tags = listOf("Orders", "Pricing", "Approvals"),
                 isConfigured = true,
                 subItems = listOf(
-                    ModuleSubItem(title = "Garment", onClick = onConfigureSales),
-                    ModuleSubItem(title = "Garment Pricing", onClick = onConfigureSalesPricing),
-                    ModuleSubItem(title = "Measurement List", onClick = onNavigateMeasurementList),
+                    ModuleSubItem(title = "Garment", onClick = { checkAndNavigate("sales", "garmentMeasurement", onConfigureSales) }),
+                    ModuleSubItem(title = "Garment Pricing", onClick = { checkAndNavigate("sales", "pricingGarment", onConfigureSalesPricing) }),
+                    ModuleSubItem(title = "Measurement List", onClick = { checkAndNavigate("sales", "measurementList", onNavigateMeasurementList) }),
                     ModuleSubItem(
                         title = "Design Setup",
                         onClick = {
-                            onNavigateDesignSetup()
-                            isDesignSetupOpen = true
+                            checkAndNavigate("sales", "designSetup") {
+                                onNavigateDesignSetup()
+                                isDesignSetupOpen = true
+                            }
                         }
                     )
                 ),
-                onConfigure = onConfigureSales
+                onConfigure = { checkAndNavigate("sales", "designSetup", onConfigureSales) }
             ),
+
+            // 3. Marketing
             ModuleSettingItem(
                 id = "marketing",
                 title = "Marketing",
@@ -163,8 +185,10 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.marketing,
                 tags = listOf("Campaigns", "Lead Sources", "Communication"),
                 isConfigured = true,
-                onConfigure = onConfigureMarketing
+                onConfigure = { checkAndNavigate("marketing", "dashboard", onConfigureMarketing) }
             ),
+
+            // 4. Finance
             ModuleSettingItem(
                 id = "finance",
                 title = "Finance",
@@ -173,12 +197,13 @@ fun ModuleSettingsScreen(
                 tags = listOf("Billing", "Payments", "Accounting"),
                 isConfigured = true,
                 subItems = listOf(
-                    ModuleSubItem(title = "GST Settings", onClick = onNavigateGstSettings),
-                    ModuleSubItem(title = "Tax Rates & Rules", onClick = onNavigateTaxRates)
+                    ModuleSubItem(title = "GST Settings", onClick = { checkAndNavigate("finance", "finTaxRegistration", onNavigateGstSettings) }),
+                    ModuleSubItem(title = "Tax Rates & Rules", onClick = { checkAndNavigate("finance", "finTaxRatesRules", onNavigateTaxRates) })
                 ),
-                onConfigure = onConfigureFinance
+                onConfigure = { checkAndNavigate("finance", "finChartOfAccounts", onConfigureFinance) }
             ),
-            // Updated Inventory Module Structure matching the screenshots
+
+            // 5. Inventory
             ModuleSettingItem(
                 id = "inventory",
                 title = "Inventory",
@@ -190,26 +215,28 @@ fun ModuleSettingsScreen(
                     ModuleSubItem(
                         title = "Warehouse Structure",
                         children = listOf(
-                            ModuleSubItem(title = "Warehouse", onClick = onNavigateLocationStructure),
-                            ModuleSubItem(title = "Floor", onClick = onNavigateFloorOverview),
-                            ModuleSubItem(title = "Section", onClick = onNavigateSectionOverview),
-                            ModuleSubItem(title = "Rack", onClick = onNavigateRackOverview),
-                            ModuleSubItem(title = "Bin", onClick = onNavigateBinOverview)
+                            ModuleSubItem(title = "Warehouse", onClick = { checkAndNavigate("inventory", "warehouseStructure", onNavigateLocationStructure) }),
+                            ModuleSubItem(title = "Floor", onClick = { checkAndNavigate("inventory", "warehouseStructure", onNavigateFloorOverview) }),
+                            ModuleSubItem(title = "Section", onClick = { checkAndNavigate("inventory", "warehouseStructure", onNavigateSectionOverview) }),
+                            ModuleSubItem(title = "Rack", onClick = { checkAndNavigate("inventory", "warehouseStructure", onNavigateRackOverview) }),
+                            ModuleSubItem(title = "Bin", onClick = { checkAndNavigate("inventory", "warehouseStructure", onNavigateBinOverview) })
                         )
                     ),
                     ModuleSubItem(
                         title = "Auto Reorder Settings",
-                        onClick = onNavigateAutoReorder
+                        onClick = { checkAndNavigate("inventory", "autoReorderSettings", onNavigateAutoReorder) }
                     ),
                     ModuleSubItem(
                         title = "Customization",
                         children = listOf(
-                            ModuleSubItem(title = "PDF Templates", onClick = onNavigatePdfTemplates)
+                            ModuleSubItem(title = "PDF Templates", onClick = { checkAndNavigate("inventory", "pdftemp", onNavigatePdfTemplates) })
                         )
                     )
                 ),
-                onConfigure = onNavigateLocationStructure
+                onConfigure = { checkAndNavigate("inventory", "warehouseStructure", onNavigateLocationStructure) }
             ),
+
+            // 6. Logistics
             ModuleSettingItem(
                 id = "logistics",
                 title = "Logistics",
@@ -217,8 +244,10 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.logistics,
                 tags = listOf("Delivery", "Dispatch", "Shipment"),
                 isConfigured = true,
-                onConfigure = onConfigureLogistics
+                onConfigure = { checkAndNavigate("logistics", "delivery", onConfigureLogistics) }
             ),
+
+            // 7. Services
             ModuleSettingItem(
                 id = "services",
                 title = "Services",
@@ -227,19 +256,54 @@ fun ModuleSettingsScreen(
                 tags = listOf("Service Orders", "Workflow", "Status Rules"),
                 isConfigured = true,
                 subItems = listOf(
-                    ModuleSubItem(title = "Service Templates", onClick = onNavigateServiceTemplates)
+                    ModuleSubItem(
+                        title = "Service Templates",
+                        onClick = { checkAndNavigate("services", "serviceTemplates", onNavigateServiceTemplates) }
+                    ),
+                    // ── ADD WORKFLOW STAGES SUB-ITEM HERE ──
+                    // Services sub-items
+                    ModuleSubItem(
+                        title = "Workflow Stages",
+                        // Use the real feature key returned by the permissions API
+                        onClick = { checkAndNavigate("services", "workflowStages", onNavigateProductionStages) }
+                    ),
                 ),
-                onConfigure = onConfigureServices
+                onConfigure = { checkAndNavigate("services", "dashboard", onConfigureServices) }
             ),
+
+            // 8. Human Resources
+            // 8. Human Resources
             ModuleSettingItem(
                 id = "hr",
                 title = "Human Resources",
                 description = "Manage employees, attendance, leave, and payroll processing.",
                 icon = R.drawable.hr,
-                tags = listOf("Employees", "Attendance", "Payroll"),
+                tags = listOf("Employees", "Attendance", "Payroll", "Leave"),
                 isConfigured = true,
-                onConfigure = onConfigureHR
+                subItems = listOf(
+                    ModuleSubItem(
+                        title = "Leave Types",
+                        onClick = {
+                            checkAndNavigate("hr", "leaveTypes", onNavigateLeaveTypes)
+                        }
+                    ),
+                    ModuleSubItem(
+                        title = "Leave Policies",
+                        onClick = {
+                            checkAndNavigate("hr", "leavePolicies", onNavigateLeavePolicies)
+                        }
+                    ),
+                    ModuleSubItem(
+                        title = "Piece Rate Setup",
+                        onClick = {
+                            checkAndNavigate("hr", "pieceRateSetup", onNavigatePieceRateSetup)
+                        }
+                    )
+                ),
+                onConfigure = { checkAndNavigate("hr", "employeeManagement", onConfigureHR) }
             ),
+
+            // 9. IT
             ModuleSettingItem(
                 id = "it",
                 title = "IT",
@@ -247,17 +311,21 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.it,
                 tags = listOf("Assets", "Access", "System Rules"),
                 isConfigured = true,
-                onConfigure = onConfigureIT
+                onConfigure = { checkAndNavigate("it", "deviceManagement", onConfigureIT) }
             ),
+
+            // 10. Legal
             ModuleSettingItem(
                 id = "legal",
                 title = "Legal",
                 description = "Manage contracts, compliance, and legal document workflows.",
                 icon = R.drawable.legal,
                 tags = listOf("Contracts", "Approvals", "Documents"),
-                isConfigured = false,
-                onConfigure = onConfigureLegal
+                isConfigured = true,
+                onConfigure = { checkAndNavigate("legal", "dashboard", onConfigureLegal) }
             ),
+
+            // 11. Security
             ModuleSettingItem(
                 id = "security",
                 title = "Security",
@@ -265,8 +333,10 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.security,
                 tags = listOf("Access", "Authentication", "Policies"),
                 isConfigured = true,
-                onConfigure = onConfigureSecurity
+                onConfigure = { checkAndNavigate("security", "dashboard", onConfigureSecurity) }
             ),
+
+            // 12. Reports
             ModuleSettingItem(
                 id = "reports",
                 title = "Reports",
@@ -274,7 +344,7 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.reports,
                 tags = listOf("Reports", "Visibility", "Exports"),
                 isConfigured = true,
-                onConfigure = onConfigureReports
+                onConfigure = { checkAndNavigate("reports", "orderMasterRegister", onConfigureReports) }
             )
         )
     }
@@ -317,6 +387,7 @@ fun ModuleSettingsScreen(
         }
     }
 }
+
 
 @Composable
 fun ModuleSettingCard(module: ModuleSettingItem) {

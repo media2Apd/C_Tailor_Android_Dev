@@ -47,8 +47,6 @@ import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FormDropdown
@@ -72,6 +70,8 @@ import com.cuso.tailor.viewmodel.DesignationCreateState
 import com.cuso.tailor.viewmodel.ProfileUiState
 import com.cuso.tailor.viewmodel.ProfileViewModel
 import com.cuso.tailor.viewmodel.SalesViewModel
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.cuso.tailor.view.composable.ThreeDotLoading
 
 enum class DepartmentScreenMode {
     LIST, FORM
@@ -107,6 +107,8 @@ fun DepartmentSettingsScreen(
     var searchQuery by remember { mutableStateOf("") }
     var currentPage by remember { mutableIntStateOf(1) }
     val itemsPerPage = 10
+
+    val listState = rememberLazyListState() // Tracks scroll position for infinite loading
 
     val uiState by departmentViewModel.uiState.collectAsStateWithLifecycle()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
@@ -186,8 +188,19 @@ fun DepartmentSettingsScreen(
     val isUpdating = updateState is DepartmentUpdateUiState.Loading
 
     val filteredDepartments = allDepartments.filter { d -> searchQuery.isBlank() || d.name.contains(searchQuery, ignoreCase = true) }
-    val totalPages = maxOf(1, if (filteredDepartments.isNotEmpty()) (filteredDepartments.size + itemsPerPage - 1) / itemsPerPage else 1)
-    val pagedDepartments = filteredDepartments.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
+// Keep already loaded items and append next items
+    val pagedDepartments = filteredDepartments.take(currentPage * itemsPerPage)
+    val canLoadMore = pagedDepartments.size < filteredDepartments.size
+
+// Trigger next page when reaching the end of the loaded list
+    LaunchedEffect(listState, pagedDepartments.size, canLoadMore) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastIndex ->
+                if (lastIndex != null && lastIndex >= pagedDepartments.size - 1 && canLoadMore) {
+                    currentPage++
+                }
+            }
+    }
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(
@@ -232,7 +245,10 @@ fun DepartmentSettingsScreen(
                                     Column(modifier = Modifier.fillMaxWidth()) {
                                         SearchFilterBar(
                                             query = searchQuery,
-                                            onQueryChange = { searchQuery = it },
+                                            onQueryChange = {
+                                                searchQuery = it
+                                                currentPage = 1 // Reset to first page when search filter changes
+                                            },
                                             placeholder = "Search Departments...",
                                             accentColor = BluePrimary,
                                             borderColor = BorderGray,
@@ -257,8 +273,8 @@ fun DepartmentSettingsScreen(
 
                                             is DepartmentUiState.Error -> {
                                                 AppErrorState(
-                                                    title = "Failed to load department",
-                                                    message = "Something went wrong. Please check your connection and try again.",
+                                                    title = "Failed to load departments",
+                                                    message = state.message.ifBlank { "Something went wrong. Please check your connection and try again." },
                                                     onRetry = { departmentViewModel.refresh() }
                                                 )
                                             }
@@ -287,6 +303,7 @@ fun DepartmentSettingsScreen(
                                                 } else {
                                                     Column(modifier = Modifier.fillMaxSize()) {
                                                         LazyColumn(
+                                                            state = listState, // Attach LazyListState
                                                             modifier = Modifier
                                                                 .fillMaxWidth()
                                                                 .weight(1f),
@@ -446,6 +463,11 @@ fun DepartmentSettingsScreen(
                                                                         }
                                                                     }
                                                                 )
+                                                            }
+                                                            if(canLoadMore){
+                                                                item {
+                                                                    ThreeDotLoading()
+                                                                }
                                                             }
                                                         }
                                                     }

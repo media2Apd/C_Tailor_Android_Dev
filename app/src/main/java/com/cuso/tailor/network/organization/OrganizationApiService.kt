@@ -86,20 +86,20 @@ interface OrganizationApiService {
         @Body request: DepartmentUpdateRequest
     ): DepartmentUpdateResponse
 
-    @GET("/api/designations/view-all")
+    @GET("/api/home/designations/view-all")
     suspend fun getDesignations(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<DesignationListResponse>
 
-    @POST("/api/designations/create")
+    @POST("/api/home/designations/create")
     suspend fun createDesignation(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Body request: DesignationCreateRequest
     ): Response<DesignationCreateResponse>
 
-    @PUT("/api/designations/update-one/{id}")
+    @PUT("/api/home/designations/update-one/{id}")
     suspend fun updateDesignation(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -107,7 +107,7 @@ interface OrganizationApiService {
         @Body request: DesignationUpdateRequest
     ): Response<DesignationUpdateResponse>
 
-    @DELETE("/api/designations/delete-one/{id}")
+    @DELETE("/api/home/designations/delete-one/{id}")
     suspend fun deleteDesignation(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,

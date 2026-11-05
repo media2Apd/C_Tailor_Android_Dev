@@ -1,6 +1,6 @@
 @file:Suppress("UNUSED_PARAMETER", "unused", "unusedVariable", "AssignedValueIsNeverRead")
 
-package com.cuso.tailor.view.home.services.settings
+package com.cuso.tailor.view.home.services.settings.template
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -48,6 +48,8 @@ import com.cuso.tailor.view.home.sales.customer.OrderStatusStepper
 import com.cuso.tailor.view.home.sales.lead.MiniSwitch
 import com.cuso.tailor.viewmodel.ServicesViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
+import java.time.Duration
+import java.time.Instant
 
 // ─────────────────────────────────────────────────────────────
 // Local Helper UI Models for Wizard Pages
@@ -342,9 +344,9 @@ fun ServiceTemplateListScreen(
 fun formatRelativeTime(dateString: String?): String {
     if (dateString.isNullOrBlank()) return "Just now"
     return try {
-        val instant = java.time.Instant.parse(dateString)
-        val now = java.time.Instant.now()
-        val duration = java.time.Duration.between(instant, now)
+        val instant = Instant.parse(dateString)
+        val now = Instant.now()
+        val duration = Duration.between(instant, now)
 
         val seconds = duration.seconds
         val minutes = duration.toMinutes()

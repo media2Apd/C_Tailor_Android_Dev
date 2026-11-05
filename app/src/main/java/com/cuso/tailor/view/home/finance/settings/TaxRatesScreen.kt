@@ -1,4 +1,4 @@
-@file:Suppress("UNUSED_PARAMETER", "SpellCheckingInspection","unusedVariable")
+@file:Suppress("UNUSED_PARAMETER", "SpellCheckingInspection", "unusedVariable")
 
 package com.cuso.tailor.view.home.finance.settings
 
@@ -8,9 +8,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,277 +21,243 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.settings.TaxRateItemDto
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.view.composable.ActionDropdownMenu
-import com.cuso.tailor.view.composable.MenuAction
-import com.cuso.tailor.view.composable.SearchFilterBar
-import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.viewmodel.SettingsViewModel
+import kotlinx.coroutines.delay
 
 // ---------------------------------------------------------------------------
-// Data Models
+// Dynamic Metric Summary Data Model
 // ---------------------------------------------------------------------------
-
 data class TaxStatItem(
     val label: String,
     val value: String,
     val statusText: String,
     val statusColor: Color,
-    val valueColor: Color = Color(0xFF111827)
-)
-
-data class TaxRateItem(
-    val id: String,
-    val name: String,
-    val metaLine: String,
-    val ratePercent: String,
-    val treatment: String,
-    val typeScope: String? = null,
-    val isActive: Boolean = true,
-    val updatedDate: String
+    val valueColor: Color = TextPrimary
 )
 
 // ---------------------------------------------------------------------------
-// Main Screen
+// Main Tax Rates Screen
 // ---------------------------------------------------------------------------
-
 @Composable
 fun TaxRatesScreen(
-    taxRates: List<TaxRateItem> = emptyList(),
-    stats: List<TaxStatItem> = emptyList(),
+    viewModel: SettingsViewModel,
     onClose: () -> Unit,
     onAddTaxRate: () -> Unit,
     onAddTaxGroup: () -> Unit,
-    onEditRate: (TaxRateItem) -> Unit = {},
-    onDeleteRate: (TaxRateItem) -> Unit = {}
+    onEditRate: (TaxRateItemDto) -> Unit = {},
+    onDeleteRate: (TaxRateItemDto) -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
+    val listState = rememberLazyListState()
 
+    // ── ViewModel State Observers ──
+    val taxRates by viewModel.taxRates.collectAsState()
+    val isLoading by viewModel.isLoadingTaxRates.collectAsState()
+    val isLoadingMore by viewModel.isLoadingMoreTaxRates.collectAsState()
+    val canLoadMore by viewModel.canLoadMoreTaxRates.collectAsState()
+    val errorMessage by viewModel.taxRatesError.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
+    var isFirstLaunch by remember { mutableStateOf(true) }
 
-    // Fallback default sample statistics matching the design
-    val effectiveStats = stats.ifEmpty {
-        listOf(
-        TaxStatItem("Active Tax Rates", "5", "Compliant", Color(0xFF10B981)),
-        TaxStatItem("Inactive Tax Rates", "1", "Deactivated", Color(0xFFEF4444)),
-        TaxStatItem("GST Groups", "2", "Active Items", Color(0xFF3B82F6)),
-        TaxStatItem("Services Rates", "4", "Active Services", Color(0xFF3B82F6))
-    )
-    }
-
-    // Fallback default sample tax rates matching the design
-    val effectiveRates = taxRates.ifEmpty {
-        listOf(
-        TaxRateItem("1", "GST 5% — Goods", "GST • Applicable to Goods", "5%", "Taxable", updatedDate = "01 Aug 2026"),
-        TaxRateItem("2", "GST 12% — Services", "GST • Applicable to Services", "12%", "Taxable", updatedDate = "01 Apr 2026"),
-        TaxRateItem("3", "GST 18% — Goods", "GST • Applicable to Goods", "18%", "Taxable", updatedDate = "15 Mar 2026"),
-        TaxRateItem("4", "GST 18% — Services", "GST • Applicable to Services", "18%", "Taxable", typeScope = "Type: GST  •  Scope: Services", updatedDate = "10 Mar 2026"),
-        TaxRateItem("5", "GST 28% — Goods", "GST • Applicable to Goods", "28%", "Taxable", updatedDate = "01 Feb 2026"),
-        TaxRateItem("6", "GST 0% — Exempt", "GST • Applicable to Goods", "0%", "Exempt", updatedDate = "01 Jan 2026")
-    )
-    }
-
-    val filteredRates = remember(effectiveRates, searchQuery) {
-        if (searchQuery.isBlank()) effectiveRates
-        else effectiveRates.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.metaLine.contains(searchQuery, ignoreCase = true)
+    // ── Initial Fetch and Debounced Search ──
+    LaunchedEffect(searchQuery) {
+        if (isFirstLaunch) {
+            isFirstLaunch = false
+            viewModel.fetchTaxRates(page = 1)
+        } else {
+            delay(400)
+            viewModel.fetchTaxRates(page = 1, search = searchQuery.takeIf { it.isNotBlank() })
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Transparent)
-    ) {
-        Row(Modifier.fillMaxWidth()) {
-            // Top Title Bar
-            TitleBar(title = "Tax Rates & Rules", onClose = onClose)
-            HorizontalDivider(color = grey_border, thickness = 2.dp)
+    // ── Infinite Scroll Detection ──
+    val shouldLoadMore = remember {
+        derivedStateOf {
+            val totalItems = listState.layoutInfo.totalItemsCount
+            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            totalItems > 0 && lastVisibleIndex >= totalItems - 2
         }
+    }
 
-        // Search and Filter Bar
-        SearchFilterBar(
-            query = searchQuery,
-            onQueryChange = { searchQuery = it },
-            placeholder = "Search Customers...",
-            accentColor = Primary,
-            borderColor = BorderGray,
-            textSecondaryColor = TextSecondary,
-            onFilterClick = { }
+    LaunchedEffect(shouldLoadMore.value) {
+        if (shouldLoadMore.value && canLoadMore && !isLoading && !isLoadingMore) {
+            viewModel.loadMoreTaxRates()
+        }
+    }
+
+    // ── Dynamic Metric Calculations from Live Data ──
+    val activeCount = remember(taxRates) {
+        taxRates.count { it.status.equals("Active", ignoreCase = true) }
+    }
+    val inactiveCount = remember(taxRates) {
+        taxRates.size - activeCount
+    }
+    val federalCount = remember(taxRates) {
+        taxRates.count { it.jurisdictionLevel.equals("Federal", ignoreCase = true) }
+    }
+    val stateCount = remember(taxRates) {
+        taxRates.count { it.jurisdictionLevel.equals("State_Province", ignoreCase = true) }
+    }
+
+    val dynamicStats = remember(taxRates) {
+        listOf(
+            TaxStatItem("Active Tax Rates", activeCount.toString(), "Compliant", greentext),
+            TaxStatItem("Inactive Tax Rates", inactiveCount.toString(), if (inactiveCount == 0) "None" else "Deactivated", if (inactiveCount == 0) mutedText else redText),
+            TaxStatItem("Central / Federal", federalCount.toString(), "CGST / IGST", blueText),
+            TaxStatItem("State / Provincial", stateCount.toString(), "SGST / UTGST", chartIndigo)
         )
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize() ,
-            contentPadding = PaddingValues(bottom = 32.dp)
-        ) {
-            // Header Section with Title, Subtitle and Add Tax Button
-            item {
-                TaxRatesSectionHeader(
-                    onAddTaxRate = onAddTaxRate,
-                    onAddTaxGroup = onAddTaxGroup
-                )
-            }
-
-            // 2x2 Stats Grid Card
-            item {
-                TaxStatsGrid(
-                    stats = effectiveStats,
-                )
-                Spacer(Modifier.height(16.dp))
-            }
-
-            // List of Tax Rate Cards
-            items(filteredRates, key = { it.id }) { item ->
-                TaxRateCard(
-                    item = item,
-                    onEdit = { onEditRate(item) },
-                    onDelete = { onDeleteRate(item) }
-                )
-            }
-        }
     }
-}
 
-// ---------------------------------------------------------------------------
-// Section Header Component: Title + Subtitle + "Add Tax" Button
-// ---------------------------------------------------------------------------
-
-@Composable
-private fun TaxRatesSectionHeader(
-    onAddTaxRate: () -> Unit,
-    onAddTaxGroup: () -> Unit
-) {
-    val tokens = LocalAppTokens.current
-    val density = LocalDensity.current
-    var menuExpanded by remember { mutableStateOf(false) }
-    var buttonWidth by remember { mutableStateOf(0.dp) }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = tokens.screenPadding, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Tax Rates & Rules",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "Create and manage tax rates and rules used across quotations, orders and invoices.",
-                fontSize = 12.sp,
-                color = Color(0xFF6B7280),
-                lineHeight = 16.sp
-            )
-        }
-
-        Spacer(Modifier.width(5.dp))
-
-        Box {
-            // Add Tax Action Button
-            Button(
-                onClick = { menuExpanded = true },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Primary,
-                    contentColor = Color.White
+    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+        FabScaffold(
+            modifier = Modifier.fillMaxSize(),
+            fab = FabConfig(
+                label = "Add Tax",
+                icon = Icons.Default.KeyboardArrowDown,
+                menuActions = listOf(
+                    MenuAction(
+                        label = "Add Tax Rate",
+                        onClick = onAddTaxRate
+                    ),
+                    MenuAction(
+                        label = "Add Tax Group",
+                        onClick = onAddTaxGroup
+                    )
                 ),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 25.dp),
-                modifier = Modifier.onGloballyPositioned { coordinates ->
-                    buttonWidth = with(density) { coordinates.size.width.toDp() }
-                }
-            ) {
-                Text(
-                    text = "Add Tax",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.width(6.dp))
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Open Add Tax Menu",
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-
-            // Dropdown Menu matching exact button width
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-                shape = RoundedCornerShape(8.dp),
-                containerColor = Color.White,
-                tonalElevation = 0.dp,
-                shadowElevation = 4.dp,
+                bottomPadding = 50.dp
+            )
+        ) {
+            Column(
                 modifier = Modifier
-                    .width(if (buttonWidth > 0.dp) buttonWidth else 130.dp)
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                    .fillMaxSize()
+                    .background(Primary_background)
             ) {
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = "Add Tax Rate",
-                            fontSize = 13.sp,
-                            color = Color(0xFF111827)
-                        )
-                    },
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                    onClick = {
-                        menuExpanded = false
-                        onAddTaxRate()
-                    }
+                // Page Title Header
+                TitleBar(title = "Tax Rates & Rules", onClose = onClose)
+                HorizontalDivider(color = dividerColor, thickness = 1.dp)
+
+                // Search and Filter Bar
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
+                    placeholder = "Search by rate name, tax tag, or rate...",
+                    accentColor = Primary,
+                    borderColor = sectionBorder,
+                    textSecondaryColor = mutedText,
+                    height = tokens.fieldHeight,
+                    onFilterClick = { }
                 )
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = "Add Tax Group",
-                            fontSize = 13.sp,
-                            color = Color(0xFF111827)
-                        )
-                    },
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                    onClick = {
-                        menuExpanded = false
-                        onAddTaxGroup()
+
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = tokens.buttonHeight * 2)
+                ) {
+
+                    // 2x2 Dynamic Metrics Grid
+                    item {
+                        TaxStatsGrid(stats = dynamicStats)
+                        Spacer(Modifier.height(10.dp))
                     }
-                )
+
+                    // Initial Loading Skeleton
+                    if (isLoading && taxRates.isEmpty()) {
+                        item {
+                            ListSkeleton()
+                        }
+                    }
+
+                    // Error Message Display
+                    if (errorMessage != null && taxRates.isEmpty()) {
+                        item {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = tokens.screenPadding, vertical = 8.dp),
+                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                                color = redBg,
+                                border = BorderStroke(1.dp, redText.copy(alpha = 0.3f))
+                            ) {
+                                Text(
+                                    text = errorMessage.orEmpty(),
+                                    fontSize = tokens.bodySmall,
+                                    color = redText,
+                                    modifier = Modifier.padding(14.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+
+                    // Empty State
+                    if (!isLoading && taxRates.isEmpty() && errorMessage == null) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 40.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (searchQuery.isNotBlank()) "No tax rates match your search" else "No tax rates found",
+                                    fontSize = tokens.bodyMedium,
+                                    color = mutedText
+                                )
+                            }
+                        }
+                    }
+
+                    // Dynamic API Items rendered using reusable DataCard
+                    items(taxRates, key = { it.id }) { item ->
+                        TaxRateDataCardItem(
+                            item = item,
+                            onEdit = { onEditRate(item) },
+                            onDelete = { onDeleteRate(item) }
+                        )
+                    }
+
+                    // Infinite Scroll Loading Footer
+                    if (isLoadingMore) {
+                        item {
+                            ThreeDotLoading()
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 // ---------------------------------------------------------------------------
-// 2x2 Stats Grid Card Component
+// 2x2 Stats Grid Component
 // ---------------------------------------------------------------------------
-
 @Composable
 private fun TaxStatsGrid(stats: List<TaxStatItem>, modifier: Modifier = Modifier) {
+    val tokens = LocalAppTokens.current
     if (stats.size < 4) return
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(whiteBg)
     ) {
         Row(modifier = Modifier.fillMaxWidth()) {
             TaxStatCell(stats[0], modifier = Modifier.weight(1f))
-            VerticalDivider(Modifier.height(150.dp), thickness = 2.dp, color = grey_border)
+            VerticalDivider(Modifier.height(80.dp), thickness = 1.dp, color = dividerColor)
             TaxStatCell(stats[1], modifier = Modifier.weight(1f))
         }
-        HorizontalDivider(color = grey_border, thickness = 2.dp)
+        HorizontalDivider(color = dividerColor, thickness = 1.dp)
         Row(modifier = Modifier.fillMaxWidth()) {
             TaxStatCell(stats[2], modifier = Modifier.weight(1f))
-            VerticalDivider(Modifier.height(150.dp), thickness = 2.dp, color = grey_border)
+            VerticalDivider(Modifier.height(80.dp), thickness = 1.dp, color = dividerColor)
             TaxStatCell(stats[3], modifier = Modifier.weight(1f))
         }
     }
@@ -296,17 +265,18 @@ private fun TaxStatsGrid(stats: List<TaxStatItem>, modifier: Modifier = Modifier
 
 @Composable
 private fun TaxStatCell(stat: TaxStatItem, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.padding(14.dp)) {
+    val tokens = LocalAppTokens.current
+    Column(modifier = modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
         Text(
             text = stat.label,
-            fontSize = 12.sp,
-            color = Color(0xFF6B7280)
+            fontSize = tokens.caption,
+            color = close_color
         )
         Spacer(Modifier.height(4.dp))
         Text(
             text = stat.value,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
+            fontSize = tokens.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
             color = stat.valueColor
         )
         Spacer(Modifier.height(4.dp))
@@ -320,7 +290,7 @@ private fun TaxStatCell(stat: TaxStatItem, modifier: Modifier = Modifier) {
             Spacer(Modifier.width(6.dp))
             Text(
                 text = stat.statusText,
-                fontSize = 11.sp,
+                fontSize = tokens.label,
                 fontWeight = FontWeight.Medium,
                 color = stat.statusColor
             )
@@ -329,141 +299,140 @@ private fun TaxStatCell(stat: TaxStatItem, modifier: Modifier = Modifier) {
 }
 
 // ---------------------------------------------------------------------------
-// Individual Tax Rate Card Component
+// Tax Rate Card Component Reusing Mandatory DataCard
 // ---------------------------------------------------------------------------
-
 @Composable
-private fun TaxRateCard(
-    item: TaxRateItem,
+private fun TaxRateDataCardItem(
+    item: TaxRateItemDto,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     val tokens = LocalAppTokens.current
+    val isActive = item.status.equals("Active", ignoreCase = true)
 
-    Column(modifier = Modifier.fillMaxWidth()
-        .background(whiteBg)) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = tokens.screenPadding, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                // Title
-                Text(
-                    text = item.name,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF111827)
-                )
-                Spacer(Modifier.height(2.dp))
+    // Formatted date string from ISO timestamp
+    val formattedDate = remember(item.updatedAt, item.createdAt) {
+        val raw = item.updatedAt ?: item.createdAt
+        if (!raw.isNullOrBlank() && raw.length >= 10) {
+            val parts = raw.take(10).split("-")
+            if (parts.size == 3) {
+                val months = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+                val monthIndex = (parts[1].toIntOrNull() ?: 1) - 1
+                val monthName = months.getOrElse(monthIndex) { parts[1] }
+                "${parts[2]} $monthName ${parts[0]}"
+            } else raw.take(10)
+        } else {
+            "--"
+        }
+    }
 
-                // Meta line
-                Text(
-                    text = item.metaLine,
-                    fontSize = 12.sp,
-                    color = Color(0xFF6B7280)
-                )
+    val metaText = remember(item.taxType, item.applicableFor) {
+        val type = item.taxType ?: "GST"
+        val scope = item.applicableFor ?: "Both"
+        "$type • Applicable to $scope"
+    }
 
-                Spacer(Modifier.height(10.dp))
+    val tagText = item.taxTag ?: item.jurisdictionLevel ?: "Taxable"
 
-                // Pills / Badges
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Rate Pill (Light Blue/Purple Background)
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFEEF2FF)
+    DataCard(
+        item = item,
+        onClick = { onEdit() },
+        title = item.name,
+        subtitle = metaText,
+        titleFontWeight = FontWeight.Medium,
+        titleColor = title_color,
+        topBadgeText = item.status,
+        topBadgeTextColor = if (isActive) greentext else redText,
+        topBadgeBgColor = if (isActive) greenBg else redBg,
+        topBadgeCornerRadius = 20.dp,
+        actions = listOf(
+            MenuAction(
+                label = "Edit",
+                icon = Icons.Default.Edit,
+                onClick = onEdit
+            ),
+            MenuAction(
+                label = "Delete",
+                icon = Icons.Default.Delete,
+                textColor = redText,
+                onClick = onDelete
+            )
+        ),
+        content = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Rate Pill and Tax Classification Badges
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Rate Percentage Badge
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.4f))
+                            .background(primary_light)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "Rate: ${item.ratePercent}",
-                            fontSize = 11.sp,
+                            text = "Rate: ${item.rate}%",
+                            fontSize = tokens.label,
                             fontWeight = FontWeight.SemiBold,
-                            color = Primary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            color = Primary
                         )
                     }
 
-                    // Treatment Pill (Light Gray Background with Border)
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFF9FAFB),
-                        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                    // Scope Tag Badge
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.4f))
+                            .background(Primary_background)
+                            .border(1.dp, sectionBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.4f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = item.treatment,
-                            fontSize = 11.sp,
+                            text = tagText,
+                            fontSize = tokens.label,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF4B5563),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            color = TextSecondary
                         )
                     }
                 }
 
-                // Optional Type & Scope Line
-                if (!item.typeScope.isNullOrBlank()) {
-                    Spacer(Modifier.height(8.dp))
+                // Sales Tax Ledger Account details (if present)
+                item.salesTaxAccountId?.let { account ->
                     Text(
-                        text = item.typeScope,
-                        fontSize = 11.sp,
-                        color = Color(0xFF6B7280)
+                        text = "Account: ${account.accountName} (${account.accountCode})",
+                        fontSize = tokens.caption,
+                        color = mutedText
                     )
                 }
 
-                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = dividerColor, thickness = 1.dp)
 
-                // Bottom Info Row: Status Badge & Updated Date
+                // Footer Row: Formatted Date and Jurisdiction
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Active Status Badge with Dot
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFECFDF5)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(5.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFF10B981))
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = if (item.isActive) "Active" else "Inactive",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF059669)
-                            )
-                        }
-                    }
-
-                    // Updated Date Text
                     Text(
-                        text = "Updated: ${item.updatedDate}",
-                        fontSize = 11.sp,
-                        color = Color(0xFF6B7280)
+                        text = "Updated: $formattedDate",
+                        fontSize = tokens.caption,
+                        color = close_color
                     )
+
+                    item.jurisdictionLevel?.let { level ->
+                        Text(
+                            text = level.replace("_", " "),
+                            fontSize = tokens.caption,
+                            color = TextSecondary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
-
-            Spacer(Modifier.width(8.dp))
-
-            // 3-Dot Action Menu (Edit / Delete)
-            ActionDropdownMenu(
-                actions = listOf(
-                    MenuAction(label = "Edit", onClick = onEdit),
-                    MenuAction(label = "Delete", textColor = redText, onClick = onDelete)
-                )
-            )
         }
-
-    }
-    Spacer(Modifier.height(15.dp))
-
+    )
 }

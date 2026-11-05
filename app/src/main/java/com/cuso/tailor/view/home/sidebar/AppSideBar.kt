@@ -326,6 +326,36 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
             else -> "it_${cleanSubItem.replace(" ", "_").replace("&", "and")}"
         }
     }
+    // Map Security menu & sub-items directly to their router keys
+    if (menu == "Security") {
+        val cleanSubItem = subItem.trim().lowercase()
+        val cleanCategory = category?.trim()?.lowercase()
+
+        // Handle category level click or sub-item click for User & Role
+        if (cleanCategory == "user & role" || cleanCategory == "user and role") {
+            if (cleanSubItem == "user management" || cleanSubItem == "users") {
+                return "security_users"
+            }
+            if (cleanSubItem == "roles management" || cleanSubItem == "roles") {
+                return "security_roles"
+            }
+        }
+
+        return when (cleanSubItem) {
+            "security dashboard", "dashboard" -> "security_dashboard"
+            "user management", "user & role", "user and role", "users" -> "security_users"
+            "roles management", "roles"       -> "security_roles"
+            "data backup", "backup"           -> "security_data_backup"
+            "recovery"                        -> "security_recovery"
+            "api integration"                 -> "security_api_integration"
+            "api logs"                        -> "security_api_logs"
+            "mobile device", "mobile access"  -> "security_mobile_security"
+            "help center"                     -> "security_help_center"
+            "support ticket"                  -> "security_support_ticket"
+            "audit logs"                      -> "security_audit_logs"
+            else -> "security_${cleanSubItem.replace(" ", "_").replace("&", "and")}"
+        }
+    }
 
     if (menu == "Reports") {
         return when (subItem) {
@@ -624,13 +654,24 @@ object SidebarConfig {
                 )
             ),
             MenuItem(
-                R.drawable.security, "Security",
+                icon = R.drawable.security,
+                label = "Security",
                 isPanel = true,
-                categories = listOf("Access Control", "Auth & Verification", "Monitoring & Audit"),
+                categories = listOf(
+                    "Security Dashboard",
+                    "User & Role",
+                    "Backup & Recovery",
+                    "API Integration",
+                    "Mobile Access",
+                    "Support",
+                    "Audit Logs"
+                ),
                 subItems = mapOf(
-                    "Access Control"      to listOf("User Accounts", "Roles & Permissions"),
-                    "Auth & Verification" to listOf("Multi Factor (MFA)", "SSO Settings"),
-                    "Monitoring & Audit"  to listOf("Login Logs", "Activity Logs")
+                    "User & Role" to listOf("User Management", "Roles Management"),
+                    "Backup & Recovery" to listOf("Data Backup", "Recovery"),
+                    "API Integration" to listOf("API Integration", "API Logs"),
+                    "Mobile Access" to listOf("Mobile Device"),
+                    "Support" to listOf("Help Center", "Support Ticket")
                 )
             ),
             MenuItem(

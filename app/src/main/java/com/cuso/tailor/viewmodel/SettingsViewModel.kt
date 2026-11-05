@@ -6,10 +6,10 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.database.entities.GarmentMeasurement
+import com.cuso.tailor.model.settings.*
 import com.cuso.tailor.model.inventory.ProductCategoryItem
 import com.cuso.tailor.model.sales.FabricPricingItem
 import com.cuso.tailor.model.sales.myOrganizationResponse
-import com.cuso.tailor.model.settings.*
 import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.AuthRepository
 import com.cuso.tailor.repository.SessionManager
@@ -27,6 +27,36 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
+// =========================================================================
+// TAX REGISTRATION ENDPOINTS (Add at top of ViewModel file)
+// =========================================================================
+private const val TAX_REGISTRATION_CREATE_URL = "/api/finance/settings/tax-registrations/create"
+private const val TAX_REGISTRATION_UPDATE_URL = "/api/finance/settings/tax-registrations/update-one"
+private const val TAX_REGISTRATION_CHANGE_STATUS_URL = "/api/finance/settings/tax-registrations/change-status"
+
+// =========================================================================
+// TAX RATES ENDPOINT
+// =========================================================================
+private const val TAX_RATES_VIEW_ALL_URL = "/api/finance/settings/tax-rates/view-all"
+private const val TAX_RATES_CREATE_URL = "/api/finance/settings/tax-rates/create"
+private const val TAX_RATES_UPDATE_URL = "/api/finance/settings/tax-rates/update-one"
+private const val TAX_GROUPS_CREATE_URL = "/api/finance/settings/tax-groups/create"
+
+// =========================================================================
+// PRODUCTION STAGES ENDPOINT
+// =========================================================================
+private const val STAGES_VIEW_ALL_URL = "/api/services/settings/production-stages/view-all"
+private const val STAGES_CREATE_URL = "/api/services/settings/production-stages/create"
+private const val STAGES_UPDATE_URL = "/api/services/settings/production-stages/update-one"
+
+// =========================================================================
+// LEAVE TYPE ENDPOINTS
+// =========================================================================
+private const val LEAVE_TYPES_VIEW_ALL_URL = "/api/hr/leave-type/view-all"
+private const val LEAVE_TYPES_VIEW_ONE_URL = "/api/hr/leave-type/view-one"
+private const val LEAVE_TYPES_CREATE_URL = "/api/hr/leave-type/create"
+private const val LEAVE_TYPES_UPDATE_URL = "/api/hr/leave-type/update"
+private const val LEAVE_TYPES_DELETE_URL = "/api/hr/leave-type/delete"
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
@@ -338,6 +368,892 @@ class SettingsViewModel @Inject constructor(
             clearOrganization()
             onComplete()
         }
+    }
+    // =========================================================================
+// TAX REGISTRATION CREATE & UPDATE STATES & FUNCTIONS (Add inside ViewModel)
+// =========================================================================
+
+    private val _isSavingTaxRegistration = MutableStateFlow(false)
+    val isSavingTaxRegistration: StateFlow<Boolean> = _isSavingTaxRegistration.asStateFlow()
+
+    private val _taxRegistrationSaveError = MutableStateFlow<String?>(null)
+    val taxRegistrationSaveError: StateFlow<String?> = _taxRegistrationSaveError.asStateFlow()
+
+    /**
+     * Creates a new tax registration.
+     * Endpoint: POST /api/finance/settings/tax-registrations/create
+     */
+    fun createTaxRegistration(
+        request: SaveTaxRegistrationRequest,
+        onSuccess: (TaxRegistrationItemDto?) -> Unit,
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSavingTaxRegistration.value = true
+            _taxRegistrationSaveError.value = null
+
+            val result = apiRepository.request<TaxRegistrationActionResponse> {
+                post(TAX_REGISTRATION_CREATE_URL, request)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchTaxRegistrations() // Refresh directory list
+                        onSuccess(res.data)
+                    } else {
+                        val msg = res.message ?: "Failed to create tax registration"
+                        _taxRegistrationSaveError.value = msg
+                        onError(msg)
+                    }
+                },
+                onFailure = { err ->
+                    val msg = err.message ?: "Network error creating tax registration"
+                    _taxRegistrationSaveError.value = msg
+                    onError(msg)
+                }
+            )
+            _isSavingTaxRegistration.value = false
+        }
+    }
+
+    /**
+     * Updates an existing tax registration by ID.
+     * Endpoint: PUT /api/finance/settings/tax-registrations/update-one/{id}
+     */
+    fun updateTaxRegistration(
+        id: String,
+        request: SaveTaxRegistrationRequest,
+        onSuccess: (TaxRegistrationItemDto?) -> Unit,
+        onError: (String) -> Unit = {}
+    ) {
+        if (id.isBlank()) {
+            onError("Registration ID cannot be empty")
+            return
+        }
+
+        viewModelScope.launch {
+            _isSavingTaxRegistration.value = true
+            _taxRegistrationSaveError.value = null
+
+            val result = apiRepository.request<TaxRegistrationActionResponse> {
+                put("$TAX_REGISTRATION_UPDATE_URL/$id", request)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchTaxRegistrations() // Refresh directory list
+                        onSuccess(res.data)
+                    } else {
+                        val msg = res.message ?: "Failed to update tax registration"
+                        _taxRegistrationSaveError.value = msg
+                        onError(msg)
+                    }
+                },
+                onFailure = { err ->
+                    val msg = err.message ?: "Network error updating tax registration"
+                    _taxRegistrationSaveError.value = msg
+                    onError(msg)
+                }
+            )
+            _isSavingTaxRegistration.value = false
+        }
+    }
+
+    // ── Toggle Tax Registration Status (Active <-> Inactive) ──
+    private val _isChangingTaxRegistrationStatus = MutableStateFlow(false)
+    val isChangingTaxRegistrationStatus: StateFlow<Boolean> = _isChangingTaxRegistrationStatus.asStateFlow()
+
+    /**
+     * Toggles Tax Registration status between Active and Inactive.
+     * Endpoint: PUT /api/finance/settings/tax-registrations/change-status/{id}
+     */
+    fun toggleTaxRegistrationStatus(
+        id: String,
+        currentStatus: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (id.isBlank()) return
+
+        // If Active -> Inactive; if Inactive/Draft -> Active
+        val nextStatus = if (currentStatus.equals("Active", ignoreCase = true)) "Inactive" else "Active"
+
+        viewModelScope.launch {
+            _isChangingTaxRegistrationStatus.value = true
+
+            val result = apiRepository.request<TaxRegistrationActionResponse> {
+                patch("$TAX_REGISTRATION_CHANGE_STATUS_URL/$id", mapOf("status" to nextStatus))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _isChangingTaxRegistrationStatus.value = false
+                    if (res.success) {
+                        // Immediately update status in local list without reloading the entire page
+                        _taxRegistrations.update { list ->
+                            list.map { item ->
+                                if (item.id == id) item.copy(status = nextStatus) else item
+                            }
+                        }
+                        val msg = res.message ?: "Status updated to $nextStatus successfully"
+                        showSuccess(msg)
+                        onSuccess(msg)
+                    } else {
+                        val err = res.message ?: "Failed to update status"
+                        showError(err)
+                        onError(err)
+                    }
+                },
+                onFailure = { error ->
+                    _isChangingTaxRegistrationStatus.value = false
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                    onError(cleanError)
+                }
+            )
+        }
+    }
+
+    fun clearTaxRegistrationSaveError() {
+        _taxRegistrationSaveError.value = null
+    }
+
+    // =========================================================================
+// TAX RATES STATES & FUNCTIONS (Add inside SettingsViewModel class)
+// =========================================================================
+
+    private val _taxRates = MutableStateFlow<List<TaxRateItemDto>>(emptyList())
+    val taxRates: StateFlow<List<TaxRateItemDto>> = _taxRates.asStateFlow()
+
+    private val _isLoadingTaxRates = MutableStateFlow(false)
+    val isLoadingTaxRates: StateFlow<Boolean> = _isLoadingTaxRates.asStateFlow()
+
+    private val _isLoadingMoreTaxRates = MutableStateFlow(false)
+    val isLoadingMoreTaxRates: StateFlow<Boolean> = _isLoadingMoreTaxRates.asStateFlow()
+
+    private val _canLoadMoreTaxRates = MutableStateFlow(true)
+    val canLoadMoreTaxRates: StateFlow<Boolean> = _canLoadMoreTaxRates.asStateFlow()
+
+    private val _currentTaxRatePage = MutableStateFlow(1)
+    val currentTaxRatePage: StateFlow<Int> = _currentTaxRatePage.asStateFlow()
+
+    private val _taxRatesError = MutableStateFlow<String?>(null)
+    val taxRatesError: StateFlow<String?> = _taxRatesError.asStateFlow()
+
+    private var activeTaxRateSearch: String? = null
+    private var taxRateJob: Job? = null
+
+    /**
+     * Fetch initial tax rates list with pagination and search.
+     * Endpoint: GET /api/finance/settings/tax-rates/view-all?page={page}&limit={limit}
+     */
+    fun fetchTaxRates(page: Int = 1, limit: Int = 10, search: String? = null) {
+        taxRateJob?.cancel()
+        taxRateJob = viewModelScope.launch {
+            _isLoadingTaxRates.value = true
+            _taxRatesError.value = null
+            _currentTaxRatePage.value = page
+            activeTaxRateSearch = search?.trim()?.ifBlank { null }
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to page,
+                "limit" to limit
+            )
+            activeTaxRateSearch?.let { queryParams["search"] = it }
+
+            val result = apiRepository.request<TaxRateListResponse> {
+                get(TAX_RATES_VIEW_ALL_URL, queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _taxRates.value = res.data
+                    val totalPages = res.pagination?.totalPages ?: 1
+                    _canLoadMoreTaxRates.value = page < totalPages && res.data.isNotEmpty()
+                },
+                onFailure = { error ->
+                    if (error !is CancellationException) {
+                        _taxRatesError.value = extractErrorMessage(error.message)
+                    }
+                }
+            )
+            _isLoadingTaxRates.value = false
+        }
+    }
+
+    /**
+     * Infinite scroll next page loader.
+     */
+    fun loadMoreTaxRates(limit: Int = 10) {
+        if (_isLoadingMoreTaxRates.value || _isLoadingTaxRates.value || !_canLoadMoreTaxRates.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreTaxRates.value = true
+            val nextPage = _currentTaxRatePage.value + 1
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to nextPage,
+                "limit" to limit
+            )
+            activeTaxRateSearch?.let { queryParams["search"] = it }
+
+            val result = apiRepository.request<TaxRateListResponse> {
+                get(TAX_RATES_VIEW_ALL_URL, queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.data.isNotEmpty()) {
+                        _taxRates.update { (it + res.data).distinctBy { item -> item.id } }
+                        _currentTaxRatePage.value = nextPage
+                        val totalPages = res.pagination?.totalPages ?: nextPage
+                        _canLoadMoreTaxRates.value = nextPage < totalPages
+                    } else {
+                        _canLoadMoreTaxRates.value = false
+                    }
+                },
+                onFailure = {
+                    _canLoadMoreTaxRates.value = false
+                }
+            )
+            _isLoadingMoreTaxRates.value = false
+        }
+    }
+
+    private val _isSubmittingTaxRate = MutableStateFlow(false)
+    val isSubmittingTaxRate: StateFlow<Boolean> = _isSubmittingTaxRate.asStateFlow()
+
+    private val _isSubmittingTaxGroup = MutableStateFlow(false)
+    val isSubmittingTaxGroup: StateFlow<Boolean> = _isSubmittingTaxGroup.asStateFlow()
+
+    /**
+     * Create Tax Rate
+     * Endpoint: POST /api/finance/settings/tax-rates/create
+     * Payload: { name, rate, taxType, effectiveFrom }
+     */
+    fun createTaxRate(
+        name: String,
+        rate: String,
+        taxType: String,
+        effectiveFrom: String?,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingTaxRate.value = true
+
+            val request = CreateTaxRateRequest(
+                name = name.trim(),
+                rate = rate.toDoubleOrNull() ?: rate,
+                taxType = taxType,
+                effectiveFrom = effectiveFrom
+            )
+
+            val result = apiRepository.request<TaxRateActionResponse> {
+                post(TAX_RATES_CREATE_URL, request)
+            }
+
+            _isSubmittingTaxRate.value = false
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchTaxRates(page = 1)
+                        val msg = res.message ?: "Tax rate created successfully."
+                        showSuccess(msg)
+                        onSuccess(msg)
+                    } else {
+                        val err = res.message ?: "Failed to create tax rate"
+                        showError(err)
+                        onError(err)
+                    }
+                },
+                onFailure = { error ->
+                    val clean = extractErrorMessage(error.message)
+                    showError(clean)
+                    onError(clean)
+                }
+            )
+        }
+    }
+
+    /**
+     * Update Tax Rate (Name only)
+     * Endpoint: PUT /api/finance/settings/tax-rates/update-one/{id}
+     * Payload: { name }
+     */
+    fun updateTaxRate(
+        id: String,
+        name: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (id.isBlank()) return
+
+        viewModelScope.launch {
+            _isSubmittingTaxRate.value = true
+
+            val request = UpdateTaxRateRequest(name = name.trim())
+
+            val result = apiRepository.request<TaxRateActionResponse> {
+                put("$TAX_RATES_UPDATE_URL/$id", request)
+            }
+
+            _isSubmittingTaxRate.value = false
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchTaxRates(page = 1)
+                        val msg = res.message ?: "Tax rate updated successfully."
+                        showSuccess(msg)
+                        onSuccess(msg)
+                    } else {
+                        val err = res.message ?: "Failed to update tax rate"
+                        showError(err)
+                        onError(err)
+                    }
+                },
+                onFailure = { error ->
+                    val clean = extractErrorMessage(error.message)
+                    showError(clean)
+                    onError(clean)
+                }
+            )
+        }
+    }
+
+    /**
+     * Create Tax Group
+     * Endpoint: POST /api/finance/settings/tax-groups/create
+     * Payload: { name, taxRateIds }
+     */
+    fun createTaxGroup(
+        name: String,
+        taxRateIds: List<String>,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (name.isBlank()) {
+            onError("Group Name is required")
+            return
+        }
+        if (taxRateIds.isEmpty()) {
+            onError("Select at least one tax component")
+            return
+        }
+
+        viewModelScope.launch {
+            _isSubmittingTaxGroup.value = true
+
+            val request = CreateTaxGroupRequest(
+                name = name.trim(),
+                taxRateIds = taxRateIds
+            )
+
+            val result = apiRepository.request<TaxGroupActionResponse> {
+                post(TAX_GROUPS_CREATE_URL, request)
+            }
+
+            _isSubmittingTaxGroup.value = false
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchTaxRates(page = 1)
+                        val msg = res.message ?: "Tax group created successfully."
+                        showSuccess(msg)
+                        onSuccess(msg)
+                    } else {
+                        val err = res.message ?: "Failed to create tax group"
+                        showError(err)
+                        onError(err)
+                    }
+                },
+                onFailure = { error ->
+                    val clean = extractErrorMessage(error.message)
+                    showError(clean)
+                    onError(clean)
+                }
+            )
+        }
+    }
+
+    private val _stages = MutableStateFlow<List<ServicesProductionStageDto>>(emptyList())
+    val stages: StateFlow<List<ServicesProductionStageDto>> = _stages.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _isSubmitting = MutableStateFlow(false)
+    val isSubmitting: StateFlow<Boolean> = _isSubmitting.asStateFlow()
+
+    private var searchJob: Job? = null
+    private var currentSearchQuery: String = ""
+
+    init {
+        fetchStages()
+    }
+
+    /**
+     * Fetch all production stages with optional search and pagination
+     */
+    fun fetchStages(search: String? = null, page: Int = 1, limit: Int = 50) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to page,
+                "limit" to limit
+            )
+            if (!search.isNullOrBlank()) {
+                queryParams["search"] = search.trim()
+            }
+
+            val result = apiRepository.request<ProductionStageListResponse> {
+                get(STAGES_VIEW_ALL_URL, queryParams)
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        _stages.value = response.data
+                    } else {
+                        _errorMessage.value = response.message ?: "Failed to fetch production stages."
+                    }
+                },
+                onFailure = { error ->
+                    _errorMessage.value = error.message ?: "Network error fetching production stages."
+                }
+            )
+            _isLoading.value = false
+        }
+    }
+
+    /**
+     * Debounced search query
+     */
+    fun onSearchQueryChanged(query: String) {
+        currentSearchQuery = query
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(400)
+            fetchStages(search = query)
+        }
+    }
+
+    /**
+     * Create a new production stage
+     */
+    fun createStage(
+        request: SaveProductionStageRequest,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            val result = apiRepository.request<ProductionStageActionResponse> {
+                post(STAGES_CREATE_URL, request)
+            }
+            _isSubmitting.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchStages(search = currentSearchQuery)
+                        onSuccess()
+                    } else {
+                        onError(res.message ?: "Failed to create production stage.")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Network error creating stage.")
+                }
+            )
+        }
+    }
+
+    /**
+     * Update an existing production stage
+     */
+    fun updateStage(
+        stageId: String,
+        request: SaveProductionStageRequest,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _isSubmitting.value = true
+            val result = apiRepository.request<ProductionStageActionResponse> {
+                put("$STAGES_UPDATE_URL/$stageId", request)
+            }
+            _isSubmitting.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchStages(search = currentSearchQuery)
+                        onSuccess()
+                    } else {
+                        onError(res.message ?: "Failed to update production stage.")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Network error updating stage.")
+                }
+            )
+        }
+    }
+
+    /**
+     * Toggle status Active / Inactive
+     */
+    fun toggleStageStatus(stage: ServicesProductionStageDto) {
+        val nextStatus = if (stage.status.equals("Active", ignoreCase = true)) "Inactive" else "Active"
+        val updatedPayload = SaveProductionStageRequest(
+            name = stage.name,
+            displayName = stage.displayName,
+            code = stage.code,
+            description = stage.description,
+            workType = stage.workType,
+            isAllocationRequired = stage.isAllocationRequired,
+            allowRework = stage.allowRework,
+            status = nextStatus
+        )
+
+        updateStage(
+            stageId = stage.id,
+            request = updatedPayload,
+            onSuccess = {
+                _stages.update { list ->
+                    list.map { if (it.id == stage.id) it.copy(status = nextStatus) else it }
+                }
+            },
+            onError = { /* Log or show alert */ }
+        )
+    }
+
+    // =========================================================================
+    // 24. LEAVE TYPES STATE & OPERATIONS
+    // =========================================================================
+
+    private val _leaveTypes = MutableStateFlow<List<LeaveTypeItemDto>>(emptyList())
+    val leaveTypes: StateFlow<List<LeaveTypeItemDto>> = _leaveTypes.asStateFlow()
+
+    private val _isLoadingLeaveTypes = MutableStateFlow(false)
+    val isLoadingLeaveTypes: StateFlow<Boolean> = _isLoadingLeaveTypes.asStateFlow()
+
+    private val _isLoadingMoreLeaveTypes = MutableStateFlow(false)
+    val isLoadingMoreLeaveTypes: StateFlow<Boolean> = _isLoadingMoreLeaveTypes.asStateFlow()
+
+    private val _canLoadMoreLeaveTypes = MutableStateFlow(true)
+    val canLoadMoreLeaveTypes: StateFlow<Boolean> = _canLoadMoreLeaveTypes.asStateFlow()
+
+    private val _currentLeaveTypePage = MutableStateFlow(1)
+    val currentLeaveTypePage: StateFlow<Int> = _currentLeaveTypePage.asStateFlow()
+
+    private val _leaveTypesError = MutableStateFlow<String?>(null)
+    val leaveTypesError: StateFlow<String?> = _leaveTypesError.asStateFlow()
+
+    private val _isSubmittingLeaveType = MutableStateFlow(false)
+    val isSubmittingLeaveType: StateFlow<Boolean> = _isSubmittingLeaveType.asStateFlow()
+
+    private val _selectedLeaveType = MutableStateFlow<LeaveTypeItemDto?>(null)
+    val selectedLeaveType: StateFlow<LeaveTypeItemDto?> = _selectedLeaveType.asStateFlow()
+
+    private val _isLoadingLeaveTypeDetail = MutableStateFlow(false)
+    val isLoadingLeaveTypeDetail: StateFlow<Boolean> = _isLoadingLeaveTypeDetail.asStateFlow()
+
+    private var activeLeaveTypeSearch: String? = null
+    private var activeLeaveTypeStatus: String? = null
+    private var activeLeaveTypeCategory: String? = null
+    private var leaveTypeSearchJob: Job? = null
+    val selectedLeaveTypeDetail: StateFlow<LeaveTypeItemDto?> = _selectedLeaveType.asStateFlow()
+
+
+    /**
+     * Fetch leave types with pagination, search, status, and category filters.
+     * Endpoint: GET /api/hr/leave-type/view-all
+     */
+    fun fetchLeaveTypes(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null,
+        category: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingLeaveTypes.value = true
+            _leaveTypesError.value = null
+            _currentLeaveTypePage.value = page
+            activeLeaveTypeSearch = search?.trim()?.ifBlank { null }
+            activeLeaveTypeStatus = status?.trim()?.ifBlank { null }
+            activeLeaveTypeCategory = category?.trim()?.ifBlank { null }
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to page,
+                "limit" to limit
+            )
+            activeLeaveTypeSearch?.let { queryParams["search"] = it }
+            activeLeaveTypeStatus?.let { queryParams["status"] = it }
+            activeLeaveTypeCategory?.let { queryParams["category"] = it }
+
+            val result = apiRepository.request<LeaveTypeListResponse> {
+                get(LEAVE_TYPES_VIEW_ALL_URL, queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val items = res.data
+                        _leaveTypes.value = items
+                        val totalPages = res.pagination?.totalPages ?: 1
+                        _canLoadMoreLeaveTypes.value = page < totalPages && items.isNotEmpty()
+                    } else {
+                        val msg = res.message ?: "Failed to fetch leave types"
+                        _leaveTypesError.value = msg
+                        showError(msg)
+                    }
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    _leaveTypesError.value = cleanError
+                    showError(cleanError)
+                }
+            )
+            _isLoadingLeaveTypes.value = false
+        }
+    }
+
+    /**
+     * Infinite scroll next page loader for leave types.
+     */
+    fun loadMoreLeaveTypes(limit: Int = 10) {
+        if (_isLoadingMoreLeaveTypes.value || _isLoadingLeaveTypes.value || !_canLoadMoreLeaveTypes.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreLeaveTypes.value = true
+            val nextPage = _currentLeaveTypePage.value + 1
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to nextPage,
+                "limit" to limit
+            )
+            activeLeaveTypeSearch?.let { queryParams["search"] = it }
+            activeLeaveTypeStatus?.let { queryParams["status"] = it }
+            activeLeaveTypeCategory?.let { queryParams["category"] = it }
+
+            val result = apiRepository.request<LeaveTypeListResponse> {
+                get(LEAVE_TYPES_VIEW_ALL_URL, queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data
+                    if (newItems.isNotEmpty()) {
+                        _leaveTypes.update { (it + newItems).distinctBy { item -> item.id } }
+                        _currentLeaveTypePage.value = nextPage
+                        val totalPages = res.pagination?.totalPages ?: nextPage
+                        _canLoadMoreLeaveTypes.value = nextPage < totalPages
+                    } else {
+                        _canLoadMoreLeaveTypes.value = false
+                    }
+                },
+                onFailure = {
+                    _canLoadMoreLeaveTypes.value = false
+                }
+            )
+            _isLoadingMoreLeaveTypes.value = false
+        }
+    }
+
+    /**
+     * Debounced search query handler for leave types.
+     */
+    fun onLeaveTypeSearchQueryChanged(newQuery: String) {
+        leaveTypeSearchJob?.cancel()
+        leaveTypeSearchJob = viewModelScope.launch {
+            delay(400)
+            fetchLeaveTypes(
+                page = 1,
+                search = newQuery,
+                status = activeLeaveTypeStatus,
+                category = activeLeaveTypeCategory
+            )
+        }
+    }
+
+    /**
+     * Fetches a single leave type by ID to prefill details or edit form.
+     * Endpoint: GET /api/hr/leave-type/view-one/{id}
+     */
+    fun fetchLeaveTypeById(id: String, onLoaded: (LeaveTypeItemDto) -> Unit = {}) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingLeaveTypeDetail.value = true
+            _leaveTypesError.value = null
+
+            val result = apiRepository.request<LeaveTypeViewOneResponse> {
+                get("$LEAVE_TYPES_VIEW_ONE_URL/$id")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        _selectedLeaveType.value = res.data
+                        onLoaded(res.data)
+                    } else {
+                        val msg = res.message ?: "Failed to load leave type details"
+                        showError(msg)
+                    }
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                }
+            )
+            _isLoadingLeaveTypeDetail.value = false
+        }
+    }
+
+    /**
+     * Creates a new leave type.
+     * Endpoint: POST /api/hr/leave-type/create
+     */
+    fun createLeaveType(
+        request: LeaveTypeItemDto,
+        onSuccess: (LeaveTypeItemDto) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingLeaveType.value = true
+            _leaveTypesError.value = null
+
+            val result = apiRepository.request<LeaveTypeActionResponse> {
+                post(LEAVE_TYPES_CREATE_URL, request)
+            }
+
+            _isSubmittingLeaveType.value = false
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        val msg = res.message ?: "Leave type created successfully"
+                        showSuccess(msg)
+                        fetchLeaveTypes(page = 1)
+                        onSuccess(res.data)
+                    } else {
+                        val errorMsg = res.message ?: "Failed to create leave type"
+                        showError(errorMsg)
+                        onError(errorMsg)
+                    }
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                    onError(cleanError)
+                }
+            )
+        }
+    }
+
+    /**
+     * Updates an existing leave type by ID.
+     * Endpoint: PUT /api/hr/leave-type/update/{id}
+     */
+    fun updateLeaveType(
+        id: String,
+        request: LeaveTypeItemDto,
+        onSuccess: (LeaveTypeItemDto) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isSubmittingLeaveType.value = true
+            _leaveTypesError.value = null
+
+            val result = apiRepository.request<LeaveTypeActionResponse> {
+                put("$LEAVE_TYPES_UPDATE_URL/$id", request)
+            }
+
+            _isSubmittingLeaveType.value = false
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        val msg = res.message ?: "Leave type updated successfully"
+                        showSuccess(msg)
+                        fetchLeaveTypes(page = 1)
+                        onSuccess(res.data)
+                    } else {
+                        val errorMsg = res.message ?: "Failed to update leave type"
+                        showError(errorMsg)
+                        onError(errorMsg)
+                    }
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                    onError(cleanError)
+                }
+            )
+        }
+    }
+
+    /**
+     * Deletes a leave type by ID.
+     * Endpoint: DELETE /api/hr/leave-type/delete/{id}
+     */
+    fun deleteLeaveType(
+        id: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isSubmittingLeaveType.value = true
+            _leaveTypesError.value = null
+
+            val result = apiRepository.request<LeaveTypeDeleteResponse> {
+                delete("$LEAVE_TYPES_DELETE_URL/$id")
+            }
+
+            _isSubmittingLeaveType.value = false
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _leaveTypes.update { it.filter { item -> item.id != id } }
+                        val msg = res.message ?: "Leave type deleted successfully"
+                        showSuccess(msg)
+                        onSuccess()
+                    } else {
+                        val errorMsg = res.message ?: "Failed to delete leave type"
+                        showError(errorMsg)
+                        onError(errorMsg)
+                    }
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                    onError(cleanError)
+                }
+            )
+        }
+    }
+
+    fun clearSelectedLeaveTypeDetail() {
+        _selectedLeaveType.value = null
+    }
+    /**
+     * Clears the currently selected leave type item.
+     */
+    fun clearSelectedLeaveType() {
+        _selectedLeaveType.value = null
+    }
+
+    /**
+     * Clears leave type related errors.
+     */
+    fun clearLeaveTypesError() {
+        _leaveTypesError.value = null
     }
 
     // ===========================================================

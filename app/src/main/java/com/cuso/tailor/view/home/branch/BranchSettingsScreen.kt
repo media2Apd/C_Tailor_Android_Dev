@@ -15,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -52,8 +53,6 @@ import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FormDropdown
@@ -64,6 +63,7 @@ import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.PlanLimitDialog
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StepNavigationFab
+import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.viewmodel.BranchUiState
@@ -174,8 +174,9 @@ fun BranchSettingsScreen(
                 (b.name?.contains(searchQuery, ignoreCase = true) == true) ||
                 (b.branchId?.contains(searchQuery, ignoreCase = true) == true)
     }
-    val pagedBranches = filteredBranches.drop((currentPage - 1) * itemsPerPage).take(itemsPerPage)
-
+// Displays items incrementally up to current loaded count
+    val pagedBranches = filteredBranches.take(currentPage * itemsPerPage)
+    val canLoadMore = pagedBranches.size < filteredBranches.size
     Box(Modifier.fillMaxSize()) {
         when (currentScreenMode) {
             BranchScreenMode.LIST -> {
@@ -205,7 +206,10 @@ fun BranchSettingsScreen(
                         Column(modifier = Modifier.fillMaxWidth()) {
                             SearchFilterBar(
                                 query = searchQuery,
-                                onQueryChange = { searchQuery = it },
+                                onQueryChange = {
+                                    searchQuery = it
+                                    currentPage = 1 // Reset pagination when search query changes
+                                },
                                 placeholder = "Search Branches...",
                                 accentColor = BluePrimary
                             )
@@ -217,8 +221,10 @@ fun BranchSettingsScreen(
                                 is BranchUiState.Loading -> ListSkeleton()
                                 is BranchUiState.Error -> {
                                     AppErrorState(
-                                        title = "Failed to load branch",
-                                        message = "Something went wrong. Please check your connection and try again.",
+                                        title = "Failed to load branches",
+                                        message = (uiState as BranchUiState.Error).message.ifBlank {
+                                            "Something went wrong. Please check your connection and try again."
+                                        },
                                         onRetry = { branchViewModel.refresh() }
                                     )
                                 }
@@ -244,6 +250,17 @@ fun BranchSettingsScreen(
                                             }
                                         }
                                     } else {
+                                        val listState = rememberLazyListState()
+
+                                        // Trigger next page when reaching the end of the current list
+                                        LaunchedEffect(listState, pagedBranches.size, canLoadMore) {
+                                            snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+                                                .collect { lastIndex ->
+                                                    if (lastIndex != null && lastIndex >= pagedBranches.size - 1 && canLoadMore) {
+                                                        currentPage++
+                                                    }
+                                                }
+                                        }
                                         LazyColumn(
                                             modifier = Modifier.fillMaxSize(),
                                             contentPadding = PaddingValues(bottom = 80.dp)
@@ -366,6 +383,11 @@ fun BranchSettingsScreen(
                                                         }
                                                     }
                                                 )
+                                            }
+                                            if (canLoadMore) {
+                                                item {
+                                                    ThreeDotLoading()
+                                                }
                                             }
                                         }
                                     }

@@ -46,15 +46,45 @@ data class ModulePermissionsData(
     }
 }
 
-/**
- * Paywall metadata to display in the Upgrade Screen
- */
-data class PaywallModuleConfig(
-    val moduleKey: String,
-    val moduleTitle: String,
-    val headline: String,
-    val description: String,
-    val efficiencyBadge: String = "+30% Efficiency",
-    val currentPlan: String = "Enterprise",
-    val featuresIncluded: List<String>
+data class ActionPermission(
+    @SerializedName("view") val view: Boolean = false,
+    @SerializedName("create") val create: Boolean = false,
+    @SerializedName("edit") val edit: Boolean = false,
+    @SerializedName("delete") val delete: Boolean = false
 )
+
+data class MyPermissionsResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("message") val message: String = "",
+    @SerializedName("data") val data: MyPermissionsData? = null
+)
+
+data class MyPermissionsData(
+    @SerializedName("isOwner") val isOwner: Boolean = false,
+    // Nested structure: Map<Module, Map<Feature, ActionPermission>>
+    @SerializedName("permissions") val permissions: Map<String, Map<String, ActionPermission>>? = null,
+    @SerializedName("visible") val visible: List<String> = emptyList()
+) {
+    /**
+     * Resolves permissions for a specific module and feature.
+     * If user is owner, all actions return true.
+     */
+    fun getActions(module: String, feature: String): ActionPermission {
+        if (isOwner) return ActionPermission(view = true, create = true, edit = true, delete = true)
+
+        val moduleMap = permissions?.get(module.lowercase()) ?: return ActionPermission()
+        return moduleMap[feature] ?: ActionPermission()
+    }
+
+    fun canView(module: String, feature: String): Boolean =
+        isOwner || getActions(module, feature).view
+
+    fun canCreate(module: String, feature: String): Boolean =
+        isOwner || getActions(module, feature).create
+
+    fun canEdit(module: String, feature: String): Boolean =
+        isOwner || getActions(module, feature).edit
+
+    fun canDelete(module: String, feature: String): Boolean =
+        isOwner || getActions(module, feature).delete
+}

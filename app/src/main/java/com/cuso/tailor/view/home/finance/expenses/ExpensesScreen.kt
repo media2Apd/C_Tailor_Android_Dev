@@ -57,7 +57,6 @@ import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardField
 import com.cuso.tailor.view.composable.DatePickerField
-import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.ErrorFieldWrapper
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
@@ -71,6 +70,7 @@ import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.PlanLimitDialog
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StepNavigationFab
+import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.view.composable.ValidationField
@@ -310,18 +310,7 @@ fun ExpensesScreen(
 
                         if (isLoadingMoreExpenses) {
                             item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        color = ExpensePrimary,
-                                        strokeWidth = 2.5.dp,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
+                                ThreeDotLoading()
                             }
                         }
 

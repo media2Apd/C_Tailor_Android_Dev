@@ -37,6 +37,7 @@ import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
+import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.DeleteJournalState
 import com.cuso.tailor.viewmodel.FinanceViewModel
@@ -278,18 +279,7 @@ fun ManualJournalEntryScreen(
                             // Loading footer when fetching the next page
                             if (isLoadingMore) {
                                 item {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            color = BluePrimary,
-                                            strokeWidth = 2.5.dp
-                                        )
-                                    }
+                                    ThreeDotLoading()
                                 }
                             }
 

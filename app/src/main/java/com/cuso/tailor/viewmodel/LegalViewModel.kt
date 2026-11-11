@@ -129,14 +129,6 @@ class LegalViewModel @Inject constructor(
     private val _isRenewingContract = MutableStateFlow(false)
     val isRenewingContract: StateFlow<Boolean> = _isRenewingContract.asStateFlow()
 
-    init {
-        fetchDashboardSummary(currentCalendarYear)
-        fetchContracts()
-        fetchCompliances()
-        fetchLegalLicenses()
-        fetchLegalEmployees()
-        fetchLegalVendors()
-    }
 
     fun fetchDashboardSummary(year: Int = _selectedYear.value) {
         _selectedYear.value = year
@@ -2161,6 +2153,15 @@ class LegalViewModel @Inject constructor(
     fun clearCalendarData() {
         _calendarData.value = null
         _calendarError.value = null
+    }
+
+    init {
+        fetchDashboardSummary(currentCalendarYear)
+        fetchContracts()
+        fetchCompliances()
+        fetchLegalLicenses()
+        fetchLegalEmployees()
+        fetchLegalVendors()
     }
 
     private fun formatToApiIso(raw: String): String {

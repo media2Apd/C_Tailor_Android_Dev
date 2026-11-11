@@ -32,15 +32,15 @@ class LoginRepository @Inject constructor(
             // orEmpty() protects against explicit "null" from the server (e.g. profilePicture: null)
             db.userDao().insertUser(
                 UserEntity(
-                    id = user.id.orEmpty(),
-                    userId = user.userId.orEmpty(),
-                    firstName = user.firstName.orEmpty(),
-                    lastName = user.lastName.orEmpty(),
-                    email = user.email.orEmpty(),
-                    profilePicture = user.profilePicture.orEmpty(),
-                    role = user.role.orEmpty(),
-                    memberId = user.memberId.orEmpty(),
-                    organizationId = org._id.orEmpty(),
+                    id = user.id,
+                    userId = user.userId,
+                    firstName = user.firstName,
+                    lastName = user.lastName,
+                    email = user.email,
+                    profilePicture = user.profilePicture,
+                    role = user.role,
+                    memberId = user.memberId,
+                    organizationId = org._id,
                     companySize = ""
                 )
             )
@@ -51,12 +51,12 @@ class LoginRepository @Inject constructor(
             // 6. Save Tokens
             db.tokensDao().insertTokens(
                 TokensEntity(
-                    userId = user.id.orEmpty(),
-                    accessToken = tokens.accessToken.orEmpty(),
-                    refreshToken = tokens.refreshToken.orEmpty(),
-                    csrfToken = tokens.csrfToken.orEmpty(),
-                    sessionLoginToken = tokens.sessionLoginToken.orEmpty(),
-                    orgToken = tokens.orgToken.orEmpty()
+                    userId = user.id,
+                    accessToken = tokens.accessToken,
+                    refreshToken = tokens.refreshToken,
+                    csrfToken = tokens.csrfToken,
+                    sessionLoginToken = tokens.sessionLoginToken,
+                    orgToken = tokens.orgToken
                 )
             )
         }
@@ -71,47 +71,47 @@ class LoginRepository @Inject constructor(
     // may omit fields (Gson then leaves them null even for non-null Kotlin types).
     // ---------------------------------------------------------
     private suspend fun saveOrgTables(org: Organization) {
-        val orgId = org._id.orEmpty()
+        val orgId = org._id
 
         // Organization
         db.organizationDao().insertOrganization(
             OrganizationEntity(
                 orgId = orgId,
-                businessId = org.businessId.orEmpty(),
-                name = org.name.orEmpty(),
-                industry = org.industry.orEmpty(),          // <-- the field that crashed
-                orgType = org.orgType.orEmpty(),
+                businessId = org.businessId,
+                name = org.name,
+                industry = org.industry,          // <-- the field that crashed
+                orgType = org.orgType,
                 organizationPicture = org.organizationPicture,
                 organizationPictureId = org.organizationPictureId,
-                email = org.email.orEmpty(),
-                mobile = org.mobile.orEmpty(),
+                email = org.email,
+                mobile = org.mobile,
                 orgSetupComplete = org.orgSetupComplete,
                 totalMembers = org.totalMembers,
                 activeMembers = org.activeMembers,
                 isTaxId = org.isTaxId,
-                status = org.status.orEmpty(),
-                createdAt = org.createdAt.orEmpty(),
-                updatedAt = org.updatedAt.orEmpty(),
-                slug = org.slug.orEmpty(),
+                status = org.status,
+                createdAt = org.createdAt,
+                updatedAt = org.updatedAt,
+                slug = org.slug,
                 v = org.__v,
-                defaultBranch = org.defaultBranch.orEmpty(),
-                ownerId = org.ownerId.orEmpty(),
-                ownerMemberId = org.ownerMemberId.orEmpty(),
-                businessType = org.businessType.orEmpty(),
-                taxId = org.taxId.orEmpty(),
+                defaultBranch = org.defaultBranch,
+                ownerId = org.ownerId,
+                ownerMemberId = org.ownerMemberId,
+                businessType = org.businessType,
+                taxId = org.taxId,
                 isInternalOrganization = org.isInternalOrganization
             )
         )
 
         // Lists (orEmpty() on List also handles a null list)
         db.organizationDao().insertDomains(
-            org.domains.orEmpty().map { OrgDomainEntity(orgId = orgId, domain = it) }
+            org.domains.map { OrgDomainEntity(orgId = orgId, domain = it) }
         )
         db.organizationDao().insertSegments(
-            org.segments.orEmpty().map { OrgSegmentEntity(orgId = orgId, segment = it) }
+            org.segments.map { OrgSegmentEntity(orgId = orgId, segment = it) }
         )
         db.organizationDao().insertBranches(
-            org.branches.orEmpty().map { OrgBranchEntity(orgId = orgId, branch = it) }
+            org.branches.map { OrgBranchEntity(orgId = orgId, branch = it) }
         )
 
         // Subscription (login API sends none, so this is usually all empty defaults)
@@ -119,14 +119,14 @@ class LoginRepository @Inject constructor(
         db.subscriptionDao().insertSubscription(
             SubscriptionEntity(
                 orgId = orgId,
-                startDate = sub?.startDate.orEmpty(),
-                endDate = sub?.endDate.orEmpty(),
-                status = sub?.status.orEmpty(),
-                memberLimit = sub?.memberLimit ?: 0
+                startDate = sub.startDate,
+                endDate = sub.endDate,
+                status = sub.status,
+                memberLimit = sub.memberLimit
             )
         )
         db.subscriptionDao().insertFeatures(
-            sub?.featuresEnabled.orEmpty().map { FeatureEnabledEntity(orgId = orgId, feature = it) }
+            sub.featuresEnabled.map { FeatureEnabledEntity(orgId = orgId, feature = it) }
         )
 
         // Settings
@@ -134,22 +134,22 @@ class LoginRepository @Inject constructor(
         db.settingsDao().insertSettings(
             SettingsEntity(
                 orgId = orgId,
-                country = settings?.country.orEmpty(),
-                state = settings?.state.orEmpty(),
-                portalName = settings?.portalName.orEmpty(),
-                termsAccepted = settings?.termsAccepted ?: false,
-                marketingEmails = settings?.marketingEmails ?: false,
-                companySize = settings?.companySize.orEmpty(),
-                timezone = settings?.timezone.orEmpty(),
-                currency = settings?.currency.orEmpty(),
-                language = settings?.language.orEmpty(),
-                address = settings?.address.orEmpty(),
-                city = settings?.city.orEmpty(),
-                pincode = settings?.pincode.orEmpty()
+                country = settings.country,
+                state = settings.state,
+                portalName = settings.portalName,
+                termsAccepted = settings.termsAccepted,
+                marketingEmails = settings.marketingEmails,
+                companySize = settings.companySize,
+                timezone = settings.timezone,
+                currency = settings.currency,
+                language = settings.language,
+                address = settings.address,
+                city = settings.city,
+                pincode = settings.pincode
             )
         )
         db.settingsDao().insertWorkingDays(
-            settings?.workingDays.orEmpty().map { WorkingDayEntity(orgId = orgId, day = it) }
+            settings.workingDays.map { WorkingDayEntity(orgId = orgId, day = it) }
         )
     }
 
@@ -317,7 +317,7 @@ class LoginRepository @Inject constructor(
                     orgId = org._id,
                     businessId = org.businessId,
                     name = org.name,
-                    industry = org.industry ?: "",
+                    industry = org.industry,
                     orgType = org.orgType,
                     organizationPicture = org.organizationPicture,
                     organizationPictureId = org.organizationPictureId,

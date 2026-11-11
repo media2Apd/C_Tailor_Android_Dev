@@ -103,8 +103,8 @@ data class ShiftReference(
     val startTime: String? = null,
     val endTime: String? = null
 )
-
-data class PunchItem(
-    val type: String? = null,    // "in" or "out"
-    val time: String? = null     // "2026-09-01T09:15:00.000Z"
-)
+//
+//data class PunchItem(
+//    val type: String? = null,    // "in" or "out"
+//    val time: String? = null     // "2026-09-01T09:15:00.000Z"
+//)

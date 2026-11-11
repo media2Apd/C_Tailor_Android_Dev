@@ -205,7 +205,6 @@ import com.cuso.tailor.view.home.finance.purchase.FinanceReturnScreen
 import com.cuso.tailor.view.home.finance.purchase.PurchaseReturnDetailScreen
 import com.cuso.tailor.view.home.finance.purchase.VendorCreditListScreen
 import com.cuso.tailor.view.home.finance.receipts.CreatePaymentReceiptScreen
-import com.cuso.tailor.view.home.hr.dashboard.TeamOperationsDashboardScreen
 import com.cuso.tailor.view.home.hr.organization_structure.OrganizationStructureScreen
 import com.cuso.tailor.view.home.inventory.dashboard.InventoryDashboardScreen
 import com.cuso.tailor.view.home.inventory.expense_management.approval.ExpenseClaimDetailScreen
@@ -313,12 +312,31 @@ import com.cuso.tailor.model.permission.PaywallModuleConfig
 import com.cuso.tailor.model.settings.ServicesProductionStageDto
 import com.cuso.tailor.view.home.finance.settings.AddTaxRateScreen
 import com.cuso.tailor.view.home.finance.settings.TaxRateItem
+import com.cuso.tailor.view.home.hr.dashboard.HrDashboardScreen
 import com.cuso.tailor.view.home.hr.settings.leave_type.CreateLeaveTypeScreen
 import com.cuso.tailor.view.home.hr.settings.leave_type.LeaveTypesListScreen
 import com.cuso.tailor.view.home.hr.settings.leave_type.LeaveTypeViewScreen
 import com.cuso.tailor.view.home.it.integerations.IntegrationManagementScreen
 import com.cuso.tailor.view.home.role.CreateRoleScreen
+import com.cuso.tailor.view.home.security.api_integration.AddApiIntegrationScreen
+import com.cuso.tailor.view.home.security.api_integration.ApiIntegrationDetailScreen
+import com.cuso.tailor.view.home.security.api_integration.ApiIntegrationListScreen
+import com.cuso.tailor.view.home.security.api_logs.ApiLogDetailScreen
+import com.cuso.tailor.view.home.security.api_logs.ApiLogsListScreen
+import com.cuso.tailor.view.home.security.audit_logs.AuditLogDetailScreen
+import com.cuso.tailor.view.home.security.audit_logs.AuditLogsListScreen
+import com.cuso.tailor.view.home.security.backup.CreateBackupScreen
+import com.cuso.tailor.view.home.security.backup.DataBackupDetailScreen
+import com.cuso.tailor.view.home.security.backup.DataBackupListScreen
 import com.cuso.tailor.view.home.security.dashboard.SecurityDashboardScreen
+import com.cuso.tailor.view.home.security.mobile_access.MobileAccessScreen
+import com.cuso.tailor.view.home.security.recovery.DataRecoveryDetailScreen
+import com.cuso.tailor.view.home.security.recovery.DataRecoveryListScreen
+import com.cuso.tailor.view.home.security.support.help_center.HelpArticleDetailScreen
+import com.cuso.tailor.view.home.security.support.help_center.HelpCenterScreen
+import com.cuso.tailor.view.home.security.support.support_ticket.CreateSupportTicketScreen
+import com.cuso.tailor.view.home.security.support.support_ticket.SupportTicketDetailScreen
+import com.cuso.tailor.view.home.security.support.support_ticket.SupportTicketsListScreen
 import com.cuso.tailor.view.home.security.user.CreateUserScreen
 import com.cuso.tailor.view.home.security.user.UserManagementScreen
 import com.cuso.tailor.view.home.services.settings.production_stages.ProductionStagesListScreen
@@ -326,210 +344,276 @@ import com.cuso.tailor.view.home.services.settings.workflow_stages.AddEditProduc
 import com.cuso.tailor.viewmodel.PermissionViewModel
 
 private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
+
+data class HomeScreenViewModels(
+    val hrViewModel: HrViewModel,
+    val servicesViewModel: ServicesViewModel,
+    val customerViewModel: CustomerViewModel,
+    val settingsViewModel: SettingsViewModel,
+    val salesViewModel: SalesViewModel,
+    val branchViewModel: BranchViewModel,
+    val authViewModel: Authenticate,
+    val inventoryViewModel: InventoryViewModel,
+    val permissionViewModel: PermissionViewModel
+)
+
+data class HomeScreenNavigation(
+    val navController: NavHostController,
+    val widthSizeClass: WindowWidthSizeClass,
+    val token: String,
+    val onNavigate: (String) -> Unit,
+    val onSafeNavigate: (String) -> Unit,
+    val onGoBack: () -> Unit,
+    val onPopToScreen: (String) -> Unit = {},
+    val onOpenDrawer: () -> Unit,
+    val onOpenModulesPanel: (String) -> Unit,
+    val onShowComingSoon: (String) -> Unit,
+    val onSalesSettingsModeChange: (Boolean) -> Unit
+)
+
+data class SalesStateHolder(
+    val selectedCustomer: CustomerItem? = null,
+    val onCustomerSelected: (CustomerItem?) -> Unit = {},
+    val selectedOrderId: String? = null,
+    val onOrderIdSelected: (String?) -> Unit = {},
+    val editOrderId: String? = null,
+    val onEditOrderIdChange: (String?) -> Unit = {},
+    val selectedManagementOrderId: String? = null,
+    val onManagementOrderIdSelected: (String?) -> Unit = {},
+    val selectedOpportunityId: String? = null,
+    val onOpportunityIdSelected: (String?) -> Unit = {},
+    val selectedMeasurementItem: MeasurementItem? = null,
+    val onMeasurementItemSelected: (MeasurementItem?) -> Unit = {},
+    val editingPricingId: String? = null,
+    val onEditingPricingIdChange: (String?) -> Unit = {},
+    val quotationScreenMode: String = "create",
+    val onQuotationScreenModeChange: (String) -> Unit = {},
+    val pendingOrderReviewData: OrderReviewData? = null,
+    val onPendingOrderReviewDataChange: (OrderReviewData?) -> Unit = {},
+    val onOrderFlowOriginChange: (String?) -> Unit = {},
+    val onOrderSavedSuccessfully: (savedOrderId: String?) -> Unit = {}
+)
+
+data class FinanceStateHolder(
+    val selectedLedgerAccountId: String? = null,
+    val selectedLedgerAccountName: String = "Ledger",
+    val onLedgerAccountSelected: (id: String?, name: String) -> Unit = { _, _ -> },
+    val selectedSupplier: SupplierRow? = null,
+    val onFinanceSupplierSelected: (SupplierRow?) -> Unit = {},
+    val selectedSupplierId: String? = null,
+    val onSupplierSelected: (String?) -> Unit = {},
+    val selectedPaymentModeId: String? = null,
+    val onPaymentModeSelected: (String?) -> Unit = {},
+    val selectedInvoiceId: String? = null,
+    val onInvoiceSelected: (String?) -> Unit = {},
+    val selectedReceiptId: String? = null,
+    val onReceiptSelected: (String?) -> Unit = {},
+    val selectedPurchaseInvoice: PurchaseInvoiceItem? = null,
+    val onPurchaseInvoiceSelected: (PurchaseInvoiceItem?) -> Unit = {},
+    val selectedPurchaseReturnId: String? = null,
+    val onPurchaseReturnIdSelected: (String?) -> Unit = {},
+    val selectedBankAccountId: String? = null,
+    val onBankAccountIdSelected: (String?) -> Unit = {},
+    val selectedCashShiftId: String? = null,
+    val onCashShiftSelected: (String?) -> Unit = {},
+    val selectedStatementId: String? = null,
+    val onStatementIdSelected: (String?) -> Unit = {},
+    val selectedCreditNoteId: String? = null,
+    val onCreditNoteSelected: (String?) -> Unit = {},
+    val invoiceForPayment: InvoiceViewOneData? = null,
+    val onInvoiceForPaymentChange: (InvoiceViewOneData?) -> Unit = {},
+    val isOrderFromFinance: Boolean = false,
+    val onOrderFromFinanceChange: (Boolean) -> Unit = {},
+    val prefillOrderForInvoice: OrderOverviewData? = null,
+    val onPrefillOrderForInvoiceChange: (OrderOverviewData?) -> Unit = {}
+)
+
+data class InventoryStateHolder(
+    val selectedInventoryItemId: String? = null,
+    val onInventoryItemIdSelected: (String?) -> Unit = {},
+    val selectedLowStockItem: LowStockItemDto? = null,
+    val onLowStockItemSelected: (LowStockItemDto?) -> Unit = {},
+    val selectedItemGroupId: String? = null,
+    val onItemGroupIdSelected: (String?) -> Unit = {},
+    val selectedBulkItemId: String? = null,
+    val onBulkItemIdSelected: (String?) -> Unit = {},
+    val selectedRequisitionIdForDetail: String? = null,
+    val onRequisitionIdForDetailSelected: (String?) -> Unit = {},
+    val selectedPurchaseOrderForDetail: PurchaseOrder? = null,
+    val onPurchaseOrderForDetailSelected: (PurchaseOrder?) -> Unit = {},
+    val selectedReceivePoId: String? = null,
+    val onReceivePoIdSelected: (String?) -> Unit = {},
+    val selectedBarcodeIdForDetail: String? = null,
+    val onBarcodeIdForDetailSelected: (String?) -> Unit = {},
+    val selectedCategoryIdForEdit: String? = null,
+    val onCategoryIdForEditSelected: (String?) -> Unit = {},
+    val selectedPicklistId: String? = null,
+    val onPicklistIdSelected: (String?) -> Unit = {},
+    val selectedPackageIdForDetail: String? = null,
+    val onPackageIdForDetailSelected: (String?) -> Unit = {},
+    val selectedPackageIdForEdit: String? = null,
+    val onPackageIdForEditSelected: (String?) -> Unit = {},
+    val selectedPriceListId: String? = null,
+    val onPriceListIdSelected: (String?) -> Unit = {},
+    val selectedApprovalId: String? = null,
+    val onApprovalIdSelected: (String?) -> Unit = {}
+)
+
+data class HrStateHolder(
+    val employeeScreenMode: ScreenMode = ScreenMode.CREATE,
+    val onEmployeeScreenModeChange: (ScreenMode) -> Unit = {},
+    val selectedEmployeeId: String? = null,
+    val onEmployeeIdSelected: (String?) -> Unit = {},
+    val selectedAttendanceId: String? = null,
+    val onAttendanceIdSelected: (String?) -> Unit = {},
+    val selectedShiftId: String? = null,
+    val onShiftIdSelected: (String?) -> Unit = {},
+    val selectedDocumentId: String? = null,
+    val onDocumentIdSelected: (String?) -> Unit = {},
+    val selectedDocumentCategoryId: String? = null,
+    val onDocumentCategoryIdSelected: (String?) -> Unit = {},
+    val selectedSalaryComponentId: String? = null,
+    val onSalaryComponentIdSelected: (String?) -> Unit = {},
+    val selectedSalaryTemplateId: String? = null,
+    val onSalaryTemplateIdSelected: (String?) -> Unit = {},
+    val selectedTrainingProgramId: String? = null,
+    val onTrainingProgramIdSelected: (String?) -> Unit = {},
+    val selectedTrainingAssignmentId: String? = null,
+    val onTrainingAssignmentIdSelected: (String?) -> Unit = {},
+    val selectedExpenseClaimId: String? = null,
+    val onExpenseClaimIdSelected: (String?) -> Unit = {},
+    val selectedExpenseTypeId: String? = null,
+    val onExpenseTypeIdSelected: (String?) -> Unit = {},
+    val selectedClaimForPayment: ExpenseClaimDto? = null,
+    val onClaimForPaymentSelected: (ExpenseClaimDto?) -> Unit = {},
+    val selectedLeaveTypeIdForEdit: String? = null,
+    val onLeaveTypeIdForEditSelected: (String?) -> Unit = {},
+    val selectedLeaveTypeIdForView: String? = null,
+    val onLeaveTypeIdForViewSelected: (String?) -> Unit = {}
+)
+
+data class LogisticsStateHolder(
+    val selectedShipmentId: String? = null,
+    val onShipmentIdSelected: (String?) -> Unit = {},
+    val selectedReturnId: String? = null,
+    val onReturnIdSelected: (String?) -> Unit = {},
+    val selectedLogisticsPackageId: String? = null,
+    val onLogisticsPackageIdSelected: (String?) -> Unit = {}
+)
+
+data class SecurityStateHolder(
+    val selectedBackupId: String? = null,
+    val onBackupIdSelected: (String?) -> Unit = {},
+    val selectedRecoveryId: String? = null,
+    val onRecoveryIdSelected: (String?) -> Unit = {},
+    val selectedIntegrationId: String? = null,
+    val onIntegrationIdSelected: (String?) -> Unit = {},
+    val selectedApiLogId: String? = null,
+    val onApiLogIdSelected: (String?) -> Unit = {},
+    val selectedAuditLogId: String? = null,
+    val onAuditLogIdSelected: (String?) -> Unit = {},
+    val selectedRoleIdForEdit: String? = null,
+    val onRoleIdForEditSelected: (String?) -> Unit = {},
+    val selectedApprovalRuleIdForEdit: String? = null,
+    val onApprovalRuleIdForEditSelected: (String?) -> Unit = {},
+    val selectedSupportTicketId: String? = null,
+    val onSupportTicketIdSelected: (String?) -> Unit = {}
+)
+
+data class ServicesStateHolder(
+    val selectedFeedbackId: String? = null,
+    val onFeedbackIdSelected: (String?) -> Unit = {},
+    val selectedComplaintId: String? = null,
+    val onComplaintIdSelected: (String?) -> Unit = {},
+    val selectedServiceTemplate: ProductionTemplateDto? = null,
+    val onServiceTemplateSelected: (ProductionTemplateDto?) -> Unit = {},
+    val selectedProductionStage: ServicesProductionStageDto? = null,
+    val onProductionStageSelected: (ServicesProductionStageDto?) -> Unit = {},
+    val selectedServiceRequestId: String? = null,
+    val onServiceRequestIdSelected: (String?) -> Unit = {},
+    val selectedAlterationId: String? = null,
+    val onAlterationIdSelected: (String?) -> Unit = {},
+    val selectedAssignmentJobCardId: String? = null,
+    val onAssignmentJobCardIdSelected: (String?) -> Unit = {}
+)
+
+data class ItStateHolder(
+    val selectedItDeviceId: String? = null,
+    val onItDeviceIdSelected: (String?) -> Unit = {},
+    val selectedPosTerminalId: String? = null,
+    val onPosTerminalIdSelected: (String?) -> Unit = {},
+    val selectedBackupSnapshotId: String? = null,
+    val onBackupSnapshotIdSelected: (String?) -> Unit = {},
+    val selectedAssetId: String? = null,
+    val onAssetIdSelected: (String?) -> Unit = {},
+    val selectedTicketId: String? = null,
+    val onTicketIdSelected: (String?) -> Unit = {}
+)
+
+data class LegalStateHolder(
+    val selectedLegalContractId: String? = null,
+    val onLegalContractIdSelected: (String?) -> Unit = {},
+    val selectedLegalComplianceId: String? = null,
+    val onLegalComplianceIdSelected: (String?) -> Unit = {},
+    val selectedLegalDocumentId: String? = null,
+    val onLegalDocumentIdSelected: (String?) -> Unit = {},
+    val selectedLegalLicenseId: String? = null,
+    val onLegalLicenseIdSelected: (String?) -> Unit = {},
+    val selectedLegalCustomerId: String? = null,
+    val onLegalCustomerIdSelected: (String?) -> Unit = {},
+    val selectedLegalEmployeeId: String? = null,
+    val onLegalEmployeeIdSelected: (String?) -> Unit = {},
+    val selectedLegalVendorId: String? = null,
+    val onLegalVendorIdSelected: (String?) -> Unit = {},
+    val selectedLegalNoticeId: String? = null,
+    val onLegalNoticeIdSelected: (String?) -> Unit = {}
+)
+
+data class MarketingStateHolder(
+    val selectedCampaignCode: String? = null,
+    val onCampaignCodeSelected: (String?) -> Unit = {}
+)
+
+data class CommonStateHolder(
+    val selectedRecentCustomerId: String? = null,
+    val onRecentCustomerIdSelected: (String?) -> Unit = {},
+    val paywallModuleConfig: PaywallModuleConfig? = null
+)
+
 @RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("FlowOperatorInvokedInComposition")
 @Composable
 fun HomeScreenRouter(
     screen: String,
-    selectedLeaveTypeIdForEdit: String? = null,
-    selectedLeaveTypeIdForView: String? = null,
-    onLeaveTypeIdForViewSelected: (String?) -> Unit = {},
-    onLeaveTypeIdForEditSelected: (String?) -> Unit = {},
-    paywallModuleConfig: PaywallModuleConfig? = null,
-    permissionViewModel: PermissionViewModel = hiltViewModel(),
-    selectedApprovalRuleIdForEdit: String? = null,
-    onApprovalRuleIdForEditSelected: (String?) -> Unit = {},
-    selectedRoleIdForEdit: String? = null,
-    onRoleIdForEditSelected: (String?) -> Unit = {},
-    selectedCampaignCode: String? = null,
-    onCampaignCodeSelected: (String?) -> Unit = {},
-    selectedTicketId: String? = null,
-    onTicketIdSelected: (String?) -> Unit = {},
-    selectedAssetId: String? = null,
-    onAssetIdSelected: (String?) -> Unit = {},
-    selectedBackupSnapshotId: String? = null,
-    onBackupSnapshotIdSelected: (String?) -> Unit = {},
-    selectedPosTerminalId: String? = null,
-    onPosTerminalIdSelected: (String?) -> Unit = {},
-    selectedItDeviceId: String? = null,
-    onItDeviceIdSelected: (String?) -> Unit = {},
-    selectedReturnId: String? = null,
-    onReturnIdSelected: (String?) -> Unit = {},
-    selectedShipmentId: String? = null,
-    onShipmentIdSelected: (String?) -> Unit = {},
-    selectedLegalNoticeId: String? = null,
-    onLegalNoticeIdSelected: (String?) -> Unit = {},
-    selectedLegalVendorId: String? = null,
-    onLegalVendorIdSelected: (String?) -> Unit = {},
-    selectedLegalEmployeeId: String? = null,
-    onLegalEmployeeIdSelected: (String?) -> Unit = {},
-    selectedLegalDocumentId: String? = null,
-    onLegalDocumentIdSelected: (String?) -> Unit = {},
-    selectedLegalLicenseId: String? = null,
-    onLegalLicenseIdSelected: (String?) -> Unit = {},
-    selectedLegalContractId: String? = null,
-    onLegalContractIdSelected: (String?) -> Unit = {},
-    selectedLegalComplianceId: String? = null,
-    onLegalComplianceIdSelected: (String?) -> Unit = {},
-    selectedComplaintId: String? = null,
-    onComplaintIdSelected: (String?) -> Unit = {},
-    selectedAlterationId: String? = null,
-    onAlterationIdSelected: (String?) -> Unit = {},
-    selectedClaimForPayment: ExpenseClaimDto? = null,
-    onClaimForPaymentSelected: (ExpenseClaimDto?) -> Unit = {},
-    selectedExpenseTypeId: String? = null,
-    onExpenseTypeIdSelected: (String?) -> Unit = {},
-    selectedExpenseClaimId: String? = null,
-    onExpenseClaimIdSelected: (String?) -> Unit = {},
-    selectedPriceListId: String? = null,
-    onPriceListIdSelected: (String?) -> Unit = {},
-    selectedPurchaseReturnId: String? = null,
-    onPurchaseReturnIdSelected: (String?) -> Unit = {},
-    selectedBankAccountId: String? = null,
-    onBankAccountIdSelected: (String?) -> Unit = {},
-    selectedCashShiftId: String? = null,
-    selectedStatementId: String? = null,
-    onStatementIdSelected: (String?) -> Unit = {},
-    onCashShiftSelected: (String?) -> Unit = {},
-    selectedCreditNoteId: String? = null,
-    onCreditNoteSelected: (String?) -> Unit = {},
-    selectedPackageIdForDetail: String? = null,
-    onPackageIdForDetailSelected: (String?) -> Unit = {},
-    selectedPackageIdForEdit: String? = null,
-    onPackageIdForEditSelected: (String?) -> Unit = {},
-    selectedLogisticsPackageId: String? = null,
-    onLogisticsPackageIdSelected: (String?) -> Unit = {},
-    selectedPicklistId: String? = null,
-    onPicklistIdSelected: (String?) -> Unit = {},
-    selectedReceiptId: String? = null,
-    onReceiptSelected: (String?) -> Unit = {},
-    isOrderFromFinance: Boolean = false,
-    invoiceForPayment: InvoiceViewOneData? = null,
-    onInvoiceForPaymentChange: (InvoiceViewOneData?) -> Unit = {},
-    onOrderFromFinanceChange: (Boolean) -> Unit = {},
-    prefillOrderForInvoice: OrderOverviewData? = null,
-    onPrefillOrderForInvoiceChange: (OrderOverviewData?) -> Unit = {},
-    selectedDocumentCategoryId: String? = null,
-    onDocumentCategoryIdSelected: (String?) -> Unit = {},
-    selectedDocumentId: String? = null,
-    onDocumentIdSelected: (String?) -> Unit = {},
-    selectedCategoryIdForEdit: String? = null,
-    selectedSalaryComponentId: String? = null,
-    selectedTrainingProgramId: String? = null,
-    onTrainingProgramIdSelected: (String?) -> Unit = {},
-    selectedTrainingAssignmentId: String? = null,
-    onTrainingAssignmentIdSelected: (String?) -> Unit = {},
-    selectedSalaryTemplateId: String? = null,
-    onSalaryTemplateIdSelected: (String?) -> Unit = {},
-    onSalaryComponentIdSelected: (String?) -> Unit = {},
-    onCategoryIdForEditSelected: (String?) -> Unit = {},
-    selectedApprovalId: String? = null,
-    onApprovalIdSelected: (String?) -> Unit = {},
-    selectedShiftId: String? = null,
-    onShiftIdSelected: (String?) -> Unit = {},
-    selectedServiceRequestId: String? = null,
-    onServiceRequestIdSelected: (String?) -> Unit = {},
-    selectedAssignmentJobCardId: String? = null,
-    onAssignmentJobCardIdSelected: (String?) -> Unit = {},
-    selectedOpportunityId: String? = null,
-    onOpportunityIdSelected: (String?) -> Unit = {},
-    selectedMeasurementItem: MeasurementItem? = null,
-    selectedServiceTemplate: ProductionTemplateDto? = null,
-    selectedProductionStage: ServicesProductionStageDto? = null,
-    onProductionStageSelected: (ServicesProductionStageDto?) -> Unit = {},
-    onMeasurementItemSelected: (MeasurementItem?) -> Unit = {},
-    onServiceTemplateSelected: (ProductionTemplateDto?) -> Unit = {},
-    selectedBarcodeIdForDetail: String? = null,
-    onBarcodeIdForDetailSelected: (String?) -> Unit = {},
-    selectedSupplier: SupplierRow?,
-    selectedReceivePoId: String? = null,
-    onReceivePoIdSelected: (String?) -> Unit = {},
-    onFinanceSupplierSelected: (SupplierRow?) -> Unit,
-    navController: NavHostController,
-    widthSizeClass: WindowWidthSizeClass,
-    selectedPurchaseOrderForDetail: PurchaseOrder?,
-    onPurchaseOrderForDetailSelected: (PurchaseOrder?) -> Unit,
-    selectedRequisitionIdForDetail: String?,
-    onRequisitionIdForDetailSelected: (String?) -> Unit,
-    token: String,
-    selectedBulkItemId: String?,
-    onBulkItemIdSelected: (String?) -> Unit,
-    hrViewModel: HrViewModel,
-    servicesViewModel: ServicesViewModel,
-    customerViewModel: CustomerViewModel,
-    settingsViewModel: SettingsViewModel,
-    salesViewModel: SalesViewModel,
-    branchViewModel: BranchViewModel,
-    authViewModel: Authenticate,
-    inventoryViewModel: InventoryViewModel,
-    onNavigate: (String) -> Unit,
-    onSafeNavigate: (String) -> Unit,
-    onGoBack: () -> Unit,
-    // Pops the stack back to a specific screen in one step
-    onPopToScreen: (String) -> Unit = {},
-    onOpenDrawer: () -> Unit,
-    onOpenModulesPanel: (String) -> Unit,
-    onShowComingSoon: (String) -> Unit,
-    onSalesSettingsModeChange: (Boolean) -> Unit,
-    selectedCustomer: CustomerItem?,
-    onCustomerSelected: (CustomerItem?) -> Unit,
-    selectedOrderId: String?,
-    onOrderIdSelected: (String?) -> Unit,
-    editOrderId: String?,
-    onEditOrderIdChange: (String?) -> Unit,
-    selectedManagementOrderId: String?,
-    onManagementOrderIdSelected: (String?) -> Unit,
-    selectedLedgerAccountId: String?,
-    selectedLedgerAccountName: String,
-    onLedgerAccountSelected: (id: String?, name: String) -> Unit,
-    selectedSupplierId: String?,
-    onSupplierSelected: (String?) -> Unit,
-    selectedPaymentModeId: String?,
-    onPaymentModeSelected: (String?) -> Unit,
-    selectedInvoiceId: String?,
-    onInvoiceSelected: (String?) -> Unit,
-    selectedPurchaseInvoice: PurchaseInvoiceItem?,
-    onPurchaseInvoiceSelected: (PurchaseInvoiceItem?) -> Unit,
-    selectedInventoryItemId: String?,
-    onInventoryItemIdSelected: (String?) -> Unit,
-    selectedLowStockItem: LowStockItemDto?,
-    onLowStockItemSelected: (LowStockItemDto?) -> Unit,
-    selectedItemGroupId: String?,
-    onItemGroupIdSelected: (String?) -> Unit,
-    employeeScreenMode: ScreenMode,
-    onEmployeeScreenModeChange: (ScreenMode) -> Unit,
-    selectedEmployeeId: String?,
-    onEmployeeIdSelected: (String?) -> Unit,
-    selectedAttendanceId: String?,
-    onAttendanceIdSelected: (String?) -> Unit,
-    selectedFeedbackId: String?,
-    onFeedbackIdSelected: (String?) -> Unit,
-    selectedRecentCustomerId: String?,
-    selectedLegalCustomerId: String?,
-    onLegalCustomerIdSelected: (String?) -> Unit,
-    onRecentCustomerIdSelected: (String?) -> Unit,
-    editingPricingId: String?,
-    onEditingPricingIdChange: (String?) -> Unit,
-    quotationScreenMode: String,
-    onQuotationScreenModeChange: (String) -> Unit,
-    pendingOrderReviewData: OrderReviewData?,
-    onPendingOrderReviewDataChange: (OrderReviewData?) -> Unit,
-    onOrderFlowOriginChange: (String?) -> Unit,
-    onOrderSavedSuccessfully: (savedOrderId: String?) -> Unit
+    selectedApiLogId: String? = null,
+    onApiLogIdSelected: (String?) -> Unit = {},
+    viewModels: HomeScreenViewModels,
+    navigation: HomeScreenNavigation,
+    salesState: SalesStateHolder = SalesStateHolder(),
+    financeState: FinanceStateHolder = FinanceStateHolder(),
+    inventoryState: InventoryStateHolder = InventoryStateHolder(),
+    hrState: HrStateHolder = HrStateHolder(),
+    logisticsState: LogisticsStateHolder = LogisticsStateHolder(),
+    securityState: SecurityStateHolder = SecurityStateHolder(),
+    servicesState: ServicesStateHolder = ServicesStateHolder(),
+    itState: ItStateHolder = ItStateHolder(),
+    legalState: LegalStateHolder = LegalStateHolder(),
+    marketingState: MarketingStateHolder = MarketingStateHolder(),
+    commonState: CommonStateHolder = CommonStateHolder()
 ) {
     when (screen) {
 
         // In HomeScreenRouter when(screen):
         "module_upgrade_paywall" -> {
-            val config = paywallModuleConfig ?: permissionViewModel.getPaywallConfigForModule("inventory")
+            val config = commonState.paywallModuleConfig ?: viewModels.permissionViewModel.getPaywallConfigForModule("inventory")
             ModuleUpgradePaywallScreen(
                 config = config,
-                onClose = onGoBack,
+                onClose = navigation.onGoBack,
                 onUpgradePlan = {
-                    onNavigate("manage_subscription")
+                    navigation.onNavigate("manage_subscription")
                 },
                 onViewPricing = {
-                    onNavigate("manage_subscription")
+                    navigation.onNavigate("manage_subscription")
                 }
             )
         }
@@ -542,21 +626,21 @@ fun HomeScreenRouter(
         "organization_settings", "home_business_setup" -> {
             HomeAndSettingsRouter(
                 screen = screen,
-                selectedApprovalRuleIdForEdit = selectedApprovalRuleIdForEdit,
-                onApprovalRuleIdForEditSelected = onApprovalRuleIdForEditSelected,
+                selectedApprovalRuleIdForEdit = securityState.selectedApprovalRuleIdForEdit,
+                onApprovalRuleIdForEditSelected = securityState.onApprovalRuleIdForEditSelected,
                 // Forward role edit states
-                selectedRoleIdForEdit = selectedRoleIdForEdit,
-                onRoleIdForEditSelected = onRoleIdForEditSelected,
-                navController = navController,
-                widthSizeClass = widthSizeClass,
-                settingsViewModel = settingsViewModel,
-                authViewModel = authViewModel,
-                onNavigate = onNavigate,
-                onSafeNavigate = onSafeNavigate,
-                onGoBack = onGoBack,
-                onOpenDrawer = onOpenDrawer,
-                onRecentCustomerIdSelected = onRecentCustomerIdSelected,
-                onShowComingSoon = onShowComingSoon
+                selectedRoleIdForEdit = securityState.selectedRoleIdForEdit,
+                onRoleIdForEditSelected = securityState.onRoleIdForEditSelected,
+                navController = navigation.navController,
+                widthSizeClass = navigation.widthSizeClass,
+                settingsViewModel = viewModels.settingsViewModel,
+                authViewModel = viewModels.authViewModel,
+                onNavigate = navigation.onNavigate,
+                onSafeNavigate = navigation.onSafeNavigate,
+                onGoBack = navigation.onGoBack,
+                onOpenDrawer = navigation.onOpenDrawer,
+                onRecentCustomerIdSelected = commonState.onRecentCustomerIdSelected,
+                onShowComingSoon = navigation.onShowComingSoon
             )
         }
 
@@ -567,10 +651,10 @@ fun HomeScreenRouter(
         "inventory_auto_reorder_settings"  -> {
             InventoryStructureRouter(
                 screen = screen,
-                settingsViewModel = settingsViewModel,
-                onNavigate = onNavigate,
-                onGoBack = onGoBack,
-                onShowComingSoon = onShowComingSoon
+                settingsViewModel = viewModels.settingsViewModel,
+                onNavigate = navigation.onNavigate,
+                onGoBack = navigation.onGoBack,
+                onShowComingSoon = navigation.onShowComingSoon
             )
         }
 
@@ -590,40 +674,40 @@ fun HomeScreenRouter(
         "sales_opportunity_pipeline", "sales_opportunities", "create_opportunity", "opportunity_detail" -> {
             SalesRouter(
                 screen = screen,
-                isOrderFromFinance = isOrderFromFinance,
-                onOrderFromFinanceChange = onOrderFromFinanceChange,
-                prefillOrderForInvoice = prefillOrderForInvoice,
-                onPrefillOrderForInvoiceChange = onPrefillOrderForInvoiceChange,
-                selectedOpportunityId = selectedOpportunityId,
-                onOpportunityIdSelected = onOpportunityIdSelected,
-                navController = navController,
-                widthSizeClass = widthSizeClass,
-                selectedMeasurementItem = selectedMeasurementItem,
-                onMeasurementItemSelected = onMeasurementItemSelected,
-                token = token,
-                customerViewModel = customerViewModel,
-                settingsViewModel = settingsViewModel,
-                selectedCustomer = selectedCustomer,
-                onCustomerSelected = onCustomerSelected,
-                selectedOrderId = selectedOrderId,
-                onOrderIdSelected = onOrderIdSelected,
-                editOrderId = editOrderId,
-                onEditOrderIdChange = onEditOrderIdChange,
-                selectedRecentCustomerId = selectedRecentCustomerId,
-                onRecentCustomerIdSelected = onRecentCustomerIdSelected,
-                editingPricingId = editingPricingId,
-                onEditingPricingIdChange = onEditingPricingIdChange,
-                quotationScreenMode = quotationScreenMode,
-                onQuotationScreenModeChange = onQuotationScreenModeChange,
-                pendingOrderReviewData = pendingOrderReviewData,
-                onPendingOrderReviewDataChange = onPendingOrderReviewDataChange,
-                onOrderFlowOriginChange = onOrderFlowOriginChange,
-                onOrderSavedSuccessfully = onOrderSavedSuccessfully,
-                onNavigate = onNavigate,
-                onGoBack = onGoBack,
-                onOpenDrawer = onOpenDrawer,
-                onOpenModulesPanel = onOpenModulesPanel,
-                onSalesSettingsModeChange = onSalesSettingsModeChange
+                isOrderFromFinance = financeState.isOrderFromFinance,
+                onOrderFromFinanceChange = financeState.onOrderFromFinanceChange,
+                prefillOrderForInvoice = financeState.prefillOrderForInvoice,
+                onPrefillOrderForInvoiceChange = financeState.onPrefillOrderForInvoiceChange,
+                selectedOpportunityId = salesState.selectedOpportunityId,
+                onOpportunityIdSelected = salesState.onOpportunityIdSelected,
+                navController = navigation.navController,
+                widthSizeClass = navigation.widthSizeClass,
+                selectedMeasurementItem = salesState.selectedMeasurementItem,
+                onMeasurementItemSelected = salesState.onMeasurementItemSelected,
+                token = navigation.token,
+                customerViewModel = viewModels.customerViewModel,
+                settingsViewModel = viewModels.settingsViewModel,
+                selectedCustomer = salesState.selectedCustomer,
+                onCustomerSelected = salesState.onCustomerSelected,
+                selectedOrderId = salesState.selectedOrderId,
+                onOrderIdSelected = salesState.onOrderIdSelected,
+                editOrderId = salesState.editOrderId,
+                onEditOrderIdChange = salesState.onEditOrderIdChange,
+                selectedRecentCustomerId = commonState.selectedRecentCustomerId,
+                onRecentCustomerIdSelected = commonState.onRecentCustomerIdSelected,
+                editingPricingId = salesState.editingPricingId,
+                onEditingPricingIdChange = salesState.onEditingPricingIdChange,
+                quotationScreenMode = salesState.quotationScreenMode,
+                onQuotationScreenModeChange = salesState.onQuotationScreenModeChange,
+                pendingOrderReviewData = salesState.pendingOrderReviewData,
+                onPendingOrderReviewDataChange = salesState.onPendingOrderReviewDataChange,
+                onOrderFlowOriginChange = salesState.onOrderFlowOriginChange,
+                onOrderSavedSuccessfully = salesState.onOrderSavedSuccessfully,
+                onNavigate = navigation.onNavigate,
+                onGoBack = navigation.onGoBack,
+                onOpenDrawer = navigation.onOpenDrawer,
+                onOpenModulesPanel = navigation.onOpenModulesPanel,
+                onSalesSettingsModeChange = navigation.onSalesSettingsModeChange
             )
         }
 
@@ -644,56 +728,56 @@ fun HomeScreenRouter(
         "finance_bank_statements", "finance_bank_statement_detail", "finance_import_bank_statement","finance_add_tax_rate" -> {
             FinanceRouter(
                 screen = screen,
-                selectedPurchaseReturnId = selectedPurchaseReturnId,
-                onPurchaseReturnIdSelected = onPurchaseReturnIdSelected,
-                selectedStatementId = selectedStatementId,
-                onStatementIdSelected = onStatementIdSelected,
-                selectedBankAccountId = selectedBankAccountId,
-                onBankAccountIdSelected = onBankAccountIdSelected,
-                selectedCashShiftId = selectedCashShiftId,
-                onCashShiftSelected = onCashShiftSelected,
-                selectedCreditNoteId = selectedCreditNoteId,
-                onCreditNoteSelected = onCreditNoteSelected,
-                isOrderFromFinance = isOrderFromFinance,
-                onOrderFromFinanceChange = onOrderFromFinanceChange,
-                prefillOrderForInvoice = prefillOrderForInvoice,
-                onPrefillOrderForInvoiceChange = onPrefillOrderForInvoiceChange,
-                token = token,
-                settingsViewModel = settingsViewModel,
-                salesViewModel = salesViewModel,
-                branchViewModel = branchViewModel,
-                invoiceForPayment = invoiceForPayment,
-                onInvoiceForPaymentChange = onInvoiceForPaymentChange,
-                selectedSupplier = selectedSupplier,
-                inventoryViewModel = inventoryViewModel,
-                customerViewModel = customerViewModel,
-                selectedLedgerAccountId = selectedLedgerAccountId,
-                selectedLedgerAccountName = selectedLedgerAccountName,
-                onLedgerAccountSelected = onLedgerAccountSelected,
-                selectedSupplierId = selectedSupplierId,
-                onSupplierSelected = onSupplierSelected,
-                selectedPaymentModeId = selectedPaymentModeId,
-                onPaymentModeSelected = onPaymentModeSelected,
-                selectedInvoiceId = selectedInvoiceId,
-                onInvoiceSelected = onInvoiceSelected,
-                selectedReceiptId = selectedReceiptId,
-                onReceiptSelected = onReceiptSelected,
-                selectedPurchaseInvoice = selectedPurchaseInvoice,
-                onPurchaseInvoiceSelected = onPurchaseInvoiceSelected,
-                selectedRecentCustomerId = selectedRecentCustomerId,
-                onRecentCustomerIdSelected = onRecentCustomerIdSelected,
-                selectedReceivePoId = selectedReceivePoId,
-                onReceivePoIdSelected = onReceivePoIdSelected,
-                selectedPurchaseOrderForDetail = selectedPurchaseOrderForDetail,
-                onPurchaseOrderForDetailSelected = onPurchaseOrderForDetailSelected,
-                navController = navController,
-                onOpenDrawer = onOpenDrawer,
-                onPendingOrderReviewDataChange = onPendingOrderReviewDataChange,
-                onOrderIdSelected = onOrderIdSelected,
-                onEditOrderIdChange = onEditOrderIdChange,
-                onNavigate = onNavigate,
-                onGoBack = onGoBack,
-                onOpenModulesPanel = onOpenModulesPanel
+                selectedPurchaseReturnId = financeState.selectedPurchaseReturnId,
+                onPurchaseReturnIdSelected = financeState.onPurchaseReturnIdSelected,
+                selectedStatementId = financeState.selectedStatementId,
+                onStatementIdSelected = financeState.onStatementIdSelected,
+                selectedBankAccountId = financeState.selectedBankAccountId,
+                onBankAccountIdSelected = financeState.onBankAccountIdSelected,
+                selectedCashShiftId = financeState.selectedCashShiftId,
+                onCashShiftSelected = financeState.onCashShiftSelected,
+                selectedCreditNoteId = financeState.selectedCreditNoteId,
+                onCreditNoteSelected = financeState.onCreditNoteSelected,
+                isOrderFromFinance = financeState.isOrderFromFinance,
+                onOrderFromFinanceChange = financeState.onOrderFromFinanceChange,
+                prefillOrderForInvoice = financeState.prefillOrderForInvoice,
+                onPrefillOrderForInvoiceChange = financeState.onPrefillOrderForInvoiceChange,
+                token = navigation.token,
+                settingsViewModel = viewModels.settingsViewModel,
+                salesViewModel = viewModels.salesViewModel,
+                branchViewModel = viewModels.branchViewModel,
+                invoiceForPayment = financeState.invoiceForPayment,
+                onInvoiceForPaymentChange = financeState.onInvoiceForPaymentChange,
+                selectedSupplier = financeState.selectedSupplier,
+                inventoryViewModel = viewModels.inventoryViewModel,
+                customerViewModel = viewModels.customerViewModel,
+                selectedLedgerAccountId = financeState.selectedLedgerAccountId,
+                selectedLedgerAccountName = financeState.selectedLedgerAccountName,
+                onLedgerAccountSelected = financeState.onLedgerAccountSelected,
+                selectedSupplierId = financeState.selectedSupplierId,
+                onSupplierSelected = financeState.onSupplierSelected,
+                selectedPaymentModeId = financeState.selectedPaymentModeId,
+                onPaymentModeSelected = financeState.onPaymentModeSelected,
+                selectedInvoiceId = financeState.selectedInvoiceId,
+                onInvoiceSelected = financeState.onInvoiceSelected,
+                selectedReceiptId = financeState.selectedReceiptId,
+                onReceiptSelected = financeState.onReceiptSelected,
+                selectedPurchaseInvoice = financeState.selectedPurchaseInvoice,
+                onPurchaseInvoiceSelected = financeState.onPurchaseInvoiceSelected,
+                selectedRecentCustomerId = commonState.selectedRecentCustomerId,
+                onRecentCustomerIdSelected = commonState.onRecentCustomerIdSelected,
+                selectedReceivePoId = inventoryState.selectedReceivePoId,
+                onReceivePoIdSelected = inventoryState.onReceivePoIdSelected,
+                selectedPurchaseOrderForDetail = inventoryState.selectedPurchaseOrderForDetail,
+                onPurchaseOrderForDetailSelected = inventoryState.onPurchaseOrderForDetailSelected,
+                navController = navigation.navController,
+                onOpenDrawer = navigation.onOpenDrawer,
+                onPendingOrderReviewDataChange = salesState.onPendingOrderReviewDataChange,
+                onOrderIdSelected = salesState.onOrderIdSelected,
+                onEditOrderIdChange = salesState.onEditOrderIdChange,
+                onNavigate = navigation.onNavigate,
+                onGoBack = navigation.onGoBack,
+                onOpenModulesPanel = navigation.onOpenModulesPanel
             )
         }
 
@@ -709,11 +793,11 @@ fun HomeScreenRouter(
         "marketing_calendar", "marketing_insights" -> {
             MarketingRouter(
                 screen = screen,
-                selectedCampaignCode = selectedCampaignCode,
-                onCampaignCodeSelected = onCampaignCodeSelected,
-                onNavigate = onNavigate,
-                onGoBack = onGoBack,
-                onShowComingSoon = onShowComingSoon
+                selectedCampaignCode = marketingState.selectedCampaignCode,
+                onCampaignCodeSelected = marketingState.onCampaignCodeSelected,
+                onNavigate = navigation.onNavigate,
+                onGoBack = navigation.onGoBack,
+                onShowComingSoon = navigation.onShowComingSoon
             )
         }
 
@@ -732,25 +816,25 @@ fun HomeScreenRouter(
         "inventory_approvals", "inventory_pricing_list", "inventory_new_pricing", "inventory_approval_detail", "inventory_create_category" -> {
             InventoryMainRouter(
                 screen = screen,
-                selectedPriceListId = selectedPriceListId,
-                onPriceListIdSelected = onPriceListIdSelected,
-                selectedApprovalId = selectedApprovalId,
-                onApprovalIdSelected = onApprovalIdSelected,
-                selectedInventoryItemId = selectedInventoryItemId,
-                onInventoryItemIdSelected = onInventoryItemIdSelected,
-                selectedItemGroupId = selectedItemGroupId,
-                onItemGroupIdSelected = onItemGroupIdSelected,
-                selectedBulkItemId = selectedBulkItemId,
-                onBulkItemIdSelected = onBulkItemIdSelected,
+                selectedPriceListId = inventoryState.selectedPriceListId,
+                onPriceListIdSelected = inventoryState.onPriceListIdSelected,
+                selectedApprovalId = inventoryState.selectedApprovalId,
+                onApprovalIdSelected = inventoryState.onApprovalIdSelected,
+                selectedInventoryItemId = inventoryState.selectedInventoryItemId,
+                onInventoryItemIdSelected = inventoryState.onInventoryItemIdSelected,
+                selectedItemGroupId = inventoryState.selectedItemGroupId,
+                onItemGroupIdSelected = inventoryState.onItemGroupIdSelected,
+                selectedBulkItemId = inventoryState.selectedBulkItemId,
+                onBulkItemIdSelected = inventoryState.onBulkItemIdSelected,
                 // Pass category edit parameters here
-                selectedCategoryIdForEdit = selectedCategoryIdForEdit,
-                onCategoryIdForEditSelected = onCategoryIdForEditSelected,
-                inventoryViewModel = inventoryViewModel,
-                settingsViewModel = settingsViewModel,
-                onNavigate = onNavigate,
-                onGoBack = onGoBack,
-                onOpenModulesPanel = onOpenModulesPanel,
-                onShowComingSoon = onShowComingSoon
+                selectedCategoryIdForEdit = inventoryState.selectedCategoryIdForEdit,
+                onCategoryIdForEditSelected = inventoryState.onCategoryIdForEditSelected,
+                inventoryViewModel = viewModels.inventoryViewModel,
+                settingsViewModel = viewModels.settingsViewModel,
+                onNavigate = navigation.onNavigate,
+                onGoBack = navigation.onGoBack,
+                onOpenModulesPanel = navigation.onOpenModulesPanel,
+                onShowComingSoon = navigation.onShowComingSoon
             )
         }
 
@@ -776,32 +860,32 @@ fun HomeScreenRouter(
         "inventory_picklist", "inventory_picklist_detail", "inventory_create_package", "inventory_package_detail", "inventory_create_picklist", "inventory_packages" -> {
             InventoryProcurementRouter(
                 screen = screen,
-                selectedPackageIdForDetail = selectedPackageIdForDetail,
-                onPackageIdForDetailSelected = onPackageIdForDetailSelected,
-                selectedPackageIdForEdit = selectedPackageIdForEdit,
-                onPackageIdForEditSelected = onPackageIdForEditSelected,
-                selectedPicklistId = selectedPicklistId,
-                onPicklistIdSelected = onPicklistIdSelected,
-                selectedBarcodeIdForDetail = selectedBarcodeIdForDetail,
-                onBarcodeIdForDetailSelected = onBarcodeIdForDetailSelected,
-                selectedReceivePoId = selectedReceivePoId,
-                onReceivePoIdSelected = onReceivePoIdSelected,
-                selectedPurchaseOrderForDetail = selectedPurchaseOrderForDetail,
-                onPurchaseOrderForDetailSelected = onPurchaseOrderForDetailSelected,
-                selectedRequisitionIdForDetail = selectedRequisitionIdForDetail,
-                onRequisitionIdForDetailSelected = onRequisitionIdForDetailSelected,
-                selectedSupplierId = selectedSupplierId,
-                onSupplierSelected = onSupplierSelected,
-                selectedInvoiceId = selectedInvoiceId,
-                onInvoiceSelected = onInvoiceSelected,
-                selectedPaymentModeId = selectedPaymentModeId,
-                onPaymentModeSelected = onPaymentModeSelected,
-                selectedLowStockItem = selectedLowStockItem,
-                onLowStockItemSelected = onLowStockItemSelected,
-                inventoryViewModel = inventoryViewModel,
-                onNavigate = onNavigate,
-                onGoBack = onGoBack,
-                onOpenModulesPanel = onOpenModulesPanel
+                selectedPackageIdForDetail = inventoryState.selectedPackageIdForDetail,
+                onPackageIdForDetailSelected = inventoryState.onPackageIdForDetailSelected,
+                selectedPackageIdForEdit = inventoryState.selectedPackageIdForEdit,
+                onPackageIdForEditSelected = inventoryState.onPackageIdForEditSelected,
+                selectedPicklistId = inventoryState.selectedPicklistId,
+                onPicklistIdSelected = inventoryState.onPicklistIdSelected,
+                selectedBarcodeIdForDetail = inventoryState.selectedBarcodeIdForDetail,
+                onBarcodeIdForDetailSelected = inventoryState.onBarcodeIdForDetailSelected,
+                selectedReceivePoId = inventoryState.selectedReceivePoId,
+                onReceivePoIdSelected = inventoryState.onReceivePoIdSelected,
+                selectedPurchaseOrderForDetail = inventoryState.selectedPurchaseOrderForDetail,
+                onPurchaseOrderForDetailSelected = inventoryState.onPurchaseOrderForDetailSelected,
+                selectedRequisitionIdForDetail = inventoryState.selectedRequisitionIdForDetail,
+                onRequisitionIdForDetailSelected = inventoryState.onRequisitionIdForDetailSelected,
+                selectedSupplierId = financeState.selectedSupplierId,
+                onSupplierSelected = financeState.onSupplierSelected,
+                selectedInvoiceId = financeState.selectedInvoiceId,
+                onInvoiceSelected = financeState.onInvoiceSelected,
+                selectedPaymentModeId = financeState.selectedPaymentModeId,
+                onPaymentModeSelected = financeState.onPaymentModeSelected,
+                selectedLowStockItem = inventoryState.selectedLowStockItem,
+                onLowStockItemSelected = inventoryState.onLowStockItemSelected,
+                inventoryViewModel = viewModels.inventoryViewModel,
+                onNavigate = navigation.onNavigate,
+                onGoBack = navigation.onGoBack,
+                onOpenModulesPanel = navigation.onOpenModulesPanel
             )
         }
 
@@ -827,41 +911,41 @@ fun HomeScreenRouter(
         "hr_expense_finance_reimbursement","hr_edit_expense_claim","hr_add_expense_type","hr_expense_process_payment"   -> {
             HrRouter(
                 screen = screen,
-                settingsViewModel = settingsViewModel,
-                selectedClaimForPayment = selectedClaimForPayment,
-                selectedLeaveTypeIdForView = selectedLeaveTypeIdForView,
-                onLeaveTypeIdForViewSelected = onLeaveTypeIdForViewSelected,
-                selectedLeaveTypeIdForEdit = selectedLeaveTypeIdForEdit,
-                onLeaveTypeIdForEditSelected = onLeaveTypeIdForEditSelected,
-                onClaimForPaymentSelected = onClaimForPaymentSelected,
-                selectedExpenseTypeId = selectedExpenseTypeId,
-                onExpenseTypeIdSelected = onExpenseTypeIdSelected,
-                selectedExpenseClaimId = selectedExpenseClaimId,
-                onExpenseClaimIdSelected = onExpenseClaimIdSelected,
-                selectedDocumentCategoryId = selectedDocumentCategoryId,
-                onDocumentCategoryIdSelected = onDocumentCategoryIdSelected,
-                selectedDocumentId = selectedDocumentId,
-                onDocumentIdSelected = onDocumentIdSelected,
-                hrViewModel = hrViewModel,
-                employeeScreenMode = employeeScreenMode,
-                onEmployeeScreenModeChange = onEmployeeScreenModeChange,
-                selectedEmployeeId = selectedEmployeeId,
-                selectedTrainingAssignmentId = selectedTrainingAssignmentId,
-                onTrainingAssignmentIdSelected = onTrainingAssignmentIdSelected,
-                selectedSalaryTemplateId = selectedSalaryTemplateId,
-                onSalaryTemplateIdSelected = onSalaryTemplateIdSelected,
-                selectedTrainingProgramId = selectedTrainingProgramId,
-                onTrainingProgramIdSelected = onTrainingProgramIdSelected,
-                onEmployeeIdSelected = onEmployeeIdSelected,
-                selectedSalaryComponentId = selectedSalaryComponentId,
-                onSalaryComponentIdSelected = onSalaryComponentIdSelected,
-                selectedAttendanceId = selectedAttendanceId,
-                onAttendanceIdSelected = onAttendanceIdSelected,
-                selectedShiftId = selectedShiftId,
-                onShiftIdSelected = onShiftIdSelected,
-                onNavigate = onNavigate,
-                onGoBack = onGoBack,
-                onOpenModulesPanel = onOpenModulesPanel
+                settingsViewModel = viewModels.settingsViewModel,
+                selectedClaimForPayment = hrState.selectedClaimForPayment,
+                selectedLeaveTypeIdForView = hrState.selectedLeaveTypeIdForView,
+                onLeaveTypeIdForViewSelected = hrState.onLeaveTypeIdForViewSelected,
+                selectedLeaveTypeIdForEdit = hrState.selectedLeaveTypeIdForEdit,
+                onLeaveTypeIdForEditSelected = hrState.onLeaveTypeIdForEditSelected,
+                onClaimForPaymentSelected = hrState.onClaimForPaymentSelected,
+                selectedExpenseTypeId = hrState.selectedExpenseTypeId,
+                onExpenseTypeIdSelected = hrState.onExpenseTypeIdSelected,
+                selectedExpenseClaimId = hrState.selectedExpenseClaimId,
+                onExpenseClaimIdSelected = hrState.onExpenseClaimIdSelected,
+                selectedDocumentCategoryId = hrState.selectedDocumentCategoryId,
+                onDocumentCategoryIdSelected = hrState.onDocumentCategoryIdSelected,
+                selectedDocumentId = hrState.selectedDocumentId,
+                onDocumentIdSelected = hrState.onDocumentIdSelected,
+                hrViewModel = viewModels.hrViewModel,
+                employeeScreenMode = hrState.employeeScreenMode,
+                onEmployeeScreenModeChange = hrState.onEmployeeScreenModeChange,
+                selectedEmployeeId = hrState.selectedEmployeeId,
+                selectedTrainingAssignmentId = hrState.selectedTrainingAssignmentId,
+                onTrainingAssignmentIdSelected = hrState.onTrainingAssignmentIdSelected,
+                selectedSalaryTemplateId = hrState.selectedSalaryTemplateId,
+                onSalaryTemplateIdSelected = hrState.onSalaryTemplateIdSelected,
+                selectedTrainingProgramId = hrState.selectedTrainingProgramId,
+                onTrainingProgramIdSelected = hrState.onTrainingProgramIdSelected,
+                onEmployeeIdSelected = hrState.onEmployeeIdSelected,
+                selectedSalaryComponentId = hrState.selectedSalaryComponentId,
+                onSalaryComponentIdSelected = hrState.onSalaryComponentIdSelected,
+                selectedAttendanceId = hrState.selectedAttendanceId,
+                onAttendanceIdSelected = hrState.onAttendanceIdSelected,
+                selectedShiftId = hrState.selectedShiftId,
+                onShiftIdSelected = hrState.onShiftIdSelected,
+                onNavigate = navigation.onNavigate,
+                onGoBack = navigation.onGoBack,
+                onOpenModulesPanel = navigation.onOpenModulesPanel
             )
         }
 
@@ -872,16 +956,16 @@ fun HomeScreenRouter(
         "logistics_tracking_events", "logistics_returns", "return_detail", "create_return", "logistics_cod_screen", "logistics_cod_detail" -> {
             LogisticsRouter(
                 screen = screen,
-                selectedReturnId = selectedReturnId,
-                onReturnIdSelected = onReturnIdSelected,
-                selectedLogisticsPackageId = selectedLogisticsPackageId,
-                onLogisticsPackageIdSelected = onLogisticsPackageIdSelected,
-                selectedShipmentId = selectedShipmentId,
-                onShipmentIdSelected = onShipmentIdSelected,
-                onOrderIdSelected = onOrderIdSelected,
-                onNavigate = onNavigate,
-                onGoBack = onGoBack,
-                onOpenModulesPanel = onOpenModulesPanel
+                selectedReturnId = logisticsState.selectedReturnId,
+                onReturnIdSelected = logisticsState.onReturnIdSelected,
+                selectedLogisticsPackageId = logisticsState.selectedLogisticsPackageId,
+                onLogisticsPackageIdSelected = logisticsState.onLogisticsPackageIdSelected,
+                selectedShipmentId = logisticsState.selectedShipmentId,
+                onShipmentIdSelected = logisticsState.onShipmentIdSelected,
+                onOrderIdSelected = salesState.onOrderIdSelected,
+                onNavigate = navigation.onNavigate,
+                onGoBack = navigation.onGoBack,
+                onOpenModulesPanel = navigation.onOpenModulesPanel
             )
         }
 
@@ -895,27 +979,27 @@ fun HomeScreenRouter(
         "legal_notice", "legal_notice_detail", "legal_create_notice" -> {
             LegalRouter(
                 screen = screen,
-                selectedContractId = selectedLegalContractId,
-                onContractIdSelected = onLegalContractIdSelected,
-                selectedComplianceId = selectedLegalComplianceId,
-                onComplianceIdSelected = onLegalComplianceIdSelected,
-                selectedLegalDocumentId = selectedLegalDocumentId,
-                onLegalDocumentIdSelected = onLegalDocumentIdSelected,
-                selectedLegalLicenseId = selectedLegalLicenseId,
-                onLegalLicenseIdSelected = onLegalLicenseIdSelected,
-                selectedLegalCustomerId = selectedLegalCustomerId,
-                onLegalCustomerIdSelected = onLegalCustomerIdSelected,
-                selectedLegalEmployeeId = selectedLegalEmployeeId,
-                onLegalEmployeeIdSelected = onLegalEmployeeIdSelected,
-                selectedLegalVendorId = selectedLegalVendorId,
-                onLegalVendorIdSelected = onLegalVendorIdSelected,
-                selectedLegalNoticeId = selectedLegalNoticeId,
-                onLegalNoticeIdSelected = onLegalNoticeIdSelected,
-                onNavigate = onNavigate,
-                onGoBack = onGoBack,
-                hrViewModel = hrViewModel,
-                branchViewModel = branchViewModel,
-                inventoryViewModel = inventoryViewModel
+                selectedContractId = legalState.selectedLegalContractId,
+                onContractIdSelected = legalState.onLegalContractIdSelected,
+                selectedComplianceId = legalState.selectedLegalComplianceId,
+                onComplianceIdSelected = legalState.onLegalComplianceIdSelected,
+                selectedLegalDocumentId = legalState.selectedLegalDocumentId,
+                onLegalDocumentIdSelected = legalState.onLegalDocumentIdSelected,
+                selectedLegalLicenseId = legalState.selectedLegalLicenseId,
+                onLegalLicenseIdSelected = legalState.onLegalLicenseIdSelected,
+                selectedLegalCustomerId = legalState.selectedLegalCustomerId,
+                onLegalCustomerIdSelected = legalState.onLegalCustomerIdSelected,
+                selectedLegalEmployeeId = legalState.selectedLegalEmployeeId,
+                onLegalEmployeeIdSelected = legalState.onLegalEmployeeIdSelected,
+                selectedLegalVendorId = legalState.selectedLegalVendorId,
+                onLegalVendorIdSelected = legalState.onLegalVendorIdSelected,
+                selectedLegalNoticeId = legalState.selectedLegalNoticeId,
+                onLegalNoticeIdSelected = legalState.onLegalNoticeIdSelected,
+                onNavigate = navigation.onNavigate,
+                onGoBack = navigation.onGoBack,
+                hrViewModel = viewModels.hrViewModel,
+                branchViewModel = viewModels.branchViewModel,
+                inventoryViewModel = viewModels.inventoryViewModel
             )
         }
 
@@ -934,37 +1018,36 @@ fun HomeScreenRouter(
         "services_production_stages", "services_create_production_stage", "services_workflow_stages" -> {
             ServicesRouter(
                 screen = screen,
-                servicesViewModel = servicesViewModel,
-                settingsViewModel = settingsViewModel,
-                selectedAssignmentJobCardId = selectedAssignmentJobCardId,
-                onAssignmentJobCardIdSelected = onAssignmentJobCardIdSelected,
-                selectedComplaintId = selectedComplaintId,
-                onComplaintIdSelected = onComplaintIdSelected,
-                selectedAlterationId = selectedAlterationId,
-                onAlterationIdSelected = onAlterationIdSelected,
-                selectedServiceRequestId = selectedServiceRequestId,
-                onServiceRequestIdSelected = onServiceRequestIdSelected,
-                navController = navController,
-                selectedManagementOrderId = selectedManagementOrderId,
-                onManagementOrderIdSelected = onManagementOrderIdSelected,
-                selectedOrderId = selectedOrderId,
-                onOrderIdSelected = onOrderIdSelected,
-                onEditOrderIdChange = onEditOrderIdChange,
-                selectedFeedbackId = selectedFeedbackId,
-                onFeedbackIdSelected = onFeedbackIdSelected,
-                selectedServiceTemplate = selectedServiceTemplate,
-                onServiceTemplateSelected = onServiceTemplateSelected,
-                selectedProductionStage = selectedProductionStage,
-                onProductionStageSelected = onProductionStageSelected,
-                pendingOrderReviewData = pendingOrderReviewData,
-                onPendingOrderReviewDataChange = onPendingOrderReviewDataChange,
-                // inside the services block
-                onNavigate = onNavigate,
-                onGoBack = onGoBack,
-                onPopToScreen = onPopToScreen,
-                onOpenDrawer = onOpenDrawer,
-                onOpenModulesPanel = onOpenModulesPanel,
-                hrViewModel = hrViewModel
+                servicesViewModel = viewModels.servicesViewModel,
+                settingsViewModel = viewModels.settingsViewModel,
+                selectedAssignmentJobCardId = servicesState.selectedAssignmentJobCardId,
+                onAssignmentJobCardIdSelected = servicesState.onAssignmentJobCardIdSelected,
+                selectedComplaintId = servicesState.selectedComplaintId,
+                onComplaintIdSelected = servicesState.onComplaintIdSelected,
+                selectedAlterationId = servicesState.selectedAlterationId,
+                onAlterationIdSelected = servicesState.onAlterationIdSelected,
+                selectedServiceRequestId = servicesState.selectedServiceRequestId,
+                onServiceRequestIdSelected = servicesState.onServiceRequestIdSelected,
+                navController = navigation.navController,
+                selectedManagementOrderId = salesState.selectedManagementOrderId,
+                onManagementOrderIdSelected = salesState.onManagementOrderIdSelected,
+                selectedOrderId = salesState.selectedOrderId,
+                onOrderIdSelected = salesState.onOrderIdSelected,
+                onEditOrderIdChange = salesState.onEditOrderIdChange,
+                selectedFeedbackId = servicesState.selectedFeedbackId,
+                onFeedbackIdSelected = servicesState.onFeedbackIdSelected,
+                selectedServiceTemplate = servicesState.selectedServiceTemplate,
+                onServiceTemplateSelected = servicesState.onServiceTemplateSelected,
+                selectedProductionStage = servicesState.selectedProductionStage,
+                onProductionStageSelected = servicesState.onProductionStageSelected,
+                pendingOrderReviewData = salesState.pendingOrderReviewData,
+                onPendingOrderReviewDataChange = salesState.onPendingOrderReviewDataChange,
+                onNavigate = navigation.onNavigate,
+                onGoBack = navigation.onGoBack,
+                onPopToScreen = navigation.onPopToScreen,
+                onOpenDrawer = navigation.onOpenDrawer,
+                onOpenModulesPanel = navigation.onOpenModulesPanel,
+                hrViewModel = viewModels.hrViewModel
             )
         }
 
@@ -973,14 +1056,13 @@ fun HomeScreenRouter(
         "reports_it", "reports_security", "reports_legal" -> {
             ReportsRouter(
                 screen = screen,
-                onNavigate = onNavigate,
-                onGoBack = onGoBack,
-                onOpenModulesPanel = onOpenModulesPanel,
-                onShowComingSoon = onShowComingSoon
+                onNavigate = navigation.onNavigate,
+                onGoBack = navigation.onGoBack,
+                onOpenModulesPanel = navigation.onOpenModulesPanel,
+                onShowComingSoon = navigation.onShowComingSoon
             )
         }
 
-        // ── IT Module Router Dispatch ──
         "it_dashboard", "it_device_management", "it_device_detail",
         "it_pos_billing", "it_pos_billing_detail",
         "it_integrations", "it_backup_recovery", "it_backup_recovery_detail", "it_backup_restore",
@@ -988,34 +1070,50 @@ fun HomeScreenRouter(
         "it_service_desk", "it_service_desk_create", "it_service_desk_detail" -> {
             ItRouter(
                 screen = screen,
-                selectedTicketId = selectedTicketId,
-                onTicketIdSelected = onTicketIdSelected,
-                selectedAssetId = selectedAssetId,
-                onAssetIdSelected = onAssetIdSelected,
-                selectedBackupSnapshotId = selectedBackupSnapshotId,
-                onBackupSnapshotIdSelected = onBackupSnapshotIdSelected,
-                selectedItDeviceId = selectedItDeviceId,
-                onItDeviceIdSelected = onItDeviceIdSelected,
-                selectedPosTerminalId = selectedPosTerminalId,
-                onPosTerminalIdSelected = onPosTerminalIdSelected,
-                onNavigate = onNavigate,
-                onGoBack = onGoBack,
-                onShowComingSoon = onShowComingSoon
+                selectedTicketId = itState.selectedTicketId,
+                onTicketIdSelected = itState.onTicketIdSelected,
+                selectedAssetId = itState.selectedAssetId,
+                onAssetIdSelected = itState.onAssetIdSelected,
+                selectedBackupSnapshotId = itState.selectedBackupSnapshotId,
+                onBackupSnapshotIdSelected = itState.onBackupSnapshotIdSelected,
+                selectedItDeviceId = itState.selectedItDeviceId,
+                onItDeviceIdSelected = itState.onItDeviceIdSelected,
+                selectedPosTerminalId = itState.selectedPosTerminalId,
+                onPosTerminalIdSelected = itState.onPosTerminalIdSelected,
+                onNavigate = navigation.onNavigate,
+                onGoBack = navigation.onGoBack,
+                onShowComingSoon = navigation.onShowComingSoon
             )
         }
 
         // ── Security Module Router Dispatch ──
         "security_dashboard", "security_users", "security_roles",
-        "security_data_backup", "security_recovery", "security_api_integration",
-        "security_api_logs", "security_mobile_security", "security_help_center",
-        "security_support_ticket", "security_audit_logs","security_create_user" -> {
+        "security_data_backup", "security_create_backup", "security_backup_detail",
+        "security_recovery", "security_recovery_detail",
+        "security_api_integration", "security_create_api_integration", "security_api_integration_detail",
+        "security_api_logs", "security_api_log_detail",
+        "security_audit_logs", "security_audit_log_detail",
+        "security_mobile_security", "security_help_center", "security_support_ticket",
+        "security_create_support_ticket", "security_support_ticket_detail", "security_create_user" -> {
             SecurityRouter(
                 screen = screen,
-                onNavigate = onNavigate,
-                onGoBack = onGoBack,
-                branchViewModel = branchViewModel,
-                hrViewModel = hrViewModel,
-                onShowComingSoon = onShowComingSoon
+                selectedIntegrationId = securityState.selectedIntegrationId,
+                onIntegrationIdSelected = securityState.onIntegrationIdSelected,
+                selectedBackupId = securityState.selectedBackupId,
+                onBackupIdSelected = securityState.onBackupIdSelected,
+                selectedRecoveryId = securityState.selectedRecoveryId,
+                onRecoveryIdSelected = securityState.onRecoveryIdSelected,
+                selectedApiLogId = securityState.selectedApiLogId,
+                onApiLogIdSelected = securityState.onApiLogIdSelected,
+                selectedAuditLogId = securityState.selectedAuditLogId,
+                onAuditLogIdSelected = securityState.onAuditLogIdSelected,
+                selectedSupportTicketId = securityState.selectedSupportTicketId,
+                onSupportTicketIdSelected = securityState.onSupportTicketIdSelected,
+                onNavigate = navigation.onNavigate,
+                onGoBack = navigation.onGoBack,
+                branchViewModel = viewModels.branchViewModel,
+                hrViewModel = viewModels.hrViewModel,
+                onShowComingSoon = navigation.onShowComingSoon
             )
         }
 
@@ -2805,7 +2903,7 @@ private fun FinanceRouter(
                 }
             )
         }
-        
+
         // ── Cash Books List Screen ──
         "finance_cash_book" -> {
             CashBookListScreen(
@@ -3376,7 +3474,7 @@ private fun InventoryMainRouter(
         }
 
         // Multi-Channel Allocation List Screen
-            "inventory_multichannel_allocation_list" -> {
+        "inventory_multichannel_allocation_list" -> {
             AllocationListScreen(
                 onClose = onGoBack,
                 onAddNew = { },
@@ -3898,7 +3996,12 @@ private fun HrRouter(
 ) {
     when (screen) {
         // HR Dashboard screen
-        "hr_dashboard" -> TeamOperationsDashboardScreen()
+        "hr_dashboard" -> HrDashboardScreen(
+            onClose = onGoBack,
+            onNavigateToLeave = { onNavigate("hr_apply_leave") },
+            onNavigateToAttendance = { onNavigate("hr_daily_attendance") },
+            onNavigateToShift = { onNavigate("hr_attendance_shift_management") }
+        )
         "hr_all_employees", "hr_employee_management" -> AllEmployeesScreen(
             onDismiss = onGoBack,
             onAddEmployee = {
@@ -5941,17 +6044,32 @@ private fun ItRouter(
 /**
  * Router dedicated to Security Module screens.
  */
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 private fun SecurityRouter(
     screen: String,
+    selectedIntegrationId: String? = null,
+    onIntegrationIdSelected: (String?) -> Unit = {},
+    selectedBackupId: String? = null,
+    onBackupIdSelected: (String?) -> Unit = {},
+    selectedRecoveryId: String? = null,
+    onRecoveryIdSelected: (String?) -> Unit = {},
+    selectedApiLogId: String? = null,
+    onApiLogIdSelected: (String?) -> Unit = {},
+    selectedAuditLogId: String? = null,
+    onAuditLogIdSelected: (String?) -> Unit = {},
+    selectedSupportTicketId: String? = null,                       // <-- ADDED THIS
+    onSupportTicketIdSelected: (String?) -> Unit = {},            // <-- ADDED THIS
     securityViewModel: SecurityViewModel = hiltViewModel(),
     hrViewModel: HrViewModel,
     branchViewModel: BranchViewModel,
-    permissionViewModel: PermissionViewModel = hiltViewModel(), // Injected for RBAC action checks
+    permissionViewModel: PermissionViewModel = hiltViewModel(),
     onNavigate: (String) -> Unit,
     onGoBack: () -> Unit,
     onShowComingSoon: (String) -> Unit
 ) {
+    var selectedHelpArticleSlug by remember { mutableStateOf<String?>(null) }
+
     when (screen) {
         "security_dashboard" -> {
             SecurityDashboardScreen(
@@ -5959,27 +6077,94 @@ private fun SecurityRouter(
                 onClose = onGoBack
             )
         }
+        // ── MOBILE ACCESS ROUTE ──
+        "security_mobile_security" -> {
+            MobileAccessScreen(
+                viewModel = securityViewModel,
+                onBack = onGoBack
+            )
+        }
 
-        // Navigate to UserManagementScreen when Security -> User Management is clicked
+        // ── SUPPORT TICKETS LIST ROUTE ──
+        "security_support_ticket" -> {
+            SupportTicketsListScreen(
+                onClose = onGoBack,
+                onCreateTicket = {
+                    onSupportTicketIdSelected(null)
+                    onNavigate("security_create_support_ticket")
+                },
+                onViewTicket = { ticketId: String ->
+                    onSupportTicketIdSelected(ticketId)
+                    onNavigate("security_support_ticket_detail")
+                },
+                viewModel = securityViewModel
+            )
+        }
+
+        // ── CREATE SUPPORT TICKET ROUTE ──
+        "security_create_support_ticket" -> {
+            CreateSupportTicketScreen(
+                viewModel = securityViewModel,
+                hrViewModel = hrViewModel,
+                branchViewModel = branchViewModel,
+                onBack = {
+                    onSupportTicketIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
+
+        // ── SUPPORT TICKET DETAIL ROUTE ──
+        "security_support_ticket_detail" -> {
+            selectedSupportTicketId?.takeIf { it.isNotBlank() }?.let { validTicketId: String ->
+                SupportTicketDetailScreen(
+                    ticketId = validTicketId,
+                    viewModel = securityViewModel,
+                    hrViewModel = hrViewModel,
+                    onBack = {
+                        onSupportTicketIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // ── HELP CENTER ROUTE ──
+        "security_help_center" -> {
+            if (selectedHelpArticleSlug != null) {
+                HelpArticleDetailScreen(
+                    articleSlug = selectedHelpArticleSlug!!,
+                    viewModel = securityViewModel,
+                    onBack = { selectedHelpArticleSlug = null },
+                    onCreateTicketClick = { onNavigate("security_support_ticket") }
+                )
+            } else {
+                HelpCenterScreen(
+                    viewModel = securityViewModel,
+                    onBack = onGoBack,
+                    onArticleClick = { article ->
+                        selectedHelpArticleSlug = article.slug
+                    },
+                    onCreateTicketClick = { onNavigate("security_support_ticket") }
+                )
+            }
+        }
+
         "security_users" -> {
             UserManagementScreen(
                 securityViewModel = securityViewModel,
                 permissionViewModel = permissionViewModel,
                 onBack = onGoBack,
                 onCreateUserClick = {
-                    onNavigate("security_create_user") // Navigate to Create User screen
+                    onNavigate("security_create_user")
                 },
-                onViewUserClick = { userId ->
-                    // Handle view user details if needed
-                },
-                onEditUserClick = { userId ->
-                    // Handle edit user if needed
-                }
+                onViewUserClick = { /* Handle view */ },
+                onEditUserClick = { /* Handle edit */ }
             )
         }
 
-        // Dedicated Create User screen route
-        // 2. Create User Screen
         "security_create_user" -> {
             val departmentViewModel: DepartmentViewModel = hiltViewModel()
             val designationViewModel: DesignationViewModel = hiltViewModel()
@@ -5992,16 +6177,212 @@ private fun SecurityRouter(
                 designationViewModel = designationViewModel,
                 onBack = onGoBack,
                 onUserCreated = {
-                    securityViewModel.fetchUsers() // Refresh user list after creation
+                    securityViewModel.fetchUsers()
                     onGoBack()
                 }
             )
         }
 
         "security_roles" -> {
-            // Directs Security -> Roles Management to the same RoleSettingsScreen
             onNavigate("home_role_management")
         }
+
+        // =========================================================================
+        // SECURITY DATA BACKUP FLOW
+        // =========================================================================
+
+        // 1. Data Backup List Screen
+        "security_data_backup" -> {
+            DataBackupListScreen(
+                viewModel = securityViewModel,
+                onNavigateBack = onGoBack,
+                onNavigateToDetail = { backupId ->
+                    onBackupIdSelected(backupId)
+                    onNavigate("security_backup_detail")
+                },
+                onNavigateToCreate = {
+                    onNavigate("security_create_backup")
+                }
+            )
+        }
+
+        // 2. Create Backup Screen
+        "security_create_backup" -> {
+            CreateBackupScreen(
+                viewModel = securityViewModel,
+                onNavigateBack = onGoBack,
+                onSuccessCreated = {
+                    securityViewModel.fetchBackups()
+                    onGoBack()
+                }
+            )
+        }
+
+        // 3. Backup Detail Screen
+        "security_backup_detail" -> {
+            selectedBackupId?.takeIf { it.isNotBlank() }?.let { validId ->
+                DataBackupDetailScreen(
+                    backupId = validId,
+                    viewModel = securityViewModel,
+                    onNavigateBack = {
+                        onBackupIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // =========================================================================
+        // SECURITY DATA RECOVERY FLOW
+        // =========================================================================
+
+        // 1. Data Recovery List Screen (Restore modal triggers recovery and navigates)
+        "security_recovery" -> {
+            DataRecoveryListScreen(
+                viewModel = securityViewModel,
+                onNavigateBack = onGoBack,
+                onNavigateToRecoveryDetail = { recoveryId ->
+                    onRecoveryIdSelected(recoveryId)
+                    onNavigate("security_recovery_detail")
+                }
+            )
+        }
+
+        // 2. Recovery Details Screen (Shows live circular gauge, verification, and timeline)
+        "security_recovery_detail" -> {
+            selectedRecoveryId?.takeIf { it.isNotBlank() }?.let { validRecoveryId ->
+                DataRecoveryDetailScreen(
+                    recoveryId = validRecoveryId,
+                    viewModel = securityViewModel,
+                    onNavigateBack = {
+                        onRecoveryIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // 1. API Integration List Screen
+        "security_api_integration" -> {
+            ApiIntegrationListScreen(
+                viewModel = securityViewModel,
+                onNavigateBack = onGoBack,
+                onNavigateToDetail = { integrationId ->
+                    onIntegrationIdSelected(integrationId)
+                    onNavigate("security_api_integration_detail")
+                },
+                onNavigateToAdd = {
+                    onIntegrationIdSelected(null) // Clears ID for fresh Create Mode
+                    onNavigate("security_create_api_integration")
+                },
+                onNavigateToEdit = { integrationId ->
+                    onIntegrationIdSelected(integrationId) // Sets ID for Edit Mode (prefill)
+                    onNavigate("security_create_api_integration")
+                }
+            )
+        }
+
+        // 2. Add / Edit API Integration Screen
+        "security_create_api_integration" -> {
+            AddApiIntegrationScreen(
+                integrationIdToEdit = selectedIntegrationId, // Receives null for Create, non-null for Edit
+                viewModel = securityViewModel,
+                onNavigateBack = {
+                    onIntegrationIdSelected(null)
+                    onGoBack()
+                },
+                onSuccessSaved = {
+                    onIntegrationIdSelected(null)
+                    securityViewModel.fetchApiIntegrations()
+                    onGoBack()
+                }
+            )
+        }
+
+        // 3. API Integration Detail Screen
+        "security_api_integration_detail" -> {
+            selectedIntegrationId?.takeIf { it.isNotBlank() }?.let { validId ->
+                ApiIntegrationDetailScreen(
+                    integrationId = validId,
+                    viewModel = securityViewModel,
+                    onNavigateBack = {
+                        onIntegrationIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // =========================================================================
+        // SECURITY API LOGS NAVIGATION FLOW
+        // =========================================================================
+
+        // 1. API Logs List Screen
+        "security_api_logs" -> {
+            ApiLogsListScreen(
+                viewModel = securityViewModel,
+                onNavigateBack = onGoBack,
+                onNavigateToDetail = { logId ->
+                    onApiLogIdSelected(logId)
+                    onNavigate("security_api_log_detail")
+                }
+            )
+        }
+
+        // 2. API Log Detail Screen
+        "security_api_log_detail" -> {
+            selectedApiLogId?.takeIf { it.isNotBlank() }?.let { validId ->
+                ApiLogDetailScreen(
+                    logId = validId,
+                    viewModel = securityViewModel,
+                    onNavigateBack = {
+                        onApiLogIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // =========================================================================
+        // SECURITY AUDIT LOGS FLOW
+        // =========================================================================
+
+        // 1. Audit Logs List Screen
+        "security_audit_logs" -> {
+            AuditLogsListScreen(
+                viewModel = securityViewModel,
+                onNavigateBack = onGoBack,
+                onNavigateToDetail = { logId ->
+                    onAuditLogIdSelected(logId)
+                    onNavigate("security_audit_log_detail")
+                }
+            )
+        }
+
+        // 2. Audit Log Detail Screen
+        "security_audit_log_detail" -> {
+            selectedAuditLogId?.takeIf { it.isNotBlank() }?.let { validId ->
+                AuditLogDetailScreen(
+                    logId = validId,
+                    viewModel = securityViewModel,
+                    onNavigateBack = {
+                        onAuditLogIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
         else -> {
             onShowComingSoon("Coming Soon, Stay tuned !")
             onGoBack()

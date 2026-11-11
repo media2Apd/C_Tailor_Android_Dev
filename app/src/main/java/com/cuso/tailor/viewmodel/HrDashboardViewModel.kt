@@ -28,6 +28,13 @@ private const val MEMBERS_ME_URL = "/api/members/me"
 private const val CHECK_IN_URL = "/api/hr/attendance/check-in"
 private const val CHECK_OUT_URL = "/api/hr/attendance/check-out"
 
+// Endpoints for Feed, Legal Files, and Designation Career History
+private const val ANNOUNCEMENT_FEED_URL = "/api/hr/announcement/my-feed"
+private const val ANNOUNCEMENT_CREATE_URL = "/api/hr/announcement/create"
+
+private const val LEGAL_EMPLOYEE_BY_EMPLOYEE_URL = "/api/legal/legal-employee/by-employee"
+private const val DESIGNATION_VIEW_ONE_URL = "/api/home/designations/view-one"
+
 @RequiresApi(Build.VERSION_CODES.O)
 @HiltViewModel
 class HrDashboardViewModel @Inject constructor(
@@ -58,6 +65,16 @@ class HrDashboardViewModel @Inject constructor(
     private val _attendanceHistoryMonthToDate = MutableStateFlow<List<CheckInOutTodayData>>(emptyList())
     val attendanceHistoryMonthToDate: StateFlow<List<CheckInOutTodayData>> = _attendanceHistoryMonthToDate.asStateFlow()
 
+    // Dynamic StateFlows for Feed, Files, and Career History
+    private val _feedList = MutableStateFlow<List<AnnouncementItemData>>(emptyList())
+    val feedList: StateFlow<List<AnnouncementItemData>> = _feedList.asStateFlow()
+
+    private val _legalFiles = MutableStateFlow<List<LegalEmployeeData>>(emptyList())
+    val legalFiles: StateFlow<List<LegalEmployeeData>> = _legalFiles.asStateFlow()
+
+    private val _designationHistory = MutableStateFlow<DesignationDetailData?>(null)
+    val designationHistory: StateFlow<DesignationDetailData?> = _designationHistory.asStateFlow()
+
     init {
         loadInitialData()
     }
@@ -69,6 +86,7 @@ class HrDashboardViewModel @Inject constructor(
         fetchMySpaceDashboard()
         fetchTeamDashboard()
         fetchOrgDashboard()
+        fetchEmployeeFeed() // Fetch real feed announcements
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -81,9 +99,55 @@ class HrDashboardViewModel @Inject constructor(
                 onSuccess = { res ->
                     if (res.success && res.data != null) {
                         _myProfile.value = res.data
+                        // Fetch Day 1 to Current Date Attendance
                         fetchAttendanceHistoryMonthToDate(res.data._id)
+                        // Fetch Employee Legal Files using Member ID
+                        fetchLegalFiles(res.data._id)
+                        // Fetch Career History using Designation ID
+                        res.data.designationId?._id?.let { fetchCareerDesignationHistory(it) }
                     }
                 },
+                onFailure = { _errorMessage.value = it.message }
+            )
+        }
+    }
+
+    // 1. Fetch Feed Announcements (/api/hr/announcement/my-feed)
+    fun fetchEmployeeFeed() {
+        viewModelScope.launch {
+            val result = repo.request<AnnouncementFeedResponse> {
+                get(ANNOUNCEMENT_FEED_URL)
+            }
+            result.fold(
+                onSuccess = { if (it.success) _feedList.value = it.data },
+                onFailure = { _errorMessage.value = it.message }
+            )
+        }
+    }
+
+    // 2. Fetch Employee Legal Files (/api/legal/legal-employee/by-employee/{id})
+    fun fetchLegalFiles(employeeId: String) {
+        if (employeeId.isBlank()) return
+        viewModelScope.launch {
+            val result = repo.request<LegalEmployeeResponse> {
+                get("$LEGAL_EMPLOYEE_BY_EMPLOYEE_URL/$employeeId")
+            }
+            result.fold(
+                onSuccess = { if (it.success) _legalFiles.value = it.data },
+                onFailure = { _errorMessage.value = it.message }
+            )
+        }
+    }
+
+    // 3. Fetch Designation Career History (/api/home/designations/view-one/{id})
+    fun fetchCareerDesignationHistory(designationId: String) {
+        if (designationId.isBlank()) return
+        viewModelScope.launch {
+            val result = repo.request<DesignationDetailResponse> {
+                get("$DESIGNATION_VIEW_ONE_URL/$designationId")
+            }
+            result.fold(
+                onSuccess = { if (it.success) _designationHistory.value = it.data },
                 onFailure = { _errorMessage.value = it.message }
             )
         }
@@ -187,6 +251,73 @@ class HrDashboardViewModel @Inject constructor(
                     DynamicIslandManager.showError(it.message ?: "Failed to record punch")
                 }
             )
+        }
+    }
+
+    // Create Announcement (Save as Draft or Publish)
+    fun createAnnouncement(
+        postCategory: String,
+        title: String,
+        description: String,
+        status: String,
+        branchIds: List<String>,
+        departmentIds: List<String>,
+        employmentTypes: List<String>,
+        pollQuestion: String?,
+        pollOptions: List<String>,
+        allowMultipleAnswers: Boolean,
+        closingDate: String?,
+        onSuccess: () -> Unit
+    ) {
+        viewModelScope.launch {
+            _isLoading.value = true
+
+            val audience = AnnouncementAudiencePayload(
+                type = "Filtered_Employees",
+                organizationMemberIds = emptyList(),
+                employmentTypes = employmentTypes,
+                departmentIds = departmentIds,
+                branchIds = branchIds
+            )
+
+            val poll = if (!pollQuestion.isNullOrBlank() && pollOptions.size >= 2) {
+                AnnouncementPollPayload(
+                    question = pollQuestion.trim(),
+                    options = pollOptions.filter { it.isNotBlank() }.map { AnnouncementPollOptionPayload(it.trim()) },
+                    allowMultipleSelections = allowMultipleAnswers,
+                    closingDate = closingDate
+                )
+            } else null
+
+            val payload = CreateAnnouncementRequest(
+                postCategory = postCategory,
+                title = title.trim(),
+                description = description.trim(),
+                status = status,
+                audience = audience,
+                poll = poll
+            )
+
+            val result = repo.request<AnnouncementCreateResponse> {
+                post(ANNOUNCEMENT_CREATE_URL, payload)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val message = if (status == "Draft") "Feed saved as draft" else "Feed published successfully"
+                        DynamicIslandManager.showSuccess(message)
+                        fetchEmployeeFeed() // Refresh feed list
+                        onSuccess()
+                    } else {
+                        DynamicIslandManager.showError(res.message ?: "Failed to create announcement")
+                    }
+                },
+                onFailure = {
+                    DynamicIslandManager.showError(it.message ?: "Network error creating announcement")
+                }
+            )
+            _isLoading.value = false
         }
     }
 }

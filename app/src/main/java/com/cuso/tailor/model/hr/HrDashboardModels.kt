@@ -311,3 +311,126 @@ data class OrganizationLeaveBalanceDto(
     @SerializedName("totalAvailable") val totalAvailable: Int = 0,
     @SerializedName("employeeBalanceRecords") val employeeBalanceRecords: Int = 0
 )
+
+// ── Announcement / Feed Models ──
+data class AnnouncementFeedResponse(
+    val success: Boolean = false,
+    val message: String? = null,
+    val data: List<AnnouncementItemData> = emptyList()
+)
+
+data class AnnouncementItemData(
+    val _id: String = "",
+    val postCategory: String = "",
+    val title: String = "",
+    val description: String = "",
+    val audience: AnnouncementAudience? = null,
+    val status: String = "",
+    val publishedAt: String? = null,
+    val createdBy: AnnouncementCreator? = null,
+    val createdAt: String? = null
+)
+
+data class AnnouncementAudience(
+    val type: String = "",
+    val departmentIds: List<String> = emptyList(),
+    val branchIds: List<String> = emptyList()
+)
+
+data class AnnouncementCreator(
+    val _id: String = "",
+    val firstName: String = "",
+    val lastName: String = ""
+)
+
+// ── Legal Employee / Files Models ──
+data class LegalEmployeeResponse(
+    val success: Boolean = false,
+    val data: List<LegalEmployeeData> = emptyList()
+)
+
+data class LegalEmployeeData(
+    val _id: String = "",
+    val legalRecordNumber: String = "",
+    val employeeCode: String = "",
+    val employmentType: String = "",
+    val status: String = "",
+    val startDate: String? = null,
+    val endDate: String? = null,
+    val employmentContractDocuments: List<LegalFileItem> = emptyList(),
+    val supportingDocuments: List<LegalFileItem> = emptyList(),
+    val labourDocuments: List<LegalFileItem> = emptyList()
+)
+
+data class LegalFileItem(
+    val _id: String = "",
+    val documentName: String = "",
+    val documentUrl: String = "",
+    val uploadedAt: String? = null
+)
+
+// ── Designation Career History Models ──
+data class DesignationDetailResponse(
+    val success: Boolean = false,
+    val data: DesignationDetailData? = null
+)
+
+data class DesignationDetailData(
+    val _id: String = "",
+    val name: String = "",
+    val code: String = "",
+    val description: String = "",
+    val status: String = "",
+    val departmentId: DepartmentRef? = null,
+    val history: List<DesignationHistoryEntry> = emptyList(),
+    val createdAt: String? = null,
+    val updatedAt: String? = null
+)
+
+data class DepartmentRef(
+    val _id: String = "",
+    val name: String = ""
+)
+
+data class DesignationHistoryEntry(
+    val name: String = "",
+    val code: String = "",
+    val departmentId: String = "",
+    val description: String = "",
+    val status: String = "",
+    val changedAt: String? = null
+)
+
+data class CreateAnnouncementRequest(
+    val postCategory: String,
+    val title: String,
+    val description: String,
+    val status: String, // "Draft" or "Published"
+    val audience: AnnouncementAudiencePayload,
+    val poll: AnnouncementPollPayload? = null
+)
+
+data class AnnouncementAudiencePayload(
+    val type: String = "Filtered_Employees",
+    val organizationMemberIds: List<String> = emptyList(),
+    val employmentTypes: List<String> = emptyList(),
+    val departmentIds: List<String> = emptyList(),
+    val branchIds: List<String> = emptyList()
+)
+
+data class AnnouncementPollPayload(
+    val question: String,
+    val options: List<AnnouncementPollOptionPayload>,
+    val allowMultipleSelections: Boolean,
+    val closingDate: String? = null
+)
+
+data class AnnouncementPollOptionPayload(
+    val optionText: String
+)
+
+data class AnnouncementCreateResponse(
+    val success: Boolean = false,
+    val message: String? = null,
+    val data: AnnouncementItemData? = null
+)

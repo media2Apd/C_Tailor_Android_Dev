@@ -312,6 +312,7 @@ import com.cuso.tailor.model.permission.PaywallModuleConfig
 import com.cuso.tailor.model.settings.ServicesProductionStageDto
 import com.cuso.tailor.view.home.finance.settings.AddTaxRateScreen
 import com.cuso.tailor.view.home.finance.settings.TaxRateItem
+import com.cuso.tailor.view.home.hr.dashboard.CreateFeedScreen
 import com.cuso.tailor.view.home.hr.dashboard.HrDashboardScreen
 import com.cuso.tailor.view.home.hr.settings.leave_type.CreateLeaveTypeScreen
 import com.cuso.tailor.view.home.hr.settings.leave_type.LeaveTypesListScreen
@@ -889,7 +890,7 @@ fun HomeScreenRouter(
             )
         }
 
-        "hr_dashboard","hr_all_employees", "hr_employee_onboarding", "hr_attendance",
+        "hr_dashboard","hr_all_employees", "hr_create_feed", "hr_employee_onboarding", "hr_attendance",
         "hr_attendance_detail", "hr_monthly_attendance", "hr_daily_attendance",
         "hr_attendance_manual_entry", "hr_attendance_shift_management","hr_payroll_salary_structure",
         "hr_payroll_salary_components",
@@ -4000,7 +4001,14 @@ private fun HrRouter(
             onClose = onGoBack,
             onNavigateToLeave = { onNavigate("hr_apply_leave") },
             onNavigateToAttendance = { onNavigate("hr_daily_attendance") },
-            onNavigateToShift = { onNavigate("hr_attendance_shift_management") }
+            onNavigateToShift = { onNavigate("hr_attendance_shift_management") },
+            onNavigateToCreateFeed = { onNavigate("hr_create_feed") }
+        )
+        "hr_create_feed" -> CreateFeedScreen(
+            onClose = onGoBack,
+            onSubmit = { postCategory, title, description, status, branchIds, departmentIds, employmentTypes, pollQuestion, pollOptions, allowMultipleAnswers, closingDate ->
+                onGoBack()
+            }
         )
         "hr_all_employees", "hr_employee_management" -> AllEmployeesScreen(
             onDismiss = onGoBack,

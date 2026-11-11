@@ -728,6 +728,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             // ── HR ──
 
             "hr_dashboard",
+            "hr_create_feed",
             "hr_all_employees",
             "hr_employee_onboarding",
             "hr_employee_management",
@@ -2506,7 +2507,7 @@ fun normalizeRoute(rawKey: String): String {
         "hr_payroll_salary_components" -> "hr_payroll_salary_components"
         "hr_training_program",
         "hr_training_management" -> "hr_training_management"
-
+        "hr_create_feed" -> "hr_create_feed"
         "hr_assign_management",
         "hr_assigning_management",
         "hr_training_assignment_list" -> "hr_training_assignment_list"

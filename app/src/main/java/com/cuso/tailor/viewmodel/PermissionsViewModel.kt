@@ -15,6 +15,7 @@ import com.cuso.tailor.model.permission.MyPermissionsResponse
 import com.cuso.tailor.model.permission.PaywallModuleConfig
 import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.view.home.paywall.ModuleUpgradeConfig
+import com.cuso.tailor.view.home.paywall.PermissionAction
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -266,6 +267,39 @@ class PermissionViewModel @Inject constructor(
         }
     }
 
+    // Inside PermissionViewModel.kt
+
+    fun canAction(module: String, feature: String, action: PermissionAction): Boolean {
+        val myData = _myPermissions.value ?: return true
+        if (myData.isOwner) return true
+        if (!isPlanFeatureSubscribed(module, feature)) return false
+
+        return when (action) {
+            PermissionAction.VIEW -> myData.canView(module, feature)
+            PermissionAction.CREATE -> myData.canCreate(module, feature)
+            PermissionAction.EDIT -> myData.canEdit(module, feature)
+            PermissionAction.DELETE -> myData.canDelete(module, feature)
+            PermissionAction.EXPORT -> myData.canExport(module, feature)
+            PermissionAction.PRINT -> myData.canPrint(module, feature)
+            PermissionAction.SHARE -> myData.canShare(module, feature)
+            PermissionAction.APPROVE -> myData.canApprove(module, feature)
+        }
+    }
+
+    fun canActionForRoute(route: String, action: PermissionAction): Boolean {
+        val mapping = getRouteFeatureMapping(route) ?: return true
+        return canAction(mapping.first, mapping.second, action)
+    }
+
+    fun canExport(routeOrFeature: String): Boolean =
+        canActionForRoute(routeOrFeature, PermissionAction.EXPORT)
+
+    fun canPrint(routeOrFeature: String): Boolean =
+        canActionForRoute(routeOrFeature, PermissionAction.PRINT)
+
+    fun canApprove(routeOrFeature: String): Boolean =
+        canActionForRoute(routeOrFeature, PermissionAction.APPROVE)
+
     fun hasRouteAccess(route: String): Boolean = canViewRoute(route)
 
     fun getPaywallConfigForModule(moduleOrFeatureKey: String): PaywallModuleConfig {
@@ -457,6 +491,15 @@ class PermissionViewModel @Inject constructor(
             "reports_legal" -> "reports" to "legalContractsExpiry"
 
             else -> null
+        }
+    }
+
+    fun getRouteAction(route: String): PermissionAction {
+        return when {
+            route.contains("create") || route.contains("add") -> PermissionAction.CREATE
+            route.contains("edit") || route.contains("update") -> PermissionAction.EDIT
+            route.contains("approval") || route.contains("approve") -> PermissionAction.APPROVE
+            else -> PermissionAction.VIEW
         }
     }
 }

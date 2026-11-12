@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
@@ -227,19 +228,17 @@ private fun MemberCardItem(
                     text = member.fullName,
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    color = TextPrimary
+                    color = TextPrimary,
+                    lineHeight = 15.sp
                 )
-
-                Spacer(Modifier.height(2.dp))
 
                 Text(
-                    text = member.role.ifBlank { "owner" }.lowercase(),
+                    text = member.role.ifBlank { "-" }.lowercase(),
                     fontSize = tokens.caption,
                     fontWeight = FontWeight.Normal,
-                    color = iconMuted
+                    color = iconMuted,
+                    lineHeight = 15.sp
                 )
-
-                Spacer(Modifier.height(4.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -257,7 +256,8 @@ private fun MemberCardItem(
                         },
                         fontSize = tokens.label,
                         fontWeight = FontWeight.Medium,
-                        color = headerGrey
+                        color = headerGrey,
+                        lineHeight = 15.sp
                     )
                 }
             }

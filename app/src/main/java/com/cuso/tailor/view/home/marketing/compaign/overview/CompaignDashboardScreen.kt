@@ -76,6 +76,7 @@ import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.MarketingViewModel
 import androidx.compose.ui.platform.LocalLocale
+import com.cuso.tailor.utils.currencySymbol
 
 @Composable
 fun CampaignsOverviewScreen(
@@ -258,14 +259,14 @@ private fun PerformanceSummaryKpiSection(
             horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
         ) {
             KpiMetricBox(modifier = Modifier.weight(1f).fillMaxHeight(), label = "Paused / Stopped", value = pausedOrStopped.toString(), caption = "Inactive")
-            KpiMetricBox(modifier = Modifier.weight(1f).fillMaxHeight(), label = "Total Spend", value = "₹${String.format(LocalLocale.current.platformLocale, "%,.2f", totalSpend)}", caption = "Ad investment")
+            KpiMetricBox(modifier = Modifier.weight(1f).fillMaxHeight(), label = "Total Spend", value = "${currencySymbol()}${String.format(LocalLocale.current.platformLocale, "%,.2f", totalSpend)}", caption = "Ad investment")
         }
 
         Row(
             modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
             horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
         ) {
-            KpiMetricBox(modifier = Modifier.weight(1f).fillMaxHeight(), label = "Marketing Revenue", value = "₹${String.format(LocalLocale.current.platformLocale, "%,.2f", totalRevenue)}", caption = "Attributed")
+            KpiMetricBox(modifier = Modifier.weight(1f).fillMaxHeight(), label = "Marketing Revenue", value = "${currencySymbol()}${String.format(LocalLocale.current.platformLocale, "%,.2f", totalRevenue)}", caption = "Attributed")
             KpiMetricBox(modifier = Modifier.weight(1f).fillMaxHeight(), label = "Average ROAS", value = if (totalSpend > 0) "${String.format(LocalLocale.current.platformLocale, "%.2f", averageRoas)}x" else "—", caption = "Blended return")
         }
     }
@@ -640,7 +641,7 @@ private fun ByPlatformPerformanceSection(
                     }
 
                     Text(
-                        text = "Spend: ₹${String.format(LocalLocale.current.platformLocale, "%,.2f", item.spend)}",
+                        text = "Spend: ${currencySymbol()}${String.format(LocalLocale.current.platformLocale, "%,.2f", item.spend)}",
                         fontSize = tokens.label,
                         color = mutedText,
                         fontWeight = FontWeight.Medium
@@ -781,7 +782,7 @@ private fun CampaignCardRowItem(
         ) {
             Column {
                 Text(text = "Spend", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                Text(text = "₹${campaign.spendValue}", fontSize = tokens.caption, color = TextPrimary, fontWeight = FontWeight.Medium)
+                Text(text = "${currencySymbol()}${campaign.spendValue}", fontSize = tokens.caption, color = TextPrimary, fontWeight = FontWeight.Medium)
             }
             Column {
                 Text(text = "Conversions", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)

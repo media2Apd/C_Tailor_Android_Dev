@@ -57,6 +57,26 @@ private const val LEAVE_TYPES_VIEW_ONE_URL = "/api/hr/leave-type/view-one"
 private const val LEAVE_TYPES_CREATE_URL = "/api/hr/leave-type/create"
 private const val LEAVE_TYPES_UPDATE_URL = "/api/hr/leave-type/update"
 private const val LEAVE_TYPES_DELETE_URL = "/api/hr/leave-type/delete"
+
+// =========================================================================
+// LEAVE POLICY ENDPOINTS
+// =========================================================================
+private const val LEAVE_POLICY_VIEW_ALL_URL = "/api/hr/leave-policy/view-all"
+private const val LEAVE_POLICY_VIEW_ONE_URL = "/api/hr/leave-policy/view-one"
+private const val LEAVE_POLICY_CREATE_URL = "/api/hr/leave-policy/create"
+private const val LEAVE_POLICY_UPDATE_URL = "/api/hr/leave-policy/update"
+private const val LEAVE_POLICY_DELETE_URL = "/api/hr/leave-policy/delete"
+
+// =========================================================================
+// PIECE RATE ENDPOINTS
+// =========================================================================
+private const val PIECE_RATE_VIEW_ALL_URL = "/api/hr/piece-rate/view-all"
+private const val PIECE_RATE_VIEW_ONE_URL = "/api/hr/piece-rate/view-one"
+private const val PIECE_RATE_CREATE_URL = "/api/hr/piece-rate/create"
+private const val PIECE_RATE_UPDATE_URL = "/api/hr/piece-rate/update"
+private const val PIECE_RATE_DELETE_URL = "/api/hr/piece-rate/delete"
+
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
@@ -3704,6 +3724,565 @@ class SettingsViewModel @Inject constructor(
                 }
             )
         }
+    }
+
+    // ── State for Leave Policies ──
+    private val _leavePolicies = MutableStateFlow<List<LeavePolicyItemDto>>(emptyList())
+    val leavePolicies: StateFlow<List<LeavePolicyItemDto>> = _leavePolicies.asStateFlow()
+
+    private val _isLoadingLeavePolicies = MutableStateFlow(false)
+    val isLoadingLeavePolicies: StateFlow<Boolean> = _isLoadingLeavePolicies.asStateFlow()
+
+    private val _isLoadingMoreLeavePolicies = MutableStateFlow(false)
+    val isLoadingMoreLeavePolicies: StateFlow<Boolean> = _isLoadingMoreLeavePolicies.asStateFlow()
+
+    private val _canLoadMoreLeavePolicies = MutableStateFlow(true)
+    val canLoadMoreLeavePolicies: StateFlow<Boolean> = _canLoadMoreLeavePolicies.asStateFlow()
+
+    private val _currentLeavePolicyPage = MutableStateFlow(1)
+    val currentLeavePolicyPage: StateFlow<Int> = _currentLeavePolicyPage.asStateFlow()
+
+    private val _leavePoliciesError = MutableStateFlow<String?>(null)
+    val leavePoliciesError: StateFlow<String?> = _leavePoliciesError.asStateFlow()
+
+    private val _isSubmittingLeavePolicy = MutableStateFlow(false)
+    val isSubmittingLeavePolicy: StateFlow<Boolean> = _isSubmittingLeavePolicy.asStateFlow()
+
+    private val _selectedLeavePolicy = MutableStateFlow<LeavePolicyItemDto?>(null)
+    val selectedLeavePolicy: StateFlow<LeavePolicyItemDto?> = _selectedLeavePolicy.asStateFlow()
+
+    private val _isLoadingLeavePolicyDetail = MutableStateFlow(false)
+    val isLoadingLeavePolicyDetail: StateFlow<Boolean> = _isLoadingLeavePolicyDetail.asStateFlow()
+
+    private var activeLeavePolicySearch: String? = null
+    private var activeLeavePolicyStatus: String? = null
+    private var leavePolicySearchJob: Job? = null
+
+    /**
+     * Fetch Leave Policies with pagination, search query, and status filters.
+     * Endpoint: GET /api/hr/leave-policy/view-all
+     */
+    fun fetchLeavePolicies(
+        page: Int = 1,
+        limit: Int = 10,
+        search: String? = null,
+        status: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingLeavePolicies.value = true
+            _leavePoliciesError.value = null
+            _currentLeavePolicyPage.value = page
+            activeLeavePolicySearch = search?.trim()?.ifBlank { null }
+            activeLeavePolicyStatus = status?.trim()?.ifBlank { null }
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to page,
+                "limit" to limit
+            )
+            activeLeavePolicySearch?.let { queryParams["search"] = it }
+            activeLeavePolicyStatus?.let { queryParams["status"] = it }
+
+            val result = apiRepository.request<LeavePolicyListResponse> {
+                get(LEAVE_POLICY_VIEW_ALL_URL, queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _leavePolicies.value = res.data
+                        val totalPages = res.pagination?.totalPages ?: 1
+                        _canLoadMoreLeavePolicies.value = page < totalPages && res.data.isNotEmpty()
+                    } else {
+                        _leavePoliciesError.value = "Failed to fetch leave policies"
+                    }
+                },
+                onFailure = { error ->
+                    _leavePoliciesError.value = extractErrorMessage(error.message)
+                }
+            )
+            _isLoadingLeavePolicies.value = false
+        }
+    }
+
+    /**
+     * Load next page for infinite scrolling in Leave Policies.
+     */
+    fun loadMoreLeavePolicies(limit: Int = 10) {
+        if (_isLoadingMoreLeavePolicies.value || _isLoadingLeavePolicies.value || !_canLoadMoreLeavePolicies.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreLeavePolicies.value = true
+            val nextPage = _currentLeavePolicyPage.value + 1
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to nextPage,
+                "limit" to limit
+            )
+            activeLeavePolicySearch?.let { queryParams["search"] = it }
+            activeLeavePolicyStatus?.let { queryParams["status"] = it }
+
+            val result = apiRepository.request<LeavePolicyListResponse> {
+                get(LEAVE_POLICY_VIEW_ALL_URL, queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data
+                    if (newItems.isNotEmpty()) {
+                        _leavePolicies.update { (it + newItems).distinctBy { item -> item.id } }
+                        _currentLeavePolicyPage.value = nextPage
+                        val totalPages = res.pagination?.totalPages ?: nextPage
+                        _canLoadMoreLeavePolicies.value = nextPage < totalPages
+                    } else {
+                        _canLoadMoreLeavePolicies.value = false
+                    }
+                },
+                onFailure = {
+                    _canLoadMoreLeavePolicies.value = false
+                }
+            )
+            _isLoadingMoreLeavePolicies.value = false
+        }
+    }
+
+    /**
+     * Debounced search query handler for Leave Policies.
+     */
+    fun onLeavePolicySearchQueryChanged(newQuery: String) {
+        leavePolicySearchJob?.cancel()
+        leavePolicySearchJob = viewModelScope.launch {
+            delay(400)
+            fetchLeavePolicies(page = 1, search = newQuery, status = activeLeavePolicyStatus)
+        }
+    }
+
+    /**
+     * Fetch a single Leave Policy by ID.
+     * Endpoint: GET /api/hr/leave-policy/view-one/{id}
+     */
+    fun fetchLeavePolicyById(id: String, onLoaded: (LeavePolicyItemDto) -> Unit = {}) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingLeavePolicyDetail.value = true
+            _leavePoliciesError.value = null
+
+            val result = apiRepository.request<LeavePolicyViewOneResponse> {
+                get("$LEAVE_POLICY_VIEW_ONE_URL/$id")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        _selectedLeavePolicy.value = res.data
+                        onLoaded(res.data)
+                    } else {
+                        showError(res.message ?: "Failed to load leave policy details")
+                    }
+                },
+                onFailure = { error ->
+                    showError(extractErrorMessage(error.message))
+                }
+            )
+            _isLoadingLeavePolicyDetail.value = false
+        }
+    }
+
+    /**
+     * Create a new Leave Policy.
+     * Endpoint: POST /api/hr/leave-policy/create
+     */
+    fun createLeavePolicy(
+        request: SaveLeavePolicyRequest,
+        onSuccess: (LeavePolicyItemDto) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingLeavePolicy.value = true
+            val result = apiRepository.request<LeavePolicyActionResponse> {
+                post(LEAVE_POLICY_CREATE_URL, request)
+            }
+            _isSubmittingLeavePolicy.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        showSuccess(res.message ?: "Leave policy created successfully")
+                        fetchLeavePolicies(page = 1)
+                        onSuccess(res.data)
+                    } else {
+                        val errorMsg = res.message ?: "Failed to create leave policy"
+                        showError(errorMsg)
+                        onError(errorMsg)
+                    }
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                    onError(cleanError)
+                }
+            )
+        }
+    }
+
+    /**
+     * Update an existing Leave Policy.
+     * Endpoint: PUT /api/hr/leave-policy/update/{id}
+     */
+    fun updateLeavePolicy(
+        id: String,
+        request: SaveLeavePolicyRequest,
+        onSuccess: (LeavePolicyItemDto) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isSubmittingLeavePolicy.value = true
+            val result = apiRepository.request<LeavePolicyActionResponse> {
+                put("$LEAVE_POLICY_UPDATE_URL/$id", request)
+            }
+            _isSubmittingLeavePolicy.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        showSuccess(res.message ?: "Leave policy updated successfully")
+                        fetchLeavePolicies(page = 1)
+                        onSuccess(res.data)
+                    } else {
+                        val errorMsg = res.message ?: "Failed to update leave policy"
+                        showError(errorMsg)
+                        onError(errorMsg)
+                    }
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                    onError(cleanError)
+                }
+            )
+        }
+    }
+
+    /**
+     * Delete a Leave Policy by ID.
+     * Endpoint: DELETE /api/hr/leave-policy/delete/{id}
+     */
+    fun deleteLeavePolicy(
+        id: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isSubmittingLeavePolicy.value = true
+            val result = apiRepository.request<LeavePolicyDeleteResponse> {
+                delete("$LEAVE_POLICY_DELETE_URL/$id")
+            }
+            _isSubmittingLeavePolicy.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _leavePolicies.update { it.filter { item -> item.id != id } }
+                        showSuccess(res.message ?: "Leave policy deleted successfully")
+                        onSuccess()
+                    } else {
+                        val errorMsg = res.message ?: "Failed to delete leave policy"
+                        showError(errorMsg)
+                        onError(errorMsg)
+                    }
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                    onError(cleanError)
+                }
+            )
+        }
+    }
+
+
+    // ── State for Piece Rate Setup ──
+    private val _pieceRates = MutableStateFlow<List<PieceRateItemDto>>(emptyList())
+    val pieceRates: StateFlow<List<PieceRateItemDto>> = _pieceRates.asStateFlow()
+
+    private val _isLoadingPieceRates = MutableStateFlow(false)
+    val isLoadingPieceRates: StateFlow<Boolean> = _isLoadingPieceRates.asStateFlow()
+
+    private val _isLoadingMorePieceRates = MutableStateFlow(false)
+    val isLoadingMorePieceRates: StateFlow<Boolean> = _isLoadingMorePieceRates.asStateFlow()
+
+    private val _canLoadMorePieceRates = MutableStateFlow(true)
+    val canLoadMorePieceRates: StateFlow<Boolean> = _canLoadMorePieceRates.asStateFlow()
+
+    private val _currentPieceRatePage = MutableStateFlow(1)
+    val currentPieceRatePage: StateFlow<Int> = _currentPieceRatePage.asStateFlow()
+
+    private val _pieceRatesError = MutableStateFlow<String?>(null)
+    val pieceRatesError: StateFlow<String?> = _pieceRatesError.asStateFlow()
+
+    private val _isSubmittingPieceRate = MutableStateFlow(false)
+    val isSubmittingPieceRate: StateFlow<Boolean> = _isSubmittingPieceRate.asStateFlow()
+
+    private val _selectedPieceRate = MutableStateFlow<PieceRateItemDto?>(null)
+    val selectedPieceRate: StateFlow<PieceRateItemDto?> = _selectedPieceRate.asStateFlow()
+
+    private val _isLoadingPieceRateDetail = MutableStateFlow(false)
+    val isLoadingPieceRateDetail: StateFlow<Boolean> = _isLoadingPieceRateDetail.asStateFlow()
+
+    private var activePieceRateSearch: String? = null
+    private var activePieceRateStatus: String? = null
+    private var pieceRateSearchJob: Job? = null
+
+    /**
+     * Fetch Piece Rates list with pagination, search query, and status filters.
+     * Endpoint: GET /api/hr/piece-rate/view-all
+     */
+    fun fetchPieceRates(
+        page: Int = 1,
+        limit: Int = 20,
+        search: String? = null,
+        status: String? = null
+    ) {
+        viewModelScope.launch {
+            _isLoadingPieceRates.value = true
+            _pieceRatesError.value = null
+            _currentPieceRatePage.value = page
+            activePieceRateSearch = search?.trim()?.ifBlank { null }
+            activePieceRateStatus = status?.trim()?.ifBlank { null }
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to page,
+                "limit" to limit
+            )
+            activePieceRateSearch?.let { queryParams["search"] = it }
+            activePieceRateStatus?.let { queryParams["status"] = it }
+
+            val result = apiRepository.request<PieceRateListResponse> {
+                get(PIECE_RATE_VIEW_ALL_URL, queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _pieceRates.value = res.data
+                        val totalPages = res.pagination?.totalPages ?: 1
+                        _canLoadMorePieceRates.value = page < totalPages && res.data.isNotEmpty()
+                    } else {
+                        _pieceRatesError.value = res.message ?: "Failed to fetch piece rates"
+                    }
+                },
+                onFailure = { error ->
+                    _pieceRatesError.value = extractErrorMessage(error.message)
+                }
+            )
+            _isLoadingPieceRates.value = false
+        }
+    }
+
+    /**
+     * Infinite scroll next page loader for Piece Rates.
+     */
+    fun loadMorePieceRates(limit: Int = 20) {
+        if (_isLoadingMorePieceRates.value || _isLoadingPieceRates.value || !_canLoadMorePieceRates.value) return
+
+        viewModelScope.launch {
+            _isLoadingMorePieceRates.value = true
+            val nextPage = _currentPieceRatePage.value + 1
+
+            val queryParams = mutableMapOf<String, Any>(
+                "page" to nextPage,
+                "limit" to limit
+            )
+            activePieceRateSearch?.let { queryParams["search"] = it }
+            activePieceRateStatus?.let { queryParams["status"] = it }
+
+            val result = apiRepository.request<PieceRateListResponse> {
+                get(PIECE_RATE_VIEW_ALL_URL, queryParams)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data
+                    if (newItems.isNotEmpty()) {
+                        _pieceRates.update { (it + newItems).distinctBy { item -> item.id } }
+                        _currentPieceRatePage.value = nextPage
+                        val totalPages = res.pagination?.totalPages ?: nextPage
+                        _canLoadMorePieceRates.value = nextPage < totalPages
+                    } else {
+                        _canLoadMorePieceRates.value = false
+                    }
+                },
+                onFailure = {
+                    _canLoadMorePieceRates.value = false
+                }
+            )
+            _isLoadingMorePieceRates.value = false
+        }
+    }
+
+    /**
+     * Debounced search query handler for Piece Rates.
+     */
+    fun onPieceRateSearchQueryChanged(newQuery: String) {
+        pieceRateSearchJob?.cancel()
+        pieceRateSearchJob = viewModelScope.launch {
+            delay(400)
+            fetchPieceRates(page = 1, search = newQuery, status = activePieceRateStatus)
+        }
+    }
+
+    /**
+     * Fetch a single Piece Rate by ID for editing.
+     * Endpoint: GET /api/hr/piece-rate/view-one/{id}
+     */
+    fun fetchPieceRateById(id: String, onLoaded: (PieceRateItemDto) -> Unit = {}) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingPieceRateDetail.value = true
+            _pieceRatesError.value = null
+
+            val result = apiRepository.request<PieceRateViewOneResponse> {
+                get("$PIECE_RATE_VIEW_ONE_URL/$id")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        _selectedPieceRate.value = res.data
+                        onLoaded(res.data)
+                    } else {
+                        showError(res.message ?: "Failed to load piece rate details")
+                    }
+                },
+                onFailure = { error ->
+                    showError(extractErrorMessage(error.message))
+                }
+            )
+            _isLoadingPieceRateDetail.value = false
+        }
+    }
+
+    /**
+     * Create a new Piece Rate.
+     * Endpoint: POST /api/hr/piece-rate/create
+     */
+    fun createPieceRate(
+        request: SavePieceRateRequest,
+        onSuccess: (PieceRateItemDto) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSubmittingPieceRate.value = true
+            val result = apiRepository.request<PieceRateActionResponse> {
+                post(PIECE_RATE_CREATE_URL, request)
+            }
+            _isSubmittingPieceRate.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        showSuccess(res.message ?: "Piece rate created successfully")
+                        fetchPieceRates(page = 1)
+                        onSuccess(res.data)
+                    } else {
+                        val errorMsg = res.message ?: "Failed to create piece rate"
+                        showError(errorMsg)
+                        onError(errorMsg)
+                    }
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                    onError(cleanError)
+                }
+            )
+        }
+    }
+
+    /**
+     * Update an existing Piece Rate.
+     * Endpoint: PUT /api/hr/piece-rate/update/{id}
+     */
+    fun updatePieceRate(
+        id: String,
+        request: SavePieceRateRequest,
+        onSuccess: (PieceRateItemDto) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isSubmittingPieceRate.value = true
+            val result = apiRepository.request<PieceRateActionResponse> {
+                put("$PIECE_RATE_UPDATE_URL/$id", request)
+            }
+            _isSubmittingPieceRate.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success && res.data != null) {
+                        showSuccess(res.message ?: "Piece rate updated successfully")
+                        fetchPieceRates(page = 1)
+                        onSuccess(res.data)
+                    } else {
+                        val errorMsg = res.message ?: "Failed to update piece rate"
+                        showError(errorMsg)
+                        onError(errorMsg)
+                    }
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                    onError(cleanError)
+                }
+            )
+        }
+    }
+
+    /**
+     * Delete a Piece Rate by ID.
+     * Endpoint: DELETE /api/hr/piece-rate/delete/{id}
+     */
+    fun deletePieceRate(
+        id: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isSubmittingPieceRate.value = true
+            val result = apiRepository.request<PieceRateDeleteResponse> {
+                delete("$PIECE_RATE_DELETE_URL/$id")
+            }
+            _isSubmittingPieceRate.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _pieceRates.update { it.filter { item -> item.id != id } }
+                        showSuccess(res.message ?: "Piece rate deleted successfully")
+                        onSuccess()
+                    } else {
+                        val errorMsg = res.message ?: "Failed to delete piece rate"
+                        showError(errorMsg)
+                        onError(errorMsg)
+                    }
+                },
+                onFailure = { error ->
+                    val cleanError = extractErrorMessage(error.message)
+                    showError(cleanError)
+                    onError(cleanError)
+                }
+            )
+        }
+    }
+
+    fun clearSelectedPieceRate() {
+        _selectedPieceRate.value = null
+    }
+
+    fun clearSelectedLeavePolicy() {
+        _selectedLeavePolicy.value = null
     }
 
     fun clearApprovalRuleAlerts() {

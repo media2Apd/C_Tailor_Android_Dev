@@ -45,7 +45,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.12:5000/\""
+                "\"http://192.168.88.20:5000/\""
             )
         }
 
@@ -82,14 +82,6 @@ android {
         compose = true
         buildConfig = true
     }
-
-//    tasks.matching { it.name == "preBuild" }.configureEach {
-//        doFirst {
-//            try {
-//                Runtime.getRuntime().exec("adb reverse tcp:5000 tcp:5000")
-//            } catch (_: Exception) { }
-//        }
-//    }
 }
 
 dependencies {

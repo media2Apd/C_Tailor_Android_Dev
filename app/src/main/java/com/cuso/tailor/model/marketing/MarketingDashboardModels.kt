@@ -1,6 +1,7 @@
 @file:Suppress("unused")
 package com.cuso.tailor.model.marketing
 
+import com.cuso.tailor.utils.currencySymbol
 import com.google.gson.annotations.SerializedName
 
 // =========================================================================
@@ -19,7 +20,7 @@ data class MetricValueDto(
 ) {
     /**
      * Clean, human-readable display string regardless of whether the API
-     * returned a String ("₹0.3L", "12.4K") or a Number (1, 95, 0).
+     * returned a String ("${currencySymbol()}0.3L", "12.4K") or a Number (1, 95, 0).
      */
     val value: String
         get() = when (val v = rawValue) {
@@ -260,8 +261,8 @@ data class WebConversionSummaryDto(
     @SerializedName("conversionRate") val conversionRate: String = "0%",
     @SerializedName("promotions") val promotions: String = "0",
     @SerializedName("customers") val customers: String = "0",
-    @SerializedName("attributedRevenue") val attributedRevenue: String = "₹0.0L",
-    @SerializedName("revenuePerUser") val revenuePerUser: String = "₹0"
+    @SerializedName("attributedRevenue") val attributedRevenue: String = "${currencySymbol()}0.0L",
+    @SerializedName("revenuePerUser") val revenuePerUser: String = "${currencySymbol()}0"
 )
 
 data class WebTrafficTrendItemDto(

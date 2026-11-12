@@ -1,6 +1,12 @@
+@file:Suppress("unused")
 package com.cuso.tailor.model.permission
 
+
 import com.google.gson.annotations.SerializedName
+
+enum class PermissionAction {
+    VIEW, CREATE, EDIT, DELETE, EXPORT, PRINT, SHARE, APPROVE
+}
 
 data class ModulePermissionsResponse(
     @SerializedName("success") val success: Boolean = false,
@@ -45,12 +51,15 @@ data class ModulePermissionsData(
         return allowedList.any { it.equals(featureKey, ignoreCase = true) }
     }
 }
-
 data class ActionPermission(
     @SerializedName("view") val view: Boolean = false,
     @SerializedName("create") val create: Boolean = false,
     @SerializedName("edit") val edit: Boolean = false,
-    @SerializedName("delete") val delete: Boolean = false
+    @SerializedName("delete") val delete: Boolean = false,
+    @SerializedName("export") val export: Boolean = false,
+    @SerializedName("print") val print: Boolean = false,
+    @SerializedName("share") val share: Boolean = false,
+    @SerializedName("approve") val approve: Boolean = false
 )
 
 data class MyPermissionsResponse(
@@ -61,19 +70,24 @@ data class MyPermissionsResponse(
 
 data class MyPermissionsData(
     @SerializedName("isOwner") val isOwner: Boolean = false,
-    // Nested structure: Map<Module, Map<Feature, ActionPermission>>
     @SerializedName("permissions") val permissions: Map<String, Map<String, ActionPermission>>? = null,
     @SerializedName("visible") val visible: List<String> = emptyList()
 ) {
-    /**
-     * Resolves permissions for a specific module and feature.
-     * If user is owner, all actions return true.
-     */
     fun getActions(module: String, feature: String): ActionPermission {
-        if (isOwner) return ActionPermission(view = true, create = true, edit = true, delete = true)
-
-        val moduleMap = permissions?.get(module.lowercase()) ?: return ActionPermission()
-        return moduleMap[feature] ?: ActionPermission()
+        if (isOwner) {
+            return ActionPermission(
+                view = true,
+                create = true,
+                edit = true,
+                delete = true,
+                export = true,
+                print = true,
+                share = true,
+                approve = true
+            )
+        }
+        val moduleMap = permissions?.get(module.lowercase().trim()) ?: return ActionPermission()
+        return moduleMap[feature.trim()] ?: ActionPermission()
     }
 
     fun canView(module: String, feature: String): Boolean =
@@ -87,4 +101,16 @@ data class MyPermissionsData(
 
     fun canDelete(module: String, feature: String): Boolean =
         isOwner || getActions(module, feature).delete
+
+    fun canExport(module: String, feature: String): Boolean =
+        isOwner || getActions(module, feature).export
+
+    fun canPrint(module: String, feature: String): Boolean =
+        isOwner || getActions(module, feature).print
+
+    fun canShare(module: String, feature: String): Boolean =
+        isOwner || getActions(module, feature).share
+
+    fun canApprove(module: String, feature: String): Boolean =
+        isOwner || getActions(module, feature).approve
 }

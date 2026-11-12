@@ -142,7 +142,7 @@ fun AllCampaignsListScreen(
                                 ),
                                 DataCardField(
                                     label = "Spend",
-                                    text = "₹${(campaign.spendValue / 1000).toInt()}K",
+                                    text = "${currencySymbol()}${(campaign.spendValue / 1000).toInt()}K",
                                     labelColor = mutedText,
                                     textColor = TextPrimary
                                 ),
@@ -175,7 +175,7 @@ fun AllCampaignsListScreen(
                                         }
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             Text("Revenue", fontSize = tokens.label, color = mutedText)
-                                            Text("₹${(campaign.revenueValue / 1000).toInt()}K", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                            Text("${currencySymbol()}${(campaign.revenueValue / 1000).toInt()}K", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = TextPrimary)
                                         }
                                     }
 

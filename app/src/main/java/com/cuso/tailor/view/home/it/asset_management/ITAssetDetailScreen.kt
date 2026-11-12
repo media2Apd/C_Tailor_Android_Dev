@@ -69,6 +69,7 @@ import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.ListSkeleton
@@ -191,7 +192,7 @@ fun ItAssetDetailScreen(
                     icon = Icons.Default.Info
                 ) {
                     val purchase = item.purchaseInfo
-                    val currencySym = if (purchase?.currency == "USD") "$" else "₹"
+                    val currencySym = if (purchase?.currency == "USD") "$" else currencySymbol()
                     val costFormatted = purchase?.cost?.let { "$currencySym${it.toInt()}" } ?: "--"
 
                     Column(verticalArrangement = Arrangement.spacedBy(tokens.screenPadding * 0.75f)) {

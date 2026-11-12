@@ -79,7 +79,7 @@ import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.view.composable.SheetValue
 import com.cuso.tailor.view.composable.SmoothBottomSheet
 import kotlinx.coroutines.launch
-
+import com.cuso.tailor.model.permission.MyPermissionsData
 // ─────────────────────────────────────────────────────────────
 // Data Classes for Menu Configuration
 // ─────────────────────────────────────────────────────────────
@@ -251,6 +251,7 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
             "Shift Management"           -> "hr_attendance_shift_management"
             "Leave Balance"              -> "hr_leave_balance"
             "Leave Approval"             -> "hr_leave_approval"
+            "Leave Policies", "Leave Policy" -> "hr_leave_policies"
             "Salary Components"          -> "hr_payroll_salary_components"
             "Salary Templates",
             "Salary Structure Master"    -> "hr_payroll_salary_templates"
@@ -378,6 +379,8 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
     return "${menuKey}_${subItemKey}"
 }
 
+
+
 // ─────────────────────────────────────────────────────────────
 // Sidebar Configuration
 // ─────────────────────────────────────────────────────────────
@@ -410,36 +413,36 @@ object SidebarConfig {
                     "Opportunity" to listOf("Opportunity Pipeline", "Opportunities")
                 )
             ),
-            MenuItem(
-                icon = R.drawable.marketing,
-                label = "Marketing",
-                isPanel = true,
-                categories = listOf(
-                    "Dashboard",
-                    "Campaigns",
-                    "Advertising",
-                    "Social Media",
-                    "Promotions",
-                    "Customers",
-                    "Website / Digital",
-                    "Marketing Channels",
-                    "Marketing Calendar",
-                    "Marketing Insights"
-                ),
-                subItems = mapOf(
-                    "Campaigns" to listOf("Overview", "All Campaigns"),
-                    "Advertising" to listOf("Overview", "Advertising"),
-                    "Social Media" to listOf("Overview", "Social Media"),
-                    "Promotions" to listOf("Overview", "All Promotions"),
-                    "Customers" to listOf("Overview", "All Customers"),
-                    "Website / Digital" to listOf(
-                        "Overview",
-                        "Traffic & Engagement",
-                        "Pages",
-                        "Sources"
-                    )
-                )
-            ),
+//            MenuItem(
+//                icon = R.drawable.marketing,
+//                label = "Marketing",
+//                isPanel = true,
+//                categories = listOf(
+//                    "Dashboard",
+//                    "Campaigns",
+//                    "Advertising",
+//                    "Social Media",
+//                    "Promotions",
+//                    "Customers",
+//                    "Website / Digital",
+//                    "Marketing Channels",
+//                    "Marketing Calendar",
+//                    "Marketing Insights"
+//                ),
+//                subItems = mapOf(
+//                    "Campaigns" to listOf("Overview", "All Campaigns"),
+//                    "Advertising" to listOf("Overview", "Advertising"),
+//                    "Social Media" to listOf("Overview", "Social Media"),
+//                    "Promotions" to listOf("Overview", "All Promotions"),
+//                    "Customers" to listOf("Overview", "All Customers"),
+//                    "Website / Digital" to listOf(
+//                        "Overview",
+//                        "Traffic & Engagement",
+//                        "Pages",
+//                        "Sources"
+//                    )
+//                )
+//            ),
             MenuItem(
                 icon = R.drawable.finance,
                 label = "Finance",
@@ -1976,6 +1979,48 @@ private fun ModulesPanelContent(
                     item { Spacer(Modifier.height(100.dp)) }
                 }
             }
+        }
+    }
+}
+
+fun filterMenuItemsByPermission(
+    items: List<MenuItem>,
+    myPermissions: MyPermissionsData?
+): List<MenuItem> {
+    if (myPermissions == null || myPermissions.isOwner) return items
+
+    return items.mapNotNull { menu ->
+        val moduleKey = menu.label.lowercase()
+
+        // Filter categories & subitems
+        val filteredSubItems = mutableMapOf<String, List<String>>()
+        val allowedCategories = menu.categories.filter { category ->
+            val featureKey = category.lowercase().replace(" ", "").replace("&", "")
+            val canViewCat = myPermissions.canView(moduleKey, category) ||
+                    myPermissions.canView(moduleKey, featureKey)
+
+            if (canViewCat) {
+                val subList = menu.subItems[category]?.filter { sub ->
+                    val subKey = sub.lowercase().replace(" ", "").replace("&", "")
+                    myPermissions.canView(moduleKey, sub) || myPermissions.canView(moduleKey, subKey)
+                } ?: emptyList()
+
+                if (subList.isNotEmpty()) {
+                    filteredSubItems[category] = subList
+                }
+                true
+            } else {
+                false
+            }
+        }
+
+        if (allowedCategories.isEmpty() && menu.label != "Home") {
+            null
+        } else {
+            menu.copy(
+                categories = allowedCategories,
+                subItems = filteredSubItems
+            )
         }
     }
 }

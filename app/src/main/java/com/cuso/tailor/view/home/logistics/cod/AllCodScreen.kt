@@ -246,7 +246,7 @@ private fun AllCodCard(
                         )
                         Spacer(Modifier.height(3.dp))
                         Text(
-                            text = "₹${formatIndianNumber(item.codAmount)}",
+                            text = "${currencySymbol()}${formatIndianNumber(item.codAmount)}",
                             fontSize = tokens.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = title_color

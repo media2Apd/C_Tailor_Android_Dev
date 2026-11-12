@@ -130,7 +130,22 @@ import com.cuso.tailor.viewmodel.LegalViewModel
 import com.cuso.tailor.viewmodel.PermissionViewModel
 import com.cuso.tailor.viewmodel.SalesViewModel
 import com.cuso.tailor.viewmodel.ServicesViewModel
+import android.content.Intent
+import com.cuso.tailor.database.AppDatabase
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.core.net.toUri
 
+// EntryPoint to access Room AppDatabase
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface DatabaseEntryPoint {
+    fun appDatabase(): AppDatabase
+}
 val LeadPrimary = Primary
 val LeadPrimarySoft = light_blue_border
 val LeadmutedText = mutedText
@@ -207,6 +222,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     LaunchedEffect(screenStack.size) {
         previousStackSize = screenStack.size
     }
+
+    // Holds the dynamic portalName from Room DB
+    var portalName by remember { mutableStateOf("") }
 
     var isDrawerOpen by remember { mutableStateOf(false) }
     var sidebarBlur by remember { mutableStateOf(0.dp) }
@@ -303,6 +321,11 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedClaimForPayment by remember { mutableStateOf<ExpenseClaimDto?>(null) }
     var selectedLeaveTypeIdForEdit by remember { mutableStateOf<String?>(null) }
     var selectedLeaveTypeIdForView by remember { mutableStateOf<String?>(null) }
+    // Added policy selection states
+    var selectedLeavePolicyIdForEdit by remember { mutableStateOf<String?>(null) }
+    var selectedLeavePolicyIdForView by remember { mutableStateOf<String?>(null) }
+// State to track selected Piece Rate for Edit / History
+    var selectedPieceRateIdForEdit by remember { mutableStateOf<String?>(null) }
 
     //Secutiry State
     var selectedBackupId by remember { mutableStateOf<String?>(null) }
@@ -922,15 +945,16 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         listOf("security_", "marketing_", "it_", "legal_", "hr_", "sales_", "finance_", "inventory_", "logistics_", "services_", "reports_", "home_")
     }
 
-    // Inside HomeScreen.kt:
+    // Inside HomeScreen.kt -> safeNavigate(route: String)
     fun safeNavigate(route: String) {
         val navKey = normalizeRoute(route)
         val mapping = permissionViewModel.getRouteFeatureMapping(navKey)
 
         if (mapping != null) {
             val (module, feature) = mapping
+            val requiredAction = permissionViewModel.getRouteAction(navKey)
 
-            // 1. Check if plan is subscribed to this module feature
+            // 1. Plan Subscription check
             val isPlanSubscribed = permissionViewModel.isPlanFeatureSubscribed(module, feature)
             if (!isPlanSubscribed) {
                 val targetPaywallKey = when (navKey) {
@@ -951,10 +975,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 return
             }
 
-            // 2. Check if user has granular "view" permission
-            val canView = permissionViewModel.canViewRoute(navKey)
-            if (!canView) {
-                restrictedFeatureName = feature.replaceFirstChar { it.uppercase() }
+            // 2. Granular Action / View check
+            val hasPermission = permissionViewModel.canAction(module, feature, requiredAction)
+            if (!hasPermission) {
+                restrictedFeatureName = "${module.replaceFirstChar { it.uppercase() }} - $feature"
                 showAccessRestrictedDialog = true
                 return
             }
@@ -972,6 +996,29 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     val homeBackStackEntry = remember { navController.getBackStackEntry("home") }
     val pendingOrderIdFlow = homeBackStackEntry.savedStateHandle.getStateFlow<String?>("pendingOrderId", null)
     val pendingOrderId by pendingOrderIdFlow.collectAsStateWithLifecycle()
+
+    // Fetch portalName from Room DB settings table
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            try {
+                val db = EntryPointAccessors.fromApplication(
+                    context.applicationContext,
+                    DatabaseEntryPoint::class.java
+                ).appDatabase()
+                val cursor = db.openHelper.readableDatabase.query("SELECT portalName FROM settings LIMIT 1")
+                cursor.use {
+                    if (it.moveToFirst()) {
+                        val colIndex = it.getColumnIndex("portalName")
+                        if (colIndex != -1) {
+                            portalName = it.getString(colIndex).orEmpty()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     LaunchedEffect(pendingOrderId) {
         val id = pendingOrderId
@@ -1066,6 +1113,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onSetSalesSettingsMode = { isSalesSettingsMode = it },
         onClearStateForScreen = { scr ->
             when (scr) {
+                "hr_create_leave_policy" -> selectedLeavePolicyIdForEdit = null
+                "hr_view_leave_policy" -> selectedLeavePolicyIdForView = null
+                "hr_add_edit_piece_rate" -> selectedPieceRateIdForEdit = null
                 "security_support_ticket_detail" -> selectedSupportTicketId = null
                 "security_create_support_ticket" -> { /* No persisted ID to reset */ }
                 "security_help_article_detail" -> { /* Reset article state */ }
@@ -1186,16 +1236,19 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     // ═════════════════════════════════════════════════════════════════════════
     // ── TOTAL WORKSPACE LOCK ENFORCEMENT ──
     // ═════════════════════════════════════════════════════════════════════════
-    val isSubscriptionScreen = currentScreen == "manage_subscription"
-
-    if (isWorkspaceLocked && !isSubscriptionScreen) {
+    if (isWorkspaceLocked) {
         // Blocks hardware back-press navigation
         BackHandler(enabled = true) { /* Locked */ }
 
-        // Render ONLY the lock card - hiding TopBar, BottomBar, drawer, and all screens
+        // Render lock screen and open external browser with dynamic portalName
         WorkspaceLockedScreen(
             onUnlockWorkspace = {
-                navigateTo("manage_subscription")
+                val targetPortal = portalName.ifBlank { "" }
+                val pricingUrl = "http://tailor.cuso.in/$targetPortal/home/settings/pricing"
+                val browserIntent = Intent(Intent.ACTION_VIEW, pricingUrl.toUri()).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(browserIntent)
             },
             onBackToLogin = {
                 // Clear session and navigate to root login screen
@@ -1503,6 +1556,13 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                     employeeScreenMode = employeeScreenMode,
                                     onEmployeeScreenModeChange = { employeeScreenMode = it },
                                     selectedEmployeeId = selectedEmployeeId,
+                                    selectedLeavePolicyIdForEdit = selectedLeavePolicyIdForEdit,
+                                    onLeavePolicyIdForEditSelected = { selectedLeavePolicyIdForEdit = it },
+                                    selectedLeavePolicyIdForView = selectedLeavePolicyIdForView,
+                                    onLeavePolicyIdForViewSelected = { selectedLeavePolicyIdForView = it },
+                                    // Forward Piece Rate selection handlers
+                                    selectedPieceRateIdForEdit = selectedPieceRateIdForEdit,
+                                    onPieceRateIdForEditSelected = { selectedPieceRateIdForEdit = it },
                                     onEmployeeIdSelected = { selectedEmployeeId = it },
                                     selectedAttendanceId = selectedAttendanceId,
                                     onAttendanceIdSelected = { selectedAttendanceId = it },
@@ -2346,8 +2406,8 @@ fun formatIndianNumber(number: Number): String {
     return "$grouped,$last3"
 }
 
-fun currencySymbol(code: String? = null): String = com.cuso.tailor.utils.CurrencyHelper.getSymbol(code ?: "INR")
-
+// Delegate directly without forcing "INR" fallback
+fun currencySymbol(code: String? = null): String = com.cuso.tailor.utils.CurrencyHelper.getSymbol(code)
 fun normalizeRoute(rawKey: String): String {
     return when (rawKey) {
         "sales_dashboard", "sales_sales_dashboard" -> "sales_dashboard"

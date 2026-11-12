@@ -71,13 +71,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import android.provider.Settings
+import androidx.lifecycle.lifecycleScope
+import com.cuso.tailor.database.AppDatabase
+import com.cuso.tailor.utils.CurrencyHelper
 import com.cuso.tailor.view.composable.DeveloperModeBlockScreen
-
+import com.cuso.tailor.utils.LocalCurrencySymbol
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var sessionManager: SessionManager
+
+    // Inject AppDatabase to access SettingsDao for currency observation
+    @Inject
+    lateinit var appDatabase: AppDatabase
 
     // Holds the authentication state
     private var isLoggedInState by mutableStateOf<Boolean?>(null)
@@ -102,6 +109,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+
+        // Start observing Room DB settings table for currency symbol updates
+        CurrencyHelper.startObserving(appDatabase.settingsDao(), lifecycleScope)
 
         // Block screenshots, screen recording, recent-apps thumbnail
         window.setFlags(
@@ -156,10 +166,12 @@ class MainActivity : ComponentActivity() {
                         globalErrorMessage = message
                     }
                 }
+                val activeCurrencySymbol by CurrencyHelper.symbolFlow.collectAsState()
 
                 CompositionLocalProvider(
                     LocalAppTokens provides tokens,
-                    LocalIsAppBusy provides isAppBusy
+                    LocalIsAppBusy provides isAppBusy,
+                    LocalCurrencySymbol provides activeCurrencySymbol
                 ) {
                     CusoTailorTheme {
                         NoRippleProvider {

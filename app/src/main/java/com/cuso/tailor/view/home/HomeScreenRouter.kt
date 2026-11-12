@@ -343,6 +343,11 @@ import com.cuso.tailor.view.home.security.user.UserManagementScreen
 import com.cuso.tailor.view.home.services.settings.production_stages.ProductionStagesListScreen
 import com.cuso.tailor.view.home.services.settings.workflow_stages.AddEditProductionStageScreen
 import com.cuso.tailor.viewmodel.PermissionViewModel
+import com.cuso.tailor.view.home.hr.settings.leave_policy.LeavePoliciesScreen
+import com.cuso.tailor.view.home.hr.settings.leave_policy.CreateLeavePolicyScreen
+import com.cuso.tailor.view.home.hr.settings.leave_policy.ViewLeavePolicyScreen
+import com.cuso.tailor.view.home.hr.settings.piece_rate_setup.AddEditPieceRateScreen
+import com.cuso.tailor.view.home.hr.settings.piece_rate_setup.PieceRateSetupListScreen
 
 private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 
@@ -490,7 +495,15 @@ data class HrStateHolder(
     val selectedLeaveTypeIdForEdit: String? = null,
     val onLeaveTypeIdForEditSelected: (String?) -> Unit = {},
     val selectedLeaveTypeIdForView: String? = null,
-    val onLeaveTypeIdForViewSelected: (String?) -> Unit = {}
+    val onLeaveTypeIdForViewSelected: (String?) -> Unit = {},
+    // Added Leave Policy navigation state holders
+    val selectedLeavePolicyIdForEdit: String? = null,
+    val onLeavePolicyIdForEditSelected: (String?) -> Unit = {},
+    val selectedLeavePolicyIdForView: String? = null,
+    val onLeavePolicyIdForViewSelected: (String?) -> Unit = {},
+    // Piece rate navigation states
+    val selectedPieceRateIdForEdit: String? = null,
+    val onPieceRateIdForEditSelected: (String?) -> Unit = {}
 )
 
 data class LogisticsStateHolder(
@@ -907,12 +920,20 @@ fun HomeScreenRouter(
         "hr_create_leave_type",
         "hr_view_leave_type",
         "hr_employee_document_upload","hr_leave_types",
+        "hr_leave_policies", "hr_create_leave_policy", "hr_view_leave_policy",
         "hr_new_document_upload", "hr_organization_structure",
         "hr_expense_claims","hr_expense_new_claim", "hr_expense_type", "hr_submit_expense_claim", "hr_expense_claim_detail","hr_expense_claim_detail_readonly",
         "hr_expense_finance_reimbursement","hr_edit_expense_claim","hr_add_expense_type","hr_expense_process_payment"   -> {
             HrRouter(
                 screen = screen,
                 settingsViewModel = viewModels.settingsViewModel,
+                // Forward leave policy state parameters
+                selectedPieceRateIdForEdit = hrState.selectedPieceRateIdForEdit,
+                onPieceRateIdForEditSelected = hrState.onPieceRateIdForEditSelected,
+                selectedLeavePolicyIdForEdit = hrState.selectedLeavePolicyIdForEdit,
+                onLeavePolicyIdForEditSelected = hrState.onLeavePolicyIdForEditSelected,
+                selectedLeavePolicyIdForView = hrState.selectedLeavePolicyIdForView,
+                onLeavePolicyIdForViewSelected = hrState.onLeavePolicyIdForViewSelected,
                 selectedClaimForPayment = hrState.selectedClaimForPayment,
                 selectedLeaveTypeIdForView = hrState.selectedLeaveTypeIdForView,
                 onLeaveTypeIdForViewSelected = hrState.onLeaveTypeIdForViewSelected,
@@ -1289,8 +1310,8 @@ private fun HomeAndSettingsRouter(
             onConfigureHome = { onSafeNavigate("home_organization_profile") },
             onConfigureSales = { onSafeNavigate("sales_garment_type") },
             onNavigateLeaveTypes = { onSafeNavigate("hr_leave_types") },
-            onNavigateLeavePolicies = { onShowComingSoon("Leave Policies Coming Soon") },
-            onNavigatePieceRateSetup = { onShowComingSoon("Piece Rate Setup Coming Soon") },
+            onNavigateLeavePolicies = { onSafeNavigate("hr_leave_policies") },
+            onNavigatePieceRateSetup = { onSafeNavigate("hr_piece_rate_setup") },
             onConfigureSalesPricing = { onSafeNavigate("sales_garment_pricing_setup") },
             onConfigureMarketing = { onShowComingSoon("Marketing Settings Coming Soon") },
             onConfigureFinance = { onSafeNavigate("finance_chart_of_accounts") },
@@ -3960,6 +3981,12 @@ private fun InventoryProcurementRouter(
 private fun HrRouter(
     screen: String,
     settingsViewModel: SettingsViewModel,
+    selectedPieceRateIdForEdit: String? = null,
+    onPieceRateIdForEditSelected: (String?) -> Unit = {},
+    selectedLeavePolicyIdForEdit: String? = null,
+    onLeavePolicyIdForEditSelected: (String?) -> Unit = {},
+    selectedLeavePolicyIdForView: String? = null,
+    onLeavePolicyIdForViewSelected: (String?) -> Unit = {},
     selectedClaimForPayment: ExpenseClaimDto? = null,
     selectedLeaveTypeIdForEdit: String? = null,
     selectedLeaveTypeIdForView: String? = null,
@@ -4512,6 +4539,97 @@ private fun HrRouter(
                 onSavedSuccess = {
                     onLeaveTypeIdForEditSelected(null)
                     settingsViewModel.fetchLeaveTypes(page = 1)
+                    onGoBack()
+                }
+            )
+        }
+
+        // ── 1. Leave Policies List Screen ──
+        "hr_leave_policies" -> {
+            LeavePoliciesScreen(
+                viewModel = settingsViewModel,
+                onBack = onGoBack,
+                onCreatePolicy = {
+                    onLeavePolicyIdForEditSelected(null)
+                    onNavigate("hr_create_leave_policy")
+                },
+                onViewPolicy = { policyId ->
+                    onLeavePolicyIdForViewSelected(policyId)
+                    onNavigate("hr_view_leave_policy")
+                },
+                onEditPolicy = { policyId ->
+                    onLeavePolicyIdForEditSelected(policyId)
+                    onNavigate("hr_create_leave_policy")
+                }
+            )
+        }
+
+        // ── 2. Create / Edit Leave Policy Screen ──
+        "hr_create_leave_policy" -> {
+            CreateLeavePolicyScreen(
+                viewModel = settingsViewModel,
+                editPolicyId = selectedLeavePolicyIdForEdit,
+                onBack = {
+                    onLeavePolicyIdForEditSelected(null)
+                    onGoBack()
+                },
+                onSavedSuccess = {
+                    onLeavePolicyIdForEditSelected(null)
+                    settingsViewModel.fetchLeavePolicies(page = 1)
+                    onGoBack()
+                }
+            )
+        }
+
+        // ── 3. View Details Leave Policy Screen ──
+        "hr_view_leave_policy" -> {
+            selectedLeavePolicyIdForView?.takeIf { it.isNotBlank() }?.let { validId ->
+                ViewLeavePolicyScreen(
+                    policyId = validId,
+                    viewModel = settingsViewModel,
+                    onBack = {
+                        onLeavePolicyIdForViewSelected(null)
+                        onGoBack()
+                    },
+                    onEditPolicy = { policyId ->
+                        onLeavePolicyIdForViewSelected(null)
+                        onLeavePolicyIdForEditSelected(policyId)
+                        onNavigate("hr_create_leave_policy")
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // ── 1. Piece Rate Setup List Screen ──
+        "hr_piece_rate_setup" -> {
+            PieceRateSetupListScreen(
+                viewModel = settingsViewModel,
+                onBack = onGoBack,
+                onAddRate = {
+                    onPieceRateIdForEditSelected(null) // Clears ID for create mode
+                    onNavigate("hr_add_edit_piece_rate")
+                },
+                onEditRate = { rateId ->
+                    onPieceRateIdForEditSelected(rateId) // Sets ID for edit / history mode
+                    onNavigate("hr_add_edit_piece_rate")
+                }
+            )
+        }
+
+        // ── 2. Add / Edit Piece Rate Screen (With Rate History) ──
+        "hr_add_edit_piece_rate" -> {
+            AddEditPieceRateScreen(
+                rateId = selectedPieceRateIdForEdit,
+                viewModel = settingsViewModel,
+                onClose = {
+                    onPieceRateIdForEditSelected(null)
+                    onGoBack()
+                },
+                onSavedSuccess = {
+                    onPieceRateIdForEditSelected(null)
+                    settingsViewModel.fetchPieceRates(page = 1)
                     onGoBack()
                 }
             )

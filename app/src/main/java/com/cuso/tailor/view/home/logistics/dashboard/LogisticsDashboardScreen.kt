@@ -12,14 +12,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.outlined.PersonAdd
-import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.logistics.*
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.DatePickerField
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.viewmodel.LogisticsViewModel
@@ -263,7 +262,7 @@ fun LogisticsDashboardScreen(
                                     )
                                     KpiCard(
                                         title = "COD Collections",
-                                        value = kpis.codCollections?.value ?: "₹0",
+                                        value = kpis.codCollections?.value ?: "${currencySymbol()}0",
                                         trend = kpis.codCollections?.comparison.orEmpty(),
                                         icon = Icons.Default.CurrencyRupee,
                                         iconColor = chartEmerald,
@@ -918,7 +917,7 @@ fun LogisticsDashboardScreen(
                                             }
 
                                             Text(
-                                                text = "₹${order.amount.toInt()}",
+                                                text = "${currencySymbol()}${order.amount.toInt()}",
                                                 fontSize = tokens.caption,
                                                 fontWeight = FontWeight.Medium,
                                                 color = TextPrimary,
@@ -931,7 +930,7 @@ fun LogisticsDashboardScreen(
                                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                                             ) {
                                                 Text(
-                                                    text = "₹${order.collected.toInt()}",
+                                                    text = "${currencySymbol()}${order.collected.toInt()}",
                                                     fontSize = tokens.caption,
                                                     fontWeight = FontWeight.Medium,
                                                     color = if (order.collected > 0) chartEmerald else headerGrey

@@ -21,6 +21,7 @@ import coil.compose.AsyncImage
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.marketing.*
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.SettingsTabs
 import com.cuso.tailor.view.composable.TabItem
 import com.cuso.tailor.view.composable.TitleBar
@@ -116,8 +117,8 @@ private fun CampaignOverviewTab(overview: CampaignOverviewDetailsDto?) {
 
         // 2-Column KPI Cards Grid
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding / 2)) {
-            MetricGridCard(modifier = Modifier.weight(1f), label = "Campaign Spend", value = "₹${overview.campaignSpend}", subtext = "Budget: ₹${overview.budget}")
-            MetricGridCard(modifier = Modifier.weight(1f), label = "Marketing Revenue", value = "₹${overview.marketingRevenue}", subtext = "+${overview.campaignRoi}x Yield", valueColor = Primary)
+            MetricGridCard(modifier = Modifier.weight(1f), label = "Campaign Spend", value = "${currencySymbol()}${overview.campaignSpend}", subtext = "Budget: ${currencySymbol()}${overview.budget}")
+            MetricGridCard(modifier = Modifier.weight(1f), label = "Marketing Revenue", value = "${currencySymbol()}${overview.marketingRevenue}", subtext = "+${overview.campaignRoi}x Yield", valueColor = Primary)
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding / 2)) {
             MetricGridCard(modifier = Modifier.weight(1f), label = "Campaign ROI", value = "${overview.campaignRoi}x", subtext = "Blended Return")
@@ -129,11 +130,11 @@ private fun CampaignOverviewTab(overview: CampaignOverviewDetailsDto?) {
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding / 2)) {
             MetricGridCard(modifier = Modifier.weight(1f), label = "Clicks", value = overview.clicks.toString(), subtext = "CTR ${overview.ctr}%")
-            MetricGridCard(modifier = Modifier.weight(1f), label = "CPM", value = "₹${overview.cpm}", subtext = "Cost / 1k imp")
+            MetricGridCard(modifier = Modifier.weight(1f), label = "CPM", value = "${currencySymbol()}${overview.cpm}", subtext = "Cost / 1k imp")
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding / 2)) {
-            MetricGridCard(modifier = Modifier.weight(1f), label = "Customer Orders", value = overview.customerOrders.toString(), subtext = "CPL ₹${overview.cpl}")
-            MetricGridCard(modifier = Modifier.weight(1f), label = "Order Conversions", value = overview.orderConversions.toString(), subtext = "CPA ₹${overview.cpa}")
+            MetricGridCard(modifier = Modifier.weight(1f), label = "Customer Orders", value = overview.customerOrders.toString(), subtext = "CPL ${currencySymbol()}${overview.cpl}")
+            MetricGridCard(modifier = Modifier.weight(1f), label = "Order Conversions", value = overview.orderConversions.toString(), subtext = "CPA ${currencySymbol()}${overview.cpa}")
         }
 
         // Campaign Details Specifications Table
@@ -157,9 +158,9 @@ private fun CampaignOverviewTab(overview: CampaignOverviewDetailsDto?) {
                 SpecRow("Status", overview.metadata?.status.orEmpty())
                 SpecRow("Start Date", overview.metadata?.startDate?.take(10).orEmpty())
                 SpecRow("End Date", overview.metadata?.endDate?.take(10).orEmpty())
-                SpecRow("Total Budget", "₹${overview.budget}")
-                SpecRow("Total Spend", "₹${overview.campaignSpend}")
-                SpecRow("Remaining Budget", "₹${overview.remainingBudget}", valueColor = greentext)
+                SpecRow("Total Budget", "${currencySymbol()}${overview.budget}")
+                SpecRow("Total Spend", "${currencySymbol()}${overview.campaignSpend}")
+                SpecRow("Remaining Budget", "${currencySymbol()}${overview.remainingBudget}", valueColor = greentext)
             }
         }
     }
@@ -215,8 +216,8 @@ private fun CampaignPerformanceTab(performance: CampaignPerformanceData?) {
         // Performance Totals Block
         performance.totals?.let { tot ->
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding / 2)) {
-                MetricGridCard(modifier = Modifier.weight(1f), label = "Total Spend", value = "₹${tot.spend}")
-                MetricGridCard(modifier = Modifier.weight(1f), label = "Total Revenue", value = "₹${tot.revenue}", valueColor = Primary)
+                MetricGridCard(modifier = Modifier.weight(1f), label = "Total Spend", value = "${currencySymbol()}${tot.spend}")
+                MetricGridCard(modifier = Modifier.weight(1f), label = "Total Revenue", value = "${currencySymbol()}${tot.revenue}", valueColor = Primary)
                 MetricGridCard(modifier = Modifier.weight(1f), label = "ROAS", value = "${tot.roas}x", valueColor = greentext)
             }
         }
@@ -256,7 +257,7 @@ private fun CampaignAudienceTab(audience: List<CampaignAudienceQuarterDto>) {
                     audience.forEach { q ->
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(q.period, fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = title_color)
-                            Text("₹${q.spend}", fontSize = tokens.bodySmall, color = TextPrimary)
+                            Text("${currencySymbol()}${q.spend}", fontSize = tokens.bodySmall, color = TextPrimary)
                             Text(q.promotions.toString(), fontSize = tokens.bodySmall, color = TextPrimary)
                             Text(q.conversions.toString(), fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = greentext)
                         }

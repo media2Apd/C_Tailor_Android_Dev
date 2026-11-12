@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.marketing.*
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.currencySymbol
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.SearchFilterBar
@@ -1039,7 +1040,7 @@ private fun StatusPillBadge(status: String) {
 
 private fun formatCurrencyValue(amount: Double): String {
     val formatter = DecimalFormat("#,##,##0.##")
-    return "₹${formatter.format(amount)}"
+    return "${currencySymbol()}${formatter.format(amount)}"
 }
 
 private fun formatCompactValue(number: Double): String {

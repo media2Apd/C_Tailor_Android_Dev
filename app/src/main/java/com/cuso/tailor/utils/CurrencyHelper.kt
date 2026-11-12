@@ -1,66 +1,120 @@
 package com.cuso.tailor.utils
 
 import android.os.Build
+import android.util.Log
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.cuso.tailor.database.dao.SettingsDao
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import java.util.Currency
+import kotlinx.coroutines.launch
+import java.util.Currency as JavaCurrency
 import java.util.Locale
+
+val LocalCurrencySymbol = compositionLocalOf { "" }
 
 object CurrencyHelper {
 
-    // Holds the current currency code (e.g. "EUR") for the whole app.
-    // It is a Compose state, so any Text using currencySymbol() recomposes when it changes.
+    private const val TAG = "CurrencyHelperDebugLogs"
+
     var currentCode: String? by mutableStateOf(null)
         private set
 
-    // Call once from Application.onCreate().
-    // Keeps currentCode in sync with the settings table automatically.
+    var currentSymbol: String by mutableStateOf("")
+        private set
+
+    private val _symbolFlow = MutableStateFlow("")
+    val symbolFlow: StateFlow<String> = _symbolFlow.asStateFlow()
+
     fun startObserving(settingsDao: SettingsDao, scope: CoroutineScope) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val cachedSettings = settingsDao.getSettings()
+                val code = cachedSettings?.currency?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+                currentCode = code
+                val resolvedSymbol = resolveSymbolForCode(code)
+
+                currentSymbol = resolvedSymbol
+                _symbolFlow.value = resolvedSymbol
+
+                Log.d(TAG, "startObserving() initial code: '$code', symbol: '$resolvedSymbol'")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching cached settings: ${e.message}", e)
+            }
+        }
+
         settingsDao.getSettingsFlow()
-            .map { it?.currency }
+            .map { it?.currency?.trim()?.uppercase()?.takeIf { code -> code.isNotBlank() } }
             .distinctUntilChanged()
-            .onEach { currentCode = it }
+            .onEach { code ->
+                currentCode = code
+                val resolvedSymbol = resolveSymbolForCode(code)
+
+                currentSymbol = resolvedSymbol
+                _symbolFlow.value = resolvedSymbol
+
+                Log.d(TAG, "startObserving() live update code: '$code', symbol: '$resolvedSymbol'")
+            }
             .launchIn(scope)
     }
 
-    // Converts an ISO-4217 code (e.g. "EUR") to its symbol (e.g. "€")
-    fun getSymbol(currencyCode: String?): String {
-        if (currencyCode.isNullOrBlank()) return ""
+    /**
+     * Resolves the currency symbol.
+     * Prioritizes Room DB's active currency over legacy "INR" fallbacks.
+     */
+    fun getSymbol(currencyCode: String? = null): String {
+        val dbCode = currentCode?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+        val passedCode = currencyCode?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
 
-        val code = currencyCode.trim().uppercase()
+        // If Room DB has a code (e.g. CNY), use it even if caller passes legacy fallback "INR"
+        val targetCode = when {
+            // Case 1: Caller passed an explicit non-INR code different from default
+            passedCode != null && passedCode != "INR" -> passedCode
+            // Case 2: Room DB code exists (e.g., CNY)
+            dbCode != null -> dbCode
+            // Case 3: Fallback to passed code if Room DB is empty
+            passedCode != null -> passedCode
+            // Case 4: No currency available anywhere -> return empty string ""
+            else -> return ""
+        }
+
+        return resolveSymbolForCode(targetCode)
+    }
+
+    private fun resolveSymbolForCode(code: String?): String {
+        if (code.isNullOrBlank()) return ""
 
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                // Android ICU gives the clean narrow symbol (e.g. $, ₹, €)
                 val icuCurrency = android.icu.util.Currency.getInstance(code)
                 icuCurrency.getName(
                     Locale.getDefault(),
                     android.icu.util.Currency.NARROW_SYMBOL_NAME,
                     null
-                ) ?: icuCurrency.symbol ?: code
+                ) ?: icuCurrency.getSymbol(Locale.getDefault()) ?: icuCurrency.symbol ?: ""
             } else {
-                // Fallback for older Android versions
-                Currency.getInstance(code).getSymbol(Locale.getDefault())
+                JavaCurrency.getInstance(code).getSymbol(Locale.getDefault())
             }
         } catch (e: Exception) {
-            // Unknown currency, return the raw code
-            currencyCode
+            Log.e(TAG, "Exception getting symbol for code '$code': ${e.message}")
+            ""
         }
     }
 }
 
-// Extension helper (still works if you want to pass a code manually)
-fun String?.toCurrencySymbol(): String = CurrencyHelper.getSymbol(this)
+@Composable
+fun currentCurrency(): String = LocalCurrencySymbol.current
 
-// THE ONE FUNCTION: just call currencySymbol() anywhere, no variable needed.
-// It reads the currency saved in settings (EUR -> €, INR -> ₹, USD -> $).
-fun currencySymbol(code: String? = null): String {
-    return CurrencyHelper.getSymbol(code ?: CurrencyHelper.currentCode)
-}
+fun currencySymbol(code: String? = null): String = CurrencyHelper.getSymbol(code)
+
+fun String?.toCurrencySymbol(): String = CurrencyHelper.getSymbol(this)

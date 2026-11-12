@@ -1,4 +1,4 @@
-@file:Suppress("unused")
+@file:Suppress("unused","AssignedValueIsNeverRead")
 
 package com.cuso.tailor.view.home.logistics.cod
 
@@ -46,6 +46,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import androidx.core.net.toUri
+import com.cuso.tailor.utils.currencySymbol
 
 @Composable
 fun CodOrderOverviewScreen(
@@ -184,7 +185,7 @@ fun CodOrderOverviewScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "₹${formatIndianNumber(order.codAmount)}",
+                            text = "${currencySymbol()}${formatIndianNumber(order.codAmount)}",
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             color = title_color
@@ -596,7 +597,7 @@ fun CodOrderOverviewScreen(
                         Spacer(Modifier.height(10.dp))
 
                         Text(
-                            text = "Confirm that ₹${formatIndianNumber(data?.codAmount ?: 0.0)} has been collected for ${data?.codNumber}. The order will be marked as paid.",
+                            text = "Confirm that ${currencySymbol()}${formatIndianNumber(data?.codAmount ?: 0.0)} has been collected for ${data?.codNumber}. The order will be marked as paid.",
                             fontSize = tokens.bodySmall,
                             color = TextSecondary,
                             lineHeight = 18.sp

@@ -82,7 +82,6 @@ fun PieceRateSetupListScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             TitleBar(
                 title = "Piece Rate Setup",
-                subtitle = "Configure regular and overtime piece rates for tailor work",
                 onClose = onBack
             )
 
@@ -281,49 +280,28 @@ fun PieceRateSetupListScreen(
         }
     }
 
-    // Delete Confirmation Dialog
-    if (itemToDelete != null) {
-        val target = itemToDelete!!
-        AlertDialog(
-            onDismissRequest = { itemToDelete = null },
-            title = {
-                Text(
-                    text = "Delete Piece Rate",
-                    fontSize = tokens.h2,
-                    fontWeight = FontWeight.Bold,
-                    color = title_color
-                )
-            },
-            text = {
-                Text(
-                    text = "Are you sure you want to remove this piece rate? Historical payroll records will remain preserved.",
-                    fontSize = tokens.bodySmall,
-                    color = TextSecondary
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val id = target.id
-                        itemToDelete = null
-                        viewModel.deletePieceRate(id)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = redText),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Delete", color = whiteBg, fontSize = tokens.bodySmall)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { itemToDelete = null },
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Cancel", color = TextPrimary, fontSize = tokens.bodySmall)
-                }
-            },
-            containerColor = whiteBg,
-            shape = RoundedCornerShape(tokens.cardCornerRadius)
+    // Delete confirmation modal
+    itemToDelete?.let { target ->
+        val workflowName = target.workflowId?.displayName
+            ?: target.workflowId?.name
+            ?: "Tailoring"
+        val garmentName = target.garmentId?.displayName
+            ?: target.garmentId?.name
+            ?: "Standard Garment"
+
+        DeleteModel(
+            title = "Delete Piece Rate",
+            message = "You're going to delete \"$workflowName - $garmentName\" piece rate.\nHistorical payroll records will remain preserved.",
+            checkboxText = "I confirm this deletion",
+            cancelText = "No, Keep It.",
+            confirmText = "Yes, Delete!",
+            onDismiss = { itemToDelete = null },
+            onDelete = {
+                val id = target.id
+                itemToDelete = null
+                // Trigger delete API call for the selected piece rate
+                viewModel.deletePieceRate(id)
+            }
         )
     }
 }

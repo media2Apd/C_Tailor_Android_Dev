@@ -34,6 +34,21 @@ import com.cuso.tailor.model.hr.DocumentCategorySingleResponse
 import com.cuso.tailor.model.hr.EmployeeDocumentDto
 import com.cuso.tailor.model.hr.EmployeeDocumentListResponse
 import com.cuso.tailor.model.hr.EmployeeDocumentSingleResponse
+import com.cuso.tailor.model.hr.CreateExitSettlementRequest
+import com.cuso.tailor.model.hr.ExitApprovalDecisionRequest
+import com.cuso.tailor.model.hr.ExitAssetAssignmentRequest
+import com.cuso.tailor.model.hr.ExitSettlementCalculationDto
+import com.cuso.tailor.model.hr.ExitSettlementCalculationResponse
+import com.cuso.tailor.model.hr.ExitSettlementDto
+import com.cuso.tailor.model.hr.ExitSettlementResponse
+import com.cuso.tailor.model.hr.ExitAssignedAssetDto
+import com.cuso.tailor.model.hr.ExitAssignedAssetListResponse
+import com.cuso.tailor.model.hr.ExitClearanceFinalizeRequest
+import com.cuso.tailor.model.hr.ExitClearanceItemStatusRequest
+import com.cuso.tailor.model.hr.ExitRequestDto
+import com.cuso.tailor.model.hr.ExitRequestListResponse
+import com.cuso.tailor.model.hr.ExitRequestSingleResponse
+import com.cuso.tailor.model.hr.ExitStatusUpdateRequest
 import com.cuso.tailor.model.hr.ExpenseClaimDto
 import com.cuso.tailor.model.hr.ExpenseClaimPaymentDetails
 import com.cuso.tailor.model.hr.ExpenseClaimSingleResponse
@@ -76,6 +91,8 @@ import com.cuso.tailor.model.hr.TrainingProgramListResponse
 import com.cuso.tailor.model.hr.TrainingProgramSingleResponse
 import com.cuso.tailor.model.hr.UpdateExpenseClaimResponse
 import com.cuso.tailor.model.hr.UpdateExpenseClaimStatusRequest
+import com.cuso.tailor.model.hr.extractMemberName
+import com.cuso.tailor.model.hr.resolveAssetId
 import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.utils.UiState // explicit import wins over same-package UiState
 import com.cuso.tailor.utils.launchState
@@ -100,6 +117,8 @@ private const val SALARY_BASE = "/api/hr/salary-component"
 private const val EXPENSE_TYPE_BASE = "/api/hr/expense-type"
 
 private const val CREATE_ROLE_URL = "/api/roles/create"
+private const val EXIT_REQUEST_BASE = "/api/hr/exit-request"
+private const val EXIT_SETTLEMENT_BASE = "/api/hr/exit-settlement"
 
 sealed interface AttendanceUiState {
     object Loading : AttendanceUiState
@@ -2815,6 +2834,696 @@ class HrViewModel @Inject constructor(
                     onError(error.message ?: "Failed to delete document category")
                 }
             )
+        }
+    }
+
+    // =========================================================================
+// EXIT MANAGEMENT (VIEW-ALL, VIEW-ONE, CREATE, DELETE, APPROVAL)
+// =========================================================================
+
+    private val _exitRequests = MutableStateFlow<List<ExitRequestDto>>(emptyList())
+    val exitRequests: StateFlow<List<ExitRequestDto>> = _exitRequests.asStateFlow()
+
+    private val _isLoadingExitRequests = MutableStateFlow(false)
+    val isLoadingExitRequests: StateFlow<Boolean> = _isLoadingExitRequests.asStateFlow()
+
+    private val _exitRequestsError = MutableStateFlow<String?>(null)
+    val exitRequestsError: StateFlow<String?> = _exitRequestsError.asStateFlow()
+
+    private val _exitRequestDetail = MutableStateFlow<ExitRequestDto?>(null)
+    val exitRequestDetail: StateFlow<ExitRequestDto?> = _exitRequestDetail.asStateFlow()
+
+    private val _isLoadingExitRequestDetail = MutableStateFlow(false)
+    val isLoadingExitRequestDetail: StateFlow<Boolean> = _isLoadingExitRequestDetail.asStateFlow()
+
+    private val _isSubmittingExitRequest = MutableStateFlow(false)
+    val isSubmittingExitRequest: StateFlow<Boolean> = _isSubmittingExitRequest.asStateFlow()
+
+    private val _isSubmittingExitDecision = MutableStateFlow(false)
+    val isSubmittingExitDecision: StateFlow<Boolean> = _isSubmittingExitDecision.asStateFlow()
+
+    private val _updatingClearanceItemId = MutableStateFlow<String?>(null)
+    val updatingClearanceItemId: StateFlow<String?> = _updatingClearanceItemId.asStateFlow()
+
+    private val _isFinalizingClearance = MutableStateFlow(false)
+    val isFinalizingClearance: StateFlow<Boolean> = _isFinalizingClearance.asStateFlow()
+
+    private val _exitAssignedAssets = MutableStateFlow<List<ExitAssignedAssetDto>>(emptyList())
+    val exitAssignedAssets: StateFlow<List<ExitAssignedAssetDto>> = _exitAssignedAssets.asStateFlow()
+
+    private val _isLoadingExitAssets = MutableStateFlow(false)
+    val isLoadingExitAssets: StateFlow<Boolean> = _isLoadingExitAssets.asStateFlow()
+
+    private val _exitAssetsError = MutableStateFlow<String?>(null)
+    val exitAssetsError: StateFlow<String?> = _exitAssetsError.asStateFlow()
+
+    private val _exitSettlement = MutableStateFlow<ExitSettlementDto?>(null)
+    val exitSettlement: StateFlow<ExitSettlementDto?> = _exitSettlement.asStateFlow()
+
+    private val _exitSettlementCalculation = MutableStateFlow<ExitSettlementCalculationDto?>(null)
+    val exitSettlementCalculation: StateFlow<ExitSettlementCalculationDto?> = _exitSettlementCalculation.asStateFlow()
+
+    private val _isLoadingExitSettlement = MutableStateFlow(false)
+    val isLoadingExitSettlement: StateFlow<Boolean> = _isLoadingExitSettlement.asStateFlow()
+
+    private val _isSavingExitSettlement = MutableStateFlow(false)
+    val isSavingExitSettlement: StateFlow<Boolean> = _isSavingExitSettlement.asStateFlow()
+
+    private val _exitSettlementError = MutableStateFlow<String?>(null)
+    val exitSettlementError: StateFlow<String?> = _exitSettlementError.asStateFlow()
+
+    /**
+     * Fetch all exit requests: GET /api/hr/exit-request/view-all
+     */
+    fun fetchExitRequests(
+        page: Int = 1,
+        limit: Int = 50,
+        search: String? = null,
+        status: String? = null,
+        exitType: String? = null
+    ) {
+        launchBusy {
+            _isLoadingExitRequests.value = true
+            _exitRequestsError.value = null
+
+            val result = repo.request<ExitRequestListResponse> {
+                get(
+                    "$EXIT_REQUEST_BASE/view-all",
+                    repo.query(
+                        "page" to page,
+                        "limit" to limit,
+                        "search" to search,
+                        "status" to status,
+                        "exitType" to exitType
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _exitRequests.value = res.data
+                },
+                onFailure = { error ->
+                    _exitRequestsError.value = error.message ?: "Failed to fetch exit requests"
+                }
+            )
+            _isLoadingExitRequests.value = false
+        }
+    }
+
+    /**
+     * Fetch single exit request: GET /api/hr/exit-request/view-one/{id}
+     */
+    fun fetchExitRequestById(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingExitRequestDetail.value = true
+            val result = repo.request<ExitRequestSingleResponse> {
+                get("$EXIT_REQUEST_BASE/view-one/$id")
+            }
+            result.fold(
+                onSuccess = { res ->
+                    _exitRequestDetail.value = res.data
+                },
+                onFailure = {
+                    // Fallback to cached list item if view-one fails
+                    _exitRequestDetail.value = _exitRequests.value.find { it.id == id }
+                }
+            )
+            _isLoadingExitRequestDetail.value = false
+        }
+    }
+
+    fun clearExitRequestDetail() {
+        _exitRequestDetail.value = null
+    }
+
+    /**
+     * Reuse exit-request view-all endpoint for Exit Clearance list screen
+     */
+    fun fetchExitClearanceList(
+        page: Int = 1,
+        limit: Int = 50,
+        search: String? = null
+    ) {
+        fetchExitRequests(
+            page = page,
+            limit = limit,
+            search = search
+        )
+    }
+
+    /**
+     * Reuse exit-request view-one endpoint for Exit Clearance checklist screen
+     */
+    fun fetchExitClearanceDetail(exitRequestId: String) {
+        fetchExitRequestById(exitRequestId)
+    }
+
+    /**
+     * Toggle a single clearance item status between "Cleared" and "Pending":
+     * PATCH /api/hr/exit-request/{exitRequestId}/clearance-items/{itemId}
+     */
+    fun toggleClearanceItemStatus(
+        exitRequestId: String,
+        itemId: String,
+        currentStatus: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (exitRequestId.isBlank() || itemId.isBlank() || _updatingClearanceItemId.value != null) {
+            return
+        }
+
+        val previousDetail = _exitRequestDetail.value
+        val nextStatus = if (currentStatus.equals("Cleared", ignoreCase = true)) "Pending" else "Cleared"
+
+        viewModelScope.launch {
+            _updatingClearanceItemId.value = itemId
+
+            // Optimistically update the clicked item in local detail state
+            previousDetail?.let { current ->
+                _exitRequestDetail.value = current.copy(
+                    clearanceItems = current.clearanceItems.map { item ->
+                        if (item.id == itemId) item.copy(status = nextStatus) else item
+                    }
+                )
+            }
+
+            val payload = ExitClearanceItemStatusRequest(status = nextStatus)
+            val endpoint = "$EXIT_REQUEST_BASE/$exitRequestId/clearance-items/$itemId"
+
+            var result = repo.request<ExitRequestSingleResponse> {
+                patch(endpoint, payload)
+            }
+
+            // Fallback to PUT if the backend route expects PUT instead of PATCH
+            if (result.isFailure) {
+                result = repo.request<ExitRequestSingleResponse> {
+                    put(endpoint, payload)
+                }
+            }
+
+            _updatingClearanceItemId.value = null
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        res.data?.let { updated ->
+                            _exitRequestDetail.value = updated
+                            _exitRequests.value = _exitRequests.value.map { listItem ->
+                                if (listItem.id == exitRequestId) updated else listItem
+                            }
+                        }
+                        onSuccess(res.message ?: "Task marked as $nextStatus")
+                    } else {
+                        _exitRequestDetail.value = previousDetail
+                        onError(res.message ?: "Failed to update clearance item")
+                    }
+                },
+                onFailure = { error ->
+                    _exitRequestDetail.value = previousDetail
+                    onError(error.message ?: "Failed to save clearance status")
+                }
+            )
+        }
+    }
+
+    /**
+     * Finalize department clearance once all checklist items are cleared
+     */
+    fun finalizeExitClearance(
+        exitRequestId: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (exitRequestId.isBlank() || _isFinalizingClearance.value) return
+
+        viewModelScope.launch {
+            _isFinalizingClearance.value = true
+            val payload = ExitClearanceFinalizeRequest(
+                status = "Clearance_Completed",
+                clearanceStatus = "Completed"
+            )
+            val endpoint = "$EXIT_REQUEST_BASE/status/$exitRequestId"
+
+            val result = repo.request<ExitRequestSingleResponse> {
+                patch(endpoint, payload)
+            }
+
+            _isFinalizingClearance.value = false
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        res.data?.let { updated ->
+                            _exitRequestDetail.value = updated
+                            _exitRequests.value = _exitRequests.value.map { item ->
+                                if (item.id == exitRequestId) updated else item
+                            }
+                        }
+                        fetchExitRequestById(exitRequestId)
+                        fetchExitRequests()
+                        onSuccess(res.message ?: "Department clearance finalized successfully!")
+                    } else {
+                        onError(res.message ?: "Failed to complete clearance")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to complete clearance")
+                }
+            )
+        }
+    }
+
+    /**
+     * Fetch hardware assets assigned to the departing employee for IT Clearance
+     */
+    fun fetchAssignedAssetsForExit(memberId: String) {
+        if (memberId.isBlank()) {
+            _exitAssignedAssets.value = emptyList()
+            _exitAssetsError.value = null
+            return
+        }
+        viewModelScope.launch {
+            _isLoadingExitAssets.value = true
+            _exitAssetsError.value = null
+
+            val result = repo.request<ExitAssignedAssetListResponse> {
+                get("/api/it/asset/my-assigned/$memberId")
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _exitAssignedAssets.value = res.data
+                },
+                onFailure = {
+                    // Fallback to alternative asset route if needed
+                    val fallback = repo.request<ExitAssignedAssetListResponse> {
+                        get("/api/asset/my-assigned/$memberId")
+                    }
+                    fallback.fold(
+                        onSuccess = { res -> _exitAssignedAssets.value = res.data },
+                        onFailure = {
+                            _exitAssignedAssets.value = emptyList()
+                            _exitAssetsError.value = null
+                        }
+                    )
+                }
+            )
+            _isLoadingExitAssets.value = false
+        }
+    }
+
+    fun clearExitAssignedAssets() {
+        _exitAssignedAssets.value = emptyList()
+        _exitAssetsError.value = null
+    }
+
+    /**
+     * Load exit request detail, existing settlement, and auto-calculate if no settlement exists yet
+     */
+    fun fetchExitSettlementData(exitRequestId: String) {
+        if (exitRequestId.isBlank()) return
+        fetchExitRequestById(exitRequestId)
+
+        viewModelScope.launch {
+            _isLoadingExitSettlement.value = true
+            _exitSettlementError.value = null
+            _exitSettlement.value = null
+            _exitSettlementCalculation.value = null
+
+            val existingRes = repo.request<ExitSettlementResponse> {
+                get("$EXIT_SETTLEMENT_BASE/exit-request/$exitRequestId")
+            }
+
+            var hasExisting = false
+            existingRes.fold(
+                onSuccess = { res ->
+                    if (res.data != null) {
+                        _exitSettlement.value = res.data
+                        hasExisting = true
+                    }
+                },
+                onFailure = { /* Proceed to calculation if fetch fails or returns empty */ }
+            )
+
+            // Calculate draft settlement automatically when no saved settlement exists
+            if (!hasExisting) {
+                var calcRes = repo.request<ExitSettlementCalculationResponse> {
+                    get("$EXIT_SETTLEMENT_BASE/calculate/$exitRequestId")
+                }
+                if (calcRes.isFailure) {
+                    calcRes = repo.request<ExitSettlementCalculationResponse> {
+                        post("$EXIT_SETTLEMENT_BASE/calculate/$exitRequestId", emptyMap<String, Any>())
+                    }
+                }
+                calcRes.fold(
+                    onSuccess = { res -> _exitSettlementCalculation.value = res.data },
+                    onFailure = { err -> _exitSettlementError.value = err.message ?: "Failed to calculate settlement" }
+                )
+            }
+
+            _isLoadingExitSettlement.value = false
+        }
+    }
+
+    /**
+     * Create / save final settlement: POST /api/hr/exit-settlement/create
+     */
+    fun createExitSettlement(
+        request: CreateExitSettlementRequest,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (_isSavingExitSettlement.value) return
+        viewModelScope.launch {
+            _isSavingExitSettlement.value = true
+            val result = repo.request<ExitSettlementResponse> {
+                post("$EXIT_SETTLEMENT_BASE/create", request)
+            }
+            _isSavingExitSettlement.value = false
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _exitSettlement.value = res.data
+                        fetchExitRequestById(request.exitRequestId)
+                        fetchExitRequests()
+                        onSuccess(res.message ?: "Exit settlement created successfully")
+                    } else {
+                        onError(res.message ?: "Failed to create exit settlement")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to create exit settlement")
+                }
+            )
+        }
+    }
+
+    fun clearExitSettlementData() {
+        _exitSettlement.value = null
+        _exitSettlementCalculation.value = null
+        _exitSettlementError.value = null
+    }
+
+    /**
+     * Toggle hardware asset status between Returned ("Available") and Assigned
+     */
+    fun toggleExitAssetStatus(
+        asset: ExitAssignedAssetDto,
+        exitRequest: ExitRequestDto,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        val assetId = asset.resolveAssetId()
+        if (assetId.isBlank() || _updatingClearanceItemId.value != null) {
+            if (assetId.isBlank()) onError("Asset ID is missing")
+            return
+        }
+
+        val returnedStatuses = listOf("Available", "Returned", "Recovered")
+        val isCurrentlyReturned = returnedStatuses.any { it.equals(asset.status, ignoreCase = true) }
+        val previousStatus = asset.status
+        val nextStatus = if (isCurrentlyReturned) "Assigned" else "Available"
+        val uid = "asset-$assetId"
+
+        viewModelScope.launch {
+            _updatingClearanceItemId.value = uid
+
+            // Optimistically update the asset status locally
+            _exitAssignedAssets.value = _exitAssignedAssets.value.map {
+                if (it.resolveAssetId() == assetId) it.copy(status = nextStatus) else it
+            }
+
+            val payload = if (nextStatus == "Available") {
+                ExitAssetAssignmentRequest(assigneeName = "Unassigned")
+            } else {
+                val orig = asset.currentAssignee
+                ExitAssetAssignmentRequest(
+                    assigneeName = orig?.name?.takeIf { it.isNotBlank() }
+                        ?: exitRequest.organizationMemberId.extractMemberName(),
+                    empId = orig?.empId,
+                    department = orig?.department,
+                    userId = orig?.userId
+                )
+            }
+
+            val result = repo.request<SimpleActionResponse> {
+                put("/api/it/asset/$assetId/assignment", payload)
+            }
+
+            _updatingClearanceItemId.value = null
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        onSuccess("Asset marked as ${if (nextStatus == "Available") "Returned" else "Pending"}")
+                    } else {
+                        _exitAssignedAssets.value = _exitAssignedAssets.value.map {
+                            if (it.resolveAssetId() == assetId) it.copy(status = previousStatus) else it
+                        }
+                        onError(res.message ?: "Failed to update asset status")
+                    }
+                },
+                onFailure = { error ->
+                    _exitAssignedAssets.value = _exitAssignedAssets.value.map {
+                        if (it.resolveAssetId() == assetId) it.copy(status = previousStatus) else it
+                    }
+                    onError(error.message ?: "Failed to update asset status")
+                }
+            )
+        }
+    }
+
+    /**
+     * Create exit request (multipart/form-data): POST /api/hr/exit-request/create
+     */
+    fun createExitRequest(
+        organizationMemberId: String,
+        branchId: String,
+        departmentId: String,
+        designationId: String,
+        exitType: String,
+        reason: String,
+        requestedLastWorkingDate: String,
+        noticePeriodDays: Int,
+        status: String = "Submitted",
+        files: List<File>,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (organizationMemberId.isBlank()) {
+            onError("Please select an employee")
+            return
+        }
+        if (exitType.isBlank()) {
+            onError("Please select an exit type")
+            return
+        }
+        if (reason.isBlank()) {
+            onError("Please enter a reason for exit")
+            return
+        }
+
+        viewModelScope.launch {
+            _isSubmittingExitRequest.value = true
+
+            val parts = mutableMapOf(
+                "organizationMemberId" to repo.text(organizationMemberId.trim()),
+                "exitType" to repo.text(exitType.trim()),
+                "reason" to repo.text(reason.trim()),
+                "noticePeriodDays" to repo.text(noticePeriodDays.toString()),
+                "status" to repo.text(status)
+            )
+
+            if (departmentId.isNotBlank()) {
+                parts["departmentId"] = repo.text(departmentId.trim())
+            }
+            if (branchId.isNotBlank()) {
+                parts["branchId"] = repo.text(branchId.trim())
+            }
+            if (designationId.isNotBlank()) {
+                parts["designationId"] = repo.text(designationId.trim())
+            }
+            if (requestedLastWorkingDate.isNotBlank()) {
+                parts["requestedLastWorkingDate"] = repo.text(convertUiDateToApiDate(requestedLastWorkingDate))
+            }
+
+            val fileParts = files.map { file ->
+                val extension = file.extension.lowercase()
+                val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
+                    ?: when (extension) {
+                        "jpg", "jpeg" -> "image/jpeg"
+                        "png" -> "image/png"
+                        "pdf" -> "application/pdf"
+                        else -> "application/octet-stream"
+                    }
+                repo.filePart("attachments", file, mimeType)
+            }
+
+            val result = repo.request<ExitRequestSingleResponse> {
+                postMultipart(
+                    url = "$EXIT_REQUEST_BASE/create",
+                    parts = parts,
+                    files = fileParts
+                )
+            }
+
+            _isSubmittingExitRequest.value = false
+            result.fold(
+                onSuccess = { res ->
+                    fetchExitRequests()
+                    onSuccess(res.message ?: "Exit request submitted successfully")
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to submit exit request")
+                }
+            )
+        }
+    }
+
+    /**
+     * Delete exit request: DELETE /api/hr/exit-request/delete/{id}
+     */
+    fun deleteExitRequest(
+        id: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val result = repo.request<ExitRequestSingleResponse> {
+                delete("$EXIT_REQUEST_BASE/delete/$id")
+            }
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _exitRequests.value = _exitRequests.value.filter { it.id != id }
+                        onSuccess(res.message ?: "Exit request deleted successfully")
+                    } else {
+                        onError(res.message ?: "Failed to delete exit request")
+                    }
+                },
+                onFailure = { error ->
+                    onError(error.message ?: "Failed to delete exit request")
+                }
+            )
+        }
+    }
+
+    /**
+     * Submit Manager Approval / Reconsideration decision
+     */
+    fun submitExitApprovalDecision(
+        exitRequestId: String,
+        approvalId: String?,
+        approverId: String?,
+        decisionStatus: String,
+        comments: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (decisionStatus == "Rejected" && comments.isBlank()) {
+            onError("Please enter comments explaining the reconsideration request")
+            return
+        }
+
+        viewModelScope.launch {
+            _isSubmittingExitDecision.value = true
+            val trimmedComments = comments.trim().ifBlank { null }
+
+            var succeeded = false
+            var updatedDto: ExitRequestDto? = null
+            var successMessage = "Exit request ${if (decisionStatus == "Approved") "accepted" else "sent for reconsideration"}"
+            var lastError: String? = null
+
+            // 1. Update existing approval record: PUT /api/hr/exit-request/{exitId}/approvals/{approvalId}
+            if (!approvalId.isNullOrBlank()) {
+                val res = repo.request<ExitRequestSingleResponse> {
+                    put(
+                        "$EXIT_REQUEST_BASE/$exitRequestId/approvals/$approvalId",
+                        ExitApprovalDecisionRequest(
+                            stage = "Manager_Review",
+                            approverId = approverId?.takeIf { it.isNotBlank() },
+                            status = decisionStatus,
+                            comments = trimmedComments
+                        )
+                    )
+                }
+                res.fold(
+                    onSuccess = {
+                        if (it.success) {
+                            succeeded = true
+                            updatedDto = it.data
+                            if (!it.message.isNullOrBlank()) successMessage = it.message
+                        }
+                    },
+                    onFailure = { lastError = it.message }
+                )
+            }
+
+            // 2. Add new approval record if no approval ID exists: POST /api/hr/exit-request/{exitId}/approvals
+            if (!succeeded) {
+                val res = repo.request<ExitRequestSingleResponse> {
+                    post(
+                        "$EXIT_REQUEST_BASE/$exitRequestId/approvals",
+                        ExitApprovalDecisionRequest(
+                            stage = "Manager_Review",
+                            approverId = approverId?.takeIf { it.isNotBlank() },
+                            status = decisionStatus,
+                            comments = trimmedComments
+                        )
+                    )
+                }
+                res.fold(
+                    onSuccess = {
+                        if (it.success) {
+                            succeeded = true
+                            updatedDto = it.data
+                            if (!it.message.isNullOrBlank()) successMessage = it.message
+                        }
+                    },
+                    onFailure = { lastError = it.message }
+                )
+            }
+
+            // 3. Fallback to direct status update
+            if (!succeeded) {
+                val res = repo.request<ExitRequestSingleResponse> {
+                    patch(
+                        "$EXIT_REQUEST_BASE/status/$exitRequestId",
+                        ExitStatusUpdateRequest(
+                            status = decisionStatus,
+                            comments = trimmedComments
+                        )
+                    )
+                }
+                res.fold(
+                    onSuccess = {
+                        if (it.success) {
+                            succeeded = true
+                            updatedDto = it.data
+                            if (!it.message.isNullOrBlank()) successMessage = it.message
+                        }
+                    },
+                    onFailure = { lastError = it.message }
+                )
+            }
+
+            _isSubmittingExitDecision.value = false
+            if (succeeded) {
+                // Immediately sync detail and list states from the API response
+                updatedDto?.let { dto ->
+                    _exitRequestDetail.value = dto
+                    _exitRequests.value = _exitRequests.value.map { item ->
+                        if (item.id == exitRequestId) dto else item
+                    }
+                }
+                fetchExitRequestById(exitRequestId)
+                fetchExitRequests()
+                onSuccess(successMessage)
+            } else {
+                onError(lastError ?: "Failed to submit approval decision")
+            }
         }
     }
     sealed class UploadPictureState {

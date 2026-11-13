@@ -314,6 +314,8 @@ import com.cuso.tailor.view.home.finance.settings.AddTaxRateScreen
 import com.cuso.tailor.view.home.finance.settings.TaxRateItem
 import com.cuso.tailor.view.home.hr.dashboard.CreateFeedScreen
 import com.cuso.tailor.view.home.hr.dashboard.HrDashboardScreen
+import com.cuso.tailor.view.home.hr.exit_clearance.ExitClearanceDetailScreen
+import com.cuso.tailor.view.home.hr.exit_clearance.ExitClearanceListScreen
 import com.cuso.tailor.view.home.hr.settings.leave_type.CreateLeaveTypeScreen
 import com.cuso.tailor.view.home.hr.settings.leave_type.LeaveTypesListScreen
 import com.cuso.tailor.view.home.hr.settings.leave_type.LeaveTypeViewScreen
@@ -348,6 +350,11 @@ import com.cuso.tailor.view.home.hr.settings.leave_policy.CreateLeavePolicyScree
 import com.cuso.tailor.view.home.hr.settings.leave_policy.ViewLeavePolicyScreen
 import com.cuso.tailor.view.home.hr.settings.piece_rate_setup.AddEditPieceRateScreen
 import com.cuso.tailor.view.home.hr.settings.piece_rate_setup.PieceRateSetupListScreen
+import com.cuso.tailor.view.home.hr.exit_request.ExitManagementScreen
+import com.cuso.tailor.view.home.hr.exit_request.ExitRequestFormScreen
+import com.cuso.tailor.view.home.hr.exit_request.ManagerApprovalScreen
+import com.cuso.tailor.view.home.hr.settlement.ExitSettlementDetailScreen
+import com.cuso.tailor.view.home.hr.settlement.ExitSettlementListScreen
 
 private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 
@@ -503,7 +510,10 @@ data class HrStateHolder(
     val onLeavePolicyIdForViewSelected: (String?) -> Unit = {},
     // Piece rate navigation states
     val selectedPieceRateIdForEdit: String? = null,
-    val onPieceRateIdForEditSelected: (String?) -> Unit = {}
+    val onPieceRateIdForEditSelected: (String?) -> Unit = {},
+    // Exit Request navigation states
+    val selectedExitRequestId: String? = null,
+    val onExitRequestIdSelected: (String?) -> Unit = {}
 )
 
 data class LogisticsStateHolder(
@@ -921,15 +931,21 @@ fun HomeScreenRouter(
         "hr_view_leave_type",
         "hr_employee_document_upload","hr_leave_types",
         "hr_leave_policies", "hr_create_leave_policy", "hr_view_leave_policy",
+        "hr_piece_rate_setup", "hr_add_edit_piece_rate",
+        "hr_exit_management", "hr_exit_request_form", "hr_exit_manager_approval",
+        "hr_exit_clearance", "hr_exit_clearance_detail",
+        "hr_exit_settlements", "hr_exit_settlement_detail",
         "hr_new_document_upload", "hr_organization_structure",
         "hr_expense_claims","hr_expense_new_claim", "hr_expense_type", "hr_submit_expense_claim", "hr_expense_claim_detail","hr_expense_claim_detail_readonly",
         "hr_expense_finance_reimbursement","hr_edit_expense_claim","hr_add_expense_type","hr_expense_process_payment"   -> {
             HrRouter(
                 screen = screen,
                 settingsViewModel = viewModels.settingsViewModel,
-                // Forward leave policy state parameters
+                // Forward leave policy and exit management state parameters
                 selectedPieceRateIdForEdit = hrState.selectedPieceRateIdForEdit,
                 onPieceRateIdForEditSelected = hrState.onPieceRateIdForEditSelected,
+                selectedExitRequestId = hrState.selectedExitRequestId,
+                onExitRequestIdSelected = hrState.onExitRequestIdSelected,
                 selectedLeavePolicyIdForEdit = hrState.selectedLeavePolicyIdForEdit,
                 onLeavePolicyIdForEditSelected = hrState.onLeavePolicyIdForEditSelected,
                 selectedLeavePolicyIdForView = hrState.selectedLeavePolicyIdForView,
@@ -3983,6 +3999,8 @@ private fun HrRouter(
     settingsViewModel: SettingsViewModel,
     selectedPieceRateIdForEdit: String? = null,
     onPieceRateIdForEditSelected: (String?) -> Unit = {},
+    selectedExitRequestId: String? = null,
+    onExitRequestIdSelected: (String?) -> Unit = {},
     selectedLeavePolicyIdForEdit: String? = null,
     onLeavePolicyIdForEditSelected: (String?) -> Unit = {},
     selectedLeavePolicyIdForView: String? = null,
@@ -4633,6 +4651,113 @@ private fun HrRouter(
                     onGoBack()
                 }
             )
+        }
+
+        // ── 1. Exit Management List Screen ──
+        "hr_exit_management" -> {
+            ExitManagementScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onCreateNewRequest = {
+                    onNavigate("hr_exit_request_form")
+                },
+                onOpenApproval = { exitRequestId ->
+                    onExitRequestIdSelected(exitRequestId)
+                    onNavigate("hr_exit_manager_approval")
+                }
+            )
+        }
+
+        // ── 2. Exit Request Create Form Screen ──
+        "hr_exit_request_form" -> {
+            ExitRequestFormScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onSubmitSuccess = {
+                    hrViewModel.fetchExitRequests()
+                    onGoBack()
+                }
+            )
+        }
+
+        // ── 3. Manager Approval / Review Screen ──
+        "hr_exit_manager_approval" -> {
+            selectedExitRequestId?.takeIf { it.isNotBlank() }?.let { validId ->
+                ManagerApprovalScreen(
+                    exitRequestId = validId,
+                    viewModel = hrViewModel,
+                    onClose = {
+                        onExitRequestIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // ── 4. Exit Clearance List Screen (Reuses view-all API) ──
+        "hr_exit_clearance" -> {
+            ExitClearanceListScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onOpenClearanceDetail = { exitRequestId ->
+                    onExitRequestIdSelected(exitRequestId)
+                    onNavigate("hr_exit_clearance_detail")
+                },
+                onOpenManagerApproval = { exitRequestId ->
+                    onExitRequestIdSelected(exitRequestId)
+                    onNavigate("hr_exit_manager_approval")
+                }
+            )
+        }
+
+        // ── 5. Exit Clearance Detail / Checklist Screen (Reuses view-one API) ──
+        "hr_exit_clearance_detail" -> {
+            selectedExitRequestId?.takeIf { it.isNotBlank() }?.let { validId ->
+                ExitClearanceDetailScreen(
+                    exitRequestId = validId,
+                    viewModel = hrViewModel,
+                    onClose = {
+                        onExitRequestIdSelected(null)
+                        onGoBack()
+                    },
+                    onOpenManagerApproval = { exitRequestId ->
+                        onExitRequestIdSelected(exitRequestId)
+                        onNavigate("hr_exit_manager_approval")
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
+        }
+
+        // ── 6. Final Settlement List Screen (Reuses view-all API) ──
+        "hr_exit_settlements" -> {
+            ExitSettlementListScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onProcessSettlement = { exitRequestId ->
+                    onExitRequestIdSelected(exitRequestId)
+                    onNavigate("hr_exit_settlement_detail")
+                }
+            )
+        }
+
+        // ── 7. Final Settlement Detail / Save Screen ──
+        "hr_exit_settlement_detail" -> {
+            selectedExitRequestId?.takeIf { it.isNotBlank() }?.let { validId ->
+                ExitSettlementDetailScreen(
+                    exitRequestId = validId,
+                    viewModel = hrViewModel,
+                    onClose = {
+                        onExitRequestIdSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run {
+                onGoBack()
+            }
         }
     }
 }

@@ -130,7 +130,12 @@ import com.cuso.tailor.viewmodel.LegalViewModel
 import com.cuso.tailor.viewmodel.PermissionViewModel
 import com.cuso.tailor.viewmodel.SalesViewModel
 import com.cuso.tailor.viewmodel.ServicesViewModel
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import com.cuso.tailor.database.AppDatabase
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -139,6 +144,11 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
+import com.cuso.tailor.utils.CusoFirebaseMessagingService
+import com.cuso.tailor.view.home.topBarEvents.BusinessAgendaScreen
+import com.cuso.tailor.view.home.topBarEvents.NotificationsScreen
+import com.cuso.tailor.viewmodel.TopbarEventViewModel
+import com.google.firebase.messaging.FirebaseMessaging
 
 // EntryPoint to access Room AppDatabase
 @EntryPoint
@@ -177,6 +187,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     val profileViewModel: ProfileViewModel = hiltViewModel()
     val orderOverviewViewModel: OrderOverviewViewModel = hiltViewModel()
     val inventoryViewModel: InventoryViewModel = hiltViewModel()
+    val topbarEventViewModel: TopbarEventViewModel = hiltViewModel()
+    val unreadNotificationCount by topbarEventViewModel.unreadCount.collectAsStateWithLifecycle()
 
     val authTokens by authViewModel.tokens.collectAsStateWithLifecycle()
     val token: String = authTokens?.accessToken.orEmpty()
@@ -211,6 +223,13 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         } else {
             navigateTo(screen)
         }
+
+
+    }
+
+    FirebaseMessaging.getInstance().token.addOnSuccessListener { fcmToken ->
+        android.util.Log.d("FCM_TEST_TOKEN", fcmToken)
+        // topbarEventViewModel.syncFcmTokenToServer(fcmToken) // Keep commented until backend adds the API
     }
 
     fun resetToHome() {
@@ -324,8 +343,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     // Added policy selection states
     var selectedLeavePolicyIdForEdit by remember { mutableStateOf<String?>(null) }
     var selectedLeavePolicyIdForView by remember { mutableStateOf<String?>(null) }
-// State to track selected Piece Rate for Edit / History
+    // State to track selected Piece Rate for Edit / History
     var selectedPieceRateIdForEdit by remember { mutableStateOf<String?>(null) }
+    // State to track selected Exit Request ID for Manager Approval
+    var selectedExitRequestId by remember { mutableStateOf<String?>(null) }
 
     //Secutiry State
     var selectedBackupId by remember { mutableStateOf<String?>(null) }
@@ -478,6 +499,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "home",
             "settings",
             "profile-settings",
+            "notifications",
+            "business_agenda",
             "settings_overview",
             "module_settings",
             "organization_settings",
@@ -805,7 +828,14 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
             "hr_document_categories",
             "hr_add_document_category",
-            "hr_add_document_category",
+            // Exit Management, Clearance & Settlement routes
+            "hr_exit_management",
+            "hr_exit_request_form",
+            "hr_exit_manager_approval",
+            "hr_exit_clearance",
+            "hr_exit_clearance_detail",
+            "hr_exit_settlements",
+            "hr_exit_settlement_detail",
 
             // ── Logistics ──
             "logistics_dashboard",
@@ -1033,9 +1063,50 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         editOrderId?.let { orderOverviewViewModel.fetchSalesOverview(it) }
     }
 
-    LaunchedEffect(token) {
+    val userEntity by authViewModel.user.collectAsStateWithLifecycle()
+
+    // Request POST_NOTIFICATIONS runtime permission on Android 13+ (API 33+)
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ -> }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val isGranted = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!isGranted) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        // Open Notifications screen directly if user tapped a system tray notification
+        val openScreen = activity.intent?.getStringExtra(CusoFirebaseMessagingService.EXTRA_OPEN_SCREEN)
+        if (openScreen == "notifications") {
+            navigateTo("notifications")
+            activity.intent?.removeExtra(CusoFirebaseMessagingService.EXTRA_OPEN_SCREEN)
+        }
+    }
+
+    LaunchedEffect(token, userEntity) {
         if (token.isNotEmpty()) {
             profileViewModel.loadOrganization(token)
+            topbarEventViewModel.fetchNotifications()
+            topbarEventViewModel.fetchBusinessAgenda()
+
+            // Connect real-time Socket for instant Notification & Business Agenda updates
+            topbarEventViewModel.startRealtimeSync(
+                baseUrl = "http://192.168.88.12:5000",
+                accessToken = token,
+                memberId = userEntity?.memberId.orEmpty(),
+                organizationId = userEntity?.organizationId.orEmpty()
+            )
+
+            // Fetch Firebase device token and register it with backend for background/offline push notifications
+            FirebaseMessaging.getInstance().token.addOnSuccessListener { fcmToken ->
+                topbarEventViewModel.syncFcmTokenToServer(fcmToken)
+            }
         }
     }
 
@@ -1098,8 +1169,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             currentScreen == "home_opening_balance"
 
     val showSalesPanel = isSalesSettingsMode
+    // Only hide TopBar & BottomBar on the paywall screen so Notifications & Business Agenda behave like Profile Settings
     val isPaywallScreen = currentScreen == "module_upgrade_paywall"
-
     // ── 1. MODULARIZED BACK HANDLER ──
     HomeBackHandler(
         screenStackSize = screenStack.size,
@@ -1116,6 +1187,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 "hr_create_leave_policy" -> selectedLeavePolicyIdForEdit = null
                 "hr_view_leave_policy" -> selectedLeavePolicyIdForView = null
                 "hr_add_edit_piece_rate" -> selectedPieceRateIdForEdit = null
+                // Clear selected exit request ID when leaving approval, clearance, or settlement detail
+                "hr_exit_manager_approval",
+                "hr_exit_clearance_detail",
+                "hr_exit_settlement_detail" -> selectedExitRequestId = null
                 "security_support_ticket_detail" -> selectedSupportTicketId = null
                 "security_create_support_ticket" -> { /* No persisted ID to reset */ }
                 "security_help_article_detail" -> { /* Reset article state */ }
@@ -1269,14 +1344,18 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 containerColor = Primary_background,
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 topBar = {
-                    // Hide the top bar on the paywall screen
+                    // Keep TopBar visible on Notifications and Business Agenda screens
                     if (!isPaywallScreen) {
                         TopBar(
+                            hasNotification = unreadNotificationCount > 0,
+                            onCalendarClick = { navigateTo("business_agenda") },
+                            onNotificationClick = { navigateTo("notifications") },
                             onProfileClick = { navigateTo("profile-settings") }
                         )
                     }
                 },
                 bottomBar = {
+                    // Keep BottomBar visible on Notifications and Business Agenda screens
                     if (!isPaywallScreen) {
                         BottomBar(
                             navController = navController,
@@ -1416,263 +1495,401 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             },
                             label = "screen_transition"
                         ) { screen ->
-                            // ── 2. MODULARIZED SCREEN ROUTER ──
-                            HomeScreenRouter(
-                                screen = screen,
-                                viewModels = HomeScreenViewModels(
-                                    hrViewModel = hrViewModel,
-                                    servicesViewModel = servicesViewModel,
-                                    customerViewModel = customerViewModel,
-                                    settingsViewModel = settingsViewModel,
-                                    salesViewModel = salesViewModel,
-                                    branchViewModel = branchViewModel,
-                                    authViewModel = authViewModel,
-                                    inventoryViewModel = inventoryViewModel,
-                                    permissionViewModel = permissionViewModel
-                                ),
-                                navigation = HomeScreenNavigation(
-                                    navController = navController,
-                                    widthSizeClass = widthSizeClass,
-                                    token = token,
-                                    onNavigate = { navigateTo(it) },
-                                    onSafeNavigate = { safeNavigate(it) },
-                                    onGoBack = { goBack() },
-                                    onPopToScreen = { popBackTo(it) },
-                                    onOpenDrawer = { isDrawerOpen = true },
-                                    onOpenModulesPanel = {
-                                        modulesPanelInitialExpanded = it
-                                        showModulesPanel = true
-                                    },
-                                    onShowComingSoon = { DynamicIslandManager.showSuccess(it) },
-                                    onSalesSettingsModeChange = { isSalesSettingsMode = it }
-                                ),
-                                salesState = SalesStateHolder(
-                                    selectedCustomer = selectedCustomer,
-                                    onCustomerSelected = { selectedCustomer = it },
-                                    selectedOrderId = selectedOrderId,
-                                    onOrderIdSelected = { selectedOrderId = it },
-                                    editOrderId = editOrderId,
-                                    onEditOrderIdChange = { editOrderId = it },
-                                    selectedManagementOrderId = selectedManagementOrderId,
-                                    onManagementOrderIdSelected = { selectedManagementOrderId = it },
-                                    selectedOpportunityId = selectedOpportunityId,
-                                    onOpportunityIdSelected = { selectedOpportunityId = it },
-                                    selectedMeasurementItem = selectedMeasurementItem,
-                                    onMeasurementItemSelected = { selectedMeasurementItem = it },
-                                    editingPricingId = editingPricingId,
-                                    onEditingPricingIdChange = { editingPricingId = it },
-                                    quotationScreenMode = quotationScreenMode,
-                                    onQuotationScreenModeChange = { quotationScreenMode = it },
-                                    pendingOrderReviewData = pendingOrderReviewData,
-                                    onPendingOrderReviewDataChange = { pendingOrderReviewData = it },
-                                    onOrderFlowOriginChange = { orderFlowOrigin = it },
-                                    onOrderSavedSuccessfully = { savedOrderId ->
-                                        screenStack.removeAll {
-                                            it in setOf(
-                                                "sales_lead",
-                                                "create_lead",
-                                                "view_lead",
-                                                "edit_lead",
-                                                "create_order",
-                                                "create_order_review",
-                                                "sales_sales_orders"
-                                            )
-                                        }
-                                        if (savedOrderId != null) {
-                                            selectedOrderId = savedOrderId
-                                            navigateTo("order_overview")
-                                        } else {
-                                            navigateTo("sales_sales_orders")
-                                        }
-                                    }
-                                ),
-                                financeState = FinanceStateHolder(
-                                    selectedLedgerAccountId = selectedLedgerAccountId,
-                                    selectedLedgerAccountName = selectedLedgerAccountName,
-                                    onLedgerAccountSelected = { id, name ->
-                                        selectedLedgerAccountId = id
-                                        selectedLedgerAccountName = name
-                                    },
-                                    selectedSupplier = selectedSupplier,
-                                    onFinanceSupplierSelected = { selectedSupplier = it },
-                                    selectedSupplierId = selectedSupplierId,
-                                    onSupplierSelected = { selectedSupplierId = it },
-                                    selectedPaymentModeId = selectedPaymentModeId,
-                                    onPaymentModeSelected = { selectedPaymentModeId = it },
-                                    selectedInvoiceId = selectedInvoiceId,
-                                    onInvoiceSelected = { selectedInvoiceId = it },
-                                    selectedReceiptId = selectedReceiptId,
-                                    onReceiptSelected = { selectedReceiptId = it },
-                                    selectedPurchaseInvoice = selectedPurchaseInvoice,
-                                    onPurchaseInvoiceSelected = { selectedPurchaseInvoice = it },
-                                    selectedPurchaseReturnId = selectedPurchaseReturnId,
-                                    onPurchaseReturnIdSelected = { selectedPurchaseReturnId = it },
-                                    selectedBankAccountId = selectedBankAccountId,
-                                    onBankAccountIdSelected = { selectedBankAccountId = it },
-                                    selectedCashShiftId = selectedCashShiftId,
-                                    onCashShiftSelected = { selectedCashShiftId = it },
-                                    selectedStatementId = selectedStatementId,
-                                    onStatementIdSelected = { selectedStatementId = it },
-                                    selectedCreditNoteId = selectedCreditNoteId,
-                                    onCreditNoteSelected = { selectedCreditNoteId = it },
-                                    invoiceForPayment = invoiceForPayment,
-                                    onInvoiceForPaymentChange = { invoiceForPayment = it },
-                                    isOrderFromFinance = isOrderFromFinance,
-                                    onOrderFromFinanceChange = { isOrderFromFinance = it },
-                                    prefillOrderForInvoice = prefillOrderForInvoice,
-                                    onPrefillOrderForInvoiceChange = { prefillOrderForInvoice = it }
-                                ),
-                                inventoryState = InventoryStateHolder(
-                                    selectedInventoryItemId = selectedInventoryItemId,
-                                    onInventoryItemIdSelected = { selectedInventoryItemId = it },
-                                    selectedLowStockItem = selectedLowStockItem,
-                                    onLowStockItemSelected = { selectedLowStockItem = it },
-                                    selectedItemGroupId = selectedItemGroupId,
-                                    onItemGroupIdSelected = { selectedItemGroupId = it },
-                                    selectedBulkItemId = selectedBulkItemId,
-                                    onBulkItemIdSelected = { selectedBulkItemId = it },
-                                    selectedRequisitionIdForDetail = selectedRequisitionIdForDetail,
-                                    onRequisitionIdForDetailSelected = { selectedRequisitionIdForDetail = it },
-                                    selectedPurchaseOrderForDetail = selectedPurchaseOrderForDetail,
-                                    onPurchaseOrderForDetailSelected = { selectedPurchaseOrderForDetail = it },
-                                    selectedReceivePoId = selectedReceivePoId,
-                                    onReceivePoIdSelected = { selectedReceivePoId = it },
-                                    selectedBarcodeIdForDetail = selectedBarcodeIdForDetail,
-                                    onBarcodeIdForDetailSelected = { selectedBarcodeIdForDetail = it },
-                                    selectedCategoryIdForEdit = selectedCategoryIdForEdit,
-                                    onCategoryIdForEditSelected = { selectedCategoryIdForEdit = it },
-                                    selectedPicklistId = selectedPicklistId,
-                                    onPicklistIdSelected = { selectedPicklistId = it },
-                                    selectedPackageIdForDetail = selectedPackageIdForDetail,
-                                    onPackageIdForDetailSelected = { selectedPackageIdForDetail = it },
-                                    selectedPackageIdForEdit = selectedPackageIdForEdit,
-                                    onPackageIdForEditSelected = { selectedPackageIdForEdit = it },
-                                    selectedPriceListId = selectedPriceListId,
-                                    onPriceListIdSelected = { selectedPriceListId = it },
-                                    selectedApprovalId = selectedApprovalId,
-                                    onApprovalIdSelected = { selectedApprovalId = it }
-                                ),
-                                hrState = HrStateHolder(
-                                    employeeScreenMode = employeeScreenMode,
-                                    onEmployeeScreenModeChange = { employeeScreenMode = it },
-                                    selectedEmployeeId = selectedEmployeeId,
-                                    selectedLeavePolicyIdForEdit = selectedLeavePolicyIdForEdit,
-                                    onLeavePolicyIdForEditSelected = { selectedLeavePolicyIdForEdit = it },
-                                    selectedLeavePolicyIdForView = selectedLeavePolicyIdForView,
-                                    onLeavePolicyIdForViewSelected = { selectedLeavePolicyIdForView = it },
-                                    // Forward Piece Rate selection handlers
-                                    selectedPieceRateIdForEdit = selectedPieceRateIdForEdit,
-                                    onPieceRateIdForEditSelected = { selectedPieceRateIdForEdit = it },
-                                    onEmployeeIdSelected = { selectedEmployeeId = it },
-                                    selectedAttendanceId = selectedAttendanceId,
-                                    onAttendanceIdSelected = { selectedAttendanceId = it },
-                                    selectedShiftId = selectedShiftId,
-                                    onShiftIdSelected = { selectedShiftId = it },
-                                    selectedDocumentId = selectedDocumentId,
-                                    onDocumentIdSelected = { selectedDocumentId = it },
-                                    selectedDocumentCategoryId = selectedDocumentCategoryId,
-                                    onDocumentCategoryIdSelected = { selectedDocumentCategoryId = it },
-                                    selectedSalaryComponentId = selectedSalaryComponentId,
-                                    onSalaryComponentIdSelected = { selectedSalaryComponentId = it },
-                                    selectedSalaryTemplateId = selectedSalaryTemplateId,
-                                    onSalaryTemplateIdSelected = { selectedSalaryTemplateId = it },
-                                    selectedTrainingProgramId = selectedTrainingProgramId,
-                                    onTrainingProgramIdSelected = { selectedTrainingProgramId = it },
-                                    selectedTrainingAssignmentId = selectedTrainingAssignmentId,
-                                    onTrainingAssignmentIdSelected = { selectedTrainingAssignmentId = it },
-                                    selectedExpenseClaimId = selectedExpenseClaimId,
-                                    onExpenseClaimIdSelected = { selectedExpenseClaimId = it },
-                                    selectedExpenseTypeId = selectedExpenseTypeId,
-                                    onExpenseTypeIdSelected = { selectedExpenseTypeId = it },
-                                    selectedClaimForPayment = selectedClaimForPayment,
-                                    onClaimForPaymentSelected = { selectedClaimForPayment = it },
-                                    selectedLeaveTypeIdForEdit = selectedLeaveTypeIdForEdit,
-                                    onLeaveTypeIdForEditSelected = { selectedLeaveTypeIdForEdit = it },
-                                    selectedLeaveTypeIdForView = selectedLeaveTypeIdForView,
-                                    onLeaveTypeIdForViewSelected = { selectedLeaveTypeIdForView = it }
-                                ),
-                                logisticsState = LogisticsStateHolder(
-                                    selectedShipmentId = selectedShipmentId,
-                                    onShipmentIdSelected = { selectedShipmentId = it },
-                                    selectedReturnId = selectedReturnId,
-                                    onReturnIdSelected = { selectedReturnId = it },
-                                    selectedLogisticsPackageId = selectedLogisticsPackageId,
-                                    onLogisticsPackageIdSelected = { selectedLogisticsPackageId = it }
-                                ),
-                                securityState = SecurityStateHolder(
-                                    selectedBackupId = selectedBackupId,
-                                    onBackupIdSelected = { selectedBackupId = it },
-                                    selectedRecoveryId = selectedRecoveryId,
-                                    onRecoveryIdSelected = { selectedRecoveryId = it },
-                                    selectedIntegrationId = selectedIntegrationId,
-                                    onIntegrationIdSelected = { selectedIntegrationId = it },
-                                    selectedApiLogId = selectedApiLogId,
-                                    onApiLogIdSelected = { selectedApiLogId = it },
-                                    selectedAuditLogId = selectedAuditLogId,
-                                    onAuditLogIdSelected = { selectedAuditLogId = it },
-                                    selectedRoleIdForEdit = selectedRoleIdForEdit,
-                                    onRoleIdForEditSelected = { selectedRoleIdForEdit = it },
-                                    selectedApprovalRuleIdForEdit = selectedApprovalRuleIdForEdit,
-                                    onApprovalRuleIdForEditSelected = { selectedApprovalRuleIdForEdit = it },
-                                    selectedSupportTicketId = selectedSupportTicketId,
-                                    onSupportTicketIdSelected = { selectedSupportTicketId = it }
-                                ),
-                                servicesState = ServicesStateHolder(
-                                    selectedFeedbackId = selectedFeedbackId,
-                                    onFeedbackIdSelected = { selectedFeedbackId = it },
-                                    selectedComplaintId = selectedComplaintId,
-                                    onComplaintIdSelected = { selectedComplaintId = it },
-                                    selectedServiceTemplate = selectedServiceTemplate,
-                                    onServiceTemplateSelected = { selectedServiceTemplate = it },
-                                    selectedProductionStage = selectedProductionStage,
-                                    onProductionStageSelected = { selectedProductionStage = it },
-                                    selectedServiceRequestId = selectedServiceRequestId,
-                                    onServiceRequestIdSelected = { selectedServiceRequestId = it },
-                                    selectedAlterationId = selectedAlterationId,
-                                    onAlterationIdSelected = { selectedAlterationId = it },
-                                    selectedAssignmentJobCardId = selectedAssignmentJobCardId,
-                                    onAssignmentJobCardIdSelected = { selectedAssignmentJobCardId = it }
-                                ),
-                                itState = ItStateHolder(
-                                    selectedItDeviceId = selectedItDeviceId,
-                                    onItDeviceIdSelected = { selectedItDeviceId = it },
-                                    selectedPosTerminalId = selectedPosTerminalId,
-                                    onPosTerminalIdSelected = { selectedPosTerminalId = it },
-                                    selectedBackupSnapshotId = selectedBackupSnapshotId,
-                                    onBackupSnapshotIdSelected = { selectedBackupSnapshotId = it },
-                                    selectedAssetId = selectedAssetId,
-                                    onAssetIdSelected = { selectedAssetId = it },
-                                    selectedTicketId = selectedTicketId,
-                                    onTicketIdSelected = { selectedTicketId = it }
-                                ),
-                                legalState = LegalStateHolder(
-                                    selectedLegalContractId = selectedLegalContractId,
-                                    onLegalContractIdSelected = { selectedLegalContractId = it },
-                                    selectedLegalComplianceId = selectedLegalComplianceId,
-                                    onLegalComplianceIdSelected = { selectedLegalComplianceId = it },
-                                    selectedLegalDocumentId = selectedLegalDocumentId,
-                                    onLegalDocumentIdSelected = { selectedLegalDocumentId = it },
-                                    selectedLegalLicenseId = selectedLegalLicenseId,
-                                    onLegalLicenseIdSelected = { selectedLegalLicenseId = it },
-                                    selectedLegalCustomerId = selectedLegalCustomerId,
-                                    onLegalCustomerIdSelected = { selectedLegalCustomerId = it },
-                                    selectedLegalEmployeeId = selectedLegalEmployeeId,
-                                    onLegalEmployeeIdSelected = { selectedLegalEmployeeId = it },
-                                    selectedLegalVendorId = selectedLegalVendorId,
-                                    onLegalVendorIdSelected = { selectedLegalVendorId = it },
-                                    selectedLegalNoticeId = selectedLegalNoticeId,
-                                    onLegalNoticeIdSelected = { selectedLegalNoticeId = it }
-                                ),
-                                marketingState = MarketingStateHolder(
-                                    selectedCampaignCode = selectedCampaignCode,
-                                    onCampaignCodeSelected = { selectedCampaignCode = it }
-                                ),
-                                commonState = CommonStateHolder(
-                                    selectedRecentCustomerId = selectedRecentCustomerId,
-                                    onRecentCustomerIdSelected = { selectedRecentCustomerId = it },
-                                    paywallModuleConfig = paywallModuleConfig
-                                )
-                            )
+                            when (screen) {
+                                "notifications" -> {
+                                    NotificationsScreen(
+                                        viewModel = topbarEventViewModel,
+                                        onNotificationNavigate = { notification ->
+                                            // Route user to the corresponding module screen based on entityType
+                                            when (notification.entityType?.lowercase()) {
+                                                "bin" -> safeNavigate("inventory_bin_overview")
+                                                "order", "salesorder" -> safeNavigate("sales_sales_orders")
+                                                "invoice" -> safeNavigate("finance_sales_invoices")
+                                                "purchasebill", "bill" -> safeNavigate("finance_bills_list")
+                                                "leaverequest" -> safeNavigate("hr_leave_approval")
+                                                else -> goBack()
+                                            }
+                                        },
+                                        onBack = { goBack() }
+                                    )
+                                }
+
+                                "business_agenda" -> {
+                                    BusinessAgendaScreen(
+                                        viewModel = topbarEventViewModel,
+                                        onAgendaItemClick = { item ->
+                                            // Route user based on backend path from getBusinessAgendaService
+                                            when {
+                                                item.path.contains("all-employees") -> safeNavigate("hr_all_employees")
+                                                item.path.contains("leave-approval") -> safeNavigate("hr_leave_approval")
+                                                item.path.contains("purchase-bills") -> safeNavigate("finance_bills_list")
+                                            }
+                                        },
+                                        onBack = { goBack() }
+                                    )
+                                }
+
+                                else -> {
+                                    // ── 2. MODULARIZED SCREEN ROUTER ──
+                                    HomeScreenRouter(
+                                        screen = screen,
+                                        viewModels = HomeScreenViewModels(
+                                            hrViewModel = hrViewModel,
+                                            servicesViewModel = servicesViewModel,
+                                            customerViewModel = customerViewModel,
+                                            settingsViewModel = settingsViewModel,
+                                            salesViewModel = salesViewModel,
+                                            branchViewModel = branchViewModel,
+                                            authViewModel = authViewModel,
+                                            inventoryViewModel = inventoryViewModel,
+                                            permissionViewModel = permissionViewModel
+                                        ),
+                                        navigation = HomeScreenNavigation(
+                                            navController = navController,
+                                            widthSizeClass = widthSizeClass,
+                                            token = token,
+                                            onNavigate = { navigateTo(it) },
+                                            onSafeNavigate = { safeNavigate(it) },
+                                            onGoBack = { goBack() },
+                                            onPopToScreen = { popBackTo(it) },
+                                            onOpenDrawer = { isDrawerOpen = true },
+                                            onOpenModulesPanel = {
+                                                modulesPanelInitialExpanded = it
+                                                showModulesPanel = true
+                                            },
+                                            onShowComingSoon = { DynamicIslandManager.showSuccess(it) },
+                                            onSalesSettingsModeChange = { isSalesSettingsMode = it }
+                                        ),
+                                        salesState = SalesStateHolder(
+                                            selectedCustomer = selectedCustomer,
+                                            onCustomerSelected = { selectedCustomer = it },
+                                            selectedOrderId = selectedOrderId,
+                                            onOrderIdSelected = { selectedOrderId = it },
+                                            editOrderId = editOrderId,
+                                            onEditOrderIdChange = { editOrderId = it },
+                                            selectedManagementOrderId = selectedManagementOrderId,
+                                            onManagementOrderIdSelected = {
+                                                selectedManagementOrderId = it
+                                            },
+                                            selectedOpportunityId = selectedOpportunityId,
+                                            onOpportunityIdSelected = {
+                                                selectedOpportunityId = it
+                                            },
+                                            selectedMeasurementItem = selectedMeasurementItem,
+                                            onMeasurementItemSelected = {
+                                                selectedMeasurementItem = it
+                                            },
+                                            editingPricingId = editingPricingId,
+                                            onEditingPricingIdChange = { editingPricingId = it },
+                                            quotationScreenMode = quotationScreenMode,
+                                            onQuotationScreenModeChange = {
+                                                quotationScreenMode = it
+                                            },
+                                            pendingOrderReviewData = pendingOrderReviewData,
+                                            onPendingOrderReviewDataChange = {
+                                                pendingOrderReviewData = it
+                                            },
+                                            onOrderFlowOriginChange = { orderFlowOrigin = it },
+                                            onOrderSavedSuccessfully = { savedOrderId ->
+                                                screenStack.removeAll {
+                                                    it in setOf(
+                                                        "sales_lead",
+                                                        "create_lead",
+                                                        "view_lead",
+                                                        "edit_lead",
+                                                        "create_order",
+                                                        "create_order_review",
+                                                        "sales_sales_orders"
+                                                    )
+                                                }
+                                                if (savedOrderId != null) {
+                                                    selectedOrderId = savedOrderId
+                                                    navigateTo("order_overview")
+                                                } else {
+                                                    navigateTo("sales_sales_orders")
+                                                }
+                                            }
+                                        ),
+                                        financeState = FinanceStateHolder(
+                                            selectedLedgerAccountId = selectedLedgerAccountId,
+                                            selectedLedgerAccountName = selectedLedgerAccountName,
+                                            onLedgerAccountSelected = { id, name ->
+                                                selectedLedgerAccountId = id
+                                                selectedLedgerAccountName = name
+                                            },
+                                            selectedSupplier = selectedSupplier,
+                                            onFinanceSupplierSelected = { selectedSupplier = it },
+                                            selectedSupplierId = selectedSupplierId,
+                                            onSupplierSelected = { selectedSupplierId = it },
+                                            selectedPaymentModeId = selectedPaymentModeId,
+                                            onPaymentModeSelected = { selectedPaymentModeId = it },
+                                            selectedInvoiceId = selectedInvoiceId,
+                                            onInvoiceSelected = { selectedInvoiceId = it },
+                                            selectedReceiptId = selectedReceiptId,
+                                            onReceiptSelected = { selectedReceiptId = it },
+                                            selectedPurchaseInvoice = selectedPurchaseInvoice,
+                                            onPurchaseInvoiceSelected = {
+                                                selectedPurchaseInvoice = it
+                                            },
+                                            selectedPurchaseReturnId = selectedPurchaseReturnId,
+                                            onPurchaseReturnIdSelected = {
+                                                selectedPurchaseReturnId = it
+                                            },
+                                            selectedBankAccountId = selectedBankAccountId,
+                                            onBankAccountIdSelected = {
+                                                selectedBankAccountId = it
+                                            },
+                                            selectedCashShiftId = selectedCashShiftId,
+                                            onCashShiftSelected = { selectedCashShiftId = it },
+                                            selectedStatementId = selectedStatementId,
+                                            onStatementIdSelected = { selectedStatementId = it },
+                                            selectedCreditNoteId = selectedCreditNoteId,
+                                            onCreditNoteSelected = { selectedCreditNoteId = it },
+                                            invoiceForPayment = invoiceForPayment,
+                                            onInvoiceForPaymentChange = { invoiceForPayment = it },
+                                            isOrderFromFinance = isOrderFromFinance,
+                                            onOrderFromFinanceChange = { isOrderFromFinance = it },
+                                            prefillOrderForInvoice = prefillOrderForInvoice,
+                                            onPrefillOrderForInvoiceChange = {
+                                                prefillOrderForInvoice = it
+                                            }
+                                        ),
+                                        inventoryState = InventoryStateHolder(
+                                            selectedInventoryItemId = selectedInventoryItemId,
+                                            onInventoryItemIdSelected = {
+                                                selectedInventoryItemId = it
+                                            },
+                                            selectedLowStockItem = selectedLowStockItem,
+                                            onLowStockItemSelected = { selectedLowStockItem = it },
+                                            selectedItemGroupId = selectedItemGroupId,
+                                            onItemGroupIdSelected = { selectedItemGroupId = it },
+                                            selectedBulkItemId = selectedBulkItemId,
+                                            onBulkItemIdSelected = { selectedBulkItemId = it },
+                                            selectedRequisitionIdForDetail = selectedRequisitionIdForDetail,
+                                            onRequisitionIdForDetailSelected = {
+                                                selectedRequisitionIdForDetail = it
+                                            },
+                                            selectedPurchaseOrderForDetail = selectedPurchaseOrderForDetail,
+                                            onPurchaseOrderForDetailSelected = {
+                                                selectedPurchaseOrderForDetail = it
+                                            },
+                                            selectedReceivePoId = selectedReceivePoId,
+                                            onReceivePoIdSelected = { selectedReceivePoId = it },
+                                            selectedBarcodeIdForDetail = selectedBarcodeIdForDetail,
+                                            onBarcodeIdForDetailSelected = {
+                                                selectedBarcodeIdForDetail = it
+                                            },
+                                            selectedCategoryIdForEdit = selectedCategoryIdForEdit,
+                                            onCategoryIdForEditSelected = {
+                                                selectedCategoryIdForEdit = it
+                                            },
+                                            selectedPicklistId = selectedPicklistId,
+                                            onPicklistIdSelected = { selectedPicklistId = it },
+                                            selectedPackageIdForDetail = selectedPackageIdForDetail,
+                                            onPackageIdForDetailSelected = {
+                                                selectedPackageIdForDetail = it
+                                            },
+                                            selectedPackageIdForEdit = selectedPackageIdForEdit,
+                                            onPackageIdForEditSelected = {
+                                                selectedPackageIdForEdit = it
+                                            },
+                                            selectedPriceListId = selectedPriceListId,
+                                            onPriceListIdSelected = { selectedPriceListId = it },
+                                            selectedApprovalId = selectedApprovalId,
+                                            onApprovalIdSelected = { selectedApprovalId = it }
+                                        ),
+                                        hrState = HrStateHolder(
+                                            employeeScreenMode = employeeScreenMode,
+                                            onEmployeeScreenModeChange = {
+                                                employeeScreenMode = it
+                                            },
+                                            selectedEmployeeId = selectedEmployeeId,
+                                            selectedLeavePolicyIdForEdit = selectedLeavePolicyIdForEdit,
+                                            onLeavePolicyIdForEditSelected = {
+                                                selectedLeavePolicyIdForEdit = it
+                                            },
+                                            selectedLeavePolicyIdForView = selectedLeavePolicyIdForView,
+                                            onLeavePolicyIdForViewSelected = {
+                                                selectedLeavePolicyIdForView = it
+                                            },
+                                            selectedPieceRateIdForEdit = selectedPieceRateIdForEdit,
+                                            onPieceRateIdForEditSelected = {
+                                                selectedPieceRateIdForEdit = it
+                                            },
+                                            selectedExitRequestId = selectedExitRequestId,
+                                            onExitRequestIdSelected = {
+                                                selectedExitRequestId = it
+                                            },
+                                            onEmployeeIdSelected = { selectedEmployeeId = it },
+                                            selectedAttendanceId = selectedAttendanceId,
+                                            onAttendanceIdSelected = { selectedAttendanceId = it },
+                                            selectedShiftId = selectedShiftId,
+                                            onShiftIdSelected = { selectedShiftId = it },
+                                            selectedDocumentId = selectedDocumentId,
+                                            onDocumentIdSelected = { selectedDocumentId = it },
+                                            selectedDocumentCategoryId = selectedDocumentCategoryId,
+                                            onDocumentCategoryIdSelected = {
+                                                selectedDocumentCategoryId = it
+                                            },
+                                            selectedSalaryComponentId = selectedSalaryComponentId,
+                                            onSalaryComponentIdSelected = {
+                                                selectedSalaryComponentId = it
+                                            },
+                                            selectedSalaryTemplateId = selectedSalaryTemplateId,
+                                            onSalaryTemplateIdSelected = {
+                                                selectedSalaryTemplateId = it
+                                            },
+                                            selectedTrainingProgramId = selectedTrainingProgramId,
+                                            onTrainingProgramIdSelected = {
+                                                selectedTrainingProgramId = it
+                                            },
+                                            selectedTrainingAssignmentId = selectedTrainingAssignmentId,
+                                            onTrainingAssignmentIdSelected = {
+                                                selectedTrainingAssignmentId = it
+                                            },
+                                            selectedExpenseClaimId = selectedExpenseClaimId,
+                                            onExpenseClaimIdSelected = {
+                                                selectedExpenseClaimId = it
+                                            },
+                                            selectedExpenseTypeId = selectedExpenseTypeId,
+                                            onExpenseTypeIdSelected = {
+                                                selectedExpenseTypeId = it
+                                            },
+                                            selectedClaimForPayment = selectedClaimForPayment,
+                                            onClaimForPaymentSelected = {
+                                                selectedClaimForPayment = it
+                                            },
+                                            selectedLeaveTypeIdForEdit = selectedLeaveTypeIdForEdit,
+                                            onLeaveTypeIdForEditSelected = {
+                                                selectedLeaveTypeIdForEdit = it
+                                            },
+                                            selectedLeaveTypeIdForView = selectedLeaveTypeIdForView,
+                                            onLeaveTypeIdForViewSelected = {
+                                                selectedLeaveTypeIdForView = it
+                                            }
+                                        ),
+                                        logisticsState = LogisticsStateHolder(
+                                            selectedShipmentId = selectedShipmentId,
+                                            onShipmentIdSelected = { selectedShipmentId = it },
+                                            selectedReturnId = selectedReturnId,
+                                            onReturnIdSelected = { selectedReturnId = it },
+                                            selectedLogisticsPackageId = selectedLogisticsPackageId,
+                                            onLogisticsPackageIdSelected = {
+                                                selectedLogisticsPackageId = it
+                                            }
+                                        ),
+                                        securityState = SecurityStateHolder(
+                                            selectedBackupId = selectedBackupId,
+                                            onBackupIdSelected = { selectedBackupId = it },
+                                            selectedRecoveryId = selectedRecoveryId,
+                                            onRecoveryIdSelected = { selectedRecoveryId = it },
+                                            selectedIntegrationId = selectedIntegrationId,
+                                            onIntegrationIdSelected = {
+                                                selectedIntegrationId = it
+                                            },
+                                            selectedApiLogId = selectedApiLogId,
+                                            onApiLogIdSelected = { selectedApiLogId = it },
+                                            selectedAuditLogId = selectedAuditLogId,
+                                            onAuditLogIdSelected = { selectedAuditLogId = it },
+                                            selectedRoleIdForEdit = selectedRoleIdForEdit,
+                                            onRoleIdForEditSelected = {
+                                                selectedRoleIdForEdit = it
+                                            },
+                                            selectedApprovalRuleIdForEdit = selectedApprovalRuleIdForEdit,
+                                            onApprovalRuleIdForEditSelected = {
+                                                selectedApprovalRuleIdForEdit = it
+                                            },
+                                            selectedSupportTicketId = selectedSupportTicketId,
+                                            onSupportTicketIdSelected = {
+                                                selectedSupportTicketId = it
+                                            }
+                                        ),
+                                        servicesState = ServicesStateHolder(
+                                            selectedFeedbackId = selectedFeedbackId,
+                                            onFeedbackIdSelected = { selectedFeedbackId = it },
+                                            selectedComplaintId = selectedComplaintId,
+                                            onComplaintIdSelected = { selectedComplaintId = it },
+                                            selectedServiceTemplate = selectedServiceTemplate,
+                                            onServiceTemplateSelected = {
+                                                selectedServiceTemplate = it
+                                            },
+                                            selectedProductionStage = selectedProductionStage,
+                                            onProductionStageSelected = {
+                                                selectedProductionStage = it
+                                            },
+                                            selectedServiceRequestId = selectedServiceRequestId,
+                                            onServiceRequestIdSelected = {
+                                                selectedServiceRequestId = it
+                                            },
+                                            selectedAlterationId = selectedAlterationId,
+                                            onAlterationIdSelected = { selectedAlterationId = it },
+                                            selectedAssignmentJobCardId = selectedAssignmentJobCardId,
+                                            onAssignmentJobCardIdSelected = {
+                                                selectedAssignmentJobCardId = it
+                                            }
+                                        ),
+                                        itState = ItStateHolder(
+                                            selectedItDeviceId = selectedItDeviceId,
+                                            onItDeviceIdSelected = { selectedItDeviceId = it },
+                                            selectedPosTerminalId = selectedPosTerminalId,
+                                            onPosTerminalIdSelected = {
+                                                selectedPosTerminalId = it
+                                            },
+                                            selectedBackupSnapshotId = selectedBackupSnapshotId,
+                                            onBackupSnapshotIdSelected = {
+                                                selectedBackupSnapshotId = it
+                                            },
+                                            selectedAssetId = selectedAssetId,
+                                            onAssetIdSelected = { selectedAssetId = it },
+                                            selectedTicketId = selectedTicketId,
+                                            onTicketIdSelected = { selectedTicketId = it }
+                                        ),
+                                        legalState = LegalStateHolder(
+                                            selectedLegalContractId = selectedLegalContractId,
+                                            onLegalContractIdSelected = {
+                                                selectedLegalContractId = it
+                                            },
+                                            selectedLegalComplianceId = selectedLegalComplianceId,
+                                            onLegalComplianceIdSelected = {
+                                                selectedLegalComplianceId = it
+                                            },
+                                            selectedLegalDocumentId = selectedLegalDocumentId,
+                                            onLegalDocumentIdSelected = {
+                                                selectedLegalDocumentId = it
+                                            },
+                                            selectedLegalLicenseId = selectedLegalLicenseId,
+                                            onLegalLicenseIdSelected = {
+                                                selectedLegalLicenseId = it
+                                            },
+                                            selectedLegalCustomerId = selectedLegalCustomerId,
+                                            onLegalCustomerIdSelected = {
+                                                selectedLegalCustomerId = it
+                                            },
+                                            selectedLegalEmployeeId = selectedLegalEmployeeId,
+                                            onLegalEmployeeIdSelected = {
+                                                selectedLegalEmployeeId = it
+                                            },
+                                            selectedLegalVendorId = selectedLegalVendorId,
+                                            onLegalVendorIdSelected = {
+                                                selectedLegalVendorId = it
+                                            },
+                                            selectedLegalNoticeId = selectedLegalNoticeId,
+                                            onLegalNoticeIdSelected = { selectedLegalNoticeId = it }
+                                        ),
+                                        marketingState = MarketingStateHolder(
+                                            selectedCampaignCode = selectedCampaignCode,
+                                            onCampaignCodeSelected = { selectedCampaignCode = it }
+                                        ),
+                                        commonState = CommonStateHolder(
+                                            selectedRecentCustomerId = selectedRecentCustomerId,
+                                            onRecentCustomerIdSelected = {
+                                                selectedRecentCustomerId = it
+                                            },
+                                            paywallModuleConfig = paywallModuleConfig
+                                        )
+                                    )
+                                }
+                            } // Closes when (screen)
                         }
                     }
                 }
@@ -1789,8 +2006,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 @Composable
 fun TopBar(
     isPanelMode: Boolean = false,
-    hasNotification: Boolean = true,
+    hasNotification: Boolean = false,
     onSearchClick: () -> Unit = {},
+    onCalendarClick: () -> Unit = {}, // Callback for Business Agenda page
     onNotificationClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
@@ -1885,7 +2103,7 @@ fun TopBar(
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
-                    tint = Color(0xFF4B5563),
+                    tint = mutedText, // Uses Color.kt theme token
                     modifier = Modifier
                         .size(tokens.iconSize * 1.3f)
                         .clickable(
@@ -1896,11 +2114,26 @@ fun TopBar(
 
                 Spacer(modifier = Modifier.width(tokens.screenPadding * 0.9f))
 
+                // Calendar icon to open Business Agenda page
+                Icon(
+                    imageVector = Icons.Default.CalendarMonth,
+                    contentDescription = "Business Agenda",
+                    tint = mutedText, // Uses Color.kt theme token
+                    modifier = Modifier
+                        .size(tokens.iconSize * 1.3f)
+                        .clickable(
+                            indication = null,
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) { onCalendarClick() }
+                )
+
+                Spacer(modifier = Modifier.width(tokens.screenPadding * 0.9f))
+
                 Box {
                     Icon(
-                        imageVector = Icons.Default.Notifications,
+                        painter = painterResource(R.drawable.ic_notification),
                         contentDescription = "Notifications",
-                        tint = Color(0xFF4B5563),
+                        tint = mutedText, // Uses Color.kt theme token
                         modifier = Modifier
                             .size(tokens.iconSize * 1.3f)
                             .clickable(
@@ -1916,7 +2149,7 @@ fun TopBar(
                                 .offset(x = 2.dp, y = (-1).dp)
                                 .clip(CircleShape)
                                 .background(redText)
-                                .border(1.5.dp, Color(0xFFF5F5FA), CircleShape)
+                                .border(1.5.dp, whiteBg, CircleShape) // Uses Color.kt theme token
                         )
                     }
                 }
@@ -2636,7 +2869,15 @@ fun normalizeRoute(rawKey: String): String {
 }
 
 fun menuForScreen(screen: String): String = when {
-    screen == "home" || screen == "settings" || screen == "profile-settings" || screen == "settings_overview" || screen == "module_settings" || screen.startsWith("home_") -> "Home"
+    // Keep Home module highlighted for top-bar pages
+    screen == "home" ||
+            screen == "settings" ||
+            screen == "profile-settings" ||
+            screen == "notifications" ||
+            screen == "business_agenda" ||
+            screen == "settings_overview" ||
+            screen == "module_settings" ||
+            screen.startsWith("home_") -> "Home"
     screen.startsWith("sales_") || screen in setOf(
         "create_lead", "view_lead", "edit_lead",
         "create_order", "order_overview", "create_order_review",

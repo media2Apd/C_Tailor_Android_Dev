@@ -45,7 +45,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.20:5000/\""
+                "\"http://192.168.88.12:5000/\""
             )
         }
 
@@ -180,9 +180,9 @@ dependencies {
     implementation(libs.colorpicker.compose)
 
     // iText7 for PDF generation
-    implementation(libs.itext.kernel)
-    implementation(libs.itext.io)
-    implementation(libs.itext.layout)
+//    implementation(libs.itext.kernel)
+//    implementation(libs.itext.io)
+//    implementation(libs.itext.layout)
 
 
     // For printing
@@ -209,5 +209,13 @@ dependencies {
 
     // Meta App Events SDK
     implementation(libs.facebook.core)
+
+    //SOCKET
+    implementation("io.socket:socket.io-client:2.1.0") {
+        exclude(group = "org.json", module = "json") // Android already includes org.json
+    }
+
+    //FCM
+    implementation(libs.firebase.messaging)
 
 }

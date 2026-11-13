@@ -230,7 +230,8 @@ class MainActivity : ComponentActivity() {
                                             DynamicIslandError(
                                                 message = globalErrorMessage,
                                                 onDismiss = { globalErrorMessage = null }
-                                            )
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -241,8 +242,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-}
-
 }
 
 @Composable

@@ -271,7 +271,10 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
             "Assigning Management",
             "Training Assignment"        -> "hr_training_assignment_list"
             "Document Management"        -> "hr_document_management"
+            // Map Exit Management sidebar items to their routes
+            "All Requests"               -> "hr_exit_management"
             "Clearance"                  -> "hr_exit_clearance"
+            "Settlements"                -> "hr_exit_settlements"
             "Document Categories"        -> "hr_document_categories"
             "Employee Document Upload"   -> "hr_employee_document_upload"
             else -> "hr_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
@@ -618,9 +621,11 @@ object SidebarConfig {
                         "Document Categories",
                         "Employee Document Upload"
                     ),
+                    // Match Exit Management sub-items with the navigation menu
                     "Exit Management" to listOf(
-                        "Approvals",
-                        "Clearance"
+                        "All Requests",
+                        "Clearance",
+                        "Settlements"
                     )
                 )
             ),

@@ -71,7 +71,6 @@ fun ModuleSettingsScreen(
     onConfigureMarketing: () -> Unit = {},
     onConfigureFinance: () -> Unit = { onNavigateToModule("finance_chart_of_accounts") },
     onConfigureInventory: () -> Unit = { onNavigateToModule("inventory_location_structure") },
-    // Inventory Sub-items Navigation
     onNavigateWarehouse: () -> Unit = { onNavigateToModule("inventory_location_structure") },
     onNavigateFloorOverview: () -> Unit = { onNavigateToModule("inventory_floor_overview") },
     onNavigateSectionOverview: () -> Unit = { onNavigateToModule("inventory_section_overview") },
@@ -135,6 +134,7 @@ fun ModuleSettingsScreen(
         onConfigureLogistics,
         onConfigureServices,
         onConfigureHR,
+        onNavigatePieceRateSetup,
         onConfigureIT,
         onConfigureLegal,
         onConfigureSecurity,
@@ -296,7 +296,8 @@ fun ModuleSettingsScreen(
                     ModuleSubItem(
                         title = "Piece Rate Setup",
                         onClick = {
-                            checkAndNavigate("hr", "pieceRateSetup", onNavigatePieceRateSetup)
+                            // Match the exact permission key ("pieceRate") returned by /api/permissions/me
+                            checkAndNavigate("hr", "pieceRate", onNavigatePieceRateSetup)
                         }
                     )
                 ),

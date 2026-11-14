@@ -13,10 +13,14 @@ import com.cuso.tailor.model.permission.ModulePermissionsResponse
 import com.cuso.tailor.model.permission.MyPermissionsData
 import com.cuso.tailor.model.permission.MyPermissionsResponse
 import com.cuso.tailor.model.permission.PaywallModuleConfig
+import com.cuso.tailor.model.permission.PlanFeatureModuleGroup
+import com.cuso.tailor.model.permission.PlanLimitsData
+import com.cuso.tailor.model.permission.PlanLimitsResponse
 import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.view.home.paywall.ModuleUpgradeConfig
 import com.cuso.tailor.view.home.paywall.PermissionAction
 import com.google.gson.Gson
+import com.google.gson.JsonElement
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
@@ -45,6 +49,18 @@ class PermissionViewModel @Inject constructor(
 
     private val _isWorkspaceLocked = MutableStateFlow(false)
     val isWorkspaceLocked: StateFlow<Boolean> = _isWorkspaceLocked.asStateFlow()
+
+    private val _planLimits = MutableStateFlow<PlanLimitsData?>(null)
+    val planLimits: StateFlow<PlanLimitsData?> = _planLimits.asStateFlow()
+
+    private val _includedPlanModules = MutableStateFlow<List<PlanFeatureModuleGroup>>(emptyList())
+    val includedPlanModules: StateFlow<List<PlanFeatureModuleGroup>> = _includedPlanModules.asStateFlow()
+
+    private val _isLoadingPlanLimits = MutableStateFlow(false)
+    val isLoadingPlanLimits: StateFlow<Boolean> = _isLoadingPlanLimits.asStateFlow()
+
+    private val _planLimitsError = MutableStateFlow<String?>(null)
+    val planLimitsError: StateFlow<String?> = _planLimitsError.asStateFlow()
 
     init {
         loadFromCache()
@@ -81,12 +97,15 @@ class PermissionViewModel @Inject constructor(
 
             if (cachedPlanModules != null) {
                 try {
-                    _modulePermissions.value = gson.fromJson(
+                    val parsedModules = gson.fromJson(
                         cachedPlanModules.modulesJson,
                         ModulePermissionsData::class.java
                     )
+                    _modulePermissions.value = parsedModules
+                    _includedPlanModules.value = parsedModules?.let { parseModuleGroups(it) }.orEmpty()
                 } catch (e: Exception) {
                     _modulePermissions.value = null
+                    _includedPlanModules.value = emptyList()
                 }
             }
 
@@ -121,6 +140,7 @@ class PermissionViewModel @Inject constructor(
                     moduleResult.fold(
                         onSuccess = { res ->
                             _modulePermissions.value = res.data
+                            _includedPlanModules.value = res.data?.let { parseModuleGroups(it) }.orEmpty()
                             res.data?.let { data ->
                                 permissionDao.insertPlanModules(
                                     PlanModuleEntity(
@@ -131,7 +151,10 @@ class PermissionViewModel @Inject constructor(
                             }
                         },
                         onFailure = {
-                            if (forceRefresh) _modulePermissions.value = null
+                            if (forceRefresh) {
+                                _modulePermissions.value = null
+                                _includedPlanModules.value = emptyList()
+                            }
                         }
                     )
 
@@ -501,5 +524,166 @@ class PermissionViewModel @Inject constructor(
             route.contains("approval") || route.contains("approve") -> PermissionAction.APPROVE
             else -> PermissionAction.VIEW
         }
+    }
+
+    /**
+     * Fetches /api/plans/limits and /api/common/plan-setups/customer/my-plan-modules
+     * so the Current Plan screen displays live subscription limits, usage, and included modules.
+     */
+    fun fetchPlanLimitsAndModules(forceRefreshModules: Boolean = false) {
+        viewModelScope.launch {
+            _isLoadingPlanLimits.value = true
+            _planLimitsError.value = null
+            try {
+                coroutineScope {
+                    val limitsDeferred = async {
+                        apiRepository.request<PlanLimitsResponse> {
+                            get("/api/plans/limits")
+                        }
+                    }
+
+                    val modulesDeferred = if (forceRefreshModules || _modulePermissions.value == null) {
+                        async {
+                            apiRepository.request<ModulePermissionsResponse> {
+                                get("/api/common/plan-setups/customer/my-plan-modules")
+                            }
+                        }
+                    } else {
+                        null
+                    }
+
+                    val limitsResult = limitsDeferred.await()
+                    val modulesResult = modulesDeferred?.await()
+
+                    modulesResult?.fold(
+                        onSuccess = { res ->
+                            _modulePermissions.value = res.data
+                            _includedPlanModules.value = res.data?.let { parseModuleGroups(it) }.orEmpty()
+                            res.data?.let { data ->
+                                permissionDao.insertPlanModules(
+                                    PlanModuleEntity(
+                                        id = 1,
+                                        modulesJson = gson.toJson(data)
+                                    )
+                                )
+                            }
+                        },
+                        onFailure = { /* Keep cached module permissions if refresh fails */ }
+                    )
+
+                    if (_includedPlanModules.value.isEmpty()) {
+                        _includedPlanModules.value = _modulePermissions.value
+                            ?.let { parseModuleGroups(it) }
+                            .orEmpty()
+                    }
+
+                    limitsResult.fold(
+                        onSuccess = { res ->
+                            if (res.data != null) {
+                                _planLimits.value = res.data
+                            } else {
+                                _planLimitsError.value = res.message ?: "Plan details unavailable"
+                            }
+                        },
+                        onFailure = { throwable ->
+                            _planLimitsError.value = throwable.message ?: "Failed to load plan limits"
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                _planLimitsError.value = e.message ?: "Unable to load plan details"
+            } finally {
+                _isLoadingPlanLimits.value = false
+            }
+        }
+    }
+
+    /**
+     * Dynamically extracts module sections and enabled sub-module feature names
+     * from /api/common/plan-setups/customer/my-plan-modules.
+     */
+    private fun parseModuleGroups(data: ModulePermissionsData): List<PlanFeatureModuleGroup> {
+        val jsonObject = gson.toJsonTree(data).asJsonObject
+        val result = mutableListOf<PlanFeatureModuleGroup>()
+
+        jsonObject.entrySet().forEach { (rawModuleKey, element) ->
+            val rawFeatures = extractFeatureKeys(element)
+            if (rawFeatures.isNotEmpty()) {
+                val formattedFeatures = rawFeatures.map { formatFeatureLabel(it) }.distinct()
+                result.add(
+                    PlanFeatureModuleGroup(
+                        moduleKey = rawModuleKey,
+                        moduleTitle = formatModuleHeader(rawModuleKey),
+                        features = formattedFeatures
+                    )
+                )
+            }
+        }
+
+        return result
+    }
+
+    private fun extractFeatureKeys(element: JsonElement): List<String> {
+        if (element.isJsonNull) return emptyList()
+
+        return when {
+            element.isJsonArray -> {
+                element.asJsonArray
+                    .filter { it.isJsonPrimitive }
+                    .mapNotNull { it.asString.takeIf(String::isNotBlank) }
+            }
+            element.isJsonObject -> {
+                element.asJsonObject.entrySet()
+                    .filter { (_, value) ->
+                        value.isJsonPrimitive && value.asJsonPrimitive.isBoolean && value.asBoolean
+                    }
+                    .map { it.key }
+            }
+            else -> emptyList()
+        }
+    }
+
+    private fun formatModuleHeader(rawKey: String): String {
+        return when (rawKey.lowercase()) {
+            "hr" -> "HR"
+            "it", "itmodule" -> "IT"
+            else -> splitCamelCase(rawKey).uppercase()
+        }
+    }
+
+    private fun formatFeatureLabel(rawFeature: String): String {
+        val cleaned = rawFeature
+            .removePrefix("fin")
+            .removePrefix("proc")
+            .removePrefix("mkt")
+            .removePrefix("inv")
+            .removePrefix("log")
+            .removePrefix("sec")
+            .ifBlank { rawFeature }
+
+        return when (cleaned.lowercase()) {
+            "pdftemp" -> "PDF Templates"
+            "pricingquotes" -> "Pricing & Quotes"
+            "billingandpayments" -> "Billing & Payments"
+            else -> splitCamelCase(cleaned)
+                .replace("Hr ", "HR ")
+                .replace("It ", "IT ")
+                .replace("Cod ", "COD ")
+                .replace("Pos ", "POS ")
+                .replace("Api ", "API ")
+                .replace("Sla", "SLA")
+        }
+    }
+
+    private fun splitCamelCase(input: String): String {
+        return input
+            .replace("_", " ")
+            .replace(Regex("([a-z])([A-Z])"), "$1 $2")
+            .trim()
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+            .joinToString(" ") { word ->
+                word.replaceFirstChar { ch -> ch.uppercaseChar() }
+            }
     }
 }

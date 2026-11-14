@@ -34,10 +34,11 @@ import com.cuso.tailor.network.user.UserApiService
 import com.google.gson.Gson
 import org.json.JSONObject
 import javax.inject.Inject
-
+import com.cuso.tailor.utils.DeviceInfoHelper
 class AuthRepository @Inject constructor(
     private val authApi: AuthApiService,
-    private val userApi: UserApiService
+    private val userApi: UserApiService,
+    private val deviceInfoHelper: DeviceInfoHelper
 ) {
 
     // ---------------------------------------------------------
@@ -46,9 +47,14 @@ class AuthRepository @Inject constructor(
 
     suspend fun login(email: String, password: String): Result<PasswordResponse> {
         return try {
-            val response = authApi.verifyPassword(
-                PasswordVerify(email, password)
+            val request = PasswordVerify(
+                email = email,
+                password = password,
+                deviceId = deviceInfoHelper.getDeviceId(),
+                deviceInfo = deviceInfoHelper.getDeviceInfo()
             )
+
+            val response = authApi.verifyPassword(request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {

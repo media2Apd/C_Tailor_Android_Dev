@@ -145,8 +145,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
 import com.cuso.tailor.utils.CusoFirebaseMessagingService
+import com.cuso.tailor.view.home.search.GlobalSearchScreen
 import com.cuso.tailor.view.home.topBarEvents.BusinessAgendaScreen
 import com.cuso.tailor.view.home.topBarEvents.NotificationsScreen
+import com.cuso.tailor.viewmodel.ReportViewModel
 import com.cuso.tailor.viewmodel.TopbarEventViewModel
 import com.google.firebase.messaging.FirebaseMessaging
 
@@ -177,6 +179,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var restrictedFeatureName by remember { mutableStateOf("this feature") }
 
     val viewModel: HomeViewModel = hiltViewModel()
+    val hrReportViewModel: ReportViewModel = hiltViewModel()
     val authViewModel: Authenticate = hiltViewModel()
     val hrViewModel: HrViewModel = hiltViewModel()
     val salesViewModel: SalesViewModel = hiltViewModel()
@@ -499,6 +502,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "home",
             "settings",
             "profile-settings",
+            "global_search",
             "notifications",
             "business_agenda",
             "settings_overview",
@@ -958,12 +962,41 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
             // ── Reports ──
             "reports_sales",
+            "reports_sales_lead_master",
+            "reports_sales_lead_source",
+            "reports_sales_lead_overdue",
+            "reports_sales_lead_activity",
+            "reports_sales_opp_master",
+            "reports_sales_opp_funnel",
+            "reports_sales_opp_closing",
+            "reports_sales_cust_master",
+            "reports_sales_cust_ltv",
+            "reports_sales_cust_credit",
+            "reports_sales_cust_dormant",
+            "reports_sales_meas_master",
+            "reports_sales_meas_stale",
+            "reports_sales_order_master",
+            "reports_sales_order_stream",
+            "reports_sales_order_sla",
+            "reports_sales_branch_wise",
+            "reports_sales_quote_master",
+            "reports_sales_quote_discount",
+            "reports_sales_quote_expiring",
             "reports_marketing",
             "reports_finance",
             "reports_inventory",
             "reports_logistics",
             "reports_services",
             "reports_human_resource",
+            "reports_hr_attendance_register",
+            "reports_hr_payroll_run_audit",
+            "reports_hr_piece_rate_wage",
+            "reports_hr_reimbursement_claims",
+            "reports_sec_incidents_alerts",
+            "reports_sec_access_activity",
+            "reports_sec_api_integrations",
+            "reports_it_assets",
+            "reports_it_service_desk",
             "reports_it",
             "reports_security",
             "reports_legal"
@@ -1169,8 +1202,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             currentScreen == "home_opening_balance"
 
     val showSalesPanel = isSalesSettingsMode
-    // Only hide TopBar & BottomBar on the paywall screen so Notifications & Business Agenda behave like Profile Settings
-    val isPaywallScreen = currentScreen == "module_upgrade_paywall"
+    // Hide TopBar & BottomBar on paywall and full-screen global search views
+    val hideChromeBars = currentScreen == "module_upgrade_paywall" || currentScreen == "global_search"
     // ── 1. MODULARIZED BACK HANDLER ──
     HomeBackHandler(
         screenStackSize = screenStack.size,
@@ -1345,9 +1378,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 topBar = {
                     // Keep TopBar visible on Notifications and Business Agenda screens
-                    if (!isPaywallScreen) {
+                    if (!hideChromeBars) {
                         TopBar(
                             hasNotification = unreadNotificationCount > 0,
+                            onSearchClick = { navigateTo("global_search") },
                             onCalendarClick = { navigateTo("business_agenda") },
                             onNotificationClick = { navigateTo("notifications") },
                             onProfileClick = { navigateTo("profile-settings") }
@@ -1356,7 +1390,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 },
                 bottomBar = {
                     // Keep BottomBar visible on Notifications and Business Agenda screens
-                    if (!isPaywallScreen) {
+                    if (!hideChromeBars) {
                         BottomBar(
                             navController = navController,
                             isSettingsOpen = showHomePanel || showSalesPanel,
@@ -1496,6 +1530,26 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             label = "screen_transition"
                         ) { screen ->
                             when (screen) {
+                                "global_search" -> {
+                                    GlobalSearchScreen(
+                                        userEntity = userEntity,
+                                        permissionViewModel = permissionViewModel,
+                                        onClose = { goBack() },
+                                        onProfileClick = {
+                                            if (screenStack.lastOrNull() == "global_search") {
+                                                screenStack.removeAt(screenStack.lastIndex)
+                                            }
+                                            navigateTo("profile-settings")
+                                        },
+                                        onPageSelected = { routeKey ->
+                                            if (screenStack.lastOrNull() == "global_search") {
+                                                screenStack.removeAt(screenStack.lastIndex)
+                                            }
+                                            safeNavigate(routeKey)
+                                        }
+                                    )
+                                }
+
                                 "notifications" -> {
                                     NotificationsScreen(
                                         viewModel = topbarEventViewModel,
@@ -1880,6 +1934,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                             selectedCampaignCode = selectedCampaignCode,
                                             onCampaignCodeSelected = { selectedCampaignCode = it }
                                         ),
+                                        hrReportViewModel = hrReportViewModel,
                                         commonState = CommonStateHolder(
                                             selectedRecentCustomerId = selectedRecentCustomerId,
                                             onRecentCustomerIdSelected = {

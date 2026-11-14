@@ -148,6 +148,26 @@ import com.cuso.tailor.view.home.profile_settings.setup_pages.BusinessSetupScree
 import com.cuso.tailor.view.home.profile_settings.setup_pages.SettingsScreen
 import com.cuso.tailor.view.home.logistics.dashboard.LogisticsDashboardScreen
 import com.cuso.tailor.view.home.reports.sales.SalesOrderReportsScreen
+import com.cuso.tailor.view.home.reports.sales.reports.BranchWiseSalesReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.CustomerCreditReceivablesReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.CustomerDormantWinbackReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.CustomerLtvRevenueReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.CustomerMasterDirectoryReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.DeliverySlaReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.LeadFollowupActivityReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.LeadMasterRegisterReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.LeadOverdueFollowupsReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.LeadSourcePerformanceReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.MeasurementMasterRegisterReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.MeasurementStaleAuditReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.OpportunityClosingAlertsReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.OpportunityMasterRegisterReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.OpportunityStageFunnelReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.OrderMasterRegisterReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.OrderProductStreamReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.QuotationDiscountLeakageReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.QuotationExpiringAuditReportScreen
+import com.cuso.tailor.view.home.reports.sales.reports.QuotationMasterRegisterReportScreen
 import com.cuso.tailor.view.home.role.RoleSettingsScreen
 import com.cuso.tailor.view.home.sales.customer.*
 import com.cuso.tailor.view.home.sales.dashboard.SalesDashboardScreen
@@ -183,7 +203,7 @@ import com.cuso.tailor.view.home.services.service_status.status.ServiceStatusScr
 import com.cuso.tailor.view.home.services.settings.template.CreateServiceTemplateWizardScreen
 import com.cuso.tailor.view.home.services.settings.template.ServiceTemplateDetailViewScreen
 import com.cuso.tailor.view.home.services.settings.template.ServiceTemplateListScreen
-import com.cuso.tailor.view.home.subscriptions.SubscriptionFlowContainer
+import com.cuso.tailor.view.home.subscriptions.CurrentPlanScreen
 import com.cuso.tailor.view.home.warehouse.WarehouseSettingsScreen
 import com.cuso.tailor.model.finance.InvoiceViewOneData
 import com.cuso.tailor.model.hr.ExpenseClaimDto
@@ -263,6 +283,11 @@ import com.cuso.tailor.view.home.reports.hr.HrPayrollReportsScreen
 import com.cuso.tailor.view.home.reports.it.ItReportsScreen
 import com.cuso.tailor.view.home.reports.security.SecurityReportsScreen
 import com.cuso.tailor.view.home.reports.legal.LegalReportsScreen
+import com.cuso.tailor.view.home.reports.hr.reports.AttendanceReportScreen
+import com.cuso.tailor.view.home.reports.hr.reports.PayrollRunReportScreen
+import com.cuso.tailor.view.home.reports.hr.reports.PieceRateReportScreen
+import com.cuso.tailor.view.home.reports.hr.reports.ReimbursementReportScreen
+import com.cuso.tailor.viewmodel.ReportViewModel
 import com.cuso.tailor.view.home.services.alteration_management.ViewAlterationManagementScreen
 import com.cuso.tailor.view.home.services.customer_complaint.ComplaintDetailViewScreen
 import com.cuso.tailor.view.home.services.customer_complaint.ComplaintListScreen
@@ -355,6 +380,11 @@ import com.cuso.tailor.view.home.hr.exit_request.ExitRequestFormScreen
 import com.cuso.tailor.view.home.hr.exit_request.ManagerApprovalScreen
 import com.cuso.tailor.view.home.hr.settlement.ExitSettlementDetailScreen
 import com.cuso.tailor.view.home.hr.settlement.ExitSettlementListScreen
+import com.cuso.tailor.view.home.reports.it.reports.ItAssetReportScreen
+import com.cuso.tailor.view.home.reports.it.reports.ItServiceDeskReportScreen
+import com.cuso.tailor.view.home.reports.security.reports.AccessActivityReportScreen
+import com.cuso.tailor.view.home.reports.security.reports.ApiIntegrationSecurityReportScreen
+import com.cuso.tailor.view.home.reports.security.reports.SecurityIncidentsReportScreen
 
 private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 
@@ -612,6 +642,7 @@ fun HomeScreenRouter(
     selectedApiLogId: String? = null,
     onApiLogIdSelected: (String?) -> Unit = {},
     viewModels: HomeScreenViewModels,
+    hrReportViewModel: ReportViewModel,
     navigation: HomeScreenNavigation,
     salesState: SalesStateHolder = SalesStateHolder(),
     financeState: FinanceStateHolder = FinanceStateHolder(),
@@ -1089,11 +1120,27 @@ fun HomeScreenRouter(
             )
         }
 
-        "reports_sales", "reports_marketing", "reports_finance", "reports_inventory",
+        "reports_sales",
+        "reports_sales_lead_master", "reports_sales_lead_source",
+        "reports_sales_lead_overdue", "reports_sales_lead_activity",
+        "reports_sales_opp_master", "reports_sales_opp_funnel", "reports_sales_opp_closing",
+        "reports_sales_cust_master", "reports_sales_cust_ltv",
+        "reports_sales_cust_credit", "reports_sales_cust_dormant",
+        "reports_sales_meas_master", "reports_sales_meas_stale",
+        "reports_sales_order_master", "reports_sales_order_stream",
+        "reports_sales_order_sla", "reports_sales_branch_wise",
+        "reports_sales_quote_master", "reports_sales_quote_discount", "reports_sales_quote_expiring",
+        "reports_marketing", "reports_finance", "reports_inventory",
         "reports_logistics", "reports_services", "reports_human_resource",
+        "reports_hr_attendance_register", "reports_hr_payroll_run_audit",
+        "reports_hr_piece_rate_wage", "reports_hr_reimbursement_claims",
+        "reports_sec_incidents_alerts", "reports_sec_access_activity",
+        "reports_sec_api_integrations",
+        "reports_it_assets", "reports_it_service_desk",
         "reports_it", "reports_security", "reports_legal" -> {
             ReportsRouter(
                 screen = screen,
+                hrReportViewModel = hrReportViewModel,
                 onNavigate = navigation.onNavigate,
                 onGoBack = navigation.onGoBack,
                 onOpenModulesPanel = navigation.onOpenModulesPanel,
@@ -1315,9 +1362,13 @@ private fun HomeAndSettingsRouter(
             onNavigateToSubscriptionSettings = { onNavigate("manage_subscription") }
         )
 
-        "manage_subscription" -> SubscriptionFlowContainer(
-            onClose = onGoBack,
-            onStartUpgrade = {}
+//        "manage_subscription" -> SubscriptionFlowContainer(
+//            onClose = onGoBack,
+//            onStartUpgrade = {}
+//        )
+
+        "manage_subscription" -> CurrentPlanScreen(
+            onClose = onGoBack
         )
 
         "module_settings" -> ModuleSettingsScreen(
@@ -6643,17 +6694,121 @@ private fun SecurityRouter(
 @Composable
 private fun ReportsRouter(
     screen: String,
+    hrReportViewModel: ReportViewModel = hiltViewModel(),
     onNavigate: (String) -> Unit,
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit,
     onShowComingSoon: (String) -> Unit
 ) {
     when (screen) {
-        // 1. Sales & Order Reports
+        // 1. Sales & Order Reports Hub
         "reports_sales" -> SalesOrderReportsScreen(
             onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
+            onBreadCrumbClick = { onOpenModulesPanel("Reports") },
+            onReportClick = { reportItem ->
+                val id = reportItem.id.lowercase()
+                val title = reportItem.title.lowercase()
+                when {
+                    id == "leadmasterregister" || id.contains("lead_master") || title.contains("lead master") -> {
+                        onNavigate("reports_sales_lead_master")
+                    }
+                    id == "leadsourceperformance" || id.contains("lead_source") || title.contains("lead source") || title.contains("marketing roi") -> {
+                        onNavigate("reports_sales_lead_source")
+                    }
+                    id == "leadoverduefollowups" || id.contains("overdue_followup") || title.contains("overdue follow") -> {
+                        onNavigate("reports_sales_lead_overdue")
+                    }
+                    id == "leadfollowupactivity" || id.contains("followup_activity") || id.contains("follow_up") ||
+                            title.contains("follow-up") || title.contains("follow up") || title.contains("followup") -> {
+                        onNavigate("reports_sales_lead_activity")
+                    }
+
+                    id == "oppmasterregister" || id.contains("opp_master") || title.contains("opportunity pipeline") || title.contains("opportunity master") -> {
+                        onNavigate("reports_sales_opp_master")
+                    }
+                    id == "oppstagefunnel" || id.contains("stage_funnel") || title.contains("stage funnel") || title.contains("funnel") -> {
+                        onNavigate("reports_sales_opp_funnel")
+                    }
+                    id == "oppclosingalerts" || id.contains("closing") || title.contains("closing soon") || title.contains("overdue deal") -> {
+                        onNavigate("reports_sales_opp_closing")
+                    }
+
+                    id == "custmasterregister" || id.contains("cust_master") || id.contains("customer_master") || title.contains("customer master") -> {
+                        onNavigate("reports_sales_cust_master")
+                    }
+                    id == "custltvrevenue" || id.contains("ltv") || title.contains("lifetime value") || title.contains("ltv") -> {
+                        onNavigate("reports_sales_cust_ltv")
+                    }
+                    id == "custcreditreceivables" || id.contains("credit") || id.contains("dues") || id.contains("receivable") ||
+                            title.contains("credit") || title.contains("dues") || title.contains("receivable") -> {
+                        onNavigate("reports_sales_cust_credit")
+                    }
+                    id == "custdormantwinback" || id.contains("dormant") || id.contains("winback") ||
+                            title.contains("dormant") || title.contains("win-back") || title.contains("win back") -> {
+                        onNavigate("reports_sales_cust_dormant")
+                    }
+
+                    id == "measmasterregister" || id.contains("meas_master") || title.contains("measurement master") -> {
+                        onNavigate("reports_sales_meas_master")
+                    }
+                    id == "measstaleaudit" || id.contains("stale") || title.contains("stale") || title.contains("outdated measurement") -> {
+                        onNavigate("reports_sales_meas_stale")
+                    }
+
+                    id == "ordermasterregister" || id.contains("order_master") || title.contains("order master") -> {
+                        onNavigate("reports_sales_order_master")
+                    }
+                    id == "orderproductstream" || id.contains("product_stream") || title.contains("product stream") -> {
+                        onNavigate("reports_sales_order_stream")
+                    }
+                    id == "orderdeliverysla" || id.contains("delivery_sla") || title.contains("delivery sla") || title.contains("on-time") -> {
+                        onNavigate("reports_sales_order_sla")
+                    }
+                    id == "branchwisesales" || id.contains("branch") || title.contains("branch-wise") || title.contains("branch wise") -> {
+                        onNavigate("reports_sales_branch_wise")
+                    }
+
+                    id == "quotemasterregister" || id.contains("quote_master") || title.contains("quotation master") -> {
+                        onNavigate("reports_sales_quote_master")
+                    }
+                    id == "quotediscountleakage" || id.contains("discount") || id.contains("leakage") ||
+                            title.contains("discount") || title.contains("leakage") || title.contains("margin audit") -> {
+                        onNavigate("reports_sales_quote_discount")
+                    }
+                    id == "quoteexpiringaudit" || id.contains("expiring") || title.contains("expiring") -> {
+                        onNavigate("reports_sales_quote_expiring")
+                    }
+
+                    else -> onShowComingSoon("Coming Soon, Stay tuned!")
+                }
+            }
         )
+
+        "reports_sales_lead_master" -> LeadMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_lead_source" -> LeadSourcePerformanceReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_lead_overdue" -> LeadOverdueFollowupsReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_lead_activity" -> LeadFollowupActivityReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+
+        "reports_sales_opp_master" -> OpportunityMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_opp_funnel" -> OpportunityStageFunnelReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_opp_closing" -> OpportunityClosingAlertsReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+
+        "reports_sales_cust_master" -> CustomerMasterDirectoryReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_cust_ltv" -> CustomerLtvRevenueReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_cust_credit" -> CustomerCreditReceivablesReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_cust_dormant" -> CustomerDormantWinbackReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+
+        "reports_sales_meas_master" -> MeasurementMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_meas_stale" -> MeasurementStaleAuditReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+
+        "reports_sales_order_master" -> OrderMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_order_stream" -> OrderProductStreamReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_order_sla" -> DeliverySlaReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_branch_wise" -> BranchWiseSalesReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+
+        "reports_sales_quote_master" -> QuotationMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_quote_discount" -> QuotationDiscountLeakageReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_quote_expiring" -> QuotationExpiringAuditReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
 
         // 2. Marketing Reports
         "reports_marketing" -> MarketingReportsScreen(
@@ -6685,22 +6840,134 @@ private fun ReportsRouter(
             onBreadCrumbClick = { onOpenModulesPanel("Reports") }
         )
 
-        // 7. HR & Payroll Reports
+        // 7. HR & Payroll Reports Hub
         "reports_human_resource" -> HrPayrollReportsScreen(
             onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
+            onBreadCrumbClick = { onOpenModulesPanel("Reports") },
+            onReportClick = { reportItem ->
+                when (reportItem.id) {
+                    "hr_attendance_register" -> onNavigate("reports_hr_attendance_register")
+                    "hr_payroll_run_audit" -> onNavigate("reports_hr_payroll_run_audit")
+                    "hr_piece_rate_wage" -> onNavigate("reports_hr_piece_rate_wage")
+                    "hr_reimbursement_claims" -> onNavigate("reports_hr_reimbursement_claims")
+                    else -> onShowComingSoon("Coming Soon, Stay tuned!")
+                }
+            }
         )
 
-        // 8. IT & Systems Reports
+        // 7a. Attendance Register & Analytics Report
+        "reports_hr_attendance_register" -> AttendanceReportScreen(
+            onClose = onGoBack,
+            viewModel = hrReportViewModel
+        )
+
+        // 7b. Payroll Run Audit & Analytics Report
+        "reports_hr_payroll_run_audit" -> PayrollRunReportScreen(
+            onClose = onGoBack,
+            viewModel = hrReportViewModel
+        )
+
+        // 7c. Piece Rate Master & Wage Report
+        "reports_hr_piece_rate_wage" -> PieceRateReportScreen(
+            onClose = onGoBack,
+            viewModel = hrReportViewModel
+        )
+
+        // 7d. Reimbursement Claims & Settlement Report
+        "reports_hr_reimbursement_claims" -> ReimbursementReportScreen(
+            onClose = onGoBack,
+            viewModel = hrReportViewModel
+        )
+
+        // 8. IT & Systems Reports Hub
         "reports_it" -> ItReportsScreen(
             onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
+            onBreadCrumbClick = { onOpenModulesPanel("Reports") },
+            onReportClick = { reportItem ->
+                val id = reportItem.id.lowercase()
+                val title = reportItem.title.lowercase()
+                when {
+                    id in setOf("it_asset_register", "it_assets", "it_asset_report") ||
+                            title.contains("asset") || title.contains("hardware") -> {
+                        onNavigate("reports_it_assets")
+                    }
+                    id in setOf("it_service_desk", "it_service_desk_report", "it_sla_report") ||
+                            title.contains("service desk") || title.contains("ticket") || title.contains("sla") -> {
+                        onNavigate("reports_it_service_desk")
+                    }
+                    else -> onShowComingSoon("Coming Soon, Stay tuned!")
+                }
+            }
         )
 
-        // 9. Security Reports
+        // 8a. IT Asset Report
+        "reports_it_assets" -> ItAssetReportScreen(
+            onClose = onGoBack,
+            viewModel = hrReportViewModel
+        )
+
+        // 8b. IT Service Desk Report
+        "reports_it_service_desk" -> ItServiceDeskReportScreen(
+            onClose = onGoBack,
+            onViewTicketAudit = { _ ->
+                onNavigate("it_service_desk")
+            },
+            viewModel = hrReportViewModel
+        )
+        // 9. Security Reports Hub
         "reports_security" -> SecurityReportsScreen(
             onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
+            onBreadCrumbClick = { onOpenModulesPanel("Reports") },
+            onReportClick = { reportItem ->
+                val id = reportItem.id.lowercase()
+                val title = reportItem.title.lowercase()
+                when {
+                    id in setOf("sec_incidents_alerts", "security_incidents_alerts") ||
+                            title.contains("incident") || title.contains("alert") -> {
+                        onNavigate("reports_sec_incidents_alerts")
+                    }
+                    id in setOf(
+                        "sec_access_activity",
+                        "security_access_activity",
+                        "sec_access_permission",
+                        "sec_access_permissions",
+                        "security_access_permission"
+                    ) || title.contains("access") || title.contains("permission") -> {
+                        onNavigate("reports_sec_access_activity")
+                    }
+                    id in setOf(
+                        "sec_api_integrations",
+                        "security_api_integrations",
+                        "sec_api_integration",
+                        "sec_api_security",
+                        "security_api_security"
+                    ) || title.contains("api") || title.contains("integration") -> {
+                        onNavigate("reports_sec_api_integrations")
+                    }
+                    else -> onShowComingSoon("Coming Soon, Stay tuned!")
+                }
+            }
+        )
+
+        // 9a. Security Incidents & Alerts Report
+        "reports_sec_incidents_alerts" -> SecurityIncidentsReportScreen(
+            onClose = onGoBack,
+            viewModel = hrReportViewModel
+        )
+
+        // 9b. Access & Permission Activity Report
+        "reports_sec_access_activity" -> AccessActivityReportScreen(
+            onClose = onGoBack,
+            onAuditLogClick = { item ->
+                onNavigate("security_audit_logs")
+            },
+            viewModel = hrReportViewModel
+        )
+
+        // 9c. API & Integration Security Report
+        "reports_sec_api_integrations" -> ApiIntegrationSecurityReportScreen(
+            onClose = onGoBack,
+            viewModel = hrReportViewModel
         )
 
         // 10. Legal & Audit Reports

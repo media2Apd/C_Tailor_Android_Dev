@@ -4,8 +4,6 @@ package com.cuso.tailor.view.home.logistics.cod
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,15 +29,13 @@ fun AllCodScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val courierList by viewModel.filteredAllCourier.collectAsState()
+    val courierPagingState by viewModel.allCourierPagingState.collectAsState()
     val searchQuery by viewModel.allCourierSearchQuery.collectAsState()
-    val isLoading by viewModel.isLoadingAllCourier.collectAsState()
     val errorMessage by viewModel.allCourierError.collectAsState()
     val selectedStatus by viewModel.selectedCourierStatus.collectAsState()
 
     val filterDrawerState = rememberFilterDrawerState()
 
-    // Fetch on initial screen launch
     LaunchedEffect(Unit) {
         viewModel.fetchAllCourierList()
     }
@@ -48,7 +44,6 @@ fun AllCodScreen(
         if (!selectedStatus.isNullOrBlank()) 1 else 0
     }
 
-    // Configure status filter options
     val filterSections = remember(selectedStatus) {
         listOf(
             FilterSection(
@@ -64,15 +59,6 @@ fun AllCodScreen(
         )
     }
 
-//    // Bottom-Right FAB: "+ Create Order" matching Screenshot 1
-//    val fabConfig = remember(onCreateOrderClick) {
-//        FabConfig(
-//            label = "Create Order",
-//            icon = Icons.Default.Add,
-//            onClick = onCreateOrderClick
-//        )
-//    }
-
     Box(modifier = Modifier.fillMaxSize()) {
         FabScaffold(
             modifier = Modifier.fillMaxSize(),
@@ -80,7 +66,7 @@ fun AllCodScreen(
             fabVisible = !filterDrawerState.isOpen
         ) {
             Scaffold(
-                contentWindowInsets = WindowInsets(0,0,0,0),
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 containerColor = Color.Transparent,
                 topBar = {
                     TitleBar(
@@ -94,7 +80,6 @@ fun AllCodScreen(
                         .fillMaxSize()
                         .padding(paddingValues)
                 ) {
-                    // Search & Filter Bar
                     SearchFilterBar(
                         query = searchQuery,
                         onQueryChange = viewModel::onAllCourierSearchQueryChange,
@@ -107,11 +92,7 @@ fun AllCodScreen(
                     )
 
                     when {
-                        isLoading && courierList.isEmpty() -> {
-                            ListSkeleton()
-                        }
-
-                        errorMessage != null && courierList.isEmpty() -> {
+                        errorMessage != null && courierPagingState.items.isEmpty() && !courierPagingState.isInitialLoading -> {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -136,7 +117,7 @@ fun AllCodScreen(
                             }
                         }
 
-                        courierList.isEmpty() -> {
+                        !courierPagingState.isInitialLoading && courierPagingState.items.isEmpty() -> {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
@@ -150,20 +131,16 @@ fun AllCodScreen(
                         }
 
                         else -> {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp)
-                            ) {
-                                items(
-                                    items = courierList,
-                                    key = { it.id.ifBlank { it.orderCode } }
-                                ) { item ->
-                                    AllCodCard(
-                                        item = item,
-                                        formattedDate = viewModel.formatCourierDate(item.deliveryDate),
-                                        onClick = { onViewDeliveryDetail(item.id) }
-                                    )
-                                }
+                            PaginatedDataList(
+                                state = courierPagingState,
+                                onLoadMore = { viewModel.loadMoreAllCourierList() },
+                                modifier = Modifier.fillMaxSize()
+                            ) { item ->
+                                AllCodCard(
+                                    item = item,
+                                    formattedDate = viewModel.formatCourierDate(item.deliveryDate),
+                                    onClick = { onViewDeliveryDetail(item.id) }
+                                )
                             }
                         }
                     }
@@ -171,7 +148,6 @@ fun AllCodScreen(
             }
         }
 
-        // Filter Drawer
         FilterDrawer(
             state = filterDrawerState,
             sections = filterSections,

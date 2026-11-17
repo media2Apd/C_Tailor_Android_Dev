@@ -3,8 +3,6 @@ package com.cuso.tailor.view.home.logistics.delivery_management.delivery
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -34,8 +32,8 @@ import com.cuso.tailor.view.composable.FilterSection
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextArea
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
@@ -52,9 +50,8 @@ fun DeliveryListScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val deliveries by viewModel.filteredDeliveries.collectAsState()
+    val deliveriesPagingState by viewModel.deliveriesPagingState.collectAsState()
     val searchQuery by viewModel.deliverySearchQuery.collectAsState()
-    val isLoading by viewModel.isLoadingDeliveries.collectAsState()
     val selectedStatus by viewModel.selectedDeliveryStatus.collectAsState()
     val selectedType by viewModel.selectedDeliveryType.collectAsState()
 
@@ -95,7 +92,7 @@ fun DeliveryListScreen(
             .background(Color.Transparent)
     ) {
         Scaffold(
-            contentWindowInsets = WindowInsets(0,0,0,0),
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             containerColor = Color.Transparent,
             topBar = {
                 TitleBar(
@@ -104,7 +101,6 @@ fun DeliveryListScreen(
                 )
             }
         ) { paddingValues ->
-
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -124,46 +120,35 @@ fun DeliveryListScreen(
                     height = tokens.fieldHeight
                 )
 
-                when {
-                    isLoading && deliveries.isEmpty() -> {
-                        ListSkeleton()
+                if (!deliveriesPagingState.isInitialLoading && deliveriesPagingState.items.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No deliveries found",
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = headerGrey
+                        )
                     }
-
-                    deliveries.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No deliveries found",
-                                fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = headerGrey
-                            )
-                        }
-                    }
-
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(
-                                items = deliveries,
-                                key = { it.id }
-                            ) { deliveryItem ->
-                                DeliveryDataCardItem(
-                                    item = deliveryItem,
-                                    formattedDate = viewModel.formatDeliveryDate(deliveryItem.deliveryDate),
-                                    onAssignClick = {
-                                        selectedDelivery = deliveryItem
-                                        showAssignDialog = true
-                                    },
-                                    onViewDetailClick = { validId ->
-                                        onViewDeliveryDetail(validId)
-                                    }
-                                )
+                } else {
+                    PaginatedDataList(
+                        state = deliveriesPagingState,
+                        onLoadMore = { viewModel.loadMoreDeliveries() },
+                        modifier = Modifier.fillMaxSize()
+                    ) { deliveryItem ->
+                        DeliveryDataCardItem(
+                            item = deliveryItem,
+                            formattedDate = viewModel.formatDeliveryDate(deliveryItem.deliveryDate),
+                            onAssignClick = {
+                                selectedDelivery = deliveryItem
+                                showAssignDialog = true
+                            },
+                            onViewDetailClick = { validId ->
+                                onViewDeliveryDetail(validId)
                             }
-                        }
+                        )
                     }
                 }
             }
@@ -174,16 +159,8 @@ fun DeliveryListScreen(
             title = "Filters",
             sections = filterSections,
             onApply = { updatedSections ->
-                val statusOption = updatedSections
-                    .find { it.title == "Status" }
-                    ?.options
-                    ?.find { it.isSelected }
-
-                val typeOption = updatedSections
-                    .find { it.title == "Delivery Type" }
-                    ?.options
-                    ?.find { it.isSelected }
-
+                val statusOption = updatedSections.find { it.title == "Status" }?.options?.find { it.isSelected }
+                val typeOption = updatedSections.find { it.title == "Delivery Type" }?.options?.find { it.isSelected }
                 viewModel.onDeliveryStatusFilterChange(statusOption?.label)
                 viewModel.onDeliveryTypeFilterChange(typeOption?.label)
             },

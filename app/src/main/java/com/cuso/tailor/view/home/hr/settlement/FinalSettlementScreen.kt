@@ -7,8 +7,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -64,8 +62,7 @@ fun ExitSettlementListScreen(
     onProcessSettlement: (String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    val requests by viewModel.exitRequests.collectAsState()
-    val isLoading by viewModel.isLoadingExitRequests.collectAsState()
+    val exitPagingState by viewModel.exitRequestsPagingState.collectAsState()
     val errorMsg by viewModel.exitRequestsError.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -102,12 +99,12 @@ fun ExitSettlementListScreen(
     }
 
     val filteredList = remember(
-        requests,
+        exitPagingState.items,
         searchQuery,
         selectedSettlementStatuses,
         selectedOverallStatuses
     ) {
-        requests.filter { item ->
+        exitPagingState.items.filter { item ->
             val empName = item.organizationMemberId.extractMemberName()
             val deptName = item.departmentId.extractEntityName("")
             val settlementStatus = item.settlementStatus ?: "Pending"
@@ -125,6 +122,10 @@ fun ExitSettlementListScreen(
 
             matchesSearch && matchesSettlement && matchesOverall
         }
+    }
+
+    val displayPagingState = remember(exitPagingState, filteredList) {
+        exitPagingState.copy(items = filteredList)
     }
 
     val activeFilterCount = selectedSettlementStatuses.size + selectedOverallStatuses.size
@@ -152,184 +153,165 @@ fun ExitSettlementListScreen(
                 height = tokens.fieldHeight
             )
 
-            when {
-                isLoading && requests.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = Primary)
-                    }
+            if (!displayPagingState.isInitialLoading && displayPagingState.items.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(tokens.screenPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No settlement records found",
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = TextSecondary
+                    )
                 }
+            } else {
+                // Paginated list reusing PaginatedDataList
+                PaginatedDataList(
+                    state = displayPagingState,
+                    onLoadMore = { viewModel.loadMoreExitRequests() },
+                    modifier = Modifier.fillMaxSize()
+                ) { item ->
+                    val isChecked = selectedIds.contains(item.id)
+                    val empName = item.organizationMemberId.extractMemberName()
+                    val settlementStatus = item.settlementStatus ?: "Pending"
+                    val settlementBadgeColors = resolveSettlementBadgeColors(settlementStatus)
+                    val overallBadgeColors = resolveExitStatusColors(item.status)
+                    val payableText = item.settlementAmount?.let {
+                        formatSettlementAmount(it)
+                    } ?: "—"
 
-                filteredList.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(tokens.screenPadding),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No settlement records found",
-                            fontSize = tokens.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = TextSecondary
-                        )
-                    }
-                }
-
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            top = tokens.extraPadding * 0.4f,
-                            bottom = tokens.buttonHeight * 1.5f
-                        )
-                    ) {
-                        itemsIndexed(
-                            items = filteredList,
-                            key = { _, item -> item.id }
-                        ) { _, item ->
-                            val isChecked = selectedIds.contains(item.id)
-                            val empName = item.organizationMemberId.extractMemberName()
-                            val settlementStatus = item.settlementStatus ?: "Pending"
-                            val settlementBadgeColors = resolveSettlementBadgeColors(settlementStatus)
-                            val overallBadgeColors = resolveExitStatusColors(item.status)
-                            val payableText = item.settlementAmount?.let {
-                                formatSettlementAmount(it)
-                            } ?: "—"
-
-                            // Reuse DataCard with named content slot and AppCheckbox
-                            DataCard(
-                                item = item,
-                                onClick = { onProcessSettlement(it.id) },
-                                showHeaderDivider = true,
-                                headerContent = {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.weight(1f),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                                        ) {
-                                            AppCheckbox(
-                                                checked = isChecked,
-                                                size = tokens.iconSize,
-                                                onCheckedChange = { checked ->
-                                                    selectedIds = if (checked) {
-                                                        selectedIds + item.id
-                                                    } else {
-                                                        selectedIds - item.id
-                                                    }
-                                                }
-                                            )
-
-                                            Text(
-                                                text = empName,
-                                                fontSize = tokens.bodyMedium,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = TextPrimary,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
+                    // Reuse DataCard with named content slot and AppCheckbox
+                    DataCard(
+                        item = item,
+                        onClick = { onProcessSettlement(it.id) },
+                        showHeaderDivider = true,
+                        headerContent = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                                ) {
+                                    AppCheckbox(
+                                        checked = isChecked,
+                                        size = tokens.iconSize,
+                                        onCheckedChange = { checked ->
+                                            selectedIds = if (checked) {
+                                                selectedIds + item.id
+                                            } else {
+                                                selectedIds - item.id
+                                            }
                                         }
+                                    )
 
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
-                                        ) {
-                                            StatusBadge(
-                                                text = settlementStatus.replace("_", " "),
-                                                bgColor = settlementBadgeColors.first,
-                                                textColor = settlementBadgeColors.second
-                                            )
-
-                                            ActionDropdownMenu(
-                                                actions = listOf(
-                                                    MenuAction(
-                                                        label = "Process Settlement",
-                                                        icon = Icons.Default.Visibility,
-                                                        tint = Primary,
-                                                        textColor = TextPrimary,
-                                                        onClick = { onProcessSettlement(item.id) }
-                                                    )
-                                                )
-                                            )
-                                        }
-                                    }
-                                },
-                                content = {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.7f)
-                                    ) {
-                                        SettlementKeyValueRow(
-                                            label = "Department",
-                                            value = item.departmentId.extractEntityName()
-                                        )
-                                        SettlementKeyValueRow(
-                                            label = "Last Working Day",
-                                            value = formatExitDate(
-                                                item.approvedLastWorkingDate ?: item.requestedLastWorkingDate
-                                            )
-                                        )
-                                        SettlementKeyValueRow(
-                                            label = "Final Payable",
-                                            value = payableText,
-                                            valueColor = if (item.settlementAmount != null) Primary else TextPrimary
-                                        )
-
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "Overall Status",
-                                                fontSize = tokens.bodySmall,
-                                                color = headerGrey
-                                            )
-                                            StatusBadge(
-                                                text = item.status.replace("_", " "),
-                                                bgColor = overallBadgeColors.first,
-                                                textColor = overallBadgeColors.second
-                                            )
-                                        }
-
-                                        HorizontalDivider(
-                                            color = grey_border,
-                                            thickness = 1.dp
-                                        )
-
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "Action",
-                                                fontSize = tokens.bodySmall,
-                                                color = headerGrey
-                                            )
-
-                                            Text(
-                                                text = "Process Settlement",
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = Primary,
-                                                modifier = Modifier.clickable {
-                                                    onProcessSettlement(item.id)
-                                                }
-                                            )
-                                        }
-                                    }
+                                    Text(
+                                        text = empName,
+                                        fontSize = tokens.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = TextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
-                            )
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
+                                ) {
+                                    StatusBadge(
+                                        text = settlementStatus.replace("_", " "),
+                                        bgColor = settlementBadgeColors.first,
+                                        textColor = settlementBadgeColors.second
+                                    )
+
+                                    ActionDropdownMenu(
+                                        actions = listOf(
+                                            MenuAction(
+                                                label = "Process Settlement",
+                                                icon = Icons.Default.Visibility,
+                                                tint = Primary,
+                                                textColor = TextPrimary,
+                                                onClick = { onProcessSettlement(item.id) }
+                                            )
+                                        )
+                                    )
+                                }
+                            }
+                        },
+                        content = {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.7f)
+                            ) {
+                                SettlementKeyValueRow(
+                                    label = "Department",
+                                    value = item.departmentId.extractEntityName()
+                                )
+                                SettlementKeyValueRow(
+                                    label = "Last Working Day",
+                                    value = formatExitDate(
+                                        item.approvedLastWorkingDate ?: item.requestedLastWorkingDate
+                                    )
+                                )
+                                SettlementKeyValueRow(
+                                    label = "Final Payable",
+                                    value = payableText,
+                                    valueColor = if (item.settlementAmount != null) Primary else TextPrimary
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Overall Status",
+                                        fontSize = tokens.bodySmall,
+                                        color = headerGrey
+                                    )
+                                    StatusBadge(
+                                        text = item.status.replace("_", " "),
+                                        bgColor = overallBadgeColors.first,
+                                        textColor = overallBadgeColors.second
+                                    )
+                                }
+
+                                HorizontalDivider(
+                                    color = grey_border,
+                                    thickness = 1.dp
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Action",
+                                        fontSize = tokens.bodySmall,
+                                        color = headerGrey
+                                    )
+
+                                    Text(
+                                        text = "Process Settlement",
+                                        fontSize = tokens.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Primary,
+                                        modifier = Modifier.clickable {
+                                            onProcessSettlement(item.id)
+                                        }
+                                    )
+                                }
+                            }
                         }
-                    }
+                    )
                 }
             }
         }

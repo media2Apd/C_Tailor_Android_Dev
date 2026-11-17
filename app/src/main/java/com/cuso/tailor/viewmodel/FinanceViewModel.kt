@@ -61,6 +61,7 @@ import com.cuso.tailor.model.settings.BranchItem
 import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.FinanceRepository
 import com.cuso.tailor.repository.SalesRepository
+import com.cuso.tailor.utils.PagingUiState
 import com.cuso.tailor.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -277,6 +278,9 @@ class FinanceViewModel @Inject constructor(
     private val _expenseError = MutableStateFlow<String?>(null)
     val expenseError: StateFlow<String?> = _expenseError.asStateFlow()
 
+    private val _expensesPagingState = MutableStateFlow(PagingUiState<ExpenseItem>())
+    val expensesPagingState: StateFlow<PagingUiState<ExpenseItem>> = _expensesPagingState.asStateFlow()
+
     private var activeExpenseSearch: String? = null
     private var activeExpenseStatus: String? = null
     private var fetchExpensesJob: Job? = null
@@ -363,6 +367,10 @@ class FinanceViewModel @Inject constructor(
 
     private val _bankStatementError = MutableStateFlow<String?>(null)
     val bankStatementError: StateFlow<String?> = _bankStatementError.asStateFlow()
+
+    private val _bankStatementsPagingState = MutableStateFlow(PagingUiState<BankStatementItemDto>())
+    val bankStatementsPagingState: StateFlow<PagingUiState<BankStatementItemDto>> =
+        _bankStatementsPagingState.asStateFlow()
 
     private var activeStatementSearch: String? = null
     private var fetchStatementsJob: Job? = null
@@ -667,6 +675,13 @@ class FinanceViewModel @Inject constructor(
             activeExpenseSearch = search
             activeExpenseStatus = status
 
+            _expensesPagingState.value = PagingUiState(
+                items = emptyList(),
+                isInitialLoading = true,
+                isLoadingMore = false,
+                canLoadMore = false
+            )
+
             val result = financeRepository.getExpenses(page, limit, search, status)
             result.fold(
                 onSuccess = { response ->
@@ -677,11 +692,19 @@ class FinanceViewModel @Inject constructor(
                     _expensePagination.value = pagination
 
                     val totalPages = pagination.totalPages
-                    _canLoadMoreExpenses.value = page < totalPages && newExpenses.isNotEmpty()
+                    val canLoadMore = page < totalPages && newExpenses.isNotEmpty()
+                    _canLoadMoreExpenses.value = canLoadMore
+                    _expensesPagingState.value = PagingUiState(
+                        items = newExpenses,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 },
                 onFailure = { e ->
                     if (e !is CancellationException) {
                         _expenseError.value = extractErrorMessage(e, "Failed to fetch expenses")
+                        _expensesPagingState.value = PagingUiState(isInitialLoading = false)
                     }
                 }
             )
@@ -696,6 +719,7 @@ class FinanceViewModel @Inject constructor(
 
         launchBusy {
             _isLoadingMoreExpenses.value = true
+            _expensesPagingState.value = _expensesPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentExpensePage.value + 1
 
             val result = financeRepository.getExpenses(
@@ -711,18 +735,30 @@ class FinanceViewModel @Inject constructor(
                     val pagination = response.pagination
 
                     if (newExpenses.isNotEmpty()) {
-                        _expenseList.value += newExpenses
+                        val merged = (_expenseList.value + newExpenses).distinctBy { it._id }
+                        _expenseList.value = merged
                         _currentExpensePage.value = nextPage
                         _expensePagination.value = pagination
 
                         val totalPages = pagination.totalPages
-                        _canLoadMoreExpenses.value = nextPage < totalPages
+                        val canLoadMore = nextPage < totalPages
+                        _canLoadMoreExpenses.value = canLoadMore
+                        _expensesPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMoreExpenses.value = false
+                        _expensesPagingState.value = _expensesPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 },
                 onFailure = {
-                    // Do not permanently lock pagination on single request failure
+                    _expensesPagingState.value = _expensesPagingState.value.copy(isLoadingMore = false)
                 }
             )
             _isLoadingMoreExpenses.value = false
@@ -1070,6 +1106,10 @@ class FinanceViewModel @Inject constructor(
     private val _journalEntriesError = MutableStateFlow<String?>(null)
     val journalEntriesError: StateFlow<String?> = _journalEntriesError.asStateFlow()
 
+    private val _journalEntriesPagingState = MutableStateFlow(PagingUiState<JournalEntryItem>())
+    val journalEntriesPagingState: StateFlow<PagingUiState<JournalEntryItem>> =
+        _journalEntriesPagingState.asStateFlow()
+
     private var activeJournalSearch: String? = null
     private var activeJournalStatus: String? = null
     private var fetchJournalJob: Job? = null
@@ -1088,6 +1128,13 @@ class FinanceViewModel @Inject constructor(
             activeJournalSearch = search
             activeJournalStatus = status
 
+            _journalEntriesPagingState.value = PagingUiState(
+                items = emptyList(),
+                isInitialLoading = true,
+                isLoadingMore = false,
+                canLoadMore = false
+            )
+
             val result = financeRepository.getJournalEntries(page, limit, search, status)
             result.fold(
                 onSuccess = { response ->
@@ -1098,11 +1145,19 @@ class FinanceViewModel @Inject constructor(
                     _journalEntryPagination.value = pagination
 
                     val totalPages = pagination?.totalPages ?: 1
-                    _canLoadMoreJournalEntries.value = page < totalPages && newEntries.isNotEmpty()
+                    val canLoadMore = page < totalPages && newEntries.isNotEmpty()
+                    _canLoadMoreJournalEntries.value = canLoadMore
+                    _journalEntriesPagingState.value = PagingUiState(
+                        items = newEntries,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 },
                 onFailure = { e ->
                     if (e !is CancellationException) {
                         _journalEntriesError.value = extractErrorMessage(e, "Failed to fetch journal entries")
+                        _journalEntriesPagingState.value = PagingUiState(isInitialLoading = false)
                     }
                 }
             )
@@ -1117,6 +1172,7 @@ class FinanceViewModel @Inject constructor(
 
         launchBusy {
             _isLoadingMoreJournalEntries.value = true
+            _journalEntriesPagingState.value = _journalEntriesPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentJournalEntryPage.value + 1
 
             val result = financeRepository.getJournalEntries(
@@ -1132,18 +1188,30 @@ class FinanceViewModel @Inject constructor(
                     val pagination = response.pagination
 
                     if (newEntries.isNotEmpty()) {
-                        _journalEntries.value += newEntries
+                        val merged = (_journalEntries.value + newEntries).distinctBy { it.id }
+                        _journalEntries.value = merged
                         _currentJournalEntryPage.value = nextPage
                         _journalEntryPagination.value = pagination
 
                         val totalPages = pagination?.totalPages ?: nextPage
-                        _canLoadMoreJournalEntries.value = nextPage < totalPages
+                        val canLoadMore = nextPage < totalPages
+                        _canLoadMoreJournalEntries.value = canLoadMore
+                        _journalEntriesPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMoreJournalEntries.value = false
+                        _journalEntriesPagingState.value = _journalEntriesPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 },
                 onFailure = {
-                    // Do not permanently lock pagination
+                    _journalEntriesPagingState.value = _journalEntriesPagingState.value.copy(isLoadingMore = false)
                 }
             )
             _isLoadingMoreJournalEntries.value = false
@@ -2670,6 +2738,27 @@ class FinanceViewModel @Inject constructor(
     private val _isLoadingCashShifts = MutableStateFlow(false)
     val isLoadingCashShifts: StateFlow<Boolean> = _isLoadingCashShifts.asStateFlow()
 
+    private val _cashShiftsPagingState = MutableStateFlow(PagingUiState<CashDrawerShiftItemDto>())
+    val cashShiftsPagingState: StateFlow<PagingUiState<CashDrawerShiftItemDto>> =
+        _cashShiftsPagingState.asStateFlow()
+
+    private var cashShiftCurrentPage = 1
+    private val cashShiftPageSize = 10
+
+    fun loadMoreCashShifts() {
+        val current = _cashShiftsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+        cashShiftCurrentPage += 1
+        val all = _cashShifts.value
+        val paged = all.take(cashShiftCurrentPage * cashShiftPageSize)
+        _cashShiftsPagingState.value = PagingUiState(
+            items = paged,
+            isInitialLoading = false,
+            isLoadingMore = false,
+            canLoadMore = paged.size < all.size
+        )
+    }
+
     /**
      * Fetch all Cash Drawer Shifts / Cash Books
      * Endpoint: GET /api/finance/pos/shifts/view-all
@@ -2677,14 +2766,29 @@ class FinanceViewModel @Inject constructor(
     fun fetchCashShifts(search: String? = null) {
         viewModelScope.launch {
             _isLoadingCashShifts.value = true
+            cashShiftCurrentPage = 1
+            _cashShiftsPagingState.value = PagingUiState(isInitialLoading = true)
+
             val queryParams = mutableMapOf<String, Any>()
             if (!search.isNullOrBlank()) queryParams["search"] = search.trim()
 
             repo.request<CashDrawerShiftListResponse> {
                 get("/api/finance/cash-drawer/shifts", queryParams)
             }.fold(
-                onSuccess = { res -> _cashShifts.value = res.data },
-                onFailure = { _cashShifts.value = emptyList() }
+                onSuccess = { res ->
+                    _cashShifts.value = res.data
+                    val paged = res.data.take(cashShiftPageSize)
+                    _cashShiftsPagingState.value = PagingUiState(
+                        items = paged,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = paged.size < res.data.size
+                    )
+                },
+                onFailure = {
+                    _cashShifts.value = emptyList()
+                    _cashShiftsPagingState.value = PagingUiState(isInitialLoading = false)
+                }
             )
             _isLoadingCashShifts.value = false
         }
@@ -2822,6 +2926,27 @@ class FinanceViewModel @Inject constructor(
     private val _isLoadingBankAccounts = MutableStateFlow(false)
     val isLoadingBankAccounts: StateFlow<Boolean> = _isLoadingBankAccounts.asStateFlow()
 
+    private val _bankAccountsPagingState = MutableStateFlow(PagingUiState<BankAccountItemDto>())
+    val bankAccountsPagingState: StateFlow<PagingUiState<BankAccountItemDto>> =
+        _bankAccountsPagingState.asStateFlow()
+
+    private var bankAccountCurrentPage = 1
+    private val bankAccountPageSize = 10
+
+    fun loadMoreBankAccounts() {
+        val current = _bankAccountsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+        bankAccountCurrentPage += 1
+        val all = _bankAccounts.value
+        val paged = all.take(bankAccountCurrentPage * bankAccountPageSize)
+        _bankAccountsPagingState.value = PagingUiState(
+            items = paged,
+            isInitialLoading = false,
+            isLoadingMore = false,
+            canLoadMore = paged.size < all.size
+        )
+    }
+
     /**
      * Fetch all Bank Accounts
      * Endpoint: GET /api/finance/banking/accounts
@@ -2829,14 +2954,29 @@ class FinanceViewModel @Inject constructor(
     fun fetchBankAccounts(search: String? = null) {
         viewModelScope.launch {
             _isLoadingBankAccounts.value = true
+            bankAccountCurrentPage = 1
+            _bankAccountsPagingState.value = PagingUiState(isInitialLoading = true)
+
             val queryParams = mutableMapOf<String, Any>()
             if (!search.isNullOrBlank()) queryParams["search"] = search.trim()
 
             repo.request<BankAccountListResponse> {
                 get("/api/finance/bank-accounts/view-all", queryParams)
             }.fold(
-                onSuccess = { res -> _bankAccounts.value = res.data },
-                onFailure = { _bankAccounts.value = emptyList() }
+                onSuccess = { res ->
+                    _bankAccounts.value = res.data
+                    val paged = res.data.take(bankAccountPageSize)
+                    _bankAccountsPagingState.value = PagingUiState(
+                        items = paged,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = paged.size < res.data.size
+                    )
+                },
+                onFailure = {
+                    _bankAccounts.value = emptyList()
+                    _bankAccountsPagingState.value = PagingUiState(isInitialLoading = false)
+                }
             )
             _isLoadingBankAccounts.value = false
         }
@@ -3007,6 +3147,13 @@ class FinanceViewModel @Inject constructor(
             _currentStatementPage.value = page
             activeStatementSearch = search?.trim()?.ifBlank { null }
 
+            _bankStatementsPagingState.value = PagingUiState(
+                items = emptyList(),
+                isInitialLoading = true,
+                isLoadingMore = false,
+                canLoadMore = false
+            )
+
             val queryParams = mutableMapOf<String, Any>(
                 "page" to page,
                 "limit" to limit
@@ -3022,11 +3169,19 @@ class FinanceViewModel @Inject constructor(
                     _bankStatements.value = response.data
                     _statementPagination.value = response.pagination
                     val totalPages = response.pagination?.totalPages ?: 1
-                    _canLoadMoreStatements.value = page < totalPages && response.data.isNotEmpty()
+                    val canLoadMore = page < totalPages && response.data.isNotEmpty()
+                    _canLoadMoreStatements.value = canLoadMore
+                    _bankStatementsPagingState.value = PagingUiState(
+                        items = response.data,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 },
                 onFailure = { e ->
                     if (e !is CancellationException) {
                         _bankStatementError.value = extractErrorMessage(e, "Failed to load bank statements")
+                        _bankStatementsPagingState.value = PagingUiState(isInitialLoading = false)
                     }
                 }
             )
@@ -3042,6 +3197,7 @@ class FinanceViewModel @Inject constructor(
 
         launchBusy {
             _isLoadingMoreStatements.value = true
+            _bankStatementsPagingState.value = _bankStatementsPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentStatementPage.value + 1
 
             val queryParams = mutableMapOf<String, Any>(
@@ -3058,17 +3214,29 @@ class FinanceViewModel @Inject constructor(
                 onSuccess = { response ->
                     val newItems = response.data
                     if (newItems.isNotEmpty()) {
-                        _bankStatements.value += newItems
+                        val merged = (_bankStatements.value + newItems).distinctBy { it.id }
+                        _bankStatements.value = merged
                         _currentStatementPage.value = nextPage
                         _statementPagination.value = response.pagination
                         val totalPages = response.pagination?.totalPages ?: nextPage
-                        _canLoadMoreStatements.value = nextPage < totalPages
+                        val canLoadMore = nextPage < totalPages
+                        _canLoadMoreStatements.value = canLoadMore
+                        _bankStatementsPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMoreStatements.value = false
+                        _bankStatementsPagingState.value = _bankStatementsPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 },
                 onFailure = {
-                    // Do not lock pagination permanently on error
+                    _bankStatementsPagingState.value = _bankStatementsPagingState.value.copy(isLoadingMore = false)
                 }
             )
             _isLoadingMoreStatements.value = false

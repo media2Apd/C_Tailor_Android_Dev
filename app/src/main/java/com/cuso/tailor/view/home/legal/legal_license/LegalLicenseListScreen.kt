@@ -6,8 +6,6 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -112,32 +110,28 @@ fun LegalLicenseScreen(
     val context = LocalContext.current
     val tokens = LocalAppTokens.current
 
-    // Fetch license list on screen entry
     LaunchedEffect(Unit) {
         viewModel.fetchLegalLicenses()
     }
 
-    val licenses by viewModel.legalLicenses.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingLicenses.collectAsStateWithLifecycle()
+    val licensesPagingState by viewModel.legalLicensesPagingState.collectAsStateWithLifecycle()
     val errorMessage by viewModel.licensesError.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     val filterDrawerState = rememberFilterDrawerState()
     var filterSections by remember { mutableStateOf(getLegalLicenseFilterSections()) }
 
-    // State for target license to delete
     var licenseToDelete by remember { mutableStateOf<LegalLicenseItemDto?>(null) }
 
     val activeFilterCount = remember(filterSections) {
         filterSections.sumOf { it.options.count { opt -> opt.isSelected } }
     }
 
-    // Client-side search and filter evaluation
-    val filteredLicenses = remember(licenses, searchQuery, filterSections) {
+    val filteredLicenses = remember(licensesPagingState.items, searchQuery, filterSections) {
         val selectedStatuses = filterSections.find { it.title == "Status" }?.options?.filter { it.isSelected }?.map { it.id }.orEmpty()
         val selectedRisks = filterSections.find { it.title == "Risk Level" }?.options?.filter { it.isSelected }?.map { it.id }.orEmpty()
 
-        licenses.filter { item ->
+        licensesPagingState.items.filter { item ->
             val matchesSearch = searchQuery.isBlank() ||
                     item.licenseName?.contains(searchQuery, ignoreCase = true) == true ||
                     item.licenseCode?.contains(searchQuery, ignoreCase = true) == true ||
@@ -151,7 +145,10 @@ fun LegalLicenseScreen(
         }
     }
 
-    // Floating action button configuration
+    val displayPagingState = remember(licensesPagingState, filteredLicenses) {
+        licensesPagingState.copy(items = filteredLicenses)
+    }
+
     val fabConfig = remember(onAddLicense) {
         FabConfig(
             label = "Add License",
@@ -165,11 +162,11 @@ fun LegalLicenseScreen(
             .fillMaxSize()
             .background(Color.Transparent),
         fab = fabConfig,
-        fabVisible = true
+        fabVisible = !displayPagingState.isInitialLoading
     ) {
         Scaffold(
             containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0,0,0,0),
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 TitleBar(
                     title = "All License",
@@ -177,62 +174,73 @@ fun LegalLicenseScreen(
                 )
             }
         ) { paddingValues ->
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                if (isLoading && licenses.isEmpty()) {
-                   ListSkeleton()
-                } else if (!errorMessage.isNullOrBlank() && licenses.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = errorMessage ?: "Failed to load legal licenses",
-                                fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Normal,
-                                color = redText
-                            )
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            Button(
-                                onClick = { viewModel.fetchLegalLicenses() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                            ) {
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = {
+                        searchQuery = it
+                        viewModel.fetchLegalLicenses(search = it)
+                    },
+                    placeholder = "Search SO number, customer...",
+                    filterCount = activeFilterCount,
+                    onFilterClick = { filterDrawerState.open() },
+                    accentColor = Primary,
+                    borderColor = sectionBorder,
+                    textSecondaryColor = mutedText
+                )
+
+                when {
+                    !errorMessage.isNullOrBlank() && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "Retry",
+                                    text = errorMessage ?: "Failed to load legal licenses",
                                     fontSize = tokens.bodySmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = whiteBg
+                                    color = redText
                                 )
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                Button(
+                                    onClick = { viewModel.fetchLegalLicenses() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                                ) {
+                                    Text(
+                                        text = "Retry",
+                                        fontSize = tokens.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = whiteBg
+                                    )
+                                }
                             }
                         }
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 100.dp)
-                    ) {
-                        item {
-                            SearchFilterBar(
-                                query = searchQuery,
-                                onQueryChange = {
-                                    searchQuery = it
-                                    viewModel.fetchLegalLicenses(search = it)
-                                },
-                                placeholder = "Search SO number, customer...",
-                                filterCount = activeFilterCount,
-                                onFilterClick = { filterDrawerState.open() },
-                                accentColor = Primary,
-                                borderColor = sectionBorder,
-                                textSecondaryColor = mutedText
+
+                    !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No legal licenses found",
+                                fontSize = tokens.bodyMedium,
+                                color = mutedText
                             )
                         }
+                    }
 
-                        items(filteredLicenses, key = { it.id }) { licenseItem ->
+                    else -> {
+                        PaginatedDataList(
+                            state = displayPagingState,
+                            onLoadMore = { viewModel.loadMoreLegalLicenses() },
+                            modifier = Modifier.fillMaxSize()
+                        ) { licenseItem ->
                             val statusText = licenseItem.status?.replace("_", " ") ?: "-"
                             val codeText = licenseItem.licenseCode ?: licenseItem.licenseNumber ?: "-"
                             val typeText = licenseItem.licenseType ?: "-"
@@ -256,37 +264,21 @@ fun LegalLicenseScreen(
                                 topBadgeShowDot = false,
                                 topBadgeInline = true,
                                 actions = listOf(
-                                    MenuAction(
-                                        label = "Edit",
-                                        onClick = { onEditLicense(licenseItem.id) }
-                                    ),
-                                    MenuAction(
-                                        label = "View Details",
-                                        onClick = { onLicenseClick(licenseItem) }
-                                    ),
-                                    MenuAction(
-                                        label = "Delete",
-                                        textColor = redText,
-                                        onClick = { licenseToDelete = licenseItem }
-                                    )
+                                    MenuAction(label = "Edit", onClick = { onEditLicense(licenseItem.id) }),
+                                    MenuAction(label = "View Details", onClick = { onLicenseClick(licenseItem) }),
+                                    MenuAction(label = "Delete", textColor = redText, onClick = { licenseToDelete = licenseItem })
                                 ),
                                 showActionsInHeader = false,
                                 showDivider = false,
                                 onClick = { onLicenseClick(licenseItem) },
                                 content = {
                                     Column(modifier = Modifier.fillMaxWidth()) {
-                                        // License ID Row
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = "License ID",
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Normal,
-                                                color = mutedText
-                                            )
+                                            Text("License ID", fontSize = tokens.bodySmall, color = mutedText)
                                             Text(
                                                 text = codeText,
                                                 fontSize = tokens.bodySmall,
@@ -298,116 +290,46 @@ fun LegalLicenseScreen(
 
                                         Spacer(Modifier.height(6.dp))
 
-                                        // Type Row
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = "Type",
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Normal,
-                                                color = mutedText
-                                            )
-                                            Text(
-                                                text = typeText,
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = TextPrimary
-                                            )
+                                            Text("Type", fontSize = tokens.bodySmall, color = mutedText)
+                                            Text(typeText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
                                         }
 
                                         Spacer(Modifier.height(10.dp))
 
-                                        // Details Grid Box: Authority, Country, Risk
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                                                 .background(Primary_background)
-                                                .border(
-                                                    1.dp,
-                                                    sectionBorder,
-                                                    RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                                                )
+                                                .border(1.dp, sectionBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                                                 .padding(vertical = 10.dp, horizontal = 12.dp)
                                         ) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                // Authority
-                                                Column(
-                                                    modifier = Modifier.weight(1f),
-                                                    horizontalAlignment = Alignment.CenterHorizontally
-                                                ) {
-                                                    Text(
-                                                        text = "Authority",
-                                                        fontSize = tokens.caption,
-                                                        fontWeight = FontWeight.Normal,
-                                                        color = mutedText
-                                                    )
+                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text("Authority", fontSize = tokens.caption, color = mutedText)
                                                     Spacer(Modifier.height(2.dp))
-                                                    Text(
-                                                        text = authorityText,
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = TextPrimary,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
+                                                    Text(authorityText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                                 }
-
-                                                // Country / Region
-                                                Column(
-                                                    modifier = Modifier.weight(1f),
-                                                    horizontalAlignment = Alignment.CenterHorizontally
-                                                ) {
-                                                    Text(
-                                                        text = "Country",
-                                                        fontSize = tokens.caption,
-                                                        fontWeight = FontWeight.Normal,
-                                                        color = mutedText
-                                                    )
+                                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text("Country", fontSize = tokens.caption, color = mutedText)
                                                     Spacer(Modifier.height(2.dp))
-                                                    Text(
-                                                        text = countryRegionText.ifBlank { "-" },
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = TextPrimary,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
+                                                    Text(countryRegionText.ifBlank { "-" }, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                                 }
-
-                                                // Risk
-                                                Column(
-                                                    modifier = Modifier.weight(1f),
-                                                    horizontalAlignment = Alignment.CenterHorizontally
-                                                ) {
-                                                    Text(
-                                                        text = "Risk",
-                                                        fontSize = tokens.caption,
-                                                        fontWeight = FontWeight.Normal,
-                                                        color = mutedText
-                                                    )
+                                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text("Risk", fontSize = tokens.caption, color = mutedText)
                                                     Spacer(Modifier.height(2.dp))
-                                                    Text(
-                                                        text = riskText,
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = TextPrimary,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
+                                                    Text(riskText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                                 }
                                             }
                                         }
 
                                         Spacer(Modifier.height(12.dp))
 
-                                        // Expiry Date Row with Remaining Days
                                         Text(
                                             text = buildAnnotatedString {
                                                 withStyle(SpanStyle(color = mutedText, fontWeight = FontWeight.Normal)) {
@@ -434,7 +356,6 @@ fun LegalLicenseScreen(
             }
         }
 
-        // Filter Drawer Integration
         FilterDrawer(
             state = filterDrawerState,
             title = "Filter Licenses",
@@ -443,7 +364,6 @@ fun LegalLicenseScreen(
             onClearAll = { filterSections = getLegalLicenseFilterSections() }
         )
 
-        // Delete Modal confirmation dialog
         licenseToDelete?.let { targetLicense ->
             DeleteModel(
                 title = "Delete License",

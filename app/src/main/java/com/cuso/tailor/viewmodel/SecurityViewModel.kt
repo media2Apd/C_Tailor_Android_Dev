@@ -72,7 +72,7 @@ private const val SECURITY_AUDIT_LOGS_VIEW_ONE_URL = "/api/inventory/audit-logs/
 // 16. MOBILE ACCESS MANAGEMENT (DEVICE MGMT, AUTH, DATA SECURITY & AUDIT)
 // =========================================================================
 
-// --- MOBILE ACCESS ENDPOINTS ---
+// --- Mobile Access Endpoints ---
 private const val MOBILE_DEVICES_VIEW_ALL_URL = "/api/security/mobile-device/view-all"
 private const val MOBILE_DEVICE_APPROVE_URL = "/api/security/mobile-device/approve"
 private const val MOBILE_DEVICE_BLOCK_URL = "/api/security/mobile-device/block"
@@ -89,12 +89,12 @@ private const val MOBILE_SECURITY_AUDIT_VIEW_ALL_URL = "/api/security/mobile-sec
 private const val MOBILE_SECURITY_AUDIT_RESOLVE_URL = "/api/security/mobile-security-audit/resolve"
 private const val MOBILE_SECURITY_AUDIT_BLOCK_USER_URL = "/api/security/mobile-security-audit/block-user"
 
-// --- HELP CENTER ENDPOINTS ---
+// --- Help Center Endpoints ---
 private const val HELP_ARTICLES_VIEW_ALL_URL = "/api/security/help-article/view-all"
 private const val HELP_ARTICLE_BY_SLUG_URL = "/api/security/help-article/view-one"
 private const val HELP_ARTICLE_VOTE_URL = "/api/security/help-article"
 
-// --- TICKET ENDPOINTS ---
+// --- Support Ticket Endpoints ---
 private const val SUPPORT_TICKETS_VIEW_ALL_URL = "/api/security/ticket/view-all"
 private const val SUPPORT_TICKET_VIEW_ONE_URL = "/api/security/ticket/view-one"
 private const val SUPPORT_TICKET_CREATE_URL = "/api/security/ticket/create"
@@ -265,6 +265,10 @@ class SecurityViewModel @Inject constructor(
     private val _backupsList = MutableStateFlow<List<BackupItemDto>>(emptyList())
     val backupsList: StateFlow<List<BackupItemDto>> = _backupsList.asStateFlow()
 
+    private val _backupsPagingState = MutableStateFlow(PagingUiState<BackupItemDto>())
+    private var backupCurrentPage = 1
+    private val backupPageLimit = 10
+
     private val _backupSearchQuery = MutableStateFlow("")
     val backupSearchQuery: StateFlow<String> = _backupSearchQuery.asStateFlow()
 
@@ -312,8 +316,24 @@ class SecurityViewModel @Inject constructor(
         _backupSearchQuery,
         _selectedBackupStatus
     ) { list, query, status ->
+        filterBackupItems(list, query, status)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val filteredBackupsPagingState: StateFlow<PagingUiState<BackupItemDto>> = combine(
+        _backupsPagingState,
+        _backupSearchQuery,
+        _selectedBackupStatus
+    ) { paging, query, status ->
+        paging.copy(items = filterBackupItems(paging.items, query, status))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState())
+
+    private fun filterBackupItems(
+        list: List<BackupItemDto>,
+        query: String,
+        status: String?
+    ): List<BackupItemDto> {
         val cleanQuery = query.trim().lowercase()
-        list.filter { item ->
+        return list.filter { item ->
             val matchesQuery = cleanQuery.isEmpty() ||
                     item.backupId.lowercase().contains(cleanQuery) ||
                     item.name.lowercase().contains(cleanQuery) ||
@@ -325,7 +345,7 @@ class SecurityViewModel @Inject constructor(
 
             matchesQuery && matchesStatus
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
 
     fun onBackupSearchQueryChange(query: String) {
         _backupSearchQuery.value = query
@@ -341,24 +361,70 @@ class SecurityViewModel @Inject constructor(
     }
 
     fun fetchBackups() {
+        fetchBackupsInternal(isLoadMore = false)
+    }
+
+    fun loadMoreBackups() {
+        fetchBackupsInternal(isLoadMore = true)
+    }
+
+    private fun fetchBackupsInternal(isLoadMore: Boolean) {
         viewModelScope.launch {
-            _isLoadingBackups.value = true
-            _backupsError.value = null
+            if (isLoadMore) {
+                if (_backupsPagingState.value.isLoadingMore || !_backupsPagingState.value.canLoadMore) return@launch
+                _backupsPagingState.value = _backupsPagingState.value.copy(isLoadingMore = true)
+                backupCurrentPage++
+            } else {
+                backupCurrentPage = 1
+                _isLoadingBackups.value = true
+                _backupsError.value = null
+                _backupsPagingState.value = _backupsPagingState.value.copy(isInitialLoading = true)
+            }
 
             val result = repo.request<BackupListApiResponse> {
-                get(SECURITY_BACKUP_VIEW_ALL_URL)
+                get(
+                    SECURITY_BACKUP_VIEW_ALL_URL,
+                    repo.query("page" to backupCurrentPage, "limit" to backupPageLimit)
+                )
             }
 
             result.fold(
                 onSuccess = { res ->
                     if (res.success) {
-                        _backupsList.value = res.data
+                        val newItems = res.data
+                        val existingKeys = _backupsPagingState.value.items.mapTo(HashSet()) { it.id ?: it.backupId }
+                        val uniqueNew = if (isLoadMore) {
+                            newItems.filter { (it.id ?: it.backupId) !in existingKeys }
+                        } else {
+                            newItems
+                        }
+                        val updatedList = if (isLoadMore) {
+                            _backupsPagingState.value.items + uniqueNew
+                        } else {
+                            newItems
+                        }
+
+                        _backupsList.value = updatedList
+                        _backupsPagingState.value = _backupsPagingState.value.copy(
+                            items = updatedList,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= backupPageLimit && (!isLoadMore || uniqueNew.isNotEmpty())
+                        )
                     } else {
                         _backupsError.value = res.message ?: "Failed to fetch backups"
+                        _backupsPagingState.value = _backupsPagingState.value.copy(
+                            isInitialLoading = false,
+                            isLoadingMore = false
+                        )
                     }
                 },
                 onFailure = { err ->
                     _backupsError.value = err.message ?: "Network error fetching backups"
+                    _backupsPagingState.value = _backupsPagingState.value.copy(
+                        isInitialLoading = false,
+                        isLoadingMore = false
+                    )
                 }
             )
             _isLoadingBackups.value = false
@@ -518,19 +584,22 @@ class SecurityViewModel @Inject constructor(
         _backupsList,
         _recoverySearchQuery
     ) { list, query ->
-        val cleanQuery = query.trim().lowercase()
-        list.filter { item ->
-            cleanQuery.isEmpty() ||
-                    item.backupId.lowercase().contains(cleanQuery) ||
-                    item.name.lowercase().contains(cleanQuery) ||
-                    (item.restorePointId?.lowercase()?.contains(cleanQuery) == true) ||
-                    item.sourceTarget.lowercase().contains(cleanQuery) ||
-                    item.source.lowercase().contains(cleanQuery)
-        }
+        filterBackupItems(list, query, null)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val filteredRecoveryBackupsPagingState: StateFlow<PagingUiState<BackupItemDto>> = combine(
+        _backupsPagingState,
+        _recoverySearchQuery
+    ) { paging, query ->
+        paging.copy(items = filterBackupItems(paging.items, query, null))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState())
 
     fun onRecoverySearchQueryChange(query: String) {
         _recoverySearchQuery.value = query
+    }
+
+    fun loadMoreRecoveryBackups() {
+        fetchBackupsInternal(isLoadMore = true)
     }
 
     fun initiateRecovery(
@@ -598,6 +667,10 @@ class SecurityViewModel @Inject constructor(
     private val _integrationsList = MutableStateFlow<List<ApiIntegrationItemDto>>(emptyList())
     val integrationsList: StateFlow<List<ApiIntegrationItemDto>> = _integrationsList.asStateFlow()
 
+    private val _integrationsPagingState = MutableStateFlow(PagingUiState<ApiIntegrationItemDto>())
+    private var integrationCurrentPage = 1
+    private val integrationPageLimit = 10
+
     private val _integrationSearchQuery = MutableStateFlow("")
     val integrationSearchQuery: StateFlow<String> = _integrationSearchQuery.asStateFlow()
 
@@ -641,15 +714,29 @@ class SecurityViewModel @Inject constructor(
         _integrationsList,
         _integrationSearchQuery
     ) { list, query ->
+        filterIntegrationItems(list, query)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val filteredIntegrationsPagingState: StateFlow<PagingUiState<ApiIntegrationItemDto>> = combine(
+        _integrationsPagingState,
+        _integrationSearchQuery
+    ) { paging, query ->
+        paging.copy(items = filterIntegrationItems(paging.items, query))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState())
+
+    private fun filterIntegrationItems(
+        list: List<ApiIntegrationItemDto>,
+        query: String
+    ): List<ApiIntegrationItemDto> {
         val cleanQuery = query.trim().lowercase()
-        list.filter { item ->
+        return list.filter { item ->
             cleanQuery.isEmpty() ||
                     item.name.lowercase().contains(cleanQuery) ||
                     item.category.lowercase().contains(cleanQuery) ||
                     item.baseUrl.lowercase().contains(cleanQuery) ||
                     item.authType.lowercase().contains(cleanQuery)
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
 
     fun onIntegrationSearchQueryChange(query: String) {
         _integrationSearchQuery.value = query
@@ -664,27 +751,66 @@ class SecurityViewModel @Inject constructor(
     }
 
     fun fetchApiIntegrations(page: Int = 1, limit: Int = 10) {
+        fetchApiIntegrationsInternal(page = page, limit = limit, isLoadMore = false)
+    }
+
+    fun loadMoreApiIntegrations() {
+        fetchApiIntegrationsInternal(page = integrationCurrentPage + 1, limit = integrationPageLimit, isLoadMore = true)
+    }
+
+    private fun fetchApiIntegrationsInternal(page: Int, limit: Int, isLoadMore: Boolean) {
         viewModelScope.launch {
-            _isLoadingIntegrations.value = true
-            _integrationsError.value = null
+            if (isLoadMore) {
+                if (_integrationsPagingState.value.isLoadingMore || !_integrationsPagingState.value.canLoadMore) return@launch
+                _integrationsPagingState.value = _integrationsPagingState.value.copy(isLoadingMore = true)
+                integrationCurrentPage = page
+            } else {
+                integrationCurrentPage = page
+                _isLoadingIntegrations.value = true
+                _integrationsError.value = null
+                _integrationsPagingState.value = _integrationsPagingState.value.copy(isInitialLoading = true)
+            }
 
             val result = repo.request<ApiIntegrationListResponse> {
                 get(
                     SECURITY_API_INTEGRATIONS_VIEW_ALL_URL,
-                    repo.query("page" to page, "limit" to limit)
+                    repo.query("page" to integrationCurrentPage, "limit" to limit)
                 )
             }
 
             result.fold(
                 onSuccess = { res ->
                     if (res.success) {
-                        _integrationsList.value = res.data
+                        val newItems = res.data
+                        val existingIds = _integrationsPagingState.value.items.mapTo(HashSet()) { it.id }
+                        val uniqueNew = if (isLoadMore) newItems.filter { it.id !in existingIds } else newItems
+                        val updatedList = if (isLoadMore) {
+                            _integrationsPagingState.value.items + uniqueNew
+                        } else {
+                            newItems
+                        }
+
+                        _integrationsList.value = updatedList
+                        _integrationsPagingState.value = _integrationsPagingState.value.copy(
+                            items = updatedList,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= limit && (!isLoadMore || uniqueNew.isNotEmpty())
+                        )
                     } else {
                         _integrationsError.value = res.message ?: "Failed to load integrations"
+                        _integrationsPagingState.value = _integrationsPagingState.value.copy(
+                            isInitialLoading = false,
+                            isLoadingMore = false
+                        )
                     }
                 },
                 onFailure = { err ->
                     _integrationsError.value = err.message ?: "Network error fetching integrations"
+                    _integrationsPagingState.value = _integrationsPagingState.value.copy(
+                        isInitialLoading = false,
+                        isLoadingMore = false
+                    )
                 }
             )
             _isLoadingIntegrations.value = false
@@ -810,7 +936,11 @@ class SecurityViewModel @Inject constructor(
             result.fold(
                 onSuccess = { res ->
                     if (res.success) {
-                        _integrationsList.value = _integrationsList.value.filter { it.id != integrationId }
+                        val updatedList = _integrationsList.value.filter { it.id != integrationId }
+                        _integrationsList.value = updatedList
+                        _integrationsPagingState.value = _integrationsPagingState.value.copy(
+                            items = _integrationsPagingState.value.items.filter { it.id != integrationId }
+                        )
                         val msg = res.message ?: "API Integration revoked successfully"
                         onSuccess(msg)
                     } else {
@@ -885,6 +1015,11 @@ class SecurityViewModel @Inject constructor(
                         _integrationsList.value = _integrationsList.value.map { item ->
                             if (item.id == integrationId) updatedItem else item
                         }
+                        _integrationsPagingState.value = _integrationsPagingState.value.copy(
+                            items = _integrationsPagingState.value.items.map { item ->
+                                if (item.id == integrationId) updatedItem else item
+                            }
+                        )
                         val msg = res.message ?: "Status updated successfully"
                         onSuccess(msg)
                     } else {
@@ -906,6 +1041,10 @@ class SecurityViewModel @Inject constructor(
 
     private val _apiLogsList = MutableStateFlow<List<ApiLogItemDto>>(emptyList())
     val apiLogsList: StateFlow<List<ApiLogItemDto>> = _apiLogsList.asStateFlow()
+
+    private val _apiLogsPagingState = MutableStateFlow(PagingUiState<ApiLogItemDto>())
+    private var apiLogCurrentPage = 1
+    private val apiLogPageLimit = 10
 
     private val _apiLogSearchQuery = MutableStateFlow("")
     val apiLogSearchQuery: StateFlow<String> = _apiLogSearchQuery.asStateFlow()
@@ -929,8 +1068,22 @@ class SecurityViewModel @Inject constructor(
         _apiLogsList,
         _apiLogSearchQuery
     ) { list, query ->
+        filterApiLogItems(list, query)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val filteredApiLogsPagingState: StateFlow<PagingUiState<ApiLogItemDto>> = combine(
+        _apiLogsPagingState,
+        _apiLogSearchQuery
+    ) { paging, query ->
+        paging.copy(items = filterApiLogItems(paging.items, query))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState())
+
+    private fun filterApiLogItems(
+        list: List<ApiLogItemDto>,
+        query: String
+    ): List<ApiLogItemDto> {
         val cleanQuery = query.trim().lowercase()
-        list.filter { item ->
+        return list.filter { item ->
             cleanQuery.isEmpty() ||
                     (item.integration?.name?.lowercase()?.contains(cleanQuery) == true) ||
                     item.logId.lowercase().contains(cleanQuery) ||
@@ -938,7 +1091,7 @@ class SecurityViewModel @Inject constructor(
                     item.endpoint.lowercase().contains(cleanQuery) ||
                     item.statusCode.toString().contains(cleanQuery)
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
 
     fun onApiLogSearchQueryChange(query: String) {
         _apiLogSearchQuery.value = query
@@ -948,27 +1101,66 @@ class SecurityViewModel @Inject constructor(
      * Fetches all API logs from /api/security/api-logs/view-all
      */
     fun fetchApiLogs(page: Int = 1, limit: Int = 10) {
+        fetchApiLogsInternal(page = page, limit = limit, isLoadMore = false)
+    }
+
+    fun loadMoreApiLogs() {
+        fetchApiLogsInternal(page = apiLogCurrentPage + 1, limit = apiLogPageLimit, isLoadMore = true)
+    }
+
+    private fun fetchApiLogsInternal(page: Int, limit: Int, isLoadMore: Boolean) {
         viewModelScope.launch {
-            _isLoadingApiLogs.value = true
-            _apiLogsError.value = null
+            if (isLoadMore) {
+                if (_apiLogsPagingState.value.isLoadingMore || !_apiLogsPagingState.value.canLoadMore) return@launch
+                _apiLogsPagingState.value = _apiLogsPagingState.value.copy(isLoadingMore = true)
+                apiLogCurrentPage = page
+            } else {
+                apiLogCurrentPage = page
+                _isLoadingApiLogs.value = true
+                _apiLogsError.value = null
+                _apiLogsPagingState.value = _apiLogsPagingState.value.copy(isInitialLoading = true)
+            }
 
             val result = repo.request<ApiLogListResponse> {
                 get(
                     SECURITY_API_LOGS_VIEW_ALL_URL,
-                    repo.query("page" to page, "limit" to limit)
+                    repo.query("page" to apiLogCurrentPage, "limit" to limit)
                 )
             }
 
             result.fold(
                 onSuccess = { res ->
                     if (res.success) {
-                        _apiLogsList.value = res.data
+                        val newItems = res.data
+                        val existingIds = _apiLogsPagingState.value.items.mapTo(HashSet()) { it.id }
+                        val uniqueNew = if (isLoadMore) newItems.filter { it.id !in existingIds } else newItems
+                        val updatedList = if (isLoadMore) {
+                            _apiLogsPagingState.value.items + uniqueNew
+                        } else {
+                            newItems
+                        }
+
+                        _apiLogsList.value = updatedList
+                        _apiLogsPagingState.value = _apiLogsPagingState.value.copy(
+                            items = updatedList,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= limit && (!isLoadMore || uniqueNew.isNotEmpty())
+                        )
                     } else {
                         _apiLogsError.value = res.message ?: "Failed to load API logs"
+                        _apiLogsPagingState.value = _apiLogsPagingState.value.copy(
+                            isInitialLoading = false,
+                            isLoadingMore = false
+                        )
                     }
                 },
                 onFailure = { err ->
                     _apiLogsError.value = err.message ?: "Network error fetching API logs"
+                    _apiLogsPagingState.value = _apiLogsPagingState.value.copy(
+                        isInitialLoading = false,
+                        isLoadingMore = false
+                    )
                 }
             )
             _isLoadingApiLogs.value = false
@@ -1004,11 +1196,15 @@ class SecurityViewModel @Inject constructor(
     }
 
     // =========================================================================
-// AUDIT LOGS STATES & OPERATIONS
-// =========================================================================
+    // AUDIT LOGS STATES & OPERATIONS
+    // =========================================================================
 
     private val _auditLogsList = MutableStateFlow<List<AuditLogItemDto>>(emptyList())
     val auditLogsList: StateFlow<List<AuditLogItemDto>> = _auditLogsList.asStateFlow()
+
+    private val _auditLogsPagingState = MutableStateFlow(PagingUiState<AuditLogItemDto>())
+    private var auditLogCurrentPage = 1
+    private val auditLogPageLimit = 20
 
     private val _auditLogSearchQuery = MutableStateFlow("")
     val auditLogSearchQuery: StateFlow<String> = _auditLogSearchQuery.asStateFlow()
@@ -1032,8 +1228,22 @@ class SecurityViewModel @Inject constructor(
         _auditLogsList,
         _auditLogSearchQuery
     ) { list, query ->
+        filterAuditLogItems(list, query)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val filteredAuditLogsPagingState: StateFlow<PagingUiState<AuditLogItemDto>> = combine(
+        _auditLogsPagingState,
+        _auditLogSearchQuery
+    ) { paging, query ->
+        paging.copy(items = filterAuditLogItems(paging.items, query))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState())
+
+    private fun filterAuditLogItems(
+        list: List<AuditLogItemDto>,
+        query: String
+    ): List<AuditLogItemDto> {
         val cleanQuery = query.trim().lowercase()
-        list.filter { item ->
+        return list.filter { item ->
             cleanQuery.isEmpty() ||
                     item.recordName.lowercase().contains(cleanQuery) ||
                     item.action.lowercase().contains(cleanQuery) ||
@@ -1042,7 +1252,7 @@ class SecurityViewModel @Inject constructor(
                     (item.member?.name?.lowercase()?.contains(cleanQuery) == true) ||
                     item.ipAddress.lowercase().contains(cleanQuery)
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
 
     fun onAuditLogSearchQueryChange(query: String) {
         _auditLogSearchQuery.value = query
@@ -1052,27 +1262,66 @@ class SecurityViewModel @Inject constructor(
      * Fetches all audit logs from /api/inventory/audit-logs/view-all
      */
     fun fetchAuditLogs(page: Int = 1, limit: Int = 20) {
+        fetchAuditLogsInternal(page = page, limit = limit, isLoadMore = false)
+    }
+
+    fun loadMoreAuditLogs() {
+        fetchAuditLogsInternal(page = auditLogCurrentPage + 1, limit = auditLogPageLimit, isLoadMore = true)
+    }
+
+    private fun fetchAuditLogsInternal(page: Int, limit: Int, isLoadMore: Boolean) {
         viewModelScope.launch {
-            _isLoadingAuditLogs.value = true
-            _auditLogsError.value = null
+            if (isLoadMore) {
+                if (_auditLogsPagingState.value.isLoadingMore || !_auditLogsPagingState.value.canLoadMore) return@launch
+                _auditLogsPagingState.value = _auditLogsPagingState.value.copy(isLoadingMore = true)
+                auditLogCurrentPage = page
+            } else {
+                auditLogCurrentPage = page
+                _isLoadingAuditLogs.value = true
+                _auditLogsError.value = null
+                _auditLogsPagingState.value = _auditLogsPagingState.value.copy(isInitialLoading = true)
+            }
 
             val result = repo.request<AuditLogListResponse> {
                 get(
                     SECURITY_AUDIT_LOGS_VIEW_ALL_URL,
-                    repo.query("page" to page, "limit" to limit)
+                    repo.query("page" to auditLogCurrentPage, "limit" to limit)
                 )
             }
 
             result.fold(
                 onSuccess = { res ->
                     if (res.success && res.data != null) {
-                        _auditLogsList.value = res.data.data
+                        val newItems = res.data.data
+                        val existingIds = _auditLogsPagingState.value.items.mapTo(HashSet()) { it.id }
+                        val uniqueNew = if (isLoadMore) newItems.filter { it.id !in existingIds } else newItems
+                        val updatedList = if (isLoadMore) {
+                            _auditLogsPagingState.value.items + uniqueNew
+                        } else {
+                            newItems
+                        }
+
+                        _auditLogsList.value = updatedList
+                        _auditLogsPagingState.value = _auditLogsPagingState.value.copy(
+                            items = updatedList,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= limit && (!isLoadMore || uniqueNew.isNotEmpty())
+                        )
                     } else {
                         _auditLogsError.value = res.message ?: "Failed to load audit logs"
+                        _auditLogsPagingState.value = _auditLogsPagingState.value.copy(
+                            isInitialLoading = false,
+                            isLoadingMore = false
+                        )
                     }
                 },
                 onFailure = { err ->
                     _auditLogsError.value = err.message ?: "Network error fetching audit logs"
+                    _auditLogsPagingState.value = _auditLogsPagingState.value.copy(
+                        isInitialLoading = false,
+                        isLoadingMore = false
+                    )
                 }
             )
             _isLoadingAuditLogs.value = false
@@ -1163,6 +1412,10 @@ class SecurityViewModel @Inject constructor(
     private val _usersList = MutableStateFlow<List<UserManagementItemDto>>(emptyList())
     val usersList: StateFlow<List<UserManagementItemDto>> = _usersList.asStateFlow()
 
+    private val _usersPagingState = MutableStateFlow(PagingUiState<UserManagementItemDto>())
+    private var userCurrentPage = 1
+    private val userPageLimit = 20
+
     private val _userSearchQuery = MutableStateFlow("")
     val userSearchQuery: StateFlow<String> = _userSearchQuery.asStateFlow()
 
@@ -1183,8 +1436,24 @@ class SecurityViewModel @Inject constructor(
         _userSearchQuery,
         _selectedUserStatus
     ) { list, query, status ->
+        filterUserItems(list, query, status)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val filteredUsersPagingState: StateFlow<PagingUiState<UserManagementItemDto>> = combine(
+        _usersPagingState,
+        _userSearchQuery,
+        _selectedUserStatus
+    ) { paging, query, status ->
+        paging.copy(items = filterUserItems(paging.items, query, status))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState())
+
+    private fun filterUserItems(
+        list: List<UserManagementItemDto>,
+        query: String,
+        status: String?
+    ): List<UserManagementItemDto> {
         val cleanQuery = query.trim().lowercase()
-        list.filter { item ->
+        return list.filter { item ->
             val matchesQuery = cleanQuery.isEmpty() ||
                     item.fullName.lowercase().contains(cleanQuery) ||
                     item.email.lowercase().contains(cleanQuery) ||
@@ -1196,7 +1465,7 @@ class SecurityViewModel @Inject constructor(
 
             matchesQuery && matchesStatus
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
 
     fun onUserSearchQueryChange(query: String) {
         _userSearchQuery.value = query
@@ -1212,28 +1481,67 @@ class SecurityViewModel @Inject constructor(
     }
 
     fun fetchUsers(page: Int = 1, limit: Int = 20) {
+        fetchUsersInternal(page = page, limit = limit, isLoadMore = false)
+    }
+
+    fun loadMoreUsers() {
+        fetchUsersInternal(page = userCurrentPage + 1, limit = userPageLimit, isLoadMore = true)
+    }
+
+    private fun fetchUsersInternal(page: Int, limit: Int, isLoadMore: Boolean) {
         viewModelScope.launch {
-            _isLoadingUsers.value = true
-            _usersError.value = null
+            if (isLoadMore) {
+                if (_usersPagingState.value.isLoadingMore || !_usersPagingState.value.canLoadMore) return@launch
+                _usersPagingState.value = _usersPagingState.value.copy(isLoadingMore = true)
+                userCurrentPage = page
+            } else {
+                userCurrentPage = page
+                _isLoadingUsers.value = true
+                _usersError.value = null
+                _usersPagingState.value = _usersPagingState.value.copy(isInitialLoading = true)
+            }
 
             val result = repo.request<UserListResponse> {
                 get(
                     SECURITY_USERS_LIST_URL,
-                    repo.query("page" to page, "limit" to limit)
+                    repo.query("page" to userCurrentPage, "limit" to limit)
                 )
             }
 
             result.fold(
                 onSuccess = { res ->
                     if (res.success) {
-                        _usersList.value = res.data
+                        val newItems = res.data
+                        val existingIds = _usersPagingState.value.items.mapTo(HashSet()) { it.id }
+                        val uniqueNew = if (isLoadMore) newItems.filter { it.id !in existingIds } else newItems
+                        val updatedList = if (isLoadMore) {
+                            _usersPagingState.value.items + uniqueNew
+                        } else {
+                            newItems
+                        }
+
+                        _usersList.value = updatedList
                         _totalUsersCount.value = res.total
+                        _usersPagingState.value = _usersPagingState.value.copy(
+                            items = updatedList,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = updatedList.size < res.total && newItems.size >= limit && (!isLoadMore || uniqueNew.isNotEmpty())
+                        )
                     } else {
                         _usersError.value = res.message ?: "Failed to load users"
+                        _usersPagingState.value = _usersPagingState.value.copy(
+                            isInitialLoading = false,
+                            isLoadingMore = false
+                        )
                     }
                 },
                 onFailure = { err ->
                     _usersError.value = err.message ?: "Network error fetching users"
+                    _usersPagingState.value = _usersPagingState.value.copy(
+                        isInitialLoading = false,
+                        isLoadingMore = false
+                    )
                 }
             )
             _isLoadingUsers.value = false
@@ -1536,10 +1844,12 @@ class SecurityViewModel @Inject constructor(
             }
         )
     }
+
     // =========================================================================
     // 16. MOBILE ACCESS MANAGEMENT (DEVICE MGMT, AUTH, DATA SECURITY & AUDIT)
     // =========================================================================
-    // --- DEVICE STATE & PAGINATION ---
+
+    // --- Device State & Pagination ---
     private val _mobileDevicesPagingState = MutableStateFlow(PagingUiState<MobileDeviceItem>())
     val mobileDevicesPagingState: StateFlow<PagingUiState<MobileDeviceItem>> = _mobileDevicesPagingState.asStateFlow()
 
@@ -1553,7 +1863,7 @@ class SecurityViewModel @Inject constructor(
     private val _deviceApprovalStatusFilter = MutableStateFlow<String?>(null)
     private val _deviceTrustStatusFilter = MutableStateFlow<String?>(null)
 
-    // --- AUDIT STATE & PAGINATION ---
+    // --- Audit State & Pagination ---
     private val _mobileAuditsPagingState = MutableStateFlow(PagingUiState<MobileSecurityAuditItem>())
     val mobileAuditsPagingState: StateFlow<PagingUiState<MobileSecurityAuditItem>> = _mobileAuditsPagingState.asStateFlow()
 
@@ -1567,14 +1877,14 @@ class SecurityViewModel @Inject constructor(
     private val _auditSeverityFilter = MutableStateFlow<String?>(null)
     private val _auditStatusFilter = MutableStateFlow<String?>(null)
 
-    // --- AUTH & DATA POLICY STATE ---
+    // --- Auth & Data Policy State ---
     private val _mobileAuthPolicy = MutableStateFlow(MobileAuthPolicyData())
     val mobileAuthPolicy: StateFlow<MobileAuthPolicyData> = _mobileAuthPolicy.asStateFlow()
 
     private val _mobileDataSecurityPolicy = MutableStateFlow(MobileDataSecurityPolicyData())
     val mobileDataSecurityPolicy: StateFlow<MobileDataSecurityPolicyData> = _mobileDataSecurityPolicy.asStateFlow()
 
-    // --- DEVICE API CALLS ---
+    // --- Device API Calls ---
     fun fetchMobileDevices(isLoadMore: Boolean = false) {
         viewModelScope.launch {
             if (isLoadMore) {
@@ -1744,7 +2054,7 @@ class SecurityViewModel @Inject constructor(
         }
     }
 
-    // --- AUDIT API CALLS ---
+    // --- Audit API Calls ---
     fun resolveMobileAudit(eventId: String, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -1781,7 +2091,7 @@ class SecurityViewModel @Inject constructor(
         }
     }
 
-    // --- POLICY MUTATORS WITH EXACT PICKED PAYLOADS ---
+    // --- Policy Mutators ---
     fun savePasswordPolicy(p: PasswordPolicy, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -1908,8 +2218,12 @@ class SecurityViewModel @Inject constructor(
         }
     }
 
-    // Filter setters
-    fun setDeviceSearch(q: String) { _mobileDeviceSearch.value = q; fetchMobileDevices() }
+    // --- Mobile Access Filter Setters ---
+    fun setDeviceSearch(q: String) {
+        _mobileDeviceSearch.value = q
+        fetchMobileDevices()
+    }
+
     fun applyDeviceFilters(platform: String?, approval: String?, trust: String?) {
         _devicePlatformFilter.value = platform
         _deviceApprovalStatusFilter.value = approval
@@ -1917,7 +2231,11 @@ class SecurityViewModel @Inject constructor(
         fetchMobileDevices()
     }
 
-    fun setAuditSearch(q: String) { _mobileAuditSearch.value = q; fetchMobileSecurityAudit() }
+    fun setAuditSearch(q: String) {
+        _mobileAuditSearch.value = q
+        fetchMobileSecurityAudit()
+    }
+
     fun applyAuditFilters(eventType: String?, severity: String?, status: String?) {
         _auditEventTypeFilter.value = eventType
         _auditSeverityFilter.value = severity
@@ -1925,7 +2243,7 @@ class SecurityViewModel @Inject constructor(
         fetchMobileSecurityAudit()
     }
 
-    // --- HELP CENTER STATES ---
+    // --- Help Center States ---
     private val _helpArticles = MutableStateFlow<List<HelpArticleItem>>(emptyList())
     val helpArticles: StateFlow<List<HelpArticleItem>> = _helpArticles.asStateFlow()
 
@@ -1995,7 +2313,8 @@ class SecurityViewModel @Inject constructor(
     fun fetchHelpArticleBySlug(slug: String) {
         viewModelScope.launch {
             _isHelpCenterLoading.value = true
-            _selectedHelpArticle.value = null // Clears stale article before fetching
+            // Clear stale article before fetching the selected one
+            _selectedHelpArticle.value = null
             val res = repo.request<HelpArticleSingleResponse> {
                 get("$HELP_ARTICLE_BY_SLUG_URL/$slug")
             }
@@ -2029,7 +2348,7 @@ class SecurityViewModel @Inject constructor(
         }
     }
 
-    // --- TICKET STATES WITH PAGINATION ---
+    // --- Support Ticket States with Pagination ---
     private val _supportTicketsPagingState = MutableStateFlow(PagingUiState<SupportTicketItem>())
     val supportTicketsPagingState: StateFlow<PagingUiState<SupportTicketItem>> = _supportTicketsPagingState.asStateFlow()
 
@@ -2047,6 +2366,7 @@ class SecurityViewModel @Inject constructor(
 
     private val _ticketStatusFilter = MutableStateFlow<String?>(null)
     private val _ticketPriorityFilter = MutableStateFlow<String?>(null)
+
     fun onTicketSearchChange(query: String) {
         _ticketSearchQuery.value = query
         fetchSupportTickets()
@@ -2058,7 +2378,7 @@ class SecurityViewModel @Inject constructor(
         fetchSupportTickets()
     }
 
-    // 1. Fetch All Tickets with Paginated Infinite Scroll
+    // Fetch all tickets with paginated infinite scroll
     fun fetchSupportTickets(isLoadMore: Boolean = false) {
         viewModelScope.launch {
             if (isLoadMore) {
@@ -2116,7 +2436,7 @@ class SecurityViewModel @Inject constructor(
         fetchSupportTickets(isLoadMore = true)
     }
 
-    // 2. Fetch Single Ticket Details
+    // Fetch single ticket details
     fun fetchSupportTicketById(ticketId: String) {
         viewModelScope.launch {
             _isTicketLoading.value = true
@@ -2132,7 +2452,7 @@ class SecurityViewModel @Inject constructor(
         }
     }
 
-    // 3. Create Support Ticket (Multipart)
+    // Create support ticket via multipart request
     fun createSupportTicket(
         type: String = "external",
         issueType: String,
@@ -2186,7 +2506,7 @@ class SecurityViewModel @Inject constructor(
         }
     }
 
-    // 4. Assign Ticket (PATCH)
+    // Assign ticket to a team member
     fun assignSupportTicket(ticketId: String, team: String, assignedTo: String, note: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -2212,7 +2532,7 @@ class SecurityViewModel @Inject constructor(
         }
     }
 
-    // 5. Change Status (PATCH)
+    // Change ticket status
     fun changeSupportTicketStatus(ticketId: String, newStatus: String, reason: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -2237,7 +2557,7 @@ class SecurityViewModel @Inject constructor(
         }
     }
 
-    // 6. Change Priority (PATCH)
+    // Change ticket priority
     fun changeSupportTicketPriority(ticketId: String, newPriority: String, reason: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -2262,7 +2582,7 @@ class SecurityViewModel @Inject constructor(
         }
     }
 
-    // 7. Send Conversation Reply (POST Multipart)
+    // Send conversation reply via multipart request
     fun replySupportTicket(ticketId: String, message: String, attachmentParts: List<MultipartBody.Part>, onSuccess: () -> Unit) {
         viewModelScope.launch {
             val textMap = mapOf("message" to repo.text(message))
@@ -2281,7 +2601,7 @@ class SecurityViewModel @Inject constructor(
         }
     }
 
-    // 8. Resolve Ticket (POST)
+    // Resolve support ticket
     fun resolveSupportTicket(ticketId: String, resolutionNote: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -2302,6 +2622,7 @@ class SecurityViewModel @Inject constructor(
             _isLoading.value = false
         }
     }
+
     // =========================================================================
     // 15. STRING & DATE FORMATTING UTILITIES
     // =========================================================================

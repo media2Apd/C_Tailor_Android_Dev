@@ -1,10 +1,10 @@
+@file:Suppress("UNUSED_VALUE", "SpellCheckingInspection","unusedVariable", "unused", "AssignedValueIsNeverRead")
+
 package com.cuso.tailor.view.home.inventory.auto_reorder
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -52,8 +52,7 @@ fun AutoReorderScreen(
         }
     }
 
-    val rules by viewModel.autoReorderRules.collectAsState()
-    val isLoading by viewModel.isLoadingAutoReorder.collectAsState()
+    val autoReorderPagingState by viewModel.autoReorderPagingState.collectAsState()
     val errorMessage by viewModel.autoReorderError.collectAsState()
 
     // Confirmation dialog for deleting rule
@@ -79,7 +78,8 @@ fun AutoReorderScreen(
             label = "Create New Item",
             icon = Icons.Default.Add,
             onClick = onCreateNewItem
-        )
+        ),
+        fabVisible = !autoReorderPagingState.isInitialLoading
     ) {
         Column(
             modifier = Modifier
@@ -95,10 +95,7 @@ fun AutoReorderScreen(
             Spacer(Modifier.height(tokens.extraPadding * 0.6f))
 
             // Search Bar with Filter Trigger
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
+            Row(modifier = Modifier.fillMaxWidth()) {
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
@@ -112,11 +109,7 @@ fun AutoReorderScreen(
 
             // UI State Content Handler
             when {
-                isLoading && rules.isEmpty() -> {
-                    ListSkeleton()
-                }
-
-                errorMessage != null && rules.isEmpty() -> {
+                errorMessage != null && autoReorderPagingState.items.isEmpty() && !autoReorderPagingState.isInitialLoading -> {
                     AppErrorState(
                         title = "Failed to load Auto Re-orders",
                         message = errorMessage ?: "Something went wrong. Please check your connection.",
@@ -124,7 +117,7 @@ fun AutoReorderScreen(
                     )
                 }
 
-                rules.isEmpty() -> {
+                !autoReorderPagingState.isInitialLoading && autoReorderPagingState.items.isEmpty() -> {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -141,138 +134,134 @@ fun AutoReorderScreen(
                 }
 
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp)
-                    ) {
-                        items(
-                            items = rules,
-                            key = { it.id }
-                        ) { rule ->
-                            val unitText = rule.itemId?.unit.orEmpty().ifBlank { "m" }
-                            val triggerOperator = rule.triggerCondition?.operator ?: "<="
-                            val triggerThreshold = rule.triggerCondition?.thresholdQty?.toInt() ?: 0
-                            val triggerText = "Stock $triggerOperator $triggerThreshold $unitText"
-                            val reorderQuantityText = "${rule.reorderQty?.toInt() ?: 0} $unitText"
-                            val warehouseName = rule.warehouseId?.name ?: "Primary Hub"
+                    PaginatedDataList(
+                        state = autoReorderPagingState,
+                        onLoadMore = { viewModel.loadMoreAutoReorderRules() },
+                        modifier = Modifier.fillMaxSize()
+                    ) { rule ->
+                        val unitText = rule.itemId?.unit.orEmpty().ifBlank { "m" }
+                        val triggerOperator = rule.triggerCondition?.operator ?: "<="
+                        val triggerThreshold = rule.triggerCondition?.thresholdQty?.toInt() ?: 0
+                        val triggerText = "Stock $triggerOperator $triggerThreshold $unitText"
+                        val reorderQuantityText = "${rule.reorderQty?.toInt() ?: 0} $unitText"
+                        val warehouseName = rule.warehouseId?.name ?: "Primary Hub"
 
-                            val (badgeBg, badgeText) = if (rule.isActive) {
-                                greenBg to greentext
-                            } else {
-                                redBg to redText
-                            }
+                        val (badgeBg, badgeText) = if (rule.isActive) {
+                            greenBg to greentext
+                        } else {
+                            redBg to redText
+                        }
 
-                            DataCard(
-                                item = rule,
-                                title = rule.ruleName,
-                                subtitle = rule.itemId?.name ?: "Item Name",
-                                titleColor = title_color,
-                                titleFontWeight = FontWeight.Medium,
-                                topBadgeText = if (rule.isActive) "Active" else "Inactive",
-                                topBadgeInline = true,
-                                topBadgeShowDot = true,
-                                topBadgeBgColor = badgeBg,
-                                topBadgeTextColor = badgeText,
-                                topBadgeDotColor = badgeText,
-                                showHeaderDivider = false,
-                                actions = listOf(
-                                    MenuAction(
-                                        label = "Edit Item",
-                                        icon = Icons.Default.Edit,
-                                        onClick = { onEditItem(rule) }
-                                    ),
-                                    MenuAction(
-                                        label = "Delete Item",
-                                        icon = Icons.Outlined.DeleteOutline,
-                                        onClick = { itemToDelete = rule }
-                                    )
+                        DataCard(
+                            item = rule,
+                            title = rule.ruleName,
+                            subtitle = rule.itemId?.name ?: "Item Name",
+                            titleColor = title_color,
+                            titleFontWeight = FontWeight.Medium,
+                            topBadgeText = if (rule.isActive) "Active" else "Inactive",
+                            topBadgeInline = true,
+                            topBadgeShowDot = true,
+                            topBadgeBgColor = badgeBg,
+                            topBadgeTextColor = badgeText,
+                            topBadgeDotColor = badgeText,
+                            showHeaderDivider = false,
+                            actions = listOf(
+                                MenuAction(
+                                    label = "Edit Item",
+                                    icon = Icons.Default.Edit,
+                                    onClick = { onEditItem(rule) }
                                 ),
-                                content = {
-                                    // Three-Column Metric Container matching the UI design
-                                    Surface(
-                                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.7f),
-                                        color = badgeGrey,
-                                        modifier = Modifier.fillMaxWidth()
+                                MenuAction(
+                                    label = "Delete Item",
+                                    icon = Icons.Outlined.DeleteOutline,
+                                    onClick = { itemToDelete = rule }
+                                )
+                            ),
+                            content = {
+                                // Three-Column Metric Container matching the UI design
+                                Surface(
+                                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.7f),
+                                    color = badgeGrey,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(
+                                                horizontal = tokens.screenPadding * 0.8f,
+                                                vertical = tokens.extraPadding * 0.7f
+                                            ),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(
-                                                    horizontal = tokens.screenPadding * 0.8f,
-                                                    vertical = tokens.extraPadding * 0.7f
-                                                ),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
+                                        // Column 1: Warehouse
+                                        Column(
+                                            modifier = Modifier.weight(1.2f),
+                                            horizontalAlignment = Alignment.Start,
+                                            verticalArrangement = Arrangement.Center
                                         ) {
-                                            // Column 1: Warehouse
-                                            Column(
-                                                modifier = Modifier.weight(1.2f),
-                                                horizontalAlignment = Alignment.Start,
-                                                verticalArrangement = Arrangement.Center
-                                            ) {
-                                                Text(
-                                                    text = "Warehouse",
-                                                    fontSize = tokens.bodySmall,
-                                                    fontWeight = FontWeight.Normal,
-                                                    color = headerGrey
-                                                )
-                                                Spacer(Modifier.height(2.dp))
-                                                Text(
-                                                    text = warehouseName,
-                                                    fontSize = tokens.caption,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = TextPrimary,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
+                                            Text(
+                                                text = "Warehouse",
+                                                fontSize = tokens.bodySmall,
+                                                fontWeight = FontWeight.Normal,
+                                                color = headerGrey
+                                            )
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(
+                                                text = warehouseName,
+                                                fontSize = tokens.caption,
+                                                fontWeight = FontWeight.Medium,
+                                                color = TextPrimary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
 
-                                            // Column 2: Trigger Condition
-                                            Column(
-                                                modifier = Modifier.weight(1.2f),
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.Center
-                                            ) {
-                                                Text(
-                                                    text = "Trigger Condition",
-                                                    fontSize = tokens.bodySmall,
-                                                    fontWeight = FontWeight.Normal,
-                                                    color = headerGrey
-                                                )
-                                                Spacer(Modifier.height(2.dp))
-                                                Text(
-                                                    text = triggerText,
-                                                    fontSize = tokens.caption,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = TextPrimary
-                                                )
-                                            }
+                                        // Column 2: Trigger Condition
+                                        Column(
+                                            modifier = Modifier.weight(1.2f),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Text(
+                                                text = "Trigger Condition",
+                                                fontSize = tokens.bodySmall,
+                                                fontWeight = FontWeight.Normal,
+                                                color = headerGrey
+                                            )
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(
+                                                text = triggerText,
+                                                fontSize = tokens.caption,
+                                                fontWeight = FontWeight.Medium,
+                                                color = TextPrimary
+                                            )
+                                        }
 
-                                            // Column 3: Reorder Qty
-                                            Column(
-                                                modifier = Modifier.weight(0.8f),
-                                                horizontalAlignment = Alignment.End,
-                                                verticalArrangement = Arrangement.Center
-                                            ) {
-                                                Text(
-                                                    text = "Reorder Qty",
-                                                    fontSize = tokens.bodySmall,
-                                                    fontWeight = FontWeight.Normal,
-                                                    color = headerGrey
-                                                )
-                                                Spacer(Modifier.height(2.dp))
-                                                Text(
-                                                    text = reorderQuantityText,
-                                                    fontSize = tokens.caption,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = TextPrimary
-                                                )
-                                            }
+                                        // Column 3: Reorder Qty
+                                        Column(
+                                            modifier = Modifier.weight(0.8f),
+                                            horizontalAlignment = Alignment.End,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Text(
+                                                text = "Reorder Qty",
+                                                fontSize = tokens.bodySmall,
+                                                fontWeight = FontWeight.Normal,
+                                                color = headerGrey
+                                            )
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(
+                                                text = reorderQuantityText,
+                                                fontSize = tokens.caption,
+                                                fontWeight = FontWeight.Medium,
+                                                color = TextPrimary
+                                            )
                                         }
                                     }
                                 }
-                            )
-                        }
+                            }
+                        )
                     }
                 }
             }

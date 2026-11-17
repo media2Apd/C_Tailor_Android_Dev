@@ -5,8 +5,6 @@ package com.cuso.tailor.view.home.inventory.procurement.credits
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.PagingUiState
 import com.cuso.tailor.view.composable.*
 
 // ─────────────────────────────────────────────────────────────
@@ -60,7 +59,6 @@ fun AllCreditsScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedItemIds by remember { mutableStateOf(setOf<String>()) }
 
-    // Mock Sample Data matching the screenshot
     val creditList = remember {
         listOf(
             CreditItemModel(id = "1"),
@@ -68,6 +66,24 @@ fun AllCreditsScreen(
             CreditItemModel(id = "3"),
             CreditItemModel(id = "4"),
             CreditItemModel(id = "5")
+        )
+    }
+
+    val filteredCredits = remember(creditList, searchQuery) {
+        if (searchQuery.isBlank()) creditList
+        else creditList.filter {
+            it.customerName.contains(searchQuery, ignoreCase = true) ||
+                    it.voucherNo.contains(searchQuery, ignoreCase = true) ||
+                    it.billNo.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    val pagingState = remember(filteredCredits) {
+        PagingUiState(
+            items = filteredCredits,
+            isInitialLoading = false,
+            isLoadingMore = false,
+            canLoadMore = false
         )
     }
 
@@ -91,7 +107,6 @@ fun AllCreditsScreen(
                     .fillMaxSize()
                     .padding(padding)
             ) {
-                // Search and Filter Bar
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
@@ -103,14 +118,13 @@ fun AllCreditsScreen(
 
                 HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 2.dp)
 
-                // Credits List
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    itemsIndexed(creditList, key = { _, item -> item.id }) { _, item ->
-                        val isChecked = selectedItemIds.contains(item.id)
+                PaginatedDataList(
+                    state = pagingState,
+                    onLoadMore = { },
+                    modifier = Modifier.fillMaxSize()
+                ) { item ->
+                    val isChecked = selectedItemIds.contains(item.id)
+                    Column {
                         CreditCardItem(
                             item = item,
                             isChecked = isChecked,
@@ -125,16 +139,13 @@ fun AllCreditsScreen(
                             onClick = { onCreditClick(item) },
                             onOptionsClick = { onOptionsClick(item) }
                         )
+                        Spacer(Modifier.height(8.dp))
                     }
                 }
             }
         }
     }
 }
-
-// ─────────────────────────────────────────────────────────────
-// CREDIT CARD ITEM
-// ─────────────────────────────────────────────────────────────
 
 @Composable
 private fun CreditCardItem(
@@ -156,9 +167,8 @@ private fun CreditCardItem(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = tokens.screenPadding, vertical = 12.dp)
         ) {
-            // Row 1: Checkbox, Voucher No, Date, Status Badge, More Menu
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -172,14 +182,14 @@ private fun CreditCardItem(
 
                 Text(
                     text = item.voucherNo,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
                     color = title_color
                 )
 
                 Text(
                     text = "  •  ${item.date}",
-                    fontSize = 12.sp,
+                    fontSize = tokens.bodySmall,
                     fontWeight = FontWeight.Normal,
                     color = mutedText
                 )
@@ -207,34 +217,31 @@ private fun CreditCardItem(
             HorizontalDivider(color = grey_border)
             Spacer(Modifier.height(5.dp))
 
-            // Row 2: Customer Avatar, Customer Name & Created By | Amount & Balance
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Customer Avatar Initial
                 Box(
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFEEF2FF)),
+                        .background(primary_light),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = item.customerInitial,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF4F46E5)
+                        fontSize = tokens.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Primary
                     )
                 }
 
                 Spacer(Modifier.width(10.dp))
 
-                // Customer Info
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = item.customerName,
-                        fontSize = 14.sp,
+                        fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = title_color
                     )
@@ -248,24 +255,22 @@ private fun CreditCardItem(
                                 append(item.createdBy)
                             }
                         },
-                        fontSize = 11.sp
+                        fontSize = tokens.caption
                     )
                 }
 
-                // Amount & Balance Info
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "AMOUNT",
-                        fontSize = 10.sp,
+                        fontSize = tokens.label,
                         fontWeight = FontWeight.Medium,
-                        color = mutedText,
-                        letterSpacing = 0.5.sp
+                        color = mutedText
                     )
                     Spacer(Modifier.height(1.dp))
                     Text(
                         text = item.amount,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
                         color = title_color
                     )
                     Spacer(Modifier.height(1.dp))
@@ -278,7 +283,7 @@ private fun CreditCardItem(
                                 append(item.balance)
                             }
                         },
-                        fontSize = 11.sp
+                        fontSize = tokens.caption
                     )
                 }
             }
@@ -287,15 +292,13 @@ private fun CreditCardItem(
             HorizontalDivider(color = grey_border)
             Spacer(Modifier.height(6.dp))
 
-            // Row 3: Bill ID Tag & Reason
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Bill Section
                 Text(
                     text = "Bill: ",
-                    fontSize = 11.sp,
+                    fontSize = tokens.caption,
                     color = mutedText
                 )
                 Spacer(Modifier.width(4.dp))
@@ -307,23 +310,22 @@ private fun CreditCardItem(
                 ) {
                     Text(
                         text = item.billNo,
-                        fontSize = 11.sp,
+                        fontSize = tokens.caption,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF334155)
+                        color = textSubdued
                     )
                 }
 
                 Spacer(Modifier.weight(1f))
 
-                // Reason Section
                 Text(
                     text = "Reason: ",
-                    fontSize = 11.sp,
+                    fontSize = tokens.caption,
                     color = mutedText
                 )
                 Text(
                     text = item.reason,
-                    fontSize = 11.sp,
+                    fontSize = tokens.caption,
                     fontWeight = FontWeight.Medium,
                     color = title_color
                 )
@@ -332,16 +334,12 @@ private fun CreditCardItem(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// REUSABLE BADGE
-// ─────────────────────────────────────────────────────────────
-
 @Composable
 private fun StatusDotBadge(
     text: String,
-    bgColor: Color = Color(0xFFE8F8F0),
-    textColor: Color = Color(0xFF10B981),
-    dotColor: Color = Color(0xFF10B981)
+    bgColor: Color = greenBg,
+    textColor: Color = greentext,
+    dotColor: Color = greentext
 ) {
     Box(
         modifier = Modifier

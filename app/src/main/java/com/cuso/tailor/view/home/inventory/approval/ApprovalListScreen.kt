@@ -1,8 +1,6 @@
 package com.cuso.tailor.view.home.inventory.approval
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Visibility
@@ -21,8 +19,8 @@ import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.ActionDropdownMenu
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.TitleBar
@@ -41,9 +39,8 @@ fun ApprovalsListScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
-    // Observe approvals list from ViewModel
-    val approvalsList by viewModel.approvalsList.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingApprovals.collectAsStateWithLifecycle()
+    // Observe paginated approvals state from ViewModel
+    val approvalsPagingState by viewModel.approvalsPagingState.collectAsStateWithLifecycle()
     val errorMessage by viewModel.approvalsError.collectAsStateWithLifecycle()
 
     // Debounced search trigger
@@ -56,10 +53,7 @@ fun ApprovalsListScreen(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.Transparent,
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
+            Row(modifier = Modifier.fillMaxWidth()) {
                 TitleBar(title = "Approvals", onClose = onBack)
             }
         }
@@ -83,142 +77,140 @@ fun ApprovalsListScreen(
 
             HorizontalDivider(color = dividerColor, thickness = 1.dp)
 
-            // Content loading & list display
             when {
-                isLoading && approvalsList.isEmpty() -> {
-                    ListSkeleton()
-                }
-                errorMessage != null && approvalsList.isEmpty() -> {
+                errorMessage != null && approvalsPagingState.items.isEmpty() && !approvalsPagingState.isInitialLoading -> {
                     AppErrorState(
                         title = "Failed to load approvals",
                         message = errorMessage ?: "Unexpected error",
                         onRetry = { viewModel.fetchApprovals(page = 1) }
                     )
                 }
-                approvalsList.isEmpty() -> {
+
+                !approvalsPagingState.isInitialLoading && approvalsPagingState.items.isEmpty() -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("No approvals found.", fontSize = tokens.bodySmall, color = iconMuted)
                     }
                 }
+
                 else -> {
-                    LazyColumn(
+                    PaginatedDataList(
+                        state = approvalsPagingState,
+                        onLoadMore = { viewModel.loadMoreApprovals() },
                         modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(approvalsList, key = { it.id }) { item ->
-                            val (badgeBg, badgeText) = when (item.status.lowercase()) {
-                                "approve", "approved" -> greenBg to greentext
-                                "rejected" -> redBg to redText
-                                else -> orangeBg to orangeText
-                            }
+                    ) { item ->
+                        val (badgeBg, badgeText) = when (item.status.lowercase()) {
+                            "approve", "approved" -> greenBg to greentext
+                            "rejected" -> redBg to redText
+                            else -> orangeBg to orangeText
+                        }
 
-                            // Dynamic card actions: changes between "Inactive" and "Active" based on isActive
-                            val cardActions = listOf(
-                                MenuAction(
-                                    label = "View Details",
-                                    icon = Icons.Outlined.Visibility,
-                                    onClick = { onItemClick(item.id) }
-                                ),
-                                MenuAction(
-                                    label = if (item.isActive) "Inactive" else "Active",
-                                    onClick = {
-                                        viewModel.toggleAutoReorderStatus(id = item.id)
-                                    }
-                                )
-                            )
-
-                            DataCard(
-                                item = item,
-                                onClick = { onItemClick(item.id) },
-                                headerContent = {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.Top
-                                    ) {
-                                        Column {
-                                            Text(
-                                                text = item.requestId,
-                                                fontSize = tokens.bodyMedium,
-                                                fontWeight = FontWeight.Medium,
-                                                color = BluePrimary
-                                            )
-                                            Spacer(modifier = Modifier.height(3.dp))
-                                            Text(
-                                                text = item.supplier,
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = title_color
-                                            )
-                                        }
-
-                                        Column(horizontalAlignment = Alignment.End) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                StatusBadge(
-                                                    text = item.status,
-                                                    bgColor = badgeBg,
-                                                    textColor = badgeText,
-                                                    showDot = false,
-                                                    cornerRadius = 14.dp
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                ActionDropdownMenu(
-                                                    actions = cardActions,
-                                                    icon = Icons.Default.MoreVert
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.height(3.dp))
-                                            Text(
-                                                text = "${currencySymbol()}${item.totalAmount.toInt()}",
-                                                fontSize = tokens.bodyMedium,
-                                                fontWeight = FontWeight.Medium,
-                                                color = title_color
-                                            )
-                                        }
-                                    }
-                                },
-                                content = {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            ApprovalInfoColumn(
-                                                label = "Items",
-                                                value = "${item.itemCount} Items",
-                                                tokens = tokens,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            ApprovalInfoColumn(
-                                                label = "Requested By",
-                                                value = item.requestedBy,
-                                                tokens = tokens,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                        }
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            ApprovalInfoColumn(
-                                                label = "Date",
-                                                value = formatIsoDate(item.date),
-                                                tokens = tokens,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            ApprovalInfoColumn(
-                                                label = "Last Updated",
-                                                value = formatIsoDateTime(item.lastUpdated),
-                                                tokens = tokens,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                        }
-                                    }
+                        // Dynamic card actions: switches between "Inactive" and "Active" based on isActive
+                        val cardActions = listOf(
+                            MenuAction(
+                                label = "View Details",
+                                icon = Icons.Outlined.Visibility,
+                                onClick = { onItemClick(item.id) }
+                            ),
+                            MenuAction(
+                                label = if (item.isActive) "Inactive" else "Active",
+                                onClick = {
+                                    viewModel.toggleAutoReorderStatus(id = item.id)
                                 }
                             )
-                        }
+                        )
+
+                        DataCard(
+                            item = item,
+                            onClick = { onItemClick(item.id) },
+                            headerContent = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = item.requestId,
+                                            fontSize = tokens.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = BluePrimary
+                                        )
+                                        Spacer(modifier = Modifier.height(3.dp))
+                                        Text(
+                                            text = item.supplier,
+                                            fontSize = tokens.bodySmall,
+                                            fontWeight = FontWeight.Medium,
+                                            color = title_color
+                                        )
+                                    }
+
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            StatusBadge(
+                                                text = item.status,
+                                                bgColor = badgeBg,
+                                                textColor = badgeText,
+                                                showDot = false,
+                                                cornerRadius = 14.dp
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            ActionDropdownMenu(
+                                                actions = cardActions,
+                                                icon = Icons.Default.MoreVert
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(3.dp))
+                                        Text(
+                                            text = "${currencySymbol()}${item.totalAmount.toInt()}",
+                                            fontSize = tokens.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = title_color
+                                        )
+                                    }
+                                }
+                            },
+                            content = {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        ApprovalInfoColumn(
+                                            label = "Items",
+                                            value = "${item.itemCount} Items",
+                                            tokens = tokens,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        ApprovalInfoColumn(
+                                            label = "Requested By",
+                                            value = item.requestedBy,
+                                            tokens = tokens,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        ApprovalInfoColumn(
+                                            label = "Date",
+                                            value = formatIsoDate(item.date),
+                                            tokens = tokens,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        ApprovalInfoColumn(
+                                            label = "Last Updated",
+                                            value = formatIsoDateTime(item.lastUpdated),
+                                            tokens = tokens,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                }
+                            }
+                        )
                     }
                 }
             }

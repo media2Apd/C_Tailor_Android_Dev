@@ -13,9 +13,6 @@ package com.cuso.tailor.view.home.branch
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -58,12 +55,11 @@ import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextField
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.PlanLimitDialog
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StepNavigationFab
-import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.viewmodel.BranchUiState
@@ -89,6 +85,7 @@ fun BranchSettingsScreen(
     val profileViewModel: ProfileViewModel = hiltViewModel()
 
     val uiState by branchViewModel.uiState.collectAsStateWithLifecycle()
+    val branchesPagingState by branchViewModel.branchesPagingState.collectAsStateWithLifecycle()
     val updateState by branchViewModel.updateState.collectAsStateWithLifecycle()
     val createState by branchViewModel.createState.collectAsStateWithLifecycle()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
@@ -99,8 +96,6 @@ fun BranchSettingsScreen(
     var showPlanLimitDialog by remember { mutableStateOf(false) }
 
     var searchQuery by remember { mutableStateOf("") }
-    var currentPage by remember { mutableIntStateOf(1) }
-    val itemsPerPage = 10
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -169,14 +164,6 @@ fun BranchSettingsScreen(
     val isUpdating = updateState is UpdateBranchUiState.Loading
     val isCreating = createState is CreateBranchUiState.Loading
 
-    val filteredBranches = allBranches.filter { b ->
-        searchQuery.isBlank() ||
-                (b.name?.contains(searchQuery, ignoreCase = true) == true) ||
-                (b.branchId?.contains(searchQuery, ignoreCase = true) == true)
-    }
-// Displays items incrementally up to current loaded count
-    val pagedBranches = filteredBranches.take(currentPage * itemsPerPage)
-    val canLoadMore = pagedBranches.size < filteredBranches.size
     Box(Modifier.fillMaxSize()) {
         when (currentScreenMode) {
             BranchScreenMode.LIST -> {
@@ -206,9 +193,9 @@ fun BranchSettingsScreen(
                         Column(modifier = Modifier.fillMaxWidth()) {
                             SearchFilterBar(
                                 query = searchQuery,
-                                onQueryChange = {
-                                    searchQuery = it
-                                    currentPage = 1 // Reset pagination when search query changes
+                                onQueryChange = { query ->
+                                    searchQuery = query
+                                    branchViewModel.onBranchSearchChanged(query)
                                 },
                                 placeholder = "Search Branches...",
                                 accentColor = BluePrimary
@@ -217,180 +204,155 @@ fun BranchSettingsScreen(
                         HorizontalDivider(color = title_border)
 
                         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                            when (uiState) {
-                                is BranchUiState.Loading -> ListSkeleton()
-                                is BranchUiState.Error -> {
-                                    AppErrorState(
-                                        title = "Failed to load branches",
-                                        message = (uiState as BranchUiState.Error).message.ifBlank {
-                                            "Something went wrong. Please check your connection and try again."
-                                        },
-                                        onRetry = { branchViewModel.refresh() }
-                                    )
-                                }
-                                is BranchUiState.Success -> {
-                                    if (filteredBranches.isEmpty()) {
-                                        Box(
-                                            Modifier.fillMaxSize(),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Icon(
-                                                    Icons.Default.Business,
-                                                    null,
-                                                    tint = Color.LightGray,
-                                                    modifier = Modifier.size(48.dp)
-                                                )
-                                                Spacer(Modifier.height(8.dp))
-                                                Text(
-                                                    if (searchQuery.isNotBlank()) "No matching branches found" else "No branches found",
-                                                    color = Color.Gray,
-                                                    fontSize = 15.sp
-                                                )
-                                            }
-                                        }
-                                    } else {
-                                        val listState = rememberLazyListState()
-
-                                        // Trigger next page when reaching the end of the current list
-                                        LaunchedEffect(listState, pagedBranches.size, canLoadMore) {
-                                            snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-                                                .collect { lastIndex ->
-                                                    if (lastIndex != null && lastIndex >= pagedBranches.size - 1 && canLoadMore) {
-                                                        currentPage++
-                                                    }
-                                                }
-                                        }
-                                        LazyColumn(
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentPadding = PaddingValues(bottom = 80.dp)
-                                        ) {
-                                            items(pagedBranches) { branch ->
-                                                DataCard(
-                                                    item = branch,
-                                                    title = branch.name ?: "-",
-                                                    titleColor = Color(0xFF0F172A),
-                                                    subtitle = branch.branchId ?: "-",
-                                                    topBadgeText = branch.status,
-                                                    topBadgeTextColor = Color(0xFF16A34A),
-                                                    topBadgeBgColor = Color(0xFFDCFCE7),
-                                                    topBadgeShowDot = false,
-                                                    topBadgeInline = true,
-                                                    showHeaderDivider = true,
-                                                    actions = listOf(
-                                                        MenuAction("Edit", Icons.Default.Edit) {
-                                                            editingBranch = branch
-                                                            currentScreenMode = BranchScreenMode.FORM
-                                                        }
-                                                    ),
-                                                    content = {
-                                                        val iconColor = headerGrey
-                                                        val textBodyColor = close_color
-
-                                                        Column(
-                                                            modifier = Modifier.fillMaxWidth(),
-                                                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                                                        ) {
-                                                            Row(
-                                                                verticalAlignment = Alignment.CenterVertically,
-                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                            ) {
-                                                                Icon(
-                                                                    painter = painterResource(R.drawable.ic_location),
-                                                                    contentDescription = null,
-                                                                    tint = iconColor,
-                                                                    modifier = Modifier.size(18.dp)
-                                                                )
-                                                                Text(
-                                                                    text = locationOf(branch),
-                                                                    fontSize = 14.sp,
-                                                                    color = textBodyColor,
-                                                                    maxLines = 1,
-                                                                    overflow = TextOverflow.Ellipsis
-                                                                )
-                                                            }
-
-                                                            Row(
-                                                                modifier = Modifier.fillMaxWidth(),
-                                                                verticalAlignment = Alignment.CenterVertically
-                                                            ) {
-                                                                Row(
-                                                                    modifier = Modifier.weight(1f),
-                                                                    verticalAlignment = Alignment.CenterVertically,
-                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                                ) {
-                                                                    Icon(
-                                                                        painter = painterResource(R.drawable.ic_users),
-                                                                        contentDescription = null,
-                                                                        tint = iconColor,
-                                                                        modifier = Modifier.size(18.dp)
-                                                                    )
-                                                                    Text(
-                                                                        text = "Employees",
-                                                                        fontSize = 14.sp,
-                                                                        color = textBodyColor
-                                                                    )
-                                                                }
-
-                                                                Row(
-                                                                    modifier = Modifier.weight(1f),
-                                                                    verticalAlignment = Alignment.CenterVertically,
-                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                                ) {
-                                                                    Icon(
-                                                                        painter = painterResource(R.drawable.ic_shopping_bag),
-                                                                        contentDescription = null,
-                                                                        tint = iconColor,
-                                                                        modifier = Modifier.size(18.dp)
-                                                                    )
-                                                                    Text(
-                                                                        text = "${currencySymbol()} Active Orders",
-                                                                        fontSize = 14.sp,
-                                                                        color = textBodyColor
-                                                                    )
-                                                                }
-                                                            }
-
-                                                            Row(
-                                                                verticalAlignment = Alignment.CenterVertically,
-                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                            ) {
-                                                                Icon(
-                                                                    painter = painterResource(R.drawable.ic_person),
-                                                                    contentDescription = null,
-                                                                    tint = iconColor,
-                                                                    modifier = Modifier.size(18.dp)
-                                                                )
-                                                                Text(
-                                                                    text = buildAnnotatedString {
-                                                                        withStyle(SpanStyle(color = headerGrey, fontWeight = FontWeight.Normal)) {
-                                                                            append("Manager: ")
-                                                                        }
-                                                                        withStyle(
-                                                                            SpanStyle(
-                                                                                color = Color(
-                                                                                    0xFF0F172A
-                                                                                ),
-                                                                                fontWeight = FontWeight.SemiBold
-                                                                            )
-                                                                        ) {
-                                                                            append(branchHeadNameOf(branch))
-                                                                        }
-                                                                    },
-                                                                    fontSize = 14.sp
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                )
-                                            }
-                                            if (canLoadMore) {
-                                                item {
-                                                    ThreeDotLoading()
-                                                }
-                                            }
-                                        }
+                            if (uiState is BranchUiState.Error) {
+                                AppErrorState(
+                                    title = "Failed to load branches",
+                                    message = (uiState as BranchUiState.Error).message.ifBlank {
+                                        "Something went wrong. Please check your connection and try again."
+                                    },
+                                    onRetry = { branchViewModel.refresh() }
+                                )
+                            } else if (!branchesPagingState.isInitialLoading && branchesPagingState.items.isEmpty()) {
+                                Box(
+                                    Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            Icons.Default.Business,
+                                            null,
+                                            tint = Color.LightGray,
+                                            modifier = Modifier.size(48.dp)
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(
+                                            if (searchQuery.isNotBlank()) "No matching branches found" else "No branches found",
+                                            color = Color.Gray,
+                                            fontSize = 15.sp
+                                        )
                                     }
+                                }
+                            } else {
+                                PaginatedDataList(
+                                    state = branchesPagingState,
+                                    onLoadMore = { branchViewModel.loadMoreBranches() },
+                                    modifier = Modifier.fillMaxSize()
+                                ) { branch ->
+                                    DataCard(
+                                        item = branch,
+                                        title = branch.name ?: "-",
+                                        titleColor = Color(0xFF0F172A),
+                                        subtitle = branch.branchId ?: "-",
+                                        topBadgeText = branch.status,
+                                        topBadgeTextColor = Color(0xFF16A34A),
+                                        topBadgeBgColor = Color(0xFFDCFCE7),
+                                        topBadgeShowDot = false,
+                                        topBadgeInline = true,
+                                        showHeaderDivider = true,
+                                        actions = listOf(
+                                            MenuAction("Edit", Icons.Default.Edit) {
+                                                editingBranch = branch
+                                                currentScreenMode = BranchScreenMode.FORM
+                                            }
+                                        ),
+                                        content = {
+                                            val iconColor = headerGrey
+                                            val textBodyColor = close_color
+
+                                            Column(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.ic_location),
+                                                        contentDescription = null,
+                                                        tint = iconColor,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                    Text(
+                                                        text = locationOf(branch),
+                                                        fontSize = 14.sp,
+                                                        color = textBodyColor,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.weight(1f),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.ic_users),
+                                                            contentDescription = null,
+                                                            tint = iconColor,
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                        Text(
+                                                            text = "Employees",
+                                                            fontSize = 14.sp,
+                                                            color = textBodyColor
+                                                        )
+                                                    }
+
+                                                    Row(
+                                                        modifier = Modifier.weight(1f),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.ic_shopping_bag),
+                                                            contentDescription = null,
+                                                            tint = iconColor,
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                        Text(
+                                                            text = "${currencySymbol()} Active Orders",
+                                                            fontSize = 14.sp,
+                                                            color = textBodyColor
+                                                        )
+                                                    }
+                                                }
+
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.ic_person),
+                                                        contentDescription = null,
+                                                        tint = iconColor,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                    Text(
+                                                        text = buildAnnotatedString {
+                                                            withStyle(SpanStyle(color = headerGrey, fontWeight = FontWeight.Normal)) {
+                                                                append("Manager: ")
+                                                            }
+                                                            withStyle(
+                                                                SpanStyle(
+                                                                    color = Color(0xFF0F172A),
+                                                                    fontWeight = FontWeight.SemiBold
+                                                                )
+                                                            ) {
+                                                                append(branchHeadNameOf(branch))
+                                                            }
+                                                        },
+                                                        fontSize = 14.sp
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    )
                                 }
                             }
                         }

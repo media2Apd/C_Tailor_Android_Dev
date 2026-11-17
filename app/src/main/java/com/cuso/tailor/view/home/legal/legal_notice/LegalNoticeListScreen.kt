@@ -4,8 +4,6 @@ package com.cuso.tailor.view.home.legal.legal_notice
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -37,8 +35,7 @@ fun LegalNoticeListScreen(
     onNavigateToEdit: (String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    val notices by viewModel.legalNotices.collectAsState()
-    val isLoading by viewModel.isLoadingNotices.collectAsState()
+    val noticesPagingState by viewModel.legalNoticesPagingState.collectAsState()
     val errorMessage by viewModel.noticesError.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -48,6 +45,18 @@ fun LegalNoticeListScreen(
         viewModel.fetchLegalNotices()
     }
 
+    val filteredList = remember(noticesPagingState.items, searchQuery) {
+        noticesPagingState.items.filter {
+            it.caseTitle.contains(searchQuery, ignoreCase = true) ||
+                    it.caseNumber.contains(searchQuery, ignoreCase = true) ||
+                    it.partyType.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    val displayPagingState = remember(noticesPagingState, filteredList) {
+        noticesPagingState.copy(items = filteredList)
+    }
+
     FabScaffold(
         modifier = Modifier.fillMaxSize(),
         fab = FabConfig(
@@ -55,7 +64,7 @@ fun LegalNoticeListScreen(
             icon = Icons.Default.Add,
             onClick = onNavigateToCreate
         ),
-        fabVisible = true
+        fabVisible = !displayPagingState.isInitialLoading
     ) {
         Column(
             modifier = Modifier
@@ -75,29 +84,30 @@ fun LegalNoticeListScreen(
                 onFilterClick = null
             )
 
-            if (isLoading) {
-                ListSkeleton()
-            } else if (!errorMessage.isNullOrBlank()) {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(tokens.screenPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = errorMessage ?: "Failed to fetch legal notices",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = redText
-                    )
-                }
-            } else {
-                val filteredList = notices.filter {
-                    it.caseTitle.contains(searchQuery, ignoreCase = true) ||
-                            it.caseNumber.contains(searchQuery, ignoreCase = true) ||
-                            it.partyType.contains(searchQuery, ignoreCase = true)
+            when {
+                !errorMessage.isNullOrBlank() && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(tokens.screenPadding),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = errorMessage ?: "Failed to fetch legal notices",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = redText
+                        )
+                    }
                 }
 
-                if (filteredList.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize().padding(tokens.screenPadding), contentAlignment = Alignment.Center) {
+                !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(tokens.screenPadding),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
                             text = if (searchQuery.isNotBlank()) "No records matching query" else "No dispute or notice records available",
                             fontSize = tokens.bodySmall,
@@ -105,148 +115,116 @@ fun LegalNoticeListScreen(
                             color = mutedText
                         )
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                    ) {
-                        items(filteredList, key = { it.id }) { item ->
-                            val isPending = item.status.equals("Pending", ignoreCase = true) || item.status.equals("Under_Review", ignoreCase = true)
-                            val badgeBg = if (isPending) orangeBg else greenBg
-                            val badgeText = if (isPending) orangeText else greentext
+                }
 
-                            val formattedDeadline = formatNoticeIsoDate(item.nextDeadline)
-                            val (remainingText, isExpired) = calculateNoticeRemaining(item.nextDeadline)
+                else -> {
+                    PaginatedDataList(
+                        state = displayPagingState,
+                        onLoadMore = { viewModel.loadMoreLegalNotices() },
+                        modifier = Modifier.fillMaxSize()
+                    ) { item ->
+                        val isPending = item.status.equals("Pending", ignoreCase = true) ||
+                                item.status.equals("Under_Review", ignoreCase = true)
+                        val badgeBg = if (isPending) orangeBg else greenBg
+                        val badgeText = if (isPending) orangeText else greentext
 
-                            val actions = listOf(
-                                MenuAction(
-                                    label = "Edit",
-                                    icon = Icons.Default.Edit,
-                                    textColor = TextPrimary,
-                                    tint = headerGrey,
-                                    onClick = { onNavigateToEdit(item.id) }
-                                ),
-                                MenuAction(
-                                    label = "View Details",
-                                    icon = Icons.Default.Visibility,
-                                    textColor = TextPrimary,
-                                    tint = headerGrey,
-                                    onClick = { onNavigateToDetail(item.id) }
-                                ),
-                                MenuAction(
-                                    label = "Delete",
-                                    icon = Icons.Default.Delete,
-                                    textColor = redText,
-                                    tint = redText,
-                                    onClick = { itemToDelete = item }
-                                )
+                        val formattedDeadline = formatNoticeIsoDate(item.nextDeadline)
+                        val (remainingText, isExpired) = calculateNoticeRemaining(item.nextDeadline)
+
+                        val actions = listOf(
+                            MenuAction(
+                                label = "Edit",
+                                icon = Icons.Default.Edit,
+                                textColor = TextPrimary,
+                                tint = headerGrey,
+                                onClick = { onNavigateToEdit(item.id) }
+                            ),
+                            MenuAction(
+                                label = "View Details",
+                                icon = Icons.Default.Visibility,
+                                textColor = TextPrimary,
+                                tint = headerGrey,
+                                onClick = { onNavigateToDetail(item.id) }
+                            ),
+                            MenuAction(
+                                label = "Delete",
+                                icon = Icons.Default.Delete,
+                                textColor = redText,
+                                tint = redText,
+                                onClick = { itemToDelete = item }
                             )
+                        )
 
-                            DataCard(
-                                item = item,
-                                title = item.caseTitle.ifBlank { "Untitled Dispute" },
-                                titleFontWeight = FontWeight.Medium,
-                                titleColor = TextPrimary,
-                                topBadgeText = item.status.ifBlank { "Active" },
-                                topBadgeTextColor = badgeText,
-                                topBadgeBgColor = badgeBg,
-                                actions = actions,
-                                onClick = { onNavigateToDetail(item.id) },
-                                content = {
-                                    Column(
+                        DataCard(
+                            item = item,
+                            title = item.caseTitle.ifBlank { "Untitled Dispute" },
+                            titleFontWeight = FontWeight.Medium,
+                            titleColor = TextPrimary,
+                            topBadgeText = item.status.ifBlank { "Active" },
+                            topBadgeTextColor = badgeText,
+                            topBadgeBgColor = badgeBg,
+                            actions = actions,
+                            onClick = { onNavigateToDetail(item.id) },
+                            content = {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        // Record ID Row
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "Record ID",
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = TextSecondary
-                                            )
-                                            Text(
-                                                text = item.caseNumber.ifBlank { "N/A" },
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = TextPrimary
-                                            )
-                                        }
+                                        Text("Record ID", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextSecondary)
+                                        Text(item.caseNumber.ifBlank { "N/A" }, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
+                                    }
 
-                                        // Party Row
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "Party",
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = TextSecondary
-                                            )
-                                            Text(
-                                                text = item.partyType.ifBlank { "N/A" },
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = TextPrimary
-                                            )
-                                        }
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Party", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextSecondary)
+                                        Text(item.partyType.ifBlank { "N/A" }, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
+                                    }
 
-                                        // 4-column Stat Container: Category, Country, Type, Risk
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .background(Primary_background, RoundedCornerShape(tokens.cardCornerRadius))
-                                                .border(1.dp, sectionBorder, RoundedCornerShape(tokens.cardCornerRadius))
-                                                .padding(tokens.extraPadding),
-                                            horizontalArrangement = Arrangement.SpaceAround
-                                        ) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Text("Category", fontSize = tokens.caption, color = mutedText)
-                                                Text(item.caseType.ifBlank { "Commercial" }, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
-                                            }
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Text("Country", fontSize = tokens.caption, color = mutedText)
-                                                Text(item.displayCountry.ifBlank { "India" }, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
-                                            }
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Text("Type", fontSize = tokens.caption, color = mutedText)
-                                                Text(item.caseType.ifBlank { "Notice" }, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
-                                            }
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Text("Risk", fontSize = tokens.caption, color = mutedText)
-                                                Text(item.riskLevel.ifBlank { "Low" }, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
-                                            }
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Primary_background, RoundedCornerShape(tokens.cardCornerRadius))
+                                            .border(1.dp, sectionBorder, RoundedCornerShape(tokens.cardCornerRadius))
+                                            .padding(tokens.extraPadding),
+                                        horizontalArrangement = Arrangement.SpaceAround
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("Category", fontSize = tokens.caption, color = mutedText)
+                                            Text(item.caseType.ifBlank { "Commercial" }, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
                                         }
-
-                                        // Next Action Row
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "Next Action : $formattedDeadline",
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = mutedText
-                                            )
-                                            Text(
-                                                text = remainingText,
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = if (isExpired) redText else TextSecondary
-                                            )
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("Country", fontSize = tokens.caption, color = mutedText)
+                                            Text(item.displayCountry.ifBlank { "India" }, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
+                                        }
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("Type", fontSize = tokens.caption, color = mutedText)
+                                            Text(item.caseType.ifBlank { "Notice" }, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
+                                        }
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Text("Risk", fontSize = tokens.caption, color = mutedText)
+                                            Text(item.riskLevel.ifBlank { "Low" }, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
                                         }
                                     }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Next Action : $formattedDeadline", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = mutedText)
+                                        Text(remainingText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = if (isExpired) redText else TextSecondary)
+                                    }
                                 }
-                            )
-                        }
+                            }
+                        )
                     }
                 }
             }

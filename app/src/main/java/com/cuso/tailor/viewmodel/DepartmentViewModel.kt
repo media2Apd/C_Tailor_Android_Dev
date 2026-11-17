@@ -6,6 +6,7 @@ import com.cuso.tailor.model.settings.DepartmentCreateRequest
 import com.cuso.tailor.model.settings.DepartmentItem
 import com.cuso.tailor.model.settings.DepartmentUpdateRequest
 import com.cuso.tailor.repository.SalesRepository
+import com.cuso.tailor.utils.PagingUiState
 import com.cuso.tailor.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,6 +55,49 @@ class DepartmentViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<DepartmentUiState>(DepartmentUiState.Loading)
     val uiState: StateFlow<DepartmentUiState> = _uiState.asStateFlow()
 
+    // ── Paginated UI State for PaginatedDataList ──
+    private val _departmentsPagingState =
+        MutableStateFlow(PagingUiState<DepartmentItem>(isInitialLoading = true))
+    val departmentsPagingState: StateFlow<PagingUiState<DepartmentItem>> =
+        _departmentsPagingState.asStateFlow()
+
+    private var currentSearchQuery: String = ""
+    private var currentPage: Int = 1
+    private val pageSize: Int = 10
+
+    fun onDepartmentSearchChanged(query: String) {
+        currentSearchQuery = query
+        rebuildPagingState(resetPage = true)
+    }
+
+    fun loadMoreDepartments() {
+        val current = _departmentsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+        currentPage += 1
+        rebuildPagingState(resetPage = false)
+    }
+
+    private fun rebuildPagingState(resetPage: Boolean) {
+        if (resetPage) currentPage = 1
+
+        val allDepartments = (_uiState.value as? DepartmentUiState.Success)?.departments ?: emptyList()
+        val filtered = if (currentSearchQuery.isBlank()) {
+            allDepartments
+        } else {
+            allDepartments.filter { d ->
+                d.name.contains(currentSearchQuery, ignoreCase = true)
+            }
+        }
+
+        val pagedItems = filtered.take(currentPage * pageSize)
+        _departmentsPagingState.value = PagingUiState(
+            items = pagedItems,
+            isInitialLoading = false,
+            isLoadingMore = false,
+            canLoadMore = pagedItems.size < filtered.size
+        )
+    }
+
     // ── Create State ──
     private val _createState = MutableStateFlow<DesignationCreateState>(DesignationCreateState.Idle)
     val createState: StateFlow<DesignationCreateState> = _createState.asStateFlow()
@@ -68,19 +112,26 @@ class DepartmentViewModel @Inject constructor(
 
     // ── Load Departments ──
     fun loadDepartments() {
-        if (_uiState.value is DepartmentUiState.Success) return
+        if (_uiState.value is DepartmentUiState.Success) {
+            rebuildPagingState(resetPage = false)
+            return
+        }
         launchBusy {
             _uiState.value = DepartmentUiState.Loading
+            _departmentsPagingState.value = PagingUiState(isInitialLoading = true)
             salesRepository.getDepartments().fold(
                 onSuccess = { response ->
                     if (response.success) {
                         _uiState.value = DepartmentUiState.Success(response.data)
+                        rebuildPagingState(resetPage = true)
                     } else {
-                        _uiState.value = DepartmentUiState.Error(response.toString() )
+                        _uiState.value = DepartmentUiState.Error(response.toString())
+                        _departmentsPagingState.value = PagingUiState(isInitialLoading = false)
                     }
                 },
                 onFailure = { e ->
                     _uiState.value = DepartmentUiState.Error(e.message ?: "Something went wrong")
+                    _departmentsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
         }
@@ -90,16 +141,20 @@ class DepartmentViewModel @Inject constructor(
     fun refresh() {
         launchBusy {
             _uiState.value = DepartmentUiState.Loading
+            _departmentsPagingState.value = PagingUiState(isInitialLoading = true)
             salesRepository.getDepartments().fold(
                 onSuccess = { response ->
                     if (response.success) {
                         _uiState.value = DepartmentUiState.Success(response.data)
+                        rebuildPagingState(resetPage = true)
                     } else {
-                        _uiState.value = DepartmentUiState.Error(response.toString() )
+                        _uiState.value = DepartmentUiState.Error(response.toString())
+                        _departmentsPagingState.value = PagingUiState(isInitialLoading = false)
                     }
                 },
                 onFailure = { e ->
                     _uiState.value = DepartmentUiState.Error(e.message ?: "Something went wrong")
+                    _departmentsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
         }
@@ -123,6 +178,7 @@ class DepartmentViewModel @Inject constructor(
                         if (current is DepartmentUiState.Success) {
                             val newList = current.departments + response.data
                             _uiState.value = DepartmentUiState.Success(newList)
+                            rebuildPagingState(resetPage = false)
                         } else {
                             // If list wasn't loaded, reload it
                             refresh()
@@ -167,6 +223,7 @@ class DepartmentViewModel @Inject constructor(
                                 if (it._id == response.data._id) response.data else it
                             }
                             _uiState.value = DepartmentUiState.Success(newList)
+                            rebuildPagingState(resetPage = false)
                         }
                     } else {
                         _updateState.value = DepartmentUpdateUiState.Error(

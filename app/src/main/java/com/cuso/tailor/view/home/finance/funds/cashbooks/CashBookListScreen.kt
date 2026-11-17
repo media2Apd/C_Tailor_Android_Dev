@@ -8,8 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -52,8 +50,7 @@ fun CashBookListScreen(
     onNavigateToDetail: (String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    val shifts by viewModel.cashShifts.collectAsState()
-    val isLoading by viewModel.isLoadingCashShifts.collectAsState()
+    val cashShiftsPagingState by viewModel.cashShiftsPagingState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var showOpenShiftDialog by remember { mutableStateOf(false) }
 
@@ -153,111 +150,106 @@ fun CashBookListScreen(
                     }
                 }
 
-                if (isLoading && shifts.isEmpty()) {
-                    ListSkeleton()
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = tokens.buttonHeight * 1.5f)
-                    ) {
-                        items(shifts, key = { it.id }) { item ->
-                            val cashierName = item.cashierId?.fullName ?: "Cashier"
-                            val formattedDate = formatIsoDate(item.openingTime)
-                            val isClosed = item.status.equals("Closed", ignoreCase = true)
+                PaginatedDataList(
+                    state = cashShiftsPagingState,
+                    onLoadMore = { viewModel.loadMoreCashShifts() },
+                    modifier = Modifier.fillMaxSize()
+                ) { item ->
+                    val cashierName = item.cashierId?.fullName ?: "Cashier"
+                    val formattedDate = formatIsoDate(item.openingTime)
+                    val isClosed = item.status.equals("Closed", ignoreCase = true)
 
-                            val badgeBg = if (isClosed) light_grey else greenBg
-                            val badgeText = if (isClosed) headerGrey else greentext
+                    val badgeBg = if (isClosed) light_grey else greenBg
+                    val badgeText = if (isClosed) headerGrey else greentext
 
-                            DataCard(
-                                item = item,
-                                title = item.shiftNumber,
-                                titleFontWeight = FontWeight.Medium,
-                                topBadgeText = if (isClosed) "Closed" else "Open",
-                                topBadgeBgColor = badgeBg,
-                                topBadgeTextColor = badgeText,
-                                topBadgeInline = true,
-                                actions = listOf(
-                                    MenuAction("View Details", onClick = { onNavigateToDetail(item.id) })
-                                ),
-                                content = {
-                                    Column(modifier = Modifier.fillMaxWidth()) {
-                                        // Row 1: Inflow & Outflow
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text("Debit (Inflow)", fontSize = tokens.bodySmall, color = mutedText)
-                                            Text(
-                                                text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.totalCashCollected)}",
-                                                fontSize = tokens.bodySmall,
-                                                color = greentext,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
+                    DataCard(
+                        item = item,
+                        title = item.shiftNumber,
+                        titleFontWeight = FontWeight.Medium,
+                        topBadgeText = if (isClosed) "Closed" else "Open",
+                        topBadgeBgColor = badgeBg,
+                        topBadgeTextColor = badgeText,
+                        topBadgeInline = true,
+                        actions = listOf(
+                            MenuAction("View Details", onClick = { onNavigateToDetail(item.id) })
+                        ),
+                        content = {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                // Row 1: Inflow & Outflow
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Debit (Inflow)", fontSize = tokens.bodySmall, color = mutedText)
+                                    Text(
+                                        text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.totalCashCollected)}",
+                                        fontSize = tokens.bodySmall,
+                                        color = greentext,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
 
-                                        Spacer(Modifier.height(tokens.extraPadding * 0.4f))
+                                Spacer(Modifier.height(tokens.extraPadding * 0.4f))
 
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text("Credit (Outflow)", fontSize = tokens.bodySmall, color = mutedText)
-                                            Text(
-                                                text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.totalCashWithdrawn)}",
-                                                fontSize = tokens.bodySmall,
-                                                color = redText,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Credit (Outflow)", fontSize = tokens.bodySmall, color = mutedText)
+                                    Text(
+                                        text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.totalCashWithdrawn)}",
+                                        fontSize = tokens.bodySmall,
+                                        color = redText,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
 
-                                        Spacer(Modifier.height(tokens.extraPadding * 0.4f))
+                                Spacer(Modifier.height(tokens.extraPadding * 0.4f))
 
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text("Balance", fontSize = tokens.bodySmall, color = mutedText)
-                                            Text(
-                                                text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.actualClosingBalance)}",
-                                                fontSize = tokens.bodySmall,
-                                                color = TitleColor,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Balance", fontSize = tokens.bodySmall, color = mutedText)
+                                    Text(
+                                        text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.actualClosingBalance)}",
+                                        fontSize = tokens.bodySmall,
+                                        color = TitleColor,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
 
-                                        HorizontalDivider(
-                                            modifier = Modifier.padding(vertical = tokens.extraPadding * 0.8f),
-                                            color = dividerColor
-                                        )
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = tokens.extraPadding * 0.8f),
+                                    color = dividerColor
+                                )
 
-                                        // Row 3: Meta Footers (Date, Voucher Type, Cashier)
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Column {
-                                                Text("Date", fontSize = tokens.label, color = mutedText)
-                                                Spacer(Modifier.height(tokens.extraPadding * 0.2f))
-                                                Text(formattedDate, fontSize = tokens.caption, color = TitleColor)
-                                            }
+                                // Row 3: Meta Footers (Date, Voucher Type, Cashier)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text("Date", fontSize = tokens.label, color = mutedText)
+                                        Spacer(Modifier.height(tokens.extraPadding * 0.2f))
+                                        Text(formattedDate, fontSize = tokens.caption, color = TitleColor)
+                                    }
 
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Text("Voucher Type", fontSize = tokens.label, color = mutedText)
-                                                Spacer(Modifier.height(tokens.extraPadding * 0.2f))
-                                                Text("Shift Drawer", fontSize = tokens.caption, color = TitleColor)
-                                            }
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("Voucher Type", fontSize = tokens.label, color = mutedText)
+                                        Spacer(Modifier.height(tokens.extraPadding * 0.2f))
+                                        Text("Shift Drawer", fontSize = tokens.caption, color = TitleColor)
+                                    }
 
-                                            Column(horizontalAlignment = Alignment.End) {
-                                                Text("Cashier", fontSize = tokens.label, color = mutedText)
-                                                Spacer(Modifier.height(tokens.extraPadding * 0.2f))
-                                                Text(cashierName, fontSize = tokens.caption, color = TitleColor)
-                                            }
-                                        }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text("Cashier", fontSize = tokens.label, color = mutedText)
+                                        Spacer(Modifier.height(tokens.extraPadding * 0.2f))
+                                        Text(cashierName, fontSize = tokens.caption, color = TitleColor)
                                     }
                                 }
-                            )
+                            }
                         }
-                    }
+                    )
                 }
             }
         }

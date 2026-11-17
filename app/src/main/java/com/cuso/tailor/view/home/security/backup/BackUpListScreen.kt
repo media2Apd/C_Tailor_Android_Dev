@@ -2,8 +2,6 @@ package com.cuso.tailor.view.home.security.backup
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -32,8 +30,8 @@ fun DataBackupListScreen(
     onNavigateToCreate: () -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    val backups by viewModel.filteredBackups.collectAsState()
-    val isLoading by viewModel.isLoadingBackups.collectAsState()
+    val pagingState by viewModel.filteredBackupsPagingState.collectAsState()
+    val errorMessage by viewModel.backupsError.collectAsState()
     val isRunningBackup by viewModel.isRunningBackup.collectAsState()
     val searchQuery by viewModel.backupSearchQuery.collectAsState()
     val filterDrawerState = rememberFilterDrawerState()
@@ -56,6 +54,10 @@ fun DataBackupListScreen(
         )
     }
 
+    val selectedFilterCount = remember(backupFilterSections) {
+        backupFilterSections.sumOf { section -> section.options.count { it.isSelected } }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         FabScaffold(
             modifier = Modifier.fillMaxSize(),
@@ -64,7 +66,7 @@ fun DataBackupListScreen(
                 icon = Icons.Default.Add,
                 onClick = onNavigateToCreate,
                 alignment = Alignment.BottomEnd,
-                bottomPadding = 80.dp,
+                bottomPadding = tokens.buttonHeight * 2f,
                 endPadding = tokens.screenPadding
             )
         ) {
@@ -73,34 +75,33 @@ fun DataBackupListScreen(
                     .fillMaxSize()
                     .background(Primary_background)
             ) {
-                // Top Page Header
+                // Page Header
                 TitleBar(
                     title = "Data Backup",
                     onClose = onNavigateBack,
                     trailingContent = {
-                        // Run Backup Button (Compact match to Export)
+                        // Run Backup Button
                         OutlinedButton(
                             onClick = {
-                                val targetBackupConfigId = backups.firstOrNull()?.id.orEmpty()
+                                val targetBackupConfigId = pagingState.items.firstOrNull()?.id.orEmpty()
                                 if (targetBackupConfigId.isBlank()) {
                                     DynamicIslandManager.showError("No backup configuration available to run")
                                 } else {
                                     viewModel.runBackupNow(
                                         backupConfigId = targetBackupConfigId,
-                                        onSuccess = { message ->
-                                            DynamicIslandManager.showSuccess(message)
-                                        },
-                                        onError = { error ->
-                                            DynamicIslandManager.showError(error)
-                                        }
+                                        onSuccess = { message -> DynamicIslandManager.showSuccess(message) },
+                                        onError = { error -> DynamicIslandManager.showError(error) }
                                     )
                                 }
                             },
-                            enabled = !isRunningBackup && backups.isNotEmpty(),
+                            enabled = !isRunningBackup && pagingState.items.isNotEmpty(),
                             shape = RoundedCornerShape(tokens.cardCornerRadius),
                             border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(Primary)),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            contentPadding = PaddingValues(
+                                horizontal = tokens.extraPadding * 1.2f,
+                                vertical = tokens.extraPadding * 0.6f
+                            ),
                             modifier = Modifier.height(tokens.buttonHeight * 0.85f)
                         ) {
                             if (isRunningBackup) {
@@ -125,7 +126,10 @@ fun DataBackupListScreen(
                             shape = RoundedCornerShape(tokens.cardCornerRadius),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
                             border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(sectionBorder)),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            contentPadding = PaddingValues(
+                                horizontal = tokens.extraPadding * 1.2f,
+                                vertical = tokens.extraPadding * 0.6f
+                            ),
                             modifier = Modifier.height(tokens.buttonHeight * 0.85f)
                         ) {
                             Icon(
@@ -134,7 +138,7 @@ fun DataBackupListScreen(
                                 tint = TextSecondary,
                                 modifier = Modifier.size(tokens.iconSize)
                             )
-                            Spacer(Modifier.width(6.dp))
+                            Spacer(Modifier.width(tokens.extraPadding * 0.6f))
                             Text(
                                 text = "Export",
                                 fontSize = tokens.bodySmall,
@@ -144,47 +148,50 @@ fun DataBackupListScreen(
                         }
                     }
                 )
+
                 // Search & Filter Bar
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { viewModel.onBackupSearchQueryChange(it) },
-                    placeholder = "Search SO number, customer, backup ID...",
+                    placeholder = "Search backup ID, name, source...",
                     showFilterIcon = true,
+                    filterCount = selectedFilterCount,
                     onFilterClick = { filterDrawerState.open() }
                 )
 
-                if (isLoading) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = Primary,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(32.dp)
+                when {
+                    errorMessage != null && pagingState.items.isEmpty() && !pagingState.isInitialLoading -> {
+                        AppErrorState(
+                            title = "Failed to load backups",
+                            message = errorMessage?.ifBlank { "Unable to fetch backup records." }
+                                ?: "Unable to fetch backup records.",
+                            onRetry = { viewModel.fetchBackups() }
                         )
                     }
-                } else if (backups.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No backup records found",
-                            fontSize = tokens.bodyMedium,
-                            color = mutedText
-                        )
+
+                    !pagingState.isInitialLoading && pagingState.items.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No backup records found",
+                                fontSize = tokens.bodyMedium,
+                                color = mutedText
+                            )
+                        }
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        items(backups, key = { it.id ?: it.backupId }) { backup ->
+
+                    else -> {
+                        PaginatedDataList(
+                            state = pagingState,
+                            onLoadMore = { viewModel.loadMoreBackups() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) { backup ->
                             BackupListItemCard(
                                 backup = backup,
                                 onClick = { onNavigateToDetail(backup.backupId) }
@@ -195,7 +202,7 @@ fun DataBackupListScreen(
             }
         }
 
-        // Animated Glass Drawer Filter
+        // Animated Slide-in Filter Drawer
         FilterDrawer(
             state = filterDrawerState,
             title = "Filter Backups",
@@ -239,7 +246,7 @@ private fun BackupListItemCard(
         content = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
             ) {
                 // Source Subtitle Row
                 Row(
@@ -266,9 +273,12 @@ private fun BackupListItemCard(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                         .background(Primary_background)
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .padding(
+                            horizontal = tokens.cardPadding * 0.7f,
+                            vertical = tokens.extraPadding
+                        )
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -282,7 +292,7 @@ private fun BackupListItemCard(
                                 color = mutedText,
                                 fontWeight = FontWeight.Medium
                             )
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                             Text(
                                 text = backup.type,
                                 fontSize = tokens.bodySmall,
@@ -298,7 +308,7 @@ private fun BackupListItemCard(
                                 color = mutedText,
                                 fontWeight = FontWeight.Medium
                             )
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                             Text(
                                 text = "${backup.schedule.frequency}, ${backup.schedule.time}",
                                 fontSize = tokens.bodySmall,
@@ -314,7 +324,7 @@ private fun BackupListItemCard(
                                 color = mutedText,
                                 fontWeight = FontWeight.Medium
                             )
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                             Text(
                                 text = backup.sizeFormatted.ifEmpty { "42 GB" },
                                 fontSize = tokens.bodySmall,

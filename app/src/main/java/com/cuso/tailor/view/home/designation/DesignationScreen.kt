@@ -12,9 +12,10 @@ package com.cuso.tailor.view.home.designation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
+import com.cuso.tailor.view.composable.SearchFilterBar
+import com.cuso.tailor.view.composable.StepNavigationFab
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -54,11 +55,6 @@ import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextField
-import com.cuso.tailor.view.composable.ListSkeleton
-import com.cuso.tailor.view.composable.MenuAction
-import com.cuso.tailor.view.composable.SearchFilterBar
-import com.cuso.tailor.view.composable.StepNavigationFab
-import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.viewmodel.DepartmentViewModel
@@ -83,6 +79,7 @@ fun DesignationScreen(
     val departmentViewModel: DepartmentViewModel = hiltViewModel()
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val designationsPagingState by viewModel.designationsPagingState.collectAsStateWithLifecycle()
     val createState by viewModel.createState.collectAsStateWithLifecycle()
     val updateState by viewModel.updateState.collectAsStateWithLifecycle()
     val deleteState by viewModel.deleteState.collectAsStateWithLifecycle()
@@ -93,10 +90,6 @@ fun DesignationScreen(
     var showDeleteDialog by remember { mutableStateOf<DesignationItem?>(null) }
 
     var searchQuery by remember { mutableStateOf("") }
-    var currentPage by remember { mutableIntStateOf(1) }
-    val itemsPerPage = 10
-
-    val listState = rememberLazyListState() // Tracks current scroll position
 
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -158,26 +151,7 @@ fun DesignationScreen(
     val isCreating = createState is DesignationCreateState.Loading
     val isUpdating = updateState is DesignationUpdateState.Loading
 
-    val allDesignations = (uiState as? DesignationUiState.Success)?.items ?: emptyList()
     val departments = (departmentUiState as? com.cuso.tailor.viewmodel.DepartmentUiState.Success)?.departments ?: emptyList()
-
-    val filteredDesignations = allDesignations.filter { d ->
-        searchQuery.isBlank() || d.name.contains(searchQuery, ignoreCase = true) || d.code.contains(searchQuery, ignoreCase = true)
-    }
-
-// Slice items up to current page so previous items remain visible
-    val pagedDesignations = filteredDesignations.take(currentPage * itemsPerPage)
-    val canLoadMore = pagedDesignations.size < filteredDesignations.size
-
-// Trigger next page when scrolling near the end
-    LaunchedEffect(listState, pagedDesignations.size, canLoadMore) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-            .collect { lastIndex ->
-                if (lastIndex != null && lastIndex >= pagedDesignations.size - 1 && canLoadMore) {
-                    currentPage++
-                }
-            }
-    }
 
     Box(Modifier.fillMaxSize()) {
         when (currentScreenMode) {
@@ -203,9 +177,9 @@ fun DesignationScreen(
                         Column(modifier = Modifier.fillMaxWidth()) {
                             SearchFilterBar(
                                 query = searchQuery,
-                                onQueryChange = {
-                                    searchQuery = it
-                                    currentPage = 1 // Reset to first page whenever search query changes
+                                onQueryChange = { query ->
+                                    searchQuery = query
+                                    viewModel.onDesignationSearchChanged(query)
                                 },
                                 placeholder = "Search Designations...",
                                 accentColor = BluePrimary,
@@ -216,133 +190,122 @@ fun DesignationScreen(
                         HorizontalDivider(color = title_border)
 
                         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                            when (uiState) {
-                                is DesignationUiState.Loading -> ListSkeleton()
-                                is DesignationUiState.Error -> {
-                                    // Pass real error message from state instead of static message
-                                    AppErrorState(
-                                        title = "Failed to load designations",
-                                        message = (uiState as DesignationUiState.Error).message.ifBlank {
-                                            "Something went wrong. Please check your connection and try again."
-                                        },
-                                        onRetry = { viewModel.loadDesignations() }
+                            if (uiState is DesignationUiState.Error) {
+                                // Pass real error message from state instead of static message
+                                AppErrorState(
+                                    title = "Failed to load designations",
+                                    message = (uiState as DesignationUiState.Error).message.ifBlank {
+                                        "Something went wrong. Please check your connection and try again."
+                                    },
+                                    onRetry = { viewModel.loadDesignations() }
+                                )
+                            } else if (!designationsPagingState.isInitialLoading && designationsPagingState.items.isEmpty()) {
+                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = if (searchQuery.isNotBlank()) "No matching designations found" else "No designations found",
+                                        fontSize = tokens.bodyMedium,
+                                        color = Color.Gray
                                     )
                                 }
-                                is DesignationUiState.Success -> {
-                                    if (filteredDesignations.isEmpty()) {
-                                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                            Text("No designations found", fontSize = tokens.bodyMedium, color = Color.Gray)
-                                        }
-                                    } else {
-                                        LazyColumn(
-                                            state = listState, // Attach LazyListState
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentPadding = PaddingValues(bottom = 80.dp)
-                                        ) {
-                                            items(pagedDesignations) { item ->
-                                                val (badgeText, badgeColor) = if (item.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
-                                                DataCard(
-                                                    item = item,
-                                                    title = item.name,
-                                                    titleColor = Color(0xFF0F172A),
-                                                    subtitle = item.code,
-                                                    topBadgeText = badgeText,
-                                                    topBadgeTextColor = badgeColor,
-                                                    topBadgeBgColor = if (item.status) Color(0xFFDCFCE7) else grey_border,
-                                                    topBadgeShowDot = false,
-                                                    topBadgeInline = true,
-                                                    showHeaderDivider = true,
-                                                    actions = listOf(
-                                                        MenuAction("Edit", Icons.Default.Edit) {
-                                                            editingDesignation = item
-                                                            currentScreenMode = DesignationScreenMode.FORM
-                                                        },
-                                                        MenuAction("Delete", Icons.Default.Delete, tint = Color.Red, textColor = Color.Red) {
-                                                            showDeleteDialog = item
-                                                        }
-                                                    ),
-                                                    content = {
-                                                        val iconColor = headerGrey
-                                                        val textBodyColor = Color(0xFF334155)
-
-                                                        Column(
-                                                            modifier = Modifier.fillMaxWidth(),
-                                                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                                                        ) {
-                                                            // Dept Row
-                                                            Row(
-                                                                verticalAlignment = Alignment.CenterVertically,
-                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                            ) {
-                                                                Icon(
-                                                                    painter = painterResource(R.drawable.ic_shopping_bag),
-                                                                    contentDescription = null,
-                                                                    tint = iconColor,
-                                                                    modifier = Modifier.size(18.dp)
-                                                                )
-                                                                Text(
-                                                                    text = buildAnnotatedString {
-                                                                        withStyle(SpanStyle(color = headerGrey, fontWeight = FontWeight.Normal)) {
-                                                                            append("Dept: ")
-                                                                        }
-                                                                        withStyle(SpanStyle(color = Color(0xFF0F172A), fontWeight = FontWeight.SemiBold)) {
-                                                                            append("Inventory not found")
-                                                                        }
-                                                                    },
-                                                                    fontSize = 14.sp
-                                                                )
-                                                            }
-
-                                                            // Branch Location Row
-                                                            Row(
-                                                                verticalAlignment = Alignment.CenterVertically,
-                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                            ) {
-                                                                Icon(
-                                                                    painter = painterResource(R.drawable.ic_location),
-                                                                    contentDescription = null,
-                                                                    tint = iconColor,
-                                                                    modifier = Modifier.size(18.dp)
-                                                                )
-                                                                Text(
-                                                                    text =  "Not Found",
-                                                                    fontSize = 14.sp,
-                                                                    color = textBodyColor,
-                                                                    maxLines = 1,
-                                                                    overflow = TextOverflow.Ellipsis
-                                                                )
-                                                            }
-
-                                                            // Employees Row
-                                                            Row(
-                                                                verticalAlignment = Alignment.CenterVertically,
-                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                            ) {
-                                                                Icon(
-                                                                    painter = painterResource(R.drawable.ic_users),
-                                                                    contentDescription = null,
-                                                                    tint = iconColor,
-                                                                    modifier = Modifier.size(18.dp)
-                                                                )
-                                                                Text(
-                                                                    text = "$ - Employees",
-                                                                    fontSize = 14.sp,
-                                                                    color = textBodyColor
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-                                                )
+                            } else {
+                                PaginatedDataList(
+                                    state = designationsPagingState,
+                                    onLoadMore = { viewModel.loadMoreDesignations() },
+                                    modifier = Modifier.fillMaxSize()
+                                ) { item ->
+                                    val (badgeText, badgeColor) = if (item.status) "Active" to Color(0xFF16A34A) else "Inactive" to Color(0xFF6B7280)
+                                    DataCard(
+                                        item = item,
+                                        title = item.name,
+                                        titleColor = Color(0xFF0F172A),
+                                        subtitle = item.code,
+                                        topBadgeText = badgeText,
+                                        topBadgeTextColor = badgeColor,
+                                        topBadgeBgColor = if (item.status) Color(0xFFDCFCE7) else grey_border,
+                                        topBadgeShowDot = false,
+                                        topBadgeInline = true,
+                                        showHeaderDivider = true,
+                                        actions = listOf(
+                                            MenuAction("Edit", Icons.Default.Edit) {
+                                                editingDesignation = item
+                                                currentScreenMode = DesignationScreenMode.FORM
+                                            },
+                                            MenuAction("Delete", Icons.Default.Delete, tint = Color.Red, textColor = Color.Red) {
+                                                showDeleteDialog = item
                                             }
-                                            if (canLoadMore) {
-                                                item {
-                                                    ThreeDotLoading(
-                                                        modifier = Modifier.padding(bottom = 16.dp)
+                                        ),
+                                        content = {
+                                            val iconColor = headerGrey
+                                            val textBodyColor = Color(0xFF334155)
+
+                                            Column(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                // Dept Row
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.ic_shopping_bag),
+                                                        contentDescription = null,
+                                                        tint = iconColor,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                    Text(
+                                                        text = buildAnnotatedString {
+                                                            withStyle(SpanStyle(color = headerGrey, fontWeight = FontWeight.Normal)) {
+                                                                append("Dept: ")
+                                                            }
+                                                            withStyle(SpanStyle(color = Color(0xFF0F172A), fontWeight = FontWeight.SemiBold)) {
+                                                                append("Inventory not found")
+                                                            }
+                                                        },
+                                                        fontSize = 14.sp
+                                                    )
+                                                }
+
+                                                // Branch Location Row
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.ic_location),
+                                                        contentDescription = null,
+                                                        tint = iconColor,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                    Text(
+                                                        text = "Not Found",
+                                                        fontSize = 14.sp,
+                                                        color = textBodyColor,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+
+                                                // Employees Row
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.ic_users),
+                                                        contentDescription = null,
+                                                        tint = iconColor,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                    Text(
+                                                        text = "$ - Employees",
+                                                        fontSize = 14.sp,
+                                                        color = textBodyColor
                                                     )
                                                 }
                                             }
                                         }
-                                    }
+                                    )
                                 }
                             }
                         }

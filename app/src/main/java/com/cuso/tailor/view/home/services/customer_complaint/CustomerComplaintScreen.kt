@@ -1,18 +1,15 @@
-
 @file:Suppress("unused")
+
 package com.cuso.tailor.view.home.services.customer_complaint
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -20,9 +17,10 @@ import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.service.ComplaintItemDto
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.ServicesViewModel
@@ -34,9 +32,8 @@ fun ComplaintListScreen(
     onComplaintClick: (String) -> Unit
 ) {
     val tokens: AppDesignTokens = LocalAppTokens.current
-    val complaints by viewModel.complaintsList.collectAsState()
+    val pagingState by viewModel.complaintsPagingState.collectAsState()
     val searchQuery by viewModel.complaintSearchQuery.collectAsState()
-    val isLoading by viewModel.isLoadingComplaints.collectAsState()
     val errorMessage by viewModel.complaintsError.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -44,22 +41,20 @@ fun ComplaintListScreen(
     }
 
     Scaffold(
-        containerColor = Color.Transparent,
+        containerColor = Primary_background,
         topBar = {
-            // 1. Reusable TitleBar (Close click invokes onBack)
             TitleBar(
                 title = "Complaint List",
                 onClose = onBack
             )
-
         }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Primary_background)
                 .padding(padding)
         ) {
-            // 2. Reusable SearchFilterBar
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { viewModel.onComplaintSearch(it) },
@@ -68,38 +63,39 @@ fun ComplaintListScreen(
                 onFilterClick = { /* Open filter sheet */ }
             )
 
-            if (isLoading) {
-                ListSkeleton()
-            } else if (!errorMessage.isNullOrBlank()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = errorMessage ?: "Error loading complaints",
-                        color = redText,
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.Medium
+            when {
+                !errorMessage.isNullOrBlank() && pagingState.items.isEmpty() && !pagingState.isInitialLoading -> {
+                    AppErrorState(
+                        title = "Failed to load complaints",
+                        message = errorMessage ?: "Error loading complaints",
+                        onRetry = { viewModel.fetchComplaints(searchQuery.ifBlank { null }) }
                     )
                 }
-            } else if (complaints.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No complaints found",
-                        color = mutedText,
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.Normal
-                    )
+
+                !pagingState.isInitialLoading && pagingState.items.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No complaints found",
+                            color = mutedText,
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Normal
+                        )
+                    }
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = tokens.extraPadding * 0.5f)
-                ) {
-                    items(complaints) { item ->
+
+                else -> {
+                    PaginatedDataList(
+                        state = pagingState,
+                        onLoadMore = { viewModel.loadMoreComplaints() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) { item ->
                         ComplaintDataCardItem(
                             item = item,
                             onClick = { onComplaintClick(item.id) }
@@ -116,7 +112,7 @@ fun ComplaintListScreen(
 }
 
 /**
- * Reuses the DataCard component configured for the Complaint item layout
+ * Reuses the DataCard component configured for the Complaint item layout.
  */
 @Composable
 private fun ComplaintDataCardItem(
@@ -125,7 +121,6 @@ private fun ComplaintDataCardItem(
 ) {
     val tokens = LocalAppTokens.current
 
-    // Format status label and color strictly with Colors.kt
     val rawStatus = item.status?.lowercase() ?: "in progress"
     val (statusLabel, statusBg, statusText) = when {
         rawStatus.contains("resolve") || rawStatus.contains("close") -> {
@@ -143,13 +138,10 @@ private fun ComplaintDataCardItem(
         item = item,
         onClick = { onClick() },
         showDivider = false,
-        // Header title: Customer Name
         title = item.customerDisplayName,
         titleColor = title_color,
         titleFontWeight = FontWeight.Medium,
-        // Subtitle: Complaint Code
         subtitle = item.displayCode,
-        // Status Badge & Action Menu on top row
         topBadgeText = statusLabel,
         topBadgeBgColor = statusBg,
         topBadgeTextColor = statusText,
@@ -163,7 +155,6 @@ private fun ComplaintDataCardItem(
                 onClick = onClick
             )
         ),
-        // 3-Column Footer Card (Contact | Category | Complaint)
         content = {
             Box(
                 modifier = Modifier
@@ -188,7 +179,7 @@ private fun ComplaintDataCardItem(
                             color = mutedText,
                             fontWeight = FontWeight.Normal
                         )
-                        Spacer(Modifier.height(3.dp))
+                        Spacer(Modifier.height(tokens.extraPadding * 0.3f))
                         Text(
                             text = item.contactPhone,
                             fontSize = tokens.bodySmall,
@@ -208,7 +199,7 @@ private fun ComplaintDataCardItem(
                             color = mutedText,
                             fontWeight = FontWeight.Normal
                         )
-                        Spacer(Modifier.height(3.dp))
+                        Spacer(Modifier.height(tokens.extraPadding * 0.3f))
                         Text(
                             text = item.categoryDisplay,
                             fontSize = tokens.bodySmall,
@@ -228,7 +219,7 @@ private fun ComplaintDataCardItem(
                             color = mutedText,
                             fontWeight = FontWeight.Normal
                         )
-                        Spacer(Modifier.height(3.dp))
+                        Spacer(Modifier.height(tokens.extraPadding * 0.3f))
                         Text(
                             text = item.complaintDisplay,
                             fontSize = tokens.bodySmall,

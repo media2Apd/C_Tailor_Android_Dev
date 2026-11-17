@@ -7,8 +7,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -86,8 +84,7 @@ fun ExitManagementScreen(
     onOpenApproval: (String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    val requests by viewModel.exitRequests.collectAsState()
-    val isLoading by viewModel.isLoadingExitRequests.collectAsState()
+    val exitPagingState by viewModel.exitRequestsPagingState.collectAsState()
     val errorMsg by viewModel.exitRequestsError.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -120,8 +117,14 @@ fun ExitManagementScreen(
         errorMsg?.let { DynamicIslandManager.showError(it) }
     }
 
-    val filteredList = remember(requests, searchQuery, selectedTab, selectedExitTypes, selectedStatuses) {
-        requests.filter { item ->
+    val filteredList = remember(
+        exitPagingState.items,
+        searchQuery,
+        selectedTab,
+        selectedExitTypes,
+        selectedStatuses
+    ) {
+        exitPagingState.items.filter { item ->
             val empName = item.organizationMemberId.extractMemberName()
             val deptName = item.departmentId.extractEntityName("")
             val code = item.exitCode ?: item.id.takeLast(6)
@@ -146,6 +149,10 @@ fun ExitManagementScreen(
         }
     }
 
+    val displayPagingState = remember(exitPagingState, filteredList) {
+        exitPagingState.copy(items = filteredList)
+    }
+
     val activeFilterCount = selectedExitTypes.size + selectedStatuses.size
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -157,7 +164,8 @@ fun ExitManagementScreen(
                 label = "New Request",
                 icon = Icons.Default.Add,
                 onClick = onCreateNewRequest
-            )
+            ),
+            fabVisible = !displayPagingState.isInitialLoading
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 TitleBar(
@@ -218,206 +226,187 @@ fun ExitManagementScreen(
                     }
                 }
 
-                when {
-                    isLoading && requests.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
+                if (!displayPagingState.isInitialLoading && displayPagingState.items.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(tokens.screenPadding),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                         ) {
-                            CircularProgressIndicator(color = Primary)
-                        }
-                    }
-
-                    filteredList.isEmpty() -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(tokens.screenPadding),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                            Text(
+                                text = "No exit requests found",
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = TextSecondary
+                            )
+                            Button(
+                                onClick = onCreateNewRequest,
+                                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
+                                modifier = Modifier.height(tokens.buttonHeight)
                             ) {
                                 Text(
-                                    text = "No exit requests found",
-                                    fontSize = tokens.bodyMedium,
+                                    text = "New Request",
+                                    fontSize = tokens.bodySmall,
                                     fontWeight = FontWeight.Medium,
-                                    color = TextSecondary
+                                    color = whiteBg
                                 )
-                                Button(
-                                    onClick = onCreateNewRequest,
-                                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
-                                    modifier = Modifier.height(tokens.buttonHeight)
-                                ) {
-                                    Text(
-                                        text = "New Request",
-                                        fontSize = tokens.bodySmall,
-                                        fontWeight = FontWeight.Medium,
-                                        color = whiteBg
-                                    )
-                                }
                             }
                         }
                     }
+                } else {
+                    // Paginated list reusing PaginatedDataList
+                    PaginatedDataList(
+                        state = displayPagingState,
+                        onLoadMore = { viewModel.loadMoreExitRequests() },
+                        modifier = Modifier.fillMaxSize()
+                    ) { item ->
+                        val index = displayPagingState.items.indexOfFirst { it.id == item.id }.coerceAtLeast(0)
+                        val displayCode = item.exitCode?.takeIf { it.isNotBlank() }
+                            ?: "Ext-${String.format(Locale.US, "%03d", index + 1)}"
+                        val isChecked = selectedIds.contains(item.id)
+                        val statusColors = resolveExitStatusColors(item.status)
+                        val displayStatus = item.status.replace("_", " ")
 
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                top = tokens.extraPadding * 0.4f,
-                                bottom = tokens.buttonHeight * 2.2f
-                            )
-                        ) {
-                            itemsIndexed(
-                                items = filteredList,
-                                key = { _, item -> item.id }
-                            ) { index, item ->
-                                val displayCode = item.exitCode?.takeIf { it.isNotBlank() }
-                                    ?: "Ext-${String.format(Locale.US, "%03d", index + 1)}"
-                                val isChecked = selectedIds.contains(item.id)
-                                val statusColors = resolveExitStatusColors(item.status)
-                                val displayStatus = item.status.replace("_", " ")
-
-                                DataCard(
-                                    item = item,
-                                    onClick = { onOpenApproval(it.id) },
-                                    showHeaderDivider = true,
-                                    headerContent = {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                                            ) {
-                                                // Reuse AppCheckbox for exit request selection
-                                                AppCheckbox(
-                                                    checked = isChecked,
-                                                    size = tokens.iconSize,
-                                                    onCheckedChange = { checked ->
-                                                        selectedIds = if (checked) {
-                                                            selectedIds + item.id
-                                                        } else {
-                                                            selectedIds - item.id
-                                                        }
-                                                    }
-                                                )
-
-                                                Text(
-                                                    text = displayCode,
-                                                    fontSize = tokens.bodyMedium,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = Primary
-                                                )
-                                            }
-
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
-                                            ) {
-                                                StatusBadge(
-                                                    text = displayStatus,
-                                                    bgColor = statusColors.first,
-                                                    textColor = statusColors.second
-                                                )
-
-                                                ActionDropdownMenu(
-                                                    actions = listOf(
-                                                        MenuAction(
-                                                            label = "Review",
-                                                            icon = Icons.Default.Visibility,
-                                                            tint = Primary,
-                                                            textColor = TextPrimary,
-                                                            onClick = { onOpenApproval(item.id) }
-                                                        ),
-                                                        MenuAction(
-                                                            label = "Delete",
-                                                            icon = Icons.Default.DeleteOutline,
-                                                            tint = redText,
-                                                            textColor = redText,
-                                                            onClick = { deleteTarget = item }
-                                                        )
-                                                    )
-                                                )
-                                            }
-                                        }
-                                    },
-                                    // Pass body as named parameter 'content' since 'showDivider' is the last parameter
-                                    content = {
-                                        Column(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.7f)
-                                        ) {
-                                            ExitKeyValueRow(
-                                                label = "Employee",
-                                                value = item.organizationMemberId.extractMemberName()
-                                            )
-                                            ExitKeyValueRow(
-                                                label = "Department",
-                                                value = item.departmentId.extractEntityName()
-                                            )
-                                            ExitKeyValueRow(
-                                                label = "Exit Type",
-                                                value = item.exitType.replace("_", " ")
-                                            )
-                                            ExitKeyValueRow(
-                                                label = "Requested Date",
-                                                value = formatExitDate(item.resignationDate ?: item.submittedAt ?: item.createdAt)
-                                            )
-                                            ExitKeyValueRow(
-                                                label = "Last Working Date",
-                                                value = formatExitDate(item.approvedLastWorkingDate ?: item.requestedLastWorkingDate)
-                                            )
-
-                                            HorizontalDivider(
-                                                color = grey_border,
-                                                thickness = 1.dp
-                                            )
-
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = "Actions",
-                                                    fontSize = tokens.bodySmall,
-                                                    color = headerGrey
-                                                )
-
-                                                Row(
-                                                    horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Text(
-                                                        text = "Review",
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = Primary,
-                                                        modifier = Modifier.clickable {
-                                                            onOpenApproval(item.id)
-                                                        }
-                                                    )
-                                                    Text(
-                                                        text = "Reject",
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = redText,
-                                                        modifier = Modifier.clickable {
-                                                            onOpenApproval(item.id)
-                                                        }
-                                                    )
+                        DataCard(
+                            item = item,
+                            onClick = { onOpenApproval(it.id) },
+                            showHeaderDivider = true,
+                            headerContent = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                                    ) {
+                                        // Reuse AppCheckbox for exit request selection
+                                        AppCheckbox(
+                                            checked = isChecked,
+                                            size = tokens.iconSize,
+                                            onCheckedChange = { checked ->
+                                                selectedIds = if (checked) {
+                                                    selectedIds + item.id
+                                                } else {
+                                                    selectedIds - item.id
                                                 }
                                             }
+                                        )
+
+                                        Text(
+                                            text = displayCode,
+                                            fontSize = tokens.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Primary
+                                        )
+                                    }
+
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
+                                    ) {
+                                        StatusBadge(
+                                            text = displayStatus,
+                                            bgColor = statusColors.first,
+                                            textColor = statusColors.second
+                                        )
+
+                                        ActionDropdownMenu(
+                                            actions = listOf(
+                                                MenuAction(
+                                                    label = "Review",
+                                                    icon = Icons.Default.Visibility,
+                                                    tint = Primary,
+                                                    textColor = TextPrimary,
+                                                    onClick = { onOpenApproval(item.id) }
+                                                ),
+                                                MenuAction(
+                                                    label = "Delete",
+                                                    icon = Icons.Default.DeleteOutline,
+                                                    tint = redText,
+                                                    textColor = redText,
+                                                    onClick = { deleteTarget = item }
+                                                )
+                                            )
+                                        )
+                                    }
+                                }
+                            },
+                            content = {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.7f)
+                                ) {
+                                    ExitKeyValueRow(
+                                        label = "Employee",
+                                        value = item.organizationMemberId.extractMemberName()
+                                    )
+                                    ExitKeyValueRow(
+                                        label = "Department",
+                                        value = item.departmentId.extractEntityName()
+                                    )
+                                    ExitKeyValueRow(
+                                        label = "Exit Type",
+                                        value = item.exitType.replace("_", " ")
+                                    )
+                                    ExitKeyValueRow(
+                                        label = "Requested Date",
+                                        value = formatExitDate(item.resignationDate ?: item.submittedAt ?: item.createdAt)
+                                    )
+                                    ExitKeyValueRow(
+                                        label = "Last Working Date",
+                                        value = formatExitDate(item.approvedLastWorkingDate ?: item.requestedLastWorkingDate)
+                                    )
+
+                                    HorizontalDivider(
+                                        color = grey_border,
+                                        thickness = 1.dp
+                                    )
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Actions",
+                                            fontSize = tokens.bodySmall,
+                                            color = headerGrey
+                                        )
+
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Review",
+                                                fontSize = tokens.bodySmall,
+                                                fontWeight = FontWeight.Medium,
+                                                color = Primary,
+                                                modifier = Modifier.clickable {
+                                                    onOpenApproval(item.id)
+                                                }
+                                            )
+                                            Text(
+                                                text = "Reject",
+                                                fontSize = tokens.bodySmall,
+                                                fontWeight = FontWeight.Medium,
+                                                color = redText,
+                                                modifier = Modifier.clickable {
+                                                    onOpenApproval(item.id)
+                                                }
+                                            )
                                         }
                                     }
-                                )
+                                }
                             }
-                        }
+                        )
                     }
                 }
             }

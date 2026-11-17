@@ -6,8 +6,6 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -125,28 +123,25 @@ fun LegalComplianceScreen(
         viewModel.fetchCompliances()
     }
 
-    val compliances by viewModel.compliances.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val compliancesPagingState by viewModel.compliancesPagingState.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     val filterDrawerState = rememberFilterDrawerState()
     var filterSections by remember { mutableStateOf(getLegalComplianceFilterSections()) }
 
-    // State for delete dialog
     var itemToDelete by remember { mutableStateOf<LegalComplianceDto?>(null) }
 
     val activeFilterCount = remember(filterSections) {
         filterSections.sumOf { it.options.count { opt -> opt.isSelected } }
     }
 
-    // Filter and search logic
-    val filteredCompliances = remember(compliances, searchQuery, filterSections) {
+    val filteredCompliances = remember(compliancesPagingState.items, searchQuery, filterSections) {
         val selectedStatuses = filterSections.find { it.title == "Status" }?.options?.filter { it.isSelected }?.map { it.id }.orEmpty()
         val selectedRisks = filterSections.find { it.title == "Risk Level" }?.options?.filter { it.isSelected }?.map { it.id }.orEmpty()
         val selectedCategories = filterSections.find { it.title == "Category" }?.options?.filter { it.isSelected }?.map { it.id }.orEmpty()
 
-        compliances.filter { item ->
+        compliancesPagingState.items.filter { item ->
             val matchesSearch = searchQuery.isBlank() ||
                     item.complianceName?.contains(searchQuery, ignoreCase = true) == true ||
                     item.complianceCode?.contains(searchQuery, ignoreCase = true) == true ||
@@ -160,7 +155,10 @@ fun LegalComplianceScreen(
         }
     }
 
-    // FAB Configuration matching bottom-end floating button
+    val displayPagingState = remember(compliancesPagingState, filteredCompliances) {
+        compliancesPagingState.copy(items = filteredCompliances)
+    }
+
     val fabConfig = remember(onAddCompliance) {
         FabConfig(
             label = "Add Complaince",
@@ -174,74 +172,85 @@ fun LegalComplianceScreen(
             .fillMaxSize()
             .background(Color.Transparent),
         fab = fabConfig,
-        fabVisible = true
+        fabVisible = !displayPagingState.isInitialLoading
     ) {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                // Reused TitleBar component
                 TitleBar(
                     title = "All Compliance",
                     onClose = onBack
                 )
             }
         ) { paddingValues ->
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                if (isLoading && compliances.isEmpty()) {
-                    ListSkeleton()
-                } else if (!errorMessage.isNullOrBlank() && compliances.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = errorMessage ?: "Error loading compliance records",
-                                fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Normal,
-                                color = redText
-                            )
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            Button(
-                                onClick = { viewModel.fetchCompliances() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                            ) {
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = {
+                        searchQuery = it
+                        viewModel.fetchCompliances(search = it)
+                    },
+                    placeholder = "Search SO number, customer...",
+                    filterCount = activeFilterCount,
+                    onFilterClick = { filterDrawerState.open() },
+                    accentColor = Primary,
+                    borderColor = sectionBorder,
+                    textSecondaryColor = mutedText
+                )
+
+                when {
+                    !errorMessage.isNullOrBlank() && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "Retry",
+                                    text = errorMessage ?: "Error loading compliance records",
                                     fontSize = tokens.bodySmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = whiteBg
+                                    fontWeight = FontWeight.Normal,
+                                    color = redText
                                 )
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                Button(
+                                    onClick = { viewModel.fetchCompliances() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                                ) {
+                                    Text(
+                                        text = "Retry",
+                                        fontSize = tokens.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = whiteBg
+                                    )
+                                }
                             }
                         }
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        item {
-                            // Reused SearchFilterBar component
-                            SearchFilterBar(
-                                query = searchQuery,
-                                onQueryChange = {
-                                    searchQuery = it
-                                    viewModel.fetchCompliances(search = it)
-                                },
-                                placeholder = "Search SO number, customer...",
-                                filterCount = activeFilterCount,
-                                onFilterClick = { filterDrawerState.open() },
-                                accentColor = Primary,
-                                borderColor = sectionBorder,
-                                textSecondaryColor = mutedText
+
+                    !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No compliance records found",
+                                fontSize = tokens.bodyMedium,
+                                color = mutedText
                             )
                         }
+                    }
 
-                        items(filteredCompliances, key = { it.id }) { item ->
+                    else -> {
+                        PaginatedDataList(
+                            state = displayPagingState,
+                            onLoadMore = { viewModel.loadMoreCompliances() },
+                            modifier = Modifier.fillMaxSize()
+                        ) { item ->
                             val statusText = item.status?.replace("_", " ") ?: ""
                             val codeText = item.complianceCode ?: ""
                             val categoryText = item.complianceCategory ?: ""
@@ -251,7 +260,6 @@ fun LegalComplianceScreen(
                             val dueDateFormatted = formatDueDate(item.dueDate)
                             val remainingFormatted = calculateDaysRemaining(item.dueDate)
 
-                            // Reusing DataCard Component with Edit, View Details, and Delete options
                             DataCard(
                                 item = item,
                                 title = item.complianceName ?: "",
@@ -263,37 +271,21 @@ fun LegalComplianceScreen(
                                 topBadgeShowDot = false,
                                 topBadgeInline = true,
                                 actions = listOf(
-                                    MenuAction(
-                                        label = "Edit",
-                                        onClick = { onEditCompliance(item.id) }
-                                    ),
-                                    MenuAction(
-                                        label = "View Details",
-                                        onClick = { onComplianceClick(item) }
-                                    ),
-                                    MenuAction(
-                                        label = "Delete",
-                                        textColor = redText,
-                                        onClick = { itemToDelete = item }
-                                    )
+                                    MenuAction(label = "Edit", onClick = { onEditCompliance(item.id) }),
+                                    MenuAction(label = "View Details", onClick = { onComplianceClick(item) }),
+                                    MenuAction(label = "Delete", textColor = redText, onClick = { itemToDelete = item })
                                 ),
                                 showActionsInHeader = false,
                                 showDivider = false,
                                 onClick = { onComplianceClick(item) },
                                 content = {
                                     Column(modifier = Modifier.fillMaxWidth()) {
-                                        // Row 1: ID
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = "ID",
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Normal,
-                                                color = mutedText
-                                            )
+                                            Text(text = "ID", fontSize = tokens.bodySmall, color = mutedText)
                                             Text(
                                                 text = codeText,
                                                 fontSize = tokens.bodySmall,
@@ -305,18 +297,12 @@ fun LegalComplianceScreen(
 
                                         Spacer(Modifier.height(6.dp))
 
-                                        // Row 2: Category
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = "Category",
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Normal,
-                                                color = mutedText
-                                            )
+                                            Text(text = "Category", fontSize = tokens.bodySmall, color = mutedText)
                                             Text(
                                                 text = categoryText,
                                                 fontSize = tokens.bodySmall,
@@ -327,7 +313,6 @@ fun LegalComplianceScreen(
 
                                         Spacer(Modifier.height(10.dp))
 
-                                        // Inner Stat Grid: Jurisdiction, Owner, Risk
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -340,74 +325,26 @@ fun LegalComplianceScreen(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Column(
-                                                    modifier = Modifier.weight(1f),
-                                                    horizontalAlignment = Alignment.CenterHorizontally
-                                                ) {
-                                                    Text(
-                                                        text = "Jurisdiction",
-                                                        fontSize = tokens.caption,
-                                                        fontWeight = FontWeight.Normal,
-                                                        color = mutedText
-                                                    )
+                                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text("Jurisdiction", fontSize = tokens.caption, color = mutedText)
                                                     Spacer(Modifier.height(2.dp))
-                                                    Text(
-                                                        text = jurisdictionText,
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = TextPrimary,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
+                                                    Text(jurisdictionText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                                 }
-
-                                                Column(
-                                                    modifier = Modifier.weight(1f),
-                                                    horizontalAlignment = Alignment.CenterHorizontally
-                                                ) {
-                                                    Text(
-                                                        text = "Owner",
-                                                        fontSize = tokens.caption,
-                                                        fontWeight = FontWeight.Normal,
-                                                        color = mutedText
-                                                    )
+                                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text("Owner", fontSize = tokens.caption, color = mutedText)
                                                     Spacer(Modifier.height(2.dp))
-                                                    Text(
-                                                        text = ownerText,
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = TextPrimary,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
+                                                    Text(ownerText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                                 }
-
-                                                Column(
-                                                    modifier = Modifier.weight(1f),
-                                                    horizontalAlignment = Alignment.CenterHorizontally
-                                                ) {
-                                                    Text(
-                                                        text = "Risk",
-                                                        fontSize = tokens.caption,
-                                                        fontWeight = FontWeight.Normal,
-                                                        color = mutedText
-                                                    )
+                                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text("Risk", fontSize = tokens.caption, color = mutedText)
                                                     Spacer(Modifier.height(2.dp))
-                                                    Text(
-                                                        text = riskText,
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = TextPrimary,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
+                                                    Text(riskText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                                 }
                                             }
                                         }
 
                                         Spacer(Modifier.height(12.dp))
 
-                                        // Due Date Row with Remaining Days
                                         Text(
                                             text = buildAnnotatedString {
                                                 withStyle(SpanStyle(color = mutedText, fontWeight = FontWeight.Normal)) {
@@ -434,20 +371,14 @@ fun LegalComplianceScreen(
             }
         }
 
-        // Sliding Filter Drawer
         FilterDrawer(
             state = filterDrawerState,
             title = "Filter Compliances",
             sections = filterSections,
-            onApply = { updatedSections ->
-                filterSections = updatedSections
-            },
-            onClearAll = {
-                filterSections = getLegalComplianceFilterSections()
-            }
+            onApply = { updatedSections -> filterSections = updatedSections },
+            onClearAll = { filterSections = getLegalComplianceFilterSections() }
         )
 
-        // Delete Confirmation Modal
         itemToDelete?.let { targetCompliance ->
             DeleteModel(
                 title = "Delete Compliance",

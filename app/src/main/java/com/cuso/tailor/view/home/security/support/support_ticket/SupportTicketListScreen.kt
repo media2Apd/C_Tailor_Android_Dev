@@ -7,7 +7,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.security.SupportTicketItem
@@ -71,7 +70,7 @@ fun SupportTicketsListScreen(
     FabScaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Transparent),
+            .background(Primary_background),
         fab = FabConfig(
             label = "Create Ticket",
             icon = Icons.Default.Add,
@@ -99,10 +98,7 @@ fun SupportTicketsListScreen(
 
             Spacer(Modifier.height(tokens.extraPadding * 0.6f))
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-            ) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 PaginatedDataList(
                     state = pagingState,
                     onLoadMore = {

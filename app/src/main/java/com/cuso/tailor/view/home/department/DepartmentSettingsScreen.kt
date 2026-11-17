@@ -12,8 +12,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -52,7 +50,6 @@ import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextField
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.PlanLimitDialog
 import com.cuso.tailor.view.composable.PlanLimits
@@ -70,8 +67,7 @@ import com.cuso.tailor.viewmodel.DesignationCreateState
 import com.cuso.tailor.viewmodel.ProfileUiState
 import com.cuso.tailor.viewmodel.ProfileViewModel
 import com.cuso.tailor.viewmodel.SalesViewModel
-import androidx.compose.foundation.lazy.rememberLazyListState
-import com.cuso.tailor.view.composable.ThreeDotLoading
+import com.cuso.tailor.view.composable.PaginatedDataList
 
 enum class DepartmentScreenMode {
     LIST, FORM
@@ -105,12 +101,9 @@ fun DepartmentSettingsScreen(
     val isAnySheetOpen = addSheetState != SheetValue.Hidden || editSheetState != SheetValue.Hidden
 
     var searchQuery by remember { mutableStateOf("") }
-    var currentPage by remember { mutableIntStateOf(1) }
-    val itemsPerPage = 10
-
-    val listState = rememberLazyListState() // Tracks scroll position for infinite loading
 
     val uiState by departmentViewModel.uiState.collectAsStateWithLifecycle()
+    val departmentsPagingState by departmentViewModel.departmentsPagingState.collectAsStateWithLifecycle()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
     val branchUiState by branchViewModel.uiState.collectAsStateWithLifecycle()
     val createState by departmentViewModel.createState.collectAsStateWithLifecycle()
@@ -187,21 +180,6 @@ fun DepartmentSettingsScreen(
     val isCreating = createState is DesignationCreateState.Loading
     val isUpdating = updateState is DepartmentUpdateUiState.Loading
 
-    val filteredDepartments = allDepartments.filter { d -> searchQuery.isBlank() || d.name.contains(searchQuery, ignoreCase = true) }
-// Keep already loaded items and append next items
-    val pagedDepartments = filteredDepartments.take(currentPage * itemsPerPage)
-    val canLoadMore = pagedDepartments.size < filteredDepartments.size
-
-// Trigger next page when reaching the end of the loaded list
-    LaunchedEffect(listState, pagedDepartments.size, canLoadMore) {
-        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-            .collect { lastIndex ->
-                if (lastIndex != null && lastIndex >= pagedDepartments.size - 1 && canLoadMore) {
-                    currentPage++
-                }
-            }
-    }
-
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
@@ -245,9 +223,9 @@ fun DepartmentSettingsScreen(
                                     Column(modifier = Modifier.fillMaxWidth()) {
                                         SearchFilterBar(
                                             query = searchQuery,
-                                            onQueryChange = {
-                                                searchQuery = it
-                                                currentPage = 1 // Reset to first page when search filter changes
+                                            onQueryChange = { query ->
+                                                searchQuery = query
+                                                departmentViewModel.onDepartmentSearchChanged(query)
                                             },
                                             placeholder = "Search Departments...",
                                             accentColor = BluePrimary,
@@ -263,215 +241,194 @@ fun DepartmentSettingsScreen(
                                             .fillMaxWidth()
                                             .weight(1f)
                                     ) {
-                                        when (val state = uiState) {
-                                            is DepartmentUiState.Loading -> Box(
+                                        if (uiState is DepartmentUiState.Error) {
+                                            AppErrorState(
+                                                title = "Failed to load departments",
+                                                message = (uiState as DepartmentUiState.Error).message.ifBlank {
+                                                    "Something went wrong. Please check your connection and try again."
+                                                },
+                                                onRetry = { departmentViewModel.refresh() }
+                                            )
+                                        } else if (!departmentsPagingState.isInitialLoading && departmentsPagingState.items.isEmpty()) {
+                                            Box(
                                                 Modifier.fillMaxSize(),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                ListSkeleton()
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Icon(
+                                                        Icons.Default.Groups,
+                                                        null,
+                                                        tint = Color.LightGray,
+                                                        modifier = Modifier.size(tokens.iconSize * 2.5f)
+                                                    )
+                                                    Spacer(Modifier.height(tokens.extraPadding / 2))
+                                                    Text(
+                                                        if (searchQuery.isNotBlank()) "No matching departments found" else "No departments found",
+                                                        color = Color.Gray,
+                                                        fontSize = tokens.bodyMedium
+                                                    )
+                                                }
                                             }
-
-                                            is DepartmentUiState.Error -> {
-                                                AppErrorState(
-                                                    title = "Failed to load departments",
-                                                    message = state.message.ifBlank { "Something went wrong. Please check your connection and try again." },
-                                                    onRetry = { departmentViewModel.refresh() }
-                                                )
-                                            }
-
-                                            is DepartmentUiState.Success -> {
-                                                if (filteredDepartments.isEmpty()) {
-                                                    Box(
-                                                        Modifier.fillMaxSize(),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                            Icon(
-                                                                Icons.Default.Groups,
-                                                                null,
-                                                                tint = Color.LightGray,
-                                                                modifier = Modifier.size(tokens.iconSize * 2.5f)
-                                                            )
-                                                            Spacer(Modifier.height(tokens.extraPadding / 2))
-                                                            Text(
-                                                                if (searchQuery.isNotBlank()) "No matching departments found" else "No departments found",
-                                                                color = Color.Gray,
-                                                                fontSize = tokens.bodyMedium
-                                                            )
-                                                        }
-                                                    }
-                                                } else {
-                                                    Column(modifier = Modifier.fillMaxSize()) {
-                                                        LazyColumn(
-                                                            state = listState, // Attach LazyListState
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .weight(1f),
+                                        } else {
+                                            PaginatedDataList(
+                                                state = departmentsPagingState,
+                                                onLoadMore = { departmentViewModel.loadMoreDepartments() },
+                                                modifier = Modifier.fillMaxSize()
+                                            ) { department ->
+                                                DataCard(
+                                                    item = department,
+                                                    title = department.name,
+                                                    titleColor = Color(0xFF0F172A),
+                                                    subtitle = "not found",
+                                                    topBadgeText = if (department.status) "Active" else "Inactive",
+                                                    topBadgeTextColor = if (department.status) Color(0xFF16A34A) else Color(0xFF6B7280),
+                                                    topBadgeBgColor = if (department.status) Color(0xFFDCFCE7) else grey_border,
+                                                    topBadgeShowDot = false,
+                                                    topBadgeInline = true,
+                                                    showHeaderDivider = true,
+                                                    actions = listOf(
+                                                        MenuAction(
+                                                            "Edit",
+                                                            Icons.Default.Edit
                                                         ) {
-                                                            items(pagedDepartments) { department ->
-                                                                DataCard(
-                                                                    item = department,
-                                                                    title = department.name,
-                                                                    titleColor = Color(0xFF0F172A),
-                                                                    subtitle = "not found",
-                                                                    topBadgeText = if (department.status) "Active" else "Inactive",
-                                                                    topBadgeTextColor = if (department.status) Color(0xFF16A34A) else Color(0xFF6B7280),
-                                                                    topBadgeBgColor = if (department.status) Color(0xFFDCFCE7) else grey_border,
-                                                                    topBadgeShowDot = false,
-                                                                    topBadgeInline = true,
-                                                                    showHeaderDivider = true,
-                                                                    actions = listOf(
-                                                                        MenuAction(
-                                                                            "Edit",
-                                                                            Icons.Default.Edit
+                                                            editingDepartment = department
+                                                            currentScreenMode = DepartmentScreenMode.FORM
+                                                        },
+                                                        MenuAction(
+                                                            "View Teams",
+                                                            Icons.Default.Visibility
+                                                        ) { }
+                                                    ),
+                                                    content = {
+                                                        val iconColor = headerGrey
+                                                        val textBodyColor = Color(0xFF334155)
+
+                                                        Column(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                        ) {
+                                                            // Head Row
+                                                            Row(
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                            ) {
+                                                                Icon(
+                                                                    painter = painterResource(R.drawable.ic_person),
+                                                                    contentDescription = null,
+                                                                    tint = iconColor,
+                                                                    modifier = Modifier.size(18.dp)
+                                                                )
+                                                                Text(
+                                                                    text = buildAnnotatedString {
+                                                                        withStyle(
+                                                                            SpanStyle(
+                                                                                color = headerGrey,
+                                                                                fontWeight = FontWeight.Normal
+                                                                            )
                                                                         ) {
-                                                                            editingDepartment = department
-                                                                            currentScreenMode = DepartmentScreenMode.FORM
-                                                                        },
-                                                                        MenuAction(
-                                                                            "View Teams",
-                                                                            Icons.Default.Visibility
-                                                                        ) { }
-                                                                    ),
-                                                                    content = {
-                                                                        val iconColor = headerGrey
-                                                                        val textBodyColor = Color(0xFF334155)
-
-                                                                        Column(
-                                                                            modifier = Modifier.fillMaxWidth(),
-                                                                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                                                                        ) {
-                                                                            // Head Row
-                                                                            Row(
-                                                                                verticalAlignment = Alignment.CenterVertically,
-                                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                                            ) {
-                                                                                Icon(
-                                                                                    painter = painterResource(R.drawable.ic_person),
-                                                                                    contentDescription = null,
-                                                                                    tint = iconColor,
-                                                                                    modifier = Modifier.size(18.dp)
-                                                                                )
-                                                                                Text(
-                                                                                    text = buildAnnotatedString {
-                                                                                        withStyle(
-                                                                                            SpanStyle(
-                                                                                                color = headerGrey,
-                                                                                                fontWeight = FontWeight.Normal
-                                                                                            )
-                                                                                        ) {
-                                                                                            append("Head: ")
-                                                                                        }
-                                                                                        withStyle(
-                                                                                            SpanStyle(
-                                                                                                color = Color(0xFF0F172A),
-                                                                                                fontWeight = FontWeight.SemiBold
-                                                                                            )
-                                                                                        ) {
-                                                                                            append(
-                                                                                                headNameFor(
-                                                                                                    department,
-                                                                                                    staffList
-                                                                                                )
-                                                                                            )
-                                                                                        }
-                                                                                    },
-                                                                                    fontSize = 14.sp
-                                                                                )
-                                                                            }
-
-                                                                            // Branch Location Row
-                                                                            Row(
-                                                                                verticalAlignment = Alignment.CenterVertically,
-                                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                                            ) {
-                                                                                Icon(
-                                                                                    painter = painterResource(R.drawable.ic_location),
-                                                                                    contentDescription = null,
-                                                                                    tint = iconColor,
-                                                                                    modifier = Modifier.size(18.dp)
-                                                                                )
-                                                                                Text(
-                                                                                    text = "Not found",
-                                                                                    fontSize = 14.sp,
-                                                                                    color = textBodyColor,
-                                                                                    maxLines = 1,
-                                                                                    overflow = TextOverflow.Ellipsis
-                                                                                )
-                                                                            }
-
-                                                                            // Employees & Teams Row
-                                                                            Row(
-                                                                                modifier = Modifier.fillMaxWidth(),
-                                                                                verticalAlignment = Alignment.CenterVertically
-                                                                            ) {
-                                                                                Row(
-                                                                                    modifier = Modifier.weight(1f),
-                                                                                    verticalAlignment = Alignment.CenterVertically,
-                                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                                                ) {
-                                                                                    Icon(
-                                                                                        painter = painterResource(R.drawable.ic_users),
-                                                                                        contentDescription = null,
-                                                                                        tint = iconColor,
-                                                                                        modifier = Modifier.size(18.dp)
-                                                                                    )
-                                                                                    Text(
-                                                                                        text = "${department.totalEmployees} Employees",
-                                                                                        fontSize = 14.sp,
-                                                                                        color = textBodyColor
-                                                                                    )
-                                                                                }
-
-                                                                                Row(
-                                                                                    modifier = Modifier.weight(1f),
-                                                                                    verticalAlignment = Alignment.CenterVertically,
-                                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                                                ) {
-                                                                                    Icon(
-                                                                                        painter = painterResource(R.drawable.ic_shopping_bag),
-                                                                                        contentDescription = null,
-                                                                                        tint = iconColor,
-                                                                                        modifier = Modifier.size(18.dp)
-                                                                                    )
-                                                                                    Text(
-                                                                                        text = "Teams",
-                                                                                        fontSize = 14.sp,
-                                                                                        color = textBodyColor
-                                                                                    )
-                                                                                }
-                                                                            }
-
-                                                                            // View Teams Action
-                                                                            Box(
-                                                                                modifier = Modifier.fillMaxWidth(),
-                                                                                contentAlignment = Alignment.CenterEnd
-                                                                            ) {
-                                                                                Text(
-                                                                                    text = "View Teams",
-                                                                                    fontSize = 14.sp,
-                                                                                    fontWeight = FontWeight.Medium,
-                                                                                    color = Color(0xFF4F46E5),
-                                                                                    modifier = Modifier
-                                                                                        .clickable(
-                                                                                            indication = null,
-                                                                                            interactionSource = remember { MutableInteractionSource() }
-                                                                                        ) { }
-                                                                                        .padding(top = 2.dp)
-                                                                                )
-                                                                            }
+                                                                            append("Head: ")
                                                                         }
-                                                                    }
+                                                                        withStyle(
+                                                                            SpanStyle(
+                                                                                color = Color(0xFF0F172A),
+                                                                                fontWeight = FontWeight.SemiBold
+                                                                            )
+                                                                        ) {
+                                                                            append(
+                                                                                headNameFor(
+                                                                                    department,
+                                                                                    staffList
+                                                                                )
+                                                                            )
+                                                                        }
+                                                                    },
+                                                                    fontSize = 14.sp
                                                                 )
                                                             }
-                                                            if(canLoadMore){
-                                                                item {
-                                                                    ThreeDotLoading()
+
+                                                            // Branch Location Row
+                                                            Row(
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                            ) {
+                                                                Icon(
+                                                                    painter = painterResource(R.drawable.ic_location),
+                                                                    contentDescription = null,
+                                                                    tint = iconColor,
+                                                                    modifier = Modifier.size(18.dp)
+                                                                )
+                                                                Text(
+                                                                    text = "Not found",
+                                                                    fontSize = 14.sp,
+                                                                    color = textBodyColor,
+                                                                    maxLines = 1,
+                                                                    overflow = TextOverflow.Ellipsis
+                                                                )
+                                                            }
+
+                                                            // Employees & Teams Row
+                                                            Row(
+                                                                modifier = Modifier.fillMaxWidth(),
+                                                                verticalAlignment = Alignment.CenterVertically
+                                                            ) {
+                                                                Row(
+                                                                    modifier = Modifier.weight(1f),
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                                ) {
+                                                                    Icon(
+                                                                        painter = painterResource(R.drawable.ic_users),
+                                                                        contentDescription = null,
+                                                                        tint = iconColor,
+                                                                        modifier = Modifier.size(18.dp)
+                                                                    )
+                                                                    Text(
+                                                                        text = "${department.totalEmployees} Employees",
+                                                                        fontSize = 14.sp,
+                                                                        color = textBodyColor
+                                                                    )
                                                                 }
+
+                                                                Row(
+                                                                    modifier = Modifier.weight(1f),
+                                                                    verticalAlignment = Alignment.CenterVertically,
+                                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                                ) {
+                                                                    Icon(
+                                                                        painter = painterResource(R.drawable.ic_shopping_bag),
+                                                                        contentDescription = null,
+                                                                        tint = iconColor,
+                                                                        modifier = Modifier.size(18.dp)
+                                                                    )
+                                                                    Text(
+                                                                        text = "Teams",
+                                                                        fontSize = 14.sp,
+                                                                        color = textBodyColor
+                                                                    )
+                                                                }
+                                                            }
+
+                                                            // View Teams Action
+                                                            Box(
+                                                                modifier = Modifier.fillMaxWidth(),
+                                                                contentAlignment = Alignment.CenterEnd
+                                                            ) {
+                                                                Text(
+                                                                    text = "View Teams",
+                                                                    fontSize = 14.sp,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    color = Color(0xFF4F46E5),
+                                                                    modifier = Modifier
+                                                                        .clickable(
+                                                                            indication = null,
+                                                                            interactionSource = remember { MutableInteractionSource() }
+                                                                        ) { }
+                                                                        .padding(top = 2.dp)
+                                                                )
                                                             }
                                                         }
                                                     }
-                                                }
+                                                )
                                             }
                                         }
                                     }

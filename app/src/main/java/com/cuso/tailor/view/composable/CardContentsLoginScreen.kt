@@ -5,6 +5,7 @@ package com.cuso.tailor.view.composable
 import android.app.Activity
 import android.net.Uri
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,8 +26,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PersonOutline
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -40,7 +43,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -54,7 +56,15 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.PrimaryBorder
 import com.cuso.tailor.ui.theme.PrimaryTextColor
+import com.cuso.tailor.ui.theme.TextPrimary
+import com.cuso.tailor.ui.theme.TextSecondary
 import com.cuso.tailor.ui.theme.blackTitle
+import com.cuso.tailor.ui.theme.light_blue_border
+import com.cuso.tailor.ui.theme.light_grey
+import com.cuso.tailor.ui.theme.mutedText
+import com.cuso.tailor.ui.theme.primary_light
+import com.cuso.tailor.ui.theme.redText
+import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.viewmodel.Authenticate
 import com.cuso.tailor.viewmodel.PermissionViewModel
@@ -78,11 +88,19 @@ fun CardContentsLoginScreen(
     var isSubmitted by remember { mutableStateOf(prefilledEmail.isNotBlank()) }
     var showEmailNotFound by remember { mutableStateOf(false) }
 
-    // Error state declaration for local validation and OTP error messages
+    // Two-factor authentication state
+    var isTwoFactorStep by rememberSaveable { mutableStateOf(false) }
+    var twoFactorChallengeToken by rememberSaveable { mutableStateOf("") }
+    var twoFactorPrompt by rememberSaveable {
+        mutableStateOf("Enter the 6-digit code from your authenticator app.")
+    }
+    var twoFactorCode by rememberSaveable { mutableStateOf("") }
+
+    // Local validation and OTP error message state
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    val isError = accountState is UiState.Error || accountState is UiState.EmailNotFound
-    val errorMsg = (accountState as? UiState.Error)?.message ?: errorMessage
+    val isError = accountState is UiState.Error || accountState is UiState.EmailNotFound || !errorMessage.isNullOrBlank()
+    val errorMsg = (accountState as? UiState.Error)?.message?.takeIf { it.isNotBlank() } ?: errorMessage
 
     Column(
         modifier = Modifier
@@ -96,7 +114,76 @@ fun CardContentsLoginScreen(
             .padding(tokens.screenPadding)
     ) {
 
-        if (!isSubmitted) {
+        if (isTwoFactorStep) {
+            // Two-Step Verification Info Banner
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
+                color = primary_light,
+                border = BorderStroke(1.dp, light_blue_border)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(tokens.extraPadding * 1.4f),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Shield,
+                        contentDescription = "Two-step verification",
+                        tint = Primary,
+                        modifier = Modifier.size(tokens.iconSize)
+                    )
+                    Spacer(Modifier.width(tokens.extraPadding))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Two-step verification",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = title_color
+                        )
+                        Spacer(Modifier.height(tokens.extraPadding * 0.3f))
+                        Text(
+                            text = twoFactorPrompt,
+                            fontSize = tokens.caption,
+                            color = TextSecondary
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(tokens.screenPadding))
+
+            // Verification Code Label & Field using reusable FormComponents
+            FormLabel(text = "Verification code")
+
+            FormTextField(
+                value = twoFactorCode,
+                onValueChange = { input ->
+                    twoFactorCode = input
+                    authViewModel.resetState()
+                    errorMessage = null
+                },
+                // Supports both 6-digit authenticator codes and alphanumeric backup codes
+                keyboardType = KeyboardType.Text,
+                placeholder = "123456",
+                isError = isError,
+                errorMessage = errorMsg,
+                enabled = accountState !is UiState.Loading,
+                borderColor = if (isError) redText else Primary,
+                textColor = TextPrimary,
+                placeholderColor = mutedText,
+                containerColor = whiteBg
+            )
+
+            Spacer(Modifier.height(tokens.extraPadding * 0.6f))
+
+            Text(
+                text = "Lost your device? Enter one of your backup codes.",
+                fontSize = tokens.caption,
+                color = mutedText
+            )
+        } else if (!isSubmitted) {
             CusoTextField(
                 value = email,
                 onValueChange = {
@@ -119,17 +206,19 @@ fun CardContentsLoginScreen(
                     authViewModel.resetState()
                 }
             }
-        }
-
-        if (isSubmitted) {
+        } else {
             // User identity box
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
+                    .height(tokens.imageDp)
                     .background(whiteBg)
-                    .border(1.dp, PrimaryBorder, shape = RoundedCornerShape(5.dp))
-                    .padding(horizontal = 12.dp)
+                    .border(
+                        1.dp,
+                        PrimaryBorder,
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.35f)
+                    )
+                    .padding(horizontal = tokens.cardPadding * 0.6f)
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize(),
@@ -137,19 +226,19 @@ fun CardContentsLoginScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(32.dp)
+                            .size(tokens.iconSize * 1.8f)
                             .clip(CircleShape)
-                            .background(Color(0xFFF5F5F5)),
+                            .background(light_grey),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Filled.PersonOutline,
                             contentDescription = null,
                             tint = PrimaryTextColor,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(tokens.iconSize)
                         )
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(tokens.extraPadding))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Sign in as",
@@ -159,7 +248,7 @@ fun CardContentsLoginScreen(
                         Text(
                             text = submittedEmail,
                             fontSize = tokens.bodyMedium,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             color = blackTitle,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -169,10 +258,10 @@ fun CardContentsLoginScreen(
                         text = "Change",
                         modifier = Modifier
                             .clickable { navController.navigate("login") }
-                            .padding(8.dp),
+                            .padding(tokens.extraPadding * 0.8f),
                         color = Primary,
                         fontSize = tokens.caption,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
@@ -195,7 +284,7 @@ fun CardContentsLoginScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
             )
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
             // Row containing Sign In with OTP (Left) and Forgot Password (Right)
             Row(
@@ -222,7 +311,7 @@ fun CardContentsLoginScreen(
                                 errorMessage = "Please enter your email"
                             }
                         }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = tokens.extraPadding * 0.8f),
                     color = Primary,
                     fontSize = tokens.caption,
                     fontWeight = FontWeight.Medium
@@ -232,7 +321,7 @@ fun CardContentsLoginScreen(
                     text = "Forgot Password?",
                     modifier = Modifier
                         .clickable { navController.navigate("new-pass/${email.trim()}") }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = tokens.extraPadding * 0.8f),
                     color = Primary,
                     fontSize = tokens.caption,
                     fontWeight = FontWeight.Medium
@@ -242,48 +331,104 @@ fun CardContentsLoginScreen(
 
         LaunchedEffect(accountState) {
             Log.d("LOGIN_STATE", "accountState = $accountState")
-            Log.d("LOGIN_STATE", "accountState type = ${accountState::class.java.name}")
-
-            if (accountState is UiState.EmailVerified) {
-                Log.d("LOGIN_STATE", "EMAIL VERIFIED → showing password")
-                submittedEmail = email
-                isSubmitted = true
-            } else if (accountState is UiState.EmailNotFound) {
-                Log.d("LOGIN_STATE", "EMAIL NOT FOUND")
-                showEmailNotFound = true
-            } else if (accountState is UiState.LoginSuccess) {
-                // Trigger PermissionViewModel to sync route guards across the app
-                permissionViewModel.fetchPermissions()
-
-                // Navigate to main dashboard
-                navController.navigate("home") {
-                    popUpTo("login") { inclusive = true }
+            when (val state = accountState) {
+                is UiState.EmailVerified -> {
+                    Log.d("LOGIN_STATE", "EMAIL VERIFIED -> showing password")
+                    submittedEmail = email
+                    isSubmitted = true
                 }
+                is UiState.EmailNotFound -> {
+                    Log.d("LOGIN_STATE", "EMAIL NOT FOUND")
+                    showEmailNotFound = true
+                }
+                is UiState.TwoFactorRequired -> {
+                    Log.d("LOGIN_STATE", "2FA REQUIRED -> showing two-step verification")
+                    twoFactorChallengeToken = state.challengeToken
+                    twoFactorPrompt = if (state.method.equals("authenticator", ignoreCase = true)) {
+                        "Enter the 6-digit code from your authenticator app."
+                    } else {
+                        state.message
+                    }
+                    twoFactorCode = ""
+                    errorMessage = null
+                    isTwoFactorStep = true
+                }
+                is UiState.LoginSuccess -> {
+                    isTwoFactorStep = false
+                    twoFactorChallengeToken = ""
+                    twoFactorCode = ""
+                    permissionViewModel.fetchPermissions()
+                    navController.navigate("home") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+                else -> {}
             }
         }
 
         Spacer(Modifier.height(tokens.screenPadding))
 
-        // Main Login/Verify Button
+        // Main Action Button
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
             AppButton(
-                text = if (isSubmitted) "Continue" else "Verify Email",
+                text = when {
+                    isTwoFactorStep -> "Verify and Sign In"
+                    isSubmitted -> "Continue"
+                    else -> "Verify Email"
+                },
                 onClick = {
                     focusManager.clearFocus()
-                    if (!isSubmitted) authViewModel.verifyEmail(email)
-                    else authViewModel.login(email, password)
+                    when {
+                        isTwoFactorStep -> {
+                            val trimmedCode = twoFactorCode.trim()
+                            if (trimmedCode.isBlank()) {
+                                errorMessage = "Please enter the verification code"
+                            } else {
+                                errorMessage = null
+                                authViewModel.verifyTwoFa(
+                                    challengeToken = twoFactorChallengeToken,
+                                    code = trimmedCode
+                                )
+                            }
+                        }
+                        !isSubmitted -> authViewModel.verifyEmail(email)
+                        else -> authViewModel.login(email, password)
+                    }
                 },
                 isLoading = accountState is UiState.Loading,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            if (isTwoFactorStep) {
+                Spacer(Modifier.height(tokens.extraPadding))
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Back to sign in",
+                        fontSize = tokens.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = Primary,
+                        modifier = Modifier
+                            .clickable {
+                                isTwoFactorStep = false
+                                twoFactorChallengeToken = ""
+                                twoFactorCode = ""
+                                password = ""
+                                errorMessage = null
+                                authViewModel.resetState()
+                            }
+                            .padding(vertical = tokens.extraPadding * 0.4f)
+                    )
+                }
+            }
 
             Spacer(Modifier.height(tokens.screenPadding))
             OrText()
             Spacer(Modifier.height(tokens.screenPadding))
 
             ContinueWithGoogle(activity, navController)
-//            Spacer(Modifier.height(tokens.screenPadding / 2))
-//            ContinueWithApple(activity, navController)
 
             Spacer(Modifier.height(tokens.screenPadding))
             Box(

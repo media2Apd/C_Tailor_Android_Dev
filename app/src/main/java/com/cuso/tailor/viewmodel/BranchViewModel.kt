@@ -5,6 +5,7 @@ import com.cuso.tailor.model.settings.BranchItem
 import com.cuso.tailor.model.settings.CreateBranchRequest
 import com.cuso.tailor.model.settings.UpdateBranchRequest
 import com.cuso.tailor.repository.SalesRepository
+import com.cuso.tailor.utils.PagingUiState
 import com.cuso.tailor.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 //import kotlinx.coroutines.delay
@@ -43,6 +44,48 @@ class BranchViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<BranchUiState>(BranchUiState.Loading)
     val uiState: StateFlow<BranchUiState> = _uiState.asStateFlow()
 
+    // ── Paginated UI State for PaginatedDataList ──
+    private val _branchesPagingState = MutableStateFlow(PagingUiState<BranchItem>(isInitialLoading = true))
+    val branchesPagingState: StateFlow<PagingUiState<BranchItem>> = _branchesPagingState.asStateFlow()
+
+    private var currentSearchQuery: String = ""
+    private var currentPage: Int = 1
+    private val pageSize: Int = 10
+
+    fun onBranchSearchChanged(query: String) {
+        currentSearchQuery = query
+        rebuildPagingState(resetPage = true)
+    }
+
+    fun loadMoreBranches() {
+        val current = _branchesPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+        currentPage += 1
+        rebuildPagingState(resetPage = false)
+    }
+
+    private fun rebuildPagingState(resetPage: Boolean) {
+        if (resetPage) currentPage = 1
+
+        val allBranches = (_uiState.value as? BranchUiState.Success)?.branches ?: emptyList()
+        val filtered = if (currentSearchQuery.isBlank()) {
+            allBranches
+        } else {
+            allBranches.filter { b ->
+                (b.name?.contains(currentSearchQuery, ignoreCase = true) == true) ||
+                        (b.branchId?.contains(currentSearchQuery, ignoreCase = true) == true)
+            }
+        }
+
+        val pagedItems = filtered.take(currentPage * pageSize)
+        _branchesPagingState.value = PagingUiState(
+            items = pagedItems,
+            isInitialLoading = false,
+            isLoadingMore = false,
+            canLoadMore = pagedItems.size < filtered.size
+        )
+    }
+
     // ── Update State ──
     private val _updateState = MutableStateFlow<UpdateBranchUiState>(UpdateBranchUiState.Idle)
     val updateState: StateFlow<UpdateBranchUiState> = _updateState.asStateFlow()
@@ -53,20 +96,26 @@ class BranchViewModel @Inject constructor(
 
     // ── Load Branches ──
     fun loadBranches() {
-        if (_uiState.value is BranchUiState.Success) return
+        if (_uiState.value is BranchUiState.Success) {
+            rebuildPagingState(resetPage = false)
+            return
+        }
         launchBusy {
             _uiState.value = BranchUiState.Loading
-//            delay(300000)
+            _branchesPagingState.value = PagingUiState(isInitialLoading = true)
             salesRepository.getBranches().fold(
                 onSuccess = { response ->
                     if (response.success) {
                         _uiState.value = BranchUiState.Success(response.data)
+                        rebuildPagingState(resetPage = true)
                     } else {
                         _uiState.value = BranchUiState.Error("Failed to load branches")
+                        _branchesPagingState.value = PagingUiState(isInitialLoading = false)
                     }
                 },
                 onFailure = { e ->
                     _uiState.value = BranchUiState.Error(e.message ?: "Something went wrong")
+                    _branchesPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
         }
@@ -76,16 +125,20 @@ class BranchViewModel @Inject constructor(
     fun refresh() {
         launchBusy {
             _uiState.value = BranchUiState.Loading
+            _branchesPagingState.value = PagingUiState(isInitialLoading = true)
             salesRepository.getBranches().fold(
                 onSuccess = { response ->
                     if (response.success) {
                         _uiState.value = BranchUiState.Success(response.data)
+                        rebuildPagingState(resetPage = true)
                     } else {
                         _uiState.value = BranchUiState.Error("Failed to load branches")
+                        _branchesPagingState.value = PagingUiState(isInitialLoading = false)
                     }
                 },
                 onFailure = { e ->
                     _uiState.value = BranchUiState.Error(e.message ?: "Something went wrong")
+                    _branchesPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
         }
@@ -104,6 +157,7 @@ class BranchViewModel @Inject constructor(
                             if (it.id == updated.id) updated else it
                         }
                         _uiState.value = BranchUiState.Success(newList)
+                        rebuildPagingState(resetPage = false)
                     }
                 },
                 onFailure = { e ->
@@ -132,6 +186,7 @@ class BranchViewModel @Inject constructor(
                         if (current is BranchUiState.Success) {
                             val newList = current.branches + response.data
                             _uiState.value = BranchUiState.Success(newList)
+                            rebuildPagingState(resetPage = false)
                         } else {
                             refresh()
                         }

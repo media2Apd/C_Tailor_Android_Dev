@@ -5,8 +5,6 @@ package com.cuso.tailor.view.home.services.service_order.production_work
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
@@ -28,39 +26,12 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.service.ServiceOrderItemDto
-import com.cuso.tailor.ui.theme.Primary
-import com.cuso.tailor.ui.theme.Primary_background
-import com.cuso.tailor.ui.theme.TextPrimary
-import com.cuso.tailor.ui.theme.TextSecondary
-import com.cuso.tailor.ui.theme.badgeGrey
-import com.cuso.tailor.ui.theme.greenBg
-import com.cuso.tailor.ui.theme.greentext
-import com.cuso.tailor.ui.theme.mutedText
-import com.cuso.tailor.ui.theme.orangeBg
-import com.cuso.tailor.ui.theme.orangeText
-import com.cuso.tailor.ui.theme.redText
-import com.cuso.tailor.ui.theme.title_border
-import com.cuso.tailor.ui.theme.whiteBg
-import com.cuso.tailor.ui.theme.yellowBg
-import com.cuso.tailor.ui.theme.yellowText
-import com.cuso.tailor.view.composable.DataCard
-import com.cuso.tailor.view.composable.FilterDrawer
-import com.cuso.tailor.view.composable.FilterOption
-import com.cuso.tailor.view.composable.FilterSection
-import com.cuso.tailor.view.composable.ListSkeleton
-import com.cuso.tailor.view.composable.MenuAction
-import com.cuso.tailor.view.composable.SearchFilterBar
-import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.blurScrim
-import com.cuso.tailor.view.composable.rememberFilterDrawerState
+import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.ServicesViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
-
-// ─────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────
 
 @Composable
 fun ProductionWorksScreen(
@@ -70,8 +41,7 @@ fun ProductionWorksScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val orders by viewModel.serviceOrdersList.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingServiceOrders.collectAsStateWithLifecycle()
+    val pagingState by viewModel.serviceOrdersPagingState.collectAsStateWithLifecycle()
     val errorMessage by viewModel.serviceOrdersError.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -80,7 +50,6 @@ fun ProductionWorksScreen(
 
     val filterState = rememberFilterDrawerState()
 
-    // Filter sections must stay stable so the drawer keeps its selection state
     val filterSections = remember {
         listOf(
             FilterSection(
@@ -103,7 +72,7 @@ fun ProductionWorksScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Transparent)
+                .background(Primary_background)
                 .blurScrim(radius = blurRadius)
         ) {
             TitleBar(title = "Production Works", onClose = onClose)
@@ -126,42 +95,20 @@ fun ProductionWorksScreen(
                     .fillMaxWidth()
             ) {
                 when {
-                    isLoading && orders.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
-                    errorMessage != null && orders.isEmpty() -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = errorMessage ?: "Failed to load production orders",
-                                    fontSize = tokens.bodySmall,
-                                    color = redText
+                    errorMessage != null && pagingState.items.isEmpty() && !pagingState.isInitialLoading -> {
+                        AppErrorState(
+                            title = "Failed to load production orders",
+                            message = errorMessage ?: "Failed to load production orders",
+                            onRetry = {
+                                viewModel.fetchServiceOrders(
+                                    search = searchQuery.takeIf { it.isNotBlank() },
+                                    status = selectedStatus
                                 )
-                                Spacer(Modifier.height(tokens.extraPadding))
-                                Button(
-                                    onClick = {
-                                        viewModel.fetchServiceOrders(
-                                            search = searchQuery.takeIf { it.isNotBlank() },
-                                            status = selectedStatus
-                                        )
-                                    },
-                                    modifier = Modifier.height(tokens.buttonHeight),
-                                    shape = RoundedCornerShape(tokens.cardCornerRadius),
-                                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                                ) {
-                                    Text(
-                                        text = "Retry",
-                                        fontSize = tokens.bodySmall,
-                                        fontWeight = FontWeight.Medium,
-                                        color = whiteBg
-                                    )
-                                }
                             }
-                        }
+                        )
                     }
 
-                    orders.isEmpty() -> {
+                    !pagingState.isInitialLoading && pagingState.items.isEmpty() -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
                                 text = "No production orders found",
@@ -172,12 +119,12 @@ fun ProductionWorksScreen(
                     }
 
                     else -> {
-                        LazyColumn(
+                        PaginatedDataList(
+                            state = pagingState,
+                            onLoadMore = { viewModel.loadMoreServiceOrders() },
                             modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(orders, key = { it.id }) { order ->
-                                ProductionOrderCard(order = order, onClick = onOrderClick)
-                            }
+                        ) { order ->
+                            ProductionOrderCard(order = order, onClick = onOrderClick)
                         }
                     }
                 }
@@ -201,23 +148,23 @@ fun ProductionWorksScreen(
                     status = status
                 )
             },
-            onClearAll = {},
+            onClearAll = {
+                selectedStatus = null
+                viewModel.fetchServiceOrders(
+                    search = searchQuery.takeIf { it.isNotBlank() },
+                    status = null
+                )
+            },
             onBackgroundBlurChange = { blurRadius = it }
         )
     }
 }
-
-// ─────────────────────────────────────────────────────────────
-// Order card built on the reusable DataCard
-// ─────────────────────────────────────────────────────────────
 
 @Composable
 private fun ProductionOrderCard(
     order: ServiceOrderItemDto,
     onClick: (String) -> Unit
 ) {
-    val tokens = LocalAppTokens.current
-    val shape = RoundedCornerShape(tokens.cardCornerRadius)
     val status = resolveStatusStyle(order.production?.overallStatus)
 
     DataCard(
@@ -238,7 +185,6 @@ private fun ProductionOrderCard(
                 tint = mutedText,
                 textColor = TextPrimary,
                 onClick = {
-                    // Safe click check for 3-dot menu action
                     val validId = order.id.takeIf { it.isNotBlank() }
                     if (validId != null) {
                         onClick(validId)
@@ -247,7 +193,6 @@ private fun ProductionOrderCard(
             )
         ),
         onClick = {
-            // Safe click check for card body click
             val validId = it.id.takeIf { id -> id.isNotBlank() }
             if (validId != null) {
                 onClick(validId)
@@ -288,14 +233,14 @@ private fun OrderCardContent(order: ServiceOrderItemDto) {
 
         Spacer(Modifier.height(tokens.extraPadding))
 
-        // Progress, target and priority summary box
+        // Progress, target, and priority summary box
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(boxShape)
                 .background(Primary_background, boxShape)
                 .border(1.dp, title_border, boxShape)
-                .padding(horizontal = 8.dp, vertical = tokens.extraPadding),
+                .padding(horizontal = tokens.extraPadding * 0.8f, vertical = tokens.extraPadding),
             verticalAlignment = Alignment.Top
         ) {
             SummaryColumn(
@@ -335,7 +280,7 @@ private fun SummaryColumn(
             color = mutedText,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(2.dp))
+        Spacer(Modifier.height(tokens.extraPadding * 0.2f))
         lines.forEach {
             Text(
                 text = it,
@@ -346,10 +291,6 @@ private fun SummaryColumn(
         }
     }
 }
-
-// ─────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────
 
 private data class OrderStatusStyle(
     val label: String,
@@ -365,7 +306,9 @@ private fun resolveStatusStyle(raw: String?): OrderStatusStyle = when (raw) {
     else -> OrderStatusStyle(raw.replace("_", " "), TextSecondary, badgeGrey)
 }
 
-/** Formats an ISO date such as 2026-10-15T00:00:00.000Z as 15 Oct 2026. */
+/**
+ * Formats an ISO date such as 2026-10-15T00:00:00.000Z as 15 Oct 2026.
+ */
 private fun formatDate(raw: String?): String {
     if (raw.isNullOrBlank()) return "-"
     return try {

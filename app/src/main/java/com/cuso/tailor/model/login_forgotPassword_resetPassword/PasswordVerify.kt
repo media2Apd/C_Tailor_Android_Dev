@@ -15,7 +15,23 @@ data class DeviceInfo(
     val appVersion: String
 )
 data class PasswordResponse(
-    val success: Boolean,
-    val message: String,
-    val data: LoginData
+    val success: Boolean = false,
+    val message: String = "",
+    val data: LoginData? = null,
+    val requiresTwoFA: Boolean = false,
+    val method: String? = null,
+    val challengeToken: String? = null,
+    val deviceId: String? = null
+)
+
+data class VerifyTwoFARequest(
+    val challengeToken: String,
+    val code: String
+)
+
+data class VerifyTwoFAResponse(
+    val success: Boolean = false,
+    val message: String = "",
+    val refreshToken: String? = null,
+    val data: LoginData? = null
 )

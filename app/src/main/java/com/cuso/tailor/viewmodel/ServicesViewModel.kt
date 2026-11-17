@@ -1,8 +1,11 @@
 @file:Suppress("unused")
+
 package com.cuso.tailor.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.tailor.model.hr.GenericApiResponse
 import com.cuso.tailor.model.service.*
 import com.cuso.tailor.model.settings.CreateStageRequest
 import com.cuso.tailor.model.settings.CreateTemplateRequest
@@ -10,6 +13,7 @@ import com.cuso.tailor.model.settings.ProductionStageDto
 import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.ServicesRepository
+import com.cuso.tailor.utils.PagingUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -19,8 +23,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import android.net.Uri
-import com.cuso.tailor.model.hr.GenericApiResponse
 
 data class ServiceRequestDraft(
     val modeIndex: Int = 0, // 0 = Pre Order, 1 = External
@@ -91,6 +93,7 @@ sealed class ServiceActionUiState {
     data class Success(val message: String) : ServiceActionUiState()
     data class Error(val message: String) : ServiceActionUiState()
 }
+
 private const val SERVICE_ORDERS_VIEW_ALL_URL = "/api/services/production/job-cards/view-all"
 private const val SALES_ORDERS_DROPDOWN_URL = "/api/sales/orders/dropdown-list"
 private const val SERVICE_ALTERATION_VIEW_ONE_URL = "/api/services/alterations/tickets/view-one"
@@ -116,16 +119,11 @@ private const val SERVICE_ORDER_DETAIL_URL = "/api/services/production/job-cards
 private const val WORKSHOP_SPECIALISTS_WORKLOAD_URL = "/api/services/production/workers/workload/view-all"
 private const val JOB_CARD_VIEW_ONE_URL = "/api/services/production/job-cards/view-one"
 
-
-
 private const val UPDATE_STAGE_PROGRESS_URL = "/api/services/production/job-cards/update-stage"
 private const val ALLOCATE_WORKERS_URL = "/api/services/production/job-cards/bulk-assign"
 private const val LOG_ISSUE_TO_JOB_CARD_URL = "/api/services/production/job-cards/log-issue"
 private const val LOG_FABRIC_WASTAGE_URL = "/api/services/production/job-cards/fabric-wastage"
 private const val MARK_READY_FOR_DELIVERY_URL = "/api/services/production/job-cards/update-progress"
-
-
-
 
 @HiltViewModel
 class ServicesViewModel @Inject constructor(
@@ -190,7 +188,7 @@ class ServicesViewModel @Inject constructor(
     private val _isDashboardLoading = MutableStateFlow(false)
     val isDashboardLoading: StateFlow<Boolean> = _isDashboardLoading.asStateFlow()
 
-    // ── Full Service Requests List State (View-All) ──
+    // Full Service Requests List State (View-All)
     private val _serviceRequestsList = MutableStateFlow<List<ServiceRequestListItem>>(emptyList())
     val serviceRequestsList: StateFlow<List<ServiceRequestListItem>> = _serviceRequestsList.asStateFlow()
 
@@ -210,9 +208,12 @@ class ServicesViewModel @Inject constructor(
         fetchServiceRequestsList()
     }
 
-    // ── Service Orders List State ──
+    // Service Orders List & Pagination State
     private val _serviceOrdersList = MutableStateFlow<List<ServiceOrderItemDto>>(emptyList())
     val serviceOrdersList: StateFlow<List<ServiceOrderItemDto>> = _serviceOrdersList.asStateFlow()
+
+    private val _serviceOrdersPagingState = MutableStateFlow(PagingUiState<ServiceOrderItemDto>())
+    val serviceOrdersPagingState: StateFlow<PagingUiState<ServiceOrderItemDto>> = _serviceOrdersPagingState.asStateFlow()
 
     private val _serviceOrdersPagination = MutableStateFlow<ServiceOrderPagination?>(null)
     val serviceOrdersPagination: StateFlow<ServiceOrderPagination?> = _serviceOrdersPagination.asStateFlow()
@@ -224,9 +225,13 @@ class ServicesViewModel @Inject constructor(
     val serviceOrdersError: StateFlow<String?> = _serviceOrdersError.asStateFlow()
 
     private var serviceOrderSearchJob: Job? = null
+    private var serviceOrderCurrentPage = 1
+    private val serviceOrderPageLimit = 20
+    private var currentServiceOrderSearch: String? = null
+    private var currentServiceOrderStatus: String? = null
 
     /**
-     * Fetches paginated service orders / production orders with search and status filters
+     * Fetches paginated service orders / production orders with search and status filters.
      */
     fun fetchServiceOrders(
         page: Int = 1,
@@ -234,15 +239,56 @@ class ServicesViewModel @Inject constructor(
         search: String? = null,
         status: String? = null
     ) {
+        fetchServiceOrdersInternal(
+            page = page,
+            limit = limit,
+            search = search,
+            status = status,
+            isLoadMore = false
+        )
+    }
+
+    /**
+     * Loads the next page of service orders for infinite scroll.
+     */
+    fun loadMoreServiceOrders() {
+        fetchServiceOrdersInternal(
+            page = serviceOrderCurrentPage + 1,
+            limit = serviceOrderPageLimit,
+            search = currentServiceOrderSearch,
+            status = currentServiceOrderStatus,
+            isLoadMore = true
+        )
+    }
+
+    private fun fetchServiceOrdersInternal(
+        page: Int,
+        limit: Int,
+        search: String?,
+        status: String?,
+        isLoadMore: Boolean
+    ) {
         viewModelScope.launch {
-            _isLoadingServiceOrders.value = true
-            _serviceOrdersError.value = null
+            if (isLoadMore) {
+                if (_serviceOrdersPagingState.value.isLoadingMore || !_serviceOrdersPagingState.value.canLoadMore) {
+                    return@launch
+                }
+                _serviceOrdersPagingState.value = _serviceOrdersPagingState.value.copy(isLoadingMore = true)
+                serviceOrderCurrentPage = page
+            } else {
+                serviceOrderCurrentPage = page
+                currentServiceOrderSearch = search
+                currentServiceOrderStatus = status
+                _isLoadingServiceOrders.value = true
+                _serviceOrdersError.value = null
+                _serviceOrdersPagingState.value = _serviceOrdersPagingState.value.copy(isInitialLoading = true)
+            }
 
             val result = repo.request<ServiceOrderListResponse> {
                 get(
                     SERVICE_ORDERS_VIEW_ALL_URL,
                     repo.query(
-                        "page" to page,
+                        "page" to serviceOrderCurrentPage,
                         "limit" to limit,
                         "search" to search,
                         "status" to status
@@ -252,19 +298,40 @@ class ServicesViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { res ->
-                    _serviceOrdersList.value = res.data.orEmpty()
+                    val newItems = res.data.orEmpty()
+                    val existingIds = _serviceOrdersPagingState.value.items.mapTo(HashSet()) { it.id }
+                    val uniqueNew = if (isLoadMore) newItems.filter { it.id !in existingIds } else newItems
+                    val updatedList = if (isLoadMore) {
+                        _serviceOrdersPagingState.value.items + uniqueNew
+                    } else {
+                        newItems
+                    }
+
+                    _serviceOrdersList.value = updatedList
                     _serviceOrdersPagination.value = res.pagination
+                    _serviceOrdersPagingState.value = _serviceOrdersPagingState.value.copy(
+                        items = updatedList,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = newItems.size >= limit && (!isLoadMore || uniqueNew.isNotEmpty())
+                    )
                 },
                 onFailure = { error ->
                     _serviceOrdersError.value = error.message ?: "Failed to load service orders"
-                    _serviceOrdersList.value = emptyList()
+                    if (!isLoadMore) {
+                        _serviceOrdersList.value = emptyList()
+                    }
+                    _serviceOrdersPagingState.value = _serviceOrdersPagingState.value.copy(
+                        isInitialLoading = false,
+                        isLoadingMore = false
+                    )
                 }
             )
             _isLoadingServiceOrders.value = false
         }
     }
 
-    // ── Workshop Specialists Workload State ──
+    // Workshop Specialists Workload State
     private val _specialistWorkloadList = MutableStateFlow<List<SpecialistWorkloadDto>>(emptyList())
     val specialistWorkloadList: StateFlow<List<SpecialistWorkloadDto>> = _specialistWorkloadList.asStateFlow()
 
@@ -275,7 +342,7 @@ class ServicesViewModel @Inject constructor(
     val specialistsError: StateFlow<String?> = _specialistsError.asStateFlow()
 
     /**
-     * Fetches workshop specialists workload and active tasks via ApiRepository
+     * Fetches workshop specialists workload and active tasks via ApiRepository.
      */
     fun fetchSpecialistWorkload() {
         viewModelScope.launch {
@@ -298,7 +365,7 @@ class ServicesViewModel @Inject constructor(
         }
     }
 
-    // Add state flows inside ServicesViewModel
+    // Service Order Detail States
     private val _serviceOrderDetail = MutableStateFlow<ServiceOrderDetailData?>(null)
     val serviceOrderDetail: StateFlow<ServiceOrderDetailData?> = _serviceOrderDetail.asStateFlow()
 
@@ -309,7 +376,7 @@ class ServicesViewModel @Inject constructor(
     val orderDetailError: StateFlow<String?> = _orderDetailError.asStateFlow()
 
     /**
-     * Fetches the full service order details with job cards and workflow stages
+     * Fetches the full service order details with job cards and workflow stages.
      */
     fun fetchServiceOrderDetail(orderId: String) {
         if (orderId.isBlank()) return
@@ -340,14 +407,14 @@ class ServicesViewModel @Inject constructor(
             delay(350)
             fetchServiceOrders(
                 page = 1,
-                limit = 20,
+                limit = serviceOrderPageLimit,
                 search = query.takeIf { it.isNotBlank() },
                 status = status
             )
         }
     }
 
-    // 2. Add these StateFlow variables inside ServicesViewModel class:
+    // Job Card Detail States
     private val _jobCardDetail = MutableStateFlow<JobCardViewOneData?>(null)
     val jobCardDetail: StateFlow<JobCardViewOneData?> = _jobCardDetail.asStateFlow()
 
@@ -358,7 +425,7 @@ class ServicesViewModel @Inject constructor(
     val jobCardDetailError: StateFlow<String?> = _jobCardDetailError.asStateFlow()
 
     /**
-     * Fetches single job card tracking, workbench details, and activity logs
+     * Fetches single job card tracking, workbench details, and activity logs.
      */
     fun fetchJobCardDetail(jobCardId: String) {
         if (jobCardId.isBlank()) return
@@ -388,15 +455,14 @@ class ServicesViewModel @Inject constructor(
         _jobCardDetailError.value = null
     }
 
-    // ── Update Stage Progress States ──
-    // ── Update Stage Progress States ──
+    // Update Stage Progress States
     private val _isUpdatingStageProgress = MutableStateFlow<Boolean>(false)
     val isUpdatingStageProgress: StateFlow<Boolean> = _isUpdatingStageProgress.asStateFlow()
 
     private val _updateStageProgressError = MutableStateFlow<String?>(null)
     val updateStageProgressError: StateFlow<String?> = _updateStageProgressError.asStateFlow()
 
-    // ── Allocate Workers Across Workshop Stages State ──
+    // Allocate Workers Across Workshop Stages State
     private val _isAllocatingWorkers = MutableStateFlow<Boolean>(false)
     val isAllocatingWorkers: StateFlow<Boolean> = _isAllocatingWorkers.asStateFlow()
 
@@ -404,8 +470,8 @@ class ServicesViewModel @Inject constructor(
     val allocateWorkersError: StateFlow<String?> = _allocateWorkersError.asStateFlow()
 
     /**
-     * Allocates assigned workers to job card stages and routes to workshop
-     * Endpoint: PUT /api/services/production/job-cards/allocate-workers/{jobCardId}
+     * Allocates assigned workers to job card stages and routes to workshop.
+     * Endpoint: PATCH /api/services/production/job-cards/bulk-assign/{jobCardId}
      */
     fun allocateWorkersToWorkshop(
         jobCardId: String,
@@ -458,7 +524,7 @@ class ServicesViewModel @Inject constructor(
     }
 
     /**
-     * Updates Job Card stage status (e.g. Trial -> Rework)
+     * Updates job card stage status (for example, Trial -> Rework).
      * Payload: { "notes": "...", "stageId": "...", "status": "Rework" }
      */
     fun updateStageProgress(
@@ -507,7 +573,7 @@ class ServicesViewModel @Inject constructor(
     }
 
     /**
-     * Fetches the full list of service requests with pagination and filters
+     * Fetches the full list of service requests with pagination and filters.
      */
     fun fetchServiceRequestsList(
         page: Int = 1,
@@ -543,6 +609,7 @@ class ServicesViewModel @Inject constructor(
             _isLoadingServiceRequestsList.value = false
         }
     }
+
     private val _serviceRequestDetail = MutableStateFlow<ServiceRequestDetailData?>(null)
     val serviceRequestDetail: StateFlow<ServiceRequestDetailData?> = _serviceRequestDetail.asStateFlow()
 
@@ -552,10 +619,8 @@ class ServicesViewModel @Inject constructor(
     private val _serviceRequestDetailError = MutableStateFlow<String?>(null)
     val serviceRequestDetailError: StateFlow<String?> = _serviceRequestDetailError.asStateFlow()
 
-// 3. Add these functions inside ServicesViewModel class:
-
     /**
-     * Fetches single service request details by ID using ApiRepository
+     * Fetches single service request details by ID using ApiRepository.
      */
     fun fetchServiceRequestDetail(id: String) {
         viewModelScope.launch {
@@ -579,7 +644,6 @@ class ServicesViewModel @Inject constructor(
         }
     }
 
-    // Inside ServicesViewModel class:
     private val _salesOrdersDropdown = MutableStateFlow<List<SalesOrderDropdownItem>>(emptyList())
     val salesOrdersDropdown: StateFlow<List<SalesOrderDropdownItem>> = _salesOrdersDropdown.asStateFlow()
 
@@ -587,7 +651,7 @@ class ServicesViewModel @Inject constructor(
     val isLoadingSalesOrders: StateFlow<Boolean> = _isLoadingSalesOrders.asStateFlow()
 
     /**
-     * Fetches sales orders for a specific customer ID
+     * Fetches sales orders for a specific customer ID.
      */
     fun fetchSalesOrdersByCustomer(customerId: String, status: String) {
         viewModelScope.launch {
@@ -611,14 +675,14 @@ class ServicesViewModel @Inject constructor(
     }
 
     /**
-     * Clears the sales orders list when customer is reset
+     * Clears the sales orders list when customer is reset.
      */
     fun clearSalesOrders() {
         _salesOrdersDropdown.value = emptyList()
     }
 
     /**
-     * Clears the currently selected service request detail state
+     * Clears the currently selected service request detail state.
      */
     fun clearServiceRequestDetail() {
         _serviceRequestDetail.value = null
@@ -626,7 +690,7 @@ class ServicesViewModel @Inject constructor(
     }
 
     /**
-     * Loads all services dashboard widgets concurrently via ApiRepository
+     * Loads all services dashboard widgets concurrently via ApiRepository.
      */
     fun fetchDashboardData() {
         viewModelScope.launch {
@@ -661,9 +725,9 @@ class ServicesViewModel @Inject constructor(
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Template Actions
-    // ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     fun loadTemplates(search: String? = null) {
         viewModelScope.launch {
@@ -777,9 +841,9 @@ class ServicesViewModel @Inject constructor(
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Production Stage Actions
-    // ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     fun loadStages() {
         viewModelScope.launch {
@@ -831,8 +895,18 @@ class ServicesViewModel @Inject constructor(
         _uiState.update { it.copy(errorMessage = null, successMessage = null) }
     }
 
+    // -------------------------------------------------------------------------
+    // Service Requests List, Pagination, Detail & Actions
+    // -------------------------------------------------------------------------
+
     private val _listState = MutableStateFlow<ServiceRequestUiState>(ServiceRequestUiState.Loading)
     val listState: StateFlow<ServiceRequestUiState> = _listState.asStateFlow()
+
+    private val _serviceRequestsPagingState = MutableStateFlow(PagingUiState<ServiceRequestData>())
+    val serviceRequestsPagingState: StateFlow<PagingUiState<ServiceRequestData>> = _serviceRequestsPagingState.asStateFlow()
+
+    private val _serviceRequestsPagingError = MutableStateFlow<String?>(null)
+    val serviceRequestsPagingError: StateFlow<String?> = _serviceRequestsPagingError.asStateFlow()
 
     private val _detailState = MutableStateFlow<ServiceDetailUiState>(ServiceDetailUiState.Idle)
     val detailState: StateFlow<ServiceDetailUiState> = _detailState.asStateFlow()
@@ -850,22 +924,87 @@ class ServicesViewModel @Inject constructor(
         search: String? = null,
         status: String? = null
     ) {
-        currentPage = page
-        currentSearch = search
-        currentStatus = status
+        loadServiceRequestsInternal(
+            page = page,
+            search = search,
+            status = status,
+            isLoadMore = false
+        )
+    }
 
+    /**
+     * Loads the next page of service requests for infinite scroll.
+     */
+    fun loadMoreServiceRequests() {
+        loadServiceRequestsInternal(
+            page = currentPage + 1,
+            search = currentSearch,
+            status = currentStatus,
+            isLoadMore = true
+        )
+    }
+
+    private fun loadServiceRequestsInternal(
+        page: Int,
+        search: String?,
+        status: String?,
+        isLoadMore: Boolean
+    ) {
         viewModelScope.launch {
-            _listState.value = ServiceRequestUiState.Loading
-            repository.getServiceRequests(page = page, search = search, status = status)
+            if (isLoadMore) {
+                if (_serviceRequestsPagingState.value.isLoadingMore || !_serviceRequestsPagingState.value.canLoadMore) {
+                    return@launch
+                }
+                _serviceRequestsPagingState.value = _serviceRequestsPagingState.value.copy(isLoadingMore = true)
+                currentPage = page
+            } else {
+                currentPage = page
+                currentSearch = search
+                currentStatus = status
+                _listState.value = ServiceRequestUiState.Loading
+                _serviceRequestsPagingError.value = null
+                _serviceRequestsPagingState.value = _serviceRequestsPagingState.value.copy(isInitialLoading = true)
+            }
+
+            repository.getServiceRequests(page = currentPage, search = currentSearch, status = currentStatus)
                 .onSuccess { response ->
                     val items = response.data?.map { it.toServiceRequestData() } ?: emptyList()
+                    val existingIds = _serviceRequestsPagingState.value.items.mapTo(HashSet()) { it.id }
+                    val uniqueNew = if (isLoadMore) items.filter { it.id !in existingIds } else items
+                    val updatedList = if (isLoadMore) {
+                        _serviceRequestsPagingState.value.items + uniqueNew
+                    } else {
+                        items
+                    }
+
+                    val total = response.pagination?.total
+                    val canLoad = if (total != null) {
+                        updatedList.size < total && items.isNotEmpty() && (!isLoadMore || uniqueNew.isNotEmpty())
+                    } else {
+                        items.size >= 10 && (!isLoadMore || uniqueNew.isNotEmpty())
+                    }
+
                     _listState.value = ServiceRequestUiState.Success(
-                        items = items,
-                        total = response.pagination?.total ?: items.size
+                        items = updatedList,
+                        total = total ?: updatedList.size
+                    )
+                    _serviceRequestsPagingState.value = _serviceRequestsPagingState.value.copy(
+                        items = updatedList,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoad
                     )
                 }
                 .onFailure { error ->
-                    _listState.value = ServiceRequestUiState.Error(error.localizedMessage ?: "Failed to load requests")
+                    val message = error.localizedMessage ?: "Failed to load requests"
+                    if (!isLoadMore) {
+                        _listState.value = ServiceRequestUiState.Error(message)
+                    }
+                    _serviceRequestsPagingError.value = message
+                    _serviceRequestsPagingState.value = _serviceRequestsPagingState.value.copy(
+                        isInitialLoading = false,
+                        isLoadingMore = false
+                    )
                 }
         }
     }
@@ -919,8 +1058,16 @@ class ServicesViewModel @Inject constructor(
                 }
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Alterations List, Pagination & Actions
+    // -------------------------------------------------------------------------
+
     private val _alterationList = MutableStateFlow<List<AlterationItemDto>>(emptyList())
     val alterationList: StateFlow<List<AlterationItemDto>> = _alterationList.asStateFlow()
+
+    private val _alterationsPagingState = MutableStateFlow(PagingUiState<AlterationItemDto>())
+    val alterationsPagingState: StateFlow<PagingUiState<AlterationItemDto>> = _alterationsPagingState.asStateFlow()
 
     private val _alterationQuery = MutableStateFlow("")
     val alterationQuery: StateFlow<String> = _alterationQuery.asStateFlow()
@@ -928,15 +1075,50 @@ class ServicesViewModel @Inject constructor(
     private val _isAlterationsLoading = MutableStateFlow(false)
     val isAlterationsLoading: StateFlow<Boolean> = _isAlterationsLoading.asStateFlow()
 
+    private var alterationCurrentPage = 1
+    private val alterationPageLimit = 20
+    private var currentAlterationSearch: String? = null
+
     fun fetchAlterations(search: String? = null) {
+        fetchAlterationsInternal(page = 1, search = search, isLoadMore = false)
+    }
+
+    /**
+     * Loads the next page of alteration requests for infinite scroll.
+     */
+    fun loadMoreAlterations() {
+        fetchAlterationsInternal(
+            page = alterationCurrentPage + 1,
+            search = currentAlterationSearch,
+            isLoadMore = true
+        )
+    }
+
+    private fun fetchAlterationsInternal(
+        page: Int,
+        search: String?,
+        isLoadMore: Boolean
+    ) {
         viewModelScope.launch {
-            _isAlterationsLoading.value = true
+            if (isLoadMore) {
+                if (_alterationsPagingState.value.isLoadingMore || !_alterationsPagingState.value.canLoadMore) {
+                    return@launch
+                }
+                _alterationsPagingState.value = _alterationsPagingState.value.copy(isLoadingMore = true)
+                alterationCurrentPage = page
+            } else {
+                alterationCurrentPage = page
+                currentAlterationSearch = search
+                _isAlterationsLoading.value = true
+                _alterationsPagingState.value = _alterationsPagingState.value.copy(isInitialLoading = true)
+            }
+
             val result = repo.request<AlterationListResponse> {
                 get(
                     SERVICE_ALTERATION_VIEW_ALL_URL,
                     repo.query(
-                        "page" to 1,
-                        "limit" to 50,
+                        "page" to alterationCurrentPage,
+                        "limit" to alterationPageLimit,
                         "search" to search,
                         "primaryCategory" to "Alteration"
                     )
@@ -945,10 +1127,31 @@ class ServicesViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { res ->
-                    _alterationList.value = res.data.orEmpty()
+                    val newItems = res.data.orEmpty()
+                    val existingItems = _alterationsPagingState.value.items.toHashSet()
+                    val uniqueNew = if (isLoadMore) newItems.filter { it !in existingItems } else newItems
+                    val updatedList = if (isLoadMore) {
+                        _alterationsPagingState.value.items + uniqueNew
+                    } else {
+                        newItems
+                    }
+
+                    _alterationList.value = updatedList
+                    _alterationsPagingState.value = _alterationsPagingState.value.copy(
+                        items = updatedList,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = newItems.size >= alterationPageLimit && (!isLoadMore || uniqueNew.isNotEmpty())
+                    )
                 },
                 onFailure = {
-                    _alterationList.value = emptyList()
+                    if (!isLoadMore) {
+                        _alterationList.value = emptyList()
+                    }
+                    _alterationsPagingState.value = _alterationsPagingState.value.copy(
+                        isInitialLoading = false,
+                        isLoadingMore = false
+                    )
                 }
             )
             _isAlterationsLoading.value = false
@@ -964,7 +1167,6 @@ class ServicesViewModel @Inject constructor(
         }
     }
 
-    // Add inside ServicesViewModel:
     private val _alterationDetail = MutableStateFlow<AlterationViewData?>(null)
     val alterationDetail: StateFlow<AlterationViewData?> = _alterationDetail.asStateFlow()
 
@@ -975,7 +1177,7 @@ class ServicesViewModel @Inject constructor(
     val alterationDetailError: StateFlow<String?> = _alterationDetailError.asStateFlow()
 
     /**
-     * Fetches single alteration ticket detail by ticket/service request ID
+     * Fetches single alteration ticket detail by ticket/service request ID.
      */
     fun fetchAlterationDetail(id: String) {
         if (id.isBlank()) return
@@ -998,6 +1200,7 @@ class ServicesViewModel @Inject constructor(
             _isLoadingAlterationDetail.value = false
         }
     }
+
     fun clearAlterationDetail() {
         _alterationDetail.value = null
         _alterationDetailError.value = null
@@ -1007,7 +1210,7 @@ class ServicesViewModel @Inject constructor(
     val isDelivering: StateFlow<Boolean> = _isDelivering.asStateFlow()
 
     /**
-     * Updates service request status to 'Delivered'
+     * Updates service request status to Delivered.
      */
     fun markAlterationAsDelivered(
         id: String,
@@ -1045,7 +1248,7 @@ class ServicesViewModel @Inject constructor(
     val isSendingComment: StateFlow<Boolean> = _isSendingComment.asStateFlow()
 
     /**
-     * Submits a staff observation or update comment to the service request
+     * Submits a staff observation or update comment to the service request.
      */
     fun addAlterationComment(
         id: String,
@@ -1077,9 +1280,15 @@ class ServicesViewModel @Inject constructor(
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Complaints List, Pagination, Detail & Actions
+    // -------------------------------------------------------------------------
 
     private val _complaintsList = MutableStateFlow<List<ComplaintItemDto>>(emptyList())
     val complaintsList: StateFlow<List<ComplaintItemDto>> = _complaintsList.asStateFlow()
+
+    private val _complaintsPagingState = MutableStateFlow(PagingUiState<ComplaintItemDto>())
+    val complaintsPagingState: StateFlow<PagingUiState<ComplaintItemDto>> = _complaintsPagingState.asStateFlow()
 
     private val _complaintSearchQuery = MutableStateFlow("")
     val complaintSearchQuery: StateFlow<String> = _complaintSearchQuery.asStateFlow()
@@ -1091,21 +1300,54 @@ class ServicesViewModel @Inject constructor(
     val complaintsError: StateFlow<String?> = _complaintsError.asStateFlow()
 
     private var complaintSearchJob: Job? = null
+    private var complaintCurrentPage = 1
+    private val complaintPageLimit = 20
+    private var currentComplaintSearch: String? = null
 
     /**
-     * Fetches complaints list with optional search query
+     * Fetches complaints list with optional search query.
      */
     fun fetchComplaints(search: String? = null) {
+        fetchComplaintsInternal(page = 1, search = search, isLoadMore = false)
+    }
+
+    /**
+     * Loads the next page of complaints for infinite scroll.
+     */
+    fun loadMoreComplaints() {
+        fetchComplaintsInternal(
+            page = complaintCurrentPage + 1,
+            search = currentComplaintSearch,
+            isLoadMore = true
+        )
+    }
+
+    private fun fetchComplaintsInternal(
+        page: Int,
+        search: String?,
+        isLoadMore: Boolean
+    ) {
         viewModelScope.launch {
-            _isLoadingComplaints.value = true
-            _complaintsError.value = null
+            if (isLoadMore) {
+                if (_complaintsPagingState.value.isLoadingMore || !_complaintsPagingState.value.canLoadMore) {
+                    return@launch
+                }
+                _complaintsPagingState.value = _complaintsPagingState.value.copy(isLoadingMore = true)
+                complaintCurrentPage = page
+            } else {
+                complaintCurrentPage = page
+                currentComplaintSearch = search
+                _isLoadingComplaints.value = true
+                _complaintsError.value = null
+                _complaintsPagingState.value = _complaintsPagingState.value.copy(isInitialLoading = true)
+            }
 
             val result = repo.request<ComplaintListResponse> {
                 get(
                     COMPLAINTS_VIEW_ALL_URL,
                     repo.query(
-                        "page" to 1,
-                        "limit" to 50,
+                        "page" to complaintCurrentPage,
+                        "limit" to complaintPageLimit,
                         "search" to search
                     )
                 )
@@ -1113,11 +1355,32 @@ class ServicesViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { res ->
-                    _complaintsList.value = res.data.orEmpty()
+                    val newItems = res.data.orEmpty()
+                    val existingIds = _complaintsPagingState.value.items.mapTo(HashSet()) { it.id }
+                    val uniqueNew = if (isLoadMore) newItems.filter { it.id !in existingIds } else newItems
+                    val updatedList = if (isLoadMore) {
+                        _complaintsPagingState.value.items + uniqueNew
+                    } else {
+                        newItems
+                    }
+
+                    _complaintsList.value = updatedList
+                    _complaintsPagingState.value = _complaintsPagingState.value.copy(
+                        items = updatedList,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = newItems.size >= complaintPageLimit && (!isLoadMore || uniqueNew.isNotEmpty())
+                    )
                 },
                 onFailure = { err ->
                     _complaintsError.value = err.message ?: "Failed to load complaints"
-                    _complaintsList.value = emptyList()
+                    if (!isLoadMore) {
+                        _complaintsList.value = emptyList()
+                    }
+                    _complaintsPagingState.value = _complaintsPagingState.value.copy(
+                        isInitialLoading = false,
+                        isLoadingMore = false
+                    )
                 }
             )
             _isLoadingComplaints.value = false
@@ -1133,7 +1396,7 @@ class ServicesViewModel @Inject constructor(
         }
     }
 
-    // ── Complaint Detail View State ──
+    // Complaint Detail View State
     private val _complaintDetail = MutableStateFlow<ComplaintDetailDataDto?>(null)
     val complaintDetail: StateFlow<ComplaintDetailDataDto?> = _complaintDetail.asStateFlow()
 
@@ -1144,7 +1407,7 @@ class ServicesViewModel @Inject constructor(
     val complaintDetailError: StateFlow<String?> = _complaintDetailError.asStateFlow()
 
     /**
-     * Fetches complaint details by ID from the API
+     * Fetches complaint details by ID from the API.
      */
     fun fetchComplaintDetail(id: String) {
         if (id.isBlank()) return
@@ -1168,8 +1431,15 @@ class ServicesViewModel @Inject constructor(
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Feedbacks List, Pagination & Detail
+    // -------------------------------------------------------------------------
+
     private val _feedbacksList = MutableStateFlow<List<FeedbackItemDto>>(emptyList())
     val feedbacksList: StateFlow<List<FeedbackItemDto>> = _feedbacksList.asStateFlow()
+
+    private val _feedbacksPagingState = MutableStateFlow(PagingUiState<FeedbackItemDto>())
+    val feedbacksPagingState: StateFlow<PagingUiState<FeedbackItemDto>> = _feedbacksPagingState.asStateFlow()
 
     private val _feedbackSearchQuery = MutableStateFlow("")
     val feedbackSearchQuery: StateFlow<String> = _feedbackSearchQuery.asStateFlow()
@@ -1181,21 +1451,54 @@ class ServicesViewModel @Inject constructor(
     val feedbacksError: StateFlow<String?> = _feedbacksError.asStateFlow()
 
     private var feedbackSearchJob: Job? = null
+    private var feedbackCurrentPage = 1
+    private val feedbackPageLimit = 20
+    private var currentFeedbackSearch: String? = null
 
     /**
-     * Fetches feedback list with search query support
+     * Fetches feedback list with search query support.
      */
     fun fetchFeedbacks(search: String? = null) {
+        fetchFeedbacksInternal(page = 1, search = search, isLoadMore = false)
+    }
+
+    /**
+     * Loads the next page of feedbacks for infinite scroll.
+     */
+    fun loadMoreFeedbacks() {
+        fetchFeedbacksInternal(
+            page = feedbackCurrentPage + 1,
+            search = currentFeedbackSearch,
+            isLoadMore = true
+        )
+    }
+
+    private fun fetchFeedbacksInternal(
+        page: Int,
+        search: String?,
+        isLoadMore: Boolean
+    ) {
         viewModelScope.launch {
-            _isLoadingFeedbacks.value = true
-            _feedbacksError.value = null
+            if (isLoadMore) {
+                if (_feedbacksPagingState.value.isLoadingMore || !_feedbacksPagingState.value.canLoadMore) {
+                    return@launch
+                }
+                _feedbacksPagingState.value = _feedbacksPagingState.value.copy(isLoadingMore = true)
+                feedbackCurrentPage = page
+            } else {
+                feedbackCurrentPage = page
+                currentFeedbackSearch = search
+                _isLoadingFeedbacks.value = true
+                _feedbacksError.value = null
+                _feedbacksPagingState.value = _feedbacksPagingState.value.copy(isInitialLoading = true)
+            }
 
             val result = repo.request<FeedbackListResponse> {
                 get(
                     FEEDBACKS_VIEW_ALL_URL,
                     repo.query(
-                        "page" to 1,
-                        "limit" to 50,
+                        "page" to feedbackCurrentPage,
+                        "limit" to feedbackPageLimit,
                         "search" to search
                     )
                 )
@@ -1203,18 +1506,39 @@ class ServicesViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { res ->
-                    _feedbacksList.value = res.data.orEmpty()
+                    val newItems = res.data.orEmpty()
+                    val existingIds = _feedbacksPagingState.value.items.mapTo(HashSet()) { it.id }
+                    val uniqueNew = if (isLoadMore) newItems.filter { it.id !in existingIds } else newItems
+                    val updatedList = if (isLoadMore) {
+                        _feedbacksPagingState.value.items + uniqueNew
+                    } else {
+                        newItems
+                    }
+
+                    _feedbacksList.value = updatedList
+                    _feedbacksPagingState.value = _feedbacksPagingState.value.copy(
+                        items = updatedList,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = newItems.size >= feedbackPageLimit && (!isLoadMore || uniqueNew.isNotEmpty())
+                    )
                 },
                 onFailure = { err ->
                     _feedbacksError.value = err.message ?: "Failed to load feedbacks"
-                    _feedbacksList.value = emptyList()
+                    if (!isLoadMore) {
+                        _feedbacksList.value = emptyList()
+                    }
+                    _feedbacksPagingState.value = _feedbacksPagingState.value.copy(
+                        isInitialLoading = false,
+                        isLoadingMore = false
+                    )
                 }
             )
             _isLoadingFeedbacks.value = false
         }
     }
 
-    // ── Upload Attachment States ──
+    // Upload Attachment States
     private val _isUploadingAttachment = MutableStateFlow(false)
     val isUploadingAttachment: StateFlow<Boolean> = _isUploadingAttachment.asStateFlow()
 
@@ -1222,7 +1546,7 @@ class ServicesViewModel @Inject constructor(
     val uploadAttachmentError: StateFlow<String?> = _uploadAttachmentError.asStateFlow()
 
     /**
-     * Uploads evidence attachment files to the complaint ticket and automatically refreshes view-one
+     * Uploads evidence attachment files to the complaint ticket and automatically refreshes view-one.
      */
     fun uploadComplaintAttachment(
         complaintId: String,
@@ -1263,7 +1587,7 @@ class ServicesViewModel @Inject constructor(
         }
     }
 
-    // Inside ServicesViewModel class:
+    // Feedback Detail States
     private val _feedbackDetail = MutableStateFlow<FeedbackDetailDataDto?>(null)
     val feedbackDetail: StateFlow<FeedbackDetailDataDto?> = _feedbackDetail.asStateFlow()
 
@@ -1274,7 +1598,7 @@ class ServicesViewModel @Inject constructor(
     val feedbackDetailError: StateFlow<String?> = _feedbackDetailError.asStateFlow()
 
     /**
-     * Fetches single feedback record by ID
+     * Fetches single feedback record by ID.
      */
     fun fetchFeedbackDetail(id: String) {
         if (id.isBlank()) return
@@ -1305,7 +1629,7 @@ class ServicesViewModel @Inject constructor(
     val updateComplaintStatusError: StateFlow<String?> = _updateComplaintStatusError.asStateFlow()
 
     /**
-     * Updates complaint status using PATCH /api/services/complaints/update/{id}
+     * Updates complaint status using PUT /api/services/complaints/update-one/{id}.
      */
     fun updateComplaintStatus(
         complaintId: String,
@@ -1338,7 +1662,7 @@ class ServicesViewModel @Inject constructor(
             }
 
             val payload = UpdateComplaintStatusRequest(status = backendStatus)
-            android.util.Log.d("UPDATE_COMPLAINT", "Sending PATCH to $COMPLAINT_UPDATE_URL/$complaintId with payload: $payload")
+            android.util.Log.d("UPDATE_COMPLAINT", "Sending PUT to $COMPLAINT_UPDATE_URL/$complaintId with payload: $payload")
 
             val result = repo.request<UpdateComplaintStatusResponse> {
                 put("$COMPLAINT_UPDATE_URL/$complaintId", payload)
@@ -1368,7 +1692,7 @@ class ServicesViewModel @Inject constructor(
         }
     }
 
-    // ── Assign Staff States ──
+    // Assign Staff States
     private val _isAssigningStaff = MutableStateFlow<Boolean>(false)
     val isAssigningStaff: StateFlow<Boolean> = _isAssigningStaff.asStateFlow()
 
@@ -1376,8 +1700,8 @@ class ServicesViewModel @Inject constructor(
     val assignStaffError: StateFlow<String?> = _assignStaffError.asStateFlow()
 
     /**
-     * Assigns operations staff to a complaint ticket
-     * Endpoint: PATCH /api/services/complaints/update-one/{complaintId}
+     * Assigns operations staff to a complaint ticket.
+     * Endpoint: PUT /api/services/complaints/update-one/{complaintId}
      * Payload: { "assignedTo": "<memberId>" }
      */
     fun assignComplaintStaff(
@@ -1426,7 +1750,7 @@ class ServicesViewModel @Inject constructor(
         }
     }
 
-    // ── Add Internal Note States ──
+    // Add Internal Note States
     private val _isSavingInternalNote = MutableStateFlow<Boolean>(false)
     val isSavingInternalNote: StateFlow<Boolean> = _isSavingInternalNote.asStateFlow()
 
@@ -1434,8 +1758,8 @@ class ServicesViewModel @Inject constructor(
     val saveInternalNoteError: StateFlow<String?> = _saveInternalNoteError.asStateFlow()
 
     /**
-     * Adds/Updates internal investigation notes for a complaint ticket
-     * Endpoint: PATCH /api/services/complaints/update-one/{complaintId}
+     * Adds or updates internal investigation notes for a complaint ticket.
+     * Endpoint: PUT /api/services/complaints/update-one/{complaintId}
      * Payload: { "investigationNotes": "..." }
      */
     fun addComplaintInternalNote(
@@ -1491,14 +1815,7 @@ class ServicesViewModel @Inject constructor(
     val resolveComplaintError: StateFlow<String?> = _resolveComplaintError.asStateFlow()
 
     /**
-     * Resolves a complaint ticket with the exact payload structure:
-     * {
-     *   "action": "Garment_Remake",
-     *   "compensationAmount": 0,
-     *   "isCustomerAgreed": true,
-     *   "resolutionSummary": "qwdqwd",
-     *   "voucherCode": ""
-     * }
+     * Resolves a complaint ticket with the specified resolution action and summary.
      */
     fun resolveComplaint(
         complaintId: String,
@@ -1529,7 +1846,7 @@ class ServicesViewModel @Inject constructor(
                 voucherCode = ""
             )
 
-            android.util.Log.d("RESOLVE_COMPLAINT", "Calling PUT to $COMPLAINT_RESOLVE_URL/$complaintId with payload: $payload")
+            android.util.Log.d("RESOLVE_COMPLAINT", "Calling PATCH to $COMPLAINT_RESOLVE_URL/$complaintId with payload: $payload")
 
             val result = repo.request<ResolveComplaintResponse> {
                 patch("$COMPLAINT_RESOLVE_URL/$complaintId", payload)
@@ -1560,8 +1877,8 @@ class ServicesViewModel @Inject constructor(
     }
 
     /**
-     * Updates Job Card stage progress (e.g., Mark Complete, Start Work, Put on Hold)
-     * Endpoint: PATCH /api/services/production/job-cards/update-stage/{jobCardId}
+     * Updates Job Card stage progress (for example, Mark Complete, Start Work, Put on Hold).
+     * Endpoint: PATCH /api/services/production/job-cards/update-progress/{jobCardId}
      */
     fun updateStageProgress(
         jobCardId: String,
@@ -1585,7 +1902,6 @@ class ServicesViewModel @Inject constructor(
             _isUpdatingStageProgress.value = true
             _updateStageProgressError.value = null
 
-            // Construct payload matching Screenshot 1
             val payload = UpdateStageProgressRequestComplete(
                 stageId = stageId,
                 status = status,
@@ -1620,7 +1936,7 @@ class ServicesViewModel @Inject constructor(
     }
 
     /**
-     * Logs an issue against a job card
+     * Logs an issue against a job card.
      * Endpoint: POST /api/services/production/job-cards/log-issue/{jobCardId}
      */
     fun logIssueToJobCard(
@@ -1637,7 +1953,6 @@ class ServicesViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // Construct payload matching Screenshot 2
             val payload = LogIssueRequest(
                 issueType = issueType,
                 description = description.trim(),
@@ -1689,6 +2004,7 @@ class ServicesViewModel @Inject constructor(
             )
         }
     }
+
     fun clearFeedbackDetail() {
         _feedbackDetail.value = null
         _feedbackDetailError.value = null

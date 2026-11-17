@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,9 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -42,13 +38,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.PurchaseOrder
@@ -57,13 +50,23 @@ import com.cuso.tailor.model.inventory.WarehouseRef
 import com.cuso.tailor.ui.theme.BorderGray
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.Primary_background
+import com.cuso.tailor.ui.theme.TextLog
 import com.cuso.tailor.ui.theme.TextPrimary
 import com.cuso.tailor.ui.theme.TextSecondary
 import com.cuso.tailor.ui.theme.badgeGrey
+import com.cuso.tailor.ui.theme.blueText
 import com.cuso.tailor.ui.theme.dividerColor
+import com.cuso.tailor.ui.theme.greenBg
+import com.cuso.tailor.ui.theme.greentext
 import com.cuso.tailor.ui.theme.iconMuted
+import com.cuso.tailor.ui.theme.light_blue_border
+import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.mutedText
+import com.cuso.tailor.ui.theme.redBg
+import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.ui.theme.yellowBg
+import com.cuso.tailor.ui.theme.yellowText
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
@@ -71,15 +74,13 @@ import com.cuso.tailor.view.composable.FilterDrawer
 import com.cuso.tailor.view.composable.FilterOption
 import com.cuso.tailor.view.composable.FilterSection
 import com.cuso.tailor.view.composable.FilterSectionType
-import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
-import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 private const val TAG = "PO_LIST"
 
@@ -92,15 +93,11 @@ fun POListScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val orders by viewModel.purchaseOrdersList.collectAsStateWithLifecycle()
-    val isLoadingPO by viewModel.isLoadingPurchaseOrders.collectAsStateWithLifecycle()
-    val isLoadingMorePO by viewModel.isLoadingMorePurchaseOrders.collectAsStateWithLifecycle()
-    val canLoadMorePO by viewModel.canLoadMorePurchaseOrders.collectAsStateWithLifecycle()
+    val poPagingState by viewModel.purchaseOrdersPagingState.collectAsStateWithLifecycle()
     val errorMessage by viewModel.purchaseOrdersError.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     val filterDrawerState = rememberFilterDrawerState()
-    val listState = rememberLazyListState()
 
     var isInitialized by remember { mutableStateOf(false) }
 
@@ -113,30 +110,6 @@ fun POListScreen(
             val query = searchQuery.trim().ifBlank { null }
             viewModel.fetchAllPurchaseOrders(search = query)
         }
-    }
-
-    LaunchedEffect(orders) {
-        Log.d(TAG, "Orders count: ${orders.size}")
-    }
-
-    LaunchedEffect(listState, canLoadMorePO, searchQuery) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
-        }
-            .distinctUntilChanged()
-            .collect { isNearBottom ->
-                if (isNearBottom &&
-                    canLoadMorePO &&
-                    !isLoadingMorePO &&
-                    !isLoadingPO &&
-                    searchQuery.isBlank()
-                ) {
-                    viewModel.loadMorePurchaseOrders()
-                }
-            }
     }
 
     val initialFilterSections = remember {
@@ -193,7 +166,8 @@ fun POListScreen(
             label = "Create Order",
             icon = Icons.Default.Add,
             onClick = onNavigateToCreate
-        )
+        ),
+        fabVisible = !poPagingState.isInitialLoading
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             TitleBar(
@@ -206,17 +180,11 @@ fun POListScreen(
                 onQueryChange = { searchQuery = it },
                 placeholder = "Search Purchase Orders...",
                 showFilterIcon = true,
-                onFilterClick = {
-                    filterDrawerState.open()
-                }
+                onFilterClick = { filterDrawerState.open() }
             )
 
             when {
-                isLoadingPO && orders.isEmpty() -> {
-                    ListSkeleton()
-                }
-
-                errorMessage != null && orders.isEmpty() -> {
+                errorMessage != null && poPagingState.items.isEmpty() && !poPagingState.isInitialLoading -> {
                     AppErrorState(
                         title = "Failed to load purchase orders",
                         message = errorMessage ?: "Something went wrong. Please check your connection.",
@@ -227,7 +195,7 @@ fun POListScreen(
                     )
                 }
 
-                orders.isEmpty() -> {
+                !poPagingState.isInitialLoading && poPagingState.items.isEmpty() -> {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -243,21 +211,14 @@ fun POListScreen(
                 }
 
                 else -> {
-                    LazyColumn(
-                        state = listState,
+                    PaginatedDataList(
+                        state = poPagingState,
+                        onLoadMore = { viewModel.loadMorePurchaseOrders() },
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = tokens.screenPadding),
-                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding),
-                        contentPadding = PaddingValues(
-                            top = 8.dp,
-                            bottom = tokens.buttonHeight + 80.dp
-                        )
-                    ) {
-                        items(
-                            items = orders,
-                            key = { it.id?.ifBlank { it.poNumber ?: it.hashCode().toString() } ?: it.hashCode().toString() }
-                        ) { order ->
+                            .padding(horizontal = tokens.screenPadding)
+                    ) { order ->
+                        Column {
                             PurchaseOrderCard(
                                 order = order,
                                 onViewDetails = {
@@ -265,16 +226,7 @@ fun POListScreen(
                                     onNavigateToDetail(order)
                                 }
                             )
-                        }
-
-                        if (isLoadingMorePO) {
-                            item(key = "pagination_threedot_loader") {
-                                ThreeDotLoading(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 16.dp)
-                                )
-                            }
+                            Spacer(modifier = Modifier.height(tokens.extraPadding))
                         }
                     }
                 }
@@ -442,13 +394,14 @@ fun PurchaseOrderCard(
 
 @Composable
 fun StatusPill(status: String) {
-    val cleanStatus = status.ifBlank { "Open" }
+    val tokens = LocalAppTokens.current
+    val cleanStatus = status.ifBlank { "" }
     val (bg, txtColor) = when (cleanStatus.lowercase()) {
-        "completed", "received", "approved", "open" -> Color(0xFFDCFCE7) to Color(0xFF15803D)
-        "pending", "pending approval", "not received", "unpaid", "draft" -> Color(0xFFFEF3C7) to Color(0xFFB45309)
-        "in transit" -> Color(0xFFDBEAFE) to Color(0xFF1D4ED8)
-        "rejected", "cancelled" -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
-        else -> Color(0xFFF3F4F6) to Color(0xFF374151)
+        "completed", "received", "approved", "open" -> greenBg to greentext
+        "pending", "pending approval", "not received", "unpaid", "draft" -> yellowBg to yellowText
+        "in transit" -> light_blue_border to blueText
+        "rejected", "cancelled" -> redBg to redText
+        else -> light_grey to TextLog
     }
 
     Row(
@@ -466,7 +419,7 @@ fun StatusPill(status: String) {
         Text(
             text = cleanStatus,
             color = txtColor,
-            fontSize = 11.sp,
+            fontSize = tokens.label,
             fontWeight = FontWeight.SemiBold
         )
     }

@@ -4,9 +4,6 @@ package com.cuso.tailor.view.home.inventory.procurement.suppliers
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -28,7 +25,6 @@ import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun InventorySuppliersScreen(
@@ -41,16 +37,11 @@ fun InventorySuppliersScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val suppliers by viewModel.suppliers.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingSuppliers.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMoreSuppliers.collectAsStateWithLifecycle()
-    val canLoadMore by viewModel.canLoadMoreSuppliers.collectAsStateWithLifecycle()
+    val suppliersPagingState by viewModel.suppliersPagingState.collectAsStateWithLifecycle()
     val errorMsg by viewModel.suppliersError.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedSupplierToDelete by remember { mutableStateOf<SupplierDto?>(null) }
-
-    val listState = rememberLazyListState()
 
     var isInitialized by remember { mutableStateOf(false) }
     LaunchedEffect(searchQuery) {
@@ -63,30 +54,10 @@ fun InventorySuppliersScreen(
         }
     }
 
-    LaunchedEffect(listState, canLoadMore, searchQuery) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
-        }
-            .distinctUntilChanged()
-            .collect { isNearBottom ->
-                if (isNearBottom &&
-                    canLoadMore &&
-                    !viewModel.isLoadingMoreSuppliers.value &&
-                    !viewModel.isLoadingSuppliers.value &&
-                    searchQuery.isBlank()
-                ) {
-                    viewModel.loadMoreSuppliers()
-                }
-            }
-    }
-
-    val filteredList = remember(suppliers, searchQuery) {
-        if (searchQuery.isBlank()) suppliers
+    val filteredList = remember(suppliersPagingState.items, searchQuery) {
+        if (searchQuery.isBlank()) suppliersPagingState.items
         else {
-            suppliers.filter {
+            suppliersPagingState.items.filter {
                 it.name.contains(searchQuery, ignoreCase = true) ||
                         it.supplierCode.contains(searchQuery, ignoreCase = true) ||
                         (it.contact?.contactName?.contains(searchQuery, ignoreCase = true) == true) ||
@@ -94,6 +65,10 @@ fun InventorySuppliersScreen(
                         (it.address?.billing?.city?.contains(searchQuery, ignoreCase = true) == true)
             }
         }
+    }
+
+    val displayPagingState = remember(suppliersPagingState, filteredList) {
+        suppliersPagingState.copy(items = filteredList)
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
@@ -123,15 +98,10 @@ fun InventorySuppliersScreen(
                 )
                 Spacer(Modifier.padding(top = 10.dp))
 
-
                 HorizontalDivider(color = grey_border)
 
                 when {
-                    isLoading && suppliers.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
-                    errorMsg != null && suppliers.isEmpty() -> {
+                    errorMsg != null && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load suppliers",
                             message = errorMsg?.let { ErrorMapper.map(it) } ?: "Something went wrong. Please check your connection.",
@@ -139,7 +109,7 @@ fun InventorySuppliersScreen(
                         )
                     }
 
-                    filteredList.isEmpty() -> {
+                    !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -155,35 +125,17 @@ fun InventorySuppliersScreen(
                     }
 
                     else -> {
-                        LazyColumn(
-                            state = listState,
+                        PaginatedDataList(
+                            state = displayPagingState,
+                            onLoadMore = { viewModel.loadMoreSuppliers() },
                             modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(
-                                items = filteredList,
-                                key = { it.id.ifBlank { it.hashCode().toString() } }
-                            ) { supplier ->
-                                SupplierDataCardItem(
-                                    supplier = supplier,
-                                    onClick = { onSupplierClick(supplier) },
-                                    onEdit = { onEditSupplier(supplier) },
-                                    onDelete = { selectedSupplierToDelete = supplier }
-                                )
-                            }
-
-                            if (isLoadingMore) {
-                                item(key = "pagination_threedot_loader") {
-                                    ThreeDotLoading(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp)
-                                    )
-                                }
-                            }
-
-                            item {
-                                Spacer(Modifier.height(80.dp))
-                            }
+                        ) { supplier ->
+                            SupplierDataCardItem(
+                                supplier = supplier,
+                                onClick = { onSupplierClick(supplier) },
+                                onEdit = { onEditSupplier(supplier) },
+                                onDelete = { selectedSupplierToDelete = supplier }
+                            )
                         }
                     }
                 }

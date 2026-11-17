@@ -3,10 +3,7 @@
 package com.cuso.tailor.view.home.legal.legal_employee
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -36,11 +33,9 @@ fun LegalEmployeeListScreen(
     onNavigateToDetail: (String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    val employeeList by viewModel.legalEmployees.collectAsState()
-    val isLoading by viewModel.isLoadingEmployees.collectAsState()
+    val employeesPagingState by viewModel.legalEmployeesPagingState.collectAsState()
     val errorMessage by viewModel.employeesError.collectAsState()
 
-    // Trigger API call when entering the screen
     LaunchedEffect(Unit) {
         viewModel.fetchLegalEmployees()
     }
@@ -48,12 +43,25 @@ fun LegalEmployeeListScreen(
     var searchQuery by remember { mutableStateOf("") }
     var itemToDelete by remember { mutableStateOf<LegalEmployeeItem?>(null) }
 
+    val filtered = remember(employeesPagingState.items, searchQuery) {
+        employeesPagingState.items.filter { item ->
+            val name = item.employeeId?.displayName ?: item.employeeCode
+            val id = item.legalRecordNumber
+            name.contains(searchQuery, ignoreCase = true) || id.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    val displayPagingState = remember(employeesPagingState, filtered) {
+        employeesPagingState.copy(items = filtered)
+    }
+
     FabScaffold(
         fab = FabConfig(
             label = "Add Employee",
             icon = Icons.Default.Add,
             onClick = onNavigateToCreate
-        )
+        ),
+        fabVisible = !displayPagingState.isInitialLoading
     ) {
         Column(
             modifier = Modifier
@@ -74,10 +82,7 @@ fun LegalEmployeeListScreen(
             )
 
             when {
-                isLoading -> {
-                    ListSkeleton()
-                }
-                errorMessage != null -> {
+                errorMessage != null && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
                             text = errorMessage ?: "Error loading records",
@@ -87,26 +92,29 @@ fun LegalEmployeeListScreen(
                         )
                     }
                 }
-                else -> {
-                    val filtered = remember(employeeList, searchQuery) {
-                        employeeList.filter { item ->
-                            val name = item.employeeId?.displayName ?: item.employeeCode
-                            val id = item.legalRecordNumber
-                            name.contains(searchQuery, ignoreCase = true) || id.contains(searchQuery, ignoreCase = true)
-                        }
-                    }
 
-                    LazyColumn(
+                !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "No legal employee records found",
+                            fontSize = tokens.bodyMedium,
+                            color = mutedText
+                        )
+                    }
+                }
+
+                else -> {
+                    PaginatedDataList(
+                        state = displayPagingState,
+                        onLoadMore = { viewModel.loadMoreLegalEmployees() },
                         modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(filtered, key = { it.id }) { item ->
-                            LegalEmployeeCard(
-                                item = item,
-                                onEdit = { onNavigateToEdit(item.id) },
-                                onView = { onNavigateToDetail(item.id) },
-                                onDelete = { itemToDelete = item }
-                            )
-                        }
+                    ) { item ->
+                        LegalEmployeeCard(
+                            item = item,
+                            onEdit = { onNavigateToEdit(item.id) },
+                            onView = { onNavigateToDetail(item.id) },
+                            onDelete = { itemToDelete = item }
+                        )
                     }
                 }
             }

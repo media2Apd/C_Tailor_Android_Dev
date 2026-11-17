@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -16,9 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -43,7 +39,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,17 +69,13 @@ import com.cuso.tailor.view.composable.ActionDropdownMenu
 import com.cuso.tailor.view.composable.AppCheckbox
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DeleteModel
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.ErrorMapper
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
-import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun AllRequisitionsScreen(
@@ -96,17 +87,12 @@ fun AllRequisitionsScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val requisitionsList by viewModel.requisitionsList.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingRequisitions.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMoreRequisitions.collectAsStateWithLifecycle()
-    val canLoadMore by viewModel.canLoadMoreRequisitions.collectAsStateWithLifecycle()
-    val successMessage by viewModel.requisitionSuccessMessage.collectAsStateWithLifecycle()
+    val requisitionsPagingState by viewModel.requisitionsPagingState.collectAsStateWithLifecycle()
     val errorMessage by viewModel.requisitionErrorMessage.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedItemIds by remember { mutableStateOf(setOf<String>()) }
     var itemToDelete by remember { mutableStateOf<PurchaseRequisition?>(null) }
-    val listState = rememberLazyListState()
 
     var isInitialized by remember { mutableStateOf(false) }
     LaunchedEffect(searchQuery) {
@@ -117,26 +103,6 @@ fun AllRequisitionsScreen(
             delay(400)
             viewModel.fetchAllRequisitions(search = searchQuery.trim().ifBlank { null })
         }
-    }
-
-    LaunchedEffect(listState, canLoadMore, searchQuery) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
-        }
-            .distinctUntilChanged()
-            .collect { isNearBottom ->
-                if (isNearBottom &&
-                    canLoadMore &&
-                    !viewModel.isLoadingMoreRequisitions.value &&
-                    !viewModel.isLoadingRequisitions.value &&
-                    searchQuery.isBlank()
-                ) {
-                    viewModel.loadMoreRequisitions()
-                }
-            }
     }
 
     Box(
@@ -194,11 +160,7 @@ fun AllRequisitionsScreen(
                 HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 2.dp)
 
                 when {
-                    isLoading && requisitionsList.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
-                    errorMessage != null && requisitionsList.isEmpty() -> {
+                    errorMessage != null && requisitionsPagingState.items.isEmpty() && !requisitionsPagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load requisitions",
                             message = errorMessage?.let { ErrorMapper.map(it) } ?: "Something went wrong. Please check your connection.",
@@ -206,7 +168,7 @@ fun AllRequisitionsScreen(
                         )
                     }
 
-                    requisitionsList.isEmpty() -> {
+                    !requisitionsPagingState.isInitialLoading && requisitionsPagingState.items.isEmpty() -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -246,22 +208,15 @@ fun AllRequisitionsScreen(
                     }
 
                     else -> {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                top = tokens.extraPadding * 0.6f,
-                                bottom = tokens.buttonHeight * 2
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
-                        ) {
-                            itemsIndexed(
-                                items = requisitionsList,
-                                key = { index, item -> item.id ?: item.prNumber ?: "pr_$index" }
-                            ) { index, item ->
-                                val itemId = item.id ?: item.prNumber ?: "pr_$index"
-                                val isChecked = selectedItemIds.contains(itemId)
+                        PaginatedDataList(
+                            state = requisitionsPagingState,
+                            onLoadMore = { viewModel.loadMoreRequisitions() },
+                            modifier = Modifier.fillMaxSize()
+                        ) { item ->
+                            val itemId = item.id ?: item.prNumber ?: item.hashCode().toString()
+                            val isChecked = selectedItemIds.contains(itemId)
 
+                            Column {
                                 RequisitionCardItem(
                                     item = item,
                                     isChecked = isChecked,
@@ -277,9 +232,7 @@ fun AllRequisitionsScreen(
                                         Log.d("REQ_LIST", "Card clicked -> ID: ${item.id}, PR: ${item.prNumber}")
                                         onRequisitionClick(item)
                                     },
-                                    onEdit = {
-                                        onEditRequisition(item)
-                                    },
+                                    onEdit = { onEditRequisition(item) },
                                     onApprove = {
                                         item.id?.let { id ->
                                             viewModel.actionRequisitionApproval(id, "Approved")
@@ -290,20 +243,9 @@ fun AllRequisitionsScreen(
                                             viewModel.actionRequisitionApproval(id, "Rejected")
                                         }
                                     },
-                                    onDeleteClick = {
-                                        itemToDelete = item
-                                    }
+                                    onDeleteClick = { itemToDelete = item }
                                 )
-                            }
-
-                            if (isLoadingMore) {
-                                item(key = "pagination_threedot_loader") {
-                                    ThreeDotLoading(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp)
-                                    )
-                                }
+                                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
                             }
                         }
                     }

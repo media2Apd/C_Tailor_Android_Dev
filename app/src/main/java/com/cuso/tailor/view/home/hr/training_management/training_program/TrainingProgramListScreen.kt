@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
@@ -40,14 +38,13 @@ import com.cuso.tailor.ui.theme.redBg
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.utils.DynamicIslandManager
-import com.cuso.tailor.utils.UiState
 import com.cuso.tailor.view.composable.ActionDropdownMenu
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DeleteModel
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.TitleBar
@@ -66,25 +63,14 @@ fun TrainingProgramListScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
-    val programs by viewModel.trainingPrograms.collectAsStateWithLifecycle()
-    val listState by viewModel.trainingListState.collectAsStateWithLifecycle()
-    val isLoading = listState is UiState.Loading
+    val trainingPagingState by viewModel.trainingProgramsPagingState.collectAsStateWithLifecycle()
 
     // State to hold the target program to be deleted
     var programToDelete by remember { mutableStateOf<TrainingProgramDto?>(null) }
 
-    // Fetch programs from API on launch
+    // Fetch initial page of programs from API on launch
     LaunchedEffect(Unit) {
         viewModel.fetchTrainingPrograms()
-    }
-
-    val filteredPrograms = remember(programs, searchQuery) {
-        if (searchQuery.isBlank()) programs
-        else programs.filter {
-            it.programTitle.contains(searchQuery, ignoreCase = true) ||
-                    it.programId.contains(searchQuery, ignoreCase = true) ||
-                    it.getTrainerDisplayName().contains(searchQuery, ignoreCase = true)
-        }
     }
 
     FabScaffold(
@@ -92,7 +78,8 @@ fun TrainingProgramListScreen(
             label = "Add Program",
             icon = Icons.Default.Add,
             onClick = onAddProgramClick
-        )
+        ),
+        fabVisible = !trainingPagingState.isInitialLoading
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
@@ -111,9 +98,9 @@ fun TrainingProgramListScreen(
                 // Search & Filter Bar
                 SearchFilterBar(
                     query = searchQuery,
-                    onQueryChange = {
-                        searchQuery = it
-                        viewModel.fetchTrainingPrograms(search = it.ifBlank { null })
+                    onQueryChange = { query ->
+                        searchQuery = query
+                        viewModel.searchTrainingPrograms(query)
                     },
                     placeholder = "Search Programs, employee...",
                     showFilterIcon = true,
@@ -122,15 +109,13 @@ fun TrainingProgramListScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Content Section
+                // Content Section using reusable PaginatedDataList
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .weight(1f)
                 ) {
-                    if (isLoading && programs.isEmpty()) {
-                        ListSkeleton()
-                    } else if (filteredPrograms.isEmpty()) {
+                    if (!trainingPagingState.isInitialLoading && trainingPagingState.items.isEmpty()) {
                         Text(
                             text = "No training programs found",
                             fontSize = tokens.bodySmall,
@@ -139,16 +124,16 @@ fun TrainingProgramListScreen(
                             modifier = Modifier.align(Alignment.Center)
                         )
                     } else {
-                        LazyColumn(
+                        PaginatedDataList(
+                            state = trainingPagingState,
+                            onLoadMore = { viewModel.loadMoreTrainingPrograms() },
                             modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(filteredPrograms, key = { it.id }) { program ->
-                                TrainingProgramCard(
-                                    program = program,
-                                    onEdit = { onEditProgramClick(program.id) },
-                                    onDeleteClick = { programToDelete = program }
-                                )
-                            }
+                        ) { program ->
+                            TrainingProgramCard(
+                                program = program,
+                                onEdit = { onEditProgramClick(program.id) },
+                                onDeleteClick = { programToDelete = program }
+                            )
                         }
                     }
                 }
@@ -193,7 +178,7 @@ private fun TrainingProgramCard(
     val tokens = LocalAppTokens.current
 
     // Action menu items for Edit and Delete
-    val menuActions = remember {
+    val menuActions = remember(program.id) {
         listOf(
             MenuAction(
                 label = "Edit",

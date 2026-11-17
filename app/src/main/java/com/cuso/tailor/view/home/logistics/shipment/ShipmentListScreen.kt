@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
@@ -59,8 +57,8 @@ import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.LogisticsViewModel
@@ -74,18 +72,14 @@ fun ShipmentListScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    // Observe state from Hilt ViewModel
-    val shipments by viewModel.filteredShipments.collectAsState()
-    val isLoading by viewModel.isLoadingShipmentList.collectAsState()
+    val shipmentsPagingState by viewModel.shipmentListPagingState.collectAsState()
     val searchQuery by viewModel.shipmentSearchQuery.collectAsState()
     val errorMessage by viewModel.shipmentListError.collectAsState()
 
-    // Trigger API fetch on screen launch
     LaunchedEffect(Unit) {
         viewModel.fetchShipmentList()
     }
 
-    // Configure bottom FAB matching screenshot 1
     val fabConfig = remember(onCreateShipmentClick) {
         FabConfig(
             label = "Create Shipment",
@@ -99,11 +93,11 @@ fun ShipmentListScreen(
             .fillMaxSize()
             .background(Color.Transparent),
         fab = fabConfig,
-        fabVisible = true
+        fabVisible = !shipmentsPagingState.isInitialLoading
     ) {
         Scaffold(
             containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0,0,0,0),
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 TitleBar(
                     title = "Shipments",
@@ -116,27 +110,21 @@ fun ShipmentListScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // Search Bar matching reference style
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { viewModel.onShipmentSearchQueryChange(it) },
                     placeholder = "Search SO number, customer...",
                     showFilterIcon = true,
                     filterCount = 0,
-                    onFilterClick = { /* Optional: show FilterDrawer */ },
+                    onFilterClick = {},
                     borderColor = BorderGray,
                     height = 44.dp
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Shipment List State Handling
                 when {
-                    isLoading && shipments.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
-                    errorMessage != null && shipments.isEmpty() -> {
+                    errorMessage != null && shipmentsPagingState.items.isEmpty() && !shipmentsPagingState.isInitialLoading -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -152,7 +140,7 @@ fun ShipmentListScreen(
                         }
                     }
 
-                    shipments.isEmpty() -> {
+                    !shipmentsPagingState.isInitialLoading && shipmentsPagingState.items.isEmpty() -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -169,21 +157,16 @@ fun ShipmentListScreen(
                     }
 
                     else -> {
-                        LazyColumn(
+                        PaginatedDataList(
+                            state = shipmentsPagingState,
+                            onLoadMore = { viewModel.loadMoreShipmentList() },
                             modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(
-                                items = shipments,
-                                key = { it.id.ifBlank { it.shipmentId } }
-                            ) { shipment ->
-                                ShipmentRecordCard(
-                                    item = shipment,
-                                    onViewDetail = { validId -> onNavigateToDetails(validId) },
-                                    formatDateHelper = { isoString ->
-                                        viewModel.formatDateOnly(isoString)
-                                    }
-                                )
-                            }
+                        ) { shipment ->
+                            ShipmentRecordCard(
+                                item = shipment,
+                                onViewDetail = { validId -> onNavigateToDetails(validId) },
+                                formatDateHelper = { isoString -> viewModel.formatDateOnly(isoString) }
+                            )
                         }
                     }
                 }

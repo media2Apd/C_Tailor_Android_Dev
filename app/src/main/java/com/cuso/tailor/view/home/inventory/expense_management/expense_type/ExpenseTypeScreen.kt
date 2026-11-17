@@ -3,8 +3,6 @@
 package com.cuso.tailor.view.home.inventory.expense_management.expense_type
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
@@ -35,24 +33,28 @@ fun ExpenseTypeScreen(
     onEditExpenseType: (String) -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    val expenseTypes by viewModel.expenseTypes.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingExpenseTypes.collectAsStateWithLifecycle()
+    val typesPagingState by viewModel.expenseTypesPagingState.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         viewModel.fetchExpenseTypes()
     }
 
-    val filteredTypes = remember(expenseTypes, searchQuery) {
+    val filteredTypes = remember(typesPagingState.items, searchQuery) {
         if (searchQuery.isBlank()) {
-            expenseTypes
+            typesPagingState.items
         } else {
-            expenseTypes.filter { type ->
+            typesPagingState.items.filter { type ->
                 (type.name?.contains(searchQuery, ignoreCase = true) == true) ||
                         (type.description?.contains(searchQuery, ignoreCase = true) == true)
             }
         }
     }
+
+    val displayPagingState = remember(typesPagingState, filteredTypes) {
+        typesPagingState.copy(items = filteredTypes)
+    }
+
     var itemToDelete by remember { mutableStateOf<ExpenseTypeDto?>(null) }
     itemToDelete?.let { item ->
         DeleteModel(
@@ -74,7 +76,8 @@ fun ExpenseTypeScreen(
             label = "Add Expense Type",
             icon = Icons.Default.Add,
             onClick = onAddNewExpenseType
-        )
+        ),
+        fabVisible = !displayPagingState.isInitialLoading
     ) {
         Scaffold(
             containerColor = Color.Transparent,
@@ -103,13 +106,9 @@ fun ExpenseTypeScreen(
                     textSecondaryColor = iconMuted,
                     height = tokens.fieldHeight
                 )
-                if (isLoading) {
-                    ListSkeleton()
-                } else if (filteredTypes.isEmpty()) {
+                if (!displayPagingState.isInitialLoading && displayPagingState.items.isEmpty()) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
+                        modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -121,21 +120,19 @@ fun ExpenseTypeScreen(
                         )
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp)
-                    ) {
-                        itemsIndexed(filteredTypes, key = { _, item -> item.id }) { index, item ->
-                            ExpenseTypeItemCard(
-                                index = index + 1,
-                                item = item,
-                                onClick = { onExpenseTypeClick(item) },
-                                onEdit = { onEditExpenseType(item.id) },
-                                onDelete = {
-                                    itemToDelete = item
-                                }
-                            )
-                        }
+                    PaginatedDataList(
+                        state = displayPagingState,
+                        onLoadMore = { viewModel.loadMoreExpenseTypes() },
+                        modifier = Modifier.fillMaxSize()
+                    ) { item ->
+                        val index = displayPagingState.items.indexOfFirst { it.id == item.id }.coerceAtLeast(0)
+                        ExpenseTypeItemCard(
+                            index = index + 1,
+                            item = item,
+                            onClick = { onExpenseTypeClick(item) },
+                            onEdit = { onEditExpenseType(item.id) },
+                            onDelete = { itemToDelete = item }
+                        )
                     }
                 }
             }

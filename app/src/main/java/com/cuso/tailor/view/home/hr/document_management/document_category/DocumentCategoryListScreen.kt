@@ -4,8 +4,6 @@ package com.cuso.tailor.view.home.hr.document_management.document_category
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
@@ -33,8 +31,7 @@ fun DocumentCategoryListScreen(
 ) {
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
-    val categories by viewModel.documentCategoriesCat.collectAsState()
-    val isLoading by viewModel.isLoadingCategoriesCat.collectAsState()
+    val categoriesPagingState by viewModel.documentCategoriesCatPagingState.collectAsState()
 
     // State to track which category is selected for deletion
     var categoryToDelete by remember { mutableStateOf<DocumentCategoryDtoCat?>(null) }
@@ -54,7 +51,7 @@ fun DocumentCategoryListScreen(
     FabScaffold(
         modifier = Modifier.fillMaxSize(),
         fab = fabConfig,
-        fabVisible = !isLoading
+        fabVisible = !categoriesPagingState.isInitialLoading
     ) {
         Column(
             modifier = Modifier
@@ -85,38 +82,30 @@ fun DocumentCategoryListScreen(
             // Search Filter Bar
             SearchFilterBar(
                 query = searchQuery,
-                onQueryChange = { searchQuery = it },
+                onQueryChange = { query ->
+                    searchQuery = query
+                    viewModel.onDocumentCategorySearchChanged(query)
+                },
                 placeholder = "Search Programs, employee...",
                 onFilterClick = {}
             )
 
             Spacer(Modifier.height(12.dp))
 
-            // Category Items List
-            if (isLoading) {
-                ListSkeleton()
-            } else {
-                val filteredCategories = categories.filter {
-                    it.categoryName.contains(searchQuery, ignoreCase = true) ||
-                            (it.description ?: "").contains(searchQuery, ignoreCase = true)
-                }
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(filteredCategories, key = { it.id }) { category ->
-                        DocumentCategoryItemCard(
-                            category = category,
-                            onEditClick = { onEditCategory(category.id) },
-                            onDeleteClick = {
-                                // Trigger delete confirmation dialog
-                                categoryToDelete = category
-                            }
-                        )
+            // Category Items List using PaginatedDataList
+            PaginatedDataList(
+                state = categoriesPagingState,
+                onLoadMore = { viewModel.loadMoreDocumentCategoriesCat() },
+                modifier = Modifier.fillMaxSize()
+            ) { category ->
+                DocumentCategoryItemCard(
+                    category = category,
+                    onEditClick = { onEditCategory(category.id) },
+                    onDeleteClick = {
+                        // Trigger delete confirmation dialog
+                        categoryToDelete = category
                     }
-                }
+                )
             }
         }
     }

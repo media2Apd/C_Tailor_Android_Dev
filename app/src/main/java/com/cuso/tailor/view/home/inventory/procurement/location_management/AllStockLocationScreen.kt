@@ -4,9 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -36,37 +33,19 @@ fun AllStockLocationScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val stockList by inventoryViewModel.stockLocationItems.collectAsState()
-    val isLoading by inventoryViewModel.isLoadingStockLocations.collectAsState()
-    val isLoadingMore by inventoryViewModel.isLoadingMoreStockLocations.collectAsState()
-    val canLoadMore by inventoryViewModel.canLoadMoreStockLocations.collectAsState()
+    val stockPagingState by inventoryViewModel.stockLocationsPagingState.collectAsState()
     val errorMessage by inventoryViewModel.stockLocationError.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectAll by remember { mutableStateOf(false) }
     var selectedItemIds by remember { mutableStateOf(setOf<String>()) }
 
-    val listState = rememberLazyListState()
-
     LaunchedEffect(Unit) {
         inventoryViewModel.fetchStockLocationItems()
     }
 
-    val shouldLoadMore = remember {
-        derivedStateOf {
-            val lastVisibleItemIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            lastVisibleItemIndex >= stockList.size - 3
-        }
-    }
-
-    LaunchedEffect(shouldLoadMore.value) {
-        if (shouldLoadMore.value && canLoadMore && !isLoading && !isLoadingMore) {
-            inventoryViewModel.loadMoreStockLocationItems()
-        }
-    }
-
-    val totalStockSum = remember(stockList) {
-        stockList.sumOf { it.totalStock.toLong() }
+    val totalStockSum = remember(stockPagingState.items) {
+        stockPagingState.items.sumOf { it.totalStock.toLong() }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -75,7 +54,7 @@ fun AllStockLocationScreen(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 Column(modifier = Modifier.fillMaxWidth().background(whiteBg)) {
-                    TitleBar(title = "All Stock Location", onClose =  onClose)
+                    TitleBar(title = "All Stock Location", onClose = onClose)
                     HorizontalDivider(color = title_border)
                 }
             }
@@ -112,12 +91,16 @@ fun AllStockLocationScreen(
                                 checked = selectAll,
                                 onCheckedChange = { checked ->
                                     selectAll = checked
-                                    selectedItemIds = if (checked) stockList.map { it.id }.toSet() else emptySet()
+                                    selectedItemIds = if (checked) {
+                                        stockPagingState.items.map { it.id }.toSet()
+                                    } else {
+                                        emptySet()
+                                    }
                                 }
                             )
                             Spacer(Modifier.width(tokens.extraPadding * 0.8f))
                             Text(
-                                text = "Select All (${stockList.size} items)",
+                                text = "Select All (${stockPagingState.items.size} items)",
                                 fontSize = tokens.caption,
                                 fontWeight = FontWeight.Medium,
                                 color = title_color
@@ -131,11 +114,7 @@ fun AllStockLocationScreen(
                     }
 
                     when {
-                        isLoading && stockList.isEmpty() -> {
-                            ListSkeleton()
-                        }
-
-                        errorMessage != null && stockList.isEmpty() -> {
+                        errorMessage != null && stockPagingState.items.isEmpty() && !stockPagingState.isInitialLoading -> {
                             AppErrorState(
                                 title = "Failed to load stock locations",
                                 message = errorMessage ?: "Something went wrong. Please check your connection.",
@@ -143,7 +122,7 @@ fun AllStockLocationScreen(
                             )
                         }
 
-                        stockList.isEmpty() -> {
+                        !stockPagingState.isInitialLoading && stockPagingState.items.isEmpty() -> {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
@@ -157,21 +136,24 @@ fun AllStockLocationScreen(
                         }
 
                         else -> {
-                            LazyColumn(
-                                state = listState,
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = tokens.screenPadding * 1.5f),
-                                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 1.2f)
-                            ) {
-                                itemsIndexed(stockList, key = { _, item -> item.id }) { _, item ->
-                                    val isChecked = selectedItemIds.contains(item.id)
+                            PaginatedDataList(
+                                state = stockPagingState,
+                                onLoadMore = { inventoryViewModel.loadMoreStockLocationItems() },
+                                modifier = Modifier.fillMaxSize()
+                            ) { item ->
+                                val isChecked = selectedItemIds.contains(item.id)
+                                Column {
                                     StockLocationCardItem(
                                         item = item,
                                         isChecked = isChecked,
                                         tokens = tokens,
                                         onCheckedChange = { checked ->
-                                            selectedItemIds = if (checked) selectedItemIds + item.id else selectedItemIds - item.id
-                                            selectAll = selectedItemIds.size == stockList.size
+                                            selectedItemIds = if (checked) {
+                                                selectedItemIds + item.id
+                                            } else {
+                                                selectedItemIds - item.id
+                                            }
+                                            selectAll = selectedItemIds.size == stockPagingState.items.size
                                         },
                                         onClick = {
                                             if (item.locationCount > 0) {
@@ -181,12 +163,7 @@ fun AllStockLocationScreen(
                                         onLocationClick = { onLocationClick(item) },
                                         onOptionsClick = { onOptionsClick(item) }
                                     )
-                                }
-
-                                if (isLoadingMore) {
-                                    item {
-                                        ThreeDotLoading()
-                                    }
+                                    Spacer(Modifier.height(tokens.extraPadding * 1.2f))
                                 }
                             }
                         }

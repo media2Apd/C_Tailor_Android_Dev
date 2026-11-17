@@ -7,9 +7,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -18,7 +15,6 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Downloading
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -46,7 +42,6 @@ import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
-import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.view.home.pdfgenerator.PaymentReceiptPdfGenerator
@@ -55,7 +50,7 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 import androidx.core.graphics.toColorInt
-import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.currencySymbol
 
 // =============================================================================
@@ -72,30 +67,11 @@ fun AllInventoryPaymentScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
-    val paymentsList by viewModel.paymentsMadeList.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingPaymentsMade.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMorePaymentsMade.collectAsStateWithLifecycle()
-    val canLoadMore by viewModel.canLoadMorePaymentsMade.collectAsStateWithLifecycle()
+    val paymentsPagingState by viewModel.paymentsMadePagingState.collectAsStateWithLifecycle()
     val error by viewModel.paymentsMadeError.collectAsStateWithLifecycle()
-
-    val listState = rememberLazyListState()
 
     LaunchedEffect(Unit) {
         viewModel.fetchAllPaymentsMade(page = 1)
-    }
-
-    val shouldLoadMore = remember {
-        derivedStateOf {
-            val totalItems = listState.layoutInfo.totalItemsCount
-            val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            lastVisibleIndex >= totalItems - 3 && canLoadMore && !isLoading && !isLoadingMore
-        }
-    }
-
-    LaunchedEffect(shouldLoadMore.value) {
-        if (shouldLoadMore.value) {
-            viewModel.loadMorePaymentsMade()
-        }
     }
 
     Scaffold(
@@ -132,11 +108,7 @@ fun AllInventoryPaymentScreen(
 
             Box(modifier = Modifier.fillMaxSize()) {
                 when {
-                    isLoading -> {
-                        ListSkeleton()
-                    }
-
-                    error != null && paymentsList.isEmpty() -> {
+                    error != null && paymentsPagingState.items.isEmpty() && !paymentsPagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load payments",
                             message = error ?: "-",
@@ -144,7 +116,7 @@ fun AllInventoryPaymentScreen(
                         )
                     }
 
-                    paymentsList.isEmpty() -> {
+                    !paymentsPagingState.isInitialLoading && paymentsPagingState.items.isEmpty() -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -158,163 +130,145 @@ fun AllInventoryPaymentScreen(
                     }
 
                     else -> {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            items(
-                                items = paymentsList,
-                                key = { it.id }
-                            ) { payment ->
-                                // Check if this record is voided
-                                val isVoid = payment.status.trim().equals("Void", ignoreCase = true)
-                                val (statusBg, statusTextColor) = resolvePaymentStatusColors(payment.status)
-                                val refCode = payment.referenceNumber?.takeIf { it.isNotBlank() } ?: payment.paymentNumber
+                        PaginatedDataList(
+                            state = paymentsPagingState,
+                            onLoadMore = { viewModel.loadMorePaymentsMade() },
+                            modifier = Modifier.fillMaxSize()
+                        ) { payment ->
+                            val isVoid = payment.status.trim().equals("Void", ignoreCase = true)
+                            val (statusBg, statusTextColor) = resolvePaymentStatusColors(payment.status)
+                            val refCode = payment.referenceNumber?.takeIf { it.isNotBlank() } ?: payment.paymentNumber
 
-                                DataCard(
-                                    item = payment,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .alpha(if (isVoid) 0.55f else 1.0f) // Visually disable the card when voided
-                                        .background(if (isVoid) Color(0xFFF9FAFB) else whiteBg),
-                                    showDateIcon = false,
-                                    dateText = "${formatPaymentDate(payment.paymentDate)}   ",
-                                    code = "#$refCode#",
-                                    topBadgeText = payment.status.ifBlank { "-" },
-                                    topBadgeBgColor = if (isVoid) Color(0xFFFEE2E2) else statusBg,
-                                    topBadgeTextColor = if (isVoid) Color(0xFFDC2626) else statusTextColor,
-                                    topBadgeDotColor = if (isVoid) Color(0xFFDC2626) else statusTextColor,
-                                    topBadgeShowDot = true,
-                                    showActionsInHeader = !isVoid, // Hide header menu for voided items
-                                    actions = if (isVoid) emptyList() else listOf(
-                                        MenuAction(
-                                            label = "View Details",
-                                            icon = Icons.Outlined.RemoveRedEye,
-                                            onClick = { onPaymentSelect(payment.id) }
-                                        )
-                                    ),
-                                    showHeaderDivider = true,
-                                    showDivider = false,
-                                    // Nullify click callback when voided so navigation is completely blocked
-                                    onClick = { if (isVoid) null else { onPaymentSelect(payment.id) } },
-                                    content = {
-                                        Column(modifier = Modifier.fillMaxWidth()) {
-                                            // Middle Row: SUPPLIER and AMOUNT PAID
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.Top
-                                            ) {
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(
-                                                        text = "SUPPLIER",
-                                                        fontSize = tokens.label,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = mutedText,
-                                                        letterSpacing = 0.5.sp
-                                                    )
-                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                    Text(
-                                                        text = payment.supplierId?.name?.ifBlank { null } ?: "-",
-                                                        fontSize = tokens.bodyMedium,
-                                                        color = if (isVoid) Color(0xFF9CA3AF) else TextPrimary
-                                                    )
-                                                }
-
-                                                Column(horizontalAlignment = Alignment.End) {
-                                                    Text(
-                                                        text = "AMOUNT PAID",
-                                                        fontSize = tokens.label,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = mutedText,
-                                                        letterSpacing = 0.5.sp
-                                                    )
-                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                    Text(
-                                                        text = "${currencySymbol()}${formatIndianNumber(payment.amount)}",
-                                                        fontSize = tokens.bodyLarge,
-                                                        fontWeight = FontWeight.SemiBold,
-                                                        color = if (isVoid) Color(0xFF9CA3AF) else Primary
-                                                    )
-                                                }
+                            DataCard(
+                                item = payment,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .alpha(if (isVoid) 0.55f else 1.0f)
+                                    .background(if (isVoid) Primary_background else whiteBg),
+                                showDateIcon = false,
+                                dateText = "${formatPaymentDate(payment.paymentDate)}   ",
+                                code = "#$refCode#",
+                                topBadgeText = payment.status.ifBlank { "-" },
+                                topBadgeBgColor = if (isVoid) redBg else statusBg,
+                                topBadgeTextColor = if (isVoid) redText else statusTextColor,
+                                topBadgeDotColor = if (isVoid) redText else statusTextColor,
+                                topBadgeShowDot = true,
+                                showActionsInHeader = !isVoid,
+                                actions = if (isVoid) emptyList() else listOf(
+                                    MenuAction(
+                                        label = "View Details",
+                                        icon = Icons.Outlined.RemoveRedEye,
+                                        onClick = { onPaymentSelect(payment.id) }
+                                    )
+                                ),
+                                showHeaderDivider = true,
+                                showDivider = false,
+                                onClick = if (isVoid) null else { { onPaymentSelect(payment.id) } },
+                                content = {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.Top
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "SUPPLIER",
+                                                    fontSize = tokens.label,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = mutedText,
+                                                    letterSpacing = 0.5.sp
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = payment.supplierId?.name?.ifBlank { null } ?: "-",
+                                                    fontSize = tokens.bodyMedium,
+                                                    color = if (isVoid) mutedText else TextPrimary
+                                                )
                                             }
 
-                                            Spacer(modifier = Modifier.height(14.dp))
+                                            Column(horizontalAlignment = Alignment.End) {
+                                                Text(
+                                                    text = "AMOUNT PAID",
+                                                    fontSize = tokens.label,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = mutedText,
+                                                    letterSpacing = 0.5.sp
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = "${currencySymbol()}${formatIndianNumber(payment.amount)}",
+                                                    fontSize = tokens.bodyLarge,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = if (isVoid) mutedText else Primary
+                                                )
+                                            }
+                                        }
 
-                                            // Bottom Row: PO Number, Mode, Unused
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                        Spacer(modifier = Modifier.height(14.dp))
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.weight(1f),
+                                                horizontalAlignment = Alignment.Start
                                             ) {
-                                                Column(
-                                                    modifier = Modifier.weight(1f),
-                                                    horizontalAlignment = Alignment.Start
-                                                ) {
-                                                    Text(
-                                                        text = "PO Number",
-                                                        fontSize = tokens.caption,
-                                                        color = close_color
-                                                    )
-                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                    Text(
-                                                        text = payment.billId?.billNumber?.ifBlank { null } ?: "-",
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = if (isVoid) Color(0xFF9CA3AF) else TextPrimary
-                                                    )
-                                                }
+                                                Text(
+                                                    text = "PO Number",
+                                                    fontSize = tokens.caption,
+                                                    color = close_color
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = payment.billId?.billNumber?.ifBlank { null } ?: "-",
+                                                    fontSize = tokens.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = if (isVoid) mutedText else TextPrimary
+                                                )
+                                            }
 
-                                                Column(
-                                                    modifier = Modifier.weight(1f),
-                                                    horizontalAlignment = Alignment.CenterHorizontally
-                                                ) {
-                                                    Text(
-                                                        text = "Mode",
-                                                        fontSize = tokens.caption,
-                                                        color = close_color
-                                                    )
-                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                    Text(
-                                                        text = payment.paymentMode?.ifBlank { null } ?: "-",
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = if (isVoid) Color(0xFF9CA3AF) else TextPrimary
-                                                    )
-                                                }
+                                            Column(
+                                                modifier = Modifier.weight(1f),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                Text(
+                                                    text = "Mode",
+                                                    fontSize = tokens.caption,
+                                                    color = close_color
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = payment.paymentMode?.ifBlank { null } ?: "-",
+                                                    fontSize = tokens.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = if (isVoid) mutedText else TextPrimary
+                                                )
+                                            }
 
-                                                Column(
-                                                    modifier = Modifier.weight(1f),
-                                                    horizontalAlignment = Alignment.End
-                                                ) {
-                                                    Text(
-                                                        text = "Unused",
-                                                        fontSize = tokens.caption,
-                                                        color = close_color
-                                                    )
-                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                    val unusedVal = payment.billId?.balanceDue ?: 0.0
-                                                    Text(
-                                                        text = "${unusedVal.toInt()}",
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = if (isVoid) Color(0xFF9CA3AF) else TextPrimary
-                                                    )
-                                                }
+                                            Column(
+                                                modifier = Modifier.weight(1f),
+                                                horizontalAlignment = Alignment.End
+                                            ) {
+                                                Text(
+                                                    text = "Unused",
+                                                    fontSize = tokens.caption,
+                                                    color = close_color
+                                                )
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                val unusedVal = payment.billId?.balanceDue ?: 0.0
+                                                Text(
+                                                    text = "${unusedVal.toInt()}",
+                                                    fontSize = tokens.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = if (isVoid) mutedText else TextPrimary
+                                                )
                                             }
                                         }
                                     }
-                                )
-                            }
-
-                            if (isLoadingMore) {
-                                item {
-                                    ThreeDotLoading()
                                 }
-                            }
-                            item {
-                                Spacer(Modifier.height(50.dp))
-                            }
+                            )
                         }
                     }
                 }
@@ -452,7 +406,7 @@ fun PaymentOverviewDetailScreen(
                     val displayReceiptDate = formatIsoToDisplayDate(payment.paymentDate)
 
                     val currency = payment.billId?.currency?.ifBlank { "INR" } ?: "INR"
-                    val currencySymbol = if (currency.equals("INR", ignoreCase = true)) "${currencySymbol()}" else "$currency "
+                    val currencySymbol = if (currency.equals("INR", ignoreCase = true)) currencySymbol() else "$currency "
                     val displayTotalAmountPaid = "$currencySymbol${formatDouble(payment.amount)}"
                     val displayRecipientName = supplier?.name?.ifBlank { "-" } ?: "-"
                     val displayReferenceNumber = payment.referenceNumber?.ifBlank { "-" } ?: "-"

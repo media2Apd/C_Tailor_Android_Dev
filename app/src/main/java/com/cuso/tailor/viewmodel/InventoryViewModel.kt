@@ -86,6 +86,7 @@ import com.cuso.tailor.model.sales.ProductionTemplateItem
 import com.cuso.tailor.model.sales.ProductionTemplateResponse
 import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.InventoryRepository
+import com.cuso.tailor.utils.PagingUiState
 import com.cuso.tailor.utils.launchBusy
 import com.google.gson.Gson
 import com.google.gson.JsonParser
@@ -238,6 +239,19 @@ class InventoryViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ItemGroupUiState())
     val uiState: StateFlow<ItemGroupUiState> = _uiState.asStateFlow()
 
+    private val _itemGroupsPagingState = MutableStateFlow(PagingUiState<ItemGroupDto>())
+    val itemGroupsPagingState: StateFlow<PagingUiState<ItemGroupDto>> =
+        _itemGroupsPagingState.asStateFlow()
+
+    private fun syncItemGroupsPagingState(state: ItemGroupUiState) {
+        _itemGroupsPagingState.value = PagingUiState(
+            items = state.filteredList,
+            isInitialLoading = state.isLoading,
+            isLoadingMore = state.isLoadingMore,
+            canLoadMore = state.canLoadMore
+        )
+    }
+
     private var searchJob: Job? = null
 
     private val _isCreatingItemGroup = MutableStateFlow(false)
@@ -284,6 +298,10 @@ class InventoryViewModel @Inject constructor(
 
     private val _inventoryError = MutableStateFlow<String?>(null)
     val inventoryError: StateFlow<String?> = _inventoryError.asStateFlow()
+
+    private val _inventoryItemsPagingState = MutableStateFlow(PagingUiState<InventoryItem>())
+    val inventoryItemsPagingState: StateFlow<PagingUiState<InventoryItem>> =
+        _inventoryItemsPagingState.asStateFlow()
 
     private var activeInventorySearch: String? = null
     private var activeInventoryStatus: String? = null
@@ -392,6 +410,14 @@ class InventoryViewModel @Inject constructor(
     private val _currentStockSummaryPage = MutableStateFlow(1)
     val currentStockSummaryPage: StateFlow<Int> = _currentStockSummaryPage.asStateFlow()
 
+    private val _stockAdjustmentsPagingState = MutableStateFlow(PagingUiState<StockAdjustmentData>())
+    val stockAdjustmentsPagingState: StateFlow<PagingUiState<StockAdjustmentData>> =
+        _stockAdjustmentsPagingState.asStateFlow()
+
+    private val _stockSummaryPagingState = MutableStateFlow(PagingUiState<StockSummaryItemDto>())
+    val stockSummaryPagingState: StateFlow<PagingUiState<StockSummaryItemDto>> =
+        _stockSummaryPagingState.asStateFlow()
+
     // ── Low Stock Alerts ──
     private val _lowStockItems = MutableStateFlow<List<LowStockItemDto>>(emptyList())
     val lowStockItems: StateFlow<List<LowStockItemDto>> = _lowStockItems.asStateFlow()
@@ -426,6 +452,10 @@ class InventoryViewModel @Inject constructor(
 
     private val _currentLowStockPage = MutableStateFlow(1)
     val currentLowStockPage: StateFlow<Int> = _currentLowStockPage.asStateFlow()
+
+    private val _lowStockPagingState = MutableStateFlow(PagingUiState<LowStockItemDto>())
+    val lowStockPagingState: StateFlow<PagingUiState<LowStockItemDto>> =
+        _lowStockPagingState.asStateFlow()
 
     private var activeLowStockWarehouseId: String? = null
 
@@ -492,6 +522,10 @@ class InventoryViewModel @Inject constructor(
     private val _suppliersError = MutableStateFlow<String?>(null)
     val suppliersError: StateFlow<String?> = _suppliersError.asStateFlow()
 
+    private val _suppliersPagingState = MutableStateFlow(PagingUiState<SupplierDto>())
+    val suppliersPagingState: StateFlow<PagingUiState<SupplierDto>> =
+        _suppliersPagingState.asStateFlow()
+
     private var activeSupplierSearch: String? = null
     private var activeSupplierStatus: String? = null
 
@@ -552,6 +586,10 @@ class InventoryViewModel @Inject constructor(
     private val _currentBulkPage = MutableStateFlow(1)
     val currentBulkPage: StateFlow<Int> = _currentBulkPage.asStateFlow()
 
+    private val _bulkItemsPagingState = MutableStateFlow(PagingUiState<BulkItemDoc>())
+    val bulkItemsPagingState: StateFlow<PagingUiState<BulkItemDoc>> =
+        _bulkItemsPagingState.asStateFlow()
+
     // =========================================================================
     // 6. PURCHASE ORDERS (VIEW-ALL: PAGINATED)
     // =========================================================================
@@ -572,6 +610,10 @@ class InventoryViewModel @Inject constructor(
 
     private val _purchaseOrdersError = MutableStateFlow<String?>(null)
     val purchaseOrdersError: StateFlow<String?> = _purchaseOrdersError.asStateFlow()
+
+    private val _purchaseOrdersPagingState = MutableStateFlow(PagingUiState<PurchaseOrder>())
+    val purchaseOrdersPagingState: StateFlow<PagingUiState<PurchaseOrder>> =
+        _purchaseOrdersPagingState.asStateFlow()
 
     private var activePOSearch: String? = null
     private var activePOStatus: String? = null
@@ -618,6 +660,10 @@ class InventoryViewModel @Inject constructor(
     private val _requisitionErrorMessage = MutableStateFlow<String?>(null)
     val requisitionErrorMessage: StateFlow<String?> = _requisitionErrorMessage.asStateFlow()
 
+    private val _requisitionsPagingState = MutableStateFlow(PagingUiState<PurchaseRequisition>())
+    val requisitionsPagingState: StateFlow<PagingUiState<PurchaseRequisition>> =
+        _requisitionsPagingState.asStateFlow()
+
     private var activeReqSearch: String? = null
     private var activeReqStatus: String? = null
 
@@ -639,6 +685,10 @@ class InventoryViewModel @Inject constructor(
 
     private val _barcodeErrorMessage = MutableStateFlow<String?>(null)
     val barcodeErrorMessage: StateFlow<String?> = _barcodeErrorMessage.asStateFlow()
+
+    private val _barcodesPagingState = MutableStateFlow(PagingUiState<BarcodeItemDoc>())
+    val barcodesPagingState: StateFlow<PagingUiState<BarcodeItemDoc>> =
+        _barcodesPagingState.asStateFlow()
 
     private val _isLoadingMoreBarcodes = MutableStateFlow(false)
     val isLoadingMoreBarcodes: StateFlow<Boolean> = _isLoadingMoreBarcodes.asStateFlow()
@@ -669,6 +719,10 @@ class InventoryViewModel @Inject constructor(
 
     private val _currentReceivesPage = MutableStateFlow(1)
     val currentReceivesPage: StateFlow<Int> = _currentReceivesPage.asStateFlow()
+
+    private val _receivesPagingState = MutableStateFlow(PagingUiState<PurchaseReceiveItem>())
+    val receivesPagingState: StateFlow<PagingUiState<PurchaseReceiveItem>> =
+        _receivesPagingState.asStateFlow()
 
     private var activeReceivesSearch: String? = null
 
@@ -725,6 +779,10 @@ class InventoryViewModel @Inject constructor(
 
     private val _stockLocationError = MutableStateFlow<String?>(null)
     val stockLocationError: StateFlow<String?> = _stockLocationError.asStateFlow()
+
+    private val _stockLocationsPagingState = MutableStateFlow(PagingUiState<StockLocationItemDto>())
+    val stockLocationsPagingState: StateFlow<PagingUiState<StockLocationItemDto>> =
+        _stockLocationsPagingState.asStateFlow()
 
     private var activeStockLocationSearch: String? = null
     private var activeStockLocationStatus: String? = null
@@ -823,6 +881,10 @@ class InventoryViewModel @Inject constructor(
     private var currentSafetyStockPage = 1
     private var totalSafetyStockPages = 1
 
+    private val _safetyStockPagingState = MutableStateFlow(PagingUiState<SafetyStockItemDto>())
+    val safetyStockPagingState: StateFlow<PagingUiState<SafetyStockItemDto>> =
+        _safetyStockPagingState.asStateFlow()
+
     // =============================================================================
     // Bill list
     // =============================================================================
@@ -843,6 +905,10 @@ class InventoryViewModel @Inject constructor(
 
     private val _billsError = MutableStateFlow<String?>(null)
     val billsError: StateFlow<String?> = _billsError.asStateFlow()
+
+    private val _billsPagingState = MutableStateFlow(PagingUiState<ProcurementBillItem>())
+    val billsPagingState: StateFlow<PagingUiState<ProcurementBillItem>> =
+        _billsPagingState.asStateFlow()
 
     private var activeBillsSearch: String? = null
     private var activeBillsStatus: String? = null
@@ -1230,6 +1296,8 @@ class InventoryViewModel @Inject constructor(
                     searchQuery = query ?: ""
                 )
             }
+            syncItemGroupsPagingState(_uiState.value)
+
             val result = inventoryRepository.getInventoryItemGroup(page = 1, pageSize = ITEM_GROUP_PAGE_SIZE, search = query)
             result.onSuccess { response ->
                 val safeList = response.groups
@@ -1242,6 +1310,7 @@ class InventoryViewModel @Inject constructor(
                         errorMessage = null
                     )
                 }
+                syncItemGroupsPagingState(_uiState.value)
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(
@@ -1249,6 +1318,7 @@ class InventoryViewModel @Inject constructor(
                         errorMessage = extractErrorMessage(error.message)
                     )
                 }
+                syncItemGroupsPagingState(_uiState.value)
             }
         }
     }
@@ -1259,6 +1329,7 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingMore = true) }
+            syncItemGroupsPagingState(_uiState.value)
             val nextPage = currentState.currentPage + 1
 
             val result = inventoryRepository.getInventoryItemGroup(
@@ -1270,7 +1341,7 @@ class InventoryViewModel @Inject constructor(
             result.onSuccess { response ->
                 val newGroups = response.groups
                 _uiState.update { state ->
-                    val combinedList = (state.itemGroups + newGroups).distinct()
+                    val combinedList = (state.itemGroups + newGroups).distinctBy { it.id }
                     state.copy(
                         isLoadingMore = false,
                         currentPage = nextPage,
@@ -1279,8 +1350,10 @@ class InventoryViewModel @Inject constructor(
                         canLoadMore = newGroups.size >= ITEM_GROUP_PAGE_SIZE
                     )
                 }
+                syncItemGroupsPagingState(_uiState.value)
             }.onFailure {
                 _uiState.update { it.copy(isLoadingMore = false) }
+                syncItemGroupsPagingState(_uiState.value)
             }
         }
     }
@@ -1298,6 +1371,7 @@ class InventoryViewModel @Inject constructor(
             }
             state.copy(searchQuery = newQuery, filteredList = filtered)
         }
+        syncItemGroupsPagingState(_uiState.value)
 
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
@@ -1479,6 +1553,7 @@ class InventoryViewModel @Inject constructor(
             _canLoadMoreInventoryItems.value = true
             activeInventorySearch = search
             activeInventoryStatus = status
+            _inventoryItemsPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = inventoryRepository.getInventoryItems(page, limit, search, status)
             result.fold(
@@ -1486,14 +1561,22 @@ class InventoryViewModel @Inject constructor(
                     val newItems = response.data
                     val pagination = response.pagination
                     val totalPages = pagination?.totalPages ?: 1
+                    val canLoadMore = page < totalPages && newItems.isNotEmpty()
 
                     _inventoryItems.value = newItems
                     _inventoryPagination.value = pagination
-                    _canLoadMoreInventoryItems.value = page < totalPages && newItems.isNotEmpty()
+                    _canLoadMoreInventoryItems.value = canLoadMore
+                    _inventoryItemsPagingState.value = PagingUiState(
+                        items = newItems,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 },
                 onFailure = { e ->
                     if (e !is CancellationException) {
                         _inventoryError.value = extractErrorMessage(e.message)
+                        _inventoryItemsPagingState.value = PagingUiState(isInitialLoading = false)
                     }
                 }
             )
@@ -1546,6 +1629,7 @@ class InventoryViewModel @Inject constructor(
 
         launchBusy {
             _isLoadingMoreInventoryItems.value = true
+            _inventoryItemsPagingState.value = _inventoryItemsPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentInventoryPage.value + 1
 
             val result = inventoryRepository.getInventoryItems(
@@ -1561,18 +1645,31 @@ class InventoryViewModel @Inject constructor(
                     val pagination = response.pagination
 
                     if (newItems.isNotEmpty()) {
-                        _inventoryItems.update { (it + newItems).distinct() }
+                        val merged = (_inventoryItems.value + newItems).distinctBy { it._id }
+                        _inventoryItems.value = merged
                         _currentInventoryPage.value = nextPage
                         _inventoryPagination.value = pagination
 
                         val totalPages = pagination?.totalPages ?: nextPage
-                        _canLoadMoreInventoryItems.value = nextPage < totalPages
+                        val canLoadMore = nextPage < totalPages
+                        _canLoadMoreInventoryItems.value = canLoadMore
+                        _inventoryItemsPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMoreInventoryItems.value = false
+                        _inventoryItemsPagingState.value = _inventoryItemsPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 },
                 onFailure = { e ->
                     _inventoryError.value = extractErrorMessage(e.message)
+                    _inventoryItemsPagingState.value = _inventoryItemsPagingState.value.copy(isLoadingMore = false)
                 }
             )
             _isLoadingMoreInventoryItems.value = false
@@ -1677,6 +1774,7 @@ class InventoryViewModel @Inject constructor(
             val targetPage = 1
             _currentAdjustmentPage.value = targetPage
             _canLoadMoreAdjustments.value = true
+            _stockAdjustmentsPagingState.value = PagingUiState(isInitialLoading = true)
 
             inventoryRepository.getStockAdjustments(
                 page = targetPage,
@@ -1685,12 +1783,20 @@ class InventoryViewModel @Inject constructor(
                 search = search
             ).fold(
                 onSuccess = { response ->
+                    val canLoadMore = targetPage < response.totalPagesCount && response.data.isNotEmpty()
                     _stockAdjustmentsList.value = response.data
                     _totalAdjustments.value = response.totalCount
-                    _canLoadMoreAdjustments.value = targetPage < response.totalPagesCount
+                    _canLoadMoreAdjustments.value = canLoadMore
+                    _stockAdjustmentsPagingState.value = PagingUiState(
+                        items = response.data,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 },
                 onFailure = { error ->
                     _adjustmentErrorMessage.value = extractErrorMessage(error.message)
+                    _stockAdjustmentsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoadingAdjustments.value = false
@@ -1702,6 +1808,7 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMoreAdjustments.value = true
+            _stockAdjustmentsPagingState.value = _stockAdjustmentsPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentAdjustmentPage.value + 1
 
             inventoryRepository.getStockAdjustments(
@@ -1713,16 +1820,29 @@ class InventoryViewModel @Inject constructor(
                 onSuccess = { response ->
                     val newItems = response.data
                     if (newItems.isNotEmpty()) {
-                        _stockAdjustmentsList.update { (it + newItems).distinct() }
+                        val merged = (_stockAdjustmentsList.value + newItems).distinctBy { it.id }
+                        val canLoadMore = nextPage < response.totalPagesCount
+                        _stockAdjustmentsList.value = merged
                         _currentAdjustmentPage.value = nextPage
                         _totalAdjustments.value = response.totalCount
-                        _canLoadMoreAdjustments.value = nextPage < response.totalPagesCount
+                        _canLoadMoreAdjustments.value = canLoadMore
+                        _stockAdjustmentsPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMoreAdjustments.value = false
+                        _stockAdjustmentsPagingState.value = _stockAdjustmentsPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 },
                 onFailure = { error ->
                     _adjustmentErrorMessage.value = extractErrorMessage(error.message)
+                    _stockAdjustmentsPagingState.value = _stockAdjustmentsPagingState.value.copy(isLoadingMore = false)
                 }
             )
             _isLoadingMoreAdjustments.value = false
@@ -1819,13 +1939,25 @@ class InventoryViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoadingStockSummary.value = true
             _stockSummaryError.value = null
+            _currentStockSummaryPage.value = page
+            _stockSummaryPagingState.value = PagingUiState(isInitialLoading = true)
+
             val result = inventoryRepository.getStockSummaryList(page, limit, search)
             _isLoadingStockSummary.value = false
 
             result.onSuccess { response ->
+                val canLoadMore = response.data.size >= limit
                 _stockSummaryList.value = response.data
+                _canLoadMoreStockSummary.value = canLoadMore
+                _stockSummaryPagingState.value = PagingUiState(
+                    items = response.data,
+                    isInitialLoading = false,
+                    isLoadingMore = false,
+                    canLoadMore = canLoadMore
+                )
             }.onFailure { error ->
                 _stockSummaryError.value = extractErrorMessage(error.message)
+                _stockSummaryPagingState.value = PagingUiState(isInitialLoading = false)
             }
         }
     }
@@ -1835,20 +1967,36 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMoreStockSummary.value = true
+            _stockSummaryPagingState.value = _stockSummaryPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentStockSummaryPage.value + 1
 
             val result = inventoryRepository.getStockSummaryList(page = nextPage, limit = limit, search = search)
             result.onSuccess { response ->
                 val newItems = response.data
-                if (newItems.isNotEmpty()) {
-                    _stockSummaryList.update { (it + newItems).distinct() }
+                val merged = (_stockSummaryList.value + newItems).distinctBy {
+                    "${it.itemId}_${it.warehouseId}_${it.variant.orEmpty()}"
+                }
+                val hasNewItems = merged.size > _stockSummaryList.value.size
+                if (hasNewItems) {
+                    val canLoadMore = newItems.size >= limit
+                    _stockSummaryList.value = merged
                     _currentStockSummaryPage.value = nextPage
-                    _canLoadMoreStockSummary.value = newItems.size >= limit
+                    _canLoadMoreStockSummary.value = canLoadMore
+                    _stockSummaryPagingState.value = PagingUiState(
+                        items = merged,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 } else {
                     _canLoadMoreStockSummary.value = false
+                    _stockSummaryPagingState.value = _stockSummaryPagingState.value.copy(
+                        isLoadingMore = false,
+                        canLoadMore = false
+                    )
                 }
             }.onFailure {
-                _isLoadingMoreStockSummary.value = false
+                _stockSummaryPagingState.value = _stockSummaryPagingState.value.copy(isLoadingMore = false)
             }
             _isLoadingMoreStockSummary.value = false
         }
@@ -1886,15 +2034,24 @@ class InventoryViewModel @Inject constructor(
             _currentLowStockPage.value = 1
             _canLoadMoreLowStock.value = true
             activeLowStockWarehouseId = warehouseId
+            _lowStockPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = inventoryRepository.getLowStockAlerts(warehouseId)
             _isLoadingLowStock.value = false
 
             result.onSuccess { list ->
+                val canLoadMore = list.size >= limit
                 _lowStockItems.value = list
-                _canLoadMoreLowStock.value = list.size >= limit
+                _canLoadMoreLowStock.value = canLoadMore
+                _lowStockPagingState.value = PagingUiState(
+                    items = list,
+                    isInitialLoading = false,
+                    isLoadingMore = false,
+                    canLoadMore = canLoadMore
+                )
             }.onFailure { error ->
                 _lowStockError.value = extractErrorMessage(error.message)
+                _lowStockPagingState.value = PagingUiState(isInitialLoading = false)
             }
         }
     }
@@ -1904,6 +2061,7 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMoreLowStock.value = true
+            _lowStockPagingState.value = _lowStockPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentLowStockPage.value + 1
 
             val result = inventoryRepository.getLowStockAlerts(activeLowStockWarehouseId)
@@ -1913,14 +2071,30 @@ class InventoryViewModel @Inject constructor(
                 val distinctNewItems = newItems.filter { it.itemId !in existingIds }
 
                 if (distinctNewItems.isNotEmpty()) {
-                    _lowStockItems.value = currentList + distinctNewItems
+                    val merged = currentList + distinctNewItems
+                    val canLoadMore = newItems.size >= limit
+                    _lowStockItems.value = merged
                     _currentLowStockPage.value = nextPage
-                    _canLoadMoreLowStock.value = newItems.size >= limit
+                    _canLoadMoreLowStock.value = canLoadMore
+                    _lowStockPagingState.value = PagingUiState(
+                        items = merged,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 } else {
                     _canLoadMoreLowStock.value = false
+                    _lowStockPagingState.value = _lowStockPagingState.value.copy(
+                        isLoadingMore = false,
+                        canLoadMore = false
+                    )
                 }
             }.onFailure {
                 _canLoadMoreLowStock.value = false
+                _lowStockPagingState.value = _lowStockPagingState.value.copy(
+                    isLoadingMore = false,
+                    canLoadMore = false
+                )
             }
 
             _isLoadingMoreLowStock.value = false
@@ -2464,14 +2638,23 @@ class InventoryViewModel @Inject constructor(
             _canLoadMoreSuppliers.value = true
             activeSupplierSearch = search
             activeSupplierStatus = status
+            _suppliersPagingState.value = PagingUiState(isInitialLoading = true)
 
             inventoryRepository.getAllSuppliers(page, limit, search, status)
                 .onSuccess { list ->
+                    val canLoadMore = list.size >= limit
                     _suppliers.value = list
-                    _canLoadMoreSuppliers.value = list.size >= limit
+                    _canLoadMoreSuppliers.value = canLoadMore
+                    _suppliersPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 }
                 .onFailure { error ->
                     _suppliersError.value = extractErrorMessage(error.message)
+                    _suppliersPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             _isLoadingSuppliers.value = false
         }
@@ -2482,20 +2665,34 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMoreSuppliers.value = true
+            _suppliersPagingState.value = _suppliersPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentSupplierPage.value + 1
 
             inventoryRepository.getAllSuppliers(nextPage, limit, activeSupplierSearch, activeSupplierStatus)
                 .onSuccess { newSuppliers ->
                     if (newSuppliers.isNotEmpty()) {
-                        _suppliers.update { (it + newSuppliers).distinct() }
+                        val merged = (_suppliers.value + newSuppliers).distinctBy { it.id }
+                        val canLoadMore = newSuppliers.size >= limit
+                        _suppliers.value = merged
                         _currentSupplierPage.value = nextPage
-                        _canLoadMoreSuppliers.value = newSuppliers.size >= limit
+                        _canLoadMoreSuppliers.value = canLoadMore
+                        _suppliersPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMoreSuppliers.value = false
+                        _suppliersPagingState.value = _suppliersPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 }
                 .onFailure { error ->
                     _suppliersError.value = extractErrorMessage(error.message)
+                    _suppliersPagingState.value = _suppliersPagingState.value.copy(isLoadingMore = false)
                 }
             _isLoadingMoreSuppliers.value = false
         }
@@ -2625,16 +2822,25 @@ class InventoryViewModel @Inject constructor(
             _currentBulkPage.value = page
             _canLoadMoreBulk.value = true
             activeBulkSearch = search
+            _bulkItemsPagingState.value = PagingUiState(isInitialLoading = true)
 
             inventoryRepository.getBulkItems(page = page, limit = limit, search = search)
                 .onSuccess { list ->
                     _bulkItems.value = list
-                    _canLoadMoreBulk.value = list.size >= limit
+                    val canLoadMore = list.size >= limit
+                    _canLoadMoreBulk.value = canLoadMore
+                    _bulkItemsPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 }
                 .onFailure {
                     val msg = extractErrorMessage(it.message)
                     _errorMessage.value = msg
                     _bulkError.value = msg
+                    _bulkItemsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             _isLoading.value = false
         }
@@ -2645,6 +2851,7 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMoreBulk.value = true
+            _bulkItemsPagingState.value = _bulkItemsPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentBulkPage.value + 1
 
             inventoryRepository.getBulkItems(page = nextPage, limit = limit, search = activeBulkSearch)
@@ -2654,15 +2861,31 @@ class InventoryViewModel @Inject constructor(
                     val distinctNewItems = newItems.filter { it.id !in existingIds }
 
                     if (distinctNewItems.isNotEmpty()) {
-                        _bulkItems.value = currentList + distinctNewItems
+                        val merged = currentList + distinctNewItems
+                        val canLoadMore = newItems.size >= limit
+                        _bulkItems.value = merged
                         _currentBulkPage.value = nextPage
-                        _canLoadMoreBulk.value = newItems.size >= limit
+                        _canLoadMoreBulk.value = canLoadMore
+                        _bulkItemsPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMoreBulk.value = false
+                        _bulkItemsPagingState.value = _bulkItemsPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 }
                 .onFailure {
                     _canLoadMoreBulk.value = false
+                    _bulkItemsPagingState.value = _bulkItemsPagingState.value.copy(
+                        isLoadingMore = false,
+                        canLoadMore = false
+                    )
                 }
             _isLoadingMoreBulk.value = false
         }
@@ -2790,7 +3013,7 @@ class InventoryViewModel @Inject constructor(
     fun fetchAllPurchaseOrders(
         search: String? = null,
         status: String? = null,
-        supplierId: String? = null // <-- Added supplierId
+        supplierId: String? = null
     ) {
         viewModelScope.launch {
             _isLoadingPurchaseOrders.value = true
@@ -2799,20 +3022,29 @@ class InventoryViewModel @Inject constructor(
             _canLoadMorePurchaseOrders.value = true
             activePOSearch = search
             activePOStatus = status
+            _purchaseOrdersPagingState.value = PagingUiState(isInitialLoading = true)
 
             inventoryRepository.getAllPurchaseOrders(
                 page = 1,
                 limit = PO_PAGE_SIZE,
                 search = search,
                 status = status,
-                supplierId = supplierId // <-- Passed here
+                supplierId = supplierId
             )
                 .onSuccess { list ->
+                    val canLoadMore = list.size >= PO_PAGE_SIZE
                     _purchaseOrdersList.value = list
-                    _canLoadMorePurchaseOrders.value = list.size >= PO_PAGE_SIZE
+                    _canLoadMorePurchaseOrders.value = canLoadMore
+                    _purchaseOrdersPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 }
                 .onFailure { error ->
                     _purchaseOrdersError.value = extractErrorMessage(error.message)
+                    _purchaseOrdersPagingState.value = PagingUiState(isInitialLoading = false)
                 }
 
             _isLoadingPurchaseOrders.value = false
@@ -2824,20 +3056,34 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMorePurchaseOrders.value = true
+            _purchaseOrdersPagingState.value = _purchaseOrdersPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentPOPage.value + 1
 
             inventoryRepository.getAllPurchaseOrders(page = nextPage, limit = PO_PAGE_SIZE, search = activePOSearch, status = activePOStatus)
                 .onSuccess { newOrders ->
                     if (newOrders.isNotEmpty()) {
-                        _purchaseOrdersList.update { (it + newOrders).distinct() }
+                        val merged = (_purchaseOrdersList.value + newOrders).distinctBy { it.id ?: it.poNumber }
+                        val canLoadMore = newOrders.size >= PO_PAGE_SIZE
+                        _purchaseOrdersList.value = merged
                         _currentPOPage.value = nextPage
-                        _canLoadMorePurchaseOrders.value = newOrders.size >= PO_PAGE_SIZE
+                        _canLoadMorePurchaseOrders.value = canLoadMore
+                        _purchaseOrdersPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMorePurchaseOrders.value = false
+                        _purchaseOrdersPagingState.value = _purchaseOrdersPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 }
                 .onFailure { error ->
                     _purchaseOrdersError.value = extractErrorMessage(error.message)
+                    _purchaseOrdersPagingState.value = _purchaseOrdersPagingState.value.copy(isLoadingMore = false)
                 }
 
             _isLoadingMorePurchaseOrders.value = false
@@ -2933,14 +3179,23 @@ class InventoryViewModel @Inject constructor(
             _canLoadMoreRequisitions.value = true
             activeReqSearch = search
             activeReqStatus = status
+            _requisitionsPagingState.value = PagingUiState(isInitialLoading = true)
 
             inventoryRepository.getAllRequisitions(page = 1, limit = REQ_PAGE_SIZE, search = search, status = status)
                 .onSuccess { list ->
+                    val canLoadMore = list.size >= REQ_PAGE_SIZE
                     _requisitionsList.value = list
-                    _canLoadMoreRequisitions.value = list.size >= REQ_PAGE_SIZE
+                    _canLoadMoreRequisitions.value = canLoadMore
+                    _requisitionsPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 }
                 .onFailure { error ->
                     _requisitionErrorMessage.value = extractErrorMessage(error.message)
+                    _requisitionsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
 
             _isLoadingRequisitions.value = false
@@ -2952,20 +3207,34 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMoreRequisitions.value = true
+            _requisitionsPagingState.value = _requisitionsPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentRequisitionPage.value + 1
 
             inventoryRepository.getAllRequisitions(page = nextPage, limit = REQ_PAGE_SIZE, search = activeReqSearch, status = activeReqStatus)
                 .onSuccess { newRequisitions ->
                     if (newRequisitions.isNotEmpty()) {
-                        _requisitionsList.update { (it + newRequisitions).distinct() }
+                        val merged = (_requisitionsList.value + newRequisitions).distinctBy { it.id ?: it.prNumber }
+                        val canLoadMore = newRequisitions.size >= REQ_PAGE_SIZE
+                        _requisitionsList.value = merged
                         _currentRequisitionPage.value = nextPage
-                        _canLoadMoreRequisitions.value = newRequisitions.size >= REQ_PAGE_SIZE
+                        _canLoadMoreRequisitions.value = canLoadMore
+                        _requisitionsPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMoreRequisitions.value = false
+                        _requisitionsPagingState.value = _requisitionsPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 }
                 .onFailure { error ->
                     _requisitionErrorMessage.value = extractErrorMessage(error.message)
+                    _requisitionsPagingState.value = _requisitionsPagingState.value.copy(isLoadingMore = false)
                 }
 
             _isLoadingMoreRequisitions.value = false
@@ -3254,14 +3523,23 @@ class InventoryViewModel @Inject constructor(
             _canLoadMoreBarcodes.value = true
             activeBarcodeSearch = search
             activeBarcodeStatus = status
+            _barcodesPagingState.value = PagingUiState(isInitialLoading = true)
 
             inventoryRepository.getAllBarcodes(search = search, status = status)
                 .onSuccess { list ->
+                    val canLoadMore = list.size >= limit
                     _barcodesList.value = list
-                    _canLoadMoreBarcodes.value = list.size >= limit
+                    _canLoadMoreBarcodes.value = canLoadMore
+                    _barcodesPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 }
                 .onFailure { error ->
                     _barcodeErrorMessage.value = extractErrorMessage(error.message)
+                    _barcodesPagingState.value = PagingUiState(isInitialLoading = false)
                 }
 
             _isLoadingBarcodes.value = false
@@ -3273,6 +3551,7 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMoreBarcodes.value = true
+            _barcodesPagingState.value = _barcodesPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentBarcodePage.value + 1
 
             inventoryRepository.getAllBarcodes(search = activeBarcodeSearch, status = activeBarcodeStatus)
@@ -3282,15 +3561,31 @@ class InventoryViewModel @Inject constructor(
                     val distinctNewItems = newItems.filter { it.id !in existingIds }
 
                     if (distinctNewItems.isNotEmpty()) {
-                        _barcodesList.value = currentList + distinctNewItems
+                        val merged = currentList + distinctNewItems
+                        val canLoadMore = newItems.size >= limit
+                        _barcodesList.value = merged
                         _currentBarcodePage.value = nextPage
-                        _canLoadMoreBarcodes.value = newItems.size >= limit
+                        _canLoadMoreBarcodes.value = canLoadMore
+                        _barcodesPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMoreBarcodes.value = false
+                        _barcodesPagingState.value = _barcodesPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 }
                 .onFailure {
                     _canLoadMoreBarcodes.value = false
+                    _barcodesPagingState.value = _barcodesPagingState.value.copy(
+                        isLoadingMore = false,
+                        canLoadMore = false
+                    )
                 }
 
             _isLoadingMoreBarcodes.value = false
@@ -3386,13 +3681,24 @@ class InventoryViewModel @Inject constructor(
             _currentReceivesPage.value = 1
             _canLoadMoreReceives.value = true
             activeReceivesSearch = search
+            _receivesPagingState.value = PagingUiState(isInitialLoading = true)
 
             inventoryRepository.getAllReceives(page = 1, limit = RECEIVE_PAGE_SIZE, search = search)
                 .onSuccess { list ->
+                    val canLoadMore = list.size >= RECEIVE_PAGE_SIZE
                     _allReceives.value = list
-                    _canLoadMoreReceives.value = list.size >= RECEIVE_PAGE_SIZE
+                    _canLoadMoreReceives.value = canLoadMore
+                    _receivesPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 }
-                .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
+                .onFailure {
+                    _errorMessage.value = extractErrorMessage(it.message)
+                    _receivesPagingState.value = PagingUiState(isInitialLoading = false)
+                }
 
             _isLoadingReceives.value = false
         }
@@ -3403,19 +3709,35 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMoreReceives.value = true
+            _receivesPagingState.value = _receivesPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentReceivesPage.value + 1
 
             inventoryRepository.getAllReceives(page = nextPage, limit = RECEIVE_PAGE_SIZE, search = activeReceivesSearch)
                 .onSuccess { newReceives ->
                     if (newReceives.isNotEmpty()) {
-                        _allReceives.update { (it + newReceives).distinct() }
+                        val merged = (_allReceives.value + newReceives).distinctBy { it.id }
+                        val canLoadMore = newReceives.size >= RECEIVE_PAGE_SIZE
+                        _allReceives.value = merged
                         _currentReceivesPage.value = nextPage
-                        _canLoadMoreReceives.value = newReceives.size >= RECEIVE_PAGE_SIZE
+                        _canLoadMoreReceives.value = canLoadMore
+                        _receivesPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMoreReceives.value = false
+                        _receivesPagingState.value = _receivesPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 }
-                .onFailure { _errorMessage.value = extractErrorMessage(it.message) }
+                .onFailure {
+                    _errorMessage.value = extractErrorMessage(it.message)
+                    _receivesPagingState.value = _receivesPagingState.value.copy(isLoadingMore = false)
+                }
 
             _isLoadingMoreReceives.value = false
         }
@@ -3669,6 +3991,7 @@ class InventoryViewModel @Inject constructor(
             _canLoadMoreStockLocations.value = true
             activeStockLocationSearch = search
             activeStockLocationStatus = status
+            _stockLocationsPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = inventoryRepository.getStockLocationItems(
                 page = page,
@@ -3678,11 +4001,19 @@ class InventoryViewModel @Inject constructor(
             )
 
             result.onSuccess { response ->
+                val canLoadMore = page < response.totalPages && response.data.isNotEmpty()
                 _stockLocationItems.value = response.data
                 _stockLocationTotal.value = response.total
-                _canLoadMoreStockLocations.value = page < response.totalPages
+                _canLoadMoreStockLocations.value = canLoadMore
+                _stockLocationsPagingState.value = PagingUiState(
+                    items = response.data,
+                    isInitialLoading = false,
+                    isLoadingMore = false,
+                    canLoadMore = canLoadMore
+                )
             }.onFailure { error ->
                 _stockLocationError.value = extractErrorMessage(error.message)
+                _stockLocationsPagingState.value = PagingUiState(isInitialLoading = false)
             }
 
             _isLoadingStockLocations.value = false
@@ -3694,6 +4025,7 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMoreStockLocations.value = true
+            _stockLocationsPagingState.value = _stockLocationsPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentStockLocationPage.value + 1
 
             val result = inventoryRepository.getStockLocationItems(
@@ -3706,14 +4038,30 @@ class InventoryViewModel @Inject constructor(
             result.onSuccess { response ->
                 val newItems = response.data
                 if (newItems.isNotEmpty()) {
-                    _stockLocationItems.update { (it + newItems).distinctBy { item -> item.id } }
+                    val merged = (_stockLocationItems.value + newItems).distinctBy { it.id }
+                    val canLoadMore = nextPage < response.totalPages
+                    _stockLocationItems.value = merged
                     _currentStockLocationPage.value = nextPage
-                    _canLoadMoreStockLocations.value = nextPage < response.totalPages
+                    _canLoadMoreStockLocations.value = canLoadMore
+                    _stockLocationsPagingState.value = PagingUiState(
+                        items = merged,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 } else {
                     _canLoadMoreStockLocations.value = false
+                    _stockLocationsPagingState.value = _stockLocationsPagingState.value.copy(
+                        isLoadingMore = false,
+                        canLoadMore = false
+                    )
                 }
             }.onFailure {
                 _canLoadMoreStockLocations.value = false
+                _stockLocationsPagingState.value = _stockLocationsPagingState.value.copy(
+                    isLoadingMore = false,
+                    canLoadMore = false
+                )
             }
 
             _isLoadingMoreStockLocations.value = false
@@ -3845,6 +4193,7 @@ class InventoryViewModel @Inject constructor(
             _isLoadingSafetyStock.value = true
             _safetyStockError.value = null
             currentSafetyStockPage = 1
+            _safetyStockPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = inventoryRepository.getSafetyStock(
                 page = currentSafetyStockPage,
@@ -3856,9 +4205,17 @@ class InventoryViewModel @Inject constructor(
             result.onSuccess { response ->
                 _safetyStockList.value = response.data
                 totalSafetyStockPages = response.pagination?.totalPages ?: 1
-                _canLoadMoreSafetyStock.value = currentSafetyStockPage < totalSafetyStockPages
+                val canLoadMore = currentSafetyStockPage < totalSafetyStockPages
+                _canLoadMoreSafetyStock.value = canLoadMore
+                _safetyStockPagingState.value = PagingUiState(
+                    items = response.data,
+                    isInitialLoading = false,
+                    isLoadingMore = false,
+                    canLoadMore = canLoadMore
+                )
             }.onFailure { err ->
                 _safetyStockError.value = err.localizedMessage ?: "Failed to load safety stock"
+                _safetyStockPagingState.value = PagingUiState(isInitialLoading = false)
             }
 
             _isLoadingSafetyStock.value = false
@@ -3870,6 +4227,7 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMoreSafetyStock.value = true
+            _safetyStockPagingState.value = _safetyStockPagingState.value.copy(isLoadingMore = true)
             val nextPage = currentSafetyStockPage + 1
 
             val result = inventoryRepository.getSafetyStock(
@@ -3881,11 +4239,20 @@ class InventoryViewModel @Inject constructor(
 
             result.onSuccess { response ->
                 currentSafetyStockPage = nextPage
-                _safetyStockList.value += response.data
+                val merged = (_safetyStockList.value + response.data).distinctBy { it.itemId }
+                _safetyStockList.value = merged
                 totalSafetyStockPages = response.pagination?.totalPages ?: 1
-                _canLoadMoreSafetyStock.value = currentSafetyStockPage < totalSafetyStockPages
+                val canLoadMore = currentSafetyStockPage < totalSafetyStockPages
+                _canLoadMoreSafetyStock.value = canLoadMore
+                _safetyStockPagingState.value = PagingUiState(
+                    items = merged,
+                    isInitialLoading = false,
+                    isLoadingMore = false,
+                    canLoadMore = canLoadMore
+                )
             }.onFailure { err ->
                 _safetyStockError.value = err.localizedMessage
+                _safetyStockPagingState.value = _safetyStockPagingState.value.copy(isLoadingMore = false)
             }
 
             _isLoadingMoreSafetyStock.value = false
@@ -3914,15 +4281,24 @@ class InventoryViewModel @Inject constructor(
             _canLoadMoreBills.value = true
             activeBillsSearch = search
             activeBillsStatus = status
+            _billsPagingState.value = PagingUiState(isInitialLoading = true)
 
             inventoryRepository.getAllBills(page = page, limit = limit, search = search, status = status)
                 .onSuccess { response ->
-                    _billsList.value = response.data
                     val totalPages = response.pagination?.totalPages ?: 1
-                    _canLoadMoreBills.value = page < totalPages && response.data.isNotEmpty()
+                    val canLoadMore = page < totalPages && response.data.isNotEmpty()
+                    _billsList.value = response.data
+                    _canLoadMoreBills.value = canLoadMore
+                    _billsPagingState.value = PagingUiState(
+                        items = response.data,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 }
                 .onFailure { error ->
                     _billsError.value = extractErrorMessage(error.message)
+                    _billsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
 
             _isLoadingBills.value = false
@@ -3934,6 +4310,7 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMoreBills.value = true
+            _billsPagingState.value = _billsPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentBillsPage.value + 1
 
             inventoryRepository.getAllBills(
@@ -3944,15 +4321,31 @@ class InventoryViewModel @Inject constructor(
             ).onSuccess { response ->
                 val newBills = response.data
                 if (newBills.isNotEmpty()) {
-                    _billsList.update { (it + newBills).distinctBy { item -> item.id } }
-                    _currentBillsPage.value = nextPage
+                    val merged = (_billsList.value + newBills).distinctBy { item -> item.id }
                     val totalPages = response.pagination?.totalPages ?: nextPage
-                    _canLoadMoreBills.value = nextPage < totalPages
+                    val canLoadMore = nextPage < totalPages
+                    _billsList.value = merged
+                    _currentBillsPage.value = nextPage
+                    _canLoadMoreBills.value = canLoadMore
+                    _billsPagingState.value = PagingUiState(
+                        items = merged,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 } else {
                     _canLoadMoreBills.value = false
+                    _billsPagingState.value = _billsPagingState.value.copy(
+                        isLoadingMore = false,
+                        canLoadMore = false
+                    )
                 }
             }.onFailure {
                 _canLoadMoreBills.value = false
+                _billsPagingState.value = _billsPagingState.value.copy(
+                    isLoadingMore = false,
+                    canLoadMore = false
+                )
             }
 
             _isLoadingMoreBills.value = false
@@ -4091,6 +4484,10 @@ class InventoryViewModel @Inject constructor(
     private val _paymentsMadeError = MutableStateFlow<String?>(null)
     val paymentsMadeError: StateFlow<String?> = _paymentsMadeError.asStateFlow()
 
+    private val _paymentsMadePagingState = MutableStateFlow(PagingUiState<PaymentsMadeItem>())
+    val paymentsMadePagingState: StateFlow<PagingUiState<PaymentsMadeItem>> =
+        _paymentsMadePagingState.asStateFlow()
+
     private var activePaymentsMadeSearch: String? = null
     private var activePaymentsMadeStatus: String? = null
     private var paymentsMadeSearchJob: Job? = null
@@ -4108,6 +4505,7 @@ class InventoryViewModel @Inject constructor(
             _canLoadMorePaymentsMade.value = true
             activePaymentsMadeSearch = search
             activePaymentsMadeStatus = status
+            _paymentsMadePagingState.value = PagingUiState(isInitialLoading = true)
 
             inventoryRepository.getAllPaymentsMade(
                 page = page,
@@ -4117,9 +4515,17 @@ class InventoryViewModel @Inject constructor(
             ).onSuccess { response ->
                 _paymentsMadeList.value = response.data
                 val totalPages = response.pagination?.totalPages ?: 1
-                _canLoadMorePaymentsMade.value = page < totalPages && response.data.isNotEmpty()
+                val canLoadMore = page < totalPages && response.data.isNotEmpty()
+                _canLoadMorePaymentsMade.value = canLoadMore
+                _paymentsMadePagingState.value = PagingUiState(
+                    items = response.data,
+                    isInitialLoading = false,
+                    isLoadingMore = false,
+                    canLoadMore = canLoadMore
+                )
             }.onFailure { error ->
                 _paymentsMadeError.value = extractErrorMessage(error.message)
+                _paymentsMadePagingState.value = PagingUiState(isInitialLoading = false)
             }
 
             _isLoadingPaymentsMade.value = false
@@ -4131,6 +4537,7 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMorePaymentsMade.value = true
+            _paymentsMadePagingState.value = _paymentsMadePagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentPaymentsMadePage.value + 1
 
             inventoryRepository.getAllPaymentsMade(
@@ -4141,15 +4548,31 @@ class InventoryViewModel @Inject constructor(
             ).onSuccess { response ->
                 val newItems = response.data
                 if (newItems.isNotEmpty()) {
-                    _paymentsMadeList.update { (it + newItems).distinctBy { item -> item.id } }
+                    val merged = (_paymentsMadeList.value + newItems).distinctBy { item -> item.id }
+                    _paymentsMadeList.value = merged
                     _currentPaymentsMadePage.value = nextPage
                     val totalPages = response.pagination?.totalPages ?: nextPage
-                    _canLoadMorePaymentsMade.value = nextPage < totalPages
+                    val canLoadMore = nextPage < totalPages
+                    _canLoadMorePaymentsMade.value = canLoadMore
+                    _paymentsMadePagingState.value = PagingUiState(
+                        items = merged,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 } else {
                     _canLoadMorePaymentsMade.value = false
+                    _paymentsMadePagingState.value = _paymentsMadePagingState.value.copy(
+                        isLoadingMore = false,
+                        canLoadMore = false
+                    )
                 }
             }.onFailure {
                 _canLoadMorePaymentsMade.value = false
+                _paymentsMadePagingState.value = _paymentsMadePagingState.value.copy(
+                    isLoadingMore = false,
+                    canLoadMore = false
+                )
             }
 
             _isLoadingMorePaymentsMade.value = false
@@ -4184,16 +4607,83 @@ class InventoryViewModel @Inject constructor(
     private val _autoReorderError = MutableStateFlow<String?>(null)
     val autoReorderError: StateFlow<String?> = _autoReorderError.asStateFlow()
 
+    private val _autoReorderPagingState = MutableStateFlow(PagingUiState<AutoReorderRuleItemDto>())
+    val autoReorderPagingState: StateFlow<PagingUiState<AutoReorderRuleItemDto>> =
+        _autoReorderPagingState.asStateFlow()
+
+    private var autoReorderCurrentPage = 1
+    private val autoReorderPageSize = 15
+    private var activeAutoReorderSearch: String? = null
+
     fun fetchAutoReorderRules(search: String? = null) {
+        autoReorderCurrentPage = 1
+        activeAutoReorderSearch = search?.trim()?.ifBlank { null }
+
         viewModelScope.launch {
             _isLoadingAutoReorder.value = true
             _autoReorderError.value = null
-            val result = inventoryRepository.getAutoReorderRules(page = 1, limit = 50, search = search)
+            _autoReorderPagingState.value = PagingUiState(isInitialLoading = true)
+
+            val result = inventoryRepository.getAutoReorderRules(
+                page = autoReorderCurrentPage,
+                limit = autoReorderPageSize,
+                search = activeAutoReorderSearch
+            )
             result.fold(
-                onSuccess = { _autoReorderRules.value = it },
-                onFailure = { _autoReorderError.value = it.message ?: "Failed to load auto reorder rules" }
+                onSuccess = { list ->
+                    _autoReorderRules.value = list
+                    _autoReorderPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = list.size >= autoReorderPageSize
+                    )
+                },
+                onFailure = { err ->
+                    _autoReorderError.value = err.message ?: "Failed to load auto reorder rules"
+                    _autoReorderPagingState.value = PagingUiState(isInitialLoading = false)
+                }
             )
             _isLoadingAutoReorder.value = false
+        }
+    }
+
+    fun loadMoreAutoReorderRules() {
+        val current = _autoReorderPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        viewModelScope.launch {
+            _autoReorderPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = autoReorderCurrentPage + 1
+
+            val result = inventoryRepository.getAutoReorderRules(
+                page = nextPage,
+                limit = autoReorderPageSize,
+                search = activeAutoReorderSearch
+            )
+            result.fold(
+                onSuccess = { newItems ->
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+                    if (hasNewItems) {
+                        autoReorderCurrentPage = nextPage
+                        _autoReorderRules.value = merged
+                        _autoReorderPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= autoReorderPageSize
+                        )
+                    } else {
+                        _autoReorderPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _autoReorderPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -4279,6 +4769,10 @@ class InventoryViewModel @Inject constructor(
     private val _approvalsError = MutableStateFlow<String?>(null)
     val approvalsError: StateFlow<String?> = _approvalsError.asStateFlow()
 
+    private val _approvalsPagingState = MutableStateFlow(PagingUiState<ApprovalListItemDto>())
+    val approvalsPagingState: StateFlow<PagingUiState<ApprovalListItemDto>> =
+        _approvalsPagingState.asStateFlow()
+
     private var activeApprovalsSearch: String? = null
     private var activeApprovalsStatus: String? = null
 
@@ -4308,15 +4802,24 @@ class InventoryViewModel @Inject constructor(
             _canLoadMoreApprovals.value = true
             activeApprovalsSearch = search
             activeApprovalsStatus = status
+            _approvalsPagingState.value = PagingUiState(isInitialLoading = true)
 
             inventoryRepository.getApprovalsList(page, limit, search, status)
                 .onSuccess { response ->
                     _approvalsList.value = response.data
                     val totalPages = response.pagination?.totalPages ?: 1
-                    _canLoadMoreApprovals.value = page < totalPages && response.data.isNotEmpty()
+                    val canLoadMore = page < totalPages && response.data.isNotEmpty()
+                    _canLoadMoreApprovals.value = canLoadMore
+                    _approvalsPagingState.value = PagingUiState(
+                        items = response.data,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 }
                 .onFailure { error ->
                     _approvalsError.value = extractErrorMessage(error.message)
+                    _approvalsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
 
             _isLoadingApprovals.value = false
@@ -4328,6 +4831,7 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMoreApprovals.value = true
+            _approvalsPagingState.value = _approvalsPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentApprovalsPage.value + 1
 
             inventoryRepository.getApprovalsList(
@@ -4338,15 +4842,31 @@ class InventoryViewModel @Inject constructor(
             ).onSuccess { response ->
                 val newItems = response.data
                 if (newItems.isNotEmpty()) {
-                    _approvalsList.update { (it + newItems).distinctBy { item -> item.id } }
+                    val merged = (_approvalsList.value + newItems).distinctBy { item -> item.id }
+                    _approvalsList.value = merged
                     _currentApprovalsPage.value = nextPage
                     val totalPages = response.pagination?.totalPages ?: nextPage
-                    _canLoadMoreApprovals.value = nextPage < totalPages
+                    val canLoadMore = nextPage < totalPages
+                    _canLoadMoreApprovals.value = canLoadMore
+                    _approvalsPagingState.value = PagingUiState(
+                        items = merged,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 } else {
                     _canLoadMoreApprovals.value = false
+                    _approvalsPagingState.value = _approvalsPagingState.value.copy(
+                        isLoadingMore = false,
+                        canLoadMore = false
+                    )
                 }
             }.onFailure {
                 _canLoadMoreApprovals.value = false
+                _approvalsPagingState.value = _approvalsPagingState.value.copy(
+                    isLoadingMore = false,
+                    canLoadMore = false
+                )
             }
 
             _isLoadingMoreApprovals.value = false
@@ -4425,10 +4945,15 @@ class InventoryViewModel @Inject constructor(
                     // Optimistically update the item in current rules list
                     _autoReorderRules.update { currentList ->
                         currentList.map { item ->
-                            if (item.id == updatedItem.id) {
-                                item.copy(isActive = updatedItem.isActive)
-                            } else item
+                            if (item.id == updatedItem.id) item.copy(isActive = updatedItem.isActive) else item
                         }
+                    }
+                    _autoReorderPagingState.update { paging ->
+                        paging.copy(
+                            items = paging.items.map { item ->
+                                if (item.id == updatedItem.id) item.copy(isActive = updatedItem.isActive) else item
+                            }
+                        )
                     }
                     onSuccess(updatedItem)
                 },
@@ -4871,6 +5396,9 @@ class InventoryViewModel @Inject constructor(
     private val _currentPage = MutableStateFlow(1)
     val currentPage: StateFlow<Int> = _currentPage.asStateFlow()
 
+    private val _returnsPagingState = MutableStateFlow(PagingUiState<InventoryReturnItem>())
+    val returnsPagingState: StateFlow<PagingUiState<InventoryReturnItem>> =
+        _returnsPagingState.asStateFlow()
 
     private var activeSearch: String? = null
     private var fetchJob: Job? = null
@@ -4885,6 +5413,7 @@ class InventoryViewModel @Inject constructor(
             _errorMessage.value = null
             _currentPage.value = page
             activeSearch = search?.trim()?.ifBlank { null }
+            _returnsPagingState.value = PagingUiState(isInitialLoading = true)
 
             val queryParams = mutableMapOf<String, Any>(
                 "page" to page,
@@ -4898,14 +5427,22 @@ class InventoryViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { response ->
+                    val totalPages = response.pagination?.totalPages ?: 1
+                    val canLoadMore = page < totalPages && response.data.isNotEmpty()
                     _returnsList.value = response.data
                     _pagination.value = response.pagination
-                    val totalPages = response.pagination?.totalPages ?: 1
-                    _canLoadMore.value = page < totalPages && response.data.isNotEmpty()
+                    _canLoadMore.value = canLoadMore
+                    _returnsPagingState.value = PagingUiState(
+                        items = response.data,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 },
                 onFailure = { error ->
                     if (error !is CancellationException) {
                         _errorMessage.value = extractErrorMessage(error.message)
+                        _returnsPagingState.value = PagingUiState(isInitialLoading = false)
                     }
                 }
             )
@@ -4921,6 +5458,7 @@ class InventoryViewModel @Inject constructor(
 
         launchBusy {
             _isLoadingMore.value = true
+            _returnsPagingState.value = _returnsPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentPage.value + 1
 
             val queryParams = mutableMapOf<String, Any>(
@@ -4937,16 +5475,30 @@ class InventoryViewModel @Inject constructor(
                 onSuccess = { response ->
                     val newItems = response.data
                     if (newItems.isNotEmpty()) {
-                        _returnsList.value += newItems
+                        val merged = (_returnsList.value + newItems).distinctBy { it.id }
+                        val totalPages = response.pagination?.totalPages ?: nextPage
+                        val canLoadMore = nextPage < totalPages
+                        _returnsList.value = merged
                         _currentPage.value = nextPage
                         _pagination.value = response.pagination
-                        val totalPages = response.pagination?.totalPages ?: nextPage
-                        _canLoadMore.value = nextPage < totalPages
+                        _canLoadMore.value = canLoadMore
+                        _returnsPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMore.value = false
+                        _returnsPagingState.value = _returnsPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 },
-                onFailure = { /* Fail silently */ }
+                onFailure = {
+                    _returnsPagingState.value = _returnsPagingState.value.copy(isLoadingMore = false)
+                }
             )
             _isLoadingMore.value = false
         }
@@ -4973,6 +5525,10 @@ class InventoryViewModel @Inject constructor(
     private val _picklistError = MutableStateFlow<String?>(null)
     val picklistError: StateFlow<String?> = _picklistError.asStateFlow()
 
+    private val _picklistsPagingState = MutableStateFlow(PagingUiState<PicklistItemDto>())
+    val picklistsPagingState: StateFlow<PagingUiState<PicklistItemDto>> =
+        _picklistsPagingState.asStateFlow()
+
     private val _isCreatingPicklist = MutableStateFlow(false)
     val isCreatingPicklist: StateFlow<Boolean> = _isCreatingPicklist.asStateFlow()
 
@@ -4986,6 +5542,7 @@ class InventoryViewModel @Inject constructor(
             _picklistError.value = null
             _currentPicklistPage.value = page
             activePicklistSearch = search?.trim()?.ifBlank { null }
+            _picklistsPagingState.value = PagingUiState(isInitialLoading = true)
 
             val queryParams = mutableMapOf<String, Any>(
                 "page" to page,
@@ -5001,11 +5558,19 @@ class InventoryViewModel @Inject constructor(
                 onSuccess = { res ->
                     _picklists.value = res.data
                     val totalPages = res.pagination?.totalPages ?: 1
-                    _canLoadMorePicklists.value = page < totalPages && res.data.isNotEmpty()
+                    val canLoadMore = page < totalPages && res.data.isNotEmpty()
+                    _canLoadMorePicklists.value = canLoadMore
+                    _picklistsPagingState.value = PagingUiState(
+                        items = res.data,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 },
                 onFailure = { error ->
                     if (error !is CancellationException) {
                         _picklistError.value = extractErrorMessage(error.message)
+                        _picklistsPagingState.value = PagingUiState(isInitialLoading = false)
                     }
                 }
             )
@@ -5018,6 +5583,7 @@ class InventoryViewModel @Inject constructor(
 
         launchBusy {
             _isLoadingMorePicklists.value = true
+            _picklistsPagingState.value = _picklistsPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentPicklistPage.value + 1
 
             val queryParams = mutableMapOf<String, Any>(
@@ -5033,15 +5599,29 @@ class InventoryViewModel @Inject constructor(
             result.fold(
                 onSuccess = { res ->
                     if (res.data.isNotEmpty()) {
-                        _picklists.update { (it + res.data).distinctBy { item -> item.id } }
+                        val merged = (_picklists.value + res.data).distinctBy { item -> item.id }
+                        _picklists.value = merged
                         _currentPicklistPage.value = nextPage
                         val totalPages = res.pagination?.totalPages ?: nextPage
-                        _canLoadMorePicklists.value = nextPage < totalPages
+                        val canLoadMore = nextPage < totalPages
+                        _canLoadMorePicklists.value = canLoadMore
+                        _picklistsPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMorePicklists.value = false
+                        _picklistsPagingState.value = _picklistsPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 },
-                onFailure = { }
+                onFailure = {
+                    _picklistsPagingState.value = _picklistsPagingState.value.copy(isLoadingMore = false)
+                }
             )
             _isLoadingMorePicklists.value = false
         }
@@ -5295,6 +5875,10 @@ class InventoryViewModel @Inject constructor(
     private val _packagesError = MutableStateFlow<String?>(null)
     val packagesError: StateFlow<String?> = _packagesError.asStateFlow()
 
+    private val _packagesPagingState = MutableStateFlow(PagingUiState<PackageItemDto>())
+    val packagesPagingState: StateFlow<PagingUiState<PackageItemDto>> =
+        _packagesPagingState.asStateFlow()
+
     private var activePackagesSearch: String? = null
     private var activePackagesStatus: String? = null
     private var packagesJob: Job? = null
@@ -5312,6 +5896,7 @@ class InventoryViewModel @Inject constructor(
             _currentPackagesPage.value = page
             activePackagesSearch = search?.trim()?.ifBlank { null }
             activePackagesStatus = status?.trim()?.ifBlank { null }
+            _packagesPagingState.value = PagingUiState(isInitialLoading = true)
 
             val queryParams = mutableMapOf<String, Any>(
                 "page" to page,
@@ -5328,12 +5913,19 @@ class InventoryViewModel @Inject constructor(
                 onSuccess = { res ->
                     _packagesList.value = res.data
                     _packageSummary.value = res.summary
-                    val totalPages = null ?: 1
-                    _canLoadMorePackages.value = page < totalPages && res.data.isNotEmpty()
+                    val canLoadMore = res.data.size >= limit
+                    _canLoadMorePackages.value = canLoadMore
+                    _packagesPagingState.value = PagingUiState(
+                        items = res.data,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 },
                 onFailure = { error ->
                     if (error !is CancellationException) {
                         _packagesError.value = extractErrorMessage(error.message)
+                        _packagesPagingState.value = PagingUiState(isInitialLoading = false)
                     }
                 }
             )
@@ -5341,11 +5933,12 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    fun loadMorePackages(limit: Int = 20) {
+    fun loadMorePackages(limit: Int = 10) {
         if (_isLoadingMorePackages.value || _isLoadingPackages.value || !_canLoadMorePackages.value) return
 
         launchBusy {
             _isLoadingMorePackages.value = true
+            _packagesPagingState.value = _packagesPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentPackagesPage.value + 1
 
             val queryParams = mutableMapOf<String, Any>(
@@ -5361,16 +5954,30 @@ class InventoryViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { res ->
-                    if (res.data.isNotEmpty()) {
-                        _packagesList.update { (it + res.data).distinctBy { item -> item.id } }
+                    val merged = (_packagesList.value + res.data).distinctBy { item -> item.id }
+                    val hasNewItems = merged.size > _packagesList.value.size
+                    if (hasNewItems) {
+                        _packagesList.value = merged
                         _currentPackagesPage.value = nextPage
-                        val totalPages = null ?: nextPage
-                        _canLoadMorePackages.value = false
+                        val canLoadMore = res.data.size >= limit
+                        _canLoadMorePackages.value = canLoadMore
+                        _packagesPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMorePackages.value = false
+                        _packagesPagingState.value = _packagesPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 },
-                onFailure = { }
+                onFailure = {
+                    _packagesPagingState.value = _packagesPagingState.value.copy(isLoadingMore = false)
+                }
             )
             _isLoadingMorePackages.value = false
         }
@@ -5518,6 +6125,10 @@ class InventoryViewModel @Inject constructor(
     private val _priceListError = MutableStateFlow<String?>(null)
     val priceListError: StateFlow<String?> = _priceListError.asStateFlow()
 
+    private val _priceListsPagingState = MutableStateFlow(PagingUiState<PriceListItemDto>())
+    val priceListsPagingState: StateFlow<PagingUiState<PriceListItemDto>> =
+        _priceListsPagingState.asStateFlow()
+
     private var activePriceListSearch: String? = null
 
     /**
@@ -5531,6 +6142,7 @@ class InventoryViewModel @Inject constructor(
             _currentPriceListPage.value = page
             _canLoadMorePriceLists.value = true
             activePriceListSearch = search?.trim()?.ifBlank { null }
+            _priceListsPagingState.value = PagingUiState(isInitialLoading = true)
 
             val queryParams = mutableMapOf<String, Any>("page" to page, "limit" to limit)
             activePriceListSearch?.let { queryParams["search"] = it }
@@ -5544,11 +6156,19 @@ class InventoryViewModel @Inject constructor(
                     val items = res.data?.data.orEmpty()
                     _priceLists.value = items
                     val totalPages = res.data?.pagination?.totalPages ?: 1
-                    _canLoadMorePriceLists.value = page < totalPages && items.isNotEmpty()
+                    val canLoadMore = page < totalPages && items.isNotEmpty()
+                    _canLoadMorePriceLists.value = canLoadMore
+                    _priceListsPagingState.value = PagingUiState(
+                        items = items,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 },
                 onFailure = { err ->
                     _priceLists.value = emptyList()
                     _priceListError.value = extractErrorMessage(err.message)
+                    _priceListsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoadingPriceLists.value = false
@@ -5563,6 +6183,7 @@ class InventoryViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isLoadingMorePriceLists.value = true
+            _priceListsPagingState.value = _priceListsPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentPriceListPage.value + 1
 
             val queryParams = mutableMapOf<String, Any>("page" to nextPage, "limit" to limit)
@@ -5576,16 +6197,32 @@ class InventoryViewModel @Inject constructor(
                 onSuccess = { res ->
                     val newItems = res.data?.data.orEmpty()
                     if (newItems.isNotEmpty()) {
-                        _priceLists.update { (it + newItems).distinctBy { item -> item.id } }
+                        val merged = (_priceLists.value + newItems).distinctBy { item -> item.id }
+                        _priceLists.value = merged
                         _currentPriceListPage.value = nextPage
                         val totalPages = res.data?.pagination?.totalPages ?: nextPage
-                        _canLoadMorePriceLists.value = nextPage < totalPages
+                        val canLoadMore = nextPage < totalPages
+                        _canLoadMorePriceLists.value = canLoadMore
+                        _priceListsPagingState.value = PagingUiState(
+                            items = merged,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMorePriceLists.value = false
+                        _priceListsPagingState.value = _priceListsPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 },
                 onFailure = {
                     _canLoadMorePriceLists.value = false
+                    _priceListsPagingState.value = _priceListsPagingState.value.copy(
+                        isLoadingMore = false,
+                        canLoadMore = false
+                    )
                 }
             )
             _isLoadingMorePriceLists.value = false

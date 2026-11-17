@@ -3,8 +3,6 @@ package com.cuso.tailor.view.home.inventory.inventory.picklist
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -44,10 +42,7 @@ fun PicklistListScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
-    val picklists by viewModel.picklists.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingPicklists.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMorePicklists.collectAsStateWithLifecycle()
-    val canLoadMore by viewModel.canLoadMorePicklists.collectAsStateWithLifecycle()
+    val picklistsPagingState by viewModel.picklistsPagingState.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.fetchPicklists(page = 1)
@@ -58,7 +53,8 @@ fun PicklistListScreen(
             label = "Create Picklist",
             icon = Icons.Default.Add,
             onClick = onCreatePicklistClick
-        )
+        ),
+        fabVisible = !picklistsPagingState.isInitialLoading
     ) {
         Column(
             modifier = Modifier
@@ -89,9 +85,7 @@ fun PicklistListScreen(
                     .fillMaxSize()
                     .weight(1f)
             ) {
-                if (isLoading && picklists.isEmpty()) {
-                    ListSkeleton()
-                } else if (picklists.isEmpty()) {
+                if (!picklistsPagingState.isInitialLoading && picklistsPagingState.items.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -104,35 +98,16 @@ fun PicklistListScreen(
                         )
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = tokens.screenPadding * 4)
-                    ) {
-                        items(picklists, key = { it.id }) { item ->
-                            PicklistCardItem(
-                                item = item,
-                                onClick = { onPicklistItemClick(item) },
-                                onEditClick = { onEditPicklistClick(item.id) }
-                            )
-                        }
-
-                        if (canLoadMore) {
-                            item {
-                                LaunchedEffect(Unit) {
-                                    viewModel.loadMorePicklists()
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(tokens.screenPadding),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (isLoadingMore) {
-                                        ThreeDotLoading()
-                                    }
-                                }
-                            }
-                        }
+                    PaginatedDataList(
+                        state = picklistsPagingState,
+                        onLoadMore = { viewModel.loadMorePicklists() },
+                        modifier = Modifier.fillMaxSize()
+                    ) { item ->
+                        PicklistCardItem(
+                            item = item,
+                            onClick = { onPicklistItemClick(item) },
+                            onEditClick = { onEditPicklistClick(item.id) }
+                        )
                     }
                 }
             }

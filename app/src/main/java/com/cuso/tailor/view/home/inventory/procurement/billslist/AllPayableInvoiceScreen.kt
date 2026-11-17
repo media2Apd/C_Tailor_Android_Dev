@@ -1,10 +1,9 @@
+@file:Suppress("UNUSED_VALUE", "SpellCheckingInspection","unusedVariable", "unused", "AssignedValueIsNeverRead")
+
 package com.cuso.tailor.view.home.inventory.procurement.billslist
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
@@ -24,10 +23,10 @@ import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.ProcurementBillItem
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.PagingUiState
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.viewmodel.InventoryViewModel
-import kotlinx.coroutines.flow.distinctUntilChanged
 import java.util.Locale
 
 data class PayableInvoiceItemModel(
@@ -51,12 +50,8 @@ fun AllBillListScreen(
     viewModel: InventoryViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
-    val listState = rememberLazyListState()
 
-    val billsList by viewModel.billsList.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingBills.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMoreBills.collectAsStateWithLifecycle()
-    val canLoadMore by viewModel.canLoadMoreBills.collectAsStateWithLifecycle()
+    val billsPagingState by viewModel.billsPagingState.collectAsStateWithLifecycle()
     val error by viewModel.billsError.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -67,24 +62,8 @@ fun AllBillListScreen(
         viewModel.fetchAllBills()
     }
 
-    // Infinite scroll detection
-    LaunchedEffect(listState) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            totalItems > 0 && lastVisibleIndex >= totalItems - 2
-        }
-            .distinctUntilChanged()
-            .collect { nearBottom ->
-                if (nearBottom && canLoadMore && !isLoadingMore && !isLoading) {
-                    viewModel.loadMoreBills()
-                }
-            }
-    }
-
-    val displayItems = remember(billsList) {
-        billsList.map { it.toUiModel() }
+    val displayItems = remember(billsPagingState.items) {
+        billsPagingState.items.map { it.toUiModel() }
     }
 
     val filteredList = remember(displayItems, searchQuery) {
@@ -96,6 +75,15 @@ fun AllBillListScreen(
                         it.vendorName.contains(searchQuery, ignoreCase = true)
             }
         }
+    }
+
+    val displayPagingState = remember(billsPagingState, filteredList) {
+        PagingUiState(
+            items = filteredList,
+            isInitialLoading = billsPagingState.isInitialLoading,
+            isLoadingMore = billsPagingState.isLoadingMore,
+            canLoadMore = billsPagingState.canLoadMore
+        )
     }
 
     Box(
@@ -112,7 +100,7 @@ fun AllBillListScreen(
                         .fillMaxWidth()
                         .background(whiteBg)
                 ) {
-                    TitleBar(title = "All Bill List", onClose =onClose)
+                    TitleBar(title = "All Bill List", onClose = onClose)
                     HorizontalDivider(color = title_border)
                 }
             },
@@ -145,7 +133,6 @@ fun AllBillListScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // Search and Filter Bar
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = {
@@ -161,11 +148,7 @@ fun AllBillListScreen(
                 HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 2.dp)
 
                 when {
-                    isLoading -> {
-                        ListSkeleton()
-                    }
-
-                    error != null -> {
+                    error != null && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load bills",
                             message = error ?: "Unexpected network error",
@@ -173,7 +156,7 @@ fun AllBillListScreen(
                         )
                     }
 
-                    filteredList.isEmpty() -> {
+                    !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -196,41 +179,26 @@ fun AllBillListScreen(
                     }
 
                     else -> {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 4.dp)
-                        ) {
-                            itemsIndexed(filteredList, key = { _, item -> item.id }) { _, item ->
-                                val isChecked = selectedItemIds.contains(item.id)
-                                PayableInvoiceCardItem(
-                                    item = item,
-                                    isChecked = isChecked,
-                                    tokens = tokens,
-                                    onCheckedChange = { checked ->
-                                        selectedItemIds = if (checked) {
-                                            selectedItemIds + item.id
-                                        } else {
-                                            selectedItemIds - item.id
-                                        }
-                                    },
-                                    onClick = { onInvoiceClick(item) },
-                                    onOptionsClick = { onOptionsClick(item) }
-                                )
-                            }
-
-                            if (isLoadingMore) {
-                                item {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CirculerProgressIndicatorSmall()
+                        PaginatedDataList(
+                            state = displayPagingState,
+                            onLoadMore = { viewModel.loadMoreBills() },
+                            modifier = Modifier.fillMaxSize()
+                        ) { item ->
+                            val isChecked = selectedItemIds.contains(item.id)
+                            PayableInvoiceCardItem(
+                                item = item,
+                                isChecked = isChecked,
+                                tokens = tokens,
+                                onCheckedChange = { checked ->
+                                    selectedItemIds = if (checked) {
+                                        selectedItemIds + item.id
+                                    } else {
+                                        selectedItemIds - item.id
                                     }
-                                }
-                            }
+                                },
+                                onClick = { onInvoiceClick(item) },
+                                onOptionsClick = { onOptionsClick(item) }
+                            )
                         }
                     }
                 }

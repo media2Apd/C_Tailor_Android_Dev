@@ -10,18 +10,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -64,6 +60,7 @@ import com.cuso.tailor.view.composable.FilterDrawer
 import com.cuso.tailor.view.composable.FilterOption
 import com.cuso.tailor.view.composable.FilterSection
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
@@ -79,12 +76,11 @@ fun ItServiceDeskListScreen(
     val tokens = LocalAppTokens.current
     val filterState = rememberFilterDrawerState()
 
-    val tickets by viewModel.filteredTickets.collectAsState()
+    val ticketsPagingState by viewModel.ticketsPagingState.collectAsState()
     val metrics by viewModel.ticketMetrics.collectAsState()
     val searchQuery by viewModel.ticketSearchQuery.collectAsState()
     val selectedStatus by viewModel.selectedTicketStatus.collectAsState()
     val selectedPriority by viewModel.selectedTicketPriority.collectAsState()
-    val isLoading by viewModel.isLoadingTickets.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.fetchTicketDashboard()
@@ -131,7 +127,8 @@ fun ItServiceDeskListScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Primary_background),
-        fab = fabConfig
+        fab = fabConfig,
+        fabVisible = !ticketsPagingState.isInitialLoading
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             TitleBar(
@@ -178,116 +175,113 @@ fun ItServiceDeskListScreen(
                 TicketMetricsGrid(metrics = it)
             }
 
-            if (isLoading && tickets.isEmpty()) {
+            if (!ticketsPagingState.isInitialLoading && ticketsPagingState.items.isEmpty()) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        color = Primary,
-                        modifier = Modifier.size(tokens.buttonHeight)
+                    Text(
+                        text = "No tickets found",
+                        fontSize = tokens.bodyMedium,
+                        color = mutedText
                     )
                 }
             } else {
-                LazyColumn(
+                PaginatedDataList(
+                    state = ticketsPagingState,
+                    onLoadMore = { viewModel.loadMoreTickets() },
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
                         .weight(1f)
-                ) {
-                    items(items = tickets, key = { it.ticketId.ifEmpty { it.id.orEmpty() } }) { ticket ->
-                        val (statusBg, statusText) = getTicketStatusColors(ticket.status)
+                ) { ticket ->
+                    val (statusBg, statusText) = getTicketStatusColors(ticket.status)
 
-                        DataCard(
-                            item = ticket,
-                            title = ticket.subject,
-                            titleFontWeight = FontWeight.Medium,
-                            titleColor = title_color,
-                            smalltitle = ticket.ticketId,
-                            subtitle = ticket.category,
-                            code = null,
-                            topBadgeText = ticket.priority,
-                            topBadgeBgColor = getPriorityBgColor(ticket.priority),
-                            topBadgeTextColor = getPriorityTextColor(ticket.priority),
-                            topBadgeInline = true,
-                            showDivider = false,
-                            actions = listOf(
-                                MenuAction(
-                                    label = "View Details",
-                                    onClick = { onNavigateDetail(ticket.ticketId.ifEmpty { ticket.id.orEmpty() }) }
-                                )
+                    DataCard(
+                        item = ticket,
+                        title = ticket.subject,
+                        titleFontWeight = FontWeight.Medium,
+                        titleColor = title_color,
+                        smalltitle = ticket.ticketId,
+                        subtitle = ticket.category,
+                        code = null,
+                        topBadgeText = ticket.priority,
+                        topBadgeBgColor = getPriorityBgColor(ticket.priority),
+                        topBadgeTextColor = getPriorityTextColor(ticket.priority),
+                        topBadgeInline = true,
+                        showDivider = false,
+                        actions = listOf(
+                            MenuAction(
+                                label = "View Details",
+                                onClick = { onNavigateDetail(ticket.ticketId.ifEmpty { ticket.id.orEmpty() }) }
+                            )
+                        ),
+                        onClick = { onNavigateDetail(ticket.ticketId.ifEmpty { ticket.id.orEmpty() }) },
+                        footerAsColumns = true,
+                        footerFields = listOf(
+                            DataCardField(
+                                label = "REQUESTER",
+                                text = ticket.requester,
+                                labelColor = mutedText,
+                                textColor = TextPrimary,
+                                valueFontWeight = FontWeight.Normal
                             ),
-                            onClick = { onNavigateDetail(ticket.ticketId.ifEmpty { ticket.id.orEmpty() }) },
-                            footerAsColumns = true,
-                            footerFields = listOf(
-                                DataCardField(
-                                    label = "REQUESTER",
-                                    text = ticket.requester,
-                                    labelColor = mutedText,
-                                    textColor = TextPrimary,
-                                    valueFontWeight = FontWeight.Normal
-                                ),
-                                DataCardField(
-                                    label = "ASSIGNEE",
-                                    text = ticket.assignee,
-                                    labelColor = mutedText,
-                                    textColor = TextPrimary,
-                                    valueFontWeight = FontWeight.Normal
-                                ),
-                                DataCardField(
-                                    label = "BRANCH",
-                                    text = ticket.branch.ifBlank { "--" },
-                                    labelColor = mutedText,
-                                    textColor = TextPrimary,
-                                    valueFontWeight = FontWeight.Normal
-                                )
+                            DataCardField(
+                                label = "ASSIGNEE",
+                                text = ticket.assignee,
+                                labelColor = mutedText,
+                                textColor = TextPrimary,
+                                valueFontWeight = FontWeight.Normal
                             ),
-                            content = {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                            DataCardField(
+                                label = "BRANCH",
+                                text = ticket.branch.ifBlank { "--" },
+                                labelColor = mutedText,
+                                textColor = TextPrimary,
+                                valueFontWeight = FontWeight.Normal
+                            )
+                        ),
+                        content = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "STATUS :",
+                                        fontSize = tokens.caption,
+                                        fontWeight = FontWeight.Medium,
+                                        color = mutedText
+                                    )
+                                    Spacer(Modifier.width(tokens.screenPadding / 4))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(tokens.cardCornerRadius / 2))
+                                            .background(statusBg)
+                                            .padding(horizontal = tokens.screenPadding / 3, vertical = tokens.screenPadding / 8)
+                                    ) {
                                         Text(
-                                            text = "STATUS :",
+                                            text = ticket.status,
                                             fontSize = tokens.caption,
                                             fontWeight = FontWeight.Medium,
-                                            color = mutedText
-                                        )
-                                        Spacer(Modifier.width(tokens.screenPadding / 4))
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(tokens.cardCornerRadius / 2))
-                                                .background(statusBg)
-                                                .padding(horizontal = tokens.screenPadding / 3, vertical = tokens.screenPadding / 8)
-                                        ) {
-                                            Text(
-                                                text = ticket.status,
-                                                fontSize = tokens.caption,
-                                                fontWeight = FontWeight.Medium,
-                                                color = statusText
-                                            )
-                                        }
-                                    }
-
-                                    ticket.slaUpdateText?.let { slaText ->
-                                        Text(
-                                            text = slaText,
-                                            fontSize = tokens.caption,
-                                            fontWeight = FontWeight.Medium,
-                                            color = if (ticket.slaStatus == "BREACHED") redText else orangeText
+                                            color = statusText
                                         )
                                     }
                                 }
-                            }
-                        )
-                    }
 
-                    item {
-                        Spacer(Modifier.height(tokens.buttonHeight + tokens.screenPadding))
-                    }
+                                ticket.slaUpdateText?.let { slaText ->
+                                    Text(
+                                        text = slaText,
+                                        fontSize = tokens.caption,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (ticket.slaStatus == "BREACHED") redText else orangeText
+                                    )
+                                }
+                            }
+                        }
+                    )
                 }
             }
         }

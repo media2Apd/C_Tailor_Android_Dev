@@ -6,8 +6,6 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -109,8 +107,7 @@ fun LegalCustomerListScreen(
         viewModel.fetchLegalCustomers()
     }
 
-    val records by viewModel.legalCustomers.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingCustomers.collectAsStateWithLifecycle()
+    val customersPagingState by viewModel.legalCustomersPagingState.collectAsStateWithLifecycle()
     val errorMessage by viewModel.customersError.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -123,11 +120,11 @@ fun LegalCustomerListScreen(
         filterSections.sumOf { it.options.count { opt -> opt.isSelected } }
     }
 
-    val filteredRecords = remember(records, searchQuery, filterSections) {
+    val filteredRecords = remember(customersPagingState.items, searchQuery, filterSections) {
         val selectedStatuses = filterSections.find { it.title == "Status" }?.options?.filter { it.isSelected }?.map { it.id }.orEmpty()
         val selectedConsents = filterSections.find { it.title == "Consent Type" }?.options?.filter { it.isSelected }?.map { it.id }.orEmpty()
 
-        records.filter { item ->
+        customersPagingState.items.filter { item ->
             val customerName = item.customerId?.name.orEmpty()
             val matchesSearch = searchQuery.isBlank() ||
                     customerName.contains(searchQuery, ignoreCase = true) ||
@@ -139,6 +136,10 @@ fun LegalCustomerListScreen(
 
             matchesSearch && matchesStatus && matchesConsent
         }
+    }
+
+    val displayPagingState = remember(customersPagingState, filteredRecords) {
+        customersPagingState.copy(items = filteredRecords)
     }
 
     val fabConfig = remember(onAddCustomerRecord) {
@@ -158,7 +159,7 @@ fun LegalCustomerListScreen(
             .fillMaxSize()
             .background(Color.Transparent),
         fab = fabConfig,
-        fabVisible = true
+        fabVisible = !displayPagingState.isInitialLoading
     ) {
         Scaffold(
             containerColor = Color.Transparent,
@@ -169,62 +170,73 @@ fun LegalCustomerListScreen(
                 )
             }
         ) { paddingValues ->
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                if (isLoading && records.isEmpty()) {
-                    ListSkeleton()
-                } else if (!errorMessage.isNullOrBlank() && records.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = errorMessage ?: "Failed to load records",
-                                fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Normal,
-                                color = redText
-                            )
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            Button(
-                                onClick = { viewModel.fetchLegalCustomers() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                            ) {
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = {
+                        searchQuery = it
+                        viewModel.fetchLegalCustomers(search = it)
+                    },
+                    placeholder = "Search SO number, customer...",
+                    filterCount = activeFilterCount,
+                    onFilterClick = { filterDrawerState.open() },
+                    accentColor = Primary,
+                    borderColor = sectionBorder,
+                    textSecondaryColor = mutedText
+                )
+
+                when {
+                    !errorMessage.isNullOrBlank() && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "Retry",
+                                    text = errorMessage ?: "Failed to load records",
                                     fontSize = tokens.bodySmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = whiteBg
+                                    color = redText
                                 )
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                Button(
+                                    onClick = { viewModel.fetchLegalCustomers() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                                ) {
+                                    Text(
+                                        text = "Retry",
+                                        fontSize = tokens.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = whiteBg
+                                    )
+                                }
                             }
                         }
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 100.dp)
-                    ) {
-                        item {
-                            SearchFilterBar(
-                                query = searchQuery,
-                                onQueryChange = {
-                                    searchQuery = it
-                                    viewModel.fetchLegalCustomers(search = it)
-                                },
-                                placeholder = "Search SO number, customer...",
-                                filterCount = activeFilterCount,
-                                onFilterClick = { filterDrawerState.open() },
-                                accentColor = Primary,
-                                borderColor = sectionBorder,
-                                textSecondaryColor = mutedText
+
+                    !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No customer legal records found",
+                                fontSize = tokens.bodyMedium,
+                                color = mutedText
                             )
                         }
+                    }
 
-                        items(filteredRecords, key = { it.id }) { recordItem ->
+                    else -> {
+                        PaginatedDataList(
+                            state = displayPagingState,
+                            onLoadMore = { viewModel.loadMoreLegalCustomers() },
+                            modifier = Modifier.fillMaxSize()
+                        ) { recordItem ->
                             val customerDisplayName = recordItem.customerId?.name ?: recordItem.customerCode ?: "Customer Record"
                             val statusText = recordItem.status ?: "Pending"
                             val recordIdText = recordItem.legalCustomerNumber ?: recordItem.customerCode ?: "-"
@@ -248,19 +260,9 @@ fun LegalCustomerListScreen(
                                 topBadgeShowDot = false,
                                 topBadgeInline = true,
                                 actions = listOf(
-                                    MenuAction(
-                                        label = "Edit",
-                                        onClick = { onEditRecord(recordItem.id) }
-                                    ),
-                                    MenuAction(
-                                        label = "View Details",
-                                        onClick = { onRecordClick(recordItem) }
-                                    ),
-                                    MenuAction(
-                                        label = "Delete",
-                                        textColor = redText,
-                                        onClick = { recordToDelete = recordItem }
-                                    )
+                                    MenuAction(label = "Edit", onClick = { onEditRecord(recordItem.id) }),
+                                    MenuAction(label = "View Details", onClick = { onRecordClick(recordItem) }),
+                                    MenuAction(label = "Delete", textColor = redText, onClick = { recordToDelete = recordItem })
                                 ),
                                 showActionsInHeader = false,
                                 showDivider = false,
@@ -272,12 +274,7 @@ fun LegalCustomerListScreen(
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = "Record ID",
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Normal,
-                                                color = mutedText
-                                            )
+                                            Text("Record ID", fontSize = tokens.bodySmall, color = mutedText)
                                             Text(
                                                 text = recordIdText,
                                                 fontSize = tokens.bodySmall,
@@ -289,7 +286,6 @@ fun LegalCustomerListScreen(
 
                                         Spacer(Modifier.height(10.dp))
 
-                                        // 6-Grid Stats Box
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -299,10 +295,7 @@ fun LegalCustomerListScreen(
                                                 .padding(vertical = 10.dp, horizontal = 12.dp)
                                         ) {
                                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween
-                                                ) {
+                                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                                     Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                                                         Text("Type", fontSize = tokens.caption, color = mutedText)
                                                         Spacer(Modifier.height(2.dp))
@@ -320,10 +313,7 @@ fun LegalCustomerListScreen(
                                                     }
                                                 }
 
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween
-                                                ) {
+                                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                                     Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                                                         Text("Consent", fontSize = tokens.caption, color = mutedText)
                                                         Spacer(Modifier.height(2.dp))

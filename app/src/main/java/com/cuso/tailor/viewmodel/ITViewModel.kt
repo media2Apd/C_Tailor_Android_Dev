@@ -43,6 +43,7 @@ import com.cuso.tailor.model.it.TicketDetailDto
 import com.cuso.tailor.model.it.TicketItemDto
 import com.cuso.tailor.model.it.*
 import com.cuso.tailor.repository.ApiRepository
+import com.cuso.tailor.utils.PagingUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -197,6 +198,11 @@ class ItViewModel @Inject constructor(
     private val _devicesError = MutableStateFlow<String?>(null)
     val devicesError: StateFlow<String?> = _devicesError.asStateFlow()
 
+    private val _isLoadingMoreDevices = MutableStateFlow(false)
+    private val _canLoadMoreDevices = MutableStateFlow(true)
+    private var deviceCurrentPage = 1
+    private val devicePageSize = 20
+
     // --- States for Single Device Detail ---
     private val _deviceDetail = MutableStateFlow<DeviceItemDto?>(null)
     val deviceDetail: StateFlow<DeviceItemDto?> = _deviceDetail.asStateFlow()
@@ -231,6 +237,20 @@ class ItViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val devicesPagingState: StateFlow<PagingUiState<DeviceItemDto>> = combine(
+        filteredDevices,
+        _isLoadingDevices,
+        _isLoadingMoreDevices,
+        _canLoadMoreDevices
+    ) { items, isLoading, isLoadingMore, canLoadMore ->
+        PagingUiState(
+            items = items,
+            isInitialLoading = isLoading && items.isEmpty(),
+            isLoadingMore = isLoadingMore,
+            canLoadMore = canLoadMore
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
+
     fun onDeviceSearchQueryChange(query: String) {
         _deviceSearchQuery.value = query
     }
@@ -245,9 +265,10 @@ class ItViewModel @Inject constructor(
     }
 
     /**
-     * Fetches all devices and top summary metrics.
+     * Fetches initial devices page and top summary metrics.
      */
-    fun fetchDevicesList(page: Int = 1, limit: Int = 20) {
+    fun fetchDevicesList(page: Int = 1, limit: Int = devicePageSize) {
+        deviceCurrentPage = page
         viewModelScope.launch {
             _isLoadingDevices.value = true
             _devicesError.value = null
@@ -261,15 +282,53 @@ class ItViewModel @Inject constructor(
                     if (res.success) {
                         _devicesList.value = res.devices
                         _deviceMetrics.value = res.metrics
+                        _canLoadMoreDevices.value = res.devices.size >= limit
                     } else {
                         _devicesError.value = res.message ?: "Failed to load devices"
+                        _canLoadMoreDevices.value = false
                     }
                 },
                 onFailure = { err ->
                     _devicesError.value = err.message ?: "Network error fetching devices"
+                    _canLoadMoreDevices.value = false
                 }
             )
             _isLoadingDevices.value = false
+        }
+    }
+
+    fun loadMoreDevices() {
+        if (_isLoadingDevices.value || _isLoadingMoreDevices.value || !_canLoadMoreDevices.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreDevices.value = true
+            val nextPage = deviceCurrentPage + 1
+
+            val result = repo.request<DeviceListResponse> {
+                get(IT_DEVICE_LIST_URL, repo.query("page" to nextPage, "limit" to devicePageSize))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val merged = (_devicesList.value + res.devices).distinctBy { it.effectiveId }
+                        val hasNewItems = merged.size > _devicesList.value.size
+                        if (hasNewItems) {
+                            deviceCurrentPage = nextPage
+                            _devicesList.value = merged
+                            _canLoadMoreDevices.value = res.devices.size >= devicePageSize
+                        } else {
+                            _canLoadMoreDevices.value = false
+                        }
+                    } else {
+                        _canLoadMoreDevices.value = false
+                    }
+                },
+                onFailure = {
+                    // Keep current list so user can retry on scroll
+                }
+            )
+            _isLoadingMoreDevices.value = false
         }
     }
 
@@ -325,6 +384,11 @@ class ItViewModel @Inject constructor(
     private val _posTerminalsError = MutableStateFlow<String?>(null)
     val posTerminalsError: StateFlow<String?> = _posTerminalsError.asStateFlow()
 
+    private val _isLoadingMorePosTerminals = MutableStateFlow(false)
+    private val _canLoadMorePosTerminals = MutableStateFlow(true)
+    private var posCurrentPage = 1
+    private val posPageSize = 20
+
     // --- Single POS Detail State ---
     private val _posTerminalDetail = MutableStateFlow<PosTerminalItemDto?>(null)
     val posTerminalDetail: StateFlow<PosTerminalItemDto?> = _posTerminalDetail.asStateFlow()
@@ -358,6 +422,20 @@ class ItViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val posTerminalsPagingState: StateFlow<PagingUiState<PosTerminalItemDto>> = combine(
+        filteredPosTerminals,
+        _isLoadingPosTerminals,
+        _isLoadingMorePosTerminals,
+        _canLoadMorePosTerminals
+    ) { items, isLoading, isLoadingMore, canLoadMore ->
+        PagingUiState(
+            items = items,
+            isInitialLoading = isLoading && items.isEmpty(),
+            isLoadingMore = isLoadingMore,
+            canLoadMore = canLoadMore
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
+
     fun onPosSearchQueryChange(query: String) {
         _posSearchQuery.value = query
     }
@@ -372,9 +450,10 @@ class ItViewModel @Inject constructor(
     }
 
     /**
-     * Fetches all POS Terminals and summary metrics.
+     * Fetches initial POS Terminals page and summary metrics.
      */
-    fun fetchPosTerminalsList(page: Int = 1, limit: Int = 20) {
+    fun fetchPosTerminalsList(page: Int = 1, limit: Int = posPageSize) {
+        posCurrentPage = page
         viewModelScope.launch {
             _isLoadingPosTerminals.value = true
             _posTerminalsError.value = null
@@ -388,15 +467,53 @@ class ItViewModel @Inject constructor(
                     if (res.success) {
                         _posTerminalsList.value = res.terminals
                         _posTerminalMetrics.value = res.metrics
+                        _canLoadMorePosTerminals.value = res.terminals.size >= limit
                     } else {
                         _posTerminalsError.value = res.message ?: "Failed to load POS terminals"
+                        _canLoadMorePosTerminals.value = false
                     }
                 },
                 onFailure = { err ->
                     _posTerminalsError.value = err.message ?: "Network error fetching POS terminals"
+                    _canLoadMorePosTerminals.value = false
                 }
             )
             _isLoadingPosTerminals.value = false
+        }
+    }
+
+    fun loadMorePosTerminals() {
+        if (_isLoadingPosTerminals.value || _isLoadingMorePosTerminals.value || !_canLoadMorePosTerminals.value) return
+
+        viewModelScope.launch {
+            _isLoadingMorePosTerminals.value = true
+            val nextPage = posCurrentPage + 1
+
+            val result = repo.request<PosTerminalListResponse> {
+                get(IT_POS_TERMINAL_LIST_URL, repo.query("page" to nextPage, "limit" to posPageSize))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val merged = (_posTerminalsList.value + res.terminals).distinctBy { it.effectiveId }
+                        val hasNewItems = merged.size > _posTerminalsList.value.size
+                        if (hasNewItems) {
+                            posCurrentPage = nextPage
+                            _posTerminalsList.value = merged
+                            _canLoadMorePosTerminals.value = res.terminals.size >= posPageSize
+                        } else {
+                            _canLoadMorePosTerminals.value = false
+                        }
+                    } else {
+                        _canLoadMorePosTerminals.value = false
+                    }
+                },
+                onFailure = {
+                    // Keep current list so user can retry on scroll
+                }
+            )
+            _isLoadingMorePosTerminals.value = false
         }
     }
 
@@ -530,6 +647,11 @@ class ItViewModel @Inject constructor(
     private val _backupsError = MutableStateFlow<String?>(null)
     val backupsError: StateFlow<String?> = _backupsError.asStateFlow()
 
+    private val _isLoadingMoreBackups = MutableStateFlow(false)
+    private val _canLoadMoreBackups = MutableStateFlow(true)
+    private var backupCurrentPage = 1
+    private val backupPageSize = 10
+
     // Backup Snapshot Detail States
     private val _backupDetail = MutableStateFlow<BackupSnapshotDetailDto?>(null)
     val backupDetail: StateFlow<BackupSnapshotDetailDto?> = _backupDetail.asStateFlow()
@@ -561,6 +683,20 @@ class ItViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val backupJobsPagingState: StateFlow<PagingUiState<BackupJobItemDto>> = combine(
+        filteredBackupJobs,
+        _isLoadingBackups,
+        _isLoadingMoreBackups,
+        _canLoadMoreBackups
+    ) { items, isLoading, isLoadingMore, canLoadMore ->
+        PagingUiState(
+            items = items,
+            isInitialLoading = isLoading && items.isEmpty(),
+            isLoadingMore = isLoadingMore,
+            canLoadMore = canLoadMore
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
+
     fun onBackupSearchQueryChange(query: String) {
         _backupSearchQuery.value = query
     }
@@ -575,9 +711,10 @@ class ItViewModel @Inject constructor(
     }
 
     /**
-     * Fetches backup dashboard metrics and job list from backend.
+     * Fetches initial backup dashboard metrics and job list from backend.
      */
-    fun fetchBackupDashboard(page: Int = 1, limit: Int = 10) {
+    fun fetchBackupDashboard(page: Int = 1, limit: Int = backupPageSize) {
+        backupCurrentPage = page
         viewModelScope.launch {
             _isLoadingBackups.value = true
             _backupsError.value = null
@@ -591,15 +728,53 @@ class ItViewModel @Inject constructor(
                     if (res.success) {
                         _backupJobsList.value = res.jobs
                         _backupMetrics.value = res.metrics
+                        _canLoadMoreBackups.value = res.jobs.size >= limit
                     } else {
                         _backupsError.value = res.message ?: "Failed to load backup dashboard data"
+                        _canLoadMoreBackups.value = false
                     }
                 },
                 onFailure = { err ->
                     _backupsError.value = err.message ?: "Network error fetching backup data"
+                    _canLoadMoreBackups.value = false
                 }
             )
             _isLoadingBackups.value = false
+        }
+    }
+
+    fun loadMoreBackupJobs() {
+        if (_isLoadingBackups.value || _isLoadingMoreBackups.value || !_canLoadMoreBackups.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreBackups.value = true
+            val nextPage = backupCurrentPage + 1
+
+            val result = repo.request<BackupDashboardResponse> {
+                get(IT_BACKUP_DASHBOARD_URL, repo.query("page" to nextPage, "limit" to backupPageSize))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val merged = (_backupJobsList.value + res.jobs).distinctBy { it.effectiveId }
+                        val hasNewItems = merged.size > _backupJobsList.value.size
+                        if (hasNewItems) {
+                            backupCurrentPage = nextPage
+                            _backupJobsList.value = merged
+                            _canLoadMoreBackups.value = res.jobs.size >= backupPageSize
+                        } else {
+                            _canLoadMoreBackups.value = false
+                        }
+                    } else {
+                        _canLoadMoreBackups.value = false
+                    }
+                },
+                onFailure = {
+                    // Keep current list so user can retry on scroll
+                }
+            )
+            _isLoadingMoreBackups.value = false
         }
     }
 
@@ -743,6 +918,11 @@ class ItViewModel @Inject constructor(
     private val _assetError = MutableStateFlow<String?>(null)
     val assetError: StateFlow<String?> = _assetError.asStateFlow()
 
+    private val _isLoadingMoreAssets = MutableStateFlow(false)
+    private val _canLoadMoreAssets = MutableStateFlow(true)
+    private var assetCurrentPage = 1
+    private val assetPageSize = 10
+
     // --- Single Asset Detail State ---
     private val _assetDetail = MutableStateFlow<AssetDetailDto?>(null)
     val assetDetail: StateFlow<AssetDetailDto?> = _assetDetail.asStateFlow()
@@ -776,6 +956,20 @@ class ItViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val assetsPagingState: StateFlow<PagingUiState<AssetItemDto>> = combine(
+        filteredAssets,
+        _isLoadingAssets,
+        _isLoadingMoreAssets,
+        _canLoadMoreAssets
+    ) { items, isLoading, isLoadingMore, canLoadMore ->
+        PagingUiState(
+            items = items,
+            isInitialLoading = isLoading && items.isEmpty(),
+            isLoadingMore = isLoadingMore,
+            canLoadMore = canLoadMore
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
+
     fun onAssetSearchQueryChange(query: String) {
         _assetSearchQuery.value = query
     }
@@ -794,7 +988,8 @@ class ItViewModel @Inject constructor(
         _selectedAssetType.value = null
     }
 
-    fun fetchAssetDashboard(page: Int = 1, limit: Int = 10) {
+    fun fetchAssetDashboard(page: Int = 1, limit: Int = assetPageSize) {
+        assetCurrentPage = page
         viewModelScope.launch {
             _isLoadingAssets.value = true
             _assetError.value = null
@@ -808,15 +1003,55 @@ class ItViewModel @Inject constructor(
                     if (res.success) {
                         _assetList.value = res.assets
                         _assetMetrics.value = res.metrics
+                        _canLoadMoreAssets.value = res.assets.size >= limit
                     } else {
                         _assetError.value = res.message ?: "Failed to load IT assets"
+                        _canLoadMoreAssets.value = false
                     }
                 },
                 onFailure = { err ->
                     _assetError.value = err.message ?: "Network error loading IT assets"
+                    _canLoadMoreAssets.value = false
                 }
             )
             _isLoadingAssets.value = false
+        }
+    }
+
+    fun loadMoreAssets() {
+        if (_isLoadingAssets.value || _isLoadingMoreAssets.value || !_canLoadMoreAssets.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreAssets.value = true
+            val nextPage = assetCurrentPage + 1
+
+            val result = repo.request<AssetDashboardResponse> {
+                get(IT_ASSET_DASHBOARD_URL, repo.query("page" to nextPage, "limit" to assetPageSize))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val merged = (_assetList.value + res.assets).distinctBy {
+                            it.assetId.ifEmpty { it.id.orEmpty() }
+                        }
+                        val hasNewItems = merged.size > _assetList.value.size
+                        if (hasNewItems) {
+                            assetCurrentPage = nextPage
+                            _assetList.value = merged
+                            _canLoadMoreAssets.value = res.assets.size >= assetPageSize
+                        } else {
+                            _canLoadMoreAssets.value = false
+                        }
+                    } else {
+                        _canLoadMoreAssets.value = false
+                    }
+                },
+                onFailure = {
+                    // Keep current list so user can retry on scroll
+                }
+            )
+            _isLoadingMoreAssets.value = false
         }
     }
 
@@ -954,6 +1189,11 @@ class ItViewModel @Inject constructor(
     private val _isLoadingTickets = MutableStateFlow(false)
     val isLoadingTickets: StateFlow<Boolean> = _isLoadingTickets.asStateFlow()
 
+    private val _isLoadingMoreTickets = MutableStateFlow(false)
+    private val _canLoadMoreTickets = MutableStateFlow(true)
+    private var ticketCurrentPage = 1
+    private val ticketPageSize = 10
+
     private val _ticketDetail = MutableStateFlow<TicketDetailDto?>(null)
     val ticketDetail: StateFlow<TicketDetailDto?> = _ticketDetail.asStateFlow()
 
@@ -984,6 +1224,20 @@ class ItViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val ticketsPagingState: StateFlow<PagingUiState<TicketItemDto>> = combine(
+        filteredTickets,
+        _isLoadingTickets,
+        _isLoadingMoreTickets,
+        _canLoadMoreTickets
+    ) { items, isLoading, isLoadingMore, canLoadMore ->
+        PagingUiState(
+            items = items,
+            isInitialLoading = isLoading && items.isEmpty(),
+            isLoadingMore = isLoadingMore,
+            canLoadMore = canLoadMore
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
+
     fun onTicketSearchQueryChange(query: String) { _ticketSearchQuery.value = query }
     fun onTicketStatusFilterChange(status: String?) { _selectedTicketStatus.value = status }
     fun onTicketPriorityFilterChange(priority: String?) { _selectedTicketPriority.value = priority }
@@ -996,7 +1250,8 @@ class ItViewModel @Inject constructor(
         _selectedTicketCategory.value = null
     }
 
-    fun fetchTicketDashboard(page: Int = 1, limit: Int = 10) {
+    fun fetchTicketDashboard(page: Int = 1, limit: Int = ticketPageSize) {
+        ticketCurrentPage = page
         viewModelScope.launch {
             _isLoadingTickets.value = true
             val result = repo.request<TicketDashboardResponse> {
@@ -1007,11 +1262,52 @@ class ItViewModel @Inject constructor(
                     if (res.success) {
                         _ticketList.value = res.tickets
                         _ticketMetrics.value = res.metrics
+                        _canLoadMoreTickets.value = res.tickets.size >= limit
+                    } else {
+                        _canLoadMoreTickets.value = false
                     }
                 },
-                onFailure = { /* Handle error */ }
+                onFailure = {
+                    _canLoadMoreTickets.value = false
+                }
             )
             _isLoadingTickets.value = false
+        }
+    }
+
+    fun loadMoreTickets() {
+        if (_isLoadingTickets.value || _isLoadingMoreTickets.value || !_canLoadMoreTickets.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreTickets.value = true
+            val nextPage = ticketCurrentPage + 1
+
+            val result = repo.request<TicketDashboardResponse> {
+                get(IT_TICKET_DASHBOARD_URL, repo.query("page" to nextPage, "limit" to ticketPageSize))
+            }
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val merged = (_ticketList.value + res.tickets).distinctBy {
+                            it.ticketId.ifEmpty { it.id.orEmpty() }
+                        }
+                        val hasNewItems = merged.size > _ticketList.value.size
+                        if (hasNewItems) {
+                            ticketCurrentPage = nextPage
+                            _ticketList.value = merged
+                            _canLoadMoreTickets.value = res.tickets.size >= ticketPageSize
+                        } else {
+                            _canLoadMoreTickets.value = false
+                        }
+                    } else {
+                        _canLoadMoreTickets.value = false
+                    }
+                },
+                onFailure = {
+                    // Keep current list so user can retry on scroll
+                }
+            )
+            _isLoadingMoreTickets.value = false
         }
     }
 

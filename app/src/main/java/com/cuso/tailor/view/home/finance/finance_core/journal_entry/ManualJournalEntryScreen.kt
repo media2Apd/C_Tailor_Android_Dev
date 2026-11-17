@@ -4,9 +4,6 @@ package com.cuso.tailor.view.home.finance.finance_core.journal_entry
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -17,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.model.finance.JournalEntryItem
@@ -34,10 +30,9 @@ import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DeleteModel
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
-import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.DeleteJournalState
 import com.cuso.tailor.viewmodel.FinanceViewModel
@@ -69,15 +64,11 @@ fun ManualJournalEntryScreen(
     val deleteJournalState by financeViewModel.deleteJournalState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Collect Journal Entry list and pagination states
-    val entries by financeViewModel.journalEntries.collectAsStateWithLifecycle()
-    val isLoading by financeViewModel.isLoadingJournalEntries.collectAsStateWithLifecycle()
-    val isLoadingMore by financeViewModel.isLoadingMoreJournalEntries.collectAsStateWithLifecycle()
-    val canLoadMore by financeViewModel.canLoadMoreJournalEntries.collectAsStateWithLifecycle()
+    // Collect Journal Entry paginated state
+    val journalPagingState by financeViewModel.journalEntriesPagingState.collectAsStateWithLifecycle()
     val errorMessage by financeViewModel.journalEntriesError.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
-    val listState = rememberLazyListState()
 
     // Handle delete state feedback
     LaunchedEffect(deleteJournalState) {
@@ -107,24 +98,6 @@ fun ManualJournalEntryScreen(
         financeViewModel.fetchJournalEntries(search = searchQuery.trim().ifBlank { null })
     }
 
-    // Detect when the user scrolls near the bottom of the list
-    val shouldLoadMore = remember {
-        derivedStateOf {
-            val layoutInfo = listState.layoutInfo
-            val totalItemsNumber = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-
-            totalItemsNumber > 0 && lastVisibleItemIndex >= totalItemsNumber - 2
-        }
-    }
-
-    // Trigger load more when reaching the end
-    LaunchedEffect(shouldLoadMore.value) {
-        if (shouldLoadMore.value && canLoadMore && !isLoadingMore && !isLoading) {
-            financeViewModel.loadMoreJournalEntries()
-        }
-    }
-
     // Navigate to form screen if create/view/edit is active
     if (formMode != null) {
         JournalEntryFormScreen(
@@ -145,8 +118,10 @@ fun ManualJournalEntryScreen(
         return
     }
 
-    val filteredEntries = remember(entries) {
-        entries.filter { it.isManual }
+    val manualJournalPagingState = remember(journalPagingState) {
+        journalPagingState.copy(
+            items = journalPagingState.items.filter { it.isManual }
+        )
     }
 
     Scaffold(
@@ -198,92 +173,81 @@ fun ManualJournalEntryScreen(
                 )
             ) {
                 when {
-                    isLoading && filteredEntries.isEmpty() -> {
-                        ListSkeleton()
-                    }
-                    errorMessage != null && filteredEntries.isEmpty() -> {
+                    errorMessage != null && manualJournalPagingState.items.isEmpty() && !manualJournalPagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load manual journal entry",
                             message = "Something went wrong. Please check your connection and try again.",
-                            onRetry = {  }
+                            onRetry = {
+                                financeViewModel.fetchJournalEntries(search = searchQuery.trim().ifBlank { null })
+                            }
                         )
                     }
-                    filteredEntries.isEmpty() -> {
+                    !manualJournalPagingState.isInitialLoading && manualJournalPagingState.items.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("No journal entries found", color = TextSecondary)
                         }
                     }
                     else -> {
-                        LazyColumn(
-                            state = listState,
+                        PaginatedDataList(
+                            state = manualJournalPagingState,
+                            onLoadMore = { financeViewModel.loadMoreJournalEntries() },
                             modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(filteredEntries, key = { it.id }) { entry ->
-                                val (badgeBg, badgeFg) = journalStatusColors(entry.status)
-                                val isDraft = entry.status.equals("Draft", ignoreCase = true)
+                        ) { entry ->
+                            val (badgeBg, badgeFg) = journalStatusColors(entry.status)
+                            val isDraft = entry.status.equals("Draft", ignoreCase = true)
 
-                                val cardActions = buildList {
+                            val cardActions = buildList {
+                                add(
+                                    MenuAction(
+                                        label = "View",
+                                        icon = Icons.Default.Visibility,
+                                        onClick = {
+                                            selectedEntry = entry
+                                            selectedEntryId = entry.id
+                                            formMode = "view"
+                                        }
+                                    )
+                                )
+                                if (isDraft) {
                                     add(
                                         MenuAction(
-                                            label = "View",
-                                            icon = Icons.Default.Visibility,
+                                            label = "Edit",
+                                            icon = Icons.Default.Edit,
                                             onClick = {
                                                 selectedEntry = entry
                                                 selectedEntryId = entry.id
-                                                formMode = "view"
+                                                formMode = "edit"
                                             }
                                         )
                                     )
-                                    if (isDraft) {
-                                        add(
-                                            MenuAction(
-                                                label = "Edit",
-                                                icon = Icons.Default.Edit,
-                                                onClick = {
-                                                    selectedEntry = entry
-                                                    selectedEntryId = entry.id
-                                                    formMode = "edit"
-                                                }
-                                            )
+                                    add(
+                                        MenuAction(
+                                            label = "Delete",
+                                            icon = Icons.Default.Delete,
+                                            tint = Color(0xFFDC2626),
+                                            textColor = Color(0xFFDC2626),
+                                            onClick = { deleteTarget = entry }
                                         )
-                                        add(
-                                            MenuAction(
-                                                label = "Delete",
-                                                icon = Icons.Default.Delete,
-                                                tint = Color(0xFFDC2626),
-                                                textColor = Color(0xFFDC2626),
-                                                onClick = { deleteTarget = entry }
-                                            )
-                                        )
-                                    }
-                                }
-
-                                DataCard(
-                                    item = entry,
-                                    title = entry.entryNumber,
-                                    titleColor = Color(0xFF111827),
-                                    subtitle = "${entry.primaryAccountName}   •   Code: ${entry.primaryAccountCode}   •   Type: ${entry.primaryAccountType}",
-                                    topBadgeText = entry.status,
-                                    topBadgeTextColor = badgeFg,
-                                    topBadgeBgColor = badgeBg,
-                                    topBadgeInline = true,
-                                    actions = cardActions,
-                                    onClick = {
-                                        selectedEntry = entry
-                                        selectedEntryId = entry.id
-                                        formMode = if (isDraft) "edit" else "view"
-                                    }
-                                )
-                            }
-
-                            // Loading footer when fetching the next page
-                            if (isLoadingMore) {
-                                item {
-                                    ThreeDotLoading()
+                                    )
                                 }
                             }
 
-                            item { Spacer(modifier = Modifier.height(80.dp)) }
+                            DataCard(
+                                item = entry,
+                                title = entry.entryNumber,
+                                titleColor = Color(0xFF111827),
+                                subtitle = "${entry.primaryAccountName}   •   Code: ${entry.primaryAccountCode}   •   Type: ${entry.primaryAccountType}",
+                                topBadgeText = entry.status,
+                                topBadgeTextColor = badgeFg,
+                                topBadgeBgColor = badgeBg,
+                                topBadgeInline = true,
+                                actions = cardActions,
+                                onClick = {
+                                    selectedEntry = entry
+                                    selectedEntryId = entry.id
+                                    formMode = if (isDraft) "edit" else "view"
+                                }
+                            )
                         }
                     }
                 }

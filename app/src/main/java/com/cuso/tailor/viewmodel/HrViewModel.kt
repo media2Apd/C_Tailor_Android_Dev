@@ -94,6 +94,7 @@ import com.cuso.tailor.model.hr.UpdateExpenseClaimStatusRequest
 import com.cuso.tailor.model.hr.extractMemberName
 import com.cuso.tailor.model.hr.resolveAssetId
 import com.cuso.tailor.repository.ApiRepository
+import com.cuso.tailor.utils.PagingUiState
 import com.cuso.tailor.utils.UiState // explicit import wins over same-package UiState
 import com.cuso.tailor.utils.launchState
 import com.cuso.tailor.utils.convertUiDateToApiDate
@@ -443,19 +444,32 @@ class HrViewModel @Inject constructor(
     private val _expenseClaimsError = MutableStateFlow<String?>(null)
     val expenseClaimsError: StateFlow<String?> = _expenseClaimsError.asStateFlow()
 
+    private val _expenseClaimsPagingState = MutableStateFlow(PagingUiState<ExpenseClaimDto>())
+    val expenseClaimsPagingState: StateFlow<PagingUiState<ExpenseClaimDto>> =
+        _expenseClaimsPagingState.asStateFlow()
+
+    private var expenseClaimCurrentPage = 1
+    private val expenseClaimPageSize = 15
+    private var activeExpenseClaimStatus: String? = "Pending_Approval"
+    private var activeExpenseClaimSearch: String? = null
+
     /**
      * Fetches expense claims list with optional status or search filter
-     * Endpoint: GET /api/expenses (adjust path to your exact backend endpoint)
      */
     fun fetchExpenseClaims(
         page: Int = 1,
-        limit: Int = 10,
+        limit: Int = expenseClaimPageSize,
         status: String? = "Pending_Approval",
         search: String? = null
     ) {
+        expenseClaimCurrentPage = page
+        activeExpenseClaimStatus = status
+        activeExpenseClaimSearch = search
+
         viewModelScope.launch {
             _isLoadingExpenseClaims.value = true
             _expenseClaimsError.value = null
+            _expenseClaimsPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = repo.request<ExpenseClaimsApiResponse> {
                 get(
@@ -471,13 +485,68 @@ class HrViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { res ->
-                    _expenseClaims.value = res.data?.data ?: emptyList()
+                    val list = res.data?.data ?: emptyList()
+                    _expenseClaims.value = list
+                    _expenseClaimsPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = list.size >= limit
+                    )
                 },
                 onFailure = { error ->
                     _expenseClaimsError.value = error.message ?: "Failed to fetch expense claims"
+                    _expenseClaimsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoadingExpenseClaims.value = false
+        }
+    }
+
+    fun loadMoreExpenseClaims(limit: Int = expenseClaimPageSize) {
+        val current = _expenseClaimsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        viewModelScope.launch {
+            _expenseClaimsPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = expenseClaimCurrentPage + 1
+
+            val result = repo.request<ExpenseClaimsApiResponse> {
+                get(
+                    "/api/hr/expense-claim/view-all",
+                    repo.query(
+                        "page" to nextPage,
+                        "limit" to limit,
+                        "status" to activeExpenseClaimStatus,
+                        "search" to activeExpenseClaimSearch
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data?.data ?: emptyList()
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+                    if (hasNewItems) {
+                        expenseClaimCurrentPage = nextPage
+                        _expenseClaims.value = merged
+                        _expenseClaimsPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= limit
+                        )
+                    } else {
+                        _expenseClaimsPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _expenseClaimsPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
     /**
@@ -761,8 +830,12 @@ class HrViewModel @Inject constructor(
                     if (res.success) {
                         // Immediately remove the deleted claim from local state
                         _expenseClaims.value = _expenseClaims.value.filter { it.id != claimId }
+                        val current = _expenseClaimsPagingState.value
+                        _expenseClaimsPagingState.value = current.copy(
+                            items = current.items.filter { it.id != claimId }
+                        )
                         onSuccess(res.message ?: "Expense claim deleted successfully")
-                    } else {
+                    }else {
                         onError(res.message ?: "Failed to delete expense claim")
                     }
                 },
@@ -797,14 +870,26 @@ class HrViewModel @Inject constructor(
     private val _expenseTypesError = MutableStateFlow<String?>(null)
     val expenseTypesError: StateFlow<String?> = _expenseTypesError.asStateFlow()
 
+    private val _expenseTypesPagingState = MutableStateFlow(PagingUiState<ExpenseTypeDto>())
+    val expenseTypesPagingState: StateFlow<PagingUiState<ExpenseTypeDto>> =
+        _expenseTypesPagingState.asStateFlow()
+
+    private var expenseTypeCurrentPage = 1
+    private val expenseTypePageSize = 20
+    private var activeExpenseTypeSearch: String? = null
+
     /**
      * Fetches expense types list
      * Endpoint: GET /api/hr/expense-type/view-all?page=1&limit=20
      */
-    fun fetchExpenseTypes(page: Int = 1, limit: Int = 20, search: String? = null) {
+    fun fetchExpenseTypes(page: Int = 1, limit: Int = expenseTypePageSize, search: String? = null) {
+        expenseTypeCurrentPage = page
+        activeExpenseTypeSearch = search
+
         viewModelScope.launch {
             _isLoadingExpenseTypes.value = true
             _expenseTypesError.value = null
+            _expenseTypesPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = repo.request<ExpenseTypeListApiResponse> {
                 get(
@@ -819,13 +904,67 @@ class HrViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { res ->
-                    _expenseTypes.value = res.data?.data ?: emptyList()
+                    val list = res.data?.data ?: emptyList()
+                    _expenseTypes.value = list
+                    _expenseTypesPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = list.size >= limit
+                    )
                 },
                 onFailure = { error ->
                     _expenseTypesError.value = error.message ?: "Failed to fetch expense types"
+                    _expenseTypesPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoadingExpenseTypes.value = false
+        }
+    }
+
+    fun loadMoreExpenseTypes(limit: Int = expenseTypePageSize) {
+        val current = _expenseTypesPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        viewModelScope.launch {
+            _expenseTypesPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = expenseTypeCurrentPage + 1
+
+            val result = repo.request<ExpenseTypeListApiResponse> {
+                get(
+                    "/api/hr/expense-type/view-all",
+                    repo.query(
+                        "page" to nextPage,
+                        "limit" to limit,
+                        "search" to activeExpenseTypeSearch
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data?.data ?: emptyList()
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+                    if (hasNewItems) {
+                        expenseTypeCurrentPage = nextPage
+                        _expenseTypes.value = merged
+                        _expenseTypesPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= limit
+                        )
+                    } else {
+                        _expenseTypesPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _expenseTypesPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -892,6 +1031,10 @@ class HrViewModel @Inject constructor(
             result.fold(
                 onSuccess = {
                     _expenseTypes.value = _expenseTypes.value.filter { it.id != id }
+                    val current = _expenseTypesPagingState.value
+                    _expenseTypesPagingState.value = current.copy(
+                        items = current.items.filter { it.id != id }
+                    )
                     onSuccess()
                 },
                 onFailure = { error ->
@@ -924,6 +1067,9 @@ class HrViewModel @Inject constructor(
     private val _membersError = MutableStateFlow<String?>(null)
     val membersError: StateFlow<String?> = _membersError.asStateFlow()
 
+    private val _membersPagingState = MutableStateFlow(PagingUiState<MemberItem>())
+    val membersPagingState: StateFlow<PagingUiState<MemberItem>> = _membersPagingState.asStateFlow()
+
     private var activeMemberSearch: String? = null
     private var activeMemberStatus: String? = null
     private var fetchMembersJob: Job? = null
@@ -951,6 +1097,13 @@ class HrViewModel @Inject constructor(
             activeMemberSearch = search
             activeMemberStatus = status
 
+            _membersPagingState.value = PagingUiState(
+                items = emptyList(),
+                isInitialLoading = true,
+                isLoadingMore = false,
+                canLoadMore = false
+            )
+
             val result = hrRepository.getMembers(page, limit, search, status)
             result.fold(
                 onSuccess = { response ->
@@ -958,12 +1111,19 @@ class HrViewModel @Inject constructor(
                     _members.value = newMembers
                     _membersTotal.value = response.total
 
-                    // Check if more items exist based on total count
-                    _canLoadMoreMembers.value = newMembers.size < response.total && newMembers.isNotEmpty()
+                    val canLoadMore = newMembers.size < response.total && newMembers.isNotEmpty()
+                    _canLoadMoreMembers.value = canLoadMore
+                    _membersPagingState.value = PagingUiState(
+                        items = newMembers,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
                 },
                 onFailure = { e ->
                     if (e !is CancellationException) {
                         _membersError.value = e.message ?: "Failed to fetch employees"
+                        _membersPagingState.value = PagingUiState(isInitialLoading = false)
                     }
                 }
             )
@@ -978,6 +1138,7 @@ class HrViewModel @Inject constructor(
 
         launchBusy {
             _isLoadingMoreMembers.value = true
+            _membersPagingState.value = _membersPagingState.value.copy(isLoadingMore = true)
             val nextPage = _currentMemberPage.value + 1
 
             val result = hrRepository.getMembers(
@@ -991,18 +1152,29 @@ class HrViewModel @Inject constructor(
                 onSuccess = { response ->
                     val newMembers = response.data
                     if (newMembers.isNotEmpty()) {
-                        val updatedList = _members.value + newMembers
+                        val updatedList = (_members.value + newMembers).distinctBy { it._id }
                         _members.value = updatedList
                         _currentMemberPage.value = nextPage
                         _membersTotal.value = response.total
 
-                        _canLoadMoreMembers.value = updatedList.size < response.total
+                        val canLoadMore = updatedList.size < response.total
+                        _canLoadMoreMembers.value = canLoadMore
+                        _membersPagingState.value = PagingUiState(
+                            items = updatedList,
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = canLoadMore
+                        )
                     } else {
                         _canLoadMoreMembers.value = false
+                        _membersPagingState.value = _membersPagingState.value.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
                     }
                 },
                 onFailure = {
-                    // Do not permanently lock pagination so user can retry on scroll
+                    _membersPagingState.value = _membersPagingState.value.copy(isLoadingMore = false)
                 }
             )
             _isLoadingMoreMembers.value = false
@@ -1377,14 +1549,61 @@ class HrViewModel @Inject constructor(
     // ── Shifts ──
     // ═══════════════════════════════════════════════
 
+    private val _shiftsPagingState = MutableStateFlow(PagingUiState<ShiftItem>())
+    val shiftsPagingState: StateFlow<PagingUiState<ShiftItem>> = _shiftsPagingState.asStateFlow()
+
+    private var shiftSearchQuery: String = ""
+    private var shiftCurrentPage: Int = 1
+    private val shiftPageSize: Int = 10
+
+    fun onShiftSearchChanged(query: String) {
+        shiftSearchQuery = query
+        rebuildShiftsPagingState(resetPage = true)
+    }
+
+    fun loadMoreShifts() {
+        val current = _shiftsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+        shiftCurrentPage += 1
+        rebuildShiftsPagingState(resetPage = false)
+    }
+
+    private fun rebuildShiftsPagingState(resetPage: Boolean) {
+        if (resetPage) shiftCurrentPage = 1
+        val allShifts = _shifts.value
+        val filtered = if (shiftSearchQuery.isBlank()) {
+            allShifts
+        } else {
+            allShifts.filter {
+                it.title.contains(shiftSearchQuery, ignoreCase = true) ||
+                        it.department.contains(shiftSearchQuery, ignoreCase = true) ||
+                        it.shiftType.contains(shiftSearchQuery, ignoreCase = true)
+            }
+        }
+        val paged = filtered.take(shiftCurrentPage * shiftPageSize)
+        _shiftsPagingState.value = PagingUiState(
+            items = paged,
+            isInitialLoading = false,
+            isLoadingMore = false,
+            canLoadMore = paged.size < filtered.size
+        )
+    }
+
     fun fetchShiftsViewAll() {
         launchBusy {
             _isLoadingShifts.value = true
             _shiftsError.value = null
+            _shiftsPagingState.value = PagingUiState(isInitialLoading = true)
             val result = hrRepository.getShiftsViewAll()
             result.fold(
-                onSuccess = { _shifts.value = it },
-                onFailure = { e -> _shiftsError.value = e.message ?: "Failed to fetch shifts" }
+                onSuccess = {
+                    _shifts.value = it
+                    rebuildShiftsPagingState(resetPage = true)
+                },
+                onFailure = { e ->
+                    _shiftsError.value = e.message ?: "Failed to fetch shifts"
+                    _shiftsPagingState.value = PagingUiState(isInitialLoading = false)
+                }
             )
             _isLoadingShifts.value = false
         }
@@ -1548,17 +1767,29 @@ class HrViewModel @Inject constructor(
     private val _leaveRequestsError = MutableStateFlow<String?>(null)
     val leaveRequestsError: StateFlow<String?> = _leaveRequestsError.asStateFlow()
 
+    private val _leaveRequestsPagingState = MutableStateFlow(PagingUiState<LeaveRequestItemDto>())
+    val leaveRequestsPagingState: StateFlow<PagingUiState<LeaveRequestItemDto>> =
+        _leaveRequestsPagingState.asStateFlow()
+
+    private var leaveCurrentPage = 1
+    private val leavePageSize = 15
+    private var activeLeaveStatus: String? = null
+
     fun fetchLeaveRequests(status: String? = null) {
+        leaveCurrentPage = 1
+        activeLeaveStatus = status
+
         viewModelScope.launch {
             _isLoadingLeaveRequests.value = true
             _leaveRequestsError.value = null
+            _leaveRequestsPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = repo.request<LeaveRequestsResponse> {
                 get(
                     "/api/hr/leave-request/view-all",
                     repo.query(
-                        "page" to 1,
-                        "limit" to 50,
+                        "page" to leaveCurrentPage,
+                        "limit" to leavePageSize,
                         "status" to status
                     )
                 )
@@ -1566,14 +1797,68 @@ class HrViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { res ->
-                    // Extracts data.data based on the new nested API structure
-                    _leaveRequests.value = res.data?.data ?: emptyList()
+                    val list = res.data?.data ?: emptyList()
+                    _leaveRequests.value = list
+                    _leaveRequestsPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = list.size >= leavePageSize
+                    )
                 },
                 onFailure = { error ->
                     _leaveRequestsError.value = error.message ?: "Failed to load leave requests"
+                    _leaveRequestsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoadingLeaveRequests.value = false
+        }
+    }
+
+    fun loadMoreLeaveRequests() {
+        val current = _leaveRequestsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        viewModelScope.launch {
+            _leaveRequestsPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = leaveCurrentPage + 1
+
+            val result = repo.request<LeaveRequestsResponse> {
+                get(
+                    "/api/hr/leave-request/view-all",
+                    repo.query(
+                        "page" to nextPage,
+                        "limit" to leavePageSize,
+                        "status" to activeLeaveStatus
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data?.data ?: emptyList()
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+
+                    if (hasNewItems) {
+                        leaveCurrentPage = nextPage
+                        _leaveRequests.value = merged
+                        _leaveRequestsPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= leavePageSize
+                        )
+                    } else {
+                        _leaveRequestsPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _leaveRequestsPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -2148,19 +2433,121 @@ class HrViewModel @Inject constructor(
     private val _trainingPrograms = MutableStateFlow<List<TrainingProgramDto>>(emptyList())
     val trainingPrograms: StateFlow<List<TrainingProgramDto>> = _trainingPrograms.asStateFlow()
 
-    fun fetchTrainingPrograms(search: String? = null) {
-        launchState(
-            state = _trainingListState,
-            onSuccess = { res ->
-                _trainingPrograms.value = res.data
-            }
-        ) {
-            repo.request<TrainingProgramListResponse> {
+    private val _trainingProgramsPagingState =
+        MutableStateFlow(PagingUiState<TrainingProgramDto>())
+    val trainingProgramsPagingState: StateFlow<PagingUiState<TrainingProgramDto>> =
+        _trainingProgramsPagingState.asStateFlow()
+
+    private var trainingCurrentPage = 1
+    private val trainingPageSize = 15
+    private var activeTrainingSearch: String? = null
+    private var fetchTrainingJob: Job? = null
+    private var trainingSearchDebounceJob: Job? = null
+
+    fun searchTrainingPrograms(query: String) {
+        trainingSearchDebounceJob?.cancel()
+        trainingSearchDebounceJob = viewModelScope.launch {
+            delay(350)
+            fetchTrainingPrograms(search = query.trim().ifBlank { null })
+        }
+    }
+
+    fun fetchTrainingPrograms(search: String? = activeTrainingSearch) {
+        fetchTrainingJob?.cancel()
+        trainingCurrentPage = 1
+        activeTrainingSearch = search?.trim()?.ifBlank { null }
+
+        fetchTrainingJob = launchBusy {
+            _trainingProgramsPagingState.value = PagingUiState(
+                items = emptyList(),
+                isInitialLoading = true,
+                isLoadingMore = false,
+                canLoadMore = false
+            )
+
+            val result = repo.request<TrainingProgramListResponse> {
                 get(
                     "$TRAINING_PROGRAM_BASE/view-all",
-                    repo.query("search" to search)
+                    repo.query(
+                        "search" to activeTrainingSearch,
+                        "page" to trainingCurrentPage,
+                        "limit" to trainingPageSize
+                    )
                 )
             }
+
+            result.fold(
+                onSuccess = { res ->
+                    val programs = res.data
+                    _trainingPrograms.value = programs
+                    _trainingProgramsPagingState.value = PagingUiState(
+                        items = programs,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = programs.size >= trainingPageSize
+                    )
+                },
+                onFailure = { e ->
+                    if (e !is CancellationException) {
+                        _trainingPrograms.value = emptyList()
+                        _trainingProgramsPagingState.value = PagingUiState(
+                            items = emptyList(),
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun loadMoreTrainingPrograms() {
+        val current = _trainingProgramsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) {
+            return
+        }
+
+        launchBusy {
+            _trainingProgramsPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = trainingCurrentPage + 1
+
+            val result = repo.request<TrainingProgramListResponse> {
+                get(
+                    "$TRAINING_PROGRAM_BASE/view-all",
+                    repo.query(
+                        "search" to activeTrainingSearch,
+                        "page" to nextPage,
+                        "limit" to trainingPageSize
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newPrograms = res.data
+                    val merged = (current.items + newPrograms).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+
+                    if (hasNewItems) {
+                        trainingCurrentPage = nextPage
+                        _trainingPrograms.value = merged
+                        _trainingProgramsPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newPrograms.size >= trainingPageSize
+                        )
+                    } else {
+                        _trainingProgramsPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _trainingProgramsPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -2232,7 +2619,13 @@ class HrViewModel @Inject constructor(
         launchState(
             state = _deleteTrainingState,
             onSuccess = {
-                _trainingPrograms.value = _trainingPrograms.value.filter { it.id != id }
+                val updatedList = _trainingPrograms.value.filter { it.id != id }
+                _trainingPrograms.value = updatedList
+
+                val current = _trainingProgramsPagingState.value
+                _trainingProgramsPagingState.value = current.copy(
+                    items = current.items.filter { it.id != id }
+                )
                 onSuccess()
             },
             onError = onError
@@ -2260,19 +2653,104 @@ class HrViewModel @Inject constructor(
     private val _assignedTrainingPrograms = MutableStateFlow<List<AssignedTrainingProgramDto>>(emptyList())
     val assignedTrainingPrograms: StateFlow<List<AssignedTrainingProgramDto>> = _assignedTrainingPrograms.asStateFlow()
 
-    fun fetchAssignedTrainingPrograms(search: String? = null) {
-        launchState(
-            state = _assignedTrainingListState,
-            onSuccess = { res ->
-                _assignedTrainingPrograms.value = res.data
-            }
-        ) {
-            repo.request<AssignedTrainingListResponse> {
+    private val _assignedTrainingPagingState =
+        MutableStateFlow(PagingUiState<AssignedTrainingProgramDto>())
+    val assignedTrainingPagingState: StateFlow<PagingUiState<AssignedTrainingProgramDto>> =
+        _assignedTrainingPagingState.asStateFlow()
+
+    private var assignedCurrentPage = 1
+    private val assignedPageSize = 15
+    private var activeAssignedSearch: String? = null
+    private var fetchAssignedJob: Job? = null
+    private var assignedSearchDebounceJob: Job? = null
+
+    fun searchAssignedTrainingPrograms(query: String) {
+        assignedSearchDebounceJob?.cancel()
+        assignedSearchDebounceJob = viewModelScope.launch {
+            delay(350)
+            fetchAssignedTrainingPrograms(search = query.trim().ifBlank { null })
+        }
+    }
+
+    fun fetchAssignedTrainingPrograms(search: String? = activeAssignedSearch) {
+        fetchAssignedJob?.cancel()
+        assignedCurrentPage = 1
+        activeAssignedSearch = search?.trim()?.ifBlank { null }
+
+        fetchAssignedJob = launchBusy {
+            _assignedTrainingPagingState.value = PagingUiState(isInitialLoading = true)
+            val result = repo.request<AssignedTrainingListResponse> {
                 get(
                     "$ASSIGNED_TRAINING_BASE/view-all",
-                    repo.query("search" to search)
+                    repo.query(
+                        "search" to activeAssignedSearch,
+                        "page" to assignedCurrentPage,
+                        "limit" to assignedPageSize
+                    )
                 )
             }
+            result.fold(
+                onSuccess = { res ->
+                    _assignedTrainingPrograms.value = res.data
+                    _assignedTrainingPagingState.value = PagingUiState(
+                        items = res.data,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = res.data.size >= assignedPageSize
+                    )
+                },
+                onFailure = { e ->
+                    if (e !is CancellationException) {
+                        _assignedTrainingPrograms.value = emptyList()
+                        _assignedTrainingPagingState.value = PagingUiState(isInitialLoading = false)
+                    }
+                }
+            )
+        }
+    }
+
+    fun loadMoreAssignedTrainingPrograms() {
+        val current = _assignedTrainingPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        launchBusy {
+            _assignedTrainingPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = assignedCurrentPage + 1
+
+            val result = repo.request<AssignedTrainingListResponse> {
+                get(
+                    "$ASSIGNED_TRAINING_BASE/view-all",
+                    repo.query(
+                        "search" to activeAssignedSearch,
+                        "page" to nextPage,
+                        "limit" to assignedPageSize
+                    )
+                )
+            }
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+                    if (hasNewItems) {
+                        assignedCurrentPage = nextPage
+                        _assignedTrainingPrograms.value = merged
+                        _assignedTrainingPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= assignedPageSize
+                        )
+                    } else {
+                        _assignedTrainingPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _assignedTrainingPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -2345,6 +2823,10 @@ class HrViewModel @Inject constructor(
             state = _deleteAssignedTrainingState,
             onSuccess = {
                 _assignedTrainingPrograms.value = _assignedTrainingPrograms.value.filter { it.id != id }
+                val current = _assignedTrainingPagingState.value
+                _assignedTrainingPagingState.value = current.copy(
+                    items = current.items.filter { it.id != id }
+                )
                 onSuccess()
             },
             onError = onError
@@ -2370,12 +2852,17 @@ class HrViewModel @Inject constructor(
     private val _isLoadingCategories = MutableStateFlow(false)
     val isLoadingCategories: StateFlow<Boolean> = _isLoadingCategories.asStateFlow()
 
-    // Employee Documents State
-    private val _employeeDocuments = MutableStateFlow<List<EmployeeDocumentDto>>(emptyList())
-    val employeeDocuments: StateFlow<List<EmployeeDocumentDto>> = _employeeDocuments.asStateFlow()
+    // Employee Documents Paginated State
+    private val _employeeDocumentsPagingState =
+        MutableStateFlow(PagingUiState<EmployeeDocumentDto>())
+    val employeeDocumentsPagingState: StateFlow<PagingUiState<EmployeeDocumentDto>> =
+        _employeeDocumentsPagingState.asStateFlow()
 
-    private val _isLoadingDocuments = MutableStateFlow(false)
-    val isLoadingDocuments: StateFlow<Boolean> = _isLoadingDocuments.asStateFlow()
+    private var docCurrentPage = 1
+    private val docPageSize = 15
+    private var activeDocSearch: String? = null
+    private var fetchDocumentsJob: Job? = null
+    private var docSearchDebounceJob: Job? = null
 
     private val _isSubmittingUpload = MutableStateFlow(false)
     val isSubmittingUpload: StateFlow<Boolean> = _isSubmittingUpload.asStateFlow()
@@ -2399,29 +2886,108 @@ class HrViewModel @Inject constructor(
         }
     }
 
-    // 2. Fetch Employee Documents with search and pagination
-    fun fetchEmployeeDocuments(search: String? = null) {
-        launchBusy {
-            _isLoadingDocuments.value = true
+    // Debounced search handler for Employee Documents
+    fun searchEmployeeDocuments(query: String) {
+        docSearchDebounceJob?.cancel()
+        docSearchDebounceJob = viewModelScope.launch {
+            delay(350)
+            fetchEmployeeDocuments(search = query.trim().ifBlank { null })
+        }
+    }
+
+    // 2. Fetch Initial Page of Employee Documents
+    fun fetchEmployeeDocuments(search: String? = activeDocSearch) {
+        fetchDocumentsJob?.cancel()
+        docCurrentPage = 1
+        activeDocSearch = search?.trim()?.ifBlank { null }
+
+        fetchDocumentsJob = launchBusy {
+            _employeeDocumentsPagingState.value = PagingUiState(
+                items = emptyList(),
+                isInitialLoading = true,
+                isLoadingMore = false,
+                canLoadMore = false
+            )
+
             val result = repo.request<EmployeeDocumentListResponse> {
                 get(
                     "$EMP_DOCUMENT_BASE/view-all",
                     repo.query(
-                        "search" to search,
-                        "page" to 1,
-                        "limit" to 50
+                        "search" to activeDocSearch,
+                        "page" to docCurrentPage,
+                        "limit" to docPageSize
                     )
                 )
             }
+
             result.fold(
                 onSuccess = { res ->
-                    _employeeDocuments.value = res.data?.documents.orEmpty()
+                    val docs = res.data?.documents.orEmpty()
+                    _employeeDocumentsPagingState.value = PagingUiState(
+                        items = docs,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = docs.size >= docPageSize
+                    )
                 },
-                onFailure = {
-                    _employeeDocuments.value = emptyList()
+                onFailure = { e ->
+                    if (e !is CancellationException) {
+                        _employeeDocumentsPagingState.value = PagingUiState(
+                            items = emptyList(),
+                            isInitialLoading = false,
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
                 }
             )
-            _isLoadingDocuments.value = false
+        }
+    }
+
+    // Load Next Page of Employee Documents for PaginatedDataList
+    fun loadMoreEmployeeDocuments() {
+        val current = _employeeDocumentsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) {
+            return
+        }
+
+        launchBusy {
+            _employeeDocumentsPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = docCurrentPage + 1
+
+            val result = repo.request<EmployeeDocumentListResponse> {
+                get(
+                    "$EMP_DOCUMENT_BASE/view-all",
+                    repo.query(
+                        "search" to activeDocSearch,
+                        "page" to nextPage,
+                        "limit" to docPageSize
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newDocs = res.data?.documents.orEmpty()
+                    if (newDocs.isNotEmpty()) {
+                        docCurrentPage = nextPage
+                        val merged = (current.items + newDocs).distinctBy { it.id }
+                        _employeeDocumentsPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newDocs.size >= docPageSize
+                        )
+                    } else {
+                        _employeeDocumentsPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _employeeDocumentsPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -2681,8 +3247,11 @@ class HrViewModel @Inject constructor(
             result.fold(
                 onSuccess = { res ->
                     if (res.success) {
-                        // Remove deleted item from local list without reloading entire screen
-                        _employeeDocuments.value = _employeeDocuments.value.filter { it.id != id }
+                        // Remove deleted item from local paging list without reloading entire screen
+                        val current = _employeeDocumentsPagingState.value
+                        _employeeDocumentsPagingState.value = current.copy(
+                            items = current.items.filter { it.id != id }
+                        )
                         onSuccess()
                     } else {
                         onError(res.message ?: "Failed to delete employee document")
@@ -2721,19 +3290,63 @@ class HrViewModel @Inject constructor(
         _categoryDetailCat.value = null
     }
 
+    private val _documentCategoriesCatPagingState =
+        MutableStateFlow(PagingUiState<DocumentCategoryDtoCat>())
+    val documentCategoriesCatPagingState: StateFlow<PagingUiState<DocumentCategoryDtoCat>> =
+        _documentCategoriesCatPagingState.asStateFlow()
+
+    private var catSearchQuery: String = ""
+    private var catCurrentPage: Int = 1
+    private val catPageSize: Int = 10
+
+    fun onDocumentCategorySearchChanged(query: String) {
+        catSearchQuery = query
+        rebuildDocCategoryPagingState(resetPage = true)
+    }
+
+    fun loadMoreDocumentCategoriesCat() {
+        val current = _documentCategoriesCatPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+        catCurrentPage += 1
+        rebuildDocCategoryPagingState(resetPage = false)
+    }
+
+    private fun rebuildDocCategoryPagingState(resetPage: Boolean) {
+        if (resetPage) catCurrentPage = 1
+        val allCategories = _documentCategoriesCat.value
+        val filtered = if (catSearchQuery.isBlank()) {
+            allCategories
+        } else {
+            allCategories.filter {
+                it.categoryName.contains(catSearchQuery, ignoreCase = true) ||
+                        (it.description ?: "").contains(catSearchQuery, ignoreCase = true)
+            }
+        }
+        val paged = filtered.take(catCurrentPage * catPageSize)
+        _documentCategoriesCatPagingState.value = PagingUiState(
+            items = paged,
+            isInitialLoading = false,
+            isLoadingMore = false,
+            canLoadMore = paged.size < filtered.size
+        )
+    }
+
     // 1. View All Document Categories
     fun fetchDocumentCategoriesCat() {
         launchBusy {
             _isLoadingCategoriesCat.value = true
+            _documentCategoriesCatPagingState.value = PagingUiState(isInitialLoading = true)
             val result = repo.request<DocumentCategoryListResponseCat> {
                 get("$DOC_CATEGORY_BASE/view-all")
             }
             result.fold(
                 onSuccess = { res ->
                     _documentCategoriesCat.value = res.data
+                    rebuildDocCategoryPagingState(resetPage = true)
                 },
                 onFailure = {
                     _documentCategoriesCat.value = emptyList()
+                    _documentCategoriesCatPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoadingCategoriesCat.value = false
@@ -2825,6 +3438,7 @@ class HrViewModel @Inject constructor(
                     if (res.success) {
                         // Remove deleted item from local list to avoid screen reload flicker
                         _documentCategoriesCat.value = _documentCategoriesCat.value.filter { it.id != id }
+                        rebuildDocCategoryPagingState(resetPage = false)
                         onSuccess()
                     } else {
                         onError(res.message ?: "Failed to delete document category")
@@ -2892,19 +3506,35 @@ class HrViewModel @Inject constructor(
     private val _exitSettlementError = MutableStateFlow<String?>(null)
     val exitSettlementError: StateFlow<String?> = _exitSettlementError.asStateFlow()
 
+    private val _exitRequestsPagingState = MutableStateFlow(PagingUiState<ExitRequestDto>())
+    val exitRequestsPagingState: StateFlow<PagingUiState<ExitRequestDto>> =
+        _exitRequestsPagingState.asStateFlow()
+
+    private var exitCurrentPage = 1
+    private val exitPageSize = 15
+    private var activeExitSearch: String? = null
+    private var activeExitStatus: String? = null
+    private var activeExitType: String? = null
+
     /**
      * Fetch all exit requests: GET /api/hr/exit-request/view-all
      */
     fun fetchExitRequests(
         page: Int = 1,
-        limit: Int = 50,
+        limit: Int = exitPageSize,
         search: String? = null,
         status: String? = null,
         exitType: String? = null
     ) {
+        exitCurrentPage = page
+        activeExitSearch = search
+        activeExitStatus = status
+        activeExitType = exitType
+
         launchBusy {
             _isLoadingExitRequests.value = true
             _exitRequestsError.value = null
+            _exitRequestsPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = repo.request<ExitRequestListResponse> {
                 get(
@@ -2922,12 +3552,67 @@ class HrViewModel @Inject constructor(
             result.fold(
                 onSuccess = { res ->
                     _exitRequests.value = res.data
+                    _exitRequestsPagingState.value = PagingUiState(
+                        items = res.data,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = res.data.size >= limit
+                    )
                 },
                 onFailure = { error ->
                     _exitRequestsError.value = error.message ?: "Failed to fetch exit requests"
+                    _exitRequestsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoadingExitRequests.value = false
+        }
+    }
+
+    fun loadMoreExitRequests() {
+        val current = _exitRequestsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        launchBusy {
+            _exitRequestsPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = exitCurrentPage + 1
+
+            val result = repo.request<ExitRequestListResponse> {
+                get(
+                    "$EXIT_REQUEST_BASE/view-all",
+                    repo.query(
+                        "page" to nextPage,
+                        "limit" to exitPageSize,
+                        "search" to activeExitSearch,
+                        "status" to activeExitStatus,
+                        "exitType" to activeExitType
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+                    if (hasNewItems) {
+                        exitCurrentPage = nextPage
+                        _exitRequests.value = merged
+                        _exitRequestsPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= exitPageSize
+                        )
+                    } else {
+                        _exitRequestsPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _exitRequestsPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -3398,6 +4083,10 @@ class HrViewModel @Inject constructor(
                 onSuccess = { res ->
                     if (res.success) {
                         _exitRequests.value = _exitRequests.value.filter { it.id != id }
+                        val current = _exitRequestsPagingState.value
+                        _exitRequestsPagingState.value = current.copy(
+                            items = current.items.filter { it.id != id }
+                        )
                         onSuccess(res.message ?: "Exit request deleted successfully")
                     } else {
                         onError(res.message ?: "Failed to delete exit request")

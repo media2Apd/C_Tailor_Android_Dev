@@ -1,11 +1,13 @@
+@file:Suppress("UNUSED_VALUE", "SpellCheckingInspection","unusedVariable", "unused", "AssignedValueIsNeverRead",
+    "VariableNeverRead"
+)
+
 package com.cuso.tailor.view.home.hr.leave_management.leave_approval
 
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -69,17 +71,16 @@ fun LeaveApprovalScreen(
         viewModel.fetchLeaveRequests(status = "Pending")
     }
 
-    val leaveRequests by viewModel.leaveRequests.collectAsState()
-    val isLoading by viewModel.isLoadingLeaveRequests.collectAsState()
+    val leavePagingState by viewModel.leaveRequestsPagingState.collectAsState()
     val errorMessageState by viewModel.leaveRequestsError.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
 
-    val filteredLeaveRequests: List<LeaveRequestItemDto> = remember(leaveRequests, searchQuery) {
-        if (searchQuery.isBlank()) {
-            leaveRequests
+    val displayLeavePagingState = remember(leavePagingState, searchQuery) {
+        val filtered = if (searchQuery.isBlank()) {
+            leavePagingState.items
         } else {
-            leaveRequests.filter { item: LeaveRequestItemDto ->
+            leavePagingState.items.filter { item: LeaveRequestItemDto ->
                 val name = resolveEmployeeName(item.organizationMemberId)
                 val leaveType = item.leaveTypeId?.name.orEmpty()
                 val reason = item.reason.orEmpty()
@@ -88,6 +89,7 @@ fun LeaveApprovalScreen(
                         reason.contains(searchQuery, ignoreCase = true)
             }
         }
+        leavePagingState.copy(items = filtered)
     }
 
     // Dialog state holders
@@ -125,11 +127,7 @@ fun LeaveApprovalScreen(
                 Spacer(Modifier.height(tokens.extraPadding * 0.6f))
 
                 when {
-                    isLoading && leaveRequests.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
-                    errorMessageState != null && leaveRequests.isEmpty() -> {
+                    errorMessageState != null && displayLeavePagingState.items.isEmpty() && !displayLeavePagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load leave requests",
                             message = errorMessageState ?: "Something went wrong. Please check your connection and try again.",
@@ -137,7 +135,7 @@ fun LeaveApprovalScreen(
                         )
                     }
 
-                    leaveRequests.isEmpty() -> {
+                    !displayLeavePagingState.isInitialLoading && displayLeavePagingState.items.isEmpty() -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -154,138 +152,134 @@ fun LeaveApprovalScreen(
                     }
 
                     else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
-                        ) {
-                            items(
-                                items = filteredLeaveRequests,
-                                key = { it.id }
-                            ) { item ->
-                                val member = item.organizationMemberId
-                                val employeeName = resolveEmployeeName(member)
-                                val codeOrId = member?.employeeCode ?: member?.memberId ?: "Employee"
-                                val leaveTypeName = item.leaveTypeId?.name ?: "Leave"
-                                val durationText = formatLeaveDuration(item.startDate, item.endDate)
-                                val daysCount = item.totalDays?.toInt() ?: 1
-                                val totalDaysText = if (daysCount <= 1) "$daysCount Day" else "$daysCount Days"
+                        PaginatedDataList(
+                            state = displayLeavePagingState,
+                            onLoadMore = { viewModel.loadMoreLeaveRequests() },
+                            modifier = Modifier.fillMaxSize()
+                        ) { item ->
+                            val member = item.organizationMemberId
+                            val employeeName = resolveEmployeeName(member)
+                            val codeOrId = member?.employeeCode ?: member?.memberId ?: "Employee"
+                            val leaveTypeName = item.leaveTypeId?.name ?: "Leave"
+                            val durationText = formatLeaveDuration(item.startDate, item.endDate)
+                            val daysCount = item.totalDays?.toInt() ?: 1
+                            val totalDaysText = if (daysCount <= 1) "$daysCount Day" else "$daysCount Days"
 
-                                val (statusBg, statusText) = when (item.status.lowercase()) {
-                                    "approved" -> greenBg to greentext
-                                    "rejected" -> redBg to redText
-                                    else -> yellowBg to yellowText
-                                }
+                            val (statusBg, statusText) = when (item.status.lowercase()) {
+                                "approved" -> greenBg to greentext
+                                "rejected" -> redBg to redText
+                                else -> yellowBg to yellowText
+                            }
 
-                                DataCard(
-                                    item = item,
-                                    title = employeeName,
-                                    titleColor = title_color,
-                                    titleFontWeight = FontWeight.Medium,
-                                    subtitle = "Code: $codeOrId",
-                                    topBadgeText = leaveTypeName,
-                                    topBadgeInline = true,
-                                    topBadgeShowDot = false,
-                                    topBadgeBgColor = primary_light,
-                                    topBadgeTextColor = BluePrimary,
-                                    content = {
-                                        Column(modifier = Modifier.fillMaxWidth()) {
+                            DataCard(
+                                item = item,
+                                title = employeeName,
+                                titleColor = title_color,
+                                titleFontWeight = FontWeight.Medium,
+                                subtitle = "Code: $codeOrId",
+                                topBadgeText = leaveTypeName,
+                                topBadgeInline = true,
+                                topBadgeShowDot = false,
+                                topBadgeBgColor = primary_light,
+                                topBadgeTextColor = BluePrimary,
+                                content = {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Text(
+                                                    text = "Duration",
+                                                    fontSize = tokens.caption,
+                                                    fontWeight = FontWeight.Normal,
+                                                    color = headerGrey
+                                                )
+                                                Text(
+                                                    text = durationText,
+                                                    fontSize = tokens.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = TextPrimary
+                                                )
+                                            }
+
                                             Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
                                             ) {
-                                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Column(
+                                                    horizontalAlignment = Alignment.Start,
+                                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                ) {
                                                     Text(
-                                                        text = "Duration",
+                                                        text = "Total Days",
                                                         fontSize = tokens.caption,
                                                         fontWeight = FontWeight.Normal,
                                                         color = headerGrey
                                                     )
                                                     Text(
-                                                        text = durationText,
+                                                        text = totalDaysText,
                                                         fontSize = tokens.bodySmall,
                                                         fontWeight = FontWeight.Medium,
                                                         color = TextPrimary
                                                     )
                                                 }
 
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
-                                                ) {
-                                                    Column(
-                                                        horizontalAlignment = Alignment.Start,
-                                                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                                                    ) {
-                                                        Text(
-                                                            text = "Total Days",
-                                                            fontSize = tokens.caption,
-                                                            fontWeight = FontWeight.Normal,
-                                                            color = headerGrey
-                                                        )
-                                                        Text(
-                                                            text = totalDaysText,
-                                                            fontSize = tokens.bodySmall,
-                                                            fontWeight = FontWeight.Medium,
-                                                            color = TextPrimary
-                                                        )
-                                                    }
+                                                StatusBadge(
+                                                    text = item.status.replaceFirstChar { it.uppercase() },
+                                                    bgColor = statusBg,
+                                                    textColor = statusText,
+                                                    showDot = false
+                                                )
+                                            }
+                                        }
 
-                                                    StatusBadge(
-                                                        text = item.status.replaceFirstChar { it.uppercase() },
-                                                        bgColor = statusBg,
-                                                        textColor = statusText,
-                                                        showDot = false
-                                                    )
-                                                }
+                                        Spacer(Modifier.height(tokens.extraPadding * 0.8f))
+                                        HorizontalDivider(color = sectionBorder, thickness = 1.dp)
+                                        Spacer(Modifier.height(tokens.extraPadding * 0.8f))
+
+                                        // Action Buttons: Open confirmation dialogs
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
+                                        ) {
+                                            OutlinedButton(
+                                                onClick = { itemToReject = item },
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(tokens.buttonHeight * 0.95f),
+                                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
+                                                border = BorderStroke(1.dp, redText),
+                                                colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
+                                            ) {
+                                                Text(
+                                                    text = "Reject",
+                                                    fontSize = tokens.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = redText
+                                                )
                                             }
 
-                                            Spacer(Modifier.height(tokens.extraPadding * 0.8f))
-                                            HorizontalDivider(color = sectionBorder, thickness = 1.dp)
-                                            Spacer(Modifier.height(tokens.extraPadding * 0.8f))
-
-                                            // Action Buttons: Open confirmation dialogs
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
+                                            Button(
+                                                onClick = { itemToApprove = item },
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(tokens.buttonHeight * 0.95f),
+                                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
+                                                colors = ButtonDefaults.buttonColors(containerColor = Primary)
                                             ) {
-                                                OutlinedButton(
-                                                    onClick = { itemToReject = item },
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .height(tokens.buttonHeight * 0.95f),
-                                                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
-                                                    border = BorderStroke(1.dp, redText),
-                                                    colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg)
-                                                ) {
-                                                    Text(
-                                                        text = "Reject",
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = redText
-                                                    )
-                                                }
-
-                                                Button(
-                                                    onClick = { itemToApprove = item },
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .height(tokens.buttonHeight * 0.95f),
-                                                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.6f),
-                                                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                                                ) {
-                                                    Text(
-                                                        text = "Approve",
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = whiteBg
-                                                    )
-                                                }
+                                                Text(
+                                                    text = "Approve",
+                                                    fontSize = tokens.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = whiteBg
+                                                )
                                             }
                                         }
                                     }
-                                )
-                            }
+                                }
+                            )
                         }
                     }
                 }

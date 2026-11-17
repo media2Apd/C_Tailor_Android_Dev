@@ -7,8 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -34,7 +32,7 @@ import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextArea
 import com.cuso.tailor.view.composable.FormTextField
-import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.TitleBar
@@ -53,24 +51,27 @@ fun FinanceReimbursementScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val expenseClaims by viewModel.expenseClaims.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingExpenseClaims.collectAsStateWithLifecycle()
+    val claimsPagingState by viewModel.expenseClaimsPagingState.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         viewModel.fetchReimbursementClaims()
     }
 
-    val filteredClaims = remember(expenseClaims, searchQuery) {
+    val filteredClaims = remember(claimsPagingState.items, searchQuery) {
         if (searchQuery.isBlank()) {
-            expenseClaims
+            claimsPagingState.items
         } else {
-            expenseClaims.filter { claim ->
+            claimsPagingState.items.filter { claim ->
                 claim.title?.contains(searchQuery, ignoreCase = true) == true ||
                         claim.claimNumber?.contains(searchQuery, ignoreCase = true) == true ||
                         (claim.employee?.fullName?.contains(searchQuery, ignoreCase = true) == true)
             }
         }
+    }
+
+    val displayPagingState = remember(claimsPagingState, filteredClaims) {
+        claimsPagingState.copy(items = filteredClaims)
     }
 
     Scaffold(
@@ -84,7 +85,7 @@ fun FinanceReimbursementScreen(
         }
     ) { paddingValues ->
         Column(
-            Modifier
+            modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
@@ -101,9 +102,7 @@ fun FinanceReimbursementScreen(
                 height = tokens.fieldHeight
             )
 
-            if (isLoading) {
-                ListSkeleton()
-            } else if (filteredClaims.isEmpty()) {
+            if (!displayPagingState.isInitialLoading && displayPagingState.items.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -117,14 +116,16 @@ fun FinanceReimbursementScreen(
                     )
                 }
             } else {
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(filteredClaims, key = { it.id }) { claim ->
-                        ReimbursementItemCard(
-                            claim = claim,
-                            onViewDetail = { onViewDetail(claim) },
-                            onProcessPay = { onProcessPayClick(claim) }
-                        )
-                    }
+                PaginatedDataList(
+                    state = displayPagingState,
+                    onLoadMore = { viewModel.loadMoreExpenseClaims() },
+                    modifier = Modifier.fillMaxSize()
+                ) { claim ->
+                    ReimbursementItemCard(
+                        claim = claim,
+                        onViewDetail = { onViewDetail(claim) },
+                        onProcessPay = { onProcessPayClick(claim) }
+                    )
                 }
             }
         }

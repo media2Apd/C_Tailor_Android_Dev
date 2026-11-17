@@ -10,12 +10,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -59,8 +56,8 @@ import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FilterDrawer
 import com.cuso.tailor.view.composable.FilterOption
 import com.cuso.tailor.view.composable.FilterSection
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
@@ -76,12 +73,11 @@ fun ItAssetListScreen(
     val tokens = LocalAppTokens.current
     val filterState = rememberFilterDrawerState()
 
-    val assets by viewModel.filteredAssets.collectAsState()
+    val assetsPagingState by viewModel.assetsPagingState.collectAsState()
     val metrics by viewModel.assetMetrics.collectAsState()
     val searchQuery by viewModel.assetSearchQuery.collectAsState()
     val selectedStatus by viewModel.selectedAssetStatus.collectAsState()
     val selectedType by viewModel.selectedAssetType.collectAsState()
-    val isLoading by viewModel.isLoadingAssets.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.fetchAssetDashboard()
@@ -127,7 +123,8 @@ fun ItAssetListScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Primary_background),
-        fab = fabConfig
+        fab = fabConfig,
+        fabVisible = !assetsPagingState.isInitialLoading
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             TitleBar(
@@ -170,111 +167,119 @@ fun ItAssetListScreen(
                 onFilterClick = { filterState.open() }
             )
 
-            if (isLoading && assets.isEmpty()) {
-                ListSkeleton()
-            } else {
-                LazyColumn(
+            if (!assetsPagingState.isInitialLoading) {
+                metrics?.let {
+                    AssetMetricsGrid(metrics = it)
+                }
+            }
+
+            if (!assetsPagingState.isInitialLoading && assetsPagingState.items.isEmpty()) {
+                Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f)
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
                 ) {
-                    item{
-                        metrics?.let {
-                            AssetMetricsGrid(metrics = it)
-                        }
-                    }
-                    items(items = assets, key = { it.assetId.ifEmpty { it.id.orEmpty() } }) { asset ->
-                        val (statusBg, statusText) = getAssetStatusColors(asset.status)
+                    Text(
+                        text = "No assets found",
+                        fontSize = tokens.bodyMedium,
+                        color = mutedText
+                    )
+                }
+            } else {
+                PaginatedDataList(
+                    state = assetsPagingState,
+                    onLoadMore = { viewModel.loadMoreAssets() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) { asset ->
+                    val (statusBg, statusText) = getAssetStatusColors(asset.status)
 
-                        DataCard(
-                            item = asset,
-                            title = asset.assetName,
-                            titleFontWeight = FontWeight.Medium,
-                            titleColor = blackTitle,
-                            smalltitle = asset.assetId,
-                            subtitle = asset.type.uppercase(),
-                            code = null,
-                            topBadgeText = asset.status,
-                            topBadgeBgColor = statusBg,
-                            topBadgeTextColor = statusText,
-                            topBadgeInline = true,
-                            showDivider = false,
-                            actions = listOf(
-                                MenuAction(
-                                    label = "View Details",
-                                    onClick = { onNavigateDetail(asset.assetId.ifEmpty { asset.id.orEmpty() }) }
-                                )
+                    DataCard(
+                        item = asset,
+                        title = asset.assetName,
+                        titleFontWeight = FontWeight.Medium,
+                        titleColor = blackTitle,
+                        smalltitle = asset.assetId,
+                        subtitle = asset.type.uppercase(),
+                        code = null,
+                        topBadgeText = asset.status,
+                        topBadgeBgColor = statusBg,
+                        topBadgeTextColor = statusText,
+                        topBadgeInline = true,
+                        showDivider = false,
+                        actions = listOf(
+                            MenuAction(
+                                label = "View Details",
+                                onClick = { onNavigateDetail(asset.assetId.ifEmpty { asset.id.orEmpty() }) }
+                            )
+                        ),
+                        onClick = { onNavigateDetail(asset.assetId.ifEmpty { asset.id.orEmpty() }) },
+                        footerAsColumns = true,
+                        footerFields = listOf(
+                            DataCardField(
+                                label = "LOCATION",
+                                text = asset.location ?: "--",
+                                labelColor = mutedText,
+                                textColor = TextPrimary,
+                                valueFontWeight = FontWeight.Normal
                             ),
-                            onClick = { onNavigateDetail(asset.assetId.ifEmpty { asset.id.orEmpty() }) },
-                            footerAsColumns = true,
-                            footerFields = listOf(
-                                DataCardField(
-                                    label = "LOCATION",
-                                    text = asset.location ?: "--",
-                                    labelColor = mutedText,
-                                    textColor = TextPrimary,
-                                    valueFontWeight = FontWeight.Normal
-                                ),
-                                DataCardField(
-                                    label = "SERIAL / LIC",
-                                    text = asset.serialOrLicense ?: "--",
-                                    labelColor = mutedText,
-                                    textColor = TextPrimary,
-                                    valueFontWeight = FontWeight.Normal
-                                ),
-                                DataCardField(
-                                    label = "ASSET ID",
-                                    text = asset.assetId,
-                                    labelColor = mutedText,
-                                    textColor = TextPrimary,
-                                    valueFontWeight = FontWeight.Normal
-                                )
+                            DataCardField(
+                                label = "SERIAL / LIC",
+                                text = asset.serialOrLicense ?: "--",
+                                labelColor = mutedText,
+                                textColor = TextPrimary,
+                                valueFontWeight = FontWeight.Normal
                             ),
-                            content = {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = "ASSIGNED TO :",
-                                            fontSize = tokens.caption,
-                                            fontWeight = FontWeight.Medium,
-                                            color = mutedText
-                                        )
-                                        Spacer(Modifier.width(tokens.screenPadding / 4))
-                                        Text(
-                                            text = asset.assignedTo ?: "Unassigned",
-                                            fontSize = tokens.caption,
-                                            fontWeight = FontWeight.Normal,
-                                            color = TextPrimary
-                                        )
-                                    }
+                            DataCardField(
+                                label = "ASSET ID",
+                                text = asset.assetId,
+                                labelColor = mutedText,
+                                textColor = TextPrimary,
+                                valueFontWeight = FontWeight.Normal
+                            )
+                        ),
+                        content = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "ASSIGNED TO :",
+                                        fontSize = tokens.caption,
+                                        fontWeight = FontWeight.Medium,
+                                        color = mutedText
+                                    )
+                                    Spacer(Modifier.width(tokens.screenPadding / 4))
+                                    Text(
+                                        text = asset.assignedTo ?: "Unassigned",
+                                        fontSize = tokens.caption,
+                                        fontWeight = FontWeight.Normal,
+                                        color = TextPrimary
+                                    )
+                                }
 
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = "LIFECYCLE :",
-                                            fontSize = tokens.caption,
-                                            fontWeight = FontWeight.Medium,
-                                            color = mutedText
-                                        )
-                                        Spacer(Modifier.width(tokens.screenPadding / 4))
-                                        Text(
-                                            text = asset.lifecycle ?: "--",
-                                            fontSize = tokens.caption,
-                                            fontWeight = FontWeight.Normal,
-                                            color = TextSecondary
-                                        )
-                                    }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "LIFECYCLE :",
+                                        fontSize = tokens.caption,
+                                        fontWeight = FontWeight.Medium,
+                                        color = mutedText
+                                    )
+                                    Spacer(Modifier.width(tokens.screenPadding / 4))
+                                    Text(
+                                        text = asset.lifecycle ?: "--",
+                                        fontSize = tokens.caption,
+                                        fontWeight = FontWeight.Normal,
+                                        color = TextSecondary
+                                    )
                                 }
                             }
-                        )
-                    }
-
-                    item {
-                        Spacer(Modifier.height(tokens.buttonHeight + tokens.screenPadding))
-                    }
+                        }
+                    )
                 }
             }
         }

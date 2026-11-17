@@ -2,16 +2,6 @@
 
 package com.cuso.tailor.view.home.hr.attendance_management.employees
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -24,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
@@ -36,15 +25,16 @@ import com.cuso.tailor.ui.theme.Primary_background
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardField
-import com.cuso.tailor.view.composable.DynamicIslandError
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FilterDrawer
 import com.cuso.tailor.view.composable.FilterOption
 import com.cuso.tailor.view.composable.FilterSection
 import com.cuso.tailor.view.composable.FilterSectionType
-import com.cuso.tailor.view.composable.ListSkeleton
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
@@ -78,14 +68,10 @@ fun AllEmployeesScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val members by hrViewModel.members.collectAsStateWithLifecycle()
-    val isLoading by hrViewModel.isLoadingMembers.collectAsStateWithLifecycle()
-    val isLoadingMore by hrViewModel.isLoadingMoreMembers.collectAsStateWithLifecycle()
-    val canLoadMore by hrViewModel.canLoadMoreMembers.collectAsStateWithLifecycle()
+    val membersPagingState by hrViewModel.membersPagingState.collectAsStateWithLifecycle()
     val error by hrViewModel.membersError.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
-    val listState = rememberLazyListState()
 
     val filterDrawerState = rememberFilterDrawerState()
     var filterSections by remember {
@@ -125,24 +111,6 @@ fun AllEmployeesScreen(
     LaunchedEffect(searchQuery, selectedStatus) {
         delay(400)
         hrViewModel.fetchMembers(search = searchQuery.trim().ifBlank { null }, status = selectedStatus)
-    }
-
-    // Detect scroll near bottom
-    val shouldLoadMore = remember {
-        derivedStateOf {
-            val layoutInfo = listState.layoutInfo
-            val totalItemsCount = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-
-            totalItemsCount > 0 && lastVisibleItemIndex >= totalItemsCount - 2
-        }
-    }
-
-    // Trigger load more when reaching the threshold
-    LaunchedEffect(shouldLoadMore.value) {
-        if (shouldLoadMore.value && canLoadMore && !isLoadingMore && !isLoading) {
-            hrViewModel.loadMoreMembers()
-        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -194,13 +162,8 @@ fun AllEmployeesScreen(
                 HorizontalDivider(color = BorderColor)
 
                 when {
-                    // Initial loading skeleton
-                    isLoading && members.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
                     // Persistent error state
-                    error != null && members.isEmpty() -> {
+                    error != null && membersPagingState.items.isEmpty() && !membersPagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load employees",
                             message = error ?: "Something went wrong. Please check your connection.",
@@ -214,7 +177,7 @@ fun AllEmployeesScreen(
                     }
 
                     // Empty state
-                    members.isEmpty() -> {
+                    !membersPagingState.isInitialLoading && membersPagingState.items.isEmpty() -> {
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -225,83 +188,57 @@ fun AllEmployeesScreen(
                         }
                     }
 
-                    // Paginated employee list
+                    // Paginated employee list using PaginatedDataList
                     else -> {
-                        LazyColumn(
-                            state = listState,
+                        PaginatedDataList(
+                            state = membersPagingState,
+                            onLoadMore = { hrViewModel.loadMoreMembers() },
                             modifier = Modifier
                                 .weight(1f)
+                                .fillMaxWidth()
                                 .background(Primary_background)
-                        ) {
-                            items(members, key = { it._id }) { member ->
-                                val isActive = member.status.equals("active", ignoreCase = true)
-                                DataCard(
-                                    item = member,
-                                    modifier = Modifier.animateItem(),
-                                    title = member.memberId ?: member._id,
-                                    subtitle = "${member.displayName()} • ${member.displayRole()}",
-                                    topBadgeText = member.displayStatus(),
-                                    topBadgeTextColor = if (isActive) ActiveText else InactiveText,
-                                    topBadgeBgColor = if (isActive) ActiveBg else InactiveBg,
-                                    topBadgeInline = false,
-                                    footerAsRows = true,
-                                    footerFields = listOf(
-                                        DataCardField(
-                                            label = "Department",
-                                            text = member.departmentId?.name ?: "—",
-                                            labelColor = MutedColor,
-                                            textColor = TitleColor
-                                        ),
-                                        DataCardField(
-                                            label = "Contact",
-                                            text = member.userId?.mobile ?: "—",
-                                            labelColor = MutedColor,
-                                            textColor = TitleColor
-                                        ),
-                                        DataCardField(
-                                            label = "Branch",
-                                            text = member.branchId?.name ?: "—",
-                                            labelColor = MutedColor,
-                                            textColor = TitleColor
-                                        )
+                        ) { member ->
+                            val isActive = member.status.equals("active", ignoreCase = true)
+                            DataCard(
+                                item = member,
+                                title = member.memberId ?: member._id,
+                                subtitle = "${member.displayName()} • ${member.displayRole()}",
+                                topBadgeText = member.displayStatus(),
+                                topBadgeTextColor = if (isActive) ActiveText else InactiveText,
+                                topBadgeBgColor = if (isActive) ActiveBg else InactiveBg,
+                                topBadgeInline = false,
+                                footerAsRows = true,
+                                footerFields = listOf(
+                                    DataCardField(
+                                        label = "Department",
+                                        text = member.departmentId?.name ?: "—",
+                                        labelColor = MutedColor,
+                                        textColor = TitleColor
                                     ),
-                                    actions = listOf(
-                                        MenuAction("View", Icons.Filled.Visibility, onClick = { onView(member) }),
-                                        MenuAction("Edit", Icons.Filled.Edit, onClick = { onEdit(member) }),
-                                        MenuAction(
-                                            "Delete", Icons.Filled.Delete,
-                                            tint = InactiveText, textColor = InactiveText,
-                                            onClick = { onDelete(member) }
-                                        )
+                                    DataCardField(
+                                        label = "Contact",
+                                        text = member.userId?.mobile ?: "—",
+                                        labelColor = MutedColor,
+                                        textColor = TitleColor
                                     ),
-                                    onClick = { onView(it) }
-                                )
-                            }
-
-                            item {
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    AnimatedVisibility(
-                                        visible = isLoadingMore,
-                                        enter = fadeIn() + slideInVertically { it / 2 },
-                                        exit = fadeOut() + slideOutVertically { it / 2 }
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 16.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(24.dp),
-                                                color = AccentColor,
-                                                strokeWidth = 2.5.dp
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            item { Spacer(Modifier.height(80.dp)) }
+                                    DataCardField(
+                                        label = "Branch",
+                                        text = member.branchId?.name ?: "—",
+                                        labelColor = MutedColor,
+                                        textColor = TitleColor
+                                    )
+                                ),
+                                actions = listOf(
+                                    MenuAction("View", Icons.Filled.Visibility, onClick = { onView(member) }),
+                                    MenuAction("Edit", Icons.Filled.Edit, onClick = { onEdit(member) }),
+                                    MenuAction(
+                                        "Delete", Icons.Filled.Delete,
+                                        tint = InactiveText, textColor = InactiveText,
+                                        onClick = { onDelete(member) }
+                                    )
+                                ),
+                                onClick = { onView(it) }
+                            )
                         }
                     }
                 }

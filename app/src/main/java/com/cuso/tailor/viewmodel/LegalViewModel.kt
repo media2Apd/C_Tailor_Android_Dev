@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.model.legal.*
 import com.cuso.tailor.repository.ApiRepository
+import com.cuso.tailor.utils.PagingUiState
 import com.google.gson.JsonObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -111,6 +112,14 @@ class LegalViewModel @Inject constructor(
     private val _contractsError = MutableStateFlow<String?>(null)
     val contractsError: StateFlow<String?> = _contractsError.asStateFlow()
 
+    private val _contractsPagingState = MutableStateFlow(PagingUiState<LegalContractDto>())
+    val contractsPagingState: StateFlow<PagingUiState<LegalContractDto>> =
+        _contractsPagingState.asStateFlow()
+
+    private var contractsCurrentPage = 1
+    private val contractsPageSize = 20
+    private var activeContractsSearch: String? = null
+
     // Contract Detail State
     private val _contractDetail = MutableStateFlow<LegalContractDto?>(null)
     val contractDetail: StateFlow<LegalContractDto?> = _contractDetail.asStateFlow()
@@ -148,16 +157,20 @@ class LegalViewModel @Inject constructor(
         }
     }
 
-    fun fetchContracts(search: String? = null, page: Int = 1, limit: Int = 20) {
+    fun fetchContracts(search: String? = null, page: Int = 1, limit: Int = contractsPageSize) {
+        contractsCurrentPage = page
+        activeContractsSearch = search?.trim()?.ifBlank { null }
+
         viewModelScope.launch {
             _isLoadingContracts.value = true
             _contractsError.value = null
+            _contractsPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = repo.request<LegalContractsResponse> {
                 get(
                     LEGAL_CONTRACTS_URL,
                     repo.query(
-                        "search" to search,
+                        "search" to activeContractsSearch,
                         "page" to page,
                         "limit" to limit
                     )
@@ -166,13 +179,67 @@ class LegalViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { res ->
-                    _contracts.value = res.data.orEmpty()
+                    val list = res.data.orEmpty()
+                    _contracts.value = list
+                    _contractsPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = list.size >= limit
+                    )
                 },
                 onFailure = { error ->
                     _contractsError.value = error.message ?: "Failed to fetch legal contracts"
+                    _contractsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoadingContracts.value = false
+        }
+    }
+
+    fun loadMoreContracts() {
+        val current = _contractsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        viewModelScope.launch {
+            _contractsPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = contractsCurrentPage + 1
+
+            val result = repo.request<LegalContractsResponse> {
+                get(
+                    LEGAL_CONTRACTS_URL,
+                    repo.query(
+                        "search" to activeContractsSearch,
+                        "page" to nextPage,
+                        "limit" to contractsPageSize
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data.orEmpty()
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+                    if (hasNewItems) {
+                        contractsCurrentPage = nextPage
+                        _contracts.value = merged
+                        _contractsPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= contractsPageSize
+                        )
+                    } else {
+                        _contractsPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _contractsPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -440,16 +507,28 @@ class LegalViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    fun fetchCompliances(search: String? = null, page: Int = 1, limit: Int = 20) {
+    private val _compliancesPagingState = MutableStateFlow(PagingUiState<LegalComplianceDto>())
+    val compliancesPagingState: StateFlow<PagingUiState<LegalComplianceDto>> =
+        _compliancesPagingState.asStateFlow()
+
+    private var compliancesCurrentPage = 1
+    private val compliancesPageSize = 20
+    private var activeCompliancesSearch: String? = null
+
+    fun fetchCompliances(search: String? = null, page: Int = 1, limit: Int = compliancesPageSize) {
+        compliancesCurrentPage = page
+        activeCompliancesSearch = search?.trim()?.ifBlank { null }
+
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
+            _compliancesPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = repo.request<LegalComplianceResponse> {
                 get(
                     LEGAL_COMPLIANCE_VIEW_ALL_URL,
                     repo.query(
-                        "search" to search,
+                        "search" to activeCompliancesSearch,
                         "page" to page,
                         "limit" to limit
                     )
@@ -458,13 +537,67 @@ class LegalViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { res ->
-                    _compliances.value = res.data.orEmpty()
+                    val list = res.data.orEmpty()
+                    _compliances.value = list
+                    _compliancesPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = list.size >= limit
+                    )
                 },
                 onFailure = { error ->
                     _errorMessage.value = error.message ?: "Failed to fetch compliances"
+                    _compliancesPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoading.value = false
+        }
+    }
+
+    fun loadMoreCompliances() {
+        val current = _compliancesPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        viewModelScope.launch {
+            _compliancesPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = compliancesCurrentPage + 1
+
+            val result = repo.request<LegalComplianceResponse> {
+                get(
+                    LEGAL_COMPLIANCE_VIEW_ALL_URL,
+                    repo.query(
+                        "search" to activeCompliancesSearch,
+                        "page" to nextPage,
+                        "limit" to compliancesPageSize
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data.orEmpty()
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+                    if (hasNewItems) {
+                        compliancesCurrentPage = nextPage
+                        _compliances.value = merged
+                        _compliancesPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= compliancesPageSize
+                        )
+                    } else {
+                        _compliancesPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _compliancesPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -672,16 +805,28 @@ class LegalViewModel @Inject constructor(
     private val _legalDocumentDetailError = MutableStateFlow<String?>(null)
     val legalDocumentDetailError: StateFlow<String?> = _legalDocumentDetailError.asStateFlow()
 
-    fun fetchLegalDocuments(search: String? = null, page: Int = 1, limit: Int = 20) {
+    private val _legalDocumentsPagingState = MutableStateFlow(PagingUiState<LegalDocumentItemDto>())
+    val legalDocumentsPagingState: StateFlow<PagingUiState<LegalDocumentItemDto>> =
+        _legalDocumentsPagingState.asStateFlow()
+
+    private var legalDocumentsCurrentPage = 1
+    private val legalDocumentsPageSize = 20
+    private var activeLegalDocumentsSearch: String? = null
+
+    fun fetchLegalDocuments(search: String? = null, page: Int = 1, limit: Int = legalDocumentsPageSize) {
+        legalDocumentsCurrentPage = page
+        activeLegalDocumentsSearch = search?.trim()?.ifBlank { null }
+
         viewModelScope.launch {
             _isLoadingLegalDocuments.value = true
             _legalDocumentsError.value = null
+            _legalDocumentsPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = repo.request<LegalDocumentListResponse> {
                 get(
                     LEGAL_DOCUMENTS_VIEW_ALL_URL,
                     repo.query(
-                        "search" to search,
+                        "search" to activeLegalDocumentsSearch,
                         "page" to page,
                         "limit" to limit
                     )
@@ -690,13 +835,67 @@ class LegalViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { res ->
-                    _legalDocuments.value = res.data.orEmpty()
+                    val list = res.data.orEmpty()
+                    _legalDocuments.value = list
+                    _legalDocumentsPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = list.size >= limit
+                    )
                 },
                 onFailure = { error ->
                     _legalDocumentsError.value = error.message ?: "Failed to load legal documents"
+                    _legalDocumentsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoadingLegalDocuments.value = false
+        }
+    }
+
+    fun loadMoreLegalDocuments() {
+        val current = _legalDocumentsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        viewModelScope.launch {
+            _legalDocumentsPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = legalDocumentsCurrentPage + 1
+
+            val result = repo.request<LegalDocumentListResponse> {
+                get(
+                    LEGAL_DOCUMENTS_VIEW_ALL_URL,
+                    repo.query(
+                        "search" to activeLegalDocumentsSearch,
+                        "page" to nextPage,
+                        "limit" to legalDocumentsPageSize
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data.orEmpty()
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+                    if (hasNewItems) {
+                        legalDocumentsCurrentPage = nextPage
+                        _legalDocuments.value = merged
+                        _legalDocumentsPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= legalDocumentsPageSize
+                        )
+                    } else {
+                        _legalDocumentsPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _legalDocumentsPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -904,16 +1103,28 @@ class LegalViewModel @Inject constructor(
     private val _isSavingLicense = MutableStateFlow(false)
     val isSavingLicense: StateFlow<Boolean> = _isSavingLicense.asStateFlow()
 
-    fun fetchLegalLicenses(search: String? = null, page: Int = 1, limit: Int = 20) {
+    private val _legalLicensesPagingState = MutableStateFlow(PagingUiState<LegalLicenseItemDto>())
+    val legalLicensesPagingState: StateFlow<PagingUiState<LegalLicenseItemDto>> =
+        _legalLicensesPagingState.asStateFlow()
+
+    private var legalLicensesCurrentPage = 1
+    private val legalLicensesPageSize = 20
+    private var activeLegalLicensesSearch: String? = null
+
+    fun fetchLegalLicenses(search: String? = null, page: Int = 1, limit: Int = legalLicensesPageSize) {
+        legalLicensesCurrentPage = page
+        activeLegalLicensesSearch = search?.trim()?.ifBlank { null }
+
         viewModelScope.launch {
             _isLoadingLicenses.value = true
             _licensesError.value = null
+            _legalLicensesPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = repo.request<LegalLicenseListResponse> {
                 get(
                     LEGAL_LICENSE_VIEW_ALL_URL,
                     repo.query(
-                        "search" to search,
+                        "search" to activeLegalLicensesSearch,
                         "page" to page,
                         "limit" to limit
                     )
@@ -922,13 +1133,67 @@ class LegalViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { res ->
-                    _legalLicenses.value = res.data.orEmpty()
+                    val list = res.data.orEmpty()
+                    _legalLicenses.value = list
+                    _legalLicensesPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = list.size >= limit
+                    )
                 },
                 onFailure = { error ->
                     _licensesError.value = error.message ?: "Failed to fetch legal licenses"
+                    _legalLicensesPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoadingLicenses.value = false
+        }
+    }
+
+    fun loadMoreLegalLicenses() {
+        val current = _legalLicensesPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        viewModelScope.launch {
+            _legalLicensesPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = legalLicensesCurrentPage + 1
+
+            val result = repo.request<LegalLicenseListResponse> {
+                get(
+                    LEGAL_LICENSE_VIEW_ALL_URL,
+                    repo.query(
+                        "search" to activeLegalLicensesSearch,
+                        "page" to nextPage,
+                        "limit" to legalLicensesPageSize
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data.orEmpty()
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+                    if (hasNewItems) {
+                        legalLicensesCurrentPage = nextPage
+                        _legalLicenses.value = merged
+                        _legalLicensesPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= legalLicensesPageSize
+                        )
+                    } else {
+                        _legalLicensesPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _legalLicensesPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -1149,23 +1414,93 @@ class LegalViewModel @Inject constructor(
     private val _isSavingCustomer = MutableStateFlow(false)
     val isSavingCustomer: StateFlow<Boolean> = _isSavingCustomer.asStateFlow()
 
-    fun fetchLegalCustomers(search: String? = null, page: Int = 1, limit: Int = 20) {
+    private val _legalCustomersPagingState = MutableStateFlow(PagingUiState<LegalCustomerItemDto>())
+    val legalCustomersPagingState: StateFlow<PagingUiState<LegalCustomerItemDto>> =
+        _legalCustomersPagingState.asStateFlow()
+
+    private var legalCustomersCurrentPage = 1
+    private val legalCustomersPageSize = 20
+    private var activeLegalCustomersSearch: String? = null
+
+    fun fetchLegalCustomers(search: String? = null, page: Int = 1, limit: Int = legalCustomersPageSize) {
+        legalCustomersCurrentPage = page
+        activeLegalCustomersSearch = search?.trim()?.ifBlank { null }
+
         viewModelScope.launch {
             _isLoadingCustomers.value = true
             _customersError.value = null
+            _legalCustomersPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = repo.request<LegalCustomerListResponse> {
                 get(
                     LEGAL_CUSTOMER_VIEW_ALL_URL,
-                    repo.query("search" to search, "page" to page, "limit" to limit)
+                    repo.query("search" to activeLegalCustomersSearch, "page" to page, "limit" to limit)
                 )
             }
 
             result.fold(
-                onSuccess = { res -> _legalCustomers.value = res.data.orEmpty() },
-                onFailure = { error -> _customersError.value = error.message ?: "Failed to fetch customer legal records" }
+                onSuccess = { res ->
+                    val list = res.data.orEmpty()
+                    _legalCustomers.value = list
+                    _legalCustomersPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = list.size >= limit
+                    )
+                },
+                onFailure = { error ->
+                    _customersError.value = error.message ?: "Failed to fetch customer legal records"
+                    _legalCustomersPagingState.value = PagingUiState(isInitialLoading = false)
+                }
             )
             _isLoadingCustomers.value = false
+        }
+    }
+
+    fun loadMoreLegalCustomers() {
+        val current = _legalCustomersPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        viewModelScope.launch {
+            _legalCustomersPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = legalCustomersCurrentPage + 1
+
+            val result = repo.request<LegalCustomerListResponse> {
+                get(
+                    LEGAL_CUSTOMER_VIEW_ALL_URL,
+                    repo.query(
+                        "search" to activeLegalCustomersSearch,
+                        "page" to nextPage,
+                        "limit" to legalCustomersPageSize
+                    )
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data.orEmpty()
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+                    if (hasNewItems) {
+                        legalCustomersCurrentPage = nextPage
+                        _legalCustomers.value = merged
+                        _legalCustomersPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= legalCustomersPageSize
+                        )
+                    } else {
+                        _legalCustomersPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _legalCustomersPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -1367,18 +1702,30 @@ class LegalViewModel @Inject constructor(
     private val _isUpdatingEmployeeStatus = MutableStateFlow(false)
     val isUpdatingEmployeeStatus: StateFlow<Boolean> = _isUpdatingEmployeeStatus.asStateFlow()
 
-    fun fetchLegalEmployees(search: String? = null, page: Int = 1, limit: Int = 10) {
+    private val _legalEmployeesPagingState = MutableStateFlow(PagingUiState<LegalEmployeeItem>())
+    val legalEmployeesPagingState: StateFlow<PagingUiState<LegalEmployeeItem>> =
+        _legalEmployeesPagingState.asStateFlow()
+
+    private var legalEmployeesCurrentPage = 1
+    private val legalEmployeesPageSize = 10
+    private var activeLegalEmployeesSearch: String? = null
+
+    fun fetchLegalEmployees(search: String? = null, page: Int = 1, limit: Int = legalEmployeesPageSize) {
+        legalEmployeesCurrentPage = page
+        activeLegalEmployeesSearch = search?.trim()?.ifBlank { null }
+
         viewModelScope.launch {
             _isLoadingEmployees.value = true
             _employeesError.value = null
+            _legalEmployeesPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = repo.request<LegalEmployeeListResponse> {
                 val queryParams = mutableListOf<Pair<String, Any?>>(
                     "page" to page,
                     "limit" to limit
                 )
-                if (!search.isNullOrBlank()) {
-                    queryParams.add("search" to search)
+                if (!activeLegalEmployeesSearch.isNullOrBlank()) {
+                    queryParams.add("search" to activeLegalEmployeesSearch)
                 }
                 get(LEGAL_EMPLOYEE_VIEW_ALL_URL, repo.query(*queryParams.toTypedArray()))
             }
@@ -1386,12 +1733,65 @@ class LegalViewModel @Inject constructor(
             result.fold(
                 onSuccess = { res ->
                     _legalEmployees.value = res.data
+                    _legalEmployeesPagingState.value = PagingUiState(
+                        items = res.data,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = res.data.size >= limit
+                    )
                 },
                 onFailure = { error ->
                     _employeesError.value = error.message ?: "Failed to fetch legal employee records"
+                    _legalEmployeesPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoadingEmployees.value = false
+        }
+    }
+
+    fun loadMoreLegalEmployees() {
+        val current = _legalEmployeesPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        viewModelScope.launch {
+            _legalEmployeesPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = legalEmployeesCurrentPage + 1
+
+            val result = repo.request<LegalEmployeeListResponse> {
+                val queryParams = mutableListOf<Pair<String, Any?>>(
+                    "page" to nextPage,
+                    "limit" to legalEmployeesPageSize
+                )
+                if (!activeLegalEmployeesSearch.isNullOrBlank()) {
+                    queryParams.add("search" to activeLegalEmployeesSearch)
+                }
+                get(LEGAL_EMPLOYEE_VIEW_ALL_URL, repo.query(*queryParams.toTypedArray()))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+                    if (hasNewItems) {
+                        legalEmployeesCurrentPage = nextPage
+                        _legalEmployees.value = merged
+                        _legalEmployeesPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= legalEmployeesPageSize
+                        )
+                    } else {
+                        _legalEmployeesPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _legalEmployeesPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -1617,31 +2017,97 @@ class LegalViewModel @Inject constructor(
     /**
      * Fetches all legal vendor and supplier records: GET /api/legal/legal-vendor/view-all
      */
-    fun fetchLegalVendors(search: String? = null, page: Int = 1, limit: Int = 20) {
+    private val _legalVendorsPagingState = MutableStateFlow(PagingUiState<LegalVendorItem>())
+    val legalVendorsPagingState: StateFlow<PagingUiState<LegalVendorItem>> =
+        _legalVendorsPagingState.asStateFlow()
+
+    private var legalVendorsCurrentPage = 1
+    private val legalVendorsPageSize = 20
+    private var activeLegalVendorsSearch: String? = null
+
+    fun fetchLegalVendors(search: String? = null, page: Int = 1, limit: Int = legalVendorsPageSize) {
+        legalVendorsCurrentPage = page
+        activeLegalVendorsSearch = search?.trim()?.ifBlank { null }
+
         viewModelScope.launch {
             _isLoadingVendors.value = true
             _vendorsError.value = null
+            _legalVendorsPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = repo.request<LegalVendorResponse<List<LegalVendorItem>>> {
                 val queryParams = mutableListOf<Pair<String, Any?>>(
                     "page" to page,
                     "limit" to limit
                 )
-                if (!search.isNullOrBlank()) {
-                    queryParams.add("search" to search)
+                if (!activeLegalVendorsSearch.isNullOrBlank()) {
+                    queryParams.add("search" to activeLegalVendorsSearch)
                 }
                 get(LEGAL_VENDOR_VIEW_ALL_URL, repo.query(*queryParams.toTypedArray()))
             }
 
             result.fold(
                 onSuccess = { res ->
-                    _legalVendors.value = res.data.orEmpty()
+                    val list = res.data.orEmpty()
+                    _legalVendors.value = list
+                    _legalVendorsPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = list.size >= limit
+                    )
                 },
                 onFailure = { error ->
                     _vendorsError.value = error.message ?: "Failed to fetch legal vendor records"
+                    _legalVendorsPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoadingVendors.value = false
+        }
+    }
+
+    fun loadMoreLegalVendors() {
+        val current = _legalVendorsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        viewModelScope.launch {
+            _legalVendorsPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = legalVendorsCurrentPage + 1
+
+            val result = repo.request<LegalVendorResponse<List<LegalVendorItem>>> {
+                val queryParams = mutableListOf<Pair<String, Any?>>(
+                    "page" to nextPage,
+                    "limit" to legalVendorsPageSize
+                )
+                if (!activeLegalVendorsSearch.isNullOrBlank()) {
+                    queryParams.add("search" to activeLegalVendorsSearch)
+                }
+                get(LEGAL_VENDOR_VIEW_ALL_URL, repo.query(*queryParams.toTypedArray()))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data.orEmpty()
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+                    if (hasNewItems) {
+                        legalVendorsCurrentPage = nextPage
+                        _legalVendors.value = merged
+                        _legalVendorsPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= legalVendorsPageSize
+                        )
+                    } else {
+                        _legalVendorsPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _legalVendorsPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 
@@ -1880,31 +2346,97 @@ class LegalViewModel @Inject constructor(
     /**
      * Fetches all legal notices: GET /api/legal/legal-notice/view-all
      */
-    fun fetchLegalNotices(search: String? = null, page: Int = 1, limit: Int = 20) {
+    private val _legalNoticesPagingState = MutableStateFlow(PagingUiState<LegalNoticeItem>())
+    val legalNoticesPagingState: StateFlow<PagingUiState<LegalNoticeItem>> =
+        _legalNoticesPagingState.asStateFlow()
+
+    private var legalNoticesCurrentPage = 1
+    private val legalNoticesPageSize = 20
+    private var activeLegalNoticesSearch: String? = null
+
+    fun fetchLegalNotices(search: String? = null, page: Int = 1, limit: Int = legalNoticesPageSize) {
+        legalNoticesCurrentPage = page
+        activeLegalNoticesSearch = search?.trim()?.ifBlank { null }
+
         viewModelScope.launch {
             _isLoadingNotices.value = true
             _noticesError.value = null
+            _legalNoticesPagingState.value = PagingUiState(isInitialLoading = true)
 
             val result = repo.request<LegalNoticeListResponse> {
                 val queryParams = mutableListOf<Pair<String, Any?>>(
                     "page" to page,
                     "limit" to limit
                 )
-                if (!search.isNullOrBlank()) {
-                    queryParams.add("search" to search)
+                if (!activeLegalNoticesSearch.isNullOrBlank()) {
+                    queryParams.add("search" to activeLegalNoticesSearch)
                 }
                 get(LEGAL_NOTICE_VIEW_ALL_URL, repo.query(*queryParams.toTypedArray()))
             }
 
             result.fold(
                 onSuccess = { res ->
-                    _legalNotices.value = res.data.orEmpty()
+                    val list = res.data.orEmpty()
+                    _legalNotices.value = list
+                    _legalNoticesPagingState.value = PagingUiState(
+                        items = list,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = list.size >= limit
+                    )
                 },
                 onFailure = { error ->
                     _noticesError.value = error.message ?: "Failed to fetch legal notices"
+                    _legalNoticesPagingState.value = PagingUiState(isInitialLoading = false)
                 }
             )
             _isLoadingNotices.value = false
+        }
+    }
+
+    fun loadMoreLegalNotices() {
+        val current = _legalNoticesPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+
+        viewModelScope.launch {
+            _legalNoticesPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = legalNoticesCurrentPage + 1
+
+            val result = repo.request<LegalNoticeListResponse> {
+                val queryParams = mutableListOf<Pair<String, Any?>>(
+                    "page" to nextPage,
+                    "limit" to legalNoticesPageSize
+                )
+                if (!activeLegalNoticesSearch.isNullOrBlank()) {
+                    queryParams.add("search" to activeLegalNoticesSearch)
+                }
+                get(LEGAL_NOTICE_VIEW_ALL_URL, repo.query(*queryParams.toTypedArray()))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val newItems = res.data.orEmpty()
+                    val merged = (current.items + newItems).distinctBy { it.id }
+                    val hasNewItems = merged.size > current.items.size
+                    if (hasNewItems) {
+                        legalNoticesCurrentPage = nextPage
+                        _legalNotices.value = merged
+                        _legalNoticesPagingState.value = current.copy(
+                            items = merged,
+                            isLoadingMore = false,
+                            canLoadMore = newItems.size >= legalNoticesPageSize
+                        )
+                    } else {
+                        _legalNoticesPagingState.value = current.copy(
+                            isLoadingMore = false,
+                            canLoadMore = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _legalNoticesPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
         }
     }
 

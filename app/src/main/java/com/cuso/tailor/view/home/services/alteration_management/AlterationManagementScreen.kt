@@ -1,18 +1,14 @@
-@file:Suppress("unused", "UNUSED_PARAMETER","DEPRECATION", "AssignedValueIsNeverRead")
+@file:Suppress("unused", "UNUSED_PARAMETER", "DEPRECATION", "AssignedValueIsNeverRead")
 
 package com.cuso.tailor.view.home.services.alteration_management
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.service.AlterationItemDto
 import com.cuso.tailor.ui.theme.*
@@ -28,8 +24,7 @@ fun AlterationManagementScreen(
     onBreadcrumbClick: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    val items by viewModel.alterationList.collectAsState()
-    val isLoading by viewModel.isAlterationsLoading.collectAsState()
+    val pagingState by viewModel.alterationsPagingState.collectAsState()
     val searchQuery by viewModel.alterationQuery.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -38,14 +33,13 @@ fun AlterationManagementScreen(
 
     Scaffold(
         topBar = {
-            // Header Bar with Close Icon
             TitleBar(
                 title = "Alteration Management",
                 onClose = onClose
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = Color.Transparent
+        containerColor = Primary_background
     ) { padding ->
         FabScaffold(
             modifier = Modifier
@@ -56,7 +50,7 @@ fun AlterationManagementScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Transparent)
+                    .background(Primary_background)
             ) {
                 // Search and Filter Row
                 SearchFilterBar(
@@ -66,11 +60,11 @@ fun AlterationManagementScreen(
                     onFilterClick = { /* Handle Filter Dialog/Action */ }
                 )
 
-                if (isLoading) {
-                    ListSkeleton()
-                } else if (items.isEmpty()) {
+                if (!pagingState.isInitialLoading && pagingState.items.isEmpty()) {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -80,21 +74,18 @@ fun AlterationManagementScreen(
                         )
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(items) { item ->
-                            AlterationDataCard(
-                                item = item,
-                                onClick = { onItemClick(item) },
-                                onMenuClick = { /* Handle popup menu */ }
-                            )
-                        }
-
-                        // Bottom Spacer for FAB clearance
-                        item {
-                            Spacer(Modifier.height(80.dp))
-                        }
+                    PaginatedDataList(
+                        state = pagingState,
+                        onLoadMore = { viewModel.loadMoreAlterations() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) { item ->
+                        AlterationDataCard(
+                            item = item,
+                            onClick = { onItemClick(item) },
+                            onMenuClick = { /* Handle popup menu */ }
+                        )
                     }
                 }
             }
@@ -103,7 +94,7 @@ fun AlterationManagementScreen(
 }
 
 /**
- * Reusable Card wrapping DataCard to reproduce the exact visual layout from the reference image.
+ * Reusable card wrapping DataCard to render an alteration ticket item.
  */
 @Composable
 fun AlterationDataCard(
@@ -111,9 +102,6 @@ fun AlterationDataCard(
     onClick: () -> Unit,
     onMenuClick: () -> Unit
 ) {
-    val tokens = LocalAppTokens.current
-
-    // Status Pill color mapping based strictly on Colors.kt definitions
     val rawStatus = item.status?.lowercase() ?: "in progress"
     val (statusLabel, statusBg, statusText) = when {
         rawStatus.contains("pending") || rawStatus.contains("draft") -> {
@@ -136,7 +124,6 @@ fun AlterationDataCard(
         item = item,
         onClick = { onClick() },
         showDivider = false,
-        // Header Row: Ticket ID + "Ticket ID" label and Inlined Status Badge with Overflow Menu
         eyebrowText = "${item.displayTicketCode}  •  Ticket ID",
         eyebrowColor = title_color,
         topBadgeText = statusLabel,
@@ -159,13 +146,10 @@ fun AlterationDataCard(
                 onClick = onMenuClick
             )
         ),
-        // Customer Name
         title = item.customerDisplayName,
         titleColor = textSubdued,
         titleFontWeight = FontWeight.Normal,
-        // Type and Date Row
         subtitle = "Type: $typeText · Date: ${item.formattedDate}",
-        // Key-Value rows: Order ID, Garment, and Tailor
         footerAsRows = true,
         footerFields = listOf(
             DataCardField(

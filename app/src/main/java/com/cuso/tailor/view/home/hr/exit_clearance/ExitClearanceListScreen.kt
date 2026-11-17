@@ -7,8 +7,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -71,8 +69,7 @@ fun ExitClearanceListScreen(
     onOpenManagerApproval: (String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    val requests by viewModel.exitRequests.collectAsState()
-    val isLoading by viewModel.isLoadingExitRequests.collectAsState()
+    val exitPagingState by viewModel.exitRequestsPagingState.collectAsState()
     val errorMsg by viewModel.exitRequestsError.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -108,8 +105,13 @@ fun ExitClearanceListScreen(
         errorMsg?.let { DynamicIslandManager.showError(it) }
     }
 
-    val filteredList = remember(requests, searchQuery, selectedClearanceStatuses, selectedExitTypes) {
-        requests.filter { item ->
+    val filteredList = remember(
+        exitPagingState.items,
+        searchQuery,
+        selectedClearanceStatuses,
+        selectedExitTypes
+    ) {
+        exitPagingState.items.filter { item ->
             val empName = item.organizationMemberId.extractMemberName()
             val deptName = item.departmentId.extractEntityName("")
             val clearanceStatus = resolveEffectiveClearanceStatus(item)
@@ -127,6 +129,10 @@ fun ExitClearanceListScreen(
 
             matchesSearch && matchesStatus && matchesType
         }
+    }
+
+    val displayPagingState = remember(exitPagingState, filteredList) {
+        exitPagingState.copy(items = filteredList)
     }
 
     val activeFilterCount = selectedClearanceStatuses.size + selectedExitTypes.size
@@ -154,213 +160,194 @@ fun ExitClearanceListScreen(
                 height = tokens.fieldHeight
             )
 
-            when {
-                isLoading && requests.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = Primary)
-                    }
+            if (!displayPagingState.isInitialLoading && displayPagingState.items.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(tokens.screenPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No exit clearance records found",
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = TextSecondary
+                    )
                 }
+            } else {
+                // Paginated list reusing PaginatedDataList
+                PaginatedDataList(
+                    state = displayPagingState,
+                    onLoadMore = { viewModel.loadMoreExitRequests() },
+                    modifier = Modifier.fillMaxSize()
+                ) { item ->
+                    val isChecked = selectedIds.contains(item.id)
+                    val employeeName = item.organizationMemberId.extractMemberName()
+                    val progress = item.toClearanceProgress()
+                    val clearanceStatus = resolveEffectiveClearanceStatus(item)
+                    val statusColors = resolveClearanceStatusColors(clearanceStatus)
 
-                filteredList.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(tokens.screenPadding),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No exit clearance records found",
-                            fontSize = tokens.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = TextSecondary
-                        )
-                    }
-                }
+                    // Reuse DataCard with named content slot
+                    DataCard(
+                        item = item,
+                        onClick = { onOpenClearanceDetail(it.id) },
+                        showHeaderDivider = true,
+                        headerContent = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                                ) {
+                                    // Reuse AppCheckbox for list row selection
+                                    AppCheckbox(
+                                        checked = isChecked,
+                                        size = tokens.iconSize,
+                                        onCheckedChange = { checked ->
+                                            selectedIds = if (checked) {
+                                                selectedIds + item.id
+                                            } else {
+                                                selectedIds - item.id
+                                            }
+                                        }
+                                    )
 
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            top = tokens.extraPadding * 0.4f,
-                            bottom = tokens.buttonHeight * 1.5f
-                        )
-                    ) {
-                        itemsIndexed(
-                            items = filteredList,
-                            key = { _, item -> item.id }
-                        ) { _, item ->
-                            val isChecked = selectedIds.contains(item.id)
-                            val employeeName = item.organizationMemberId.extractMemberName()
-                            val progress = item.toClearanceProgress()
-                            val clearanceStatus = resolveEffectiveClearanceStatus(item)
-                            val statusColors = resolveClearanceStatusColors(clearanceStatus)
+                                    Text(
+                                        text = employeeName,
+                                        fontSize = tokens.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = TextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
 
-                            // Reuse DataCard with named content slot
-                            DataCard(
-                                item = item,
-                                onClick = { onOpenClearanceDetail(it.id) },
-                                showHeaderDivider = true,
-                                headerContent = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
+                                ) {
+                                    StatusBadge(
+                                        text = clearanceStatus.replace("_", " "),
+                                        bgColor = statusColors.first,
+                                        textColor = statusColors.second
+                                    )
+
+                                    ActionDropdownMenu(
+                                        actions = listOf(
+                                            MenuAction(
+                                                label = "View",
+                                                icon = Icons.Default.Visibility,
+                                                tint = Primary,
+                                                textColor = TextPrimary,
+                                                onClick = { onOpenManagerApproval(item.id) }
+                                            ),
+                                            MenuAction(
+                                                label = "Clearance Checklist",
+                                                icon = Icons.Default.CheckCircle,
+                                                tint = Primary,
+                                                textColor = TextPrimary,
+                                                onClick = { onOpenClearanceDetail(item.id) }
+                                            )
+                                        )
+                                    )
+                                }
+                            }
+                        },
+                        content = {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.7f)
+                            ) {
+                                ClearanceKeyValueRow(
+                                    label = "Department",
+                                    value = item.departmentId.extractEntityName()
+                                )
+                                ClearanceKeyValueRow(
+                                    label = "Exit Type",
+                                    value = item.exitType.replace("_", " ")
+                                )
+                                ClearanceKeyValueRow(
+                                    label = "Last Working Day",
+                                    value = formatExitDate(
+                                        item.approvedLastWorkingDate ?: item.requestedLastWorkingDate
+                                    )
+                                )
+
+                                // Clearance Progress row with bar and percentage
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.4f)
+                                ) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Row(
-                                            modifier = Modifier.weight(1f),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                                        ) {
-                                            // Reuse AppCheckbox for list row selection
-                                            AppCheckbox(
-                                                checked = isChecked,
-                                                size = tokens.iconSize,
-                                                onCheckedChange = { checked ->
-                                                    selectedIds = if (checked) {
-                                                        selectedIds + item.id
-                                                    } else {
-                                                        selectedIds - item.id
-                                                    }
-                                                }
-                                            )
-
-                                            Text(
-                                                text = employeeName,
-                                                fontSize = tokens.bodyMedium,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = TextPrimary,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
-                                        ) {
-                                            StatusBadge(
-                                                text = clearanceStatus.replace("_", " "),
-                                                bgColor = statusColors.first,
-                                                textColor = statusColors.second
-                                            )
-
-                                            ActionDropdownMenu(
-                                                actions = listOf(
-                                                    MenuAction(
-                                                        label = "View",
-                                                        icon = Icons.Default.Visibility,
-                                                        tint = Primary,
-                                                        textColor = TextPrimary,
-                                                        onClick = { onOpenManagerApproval(item.id) }
-                                                    ),
-                                                    MenuAction(
-                                                        label = "Clearance Checklist",
-                                                        icon = Icons.Default.CheckCircle,
-                                                        tint = Primary,
-                                                        textColor = TextPrimary,
-                                                        onClick = { onOpenClearanceDetail(item.id) }
-                                                    )
-                                                )
-                                            )
-                                        }
+                                        Text(
+                                            text = "Clearance Progress",
+                                            fontSize = tokens.bodySmall,
+                                            color = headerGrey
+                                        )
+                                        Text(
+                                            text = "${progress.percentage}% (${progress.cleared}/${progress.total})",
+                                            fontSize = tokens.caption,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (progress.percentage == 100) greentext else TextSecondary
+                                        )
                                     }
-                                },
-                                content = {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.7f)
+                                    DataCardProgressBar(
+                                        progress = progress.percentage / 100f,
+                                        progressColor = Primary,
+                                        trackColor = light_grey
+                                    )
+                                }
+
+                                HorizontalDivider(
+                                    color = grey_border,
+                                    thickness = 1.dp
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Action",
+                                        fontSize = tokens.bodySmall,
+                                        color = headerGrey
+                                    )
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        ClearanceKeyValueRow(
-                                            label = "Department",
-                                            value = item.departmentId.extractEntityName()
-                                        )
-                                        ClearanceKeyValueRow(
-                                            label = "Exit Type",
-                                            value = item.exitType.replace("_", " ")
-                                        )
-                                        ClearanceKeyValueRow(
-                                            label = "Last Working Day",
-                                            value = formatExitDate(
-                                                item.approvedLastWorkingDate ?: item.requestedLastWorkingDate
-                                            )
-                                        )
-
-                                        // Clearance Progress row with bar and percentage
-                                        Column(
-                                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.4f)
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = "Clearance Progress",
-                                                    fontSize = tokens.bodySmall,
-                                                    color = headerGrey
-                                                )
-                                                Text(
-                                                    text = "${progress.percentage}% (${progress.cleared}/${progress.total})",
-                                                    fontSize = tokens.caption,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = if (progress.percentage == 100) greentext else TextSecondary
-                                                )
+                                        Text(
+                                            text = "Checklist",
+                                            fontSize = tokens.bodySmall,
+                                            fontWeight = FontWeight.Medium,
+                                            color = TextSecondary,
+                                            modifier = Modifier.clickable {
+                                                onOpenClearanceDetail(item.id)
                                             }
-                                            DataCardProgressBar(
-                                                progress = progress.percentage / 100f,
-                                                progressColor = if (progress.percentage == 100) Primary else Primary,
-                                                trackColor = light_grey
-                                            )
-                                        }
-
-                                        HorizontalDivider(
-                                            color = grey_border,
-                                            thickness = 1.dp
                                         )
-
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "Action",
-                                                fontSize = tokens.bodySmall,
-                                                color = headerGrey
-                                            )
-
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = "Checklist",
-                                                    fontSize = tokens.bodySmall,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = TextSecondary,
-                                                    modifier = Modifier.clickable {
-                                                        onOpenClearanceDetail(item.id)
-                                                    }
-                                                )
-                                                Text(
-                                                    text = "View",
-                                                    fontSize = tokens.bodySmall,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = Primary,
-                                                    modifier = Modifier.clickable {
-                                                        onOpenManagerApproval(item.id)
-                                                    }
-                                                )
+                                        Text(
+                                            text = "View",
+                                            fontSize = tokens.bodySmall,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Primary,
+                                            modifier = Modifier.clickable {
+                                                onOpenManagerApproval(item.id)
                                             }
-                                        }
+                                        )
                                     }
                                 }
-                            )
+                            }
                         }
-                    }
+                    )
                 }
             }
         }

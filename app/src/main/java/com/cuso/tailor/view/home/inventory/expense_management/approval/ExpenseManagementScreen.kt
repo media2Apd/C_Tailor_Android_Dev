@@ -3,8 +3,6 @@
 package com.cuso.tailor.view.home.inventory.expense_management.approval
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Scaffold
@@ -22,8 +20,8 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.hr.ExpenseClaimDto
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.DataCard
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.TitleBar
@@ -40,25 +38,28 @@ fun ExpenseManagementScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val expenseClaims by viewModel.expenseClaims.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingExpenseClaims.collectAsStateWithLifecycle()
+    val claimsPagingState by viewModel.expenseClaimsPagingState.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         viewModel.fetchExpenseClaims()
     }
 
-    val filteredExpenses = remember(expenseClaims, searchQuery) {
+    val filteredExpenses = remember(claimsPagingState.items, searchQuery) {
         if (searchQuery.isBlank()) {
-            expenseClaims
+            claimsPagingState.items
         } else {
-            expenseClaims.filter { claim ->
+            claimsPagingState.items.filter { claim ->
                 claim.title?.contains(searchQuery, ignoreCase = true) == true ||
                         claim.claimNumber?.contains(searchQuery, ignoreCase = true) == true ||
                         (claim.category?.name?.contains(searchQuery, ignoreCase = true) == true) ||
                         (claim.employee?.fullName?.contains(searchQuery, ignoreCase = true) == true)
             }
         }
+    }
+
+    val displayPagingState = remember(claimsPagingState, filteredExpenses) {
+        claimsPagingState.copy(items = filteredExpenses)
     }
 
     Scaffold(
@@ -72,7 +73,8 @@ fun ExpenseManagementScreen(
         }
     ) { paddingValues ->
         Column(
-            Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(paddingValues)
         ) {
             SearchFilterBar(
@@ -87,13 +89,9 @@ fun ExpenseManagementScreen(
                 textSecondaryColor = iconMuted,
                 height = tokens.fieldHeight
             )
-            if (isLoading) {
-                ListSkeleton()
-            } else if (filteredExpenses.isEmpty()) {
+            if (!displayPagingState.isInitialLoading && displayPagingState.items.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -105,19 +103,19 @@ fun ExpenseManagementScreen(
                     )
                 }
             } else {
-                LazyColumn(
+                PaginatedDataList(
+                    state = displayPagingState,
+                    onLoadMore = { viewModel.loadMoreExpenseClaims() },
                     modifier = Modifier.fillMaxSize()
-                ) {
-                    items(filteredExpenses, key = { it.id }) { claim ->
-                        ExpenseItemCard(
-                            claim = claim,
-                            onViewClick = {
-                                if (claim.id.isNotBlank()) {
-                                    onViewClaimDetail(claim.id)
-                                }
+                ) { claim ->
+                    ExpenseItemCard(
+                        claim = claim,
+                        onViewClick = {
+                            if (claim.id.isNotBlank()) {
+                                onViewClaimDetail(claim.id)
                             }
-                        )
-                    }
+                        }
+                    )
                 }
             }
         }

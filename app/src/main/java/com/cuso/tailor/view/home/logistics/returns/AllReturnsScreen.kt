@@ -2,8 +2,6 @@ package com.cuso.tailor.view.home.logistics.returns
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -33,31 +31,24 @@ fun LogisticsReturnScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    // Observe individual StateFlows from LogisticsViewModel
-    val returnsList by viewModel.filteredReturns.collectAsState()
+    val returnsPagingState by viewModel.returnsPagingState.collectAsState()
     val searchQuery by viewModel.returnSearchQuery.collectAsState()
-    val isLoading by viewModel.isLoadingReturns.collectAsState()
     val errorMessage by viewModel.returnsError.collectAsState()
     val selectedStatus by viewModel.selectedReturnStatus.collectAsState()
     val selectedType by viewModel.selectedReturnType.collectAsState()
     val selectedPriority by viewModel.selectedReturnPriority.collectAsState()
 
     val filterDrawerState = rememberFilterDrawerState()
-
-    // State holding the return item selected for deletion
     var itemToDelete by remember { mutableStateOf<ReturnItemDto?>(null) }
 
-    // Fetch returns on initial screen launch
     LaunchedEffect(Unit) {
         viewModel.fetchReturns()
     }
 
-    // Calculate active filter badge count
     val activeFilterCount = remember(selectedStatus, selectedType, selectedPriority) {
         listOfNotNull(selectedStatus, selectedType, selectedPriority).count()
     }
 
-    // Configure filter categories for FilterDrawer
     val filterSections = remember(selectedStatus, selectedType, selectedPriority) {
         listOf(
             FilterSection(
@@ -104,7 +95,7 @@ fun LogisticsReturnScreen(
         FabScaffold(
             modifier = Modifier.fillMaxSize(),
             fab = fabConfig,
-            fabVisible = !filterDrawerState.isOpen
+            fabVisible = !filterDrawerState.isOpen && !returnsPagingState.isInitialLoading
         ) {
             Scaffold(
                 containerColor = Color.Transparent,
@@ -117,7 +108,6 @@ fun LogisticsReturnScreen(
                         .fillMaxSize()
                         .padding(paddingValues)
                 ) {
-                    // Search & Filter Bar
                     SearchFilterBar(
                         query = searchQuery,
                         onQueryChange = viewModel::onReturnSearchQueryChange,
@@ -128,12 +118,9 @@ fun LogisticsReturnScreen(
                         borderColor = BorderGray,
                         height = tokens.fieldHeight
                     )
-                    when {
-                        isLoading && returnsList.isEmpty() -> {
-                            ListSkeleton()
-                        }
 
-                        errorMessage != null && returnsList.isEmpty() -> {
+                    when {
+                        errorMessage != null && returnsPagingState.items.isEmpty() && !returnsPagingState.isInitialLoading -> {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -158,7 +145,7 @@ fun LogisticsReturnScreen(
                             }
                         }
 
-                        returnsList.isEmpty() -> {
+                        !returnsPagingState.isInitialLoading && returnsPagingState.items.isEmpty() -> {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
@@ -172,21 +159,18 @@ fun LogisticsReturnScreen(
                         }
 
                         else -> {
-                            LazyColumn(
+                            PaginatedDataList(
+                                state = returnsPagingState,
+                                onLoadMore = { viewModel.loadMoreReturns() },
                                 modifier = Modifier.fillMaxSize()
-                            ) {
-                                items(
-                                    items = returnsList,
-                                    key = { it.id.ifBlank { it.returnId } }
-                                ) { item ->
-                                    ReturnDataCard(
-                                        returnItem = item,
-                                        formattedDate = viewModel.formatReturnDateTime(item.createdAt),
-                                        onClick = { onReturnClick(item) },
-                                        onEditClick = { onEditReturnClick(item.id.ifBlank { item.returnId }) },
-                                        onDeleteClick = { itemToDelete = item }
-                                    )
-                                }
+                            ) { item ->
+                                ReturnDataCard(
+                                    returnItem = item,
+                                    formattedDate = viewModel.formatReturnDateTime(item.createdAt),
+                                    onClick = { onReturnClick(item) },
+                                    onEditClick = { onEditReturnClick(item.id.ifBlank { item.returnId }) },
+                                    onDeleteClick = { itemToDelete = item }
+                                )
                             }
                         }
                     }
@@ -194,18 +178,13 @@ fun LogisticsReturnScreen(
             }
         }
 
-        // Side Filter Drawer
         FilterDrawer(
             state = filterDrawerState,
             sections = filterSections,
             onApply = { updatedSections ->
-                val status = updatedSections.find { it.title == "Status" }
-                    ?.options?.find { it.isSelected }?.id
-                val type = updatedSections.find { it.title == "Type" }
-                    ?.options?.find { it.isSelected }?.id
-                val priority = updatedSections.find { it.title == "Priority" }
-                    ?.options?.find { it.isSelected }?.id
-
+                val status = updatedSections.find { it.title == "Status" }?.options?.find { it.isSelected }?.id
+                val type = updatedSections.find { it.title == "Type" }?.options?.find { it.isSelected }?.id
+                val priority = updatedSections.find { it.title == "Priority" }?.options?.find { it.isSelected }?.id
                 viewModel.onReturnStatusFilterChange(status)
                 viewModel.onReturnTypeFilterChange(type)
                 viewModel.onReturnPriorityFilterChange(priority)
@@ -215,7 +194,6 @@ fun LogisticsReturnScreen(
             }
         )
 
-        // Delete Confirmation Modal
         itemToDelete?.let { returnItem ->
             val returnCode = returnItem.returnId.ifBlank { returnItem.id }
             DeleteModel(

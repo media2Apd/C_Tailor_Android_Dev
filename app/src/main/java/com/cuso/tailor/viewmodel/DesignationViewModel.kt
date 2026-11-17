@@ -5,6 +5,7 @@ import com.cuso.tailor.model.settings.DesignationCreateRequest
 import com.cuso.tailor.model.settings.DesignationItem
 import com.cuso.tailor.model.settings.DesignationUpdateRequest
 import com.cuso.tailor.repository.SalesRepository
+import com.cuso.tailor.utils.PagingUiState
 import com.cuso.tailor.utils.launchBusy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +43,50 @@ class DesignationViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<DesignationUiState>(DesignationUiState.Loading)
     val uiState: StateFlow<DesignationUiState> = _uiState.asStateFlow()
 
+    // ── Paginated UI State for PaginatedDataList ──
+    private val _designationsPagingState =
+        MutableStateFlow(PagingUiState<DesignationItem>(isInitialLoading = true))
+    val designationsPagingState: StateFlow<PagingUiState<DesignationItem>> =
+        _designationsPagingState.asStateFlow()
+
+    private var currentSearchQuery: String = ""
+    private var currentPage: Int = 1
+    private val pageSize: Int = 10
+
+    fun onDesignationSearchChanged(query: String) {
+        currentSearchQuery = query
+        rebuildPagingState(resetPage = true)
+    }
+
+    fun loadMoreDesignations() {
+        val current = _designationsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+        currentPage += 1
+        rebuildPagingState(resetPage = false)
+    }
+
+    private fun rebuildPagingState(resetPage: Boolean) {
+        if (resetPage) currentPage = 1
+
+        val allDesignations = (_uiState.value as? DesignationUiState.Success)?.items ?: emptyList()
+        val filtered = if (currentSearchQuery.isBlank()) {
+            allDesignations
+        } else {
+            allDesignations.filter { d ->
+                d.name.contains(currentSearchQuery, ignoreCase = true) ||
+                        d.code.contains(currentSearchQuery, ignoreCase = true)
+            }
+        }
+
+        val pagedItems = filtered.take(currentPage * pageSize)
+        _designationsPagingState.value = PagingUiState(
+            items = pagedItems,
+            isInitialLoading = false,
+            isLoadingMore = false,
+            canLoadMore = pagedItems.size < filtered.size
+        )
+    }
+
     private val _createState = MutableStateFlow<DesignationCreateState>(DesignationCreateState.Idle)
     val createState: StateFlow<DesignationCreateState> = _createState.asStateFlow()
 
@@ -57,9 +102,16 @@ class DesignationViewModel @Inject constructor(
     fun loadDesignations() {
         launchBusy {
             _uiState.value = DesignationUiState.Loading
+            _designationsPagingState.value = PagingUiState(isInitialLoading = true)
             repository.getDesignations()
-                .onSuccess { _uiState.value = DesignationUiState.Success(it) }
-                .onFailure { _uiState.value = DesignationUiState.Error(it.message ?: "Error") }
+                .onSuccess { items ->
+                    _uiState.value = DesignationUiState.Success(items)
+                    rebuildPagingState(resetPage = true)
+                }
+                .onFailure { e ->
+                    _uiState.value = DesignationUiState.Error(e.message ?: "Error")
+                    _designationsPagingState.value = PagingUiState(isInitialLoading = false)
+                }
         }
     }
 

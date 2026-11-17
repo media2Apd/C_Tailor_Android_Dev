@@ -1,22 +1,15 @@
-@file:Suppress("UNUSED_PARAMETER")
+@file:Suppress("UNUSED_VALUE", "SpellCheckingInspection","unusedVariable", "unused", "AssignedValueIsNeverRead")
 
 package com.cuso.tailor.view.home.inventory.procurement.returns
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.LocalShipping
-import androidx.compose.material.icons.outlined.MonetizationOn
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -49,10 +42,7 @@ fun AllReturnsScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
-    val returns by viewModel.returnsList.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
-    val canLoadMore by viewModel.canLoadMore.collectAsStateWithLifecycle()
+    val returnsPagingState by viewModel.returnsPagingState.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.fetchReturns(page = 1)
@@ -63,7 +53,8 @@ fun AllReturnsScreen(
             label = "Create Return",
             icon = Icons.Default.Add,
             onClick = onCreateReturnClick
-        )
+        ),
+        fabVisible = !returnsPagingState.isInitialLoading
     ) {
         Column(
             modifier = Modifier
@@ -96,9 +87,7 @@ fun AllReturnsScreen(
                     .fillMaxSize()
                     .weight(1f)
             ) {
-                if (isLoading && returns.isEmpty()) {
-                    ListSkeleton()
-                } else if (returns.isEmpty()) {
+                if (!returnsPagingState.isInitialLoading && returnsPagingState.items.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -111,35 +100,15 @@ fun AllReturnsScreen(
                         )
                     }
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = tokens.screenPadding * 4)
-                    ) {
-                        items(returns, key = { it.id }) { item ->
-                            ReturnCardItem(
-                                item = item,
-                                onClick = { onReturnItemClick(item) }
-                            )
-                        }
-
-                        // Infinite scroll loader
-                        if (canLoadMore) {
-                            item {
-                                LaunchedEffect(Unit) {
-                                    viewModel.loadMoreReturns()
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(tokens.screenPadding),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    if (isLoadingMore) {
-                                        ThreeDotLoading()
-                                    }
-                                }
-                            }
-                        }
+                    PaginatedDataList(
+                        state = returnsPagingState,
+                        onLoadMore = { viewModel.loadMoreReturns() },
+                        modifier = Modifier.fillMaxSize()
+                    ) { item ->
+                        ReturnCardItem(
+                            item = item,
+                            onClick = { onReturnItemClick(item) }
+                        )
                     }
                 }
             }

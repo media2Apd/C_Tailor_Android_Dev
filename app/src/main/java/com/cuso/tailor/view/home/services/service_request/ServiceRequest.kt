@@ -1,27 +1,23 @@
 @file:Suppress("unused", "unusedVariable")
+
 package com.cuso.tailor.view.home.services.service_request
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.service.ServiceRequestData
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.view.composable.*
-import com.cuso.tailor.viewmodel.ServiceRequestUiState
-import com.cuso.tailor.viewmodel.ServicesViewModel
-import androidx.compose.foundation.lazy.items
 import com.cuso.tailor.utils.currencySymbol
-
+import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.viewmodel.ServicesViewModel
 import kotlinx.coroutines.delay
 
 @Composable
@@ -33,25 +29,32 @@ fun ServiceRequestScreen(
 ) {
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
-    val uiState by viewModel.listState.collectAsStateWithLifecycle()
+    var hasInitializedSearch by remember { mutableStateOf(false) }
+
+    val pagingState by viewModel.serviceRequestsPagingState.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.serviceRequestsPagingError.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.loadServiceRequests()
     }
 
     LaunchedEffect(searchQuery) {
-        delay(400)
-        viewModel.searchRequests(searchQuery)
+        if (hasInitializedSearch) {
+            delay(400)
+            viewModel.searchRequests(searchQuery)
+        } else {
+            hasInitializedSearch = true
+        }
     }
 
     Scaffold(
         topBar = {
             Surface(modifier = Modifier.fillMaxWidth(), color = whiteBg) {
-                TitleBar(title ="All Requests", onClose = onClose)
+                TitleBar(title = "All Requests", onClose = onClose)
             }
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = Color.Transparent
+        containerColor = Primary_background
     ) { padding ->
         FabScaffold(
             modifier = Modifier
@@ -69,7 +72,7 @@ fun ServiceRequestScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Transparent)
+                    .background(Primary_background)
             ) {
                 SearchFilterBar(
                     query = searchQuery,
@@ -81,44 +84,42 @@ fun ServiceRequestScreen(
                     onFilterClick = {}
                 )
 
-                when (val state = uiState) {
-                    is ServiceRequestUiState.Loading -> {
-                        ListSkeleton()
-                    }
-                    is ServiceRequestUiState.Error -> {
+                when {
+                    errorMessage != null && pagingState.items.isEmpty() && !pagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load requests",
-                            message = state.message,
-                            onRetry = { viewModel.loadServiceRequests() }
+                            message = errorMessage ?: "Failed to load requests",
+                            onRetry = { viewModel.loadServiceRequests(search = searchQuery.ifBlank { null }) }
                         )
                     }
-                    is ServiceRequestUiState.Success -> {
-                        if (state.items.isEmpty()) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "No Service Requests Found",
-                                    fontSize = tokens.bodyMedium,
-                                    color = mutedText
-                                )
-                            }
-                        } else {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = tokens.buttonHeight * 2)
-                            ) {
-                                items(
-                                    items = state.items,
-                                    key = { it.id }
-                                ) { item: ServiceRequestData ->
-                                    ServiceRequestCard(
-                                        item = item,
-                                        onViewClick = { onViewClick(item.id) }
-                                    )
-                                }
-                            }
+
+                    !pagingState.isInitialLoading && pagingState.items.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No Service Requests Found",
+                                fontSize = tokens.bodyMedium,
+                                color = mutedText
+                            )
+                        }
+                    }
+
+                    else -> {
+                        PaginatedDataList(
+                            state = pagingState,
+                            onLoadMore = { viewModel.loadMoreServiceRequests() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) { item: ServiceRequestData ->
+                            ServiceRequestCard(
+                                item = item,
+                                onViewClick = { onViewClick(item.id) }
+                            )
                         }
                     }
                 }
@@ -132,8 +133,6 @@ fun ServiceRequestCard(
     item: ServiceRequestData,
     onViewClick: () -> Unit
 ) {
-    val tokens = LocalAppTokens.current
-
     val (statusBadgeBg, statusBadgeTextColor) = when (item.status.lowercase()) {
         "completed" -> greenBg to greentext
         "in_progress", "received_in_workshop" -> primary_light to Primary

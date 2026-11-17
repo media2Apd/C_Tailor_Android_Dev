@@ -6,8 +6,6 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -110,8 +108,7 @@ fun LegalDocumentsScreen(
         viewModel.fetchLegalDocuments()
     }
 
-    val documents by viewModel.legalDocuments.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingLegalDocuments.collectAsStateWithLifecycle()
+    val documentsPagingState by viewModel.legalDocumentsPagingState.collectAsStateWithLifecycle()
     val errorMessage by viewModel.legalDocumentsError.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -124,11 +121,11 @@ fun LegalDocumentsScreen(
         filterSections.sumOf { it.options.count { opt -> opt.isSelected } }
     }
 
-    val filteredDocuments = remember(documents, searchQuery, filterSections) {
+    val filteredDocuments = remember(documentsPagingState.items, searchQuery, filterSections) {
         val selectedStatuses = filterSections.find { it.title == "Status" }?.options?.filter { it.isSelected }?.map { it.id }.orEmpty()
         val selectedCategories = filterSections.find { it.title == "Category" }?.options?.filter { it.isSelected }?.map { it.id }.orEmpty()
 
-        documents.filter { item ->
+        documentsPagingState.items.filter { item ->
             val matchesSearch = searchQuery.isBlank() ||
                     item.documentName?.contains(searchQuery, ignoreCase = true) == true ||
                     item.documentNumber?.contains(searchQuery, ignoreCase = true) == true ||
@@ -139,6 +136,10 @@ fun LegalDocumentsScreen(
 
             matchesSearch && matchesStatus && matchesCategory
         }
+    }
+
+    val displayPagingState = remember(documentsPagingState, filteredDocuments) {
+        documentsPagingState.copy(items = filteredDocuments)
     }
 
     val fabConfig = remember(onAddDocument) {
@@ -154,7 +155,7 @@ fun LegalDocumentsScreen(
             .fillMaxSize()
             .background(Color.Transparent),
         fab = fabConfig,
-        fabVisible = true
+        fabVisible = !displayPagingState.isInitialLoading
     ) {
         Scaffold(
             containerColor = Color.Transparent,
@@ -165,70 +166,79 @@ fun LegalDocumentsScreen(
                 )
             }
         ) { paddingValues ->
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                if (isLoading && documents.isEmpty()) {
-                    ListSkeleton()
-                } else if (!errorMessage.isNullOrBlank() && documents.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = errorMessage ?: "Error loading legal documents",
-                                fontSize = tokens.bodySmall,
-                                fontWeight = FontWeight.Normal,
-                                color = redText
-                            )
-                            Spacer(Modifier.height(tokens.extraPadding))
-                            Button(
-                                onClick = { viewModel.fetchLegalDocuments() },
-                                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
-                            ) {
+                SearchFilterBar(
+                    query = searchQuery,
+                    onQueryChange = {
+                        searchQuery = it
+                        viewModel.fetchLegalDocuments(search = it)
+                    },
+                    placeholder = "Search SO number, customer...",
+                    filterCount = activeFilterCount,
+                    onFilterClick = { filterDrawerState.open() },
+                    accentColor = Primary,
+                    borderColor = sectionBorder,
+                    textSecondaryColor = mutedText
+                )
+
+                when {
+                    !errorMessage.isNullOrBlank() && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "Retry",
+                                    text = errorMessage ?: "Error loading legal documents",
                                     fontSize = tokens.bodySmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = whiteBg
+                                    color = redText
                                 )
+                                Spacer(Modifier.height(tokens.extraPadding))
+                                Button(
+                                    onClick = { viewModel.fetchLegalDocuments() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                                ) {
+                                    Text(
+                                        text = "Retry",
+                                        fontSize = tokens.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = whiteBg
+                                    )
+                                }
                             }
                         }
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        item {
-                            SearchFilterBar(
-                                query = searchQuery,
-                                onQueryChange = {
-                                    searchQuery = it
-                                    viewModel.fetchLegalDocuments(search = it)
-                                },
-                                placeholder = "Search SO number, customer...",
-                                filterCount = activeFilterCount,
-                                onFilterClick = { filterDrawerState.open() },
-                                accentColor = Primary,
-                                borderColor = sectionBorder,
-                                textSecondaryColor = mutedText
+
+                    !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No legal documents found",
+                                fontSize = tokens.bodyMedium,
+                                color = mutedText
                             )
                         }
+                    }
 
-                        items(filteredDocuments, key = { it.id }) { item ->
+                    else -> {
+                        PaginatedDataList(
+                            state = displayPagingState,
+                            onLoadMore = { viewModel.loadMoreLegalDocuments() },
+                            modifier = Modifier.fillMaxSize()
+                        ) { item ->
                             val statusText = item.status?.replace("_", " ") ?: ""
                             val codeText = item.documentNumber ?: ""
                             val categoryText = item.category ?: ""
-
-                            // Select only the version where isCurrentVersion == true; fallback to item.version or the last version in the list
                             val currentVersionObj = item.versions?.find { it.isCurrentVersion == true }
                                 ?: item.versions?.lastOrNull()
                             val versionText = (currentVersionObj?.version ?: item.version ?: "v1").uppercase()
-
                             val ownerText = item.legalEntity ?: ""
                             val accessText = item.accessLevel ?: ""
                             val riskText = item.riskLevel ?: ""
@@ -246,40 +256,21 @@ fun LegalDocumentsScreen(
                                 topBadgeShowDot = false,
                                 topBadgeInline = true,
                                 actions = listOf(
-                                    MenuAction(
-                                        label = "Edit",
-                                        // Passes the top-level document _id
-                                        onClick = { onEditDocument(item.id) }
-                                    ),
-                                    MenuAction(
-                                        label = "View Details",
-                                        // Passes the top-level document object containing _id
-                                        onClick = { onDocumentClick(item) }
-                                    ),
-                                    MenuAction(
-                                        label = "Delete",
-                                        textColor = redText,
-                                        onClick = { itemToDelete = item }
-                                    )
+                                    MenuAction(label = "Edit", onClick = { onEditDocument(item.id) }),
+                                    MenuAction(label = "View Details", onClick = { onDocumentClick(item) }),
+                                    MenuAction(label = "Delete", textColor = redText, onClick = { itemToDelete = item })
                                 ),
                                 showActionsInHeader = false,
                                 showDivider = false,
-                                // Clicking anywhere on the card passes the top-level document object
                                 onClick = { onDocumentClick(item) },
                                 content = {
                                     Column(modifier = Modifier.fillMaxWidth()) {
-                                        // Row 1: Documents ID
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = "Documents ID",
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Normal,
-                                                color = mutedText
-                                            )
+                                            Text("Documents ID", fontSize = tokens.bodySmall, color = mutedText)
                                             Text(
                                                 text = codeText,
                                                 fontSize = tokens.bodySmall,
@@ -291,51 +282,28 @@ fun LegalDocumentsScreen(
 
                                         Spacer(Modifier.height(6.dp))
 
-                                        // Row 2: Category
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = "Category",
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Normal,
-                                                color = mutedText
-                                            )
-                                            Text(
-                                                text = categoryText,
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = TextPrimary
-                                            )
+                                            Text("Category", fontSize = tokens.bodySmall, color = mutedText)
+                                            Text(categoryText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
                                         }
 
                                         Spacer(Modifier.height(6.dp))
 
-                                        // Row 3: Version
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = "Version",
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Normal,
-                                                color = mutedText
-                                            )
-                                            Text(
-                                                text = versionText,
-                                                fontSize = tokens.bodySmall,
-                                                fontWeight = FontWeight.Medium,
-                                                color = TextPrimary
-                                            )
+                                            Text("Version", fontSize = tokens.bodySmall, color = mutedText)
+                                            Text(versionText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
                                         }
 
                                         Spacer(Modifier.height(10.dp))
 
-                                        // Stat Grid: Owner, Access, Risk
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -344,78 +312,27 @@ fun LegalDocumentsScreen(
                                                 .border(1.dp, sectionBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                                                 .padding(vertical = 10.dp, horizontal = 12.dp)
                                         ) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Column(
-                                                    modifier = Modifier.weight(1f),
-                                                    horizontalAlignment = Alignment.CenterHorizontally
-                                                ) {
-                                                    Text(
-                                                        text = "Owner",
-                                                        fontSize = tokens.caption,
-                                                        fontWeight = FontWeight.Normal,
-                                                        color = mutedText
-                                                    )
+                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text("Owner", fontSize = tokens.caption, color = mutedText)
                                                     Spacer(Modifier.height(2.dp))
-                                                    Text(
-                                                        text = ownerText,
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = TextPrimary,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
+                                                    Text(ownerText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                                 }
-
-                                                Column(
-                                                    modifier = Modifier.weight(1f),
-                                                    horizontalAlignment = Alignment.CenterHorizontally
-                                                ) {
-                                                    Text(
-                                                        text = "Access",
-                                                        fontSize = tokens.caption,
-                                                        fontWeight = FontWeight.Normal,
-                                                        color = mutedText
-                                                    )
+                                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text("Access", fontSize = tokens.caption, color = mutedText)
                                                     Spacer(Modifier.height(2.dp))
-                                                    Text(
-                                                        text = accessText,
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = orangeText,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
+                                                    Text(accessText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = orangeText, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                                 }
-
-                                                Column(
-                                                    modifier = Modifier.weight(1f),
-                                                    horizontalAlignment = Alignment.CenterHorizontally
-                                                ) {
-                                                    Text(
-                                                        text = "Risk",
-                                                        fontSize = tokens.caption,
-                                                        fontWeight = FontWeight.Normal,
-                                                        color = mutedText
-                                                    )
+                                                Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text("Risk", fontSize = tokens.caption, color = mutedText)
                                                     Spacer(Modifier.height(2.dp))
-                                                    Text(
-                                                        text = riskText,
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = TextPrimary,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
+                                                    Text(riskText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                                 }
                                             }
                                         }
 
                                         Spacer(Modifier.height(12.dp))
 
-                                        // Expiry Date Row with Remaining Days
                                         Text(
                                             text = buildAnnotatedString {
                                                 withStyle(SpanStyle(color = mutedText, fontWeight = FontWeight.Normal)) {

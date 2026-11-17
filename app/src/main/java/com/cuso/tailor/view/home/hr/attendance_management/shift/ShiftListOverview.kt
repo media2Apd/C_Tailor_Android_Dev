@@ -1,9 +1,9 @@
+@file:Suppress("UNUSED_VALUE","VariableNeverRead" , "SpellCheckingInspection","unusedVariable", "unused", "AssignedValueIsNeverRead")
+
 package com.cuso.tailor.view.home.hr.attendance_management.shift
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -34,8 +34,7 @@ fun ShiftListOverviewScreen(
         viewModel.fetchShiftsViewAll()
     }
 
-    val shifts by viewModel.shifts.collectAsState()
-    val isLoading by viewModel.isLoadingShifts.collectAsState()
+    val shiftsPagingState by viewModel.shiftsPagingState.collectAsState()
     val errorMsg by viewModel.shiftsError.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -44,18 +43,6 @@ fun ShiftListOverviewScreen(
     // Feedback states for Dynamic Island notifications
     var successMessage by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    val filteredShifts = remember(shifts, searchQuery) {
-        if (searchQuery.isBlank()) {
-            shifts
-        } else {
-            shifts.filter {
-                it.title.contains(searchQuery, ignoreCase = true) ||
-                        it.department.contains(searchQuery, ignoreCase = true) ||
-                        it.shiftType.contains(searchQuery, ignoreCase = true)
-            }
-        }
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         FabScaffold(
@@ -83,7 +70,10 @@ fun ShiftListOverviewScreen(
                 Row(modifier = Modifier.fillMaxWidth()) {
                     SearchFilterBar(
                         query = searchQuery,
-                        onQueryChange = { searchQuery = it },
+                        onQueryChange = {
+                            searchQuery = it
+                            viewModel.onShiftSearchChanged(it)
+                        },
                         placeholder = "Search Shift...",
                         isSearchBarAlone = true
                     )
@@ -92,11 +82,7 @@ fun ShiftListOverviewScreen(
                 Spacer(Modifier.height(tokens.extraPadding * 0.6f))
 
                 when {
-                    isLoading && shifts.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
-                    errorMsg != null && shifts.isEmpty() -> {
+                    errorMsg != null && shiftsPagingState.items.isEmpty() && !shiftsPagingState.isInitialLoading -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -129,7 +115,7 @@ fun ShiftListOverviewScreen(
                         }
                     }
 
-                    filteredShifts.isEmpty() -> {
+                    !shiftsPagingState.isInitialLoading && shiftsPagingState.items.isEmpty() -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -146,119 +132,115 @@ fun ShiftListOverviewScreen(
                     }
 
                     else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 80.dp)
-                        ) {
-                            items(
-                                items = filteredShifts,
-                                key = { it.id }
-                            ) { shift ->
-                                val badgeBg = if (shift.isActive) greenBg else redBg
-                                val badgeText = if (shift.isActive) greentext else redText
+                        PaginatedDataList(
+                            state = shiftsPagingState,
+                            onLoadMore = { viewModel.loadMoreShifts() },
+                            modifier = Modifier.fillMaxSize()
+                        ) { shift ->
+                            val badgeBg = if (shift.isActive) greenBg else redBg
+                            val badgeText = if (shift.isActive) greentext else redText
 
-                                DataCard(
-                                    item = shift,
-                                    title = shift.title,
-                                    titleColor = title_color,
-                                    titleFontWeight = FontWeight.Medium,
-                                    subtitle = shift.department,
-                                    topBadgeText = if (shift.isActive) "Active" else "Inactive",
-                                    topBadgeBgColor = badgeBg,
-                                    topBadgeTextColor = badgeText,
-                                    topBadgeInline = true,
-                                    topBadgeShowDot = false,
-                                    showHeaderDivider = true,
-                                    actions = listOf(
-                                        MenuAction(
-                                            label = "Edit Shift",
-                                            onClick = { onEditShift(shift) }
-                                        ),
-                                        MenuAction(
-                                            label = "Delete Shift",
-                                            onClick = { shiftToDelete = shift }
-                                        )
+                            DataCard(
+                                item = shift,
+                                title = shift.title,
+                                titleColor = title_color,
+                                titleFontWeight = FontWeight.Medium,
+                                subtitle = shift.department,
+                                topBadgeText = if (shift.isActive) "Active" else "Inactive",
+                                topBadgeBgColor = badgeBg,
+                                topBadgeTextColor = badgeText,
+                                topBadgeInline = true,
+                                topBadgeShowDot = false,
+                                showHeaderDivider = true,
+                                actions = listOf(
+                                    MenuAction(
+                                        label = "Edit Shift",
+                                        onClick = { onEditShift(shift) }
                                     ),
-                                    content = {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.Top
-                                        ) {
-                                            Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)) {
-                                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                                    Text(
-                                                        text = "START TIME",
-                                                        fontSize = tokens.label,
-                                                        color = headerGrey,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                    Text(
-                                                        text = shift.startTime,
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = TextPrimary
-                                                    )
-                                                }
-                                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                                    Text(
-                                                        text = "BREAK DURATION",
-                                                        fontSize = tokens.label,
-                                                        color = headerGrey,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                    Text(
-                                                        text = shift.breakDuration,
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = TextPrimary
-                                                    )
-                                                }
+                                    MenuAction(
+                                        label = "Delete Shift",
+                                        onClick = { shiftToDelete = shift }
+                                    )
+                                ),
+                                content = {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)) {
+                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Text(
+                                                    text = "START TIME",
+                                                    fontSize = tokens.label,
+                                                    color = headerGrey,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                                Text(
+                                                    text = shift.startTime,
+                                                    fontSize = tokens.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = TextPrimary
+                                                )
                                             }
+                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Text(
+                                                    text = "BREAK DURATION",
+                                                    fontSize = tokens.label,
+                                                    color = headerGrey,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                                Text(
+                                                    text = shift.breakDuration,
+                                                    fontSize = tokens.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = TextPrimary
+                                                )
+                                            }
+                                        }
 
+                                        Column(
+                                            horizontalAlignment = Alignment.End,
+                                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
+                                        ) {
                                             Column(
                                                 horizontalAlignment = Alignment.End,
-                                                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
+                                                verticalArrangement = Arrangement.spacedBy(2.dp)
                                             ) {
-                                                Column(
-                                                    horizontalAlignment = Alignment.End,
-                                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "END TIME",
-                                                        fontSize = tokens.label,
-                                                        color = headerGrey,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                    Text(
-                                                        text = shift.endTime,
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = TextPrimary
-                                                    )
-                                                }
-                                                Column(
-                                                    horizontalAlignment = Alignment.End,
-                                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "SHIFT TYPE",
-                                                        fontSize = tokens.label,
-                                                        color = headerGrey,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                    Text(
-                                                        text = shift.shiftType,
-                                                        fontSize = tokens.bodySmall,
-                                                        fontWeight = FontWeight.Medium,
-                                                        color = TextPrimary
-                                                    )
-                                                }
+                                                Text(
+                                                    text = "END TIME",
+                                                    fontSize = tokens.label,
+                                                    color = headerGrey,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                                Text(
+                                                    text = shift.endTime,
+                                                    fontSize = tokens.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = TextPrimary
+                                                )
+                                            }
+                                            Column(
+                                                horizontalAlignment = Alignment.End,
+                                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                                            ) {
+                                                Text(
+                                                    text = "SHIFT TYPE",
+                                                    fontSize = tokens.label,
+                                                    color = headerGrey,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                                Text(
+                                                    text = shift.shiftType,
+                                                    fontSize = tokens.bodySmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = TextPrimary
+                                                )
                                             }
                                         }
                                     }
-                                )
-                            }
+                                }
+                            )
                         }
                     }
                 }

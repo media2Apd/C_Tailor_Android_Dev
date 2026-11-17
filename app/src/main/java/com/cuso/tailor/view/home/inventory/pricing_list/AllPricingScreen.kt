@@ -5,9 +5,6 @@ package com.cuso.tailor.view.home.inventory.pricing_list
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -27,7 +24,6 @@ import com.cuso.tailor.model.inventory.PriceListItemDto
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.InventoryViewModel
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun AllPricingScreen(
@@ -40,36 +36,14 @@ fun AllPricingScreen(
     val tokens = LocalAppTokens.current
     val context = LocalContext.current
 
-    val priceLists by viewModel.priceLists.collectAsState()
-    val isLoading by viewModel.isLoadingPriceLists.collectAsState()
-    val isLoadingMore by viewModel.isLoadingMorePriceLists.collectAsState()
-    val canLoadMore by viewModel.canLoadMorePriceLists.collectAsState()
-
+    val priceListsPagingState by viewModel.priceListsPagingState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
-    val listState = rememberLazyListState()
 
     // State for delete confirmation dialog
     var itemToDelete by remember { mutableStateOf<PriceListItemDto?>(null) }
 
-    // Load initial price list on entry
     LaunchedEffect(Unit) {
         viewModel.fetchPriceLists()
-    }
-
-    // Scroll threshold pagination trigger
-    LaunchedEffect(listState, canLoadMore, searchQuery) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-            totalItems > 0 && lastVisibleIndex >= (totalItems - 2)
-        }
-            .distinctUntilChanged()
-            .collect { isNearBottom ->
-                if (isNearBottom && canLoadMore && !isLoadingMore && !isLoading && searchQuery.isBlank()) {
-                    viewModel.loadMorePriceLists()
-                }
-            }
     }
 
     Box(
@@ -84,6 +58,7 @@ fun AllPricingScreen(
                 onClick = onAddNew,
                 bottomPadding = 40.dp
             ),
+            fabVisible = !priceListsPagingState.isInitialLoading,
             modifier = Modifier.fillMaxSize()
         ) {
             Scaffold(
@@ -109,12 +84,8 @@ fun AllPricingScreen(
                     }
                 }
             ) { paddingValues ->
-                Column(
-                    Modifier.fillMaxSize()
-                ) {
-                    if (isLoading && priceLists.isEmpty()) {
-                        ListSkeleton()
-                    } else if (priceLists.isEmpty()) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    if (!priceListsPagingState.isInitialLoading && priceListsPagingState.items.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -129,42 +100,26 @@ fun AllPricingScreen(
                             )
                         }
                     } else {
-                        LazyColumn(
-                            state = listState,
+                        PaginatedDataList(
+                            state = priceListsPagingState,
+                            onLoadMore = { viewModel.loadMorePriceLists() },
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(paddingValues)
-                        ) {
-                            items(
-                                items = priceLists,
-                                key = { it.id.ifBlank { it.hashCode().toString() } }
-                            ) { item ->
-                                PriceListItemCard(
-                                    item = item,
-                                    onClick = { onItemClick(item) },
-                                    onEditClick = { onEditItem(item) },
-                                    onDeleteClick = { itemToDelete = item } // Opens DeleteModel Dialog
-                                )
-                            }
-
-                            if (isLoadingMore) {
-                                item(key = "pagination_loader") {
-                                    ThreeDotLoading(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 14.dp)
-                                    )
-                                }
-                            }
-
-                            item { Spacer(Modifier.height(80.dp)) }
+                        ) { item ->
+                            PriceListItemCard(
+                                item = item,
+                                onClick = { onItemClick(item) },
+                                onEditClick = { onEditItem(item) },
+                                onDeleteClick = { itemToDelete = item }
+                            )
                         }
                     }
                 }
             }
         }
 
-        // Delete Confirmation Dialog
+        // Delete confirmation dialog
         itemToDelete?.let { item ->
             DeleteModel(
                 title = "Delete Price List",

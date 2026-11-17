@@ -2,8 +2,6 @@ package com.cuso.tailor.view.home.logistics.order_tracking
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -23,8 +21,8 @@ import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.FilterDrawer
 import com.cuso.tailor.view.composable.FilterOption
 import com.cuso.tailor.view.composable.FilterSection
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
@@ -47,14 +45,12 @@ fun TrackingEventsListScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val trackingEvents by viewModel.filteredTrackingEvents.collectAsState()
+    val trackingPagingState by viewModel.trackingEventsPagingState.collectAsState()
     val searchQuery by viewModel.trackingSearchQuery.collectAsState()
-    val isLoading by viewModel.isLoadingTrackingEvents.collectAsState()
     val selectedStatus by viewModel.selectedTrackingStatus.collectAsState()
 
     val filterDrawerState = rememberFilterDrawerState()
 
-    // Load events on screen enter
     LaunchedEffect(Unit) {
         viewModel.fetchTrackingEvents()
     }
@@ -97,7 +93,6 @@ fun TrackingEventsListScreen(
                     .padding(paddingValues)
                     .background(Color.Transparent)
             ) {
-                // Reusable Search & Filter Bar
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { viewModel.onTrackingSearchQueryChange(it) },
@@ -111,48 +106,36 @@ fun TrackingEventsListScreen(
                     height = tokens.fieldHeight
                 )
 
-                when {
-                    isLoading && trackingEvents.isEmpty() -> {
-                        ListSkeleton()
+                if (!trackingPagingState.isInitialLoading && trackingPagingState.items.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No tracking events found",
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = headerGrey
+                        )
                     }
-
-                    trackingEvents.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No tracking events found",
-                                fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = headerGrey
-                            )
-                        }
-                    }
-
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(
-                                items = trackingEvents,
-                                key = { it.id }
-                            ) { item ->
-                                TrackingEventCardItem(
-                                    item = item,
-                                    formattedDate = viewModel.formatTrackingDate(item.date),
-                                    onViewDetailClick = { validId ->
-                                        onViewEventDetail(validId)
-                                    }
-                                )
+                } else {
+                    PaginatedDataList(
+                        state = trackingPagingState,
+                        onLoadMore = { viewModel.loadMoreTrackingEvents() },
+                        modifier = Modifier.fillMaxSize()
+                    ) { item ->
+                        TrackingEventCardItem(
+                            item = item,
+                            formattedDate = viewModel.formatTrackingDate(item.date),
+                            onViewDetailClick = { validId ->
+                                onViewEventDetail(validId)
                             }
-                        }
+                        )
                     }
                 }
             }
         }
 
-        // Reusable Filter Drawer
         FilterDrawer(
             state = filterDrawerState,
             title = "Filters",
@@ -162,7 +145,6 @@ fun TrackingEventsListScreen(
                     .find { it.title == "Status" }
                     ?.options
                     ?.find { it.isSelected }
-
                 viewModel.onTrackingStatusFilterChange(statusOption?.label)
             },
             onClearAll = {

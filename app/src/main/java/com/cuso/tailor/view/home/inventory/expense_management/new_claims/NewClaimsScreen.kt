@@ -4,8 +4,6 @@
 package com.cuso.tailor.view.home.inventory.expense_management.new_claims
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Delete
@@ -42,8 +40,7 @@ fun NewClaimsScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val expenseClaims by viewModel.expenseClaims.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingExpenseClaims.collectAsStateWithLifecycle()
+    val claimsPagingState by viewModel.expenseClaimsPagingState.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
 
     // State for managing deletion modal
@@ -53,17 +50,21 @@ fun NewClaimsScreen(
         viewModel.fetchExpenseClaims(page = 1, limit = 10, status = null, search = null)
     }
 
-    val filteredClaims = remember(expenseClaims, searchQuery) {
+    val filteredClaims = remember(claimsPagingState.items, searchQuery) {
         if (searchQuery.isBlank()) {
-            expenseClaims
+            claimsPagingState.items
         } else {
-            expenseClaims.filter { claim ->
+            claimsPagingState.items.filter { claim ->
                 claim.title?.contains(searchQuery, ignoreCase = true) == true ||
                         claim.claimNumber?.contains(searchQuery, ignoreCase = true) == true ||
                         (claim.category?.name?.contains(searchQuery, ignoreCase = true) == true) ||
                         (claim.employee?.fullName?.contains(searchQuery, ignoreCase = true) == true)
             }
         }
+    }
+
+    val displayPagingState = remember(claimsPagingState, filteredClaims) {
+        claimsPagingState.copy(items = filteredClaims)
     }
 
     // Delete Confirmation Dialog
@@ -97,7 +98,8 @@ fun NewClaimsScreen(
             label = "Add Expense",
             icon = Icons.Default.Add,
             onClick = onNavigateToSubmitClaim
-        )
+        ),
+        fabVisible = !displayPagingState.isInitialLoading
     ) {
         Scaffold(
             containerColor = Color.Transparent,
@@ -110,7 +112,7 @@ fun NewClaimsScreen(
             }
         ) { paddingValues ->
             Column(
-                Modifier
+                modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
@@ -126,9 +128,7 @@ fun NewClaimsScreen(
                     textSecondaryColor = iconMuted,
                     height = tokens.fieldHeight
                 )
-                if (isLoading) {
-                    ListSkeleton()
-                } else if (filteredClaims.isEmpty()) {
+                if (!displayPagingState.isInitialLoading && displayPagingState.items.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -142,17 +142,17 @@ fun NewClaimsScreen(
                         )
                     }
                 } else {
-                    LazyColumn(
+                    PaginatedDataList(
+                        state = displayPagingState,
+                        onLoadMore = { viewModel.loadMoreExpenseClaims() },
                         modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(filteredClaims, key = { it.id }) { claim ->
-                            NewClaimItemCard(
-                                claim = claim,
-                                onClick = { onClaimClick(claim) },
-                                onEditClick = { onEditClaimClick(claim) },
-                                onDeleteClick = { claimToDelete = claim }
-                            )
-                        }
+                    ) { claim ->
+                        NewClaimItemCard(
+                            claim = claim,
+                            onClick = { onClaimClick(claim) },
+                            onEditClick = { onEditClaimClick(claim) },
+                            onDeleteClick = { claimToDelete = claim }
+                        )
                     }
                 }
             }

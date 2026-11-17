@@ -75,6 +75,7 @@ import com.cuso.tailor.model.logistics.UpdateTrackingStatusRequest
 import com.cuso.tailor.model.logistics.WarehouseAllocationData
 import com.cuso.tailor.model.logistics.WarehouseAllocationResponse
 import com.cuso.tailor.repository.ApiRepository
+import com.cuso.tailor.utils.PagingUiState
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -195,6 +196,35 @@ class LogisticsViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    private val _packagesPageSize = MutableStateFlow(15)
+    private val _packagesDisplayCount = MutableStateFlow(15)
+
+    val packagesPagingState: StateFlow<PagingUiState<PackageItemData>> = combine(
+        _packagesList,
+        _searchQuery,
+        _isLoading,
+        _packagesDisplayCount
+    ) { list, query, isLoading, displayCount ->
+        val filtered = if (query.isBlank()) list else {
+            list.filter { item ->
+                (item.orderCode?.contains(query, ignoreCase = true) == true) ||
+                        (item.customerName?.contains(query, ignoreCase = true) == true) ||
+                        (item.packageNumber?.contains(query, ignoreCase = true) == true)
+            }
+        }
+        val paged = filtered.take(displayCount)
+        PagingUiState(
+            items = paged,
+            isInitialLoading = isLoading && list.isEmpty(),
+            isLoadingMore = false,
+            canLoadMore = paged.size < filtered.size
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
+
+    fun loadMorePackages() {
+        _packagesDisplayCount.value += _packagesPageSize.value
+    }
+
     // =========================================================================
     // 3. ORDER DETAILS STATE
     // =========================================================================
@@ -233,6 +263,34 @@ class LogisticsViewModel @Inject constructor(
 
     private val _shipmentError = MutableStateFlow<String?>(null)
     val shipmentError: StateFlow<String?> = _shipmentError.asStateFlow()
+
+    private val _shipmentsQueueDisplayCount = MutableStateFlow(15)
+
+    val shipmentsQueuePagingState: StateFlow<PagingUiState<ShipmentItemDto>> = combine(
+        _shipmentsList,
+        _shipmentSearchQuery,
+        _isLoadingShipments,
+        _shipmentsQueueDisplayCount
+    ) { list, query, isLoading, displayCount ->
+        val filtered = if (query.isBlank()) list else {
+            list.filter { item ->
+                (item.orderId?.contains(query, ignoreCase = true) == true) ||
+                        (item.shipmentId?.contains(query, ignoreCase = true) == true) ||
+                        (item.courier?.contains(query, ignoreCase = true) == true)
+            }
+        }
+        val paged = filtered.take(displayCount)
+        PagingUiState(
+            items = paged,
+            isInitialLoading = isLoading && list.isEmpty(),
+            isLoadingMore = false,
+            canLoadMore = paged.size < filtered.size
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
+
+    fun loadMoreShipmentsQueue() {
+        _shipmentsQueueDisplayCount.value += 15
+    }
 
     // =========================================================================
     // 6. ACTION EXECUTION STATE
@@ -289,6 +347,26 @@ class LogisticsViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val _deliveriesDisplayCount = MutableStateFlow(15)
+
+    val deliveriesPagingState: StateFlow<PagingUiState<DeliveryItemDto>> = combine(
+        filteredDeliveries,
+        _isLoadingDeliveries,
+        _deliveriesDisplayCount
+    ) { items, isLoading, displayCount ->
+        val paged = items.take(displayCount)
+        PagingUiState(
+            items = paged,
+            isInitialLoading = isLoading && _deliveriesList.value.isEmpty(),
+            isLoadingMore = false,
+            canLoadMore = paged.size < items.size
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
+
+    fun loadMoreDeliveries() {
+        _deliveriesDisplayCount.value += 15
+    }
+
     init {
         fetchDashboardMetrics()
         fetchOrders()
@@ -300,6 +378,7 @@ class LogisticsViewModel @Inject constructor(
     // =========================================================================
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
+        _packagesDisplayCount.value = 15
     }
 
     fun clearStatusUpdateError() {
@@ -308,6 +387,7 @@ class LogisticsViewModel @Inject constructor(
 
     fun onShipmentSearchQueryChange(query: String) {
         _shipmentSearchQuery.value = query
+        _shipmentsQueueDisplayCount.value = 15
     }
 
     fun fetchOrders() {
@@ -763,29 +843,24 @@ class LogisticsViewModel @Inject constructor(
      */
     fun onDeliverySearchQueryChange(query: String) {
         _deliverySearchQuery.value = query
+        _deliveriesDisplayCount.value = 15
     }
 
-    /**
-     * Filters deliveries by status (e.g., "Ready", "Delivered", "In Transit").
-     */
     fun onDeliveryStatusFilterChange(status: String?) {
         _selectedDeliveryStatus.value = status
+        _deliveriesDisplayCount.value = 15
     }
 
-    /**
-     * Filters deliveries by delivery type (e.g., "Chennai", "Outstation").
-     */
     fun onDeliveryTypeFilterChange(type: String?) {
         _selectedDeliveryType.value = type
+        _deliveriesDisplayCount.value = 15
     }
 
-    /**
-     * Clears all delivery search and filter options.
-     */
     fun clearDeliveryFilters() {
         _deliverySearchQuery.value = ""
         _selectedDeliveryStatus.value = null
         _selectedDeliveryType.value = null
+        _deliveriesDisplayCount.value = 15
     }
 
     /**
@@ -870,6 +945,11 @@ class LogisticsViewModel @Inject constructor(
     private val _shipmentListError = MutableStateFlow<String?>(null)
     val shipmentListError: StateFlow<String?> = _shipmentListError.asStateFlow()
 
+    private val _isLoadingMoreShipmentList = MutableStateFlow(false)
+    private val _canLoadMoreShipmentList = MutableStateFlow(true)
+    private var shipmentListCurrentPage = 1
+    private val shipmentListPageSize = 20
+
     val filteredShipments: StateFlow<List<ShipmentListItemDto>> = combine(
         _shipmentItems,
         _shipmentSearchQuery
@@ -888,7 +968,22 @@ class LogisticsViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun fetchShipmentList(page: Int = 1, limit: Int = 20) {
+    val shipmentListPagingState: StateFlow<PagingUiState<ShipmentListItemDto>> = combine(
+        filteredShipments,
+        _isLoadingShipmentList,
+        _isLoadingMoreShipmentList,
+        _canLoadMoreShipmentList
+    ) { items, isLoading, isLoadingMore, canLoadMore ->
+        PagingUiState(
+            items = items,
+            isInitialLoading = isLoading && items.isEmpty(),
+            isLoadingMore = isLoadingMore,
+            canLoadMore = canLoadMore
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
+
+    fun fetchShipmentList(page: Int = 1, limit: Int = shipmentListPageSize) {
+        shipmentListCurrentPage = page
         viewModelScope.launch {
             _isLoadingShipmentList.value = true
             _shipmentListError.value = null
@@ -901,15 +996,55 @@ class LogisticsViewModel @Inject constructor(
                 onSuccess = { res ->
                     if (res.success) {
                         _shipmentItems.value = res.data
+                        _canLoadMoreShipmentList.value = res.data.size >= limit
                     } else {
                         _shipmentListError.value = res.message ?: "Failed to load shipments"
+                        _canLoadMoreShipmentList.value = false
                     }
                 },
                 onFailure = { err ->
                     _shipmentListError.value = err.message ?: "Network error fetching shipment list"
+                    _canLoadMoreShipmentList.value = false
                 }
             )
             _isLoadingShipmentList.value = false
+        }
+    }
+
+    fun loadMoreShipmentList() {
+        if (_isLoadingShipmentList.value || _isLoadingMoreShipmentList.value || !_canLoadMoreShipmentList.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreShipmentList.value = true
+            val nextPage = shipmentListCurrentPage + 1
+
+            val result = repo.request<ShipmentListResponse> {
+                get(SHIPMENT_LIST_URL, repo.query("page" to nextPage, "limit" to shipmentListPageSize))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val merged = (_shipmentItems.value + res.data).distinctBy {
+                            it.id.ifBlank { it.shipmentId }
+                        }
+                        val hasNewItems = merged.size > _shipmentItems.value.size
+                        if (hasNewItems) {
+                            shipmentListCurrentPage = nextPage
+                            _shipmentItems.value = merged
+                            _canLoadMoreShipmentList.value = res.data.size >= shipmentListPageSize
+                        } else {
+                            _canLoadMoreShipmentList.value = false
+                        }
+                    } else {
+                        _canLoadMoreShipmentList.value = false
+                    }
+                },
+                onFailure = {
+                    // Keep current list so user can retry on scroll
+                }
+            )
+            _isLoadingMoreShipmentList.value = false
         }
     }
 
@@ -1229,6 +1364,31 @@ class LogisticsViewModel @Inject constructor(
     private val _courierDeliveriesError = MutableStateFlow<String?>(null)
     val courierDeliveriesError: StateFlow<String?> = _courierDeliveriesError.asStateFlow()
 
+    private val _courierPartnersDisplayCount = MutableStateFlow(15)
+
+    val courierPartnersPagingState: StateFlow<PagingUiState<CourierPartnerItemDto>> = combine(
+        _courierPartnersList,
+        _isLoadingCouriers,
+        _courierPartnersDisplayCount
+    ) { list, isLoading, displayCount ->
+        val paged = list.take(displayCount)
+        PagingUiState(
+            items = paged,
+            isInitialLoading = isLoading && list.isEmpty(),
+            isLoadingMore = false,
+            canLoadMore = paged.size < list.size
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
+
+    fun loadMoreCourierPartners() {
+        _courierPartnersDisplayCount.value += 15
+    }
+
+    private val _isLoadingMoreCourierDeliveries = MutableStateFlow(false)
+    private val _canLoadMoreCourierDeliveries = MutableStateFlow(true)
+    private var courierDeliveriesCurrentPage = 1
+    private val courierDeliveriesPageSize = 20
+
     /**
      * Filtered reactive list for courier management items based on search query.
      */
@@ -1250,15 +1410,30 @@ class LogisticsViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val courierDeliveriesPagingState: StateFlow<PagingUiState<CourierManagementItemDto>> = combine(
+        filteredCourierDeliveries,
+        _isLoadingCourierDeliveries,
+        _isLoadingMoreCourierDeliveries,
+        _canLoadMoreCourierDeliveries
+    ) { items, isLoading, isLoadingMore, canLoadMore ->
+        PagingUiState(
+            items = items,
+            isInitialLoading = isLoading && items.isEmpty(),
+            isLoadingMore = isLoadingMore,
+            canLoadMore = canLoadMore
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
+
     fun onCourierSearchQueryChange(query: String) {
         _courierSearchQuery.value = query
     }
 
     /**
-     * Fetches courier deliveries list.
+     * Fetches initial courier deliveries page.
      * Endpoint: GET /api/logistics/courier-management/list
      */
-    fun fetchCourierManagementList(page: Int = 1, limit: Int = 50) {
+    fun fetchCourierManagementList(page: Int = 1, limit: Int = courierDeliveriesPageSize) {
+        courierDeliveriesCurrentPage = page
         viewModelScope.launch {
             _isLoadingCourierDeliveries.value = true
             _courierDeliveriesError.value = null
@@ -1271,15 +1446,55 @@ class LogisticsViewModel @Inject constructor(
                 onSuccess = { res ->
                     if (res.success) {
                         _courierDeliveriesList.value = res.data
+                        _canLoadMoreCourierDeliveries.value = res.data.size >= limit
                     } else {
                         _courierDeliveriesError.value = res.message ?: "Failed to fetch courier deliveries"
+                        _canLoadMoreCourierDeliveries.value = false
                     }
                 },
                 onFailure = { err ->
                     _courierDeliveriesError.value = err.message ?: "Network error fetching courier deliveries"
+                    _canLoadMoreCourierDeliveries.value = false
                 }
             )
             _isLoadingCourierDeliveries.value = false
+        }
+    }
+
+    fun loadMoreCourierManagementList() {
+        if (_isLoadingCourierDeliveries.value || _isLoadingMoreCourierDeliveries.value || !_canLoadMoreCourierDeliveries.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreCourierDeliveries.value = true
+            val nextPage = courierDeliveriesCurrentPage + 1
+
+            val result = repo.request<CourierManagementListResponse> {
+                get(COURIER_MANAGEMENT_LIST_URL, repo.query("page" to nextPage, "limit" to courierDeliveriesPageSize))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val merged = (_courierDeliveriesList.value + res.data).distinctBy {
+                            it.id.ifBlank { it.deliveryId }
+                        }
+                        val hasNewItems = merged.size > _courierDeliveriesList.value.size
+                        if (hasNewItems) {
+                            courierDeliveriesCurrentPage = nextPage
+                            _courierDeliveriesList.value = merged
+                            _canLoadMoreCourierDeliveries.value = res.data.size >= courierDeliveriesPageSize
+                        } else {
+                            _canLoadMoreCourierDeliveries.value = false
+                        }
+                    } else {
+                        _canLoadMoreCourierDeliveries.value = false
+                    }
+                },
+                onFailure = {
+                    // Keep current list so user can retry on scroll
+                }
+            )
+            _isLoadingMoreCourierDeliveries.value = false
         }
     }
 
@@ -1520,6 +1735,11 @@ class LogisticsViewModel @Inject constructor(
     private val _trackingEventsError = MutableStateFlow<String?>(null)
     val trackingEventsError: StateFlow<String?> = _trackingEventsError.asStateFlow()
 
+    private val _isLoadingMoreTrackingEvents = MutableStateFlow(false)
+    private val _canLoadMoreTrackingEvents = MutableStateFlow(true)
+    private var trackingCurrentPage = 1
+    private val trackingPageSize = 20
+
     /**
      * Reactive filtered tracking events based on search query and status filter.
      */
@@ -1542,6 +1762,20 @@ class LogisticsViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val trackingEventsPagingState: StateFlow<PagingUiState<TrackingEventItemDto>> = combine(
+        filteredTrackingEvents,
+        _isLoadingTrackingEvents,
+        _isLoadingMoreTrackingEvents,
+        _canLoadMoreTrackingEvents
+    ) { items, isLoading, isLoadingMore, canLoadMore ->
+        PagingUiState(
+            items = items,
+            isInitialLoading = isLoading && items.isEmpty(),
+            isLoadingMore = isLoadingMore,
+            canLoadMore = canLoadMore
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
+
     fun onTrackingSearchQueryChange(query: String) {
         _trackingSearchQuery.value = query
     }
@@ -1556,10 +1790,11 @@ class LogisticsViewModel @Inject constructor(
     }
 
     /**
-     * Fetches tracking events list from the backend.
+     * Fetches initial tracking events page from the backend.
      * Endpoint: GET /api/logistics/tracking-events/list
      */
-    fun fetchTrackingEvents(page: Int = 1, limit: Int = 20) {
+    fun fetchTrackingEvents(page: Int = 1, limit: Int = trackingPageSize) {
+        trackingCurrentPage = page
         viewModelScope.launch {
             _isLoadingTrackingEvents.value = true
             _trackingEventsError.value = null
@@ -1572,15 +1807,53 @@ class LogisticsViewModel @Inject constructor(
                 onSuccess = { res ->
                     if (res.success) {
                         _trackingEventsList.value = res.data
+                        _canLoadMoreTrackingEvents.value = res.data.size >= limit
                     } else {
                         _trackingEventsError.value = res.message ?: "Failed to load tracking events"
+                        _canLoadMoreTrackingEvents.value = false
                     }
                 },
                 onFailure = { err ->
                     _trackingEventsError.value = err.message ?: "Network error fetching tracking events"
+                    _canLoadMoreTrackingEvents.value = false
                 }
             )
             _isLoadingTrackingEvents.value = false
+        }
+    }
+
+    fun loadMoreTrackingEvents() {
+        if (_isLoadingTrackingEvents.value || _isLoadingMoreTrackingEvents.value || !_canLoadMoreTrackingEvents.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreTrackingEvents.value = true
+            val nextPage = trackingCurrentPage + 1
+
+            val result = repo.request<TrackingEventsResponse> {
+                get(LOGISTICS_TRACKING_EVENTS_URL, repo.query("page" to nextPage, "limit" to trackingPageSize))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val merged = (_trackingEventsList.value + res.data).distinctBy { it.id }
+                        val hasNewItems = merged.size > _trackingEventsList.value.size
+                        if (hasNewItems) {
+                            trackingCurrentPage = nextPage
+                            _trackingEventsList.value = merged
+                            _canLoadMoreTrackingEvents.value = res.data.size >= trackingPageSize
+                        } else {
+                            _canLoadMoreTrackingEvents.value = false
+                        }
+                    } else {
+                        _canLoadMoreTrackingEvents.value = false
+                    }
+                },
+                onFailure = {
+                    // Keep current list so user can retry on scroll
+                }
+            )
+            _isLoadingMoreTrackingEvents.value = false
         }
     }
     // =========================================================================
@@ -1718,6 +1991,11 @@ class LogisticsViewModel @Inject constructor(
     private val _updateReturnStatusError = MutableStateFlow<String?>(null)
     val updateReturnStatusError: StateFlow<String?> = _updateReturnStatusError.asStateFlow()
 
+    private val _isLoadingMoreReturns = MutableStateFlow(false)
+    private val _canLoadMoreReturns = MutableStateFlow(true)
+    private var returnsCurrentPage = 1
+    private val returnsPageSize = 20
+
     /**
      * Combined reactive list for Returns filtered by search query, status, return type, and priority.
      */
@@ -1746,6 +2024,20 @@ class LogisticsViewModel @Inject constructor(
             matchesQuery && matchesStatus && matchesType && matchesPriority
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val returnsPagingState: StateFlow<PagingUiState<ReturnItemDto>> = combine(
+        filteredReturns,
+        _isLoadingReturns,
+        _isLoadingMoreReturns,
+        _canLoadMoreReturns
+    ) { items, isLoading, isLoadingMore, canLoadMore ->
+        PagingUiState(
+            items = items,
+            isInitialLoading = isLoading && items.isEmpty(),
+            isLoadingMore = isLoadingMore,
+            canLoadMore = canLoadMore
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
 
     /**
      * Formats ISO date to "Oct 29 2026" matching desktop screenshot.
@@ -1795,7 +2087,8 @@ class LogisticsViewModel @Inject constructor(
      * Fetches Returns list from backend using ApiRepository.
      * Endpoint: GET /api/logistics/returns/list
      */
-    fun fetchReturns(page: Int = 1, limit: Int = 20) {
+    fun fetchReturns(page: Int = 1, limit: Int = returnsPageSize) {
+        returnsCurrentPage = page
         viewModelScope.launch {
             _isLoadingReturns.value = true
             _returnsError.value = null
@@ -1808,15 +2101,55 @@ class LogisticsViewModel @Inject constructor(
                 onSuccess = { response ->
                     if (response.success) {
                         _returnsList.value = response.data
+                        _canLoadMoreReturns.value = response.data.size >= limit
                     } else {
                         _returnsError.value = response.message ?: "Failed to fetch returns"
+                        _canLoadMoreReturns.value = false
                     }
                 },
                 onFailure = { error ->
                     _returnsError.value = error.message ?: "Network error while loading returns"
+                    _canLoadMoreReturns.value = false
                 }
             )
             _isLoadingReturns.value = false
+        }
+    }
+
+    fun loadMoreReturns() {
+        if (_isLoadingReturns.value || _isLoadingMoreReturns.value || !_canLoadMoreReturns.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreReturns.value = true
+            val nextPage = returnsCurrentPage + 1
+
+            val result = repo.request<ReturnsListResponse> {
+                get(LOGISTICS_RETURNS_LIST_URL, repo.query("page" to nextPage, "limit" to returnsPageSize))
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        val merged = (_returnsList.value + response.data).distinctBy {
+                            it.id.ifBlank { it.returnId }
+                        }
+                        val hasNewItems = merged.size > _returnsList.value.size
+                        if (hasNewItems) {
+                            returnsCurrentPage = nextPage
+                            _returnsList.value = merged
+                            _canLoadMoreReturns.value = response.data.size >= returnsPageSize
+                        } else {
+                            _canLoadMoreReturns.value = false
+                        }
+                    } else {
+                        _canLoadMoreReturns.value = false
+                    }
+                },
+                onFailure = {
+                    // Keep current list so user can retry on scroll
+                }
+            )
+            _isLoadingMoreReturns.value = false
         }
     }
 
@@ -2173,6 +2506,11 @@ class LogisticsViewModel @Inject constructor(
     private val _allCourierError = MutableStateFlow<String?>(null)
     val allCourierError: StateFlow<String?> = _allCourierError.asStateFlow()
 
+    private val _isLoadingMoreAllCourier = MutableStateFlow(false)
+    private val _canLoadMoreAllCourier = MutableStateFlow(true)
+    private var allCourierCurrentPage = 1
+    private val allCourierPageSize = 20
+
     /**
      * Filtered reactive list for All Courier screen matching search and status filter
      */
@@ -2194,6 +2532,20 @@ class LogisticsViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val allCourierPagingState: StateFlow<PagingUiState<AllCourierItemDto>> = combine(
+        filteredAllCourier,
+        _isLoadingAllCourier,
+        _isLoadingMoreAllCourier,
+        _canLoadMoreAllCourier
+    ) { items, isLoading, isLoadingMore, canLoadMore ->
+        PagingUiState(
+            items = items,
+            isInitialLoading = isLoading && items.isEmpty(),
+            isLoadingMore = isLoadingMore,
+            canLoadMore = canLoadMore
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PagingUiState(isInitialLoading = true))
+
     fun onAllCourierSearchQueryChange(query: String) {
         _allCourierSearchQuery.value = query
     }
@@ -2208,9 +2560,10 @@ class LogisticsViewModel @Inject constructor(
     }
 
     /**
-     * Fetches All Courier list from API
+     * Fetches initial All Courier list page from API
      */
-    fun fetchAllCourierList(page: Int = 1, limit: Int = 20) {
+    fun fetchAllCourierList(page: Int = 1, limit: Int = allCourierPageSize) {
+        allCourierCurrentPage = page
         viewModelScope.launch {
             _isLoadingAllCourier.value = true
             _allCourierError.value = null
@@ -2223,15 +2576,55 @@ class LogisticsViewModel @Inject constructor(
                 onSuccess = { res ->
                     if (res.success) {
                         _allCourierList.value = res.data
+                        _canLoadMoreAllCourier.value = res.data.size >= limit
                     } else {
                         _allCourierError.value = res.message ?: "Failed to fetch courier list"
+                        _canLoadMoreAllCourier.value = false
                     }
                 },
                 onFailure = { err ->
                     _allCourierError.value = err.message ?: "Network error while loading courier list"
+                    _canLoadMoreAllCourier.value = false
                 }
             )
             _isLoadingAllCourier.value = false
+        }
+    }
+
+    fun loadMoreAllCourierList() {
+        if (_isLoadingAllCourier.value || _isLoadingMoreAllCourier.value || !_canLoadMoreAllCourier.value) return
+
+        viewModelScope.launch {
+            _isLoadingMoreAllCourier.value = true
+            val nextPage = allCourierCurrentPage + 1
+
+            val result = repo.request<AllCourierListResponse> {
+                get(LOGISTICS_ALL_COURIER_LIST_URL, repo.query("page" to nextPage, "limit" to allCourierPageSize))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        val merged = (_allCourierList.value + res.data).distinctBy {
+                            it.id.ifBlank { it.orderCode }
+                        }
+                        val hasNewItems = merged.size > _allCourierList.value.size
+                        if (hasNewItems) {
+                            allCourierCurrentPage = nextPage
+                            _allCourierList.value = merged
+                            _canLoadMoreAllCourier.value = res.data.size >= allCourierPageSize
+                        } else {
+                            _canLoadMoreAllCourier.value = false
+                        }
+                    } else {
+                        _canLoadMoreAllCourier.value = false
+                    }
+                },
+                onFailure = {
+                    // Keep current list so user can retry on scroll
+                }
+            )
+            _isLoadingMoreAllCourier.value = false
         }
     }
 

@@ -5,9 +5,6 @@ package com.cuso.tailor.view.home.inventory.procurement.orders
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -18,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
@@ -26,7 +22,6 @@ import com.cuso.tailor.model.inventory.LowStockItemDto
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.InventoryViewModel
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 private data class SeverityTheme(
     val textColor: Color,
@@ -60,6 +55,7 @@ fun LowStockAlertCard(
     item: LowStockItemDto,
     onReorderClick: () -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     val progressRatio = (item.stockUtilizationPercent.toFloat() / 100f).coerceIn(0f, 1f)
     val severityLabel = item.severity.ifBlank { "Critical" }
     val theme = getSeverityTheme(severityLabel)
@@ -103,7 +99,7 @@ fun LowStockAlertCard(
                     DataCardProgressBar(
                         progress = progressRatio,
                         progressColor = theme.progressColor,
-                        trackColor = Color(0xFFEDEDF2)
+                        trackColor = light_grey
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -111,14 +107,14 @@ fun LowStockAlertCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Reorder Level: ",
-                            fontSize = 13.sp,
-                            color = Color(0xFF9B9BA5)
+                            fontSize = tokens.bodySmall,
+                            color = mutedText
                         )
                         Text(
                             text = "${item.reorderLevel.toInt()} ${item.unit ?: "pcs"}",
-                            fontSize = 13.sp,
+                            fontSize = tokens.bodySmall,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF1E2238)
+                            color = title_color
                         )
                     }
                 }
@@ -135,7 +131,7 @@ fun LowStockAlertCard(
                 ) {
                     Text(
                         text = "Reorder →",
-                        fontSize = 14.sp,
+                        fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = Primary
                     )
@@ -156,48 +152,27 @@ fun LowStockAlertsScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
-    val lowStockItems by viewModel.lowStockItems.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingLowStock.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMoreLowStock.collectAsStateWithLifecycle()
-    val canLoadMore by viewModel.canLoadMoreLowStock.collectAsStateWithLifecycle()
+    val lowStockPagingState by viewModel.lowStockPagingState.collectAsStateWithLifecycle()
     val errorMessage by viewModel.lowStockError.collectAsStateWithLifecycle()
-
-    val listState = rememberLazyListState()
 
     LaunchedEffect(Unit) {
         viewModel.fetchLowStockAlerts()
     }
 
-    LaunchedEffect(listState, canLoadMore, searchQuery) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
-        }
-            .distinctUntilChanged()
-            .collect { isNearBottom ->
-                if (isNearBottom &&
-                    canLoadMore &&
-                    !viewModel.isLoadingMoreLowStock.value &&
-                    !viewModel.isLoadingLowStock.value &&
-                    searchQuery.isBlank()
-                ) {
-                    viewModel.loadMoreLowStockAlerts()
-                }
-            }
-    }
-
-    val filteredItems = remember(lowStockItems, searchQuery) {
+    val filteredItems = remember(lowStockPagingState.items, searchQuery) {
         if (searchQuery.isBlank()) {
-            lowStockItems
+            lowStockPagingState.items
         } else {
-            lowStockItems.filter {
+            lowStockPagingState.items.filter {
                 it.name.contains(searchQuery, ignoreCase = true) ||
                         it.sku.contains(searchQuery, ignoreCase = true) ||
                         (it.warehouseName?.contains(searchQuery, ignoreCase = true) == true)
             }
         }
+    }
+
+    val displayPagingState = remember(lowStockPagingState, filteredItems) {
+        lowStockPagingState.copy(items = filteredItems)
     }
 
     Scaffold(
@@ -223,9 +198,14 @@ fun LowStockAlertsScreen(
                 endPadding = 16.dp,
                 bottomPadding = 16.dp,
                 draggable = true
-            )
+            ),
+            fabVisible = !displayPagingState.isInitialLoading
         ) {
-            Column(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
+            ) {
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
@@ -235,11 +215,7 @@ fun LowStockAlertsScreen(
                 HorizontalDivider(color = dividerColor)
 
                 when {
-                    isLoading && lowStockItems.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
-                    errorMessage != null && lowStockItems.isEmpty() -> {
+                    errorMessage != null && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Unable to load stock alerts",
                             message = errorMessage ?: "Failed to connect to the server.",
@@ -247,7 +223,7 @@ fun LowStockAlertsScreen(
                         )
                     }
 
-                    filteredItems.isEmpty() -> {
+                    !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -261,30 +237,17 @@ fun LowStockAlertsScreen(
                     }
 
                     else -> {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            contentPadding = PaddingValues(top = 10.dp, bottom = 90.dp)
-                        ) {
-                            items(
-                                items = filteredItems,
-                                key = { it.itemId.ifBlank { it.hashCode().toString() } }
-                            ) { item ->
+                        PaginatedDataList(
+                            state = displayPagingState,
+                            onLoadMore = { viewModel.loadMoreLowStockAlerts() },
+                            modifier = Modifier.fillMaxSize()
+                        ) { item ->
+                            Column {
                                 LowStockAlertCard(
                                     item = item,
                                     onReorderClick = { onReorderClick(item) }
                                 )
-                            }
-
-                            if (isLoadingMore) {
-                                item(key = "pagination_threedot_loader") {
-                                    ThreeDotLoading(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp)
-                                    )
-                                }
+                                Spacer(Modifier.height(10.dp))
                             }
                         }
                     }

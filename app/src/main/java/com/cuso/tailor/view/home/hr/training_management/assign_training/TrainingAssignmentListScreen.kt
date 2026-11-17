@@ -1,30 +1,21 @@
-@file:Suppress("UNUSED_VALUE", "SpellCheckingInspection")
+@file:Suppress("UNUSED_VALUE", "SpellCheckingInspection","unusedVariable", "unused", "AssignedValueIsNeverRead")
 
 package com.cuso.tailor.view.home.hr.training_management.assign_training
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,22 +33,19 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.hr.AssignedTrainingProgramDto
-import com.cuso.tailor.ui.theme.BorderGray
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.TextPrimary
 import com.cuso.tailor.ui.theme.close_color
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.primary_light
 import com.cuso.tailor.ui.theme.redText
-import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.utils.DynamicIslandManager
-import com.cuso.tailor.utils.UiState
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.ActionDropdownMenu
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DeleteModel
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StatusBadge
@@ -77,9 +65,7 @@ fun TrainingAssignmentListScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
-    val assignments by viewModel.assignedTrainingPrograms.collectAsStateWithLifecycle()
-    val listState by viewModel.assignedTrainingListState.collectAsStateWithLifecycle()
-    val isLoading = listState is UiState.Loading
+    val assignedPagingState by viewModel.assignedTrainingPagingState.collectAsStateWithLifecycle()
 
     val selectedMap = remember { mutableStateMapOf<String, Boolean>() }
     var itemToDelete by remember { mutableStateOf<AssignedTrainingProgramDto?>(null) }
@@ -89,21 +75,13 @@ fun TrainingAssignmentListScreen(
         viewModel.fetchAssignedTrainingPrograms()
     }
 
-    val filteredAssignments = remember(assignments, searchQuery) {
-        if (searchQuery.isBlank()) assignments
-        else assignments.filter {
-            it.getProgramTitle().contains(searchQuery, ignoreCase = true) ||
-                    it.getPrimaryMemberName().contains(searchQuery, ignoreCase = true) ||
-                    it.mode.contains(searchQuery, ignoreCase = true)
-        }
-    }
-
     FabScaffold(
         fab = FabConfig(
             label = "Assign Training",
             icon = Icons.Default.Add,
             onClick = onAssignTrainingClick
-        )
+        ),
+        fabVisible = !assignedPagingState.isInitialLoading
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
@@ -120,9 +98,9 @@ fun TrainingAssignmentListScreen(
 
                 SearchFilterBar(
                     query = searchQuery,
-                    onQueryChange = {
-                        searchQuery = it
-                        viewModel.fetchAssignedTrainingPrograms(search = it.ifBlank { null })
+                    onQueryChange = { query ->
+                        searchQuery = query
+                        viewModel.searchAssignedTrainingPrograms(query)
                     },
                     placeholder = "Search Programs, employee...",
                     showFilterIcon = true,
@@ -136,9 +114,7 @@ fun TrainingAssignmentListScreen(
                         .fillMaxSize()
                         .weight(1f)
                 ) {
-                    if (isLoading && assignments.isEmpty()) {
-                        ListSkeleton()
-                    } else if (filteredAssignments.isEmpty()) {
+                    if (!assignedPagingState.isInitialLoading && assignedPagingState.items.isEmpty()) {
                         Text(
                             text = "No training assignments found",
                             fontSize = tokens.bodySmall,
@@ -147,18 +123,18 @@ fun TrainingAssignmentListScreen(
                             modifier = Modifier.align(Alignment.Center)
                         )
                     } else {
-                        LazyColumn(
+                        PaginatedDataList(
+                            state = assignedPagingState,
+                            onLoadMore = { viewModel.loadMoreAssignedTrainingPrograms() },
                             modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(filteredAssignments, key = { it.id }) { item ->
-                                TrainingAssignmentCard(
-                                    assignment = item,
-                                    isSelected = selectedMap[item.id] == true,
-                                    onToggleSelection = { selectedMap[item.id] = it },
-                                    onEdit = { onEditAssignmentClick(item.id) },
-                                    onDeleteClick = { itemToDelete = item }
-                                )
-                            }
+                        ) { item ->
+                            TrainingAssignmentCard(
+                                assignment = item,
+                                isSelected = selectedMap[item.id] == true,
+                                onToggleSelection = { selectedMap[item.id] = it },
+                                onEdit = { onEditAssignmentClick(item.id) },
+                                onDeleteClick = { itemToDelete = item }
+                            )
                         }
                     }
                 }

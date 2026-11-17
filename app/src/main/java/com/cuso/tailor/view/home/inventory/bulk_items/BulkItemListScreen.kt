@@ -1,12 +1,9 @@
-@file:Suppress("unused", "SpellCheckingInspection")
+@file:Suppress("UNUSED_VALUE", "SpellCheckingInspection","unusedVariable", "unused", "AssignedValueIsNeverRead")
 
 package com.cuso.tailor.view.home.inventory.bulk_items
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -42,16 +39,10 @@ fun BulkListScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
-    val bulkList by viewModel.bulkItems.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMoreBulk.collectAsStateWithLifecycle()
-    val canLoadMore by viewModel.canLoadMoreBulk.collectAsStateWithLifecycle()
+    val bulkPagingState by viewModel.bulkItemsPagingState.collectAsStateWithLifecycle()
     val errorMessage by viewModel.bulkError.collectAsStateWithLifecycle()
-    val successMessage by viewModel.bulkSuccessMessage.collectAsStateWithLifecycle()
 
-    val listState = rememberLazyListState()
-
-    // ── Filter Drawer State & Sections ──
+    // Filter Drawer State & Sections
     val filterDrawerState = rememberFilterDrawerState()
     var filterSections by remember {
         mutableStateOf(
@@ -82,15 +73,15 @@ fun BulkListScreen(
 
     LaunchedEffect(Unit) { viewModel.fetchBulkItems() }
 
-    // Client-side Filter
-    val filteredList by remember(bulkList, searchQuery, filterSections) {
+    // Client-side Filter layered over PagingUiState
+    val filteredList by remember(bulkPagingState.items, searchQuery, filterSections) {
         derivedStateOf {
             val selectedAssembly = filterSections.find { it.title == "Assembly Type" }
                 ?.options?.filter { it.isSelected }?.map { it.label.lowercase() } ?: emptyList()
             val selectedStatuses = filterSections.find { it.title == "Status" }
                 ?.options?.filter { it.isSelected }?.map { it.label.lowercase() } ?: emptyList()
 
-            bulkList.filter { item ->
+            bulkPagingState.items.filter { item ->
                 val matchesSearch = searchQuery.isBlank() ||
                         item.name.contains(searchQuery, ignoreCase = true) ||
                         item.sku.contains(searchQuery, ignoreCase = true)
@@ -104,6 +95,10 @@ fun BulkListScreen(
                 matchesSearch && matchesAssembly && matchesStatus
             }
         }
+    }
+
+    val displayBulkPagingState = remember(bulkPagingState, filteredList) {
+        bulkPagingState.copy(items = filteredList)
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Primary_background)) {
@@ -136,18 +131,18 @@ fun BulkListScreen(
                     onClick = onAddBulkClick,
                     endPadding = tokens.screenPadding,
                     bottomPadding = tokens.buttonHeight * 1.5f
-                )
+                ),
+                fabVisible = !displayBulkPagingState.isInitialLoading
             ) {
                 when {
-                    isLoading && bulkList.isEmpty() -> ListSkeleton()
-                    errorMessage != null && bulkList.isEmpty() -> {
+                    errorMessage != null && displayBulkPagingState.items.isEmpty() && !displayBulkPagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load bulk items",
                             message = errorMessage ?: "Something went wrong.",
                             onRetry = { viewModel.fetchBulkItems() }
                         )
                     }
-                    filteredList.isEmpty() -> {
+                    !displayBulkPagingState.isInitialLoading && displayBulkPagingState.items.isEmpty() -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
                                 text = if (searchQuery.isNotBlank() || activeFilterCount > 0) "No matching bulk items found" else "No Bulk Items Yet",
@@ -157,12 +152,12 @@ fun BulkListScreen(
                         }
                     }
                     else -> {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = tokens.extraPadding)
-                        ) {
-                            items(filteredList, key = { it.id.ifBlank { it.hashCode().toString() } }) { item ->
+                        PaginatedDataList(
+                            state = displayBulkPagingState,
+                            onLoadMore = { viewModel.loadMoreBulkItems() },
+                            modifier = Modifier.fillMaxSize()
+                        ) { item ->
+                            Column {
                                 BulkListItemCard(
                                     item = item,
                                     onClick = { if (item.id.isNotBlank()) onItemClick(item.id) },
@@ -171,14 +166,13 @@ fun BulkListScreen(
                                 )
                                 Spacer(Modifier.height(tokens.extraPadding * 0.8f))
                             }
-                            item { Spacer(Modifier.height(tokens.buttonHeight * 2f)) }
                         }
                     }
                 }
             }
         }
 
-        // ── Filter Bulk Items Drawer ──
+        // Filter Bulk Items Drawer
         FilterDrawer(
             state = filterDrawerState,
             title = "Filter Bulk Items",
@@ -190,8 +184,7 @@ fun BulkListScreen(
                 }
             }
         )
-
-        }
+    }
 }
 
 private data class BulkStatusTheme(

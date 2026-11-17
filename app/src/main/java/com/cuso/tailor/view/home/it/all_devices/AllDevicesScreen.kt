@@ -3,8 +3,6 @@ package com.cuso.tailor.view.home.it.all_devices
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,10 +31,9 @@ fun AllDeviceScreen(
     val tokens = LocalAppTokens.current
     val context = LocalContext.current
 
-    val devices by viewModel.filteredDevices.collectAsState()
+    val devicesPagingState by viewModel.devicesPagingState.collectAsState()
     val metrics by viewModel.deviceMetrics.collectAsState()
     val searchQuery by viewModel.deviceSearchQuery.collectAsState()
-    val isLoading by viewModel.isLoadingDevices.collectAsState()
     val errorMessage by viewModel.devicesError.collectAsState()
     val selectedStatus by viewModel.selectedDeviceStatus.collectAsState()
 
@@ -67,7 +64,7 @@ fun AllDeviceScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            contentWindowInsets = WindowInsets(0,0,0,0),
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             containerColor = Color.Transparent,
             topBar = {
                 TitleBar(
@@ -76,12 +73,12 @@ fun AllDeviceScreen(
                     trailingContent = {
                         ExportButton(
                             onClick = {
-                                if (devices.isEmpty()) {
+                                if (devicesPagingState.items.isEmpty()) {
                                     DynamicIslandManager.showError("No devices available to export")
                                 } else {
                                     val success = DeviceExcelExporter.exportDevicesToCsv(
                                         context = context,
-                                        devices = devices
+                                        devices = devicesPagingState.items
                                     )
                                     if (success) {
                                         DynamicIslandManager.showSuccess("Exported to Downloads folder successfully")
@@ -112,141 +109,125 @@ fun AllDeviceScreen(
                     height = tokens.fieldHeight
                 )
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
+                // Metric cards grid
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = tokens.screenPadding, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // ─── Metric Cards Grid matching Screenshot 1 ───
-                    item {
-                        Column(
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        DeviceStatCard(
+                            label = "TOTAL DEVICES",
+                            value = "${metrics?.totalDevices ?: 0}",
+                            valueColor = Primary,
+                            badgeText = null,
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
+                        DeviceStatCard(
+                            label = "ONLINE",
+                            value = "${metrics?.online?.count ?: 0}",
+                            valueColor = greentext,
+                            badgeText = metrics?.online?.percentage,
+                            badgeBg = greenBg,
+                            badgeTextColor = greentext,
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        DeviceStatCard(
+                            label = "OFFLINE",
+                            value = "${metrics?.offline?.count ?: 0}",
+                            valueColor = title_color,
+                            badgeText = metrics?.offline?.percentage,
+                            badgeBg = redBg,
+                            badgeTextColor = redText,
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
+                        DeviceStatCard(
+                            label = "MAINTENANCE",
+                            value = "${metrics?.maintenance?.count ?: 0}",
+                            valueColor = Primary,
+                            badgeText = metrics?.maintenance?.percentage,
+                            badgeBg = primary_light,
+                            badgeTextColor = Primary,
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
+                    }
+
+                    DeviceStatCard(
+                        label = "WARNING",
+                        value = "${metrics?.warning?.count ?: 0}",
+                        valueColor = redText,
+                        badgeText = metrics?.warning?.percentage,
+                        badgeBg = orangeBg,
+                        badgeTextColor = orangeText,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                // Paginated device list
+                when {
+                    errorMessage != null && devicesPagingState.items.isEmpty() && !devicesPagingState.isInitialLoading -> {
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = tokens.screenPadding, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                .weight(1f)
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            // Row 1: TOTAL DEVICES | ONLINE
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(IntrinsicSize.Min),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                DeviceStatCard(
-                                    label = "TOTAL DEVICES",
-                                    value = "${metrics?.totalDevices ?: 0}",
-                                    valueColor = Primary,
-                                    badgeText = null,
-                                    modifier = Modifier.weight(1f).fillMaxHeight()
-                                )
-                                DeviceStatCard(
-                                    label = "ONLINE",
-                                    value = "${metrics?.online?.count ?: 0}",
-                                    valueColor = greentext,
-                                    badgeText = metrics?.online?.percentage,
-                                    badgeBg = greenBg,
-                                    badgeTextColor = greentext,
-                                    modifier = Modifier.weight(1f).fillMaxHeight()
-                                )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(text = errorMessage ?: "Error", color = redText, fontSize = tokens.bodySmall)
+                                Spacer(Modifier.height(8.dp))
+                                Button(
+                                    onClick = { viewModel.fetchDevicesList() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                                ) {
+                                    Text("Retry", color = whiteBg)
+                                }
                             }
+                        }
+                    }
 
-                            // Row 2: OFFLINE | MAINTENANCE
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(IntrinsicSize.Min),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                DeviceStatCard(
-                                    label = "OFFLINE",
-                                    value = "${metrics?.offline?.count ?: 0}",
-                                    valueColor = title_color,
-                                    badgeText = metrics?.offline?.percentage,
-                                    badgeBg = redBg,
-                                    badgeTextColor = redText,
-                                    modifier = Modifier.weight(1f).fillMaxHeight()
-                                )
-                                DeviceStatCard(
-                                    label = "MAINTENANCE",
-                                    value = "${metrics?.maintenance?.count ?: 0}",
-                                    valueColor = Primary,
-                                    badgeText = metrics?.maintenance?.percentage,
-                                    badgeBg = primary_light,
-                                    badgeTextColor = Primary,
-                                    modifier = Modifier.weight(1f).fillMaxHeight()
-                                )
-                            }
+                    !devicesPagingState.isInitialLoading && devicesPagingState.items.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .padding(40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No devices found", color = mutedText, fontSize = tokens.bodyMedium)
+                        }
+                    }
 
-                            // Row 3: WARNING (Full Width)
-                            DeviceStatCard(
-                                label = "WARNING",
-                                value = "${metrics?.warning?.count ?: 0}",
-                                valueColor = redText,
-                                badgeText = metrics?.warning?.percentage,
-                                badgeBg = orangeBg,
-                                badgeTextColor = orangeText,
-                                modifier = Modifier.fillMaxWidth()
+                    else -> {
+                        PaginatedDataList(
+                            state = devicesPagingState,
+                            onLoadMore = { viewModel.loadMoreDevices() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) { device ->
+                            DeviceDataCard(
+                                device = device,
+                                onClick = { onDeviceClick(device.effectiveId) }
                             )
                         }
                     }
-
-                    item { Spacer(Modifier.height(4.dp)) }
-
-                    // ─── Device List Content ───
-                    when {
-                        isLoading && devices.isEmpty() -> {
-                            item {
-                                ListSkeleton()
-                            }
-                        }
-
-                        errorMessage != null && devices.isEmpty() -> {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(32.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(text = errorMessage ?: "Error", color = redText, fontSize = 13.sp)
-                                        Spacer(Modifier.height(8.dp))
-                                        Button(
-                                            onClick = { viewModel.fetchDevicesList() },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                                        ) {
-                                            Text("Retry", color = whiteBg)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        devices.isEmpty() -> {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(40.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("No devices found", color = mutedText, fontSize = 14.sp)
-                                }
-                            }
-                        }
-
-                        else -> {
-                            items(
-                                items = devices,
-                                key = { it.effectiveId }
-                            ) { device ->
-                                DeviceDataCard(
-                                    device = device,
-                                    onClick = { onDeviceClick(device.effectiveId) }
-                                )
-                            }
-                        }
-                    }
-
-                    item { Spacer(Modifier.height(40.dp)) }
                 }
             }
         }

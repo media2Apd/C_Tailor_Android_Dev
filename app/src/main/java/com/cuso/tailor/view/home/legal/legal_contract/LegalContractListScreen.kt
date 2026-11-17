@@ -3,8 +3,6 @@ package com.cuso.tailor.view.home.legal.legal_contract
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -28,8 +26,8 @@ import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DeleteModel
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.LegalViewModel
@@ -48,21 +46,16 @@ fun LegalContractsScreen(
 ) {
     val tokens = LocalAppTokens.current
     val context = LocalContext.current
-    val contracts by viewModel.contracts.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingContracts.collectAsStateWithLifecycle()
+    val contractsPagingState by viewModel.contractsPagingState.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
 
-    // State for managing contract deletion dialog
     var contractToDelete by remember { mutableStateOf<LegalContractDto?>(null) }
-
-    // Re-fetch trigger counter to force reload on navigation or deletion
     var refreshTrigger by remember { mutableIntStateOf(0) }
-    // Re-fetch contracts whenever this screen is navigated to or when refreshTrigger increments
+
     LaunchedEffect(refreshTrigger) {
         viewModel.fetchContracts(search = searchQuery.ifBlank { null })
     }
 
-    // Delete Confirmation Dialog
     contractToDelete?.let { contract ->
         DeleteModel(
             title = "Delete Contract",
@@ -78,7 +71,7 @@ fun LegalContractsScreen(
                     contractId = targetId,
                     onSuccess = { msg ->
                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                        refreshTrigger++ // Forces LaunchedEffect to immediately re-run fetchContracts()
+                        refreshTrigger++
                     },
                     onError = { err ->
                         Toast.makeText(context, err ?: "Failed to delete contract", Toast.LENGTH_LONG).show()
@@ -88,16 +81,14 @@ fun LegalContractsScreen(
         )
     }
 
-
-
-    // Reusable FabScaffold wrapping the entire screen with a draggable Create button
     FabScaffold(
         modifier = Modifier.fillMaxSize(),
         fab = FabConfig(
             label = "Create Contract",
             icon = Icons.Default.Add,
             onClick = onCreateContract
-        )
+        ),
+        fabVisible = !contractsPagingState.isInitialLoading
     ) {
         Scaffold(
             containerColor = Color.Transparent,
@@ -113,7 +104,6 @@ fun LegalContractsScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // Reusable SearchFilterBar
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = {
@@ -121,13 +111,10 @@ fun LegalContractsScreen(
                         viewModel.fetchContracts(search = it.ifBlank { null })
                     },
                     placeholder = "Search SO number, customer...",
-                    onFilterClick = { /* Handle Filter drawer */ }
+                    onFilterClick = { }
                 )
 
-                // List Section
-                if (isLoading && contracts.isEmpty()) {
-                    ListSkeleton()
-                } else if (contracts.isEmpty()) {
+                if (!contractsPagingState.isInitialLoading && contractsPagingState.items.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -139,17 +126,17 @@ fun LegalContractsScreen(
                         )
                     }
                 } else {
-                    LazyColumn(
+                    PaginatedDataList(
+                        state = contractsPagingState,
+                        onLoadMore = { viewModel.loadMoreContracts() },
                         modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(contracts, key = { it.id }) { contract ->
-                            LegalContractDataCardItem(
-                                contract = contract,
-                                onContractClick = onContractClick,
-                                onEditContract = onEditContract,
-                                onDeleteContract = { contractToDelete = it }
-                            )
-                        }
+                    ) { contract ->
+                        LegalContractDataCardItem(
+                            contract = contract,
+                            onContractClick = onContractClick,
+                            onEditContract = onEditContract,
+                            onDeleteContract = { contractToDelete = it }
+                        )
                     }
                 }
             }

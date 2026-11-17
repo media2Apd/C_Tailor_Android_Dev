@@ -4,9 +4,6 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -50,30 +47,12 @@ fun PackagesScreen(
     var activeStatus by remember { mutableStateOf<String?>(null) }
     val filterDrawerState = rememberFilterDrawerState()
 
-    val packages by viewModel.packagesList.collectAsStateWithLifecycle()
+    val packagesPagingState by viewModel.packagesPagingState.collectAsStateWithLifecycle()
     val summaryFromVm by viewModel.packageSummary.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingPackages.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMorePackages.collectAsStateWithLifecycle()
-    val canLoadMore by viewModel.canLoadMorePackages.collectAsStateWithLifecycle()
     val errorMessage by viewModel.packagesError.collectAsStateWithLifecycle()
-
-    val listState = rememberLazyListState()
 
     LaunchedEffect(Unit) {
         viewModel.fetchPackages()
-    }
-
-    val reachedEnd by remember {
-        derivedStateOf {
-            val info = listState.layoutInfo
-            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
-            info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - 3
-        }
-    }
-    LaunchedEffect(reachedEnd, packages.size) {
-        if (reachedEnd && packages.isNotEmpty() && canLoadMore) {
-            viewModel.loadMorePackages(limit = 10)
-        }
     }
 
     val filterSections = remember {
@@ -96,7 +75,8 @@ fun PackagesScreen(
             label = "Create Package",
             icon = Icons.Default.Add,
             onClick = onCreatePackageClick
-        )
+        ),
+        fabVisible = !packagesPagingState.isInitialLoading
     ) {
         Column(
             modifier = Modifier
@@ -133,11 +113,7 @@ fun PackagesScreen(
                     .weight(1f)
             ) {
                 when {
-                    isLoading && packages.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
-                    errorMessage != null && packages.isEmpty() -> {
+                    errorMessage != null && packagesPagingState.items.isEmpty() && !packagesPagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load packages",
                             message = errorMessage?.ifBlank { null }
@@ -156,59 +132,40 @@ fun PackagesScreen(
                     else -> {
                         val summary = summaryFromVm ?: PackageSummaryDto()
 
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            item(key = "metrics") {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            if (!packagesPagingState.isInitialLoading) {
                                 PackageMetricsSection(summary = summary)
-                            }
-                            item {
                                 Spacer(Modifier.padding(top = 10.dp))
                             }
-                            if (packages.isEmpty()) {
-                                item(key = "empty") {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = tokens.screenPadding * 2),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "No packages found",
-                                            fontSize = tokens.bodyMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            color = mutedText
-                                        )
-                                    }
+
+                            if (!packagesPagingState.isInitialLoading && packagesPagingState.items.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f)
+                                        .padding(top = tokens.screenPadding * 2),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "No packages found",
+                                        fontSize = tokens.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = mutedText
+                                    )
                                 }
                             } else {
-                                items(
-                                    items = packages,
-                                    key = { it.id }
+                                PaginatedDataList(
+                                    state = packagesPagingState,
+                                    onLoadMore = { viewModel.loadMorePackages(limit = 10) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f)
                                 ) { pkg ->
                                     PackageCardItem(
                                         item = pkg,
                                         onCardClick = onPackageItemClick,
                                         onEditClick = onEditPackageClick
                                     )
-                                }
-
-                                if (isLoadingMore) {
-                                    item(key = "loading_more") {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = tokens.extraPadding),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(tokens.iconSize),
-                                                strokeWidth = 2.dp,
-                                                color = Primary
-                                            )
-                                        }
-                                    }
                                 }
                             }
                         }

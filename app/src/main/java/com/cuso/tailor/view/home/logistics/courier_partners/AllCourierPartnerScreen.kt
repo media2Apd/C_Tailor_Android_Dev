@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -46,8 +44,8 @@ import com.cuso.tailor.view.composable.ActionDropdownMenu
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.LogisticsViewModel
@@ -58,28 +56,22 @@ fun CourierPartnerListScreen(
     onBack: () -> Unit,
     onNewShipmentClick: () -> Unit,
     onViewCourierDetail: (String) -> Unit = {}
-){
+) {
     val tokens = LocalAppTokens.current
 
-    // Observe courier partner state directly from existing LogisticsViewModel
-    val courierPartners by viewModel.courierPartnersList.collectAsState()
-    val isLoading by viewModel.isLoadingCouriers.collectAsState()
-
-    // Local search state handled directly in Compose
+    val courierPagingState by viewModel.courierPartnersPagingState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
 
-    // Fetch courier partners on launch using existing function
     LaunchedEffect(Unit) {
         viewModel.fetchCourierPartners()
     }
 
-    // Filter couriers locally based on search text without modifying the ViewModel
-    val filteredCouriers = remember(courierPartners, searchQuery) {
+    val filteredCouriers = remember(courierPagingState.items, searchQuery) {
         val cleanQuery = searchQuery.trim().lowercase()
         if (cleanQuery.isEmpty()) {
-            courierPartners
+            courierPagingState.items
         } else {
-            courierPartners.filter { item ->
+            courierPagingState.items.filter { item ->
                 item.courierName.lowercase().contains(cleanQuery) ||
                         item.transportMode.lowercase().contains(cleanQuery) ||
                         (item.regionType?.lowercase()?.contains(cleanQuery) == true)
@@ -87,7 +79,10 @@ fun CourierPartnerListScreen(
         }
     }
 
-    // Floating action button (+ New Shipment)
+    val displayPagingState = remember(courierPagingState, filteredCouriers) {
+        courierPagingState.copy(items = filteredCouriers)
+    }
+
     val fabConfig = remember(onNewShipmentClick) {
         FabConfig(
             label = "New Shipment",
@@ -101,7 +96,7 @@ fun CourierPartnerListScreen(
             .fillMaxSize()
             .background(Primary_background),
         fab = fabConfig,
-        fabVisible = true
+        fabVisible = !displayPagingState.isInitialLoading
     ) {
         Scaffold(
             containerColor = Primary_background,
@@ -117,7 +112,6 @@ fun CourierPartnerListScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // Search & Filter Bar
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
@@ -128,42 +122,31 @@ fun CourierPartnerListScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                when {
-                    isLoading && courierPartners.isEmpty() -> {
-                        ListSkeleton()
+                if (!displayPagingState.isInitialLoading && displayPagingState.items.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(tokens.screenPadding),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No records found",
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = headerGrey
+                        )
                     }
-
-                    filteredCouriers.isEmpty() -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(tokens.screenPadding),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No records found",
-                                fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = headerGrey
-                            )
-                        }
-                    }
-
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(
-                                items = filteredCouriers,
-                                key = { it.id }
-                            ) { item ->
-                                CourierPartnerCard(
-                                    item = item,
-                                    formatDateHelper = { rawDate -> viewModel.formatDeliveryDate(rawDate) },
-                                    onViewCourierDetail = onViewCourierDetail
-                                )
-                            }
-                        }
+                } else {
+                    PaginatedDataList(
+                        state = displayPagingState,
+                        onLoadMore = { viewModel.loadMoreCourierPartners() },
+                        modifier = Modifier.fillMaxSize()
+                    ) { item ->
+                        CourierPartnerCard(
+                            item = item,
+                            formatDateHelper = { rawDate -> viewModel.formatDeliveryDate(rawDate) },
+                            onViewCourierDetail = onViewCourierDetail
+                        )
                     }
                 }
             }

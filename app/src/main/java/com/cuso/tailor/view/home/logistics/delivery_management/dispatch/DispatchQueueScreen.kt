@@ -1,11 +1,9 @@
-@file:Suppress("DEPRECATION", "AssignedValueIsNeverRead", "unused")
+@file:Suppress("UNUSED_VALUE", "SpellCheckingInspection","unusedVariable", "unused", "AssignedValueIsNeverRead")
 
 package com.cuso.tailor.view.home.logistics.delivery_management.dispatch
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
@@ -25,7 +23,7 @@ import com.cuso.tailor.model.logistics.ShipmentItemDto
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.view.composable.DataCard
-import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.TitleBar
@@ -38,37 +36,19 @@ fun DispatchListScreen(
     onShipmentClick: (ShipmentItemDto) -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    val shipments by viewModel.shipmentsList.collectAsState()
+    val shipmentsPagingState by viewModel.shipmentsQueuePagingState.collectAsState()
     val searchQuery by viewModel.shipmentSearchQuery.collectAsState()
-    val isLoading by viewModel.isLoadingShipments.collectAsState()
     val errorMessage by viewModel.shipmentError.collectAsState()
 
-    // Load shipments on initial composition
     LaunchedEffect(Unit) {
         viewModel.fetchShipments()
     }
 
-    // Filter list based on orderId, shipmentId, or courier
-    val filteredList = remember(shipments, searchQuery) {
-        if (searchQuery.isBlank()) shipments
-        else {
-            shipments.filter { item ->
-                (item.orderId?.contains(searchQuery, ignoreCase = true) == true) ||
-                        (item.shipmentId?.contains(searchQuery, ignoreCase = true) == true) ||
-                        (item.courier?.contains(searchQuery, ignoreCase = true) == true)
-            }
-        }
-    }
-    var selectedShipment by remember {
-        mutableStateOf<ShipmentItemDto?>(null)
-    }
-
-    var showDispatchDialog by remember {
-        mutableStateOf(false)
-    }
+    var selectedShipment by remember { mutableStateOf<ShipmentItemDto?>(null) }
+    var showDispatchDialog by remember { mutableStateOf(false) }
 
     Scaffold(
-        contentWindowInsets = WindowInsets(0,0,0,0),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TitleBar(
                 title = "Shipments & Delivery",
@@ -76,14 +56,13 @@ fun DispatchListScreen(
             )
         },
         containerColor = Color.Transparent
-        ) { paddingValues ->
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Transparent)
                 .padding(paddingValues)
         ) {
-            // Search & Filter Component
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { viewModel.onShipmentSearchQueryChange(it) },
@@ -91,65 +70,58 @@ fun DispatchListScreen(
                 height = tokens.fieldHeight,
                 showFilterIcon = true,
                 filterCount = 0,
-                onFilterClick = {
-                    // Trigger filter drawer if needed
-                }
+                onFilterClick = {}
             )
 
             when {
-                    isLoading && shipments.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
-                    errorMessage != null && shipments.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = errorMessage ?: "Failed to load shipments",
-                                fontSize = tokens.bodyMedium,
-                                color = redText
-                            )
-                        }
-                    }
-
-                    filteredList.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No shipments found",
-                                fontSize = tokens.bodyMedium,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize()
-                                .background(Color.Transparent)
-                        ) {
-                            items(
-                                items = filteredList,
-                                key = { it._id }
-                            ) { item ->
-                                ShipmentDataCard(
-                                    item = item,
-                                    onCardClick = { onShipmentClick(item) },
-                                    onActionClick = {
-                                        selectedShipment = item
-                                        showDispatchDialog = true
-                                    }
-                                )
-                            }
-                        }
+                errorMessage != null && shipmentsPagingState.items.isEmpty() && !shipmentsPagingState.isInitialLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = errorMessage ?: "Failed to load shipments",
+                            fontSize = tokens.bodyMedium,
+                            color = redText
+                        )
                     }
                 }
+
+                !shipmentsPagingState.isInitialLoading && shipmentsPagingState.items.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No shipments found",
+                            fontSize = tokens.bodyMedium,
+                            color = TextSecondary
+                        )
+                    }
+                }
+
+                else -> {
+                    PaginatedDataList(
+                        state = shipmentsPagingState,
+                        onLoadMore = { viewModel.loadMoreShipmentsQueue() },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Transparent)
+                    ) { item ->
+                        ShipmentDataCard(
+                            item = item,
+                            onCardClick = { onShipmentClick(item) },
+                            onActionClick = {
+                                selectedShipment = item
+                                showDispatchDialog = true
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
+
     if (showDispatchDialog && selectedShipment != null) {
         DispatchConfirmationDialog(
             item = selectedShipment!!,
@@ -159,16 +131,12 @@ fun DispatchListScreen(
             },
             onConfirm = {
                 val shipment = selectedShipment ?: return@DispatchConfirmationDialog
-
                 viewModel.markShipmentDispatched(
                     shipmentId = shipment._id,
                     onSuccess = {
                         showDispatchDialog = false
                         selectedShipment = null
-
-                        DynamicIslandManager.showSuccess(
-                            "Shipment marked as dispatched"
-                        )
+                        DynamicIslandManager.showSuccess("Shipment marked as dispatched")
                     }
                 )
             }

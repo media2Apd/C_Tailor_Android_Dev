@@ -2,8 +2,6 @@ package com.cuso.tailor.view.home.security.api_logs
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -12,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.security.ApiLogItemDto
 import com.cuso.tailor.ui.theme.*
@@ -26,8 +23,8 @@ fun ApiLogsListScreen(
     onNavigateToDetail: (String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    val logs by viewModel.filteredApiLogs.collectAsState()
-    val isLoading by viewModel.isLoadingApiLogs.collectAsState()
+    val pagingState by viewModel.filteredApiLogsPagingState.collectAsState()
+    val errorMessage by viewModel.apiLogsError.collectAsState()
     val searchQuery by viewModel.apiLogSearchQuery.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -39,7 +36,7 @@ fun ApiLogsListScreen(
             .fillMaxSize()
             .background(Primary_background)
     ) {
-        // Title Bar
+        // Page Header
         TitleBar(
             title = "API Logs",
             onClose = onNavigateBack
@@ -49,45 +46,44 @@ fun ApiLogsListScreen(
         SearchFilterBar(
             query = searchQuery,
             onQueryChange = { viewModel.onApiLogSearchQueryChange(it) },
-            placeholder = "Search SO number, customer...",
+            placeholder = "Search endpoint, method, log ID...",
             showFilterIcon = true,
             onFilterClick = {}
         )
 
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Primary, strokeWidth = 2.dp)
-            }
-        } else if (logs.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No API logs found",
-                    fontSize = tokens.bodyMedium,
-                    color = mutedText
+        when {
+            errorMessage != null && pagingState.items.isEmpty() && !pagingState.isInitialLoading -> {
+                AppErrorState(
+                    title = "Failed to load API logs",
+                    message = errorMessage?.ifBlank { "Unable to fetch API logs." }
+                        ?: "Unable to fetch API logs.",
+                    onRetry = { viewModel.fetchApiLogs() }
                 )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(
-                    horizontal = tokens.screenPadding,
-                    vertical = 8.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(logs, key = { it.id }) { logItem ->
+
+            !pagingState.isInitialLoading && pagingState.items.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No API logs found",
+                        fontSize = tokens.bodyMedium,
+                        color = mutedText
+                    )
+                }
+            }
+
+            else -> {
+                PaginatedDataList(
+                    state = pagingState,
+                    onLoadMore = { viewModel.loadMoreApiLogs() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) { logItem ->
                     ApiLogItemCard(
                         log = logItem,
                         onClick = { onNavigateToDetail(logItem.id) }
@@ -126,7 +122,7 @@ private fun ApiLogItemCard(
         content = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
             ) {
                 // Timestamp Row
                 Row(
@@ -147,13 +143,16 @@ private fun ApiLogItemCard(
                     )
                 }
 
-                // Middle Container Box
+                // Middle Summary Container
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                         .background(cardBgLight)
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .padding(
+                            horizontal = tokens.cardPadding * 0.7f,
+                            vertical = tokens.extraPadding
+                        )
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -162,7 +161,7 @@ private fun ApiLogItemCard(
                     ) {
                         Column(horizontalAlignment = Alignment.Start) {
                             Text("Endpoint", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                             Text(
                                 text = log.shortEndpoint,
                                 fontSize = tokens.bodySmall,
@@ -174,13 +173,13 @@ private fun ApiLogItemCard(
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("Method", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                             Text(log.method, fontSize = tokens.bodySmall, color = TextPrimary, fontWeight = FontWeight.Medium)
                         }
 
                         Column(horizontalAlignment = Alignment.End) {
                             Text("CODE", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                             Text(log.statusCode.toString(), fontSize = tokens.bodySmall, color = TextPrimary, fontWeight = FontWeight.Medium)
                         }
                     }

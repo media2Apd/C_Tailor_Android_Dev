@@ -61,8 +61,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -144,7 +147,18 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
+import com.cuso.tailor.ui.theme.TextPrimary
+import com.cuso.tailor.ui.theme.TextSecondary
+import com.cuso.tailor.ui.theme.activity_purple_bg
+import com.cuso.tailor.ui.theme.greenBg
+import com.cuso.tailor.ui.theme.greentext
+import com.cuso.tailor.ui.theme.light_grey
+import com.cuso.tailor.ui.theme.purpleBg
+import com.cuso.tailor.ui.theme.purpleText
+import com.cuso.tailor.ui.theme.redBg
 import com.cuso.tailor.utils.CusoFirebaseMessagingService
+import com.cuso.tailor.view.composable.DataCardProgressBar
+import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.home.search.GlobalSearchScreen
 import com.cuso.tailor.view.home.topBarEvents.BusinessAgendaScreen
 import com.cuso.tailor.view.home.topBarEvents.NotificationsScreen
@@ -247,6 +261,20 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
     // Holds the dynamic portalName from Room DB
     var portalName by remember { mutableStateOf("") }
+
+    // Trial badge and dialog state (connect to your API / PermissionViewModel trial data)
+    var showTrialDialog by remember { mutableStateOf(false) }
+    val trialInfo by remember {
+        mutableStateOf<TrialUiState?>(
+            TrialUiState(
+                isTrial = true,
+                daysRemaining = 1,
+                progressText = "Day 14 of 14",
+                progressPercentage = 100f,
+                trialEndsFormatted = "16 Nov 2026"
+            )
+        )
+    }
 
     var isDrawerOpen by remember { mutableStateOf(false) }
     var sidebarBlur by remember { mutableStateOf(0.dp) }
@@ -1341,6 +1369,24 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         show = showExitDialog,
         onDismiss = { showExitDialog = false }
     )
+
+    // Free Trial status popover dialog
+    val activeTrial = trialInfo
+    if (showTrialDialog && activeTrial != null && activeTrial.isTrial) {
+        TrialStatusDialog(
+            trial = activeTrial,
+            onDismiss = { showTrialDialog = false },
+            onComparePlans = {
+                showTrialDialog = false
+                val targetPortal = portalName.ifBlank { "" }
+                val pricingUrl = "http://tailor.cuso.in/$targetPortal/home/settings/pricing"
+                val browserIntent = Intent(Intent.ACTION_VIEW, pricingUrl.toUri()).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(browserIntent)
+            }
+        )
+    }
     // ═════════════════════════════════════════════════════════════════════════
     // ── TOTAL WORKSPACE LOCK ENFORCEMENT ──
     // ═════════════════════════════════════════════════════════════════════════
@@ -1381,6 +1427,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                     if (!hideChromeBars) {
                         TopBar(
                             hasNotification = unreadNotificationCount > 0,
+                            trialInfo = trialInfo,
+                            onTrialClick = { showTrialDialog = true },
                             onSearchClick = { navigateTo("global_search") },
                             onCalendarClick = { navigateTo("business_agenda") },
                             onNotificationClick = { navigateTo("notifications") },
@@ -2062,6 +2110,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 fun TopBar(
     isPanelMode: Boolean = false,
     hasNotification: Boolean = false,
+    trialInfo: TrialUiState? = null,
+    onTrialClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onCalendarClick: () -> Unit = {}, // Callback for Business Agenda page
     onNotificationClick: () -> Unit = {},
@@ -2155,6 +2205,15 @@ fun TopBar(
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Show Trial Pill when organization is in active free trial
+                if (trialInfo != null && trialInfo.isTrial) {
+                    TrialStatusBadge(
+                        daysRemaining = trialInfo.daysRemaining,
+                        onClick = onTrialClick
+                    )
+                    Spacer(modifier = Modifier.width(tokens.screenPadding * 0.65f))
+                }
+
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
@@ -3000,5 +3059,246 @@ fun String.toIsoDate(): String {
         }
     } catch (_: Exception) {
         ""
+    }
+}
+
+// UI state model matching React useOnboardingState().trial
+data class TrialUiState(
+    val isTrial: Boolean = false,
+    val daysRemaining: Int = 0,
+    val progressText: String = "",
+    val progressPercentage: Float = 0f,
+    val trialEndsFormatted: String = ""
+)
+
+@Composable
+fun TrialStatusBadge(
+    daysRemaining: Int,
+    onClick: () -> Unit
+) {
+    val tokens = LocalAppTokens.current
+
+    // Use red warning palette when 1 to 3 days remain, otherwise purple palette
+    val isTrialExpiring = daysRemaining in 1..3
+    val bgColor = if (isTrialExpiring) redBg else purpleBg
+    val contentColor = if (isTrialExpiring) redText else purpleText
+    val borderColor = if (isTrialExpiring) redText.copy(alpha = 0.25f) else purpleText.copy(alpha = 0.25f)
+
+    Row(
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(bgColor)
+            .border(1.dp, borderColor, CircleShape)
+            .clickable { onClick() }
+            .padding(
+                horizontal = tokens.extraPadding,
+                vertical = tokens.extraPadding * 0.45f
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.4f)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Schedule,
+            contentDescription = "Trial remaining",
+            tint = contentColor,
+            modifier = Modifier.size(tokens.iconSize * 0.75f)
+        )
+        Text(
+            text = "${daysRemaining}d",
+            color = contentColor,
+            fontSize = tokens.caption,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1
+        )
+        Icon(
+            imageVector = Icons.Default.ArrowDropDown,
+            contentDescription = "Open trial details",
+            tint = contentColor.copy(alpha = 0.75f),
+            modifier = Modifier.size(tokens.iconSize * 0.8f)
+        )
+    }
+}
+
+@Composable
+fun TrialStatusDialog(
+    trial: TrialUiState,
+    onDismiss: () -> Unit,
+    onComparePlans: () -> Unit
+) {
+    val tokens = LocalAppTokens.current
+    val progressFraction = (trial.progressPercentage / 100f).coerceIn(0f, 1f)
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = tokens.screenPadding),
+            shape = RoundedCornerShape(tokens.cardCornerRadius),
+            color = whiteBg,
+            shadowElevation = tokens.extraPadding
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(tokens.cardPadding)
+            ) {
+                // Header Row: Title + Reusable Active StatusBadge + Close Button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
+                    ) {
+                        Text(
+                            text = "Your free trial",
+                            fontSize = tokens.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                        StatusBadge(
+                            text = "ACTIVE",
+                            bgColor = greenBg,
+                            textColor = greentext,
+                            cornerRadius = tokens.cardCornerRadius * 0.4f,
+                            showDot = false
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(tokens.iconSize * 1.5f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = mutedText,
+                            modifier = Modifier.size(tokens.iconSize)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(tokens.extraPadding))
+
+                // Days Remaining Headline
+                Text(
+                    text = "${trial.daysRemaining} days remaining",
+                    fontSize = tokens.h2,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary
+                )
+                Spacer(modifier = Modifier.height(tokens.extraPadding * 0.25f))
+                Text(
+                    text = "Explore CUSO Tailor at your own pace.",
+                    fontSize = tokens.bodySmall,
+                    color = TextSecondary
+                )
+
+                Spacer(modifier = Modifier.height(tokens.screenPadding * 0.85f))
+
+                // Trial Progress Section (reusing DataCardProgressBar)
+                Text(
+                    text = trial.progressText,
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Medium,
+                    color = mutedText
+                )
+                Spacer(modifier = Modifier.height(tokens.extraPadding * 0.6f))
+                DataCardProgressBar(
+                    progress = progressFraction,
+                    progressColor = Primary,
+                    trackColor = light_grey
+                )
+
+                Spacer(modifier = Modifier.height(tokens.screenPadding * 0.85f))
+
+                // Trial Ends Card
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.75f))
+                        .background(activity_purple_bg)
+                        .border(
+                            width = 1.dp,
+                            color = light_blue_border,
+                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.75f)
+                        )
+                        .padding(
+                            horizontal = tokens.extraPadding * 1.2f,
+                            vertical = tokens.extraPadding * 1.1f
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(tokens.iconSize * 0.85f)
+                        )
+                        Text(
+                            text = "Trial ends",
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = TextSecondary
+                        )
+                    }
+
+                    Text(
+                        text = trial.trialEndsFormatted,
+                        fontSize = tokens.bodySmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(tokens.screenPadding * 0.85f))
+
+                // Description
+                Text(
+                    text = "Need more features or users? Find the plan that fits your business.",
+                    fontSize = tokens.bodySmall,
+                    color = TextSecondary
+                )
+
+                Spacer(modifier = Modifier.height(tokens.screenPadding))
+
+                // Compare Plans CTA Button
+                Button(
+                    onClick = onComparePlans,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(tokens.buttonHeight),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.75f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Primary,
+                        contentColor = whiteBg
+                    )
+                ) {
+                    Text(
+                        text = "Compare Plans",
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.width(tokens.extraPadding * 0.6f))
+                    Icon(
+                        imageVector = Icons.Default.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(tokens.iconSize * 0.85f)
+                    )
+                }
+            }
+        }
     }
 }

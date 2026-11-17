@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -31,7 +30,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -51,22 +49,19 @@ import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardField
 import com.cuso.tailor.view.composable.DeleteModel
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FilterDrawer
 import com.cuso.tailor.view.composable.FilterOption
 import com.cuso.tailor.view.composable.FilterSection
 import com.cuso.tailor.view.composable.FilterSectionType
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
 import com.cuso.tailor.viewmodel.InventoryViewModel
-import kotlinx.coroutines.flow.distinctUntilChanged
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -81,15 +76,12 @@ fun AllItemGroupScreen(
 ) {
     val tokens = LocalAppTokens.current
     val uiState by viewModel.uiState.collectAsState()
-    val deleteSuccessMessage by viewModel.deleteItemGroupSuccess.collectAsState()
+    val itemGroupsPagingState by viewModel.itemGroupsPagingState.collectAsState()
 
-    var displayedErrorMessage by remember { mutableStateOf<String?>(null) }
     var itemGroupToDelete by remember { mutableStateOf<ItemGroupDto?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    val listState = rememberLazyListState()
-
-    // ── Filter Drawer State & Sections ──
+    // Filter drawer state and sections
     val filterDrawerState = rememberFilterDrawerState()
     var filterSections by remember {
         mutableStateOf(
@@ -117,9 +109,12 @@ fun AllItemGroupScreen(
         )
     }
 
-    // Dynamic populate options from Item Groups response
+    // Dynamically populate options from Item Groups response
     LaunchedEffect(uiState.filteredList) {
-        val dynamicFabrics = uiState.filteredList.mapNotNull { it.productType ?: it.type }.filter { it.isNotBlank() }.distinct()
+        val dynamicFabrics = uiState.filteredList
+            .mapNotNull { it.productType ?: it.type }
+            .filter { it.isNotBlank() }
+            .distinct()
         if (dynamicFabrics.isNotEmpty()) {
             filterSections = filterSections.map { sec ->
                 if (sec.title == "Fabric") {
@@ -136,15 +131,15 @@ fun AllItemGroupScreen(
 
     LaunchedEffect(Unit) { viewModel.refreshItemGroups() }
 
-    // Client-side Filter
-    val displayedList by remember(uiState.filteredList, filterSections) {
+    // Apply drawer filters on paged items
+    val displayedList by remember(itemGroupsPagingState.items, filterSections) {
         derivedStateOf {
             val selectedCategories = filterSections.find { it.title == "Category" }
                 ?.options?.filter { it.isSelected }?.map { it.label.lowercase() } ?: emptyList()
             val selectedFabrics = filterSections.find { it.title == "Fabric" }
                 ?.options?.filter { it.isSelected }?.map { it.label.lowercase() } ?: emptyList()
 
-            uiState.filteredList.filter { group ->
+            itemGroupsPagingState.items.filter { group ->
                 val matchesCategory = selectedCategories.isEmpty() ||
                         selectedCategories.any { group.name.contains(it, ignoreCase = true) }
                 val matchesFabric = selectedFabrics.isEmpty() ||
@@ -155,8 +150,14 @@ fun AllItemGroupScreen(
         }
     }
 
+    val displayPagingState = remember(itemGroupsPagingState, displayedList) {
+        itemGroupsPagingState.copy(items = displayedList)
+    }
+
     FabScaffold(
-        modifier = Modifier.fillMaxSize().background(Primary_background),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Primary_background),
         fab = FabConfig(
             label = "Create item group",
             icon = Icons.Default.Add,
@@ -164,7 +165,8 @@ fun AllItemGroupScreen(
                 viewModel.clearSelectedItemGroupDetail()
                 onAddItemGroup()
             }
-        )
+        ),
+        fabVisible = !displayPagingState.isInitialLoading
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
@@ -185,38 +187,95 @@ fun AllItemGroupScreen(
 
                 HorizontalDivider(color = title_border, thickness = 2.dp)
 
-                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
                     when {
-                        uiState.isLoading && uiState.filteredList.isEmpty() -> ListSkeleton()
-                        uiState.errorMessage != null && uiState.filteredList.isEmpty() -> {
+                        uiState.errorMessage != null && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
                             AppErrorState(
                                 title = "Failed to load item groups",
                                 message = uiState.errorMessage ?: "Something went wrong.",
                                 onRetry = { viewModel.refreshItemGroups() }
                             )
                         }
-                        displayedList.isEmpty() -> EmptyStateView(tokens = tokens)
+
+                        !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
+                            EmptyStateView(tokens = tokens)
+                        }
+
                         else -> {
-                            ItemGroupListView(
-                                itemGroups = displayedList,
-                                listState = listState,
-                                isLoadingMore = uiState.isLoadingMore,
-                                tokens = tokens,
-                                onView = onView,
-                                onEdit = { id ->
-                                    viewModel.fetchItemGroupViewOne(id) { onEdit(id) }
-                                },
-                                onDelete = { group ->
-                                    itemGroupToDelete = group
-                                    showDeleteDialog = true
+                            PaginatedDataList(
+                                state = displayPagingState,
+                                onLoadMore = { viewModel.loadMoreItemGroups() },
+                                modifier = Modifier.fillMaxSize()
+                            ) { group ->
+                                val attributesSummary = group.variantAttributes
+                                    .joinToString(", ") { it.name }
+                                    .ifBlank { "No attributes" }
+
+                                val formattedDate = formatIsoDate(group.createdAt)
+
+                                Column {
+                                    DataCard(
+                                        item = group,
+                                        title = group.name,
+                                        topBadgeText = "${group.variantCount} Items",
+                                        topBadgeTextColor = Primary,
+                                        topBadgeBgColor = background_light_purple,
+                                        topBadgeInline = true,
+                                        footerAsRows = false,
+                                        footerFields = listOf(
+                                            DataCardField(
+                                                label = "",
+                                                text = attributesSummary,
+                                                labelColor = mutedText,
+                                                textColor = mutedText
+                                            ),
+                                            DataCardField(
+                                                label = "",
+                                                text = formattedDate,
+                                                labelColor = mutedText,
+                                                textColor = mutedText
+                                            )
+                                        ),
+                                        actions = listOf(
+                                            MenuAction(
+                                                label = "View",
+                                                icon = Icons.Filled.Visibility,
+                                                onClick = { onView(group.id) }
+                                            ),
+                                            MenuAction(
+                                                label = "Edit",
+                                                icon = Icons.Filled.Edit,
+                                                onClick = {
+                                                    viewModel.fetchItemGroupViewOne(group.id) { onEdit(group.id) }
+                                                }
+                                            ),
+                                            MenuAction(
+                                                label = "Delete",
+                                                icon = Icons.Filled.Delete,
+                                                tint = redText,
+                                                textColor = redText,
+                                                onClick = {
+                                                    itemGroupToDelete = group
+                                                    showDeleteDialog = true
+                                                }
+                                            )
+                                        ),
+                                        onClick = { onView(group.id) }
+                                    )
+
+                                    Spacer(modifier = Modifier.height(tokens.extraPadding / 2))
                                 }
-                            )
+                            }
                         }
                     }
                 }
             }
 
-            // ── Filter Item Groups Drawer ──
+            // Filter item groups drawer
             FilterDrawer(
                 state = filterDrawerState,
                 title = "Filter Item Groups",

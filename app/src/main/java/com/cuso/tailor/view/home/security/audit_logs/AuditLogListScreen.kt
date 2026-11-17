@@ -2,8 +2,6 @@ package com.cuso.tailor.view.home.security.audit_logs
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -12,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.security.AuditLogItemDto
 import com.cuso.tailor.ui.theme.*
@@ -26,8 +23,8 @@ fun AuditLogsListScreen(
     onNavigateToDetail: (String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    val logs by viewModel.filteredAuditLogs.collectAsState()
-    val isLoading by viewModel.isLoadingAuditLogs.collectAsState()
+    val pagingState by viewModel.filteredAuditLogsPagingState.collectAsState()
+    val errorMessage by viewModel.auditLogsError.collectAsState()
     val searchQuery by viewModel.auditLogSearchQuery.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -39,13 +36,13 @@ fun AuditLogsListScreen(
             .fillMaxSize()
             .background(Primary_background)
     ) {
-        // Title Bar
+        // Page Header
         TitleBar(
             title = "Audit Logs",
             onClose = onNavigateBack
         )
 
-        // Search Bar
+        // Search Filter Bar
         SearchFilterBar(
             query = searchQuery,
             onQueryChange = { viewModel.onAuditLogSearchQueryChange(it) },
@@ -54,40 +51,39 @@ fun AuditLogsListScreen(
             onFilterClick = {}
         )
 
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Primary, strokeWidth = 2.dp)
-            }
-        } else if (logs.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No audit logs found",
-                    fontSize = tokens.bodyMedium,
-                    color = mutedText
+        when {
+            errorMessage != null && pagingState.items.isEmpty() && !pagingState.isInitialLoading -> {
+                AppErrorState(
+                    title = "Failed to load audit logs",
+                    message = errorMessage?.ifBlank { "Unable to fetch audit logs." }
+                        ?: "Unable to fetch audit logs.",
+                    onRetry = { viewModel.fetchAuditLogs() }
                 )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(
-                    horizontal = tokens.screenPadding,
-                    vertical = 8.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(logs, key = { it.id }) { logItem ->
+
+            !pagingState.isInitialLoading && pagingState.items.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No audit logs found",
+                        fontSize = tokens.bodyMedium,
+                        color = mutedText
+                    )
+                }
+            }
+
+            else -> {
+                PaginatedDataList(
+                    state = pagingState,
+                    onLoadMore = { viewModel.loadMoreAuditLogs() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) { logItem ->
                     AuditLogCard(
                         log = logItem,
                         onClick = { onNavigateToDetail(logItem.id) }
@@ -146,9 +142,9 @@ private fun AuditLogCard(
         content = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
             ) {
-                // Member & Module row
+                // Member Info Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -169,13 +165,16 @@ private fun AuditLogCard(
                     )
                 }
 
-                // Middle Container Box
+                // Middle Summary Container
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                         .background(cardBgLight)
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .padding(
+                            horizontal = tokens.cardPadding * 0.7f,
+                            vertical = tokens.extraPadding
+                        )
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -184,7 +183,7 @@ private fun AuditLogCard(
                     ) {
                         Column(horizontalAlignment = Alignment.Start) {
                             Text("Module", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                             Text(
                                 text = (log.module as String?) ?: "—",
                                 fontSize = tokens.bodySmall,
@@ -196,7 +195,7 @@ private fun AuditLogCard(
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("Action", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                             Text(
                                 text = (log.action as String?) ?: "—",
                                 fontSize = tokens.bodySmall,
@@ -207,7 +206,7 @@ private fun AuditLogCard(
 
                         Column(horizontalAlignment = Alignment.End) {
                             Text("IP Address", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                             Text(
                                 text = safeIp,
                                 fontSize = tokens.bodySmall,

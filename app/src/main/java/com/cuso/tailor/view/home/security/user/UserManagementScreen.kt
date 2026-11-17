@@ -1,28 +1,23 @@
-
 @file:Suppress("UNUSED_PARAMETER")
 
 package com.cuso.tailor.view.home.security.user
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
@@ -43,19 +38,17 @@ fun UserManagementScreen(
     onViewUserClick: (String) -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    val listState = rememberLazyListState()
 
-    val users by securityViewModel.filteredUsers.collectAsStateWithLifecycle()
-    val isLoading by securityViewModel.isLoadingUsers.collectAsStateWithLifecycle()
+    val pagingState by securityViewModel.filteredUsersPagingState.collectAsStateWithLifecycle()
     val errorMessage by securityViewModel.usersError.collectAsStateWithLifecycle()
     val searchQuery by securityViewModel.userSearchQuery.collectAsStateWithLifecycle()
 
-    // Permission checks for Create, Edit, Delete
+    // Permission checks for Create, Edit, and Delete
     val canCreateUser = permissionViewModel.canCreate("security_users")
     val canEditUser = permissionViewModel.canEdit("security_users")
     val canDeleteUser = permissionViewModel.canDelete("security_users")
 
-    // Fetch users on launch
+    // Fetch initial users page on launch
     LaunchedEffect(Unit) {
         securityViewModel.fetchUsers()
     }
@@ -67,7 +60,6 @@ fun UserManagementScreen(
         fab = FabConfig(
             label = "Create User",
             icon = Icons.Default.Add,
-//            enabled = canCreateUser,
             onClick = {
                 if (canCreateUser) {
                     onCreateUserClick()
@@ -78,48 +70,40 @@ fun UserManagementScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Transparent)
+                .background(Primary_background)
         ) {
-            // Header: User Management with Export Action Button
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(end = tokens.screenPadding),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    TitleBar(
-                        title = "User Management",
-                        onClose = onBack
-                    )
+            // Page Header with Export trailing action
+            TitleBar(
+                title = "User Management",
+                onClose = onBack,
+                trailingContent = {
+                    OutlinedButton(
+                        onClick = { /* Handle Export */ },
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
+                        border = BorderStroke(1.dp, sectionBorder),
+                        colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg),
+                        contentPadding = PaddingValues(
+                            horizontal = tokens.extraPadding * 1.2f,
+                            vertical = tokens.extraPadding * 0.6f
+                        ),
+                        modifier = Modifier.height(tokens.buttonHeight * 0.85f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FileDownload,
+                            contentDescription = "Export",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(tokens.iconSize)
+                        )
+                        Spacer(Modifier.width(tokens.extraPadding * 0.6f))
+                        Text(
+                            text = "Export",
+                            fontSize = tokens.caption,
+                            fontWeight = FontWeight.Medium,
+                            color = TextPrimary
+                        )
+                    }
                 }
-
-                // Export Header Button
-                OutlinedButton(
-                    onClick = { /* Handle Export */ },
-                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, sectionBorder),
-                    colors = ButtonDefaults.outlinedButtonColors(containerColor = whiteBg),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.height(34.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FileDownload,
-                        contentDescription = "Export",
-                        tint = TextPrimary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = "Export",
-                        fontSize = tokens.caption,
-                        fontWeight = FontWeight.Medium,
-                        color = TextPrimary
-                    )
-                }
-            }
+            )
 
             HorizontalDivider(color = title_border)
 
@@ -127,18 +111,14 @@ fun UserManagementScreen(
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { securityViewModel.onUserSearchQueryChange(it) },
-                placeholder = "Search SO number, customer...",
+                placeholder = "Search name, email, employee ID...",
                 showFilterIcon = true,
                 onFilterClick = { /* Handle Filter Dialog */ }
             )
 
-            // Content Switcher
+            // Content Switcher with PaginatedDataList
             when {
-                isLoading && users.isEmpty() -> {
-                    ListSkeleton()
-                }
-
-                errorMessage != null && users.isEmpty() -> {
+                errorMessage != null && pagingState.items.isEmpty() && !pagingState.isInitialLoading -> {
                     AppErrorState(
                         title = "Failed to load users",
                         message = errorMessage?.ifBlank { "Something went wrong loading organization users." }
@@ -147,7 +127,7 @@ fun UserManagementScreen(
                     )
                 }
 
-                users.isEmpty() -> {
+                !pagingState.isInitialLoading && pagingState.items.isEmpty() -> {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -163,21 +143,21 @@ fun UserManagementScreen(
                 }
 
                 else -> {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp)
-                    ) {
-                        items(users, key = { it.id }) { user ->
-                            UserManagementCard(
-                                user = user,
-                                canEdit = canEditUser,
-                                canDelete = canDeleteUser,
-                                onEdit = { onEditUserClick(user.id) },
-                                onView = { onViewUserClick(user.id) },
-                                onDelete = { /* Trigger delete confirmation */ }
-                            )
-                        }
+                    PaginatedDataList(
+                        state = pagingState,
+                        onLoadMore = { securityViewModel.loadMoreUsers() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) { user ->
+                        UserManagementCard(
+                            user = user,
+                            canEdit = canEditUser,
+                            canDelete = canDeleteUser,
+                            onEdit = { onEditUserClick(user.id) },
+                            onView = { onViewUserClick(user.id) },
+                            onDelete = { /* Trigger delete confirmation */ }
+                        )
                     }
                 }
             }
@@ -186,7 +166,7 @@ fun UserManagementScreen(
 }
 
 /**
- * Custom DataCard representation matching the provided screenshot design.
+ * Custom DataCard representation for User Management items.
  */
 @Composable
 private fun UserManagementCard(
@@ -199,7 +179,6 @@ private fun UserManagementCard(
 ) {
     val tokens = LocalAppTokens.current
     val isActive = user.status.equals("active", ignoreCase = true)
-
     val menuActions = listOf(
         MenuAction(
             label = "View Details",
@@ -226,17 +205,18 @@ private fun UserManagementCard(
         item = user,
         title = user.fullName,
         titleColor = TitleColor,
-        titleFontWeight = FontWeight.Bold,
+        titleFontWeight = FontWeight.SemiBold,
         topBadgeText = if (isActive) "Active" else "Inactive",
         topBadgeTextColor = if (isActive) greentext else redText,
         topBadgeBgColor = if (isActive) greenBg else redBg,
         topBadgeInline = true,
         showActionsInHeader = false,
         actions = menuActions,
+        onClick = { onView() },
         content = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
             ) {
                 // Role Label & Value Row
                 Row(
@@ -258,28 +238,31 @@ private fun UserManagementCard(
                     )
                 }
 
-                // Inner Stats Card (EMPLOYEE ID, BRANCH, RISK)
+                // Inner Stats Card (Employee ID, Branch, Risk)
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
                     color = Primary_background,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, sectionBorder)
+                    border = BorderStroke(1.dp, sectionBorder)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                            .padding(
+                                horizontal = tokens.cardPadding * 0.7f,
+                                vertical = tokens.extraPadding
+                            ),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 1. Employee ID
+                        // Employee ID
                         Column(
                             horizontalAlignment = Alignment.Start,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.2f)
                         ) {
                             Text(
                                 text = "EMPLOYEE ID",
-                                fontSize = 10.sp,
+                                fontSize = tokens.label,
                                 color = mutedText,
                                 fontWeight = FontWeight.Medium
                             )
@@ -291,14 +274,14 @@ private fun UserManagementCard(
                             )
                         }
 
-                        // 2. Branch
+                        // Branch
                         Column(
                             horizontalAlignment = Alignment.Start,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.2f)
                         ) {
                             Text(
                                 text = "BRANCH",
-                                fontSize = 10.sp,
+                                fontSize = tokens.label,
                                 color = mutedText,
                                 fontWeight = FontWeight.Medium
                             )
@@ -310,14 +293,14 @@ private fun UserManagementCard(
                             )
                         }
 
-                        // 3. Risk Level
+                        // Risk Level
                         Column(
                             horizontalAlignment = Alignment.Start,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.2f)
                         ) {
                             Text(
                                 text = "RISK",
-                                fontSize = 10.sp,
+                                fontSize = tokens.label,
                                 color = mutedText,
                                 fontWeight = FontWeight.Medium
                             )
@@ -335,18 +318,18 @@ private fun UserManagementCard(
                     }
                 }
 
-                // Last Login row
+                // Last Login Row
                 val lastLoginText = user.userAccount?.lastLoginAt?.take(16)?.replace("T", ", ") ?: "Never"
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "LAST LOGIN : ",
-                        fontSize = 11.sp,
+                        fontSize = tokens.caption,
                         fontWeight = FontWeight.Medium,
                         color = mutedText
                     )
                     Text(
                         text = "$lastLoginText, Secure Workstation",
-                        fontSize = 11.sp,
+                        fontSize = tokens.caption,
                         fontWeight = FontWeight.Normal,
                         color = close_color
                     )

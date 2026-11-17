@@ -3,8 +3,6 @@ package com.cuso.tailor.view.home.hr.document_management.employee_document
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.runtime.*
@@ -30,8 +28,7 @@ fun EmployeeDocumentListScreen(
     onEditDocument: (String) -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    val documents by viewModel.employeeDocuments.collectAsState()
-    val isLoading by viewModel.isLoadingDocuments.collectAsState()
+    val documentsPagingState by viewModel.employeeDocumentsPagingState.collectAsState()
 
     // State for tracking which document is selected for deletion
     var documentToDelete by remember { mutableStateOf<EmployeeDocumentDto?>(null) }
@@ -52,7 +49,7 @@ fun EmployeeDocumentListScreen(
     FabScaffold(
         modifier = Modifier.fillMaxSize(),
         fab = uploadFabConfig,
-        fabVisible = !isLoading
+        fabVisible = !documentsPagingState.isInitialLoading
     ) {
         Column(
             modifier = Modifier
@@ -72,7 +69,7 @@ fun EmployeeDocumentListScreen(
                 query = searchQuery,
                 onQueryChange = { query ->
                     searchQuery = query
-                    viewModel.fetchEmployeeDocuments(query)
+                    viewModel.searchEmployeeDocuments(query)
                 },
                 placeholder = "Search Programs, employee...",
                 onFilterClick = { /* Handle filter sheet */ }
@@ -80,25 +77,21 @@ fun EmployeeDocumentListScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 3. Document List using reusable DataCard
-            if (isLoading) {
-                ListSkeleton()
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(documents) { doc ->
-                        EmployeeDocumentDataCard(
-                            document = doc,
-                            onViewClick = { /* Handle document view */ },
-                            onEditClick = { selectedDoc -> onEditDocument(selectedDoc.id) },
-                            onDeleteClick = { selectedDoc ->
-                                // Trigger reusable DeleteModel dialog
-                                documentToDelete = selectedDoc
-                            }
-                        )
+            // 3. Document List using reusable PaginatedDataList and DataCard
+            PaginatedDataList(
+                state = documentsPagingState,
+                onLoadMore = { viewModel.loadMoreEmployeeDocuments() },
+                modifier = Modifier.fillMaxSize()
+            ) { doc ->
+                EmployeeDocumentDataCard(
+                    document = doc,
+                    onViewClick = { /* Handle document view */ },
+                    onEditClick = { selectedDoc -> onEditDocument(selectedDoc.id) },
+                    onDeleteClick = { selectedDoc ->
+                        // Trigger reusable DeleteModel dialog
+                        documentToDelete = selectedDoc
                     }
-                }
+                )
             }
         }
     }
@@ -176,8 +169,8 @@ fun EmployeeDocumentDataCard(
     val fields = remember(employeeName, categoryName, formattedExpiry) {
         listOf(
             DataCardField(
-                label = "Employee Name",
-                text = employeeName,
+                label = "Employee Code",
+                text = employeeCode,
                 labelColor = close_color,
                 textColor = TextLog,
                 valueFontWeight = FontWeight.Medium,
@@ -205,7 +198,7 @@ fun EmployeeDocumentDataCard(
     // Reusable DataCard integration
     DataCard(
         item = document,
-        title = employeeCode,
+        title = employeeName,
         titleColor = title_color,
         titleFontWeight = FontWeight.Medium,
         topBadgeText = statusText,

@@ -18,9 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -45,7 +42,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,31 +63,34 @@ import com.cuso.tailor.model.inventory.StockAdjustmentData
 import com.cuso.tailor.model.inventory.TransferStockRequest
 import com.cuso.tailor.model.inventory.WarehouseDropdownItem
 import com.cuso.tailor.ui.theme.Primary
+import com.cuso.tailor.ui.theme.Primary_background
+import com.cuso.tailor.ui.theme.darkGreenBg
 import com.cuso.tailor.ui.theme.disabled
+import com.cuso.tailor.ui.theme.greenBg
 import com.cuso.tailor.ui.theme.grey_border
+import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.mutedText
+import com.cuso.tailor.ui.theme.primary_light
+import com.cuso.tailor.ui.theme.redBg
+import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.ui.theme.textSubdued
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.view.composable.AppErrorState
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.ErrorMapper
 import com.cuso.tailor.view.composable.FilterDrawer
 import com.cuso.tailor.view.composable.FilterOption
 import com.cuso.tailor.view.composable.FilterSection
 import com.cuso.tailor.view.composable.FilterSectionType
 import com.cuso.tailor.view.composable.FormDropdown
-import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.SheetValue
-import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 enum class AdjustmentType {
     Increase, Decrease, TransferStock
@@ -107,25 +106,15 @@ fun TransferOrdersStockListScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val adjustmentsList by viewModel.stockAdjustmentsList.collectAsState()
-    val isLoadingAdjustments by viewModel.isLoadingAdjustments.collectAsState()
-    val isLoadingMoreAdjustments by viewModel.isLoadingMoreAdjustments.collectAsState()
-    val canLoadMoreAdjustments by viewModel.canLoadMoreAdjustments.collectAsState()
-
+    val adjustmentsPagingState by viewModel.stockAdjustmentsPagingState.collectAsState()
     val warehouseDropdown by viewModel.warehouseDropdown.collectAsState()
-    val validReasons by viewModel.validAdjustmentReasons.collectAsState()
-
-    val isSubmittingAdjustment by viewModel.isSubmittingAdjustment.collectAsState()
-    val adjustmentSuccessMessage by viewModel.adjustmentSuccessMessage.collectAsState()
     val adjustmentErrorMessage by viewModel.adjustmentErrorMessage.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var sheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var selectedAdjustment by remember { mutableStateOf<StockAdjustmentData?>(null) }
 
-    val listState = rememberLazyListState()
-
-    // ── Filter Drawer State & Sections ──
+    // Filter drawer state and sections
     val filterDrawerState = rememberFilterDrawerState()
     var filterSections by remember {
         mutableStateOf(
@@ -147,7 +136,7 @@ fun TransferOrdersStockListScreen(
         )
     }
 
-    // Dynamic populate Warehouses from warehouseDropdown API
+    // Populate warehouse filter options dynamically
     LaunchedEffect(warehouseDropdown) {
         if (warehouseDropdown.isNotEmpty()) {
             filterSections = filterSections.map { sec ->
@@ -174,15 +163,15 @@ fun TransferOrdersStockListScreen(
         settingsViewModel.fetchBins(isRefresh = true)
     }
 
-    // Filter Logic
-    val filteredList by remember(adjustmentsList, searchQuery, filterSections) {
+    // Filter transfer records on paged items
+    val filteredList by remember(adjustmentsPagingState.items, searchQuery, filterSections) {
         derivedStateOf {
             val selectedWarehouseNames = filterSections.find { it.title == "Warehouse" }
                 ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
             val selectedStatuses = filterSections.find { it.title == "Status" }
                 ?.options?.filter { it.isSelected }?.map { it.id } ?: emptyList()
 
-            adjustmentsList.filter { item ->
+            adjustmentsPagingState.items.filter { item ->
                 val matchesSearch = searchQuery.isBlank() ||
                         item.itemName.contains(searchQuery, ignoreCase = true) ||
                         item.itemSku.contains(searchQuery, ignoreCase = true) ||
@@ -190,7 +179,10 @@ fun TransferOrdersStockListScreen(
                         item.destinationWarehouseName.contains(searchQuery, ignoreCase = true)
 
                 val matchesWarehouse = selectedWarehouseNames.isEmpty() ||
-                        selectedWarehouseNames.any { it.equals(item.originWarehouseName, ignoreCase = true) || it.equals(item.destinationWarehouseName, ignoreCase = true) }
+                        selectedWarehouseNames.any {
+                            it.equals(item.originWarehouseName, ignoreCase = true) ||
+                                    it.equals(item.destinationWarehouseName, ignoreCase = true)
+                        }
 
                 val matchesStatus = selectedStatuses.isEmpty() ||
                         (selectedStatuses.contains("reversed") && item.isReversed) ||
@@ -201,7 +193,15 @@ fun TransferOrdersStockListScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFF9FAFB))) {
+    val displayPagingState = remember(adjustmentsPagingState, filteredList) {
+        adjustmentsPagingState.copy(items = filteredList)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Primary_background)
+    ) {
         Scaffold(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -212,7 +212,9 @@ fun TransferOrdersStockListScreen(
             }
         ) { padding ->
             Column(
-                modifier = Modifier.fillMaxSize().padding(padding)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
             ) {
                 SearchFilterBar(
                     query = searchQuery,
@@ -227,16 +229,21 @@ fun TransferOrdersStockListScreen(
                 HorizontalDivider(color = grey_border)
 
                 when {
-                    isLoadingAdjustments && adjustmentsList.isEmpty() -> ListSkeleton()
-                    !adjustmentErrorMessage.isNullOrBlank() && adjustmentsList.isEmpty() -> {
+                    !adjustmentErrorMessage.isNullOrBlank() && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load stock adjustments",
                             message = adjustmentErrorMessage?.let { ErrorMapper.map(it) } ?: "Something went wrong.",
                             onRetry = { viewModel.fetchStockAdjustments(reset = true, adjustmentType = "transfer") }
                         )
                     }
-                    filteredList.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
+
+                    !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
                                 text = if (searchQuery.isBlank() && activeFilterCount == 0) "No stock adjustments found" else "No matching adjustments found",
                                 fontSize = tokens.bodyMedium,
@@ -244,31 +251,30 @@ fun TransferOrdersStockListScreen(
                             )
                         }
                     }
+
                     else -> {
-                        LazyColumn(state = listState, modifier = Modifier.fillMaxSize().weight(1f)) {
-                            items(filteredList, key = { it.id.ifBlank { it.hashCode().toString() } }) { adjustment ->
-                                AllOrdersItemCard(
-                                    adjustment = adjustment,
-                                    tokens = tokens,
-                                    onClick = {
-                                        selectedAdjustment = adjustment
-                                        sheetState = SheetValue.Expanded
-                                    }
-                                )
-                            }
-                            if (isLoadingMoreAdjustments) {
-                                item(key = "pagination_threedot_loader") {
-                                    ThreeDotLoading(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp))
+                        PaginatedDataList(
+                            state = displayPagingState,
+                            onLoadMore = { viewModel.loadMoreStockAdjustments() },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f)
+                        ) { adjustment ->
+                            AllOrdersItemCard(
+                                adjustment = adjustment,
+                                tokens = tokens,
+                                onClick = {
+                                    selectedAdjustment = adjustment
+                                    sheetState = SheetValue.Expanded
                                 }
-                            }
-                            item { Spacer(Modifier.height(80.dp)) }
+                            )
                         }
                     }
                 }
             }
         }
 
-        // ── Filter Transfers Drawer ──
+        // Filter transfers drawer
         FilterDrawer(
             state = filterDrawerState,
             title = "Filter Transfers",
@@ -283,17 +289,14 @@ fun TransferOrdersStockListScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// REAL DATA ITEM CARD
-// ─────────────────────────────────────────────────────────────
-
 @Composable
 private fun AllOrdersItemCard(
     adjustment: StockAdjustmentData,
     tokens: AppDesignTokens,
     onClick: () -> Unit
 ) {
-    val displayCode = adjustment.adjustmentCode?.ifBlank { adjustment.id.takeLast(6).uppercase() } ?: adjustment.id.takeLast(6).uppercase()
+    val displayCode = adjustment.adjustmentCode?.ifBlank { adjustment.id.takeLast(6).uppercase() }
+        ?: adjustment.id.takeLast(6).uppercase()
     val isTransfer = adjustment.type.equals("transfer", ignoreCase = true)
     val isIncrease = adjustment.type.equals("increase", ignoreCase = true)
     val isReversed = adjustment.isReversed
@@ -312,7 +315,7 @@ private fun AllOrdersItemCard(
             .padding(horizontal = tokens.screenPadding, vertical = 12.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Top Badges Row
+            // Top badges row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -322,33 +325,31 @@ private fun AllOrdersItemCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Code Badge
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFEEF2FF), RoundedCornerShape(8.dp))
+                            .background(primary_light, RoundedCornerShape(8.dp))
                             .padding(horizontal = 8.dp, vertical = 0.dp)
                     ) {
                         Text(
                             text = "#$displayCode",
                             color = Primary,
-                            fontSize = 12.sp,
+                            fontSize = tokens.bodySmall,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
 
-                    // Status Badge (Completed / Reversed)
                     Box(
                         modifier = Modifier
                             .background(
-                                if (isReversed) Color(0xFFFEE2E2) else Color(0xFFDCFCE7),
+                                if (isReversed) redBg else greenBg,
                                 RoundedCornerShape(30.dp)
                             )
                             .padding(horizontal = 8.dp, vertical = 0.dp)
                     ) {
                         Text(
                             text = if (isReversed) "Reversed" else "Completed",
-                            color = if (isReversed) Color(0xFFDC2626) else Color(0xFF16A34A),
-                            fontSize = 12.sp,
+                            color = if (isReversed) redText else darkGreenBg,
+                            fontSize = tokens.bodySmall,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -369,7 +370,6 @@ private fun AllOrdersItemCard(
 
             Spacer(Modifier.height(6.dp))
 
-            // Item Name + Variant
             Text(
                 text = adjustment.itemName,
                 fontSize = tokens.bodyLarge,
@@ -379,11 +379,11 @@ private fun AllOrdersItemCard(
 
             Spacer(Modifier.height(10.dp))
 
-            // Warehouse Movement Route
+            // Warehouse movement route
             Box(
                 modifier = Modifier
-                    .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(8.dp))
+                    .background(Primary_background, RoundedCornerShape(8.dp))
+                    .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
                     .padding(horizontal = 5.dp, vertical = 4.dp)
             ) {
                 Row(
@@ -413,27 +413,27 @@ private fun AllOrdersItemCard(
 
             Spacer(Modifier.height(14.dp))
 
-            // 3 Columns: QUANTITY | DATE | REASON
+            // Metrics row: quantity, date, and handler
             Row(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "QUANTITY",
-                        fontSize = 10.sp,
-                        color = Color(0xFF9CA3AF),
+                        fontSize = tokens.label,
+                        color = mutedText,
                         letterSpacing = 0.5.sp
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = "${adjustment.quantity.toInt()}",
                         fontSize = tokens.bodySmall,
-                        color = if (isIncrease) Color(0xFF16A34A) else if (isTransfer) Primary else Color(0xFFDC2626)
+                        color = if (isIncrease) darkGreenBg else if (isTransfer) Primary else redText
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "DATE",
-                        fontSize = 10.sp,
-                        color = Color(0xFF9CA3AF),
+                        fontSize = tokens.label,
+                        color = mutedText,
                         letterSpacing = 0.5.sp
                     )
                     Spacer(Modifier.height(2.dp))
@@ -446,9 +446,9 @@ private fun AllOrdersItemCard(
                 Column(modifier = Modifier.weight(1.2f)) {
                     Text(
                         text = "HANDLED BY",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF9CA3AF),
+                        fontSize = tokens.label,
+                        fontWeight = FontWeight.SemiBold,
+                        color = mutedText,
                         letterSpacing = 0.5.sp
                     )
                     Spacer(Modifier.height(2.dp))
@@ -463,7 +463,7 @@ private fun AllOrdersItemCard(
             }
         }
     }
-    HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 8.dp)
+    HorizontalDivider(color = light_grey, thickness = 8.dp)
 }
 
 // ─────────────────────────────────────────────────────────────

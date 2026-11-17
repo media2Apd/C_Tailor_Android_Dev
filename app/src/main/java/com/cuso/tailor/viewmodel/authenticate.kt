@@ -8,18 +8,11 @@
 )
 package com.cuso.tailor.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cuso.tailor.repository.AuthRepository
-import com.cuso.tailor.repository.LoginRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
-import android.util.Log
 import com.cuso.tailor.database.dao.OrganizationDao
 import com.cuso.tailor.database.dao.PermissionDao
 import com.cuso.tailor.database.dao.SettingsDao
@@ -34,35 +27,54 @@ import com.cuso.tailor.model.login_forgotPassword_resetPassword.GoogleLoginResul
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.LoginData
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Organization
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.OrganizationDetails
-// OrganizationDetails import removed (no longer used here)
-import com.cuso.tailor.model.sales.toOrganization
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.RegisterVerifyOtpResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Settings
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Subscription
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Tokens
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.User
+import com.cuso.tailor.model.login_forgotPassword_resetPassword.VerifyTwoFARequest
+import com.cuso.tailor.model.login_forgotPassword_resetPassword.VerifyTwoFAResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.organizationSetUpRequest
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.otpSendResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.otpVerifyResponse
-import com.cuso.tailor.repository.ApiRepository
-import com.cuso.tailor.utils.launchBusy
-import com.cuso.tailor.utils.toCurrencySymbol
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.async
-import com.google.firebase.crashlytics.FirebaseCrashlytics
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import com.cuso.tailor.model.permission.ModulePermissionsData
 import com.cuso.tailor.model.permission.ModulePermissionsResponse
 import com.cuso.tailor.model.permission.MyPermissionsData
 import com.cuso.tailor.model.permission.MyPermissionsResponse
+import com.cuso.tailor.model.sales.toOrganization
+import com.cuso.tailor.repository.ApiRepository
+import com.cuso.tailor.repository.AuthRepository
+import com.cuso.tailor.repository.LoginRepository
+import com.cuso.tailor.utils.launchBusy
+import com.cuso.tailor.utils.toCurrencySymbol
+import com.google.firebase.crashlytics.FirebaseCrashlytics
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+// Authentication Endpoints
+private const val VERIFY_2FA_URL = "/api/auth/login/verify-2fa"
+private const val PERMISSIONS_ME_URL = "/api/permissions/me"
+private const val PLAN_MODULES_URL = "/api/common/plan-setups/customer/my-plan-modules"
+
 sealed class UiState {
     object Idle : UiState()
     object Loading : UiState()
     data class Success(val message: String) : UiState()
     data class Error(val message: String) : UiState()
+    data class TwoFactorRequired(
+        val challengeToken: String,
+        val method: String,
+        val message: String
+    ) : UiState()
     data class LoginSuccess(
         val firstName: String,
         val lastName: String,
@@ -101,50 +113,30 @@ class Authenticate @Inject constructor(
     private val tokensDao: TokensDao,
     private val permissionDao: PermissionDao,
     private val gson: com.google.gson.Gson
-
 ) : ViewModel() {
 
-
-    // ── Login Data State ──
+    // Login Data State
     private val _loginData = MutableStateFlow<LoginData?>(null)
-//    val loginData: StateFlow<LoginData?> = _loginData.asStateFlow()
 
-    // ── User State ──
-//    private val _user = MutableStateFlow<UserEntity?>(null)
-//    val user: StateFlow<UserEntity?> = _user.asStateFlow()
+    // User State
     val user: StateFlow<UserEntity?> = loginRepository.getUserFlow()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000), // Keep collecting for 5 seconds after active collectors
-            initialValue = null // Initial value before any data is emitted
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
         )
-    // ── Organization State ──
+
+    // Organization State
     private val _organization = MutableStateFlow<OrganizationEntity?>(null)
     val organization: StateFlow<OrganizationEntity?> = _organization.asStateFlow()
-//
-//    val currentPlanName: StateFlow<String> = _organization
-//        .map { org ->
-//            // Adjust the field name based on your OrganizationEntity schema
-//            // (e.g., org?.planName, org?.plan, or org?.subscriptionPlan)
-//            org?.planName?.takeIf { it.isNotBlank() }
-//                ?: org?.plan?.takeIf { it.isNotBlank() }
-//                ?: "Standard Plan"
-//        }
-//        .stateIn(
-//            scope = viewModelScope,
-//            started = SharingStarted.WhileSubscribed(5000),
-//            initialValue = "Standard Plan"
-//        )
 
-
-    // ── Settings State ──
+    // Settings State
     private val _settings = MutableStateFlow<SettingsEntity?>(null)
     val settings: StateFlow<SettingsEntity?> = _settings.asStateFlow()
 
-    // ── Currency Symbol State (Observed directly from Room DB) ──
+    // Currency Symbol State (Observed directly from Room DB)
     val currencySymbol: StateFlow<String> = settingsDao.getSettingsFlow()
         .map { entity ->
-            // Reads currency column from Room DB and converts to symbol
             entity?.currency.toCurrencySymbol()
         }
         .stateIn(
@@ -153,56 +145,49 @@ class Authenticate @Inject constructor(
             initialValue = ""
         )
 
-    // ── Tokens State ──
+    // Tokens State
     private val _tokens = MutableStateFlow<TokensEntity?>(null)
     val tokens: StateFlow<TokensEntity?> = _tokens.asStateFlow()
 
-    // ── Account State ──
+    // Account State
     private val _accountState = MutableStateFlow<UiState>(UiState.Idle)
     val accountState: StateFlow<UiState> = _accountState
 
-    // ── Loading State ──
+    // Loading State
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    // ── OTP States ──
+    // OTP States
     private val _otpSendResult = MutableLiveData<Result<otpSendResponse>>()
-//    val otpSendResult: LiveData<Result<otpSendResponse>> = _otpSendResult
 
     private val _otpVerifyResult = MutableLiveData<Result<otpVerifyResponse>>()
     val otpVerifyResult: LiveData<Result<otpVerifyResponse>> = _otpVerifyResult
 
-    // ── Register OTP State ──
+    // Register OTP State
     private val _registerOtpVerifyResult = MutableLiveData<Result<RegisterVerifyOtpResponse>?>()
     val registerOtpVerifyResult: LiveData<Result<RegisterVerifyOtpResponse>?> = _registerOtpVerifyResult
 
-    // ── Forgot Password State ──
+    // Forgot Password State
     private val _forgotPasswordState = MutableStateFlow<UiState>(UiState.Idle)
     val forgotPasswordState: StateFlow<UiState> = _forgotPasswordState
 
     private val _resetPasswordState = MutableStateFlow<UiState>(UiState.Idle)
     val resetPasswordState: StateFlow<UiState> = _resetPasswordState
 
-    // ── Permissions State ──
+    // Permissions State
     private val _myPermissions = MutableStateFlow<MyPermissionsData?>(null)
     val myPermissions: StateFlow<MyPermissionsData?> = _myPermissions.asStateFlow()
 
     private val _modulePermissions = MutableStateFlow<ModulePermissionsData?>(null)
     val modulePermissions: StateFlow<ModulePermissionsData?> = _modulePermissions.asStateFlow()
 
-    // ─────────────────────────────────────────────────────────────
-    // INIT - Load all data from Room DB
-    // ─────────────────────────────────────────────────────────────
-
     init {
         viewModelScope.launch {
-            //   We don't need loadUser() here anymore because the 'user' Flow
-            // will fetch the data automatically as soon as it starts.
             loadOrganization()
             loadSettings()
             loadTokens()
 
-            // Observe the user flow to update Crashlytics when data arrives
+            // Observe user flow to update Crashlytics metadata when available
             user.collect { currentUser ->
                 currentUser?.let {
                     FirebaseCrashlytics.getInstance().apply {
@@ -214,24 +199,13 @@ class Authenticate @Inject constructor(
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Load Data Functions
-    // ─────────────────────────────────────────────────────────────
-
     fun loadAllData() {
         viewModelScope.launch {
-//            loadUser()
             loadOrganization()
             loadSettings()
             loadTokens()
         }
     }
-
-
-
-//    private suspend fun loadUser() {
-//        user.value = loginRepository.getUser()
-//    }
 
     private suspend fun loadOrganization() {
         _organization.value = organizationDao.getOrganization()
@@ -245,15 +219,9 @@ class Authenticate @Inject constructor(
         _tokens.value = loginRepository.getTokens()
     }
 
-//    fun loadTokensFromDb() {
-//        launchBusy {
-//            _tokens.value = loginRepository.getTokens()
-//        }
-//    }
-
-    // ─────────────────────────────────────────────────────────────
-    // Login Function
-    // ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Login & Two-Factor Authentication Functions
+    // -------------------------------------------------------------------------
 
     fun login(email: String, password: String) {
         when {
@@ -274,104 +242,20 @@ class Authenticate @Inject constructor(
             if (result.isSuccess) {
                 val response = result.getOrNull()
                 if (response != null) {
-                    loginRepository.saveLoginData(response.data)
-                    _loginData.value = response.data
-
-                    val token = "Bearer ${response.data.tokens.accessToken}"
-
-                    // coroutineScope{} kudukura real CoroutineScope-ku ulla
-                    // async{} calls run aagum, so deprecation warning varadhu.
-                    coroutineScope {
-                        val meDeferred = async { repository.getMe(token) }
-                        val orgDeferred = async { repository.getMyOrganization(token) }
-
-                        // FIXED: Clean Retrofit GET calls using ApiRepository directly
-                        val mePermissionDeferred = async {
-                            apiRepo.request<MyPermissionsResponse> {
-                                get("/api/permissions/me")
-                            }
-                        }
-
-                        val modulePermissionDeferred = async {
-                            apiRepo.request<ModulePermissionsResponse> {
-                                get("/api/common/plan-setups/customer/my-plan-modules")
-                            }
-                        }
-
-                        val meResult = meDeferred.await()
-                        val orgResult = orgDeferred.await()
-                        val mePermissionResult = mePermissionDeferred.await()
-                        val modulePermissionResult = modulePermissionDeferred.await()
-
-                        meResult.getOrNull()?.let { }
-
-                        orgResult.getOrNull()?.let { orgResponse ->
-                            try {
-                                val org = orgResponse.data?.organization?.toOrganization()
-                                if (org != null) {
-                                    loginRepository.saveOrganizationData(org)
-                                    loadOrganization()
-                                    loadSettings()
-                                } else {
-                                    Log.w("MY_ORG_API", "Organization data was empty")
-                                }
-                            } catch (e: Exception) {
-                                Log.e("MY_ORG_API", "Saving organization failed: ${e.message}", e)
-                            }
-                        }
-
-                        // Save User Me Permissions
-                        mePermissionResult.fold(
-                            onSuccess = { res ->
-                                _myPermissions.value = res.data
-                                res.data?.let { data ->
-                                    permissionDao.insertUserPermissions(
-                                        UserPermissionEntity(
-                                            id = 1,
-                                            isOwner = data.isOwner,
-                                            visiblePermissionsJson = gson.toJson(data.visible),
-                                            rawPermissionsJson = gson.toJson(data.permissions) // <-- Added this
-                                        )
-                                    )
-                                }
-                            },
-                            onFailure = { error ->
-                                Log.e("PERMISSIONS_API", "Failed me permissions: ${error.message}")
+                    if (response.requiresTwoFA && !response.challengeToken.isNullOrBlank()) {
+                        _accountState.value = UiState.TwoFactorRequired(
+                            challengeToken = response.challengeToken,
+                            method = response.method ?: "authenticator",
+                            message = response.message.ifBlank {
+                                "Please enter the code from your authenticator app to complete login."
                             }
                         )
-
-                        // Save Module Plan Permissions
-                        modulePermissionResult.fold(
-                            onSuccess = { res ->
-                                _modulePermissions.value = res.data
-                                res.data?.let { data ->
-                                    permissionDao.insertPlanModules(
-                                        PlanModuleEntity(
-                                            id = 1,
-                                            modulesJson = gson.toJson(data)
-                                        )
-                                    )
-                                }
-                            },
-                            onFailure = { error ->
-                                Log.e("PERMISSIONS_API", "Failed module permissions: ${error.message}")
-                            }
+                    } else if (response.data != null) {
+                        completeLoginSession(response.data)
+                    } else {
+                        _accountState.value = UiState.Error(
+                            response.message.ifBlank { "Invalid email or password" }
                         )
-                    }
-
-                    loadTokens()
-
-                    _accountState.value = UiState.LoginSuccess(
-                        firstName = response.data.user.firstName,
-                        lastName = response.data.user.lastName,
-                        orgToken = response.data.tokens.orgToken,
-                        organization = response.data.user.organizationId
-                    )
-
-                    FirebaseCrashlytics.getInstance().apply {
-                        setUserId(response.data.user.userId)
-                        setCustomKey("user_email", response.data.user.email)
-                        setCustomKey("user_name", "${response.data.user.firstName} ${response.data.user.lastName}")
                     }
                 }
             } else {
@@ -381,11 +265,156 @@ class Authenticate @Inject constructor(
             }
         }
     }
-    // ─────────────────────────────────────────────────────────────
-    // Google Login - FIXED
-    // ─────────────────────────────────────────────────────────────
 
-// In the googleLogin function, remove the Branch conversion since Organization expects List<String>
+    /**
+     * Verifies the 6-digit authenticator or backup code via ApiRepository.
+     */
+    fun verifyTwoFa(challengeToken: String, code: String) {
+        val trimmedCode = code.trim()
+        if (challengeToken.isBlank()) {
+            _accountState.value = UiState.Error("Two-factor session expired. Please sign in again.")
+            return
+        }
+        if (trimmedCode.isBlank()) {
+            _accountState.value = UiState.Error("Please enter the verification code")
+            return
+        }
+
+        _accountState.value = UiState.Loading
+
+        launchBusy {
+            val request = VerifyTwoFARequest(
+                challengeToken = challengeToken,
+                code = trimmedCode
+            )
+
+            val result = apiRepo.request<VerifyTwoFAResponse> {
+                post(VERIFY_2FA_URL, request)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val loginData = res.data
+                    if (res.success && loginData != null) {
+                        completeLoginSession(loginData)
+                    } else {
+                        _accountState.value = UiState.Error(
+                            res.message.ifBlank { "Invalid verification code" }
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _accountState.value = UiState.Error(
+                        error.message ?: "Invalid verification code"
+                    )
+                }
+            )
+        }
+    }
+
+    /**
+     * Persists session tokens, organization details, and user permissions after authentication.
+     */
+    private suspend fun completeLoginSession(loginData: LoginData) {
+        loginRepository.saveLoginData(loginData)
+        _loginData.value = loginData
+
+        val token = "Bearer ${loginData.tokens.accessToken}"
+
+        coroutineScope {
+            val meDeferred = async { repository.getMe(token) }
+            val orgDeferred = async { repository.getMyOrganization(token) }
+
+            val mePermissionDeferred = async {
+                apiRepo.request<MyPermissionsResponse> {
+                    get(PERMISSIONS_ME_URL)
+                }
+            }
+
+            val modulePermissionDeferred = async {
+                apiRepo.request<ModulePermissionsResponse> {
+                    get(PLAN_MODULES_URL)
+                }
+            }
+
+            val meResult = meDeferred.await()
+            val orgResult = orgDeferred.await()
+            val mePermissionResult = mePermissionDeferred.await()
+            val modulePermissionResult = modulePermissionDeferred.await()
+
+            meResult.getOrNull()?.let { }
+
+            orgResult.getOrNull()?.let { orgResponse ->
+                try {
+                    val org = orgResponse.data?.organization?.toOrganization()
+                    if (org != null) {
+                        loginRepository.saveOrganizationData(org)
+                        loadOrganization()
+                        loadSettings()
+                    } else {
+                        Log.w("MY_ORG_API", "Organization data was empty")
+                    }
+                } catch (e: Exception) {
+                    Log.e("MY_ORG_API", "Saving organization failed: ${e.message}", e)
+                }
+            }
+
+            mePermissionResult.fold(
+                onSuccess = { res ->
+                    _myPermissions.value = res.data
+                    res.data?.let { data ->
+                        permissionDao.insertUserPermissions(
+                            UserPermissionEntity(
+                                id = 1,
+                                isOwner = data.isOwner,
+                                visiblePermissionsJson = gson.toJson(data.visible),
+                                rawPermissionsJson = gson.toJson(data.permissions)
+                            )
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    Log.e("PERMISSIONS_API", "Failed me permissions: ${error.message}")
+                }
+            )
+
+            modulePermissionResult.fold(
+                onSuccess = { res ->
+                    _modulePermissions.value = res.data
+                    res.data?.let { data ->
+                        permissionDao.insertPlanModules(
+                            PlanModuleEntity(
+                                id = 1,
+                                modulesJson = gson.toJson(data)
+                            )
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    Log.e("PERMISSIONS_API", "Failed module permissions: ${error.message}")
+                }
+            )
+        }
+
+        loadTokens()
+
+        _accountState.value = UiState.LoginSuccess(
+            firstName = loginData.user.firstName,
+            lastName = loginData.user.lastName,
+            orgToken = loginData.tokens.orgToken,
+            organization = loginData.user.organizationId
+        )
+
+        FirebaseCrashlytics.getInstance().apply {
+            setUserId(loginData.user.userId)
+            setCustomKey("user_email", loginData.user.email)
+            setCustomKey("user_name", "${loginData.user.firstName} ${loginData.user.lastName}")
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Google Login
+    // -------------------------------------------------------------------------
 
     fun googleLogin(idToken: String) {
         launchBusy {
@@ -394,8 +423,6 @@ class Authenticate @Inject constructor(
                 is GoogleLoginResult.ExistingUser -> {
                     val googleData = result.response.data
 
-                    //   Google already returns branches as List<String>
-                    // No conversion needed - Organization expects List<String>
                     val loginData = LoginData(
                         user = User(
                             id = googleData.user.id,
@@ -419,7 +446,7 @@ class Authenticate @Inject constructor(
                                 totalMembers = googleData.user.organizationId.totalMembers,
                                 activeMembers = googleData.user.organizationId.activeMembers,
                                 segments = googleData.user.organizationId.segments,
-                                branches = googleData.user.organizationId.branches, //   Already List<String>
+                                branches = googleData.user.organizationId.branches,
                                 isTaxId = googleData.user.organizationId.isTaxId,
                                 status = googleData.user.organizationId.status,
                                 isInternalOrganization = googleData.user.organizationId.isInternalOrganization,
@@ -476,7 +503,6 @@ class Authenticate @Inject constructor(
                         message = result.response.message
                     )
 
-                    //crashlytics user id get for crash
                     FirebaseCrashlytics.getInstance().apply {
                         setUserId(googleData.user.userId)
                         setCustomKey("user_email", googleData.user.email)
@@ -499,9 +525,10 @@ class Authenticate @Inject constructor(
             }
         }
     }
-    // ─────────────────────────────────────────────────────────────
+
+    // -------------------------------------------------------------------------
     // OTP Functions
-    // ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     fun sendOtp(
         email: String,
@@ -511,12 +538,8 @@ class Authenticate @Inject constructor(
         viewModelScope.launch {
             val result = repository.sendOtp(email.trim())
             result.fold(
-                onSuccess = {
-                    onSuccess()
-                },
-                onFailure = { error ->
-                    onError(error.message ?: "Failed to send OTP")
-                }
+                onSuccess = { onSuccess() },
+                onFailure = { error -> onError(error.message ?: "Failed to send OTP") }
             )
         }
     }
@@ -533,32 +556,15 @@ class Authenticate @Inject constructor(
                 if (loginData != null) {
                     loginRepository.saveLoginData(loginData)
                     _loginData.value = loginData
-//                    loadUser()
                     loadTokens()
                 }
             }
         }
     }
 
-//    fun registerVerifyOtp(email: String, otp: String) {
-//        launchBusy {
-//            _isLoading.value = true
-//            Log.d("OTP_API", "Calling API with $email $otp")
-//
-//            val result = repository.registerVerifyOtp(email, otp)
-//
-//            _isLoading.value = false
-//            _registerOtpVerifyResult.value = result
-//
-//            result.onFailure { error ->
-//                Log.e("OTP_API", "OTP verification failed", error)
-//            }
-//        }
-//    }
-
-    // ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Forgot Password Functions
-    // ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     fun forgotPasswordOtp(email: String) {
         launchBusy {
@@ -609,9 +615,9 @@ class Authenticate @Inject constructor(
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Organization Setup
-    // ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     fun organizationSetup(request: organizationSetUpRequest) {
         launchBusy {
@@ -636,91 +642,9 @@ class Authenticate @Inject constructor(
         }
     }
 
-//    // ─────────────────────────────────────────────────────────────
-//    // Sign Up
-//    // ─────────────────────────────────────────────────────────────
-//
-//    fun signUp(
-//        firstName: String,
-//        lastName: String,
-//        email: String,
-//        mobile: String,
-//        countryIso: String,
-//        country: String,
-//        state: String,
-//        organizationName: String,
-//        password: String,
-//        termsAccepted: Boolean
-//    ) {
-//        when {
-//            firstName.isBlank() -> {
-//                _accountState.value = UiState.Error("First name is required")
-//                return
-//            }
-//            lastName.isBlank() -> {
-//                _accountState.value = UiState.Error("Last name is required")
-//                return
-//            }
-//            !email.contains("@") -> {
-//                _accountState.value = UiState.Error("Enter a valid email")
-//                return
-//            }
-//            !isValidPhoneNumber(mobile, countryIso) -> {
-//                _accountState.value = UiState.Error("Enter a valid phone number for selected country")
-//                return
-//            }
-//            country.isBlank() -> {
-//                _accountState.value = UiState.Error("Country is required")
-//                return
-//            }
-//            state.isBlank() -> {
-//                _accountState.value = UiState.Error("State is required")
-//                return
-//            }
-//            organizationName.isBlank() -> {
-//                _accountState.value = UiState.Error("Organization name is required")
-//                return
-//            }
-//            password.length < 6 -> {
-//                _accountState.value = UiState.Error("Password must be 6+ characters")
-//                return
-//            }
-//            !termsAccepted -> {
-//                _accountState.value = UiState.Error("Please accept terms and conditions")
-//                return
-//            }
-//        }
-//
-//        _accountState.value = UiState.Loading
-//
-//        launchBusy {
-//            val result = repository.createAccount(
-//                SignupRequest(
-//                    country = country,
-//                    email = email,
-//                    firstName = firstName,
-//                    lastName = lastName,
-//                    mobile = mobile,
-//                    organizationName = organizationName,
-//                    password = password,
-//                    state = state,
-//                    termsAccepted = termsAccepted
-//                )
-//            )
-//
-//            _accountState.value = if (result.isSuccess) {
-//                UiState.RegisterSuccess
-//            } else {
-//                UiState.Error(
-//                    result.exceptionOrNull()?.message ?: "Something went wrong"
-//                )
-//            }
-//        }
-//    }
-
-    // ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // Email Verification
-    // ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     fun verifyEmail(email: String) {
         if (!email.contains("@")) {
@@ -745,11 +669,9 @@ class Authenticate @Inject constructor(
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-// Update Profile Picture (after upload/delete in HR module)
-// ─────────────────────────────────────────────────────────────
-
-
+    // -------------------------------------------------------------------------
+    // Update Profile Picture
+    // -------------------------------------------------------------------------
 
     fun updateUserProfilePictureIfCurrentUser(targetUserId: String?, newUrl: String?) {
         val currentUser = user.value
@@ -767,9 +689,9 @@ class Authenticate @Inject constructor(
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Logout
-    // ─────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
+    // Logout & Reset State
+    // -------------------------------------------------------------------------
 
     fun logout(onLoggedOut: () -> Unit) {
         launchBusy {
@@ -779,26 +701,16 @@ class Authenticate @Inject constructor(
             _settings.value = null
             _tokens.value = null
             _loginData.value = null
-            _myPermissions.value = null       // Reset user permissions
-            _modulePermissions.value = null   // Reset module plan permissions
+            _myPermissions.value = null
+            _modulePermissions.value = null
             _accountState.value = UiState.Idle
             onLoggedOut()
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // Reset State
-    // ─────────────────────────────────────────────────────────────
-
     fun resetState() {
         _accountState.value = UiState.Idle
     }
-
-    // ─────────────────────────────────────────────────────────────
-    // Set Login Data (for external use)
-    // ─────────────────────────────────────────────────────────────
-
-    // Organization.kt — add this extension function at the bottom
 
     fun OrganizationDetails.toOrganization(): Organization = Organization(
         subscription = this.subscription,
@@ -818,7 +730,7 @@ class Authenticate @Inject constructor(
         totalMembers = this.totalMembers,
         activeMembers = this.activeMembers,
         segments = this.segments,
-        branches = this.branches.map { it._id },  // ← List<Branch> → List<String>
+        branches = this.branches.map { it._id },
         isTaxId = this.isTaxId,
         status = this.status,
         createdAt = this.createdAt,
@@ -830,6 +742,6 @@ class Authenticate @Inject constructor(
         ownerMemberId = this.ownerMemberId,
         businessType = this.businessType,
         taxId = this.taxId,
-        plan = this.plan?._id  // ← Plan object → String ID
+        plan = this.plan?._id
     )
 }

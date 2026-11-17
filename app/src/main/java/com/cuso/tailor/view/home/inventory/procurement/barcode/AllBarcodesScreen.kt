@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,16 +16,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.QrCode2
-import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -39,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,7 +51,6 @@ import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun AllBarcodesScreen(
@@ -68,17 +61,11 @@ fun AllBarcodesScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val barcodeList by viewModel.barcodesList.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingBarcodes.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMoreBarcodes.collectAsStateWithLifecycle()
-    val canLoadMore by viewModel.canLoadMoreBarcodes.collectAsStateWithLifecycle()
-    val successMessage by viewModel.barcodeSuccessMessage.collectAsStateWithLifecycle()
+    val barcodesPagingState by viewModel.barcodesPagingState.collectAsStateWithLifecycle()
     val errorMessage by viewModel.barcodeErrorMessage.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     var itemToDelete by remember { mutableStateOf<BarcodeItemDoc?>(null) }
-
-    val listState = rememberLazyListState()
 
     // Debounced search query trigger
     var isInitialized by remember { mutableStateOf(false) }
@@ -90,27 +77,6 @@ fun AllBarcodesScreen(
             delay(400)
             viewModel.fetchAllBarcodes(search = searchQuery.trim().ifBlank { null })
         }
-    }
-
-    // Infinite scroll pagination listener
-    LaunchedEffect(listState, canLoadMore, searchQuery) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
-        }
-            .distinctUntilChanged()
-            .collect { isNearBottom ->
-                if (isNearBottom &&
-                    canLoadMore &&
-                    !viewModel.isLoadingMoreBarcodes.value &&
-                    !viewModel.isLoadingBarcodes.value &&
-                    searchQuery.isBlank()
-                ) {
-                    viewModel.loadMoreBarcodes()
-                }
-            }
     }
 
     // Confirmation dialog for barcode deletion
@@ -141,14 +107,14 @@ fun AllBarcodesScreen(
                 label = "Create Barcode",
                 icon = Icons.Default.Add,
                 onClick = onCreateBarcode
-            )
+            ),
+            fabVisible = !barcodesPagingState.isInitialLoading
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Transparent)
             ) {
-                // Header Bar with Back Button
                 TitleBar(
                     title = "All Barcodes",
                     onClose = onClose
@@ -156,7 +122,6 @@ fun AllBarcodesScreen(
 
                 Spacer(Modifier.height(tokens.extraPadding * 0.4f))
 
-                // Search Bar with Filter Option
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
@@ -167,13 +132,8 @@ fun AllBarcodesScreen(
 
                 HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 1.dp)
 
-                // UI State Handler: Loading, Error, Empty, or Content List
                 when {
-                    isLoading && barcodeList.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
-                    errorMessage != null && barcodeList.isEmpty() -> {
+                    errorMessage != null && barcodesPagingState.items.isEmpty() && !barcodesPagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load barcodes",
                             message = errorMessage ?: "Something went wrong. Please check your connection.",
@@ -181,7 +141,7 @@ fun AllBarcodesScreen(
                         )
                     }
 
-                    barcodeList.isEmpty() -> {
+                    !barcodesPagingState.isInitialLoading && barcodesPagingState.items.isEmpty() -> {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -222,19 +182,12 @@ fun AllBarcodesScreen(
                     }
 
                     else -> {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                top = tokens.extraPadding * 0.8f,
-                                bottom = tokens.buttonHeight * 2
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
-                        ) {
-                            itemsIndexed(
-                                items = barcodeList,
-                                key = { index, item -> item.id.ifBlank { "barcode_$index" } }
-                            ) { _, item ->
+                        PaginatedDataList(
+                            state = barcodesPagingState,
+                            onLoadMore = { viewModel.loadMoreBarcodes() },
+                            modifier = Modifier.fillMaxSize()
+                        ) { item ->
+                            Column {
                                 BarcodeCardItem(
                                     item = item,
                                     tokens = tokens,
@@ -242,16 +195,7 @@ fun AllBarcodesScreen(
                                     onToggleStatus = { viewModel.toggleBarcodeStatus(item.id) },
                                     onDeleteClick = { itemToDelete = item }
                                 )
-                            }
-
-                            if (isLoadingMore) {
-                                item(key = "pagination_threedot_loader") {
-                                    ThreeDotLoading(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp)
-                                    )
-                                }
+                                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
                             }
                         }
                     }

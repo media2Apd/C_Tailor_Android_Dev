@@ -7,8 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -22,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,8 +40,8 @@ fun DataRecoveryListScreen(
     onNavigateToRecoveryDetail: (String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    val backups by viewModel.filteredRecoveryBackups.collectAsState()
-    val isLoading by viewModel.isLoadingBackups.collectAsState()
+    val pagingState by viewModel.filteredRecoveryBackupsPagingState.collectAsState()
+    val errorMessage by viewModel.backupsError.collectAsState()
     val searchQuery by viewModel.recoverySearchQuery.collectAsState()
     val isInitiating by viewModel.isInitiatingRecovery.collectAsState()
 
@@ -57,7 +56,7 @@ fun DataRecoveryListScreen(
             .fillMaxSize()
             .background(Primary_background)
     ) {
-        // Title Bar
+        // Page Header
         TitleBar(
             title = "Data Recovery",
             onClose = onNavigateBack,
@@ -67,7 +66,10 @@ fun DataRecoveryListScreen(
                     shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
                     border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(sectionBorder)),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    contentPadding = PaddingValues(
+                        horizontal = tokens.extraPadding * 1.2f,
+                        vertical = tokens.extraPadding * 0.6f
+                    ),
                     modifier = Modifier.height(tokens.buttonHeight * 0.85f)
                 ) {
                     Icon(
@@ -76,7 +78,7 @@ fun DataRecoveryListScreen(
                         tint = TextSecondary,
                         modifier = Modifier.size(tokens.iconSize)
                     )
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(tokens.extraPadding * 0.6f))
                     Text(
                         text = "Export",
                         fontSize = tokens.bodySmall,
@@ -91,44 +93,47 @@ fun DataRecoveryListScreen(
         SearchFilterBar(
             query = searchQuery,
             onQueryChange = { viewModel.onRecoverySearchQueryChange(it) },
-            placeholder = "Search SO number, customer...",
+            placeholder = "Search backup ID, name, source...",
             showFilterIcon = true,
             onFilterClick = {}
         )
 
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Primary, strokeWidth = 2.dp)
-            }
-        } else if (backups.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No recovery restore points found",
-                    fontSize = tokens.bodyMedium,
-                    color = mutedText
+        when {
+            errorMessage != null && pagingState.items.isEmpty() && !pagingState.isInitialLoading -> {
+                AppErrorState(
+                    title = "Failed to load restore points",
+                    message = errorMessage?.ifBlank { "Unable to fetch recovery restore points." }
+                        ?: "Unable to fetch recovery restore points.",
+                    onRetry = { viewModel.fetchBackups() }
                 )
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                items(backups, key = { it.id ?: it.backupId }) { backup ->
+
+            !pagingState.isInitialLoading && pagingState.items.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No recovery restore points found",
+                        fontSize = tokens.bodyMedium,
+                        color = mutedText
+                    )
+                }
+            }
+
+            else -> {
+                PaginatedDataList(
+                    state = pagingState,
+                    onLoadMore = { viewModel.loadMoreRecoveryBackups() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) { backup ->
                     RecoveryListItemCard(
                         backup = backup,
-                        onRestoreClick = {
-                            selectedBackupForRestore = backup
-                        }
+                        onRestoreClick = { selectedBackupForRestore = backup }
                     )
                 }
             }
@@ -195,7 +200,7 @@ private fun RecoveryListItemCard(
         content = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -222,7 +227,10 @@ private fun RecoveryListItemCard(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                         .background(cardBgLight)
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .padding(
+                            horizontal = tokens.cardPadding * 0.7f,
+                            vertical = tokens.extraPadding
+                        )
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -231,19 +239,19 @@ private fun RecoveryListItemCard(
                     ) {
                         Column(horizontalAlignment = Alignment.Start) {
                             Text("ID", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                             Text(backup.backupId, fontSize = tokens.bodySmall, color = TextPrimary)
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("TYPE / SIZE", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                             Text("${backup.type} / ${backup.sizeFormatted.ifEmpty { "42 GB" }}", fontSize = tokens.bodySmall, color = TextPrimary)
                         }
 
                         Column(horizontalAlignment = Alignment.End) {
                             Text("INTEGRITY", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(2.dp))
+                            Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                             Text(backup.verification.integrityCheck, fontSize = tokens.bodySmall, color = TextPrimary)
                         }
                     }
@@ -297,10 +305,10 @@ private fun InitiateRecoveryBottomSheet(
         dragHandle = {
             Box(
                 modifier = Modifier
-                    .padding(vertical = 8.dp)
-                    .width(36.dp)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
+                    .padding(vertical = tokens.extraPadding * 0.8f)
+                    .width(tokens.imageDp * 0.6f)
+                    .height(tokens.extraPadding * 0.4f)
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.2f))
                     .background(mutedText.copy(alpha = 0.5f))
             )
         },
@@ -314,11 +322,14 @@ private fun InitiateRecoveryBottomSheet(
                 .fillMaxWidth()
                 .fillMaxHeight(0.92f)
         ) {
-            // Header
+            // Sheet Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
+                    .padding(
+                        horizontal = tokens.screenPadding,
+                        vertical = tokens.extraPadding * 1.2f
+                    ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -326,7 +337,7 @@ private fun InitiateRecoveryBottomSheet(
                     Text(
                         text = "Restore Backup",
                         fontSize = tokens.bodyLarge,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         color = title_color
                     )
                     Text(
@@ -335,7 +346,10 @@ private fun InitiateRecoveryBottomSheet(
                         color = headerGrey
                     )
                 }
-                IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(tokens.iconSize * 1.3f)
+                ) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = close_color)
                 }
             }
@@ -347,10 +361,13 @@ private fun InitiateRecoveryBottomSheet(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .padding(
+                        horizontal = tokens.screenPadding,
+                        vertical = tokens.extraPadding * 1.2f
+                    ),
+                verticalArrangement = Arrangement.spacedBy(tokens.cardPadding * 0.7f)
             ) {
-                // BACKUP SUMMARY
+                // Backup Summary Section
                 Text(
                     text = "BACKUP SUMMARY",
                     fontSize = tokens.label,
@@ -365,8 +382,8 @@ private fun InitiateRecoveryBottomSheet(
                     border = BorderStroke(1.dp, sectionBorder)
                 ) {
                     Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.padding(tokens.cardPadding * 0.7f),
+                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -381,7 +398,10 @@ private fun InitiateRecoveryBottomSheet(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.4f))
                                     .background(light_grey)
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    .padding(
+                                        horizontal = tokens.extraPadding * 0.8f,
+                                        vertical = tokens.extraPadding * 0.2f
+                                    )
                             ) {
                                 Text(backup.backupId, fontSize = tokens.label, color = headerGrey)
                             }
@@ -415,7 +435,7 @@ private fun InitiateRecoveryBottomSheet(
                     }
                 }
 
-                // RESTORE DESTINATION
+                // Restore Destination Section
                 Text(
                     text = "RESTORE DESTINATION",
                     fontSize = tokens.label,
@@ -443,7 +463,7 @@ private fun InitiateRecoveryBottomSheet(
                     }
                 )
 
-                // RECOVERY SETTINGS
+                // Recovery Settings Section
                 Text(
                     text = "RECOVERY SETTINGS",
                     fontSize = tokens.label,
@@ -457,7 +477,10 @@ private fun InitiateRecoveryBottomSheet(
                     color = whiteBg,
                     border = BorderStroke(1.dp, sectionBorder)
                 ) {
-                    Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(
+                        modifier = Modifier.padding(tokens.cardPadding * 0.7f),
+                        verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                    ) {
                         RecoveryToggleRow(
                             title = "Overwrite Existing Data",
                             subtitle = "Clear target container before restore",
@@ -481,7 +504,7 @@ private fun InitiateRecoveryBottomSheet(
                     }
                 }
 
-                // ESTIMATED IMPACT
+                // Estimated Impact Section
                 Text(
                     text = "ESTIMATED IMPACT",
                     fontSize = tokens.label,
@@ -489,24 +512,32 @@ private fun InitiateRecoveryBottomSheet(
                     color = Primary
                 )
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
+                ) {
                     ImpactStatCard(label = "DATA SIZE", value = "42 GB", modifier = Modifier.weight(1f))
                     ImpactStatCard(label = "EST. DURATION", value = "18-25m", modifier = Modifier.weight(1f))
                     ImpactStatCard(label = "DOWNTIME", value = "~10m", valueColor = redText, modifier = Modifier.weight(1f))
                 }
 
-                // Warning Message Box
+                // Warning Box
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                         .background(yellowBg)
                         .border(1.dp, yellowText.copy(alpha = 0.3f), RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                        .padding(12.dp)
+                        .padding(tokens.extraPadding * 1.2f)
                 ) {
                     Row(verticalAlignment = Alignment.Top) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = yellowText, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = yellowText,
+                            modifier = Modifier.size(tokens.iconSize)
+                        )
+                        Spacer(Modifier.width(tokens.extraPadding * 0.8f))
                         Text(
                             text = "Restoring to original source may overwrite existing tables. Ensure active database connections are drained before proceeding.",
                             fontSize = tokens.caption,
@@ -515,7 +546,7 @@ private fun InitiateRecoveryBottomSheet(
                     }
                 }
 
-                // Overwrite Acknowledged Checkbox
+                // Overwrite Acknowledgement Checkbox
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable { overwriteAcknowledged = !overwriteAcknowledged }
@@ -524,7 +555,7 @@ private fun InitiateRecoveryBottomSheet(
                         checked = overwriteAcknowledged,
                         onCheckedChange = { overwriteAcknowledged = it }
                     )
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(tokens.extraPadding * 0.6f))
                     Text(
                         text = "I understand that restoring this backup will modify production records and cannot be undone.",
                         fontSize = tokens.caption,
@@ -535,12 +566,15 @@ private fun InitiateRecoveryBottomSheet(
 
             HorizontalDivider(color = grey_border)
 
-            // Bottom Actions
+            // Bottom Action Buttons
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(
+                        horizontal = tokens.screenPadding,
+                        vertical = tokens.extraPadding * 1.2f
+                    ),
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
             ) {
                 OutlinedButton(
                     onClick = onDismiss,
@@ -575,10 +609,19 @@ private fun InitiateRecoveryBottomSheet(
                         .height(tokens.buttonHeight)
                 ) {
                     if (isInitiating) {
-                        CircularProgressIndicator(color = whiteBg, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                        CircularProgressIndicator(
+                            color = whiteBg,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(tokens.iconSize)
+                        )
                     } else {
-                        Icon(Icons.Default.Refresh, contentDescription = null, tint = whiteBg, modifier = Modifier.size(tokens.iconSize))
-                        Spacer(Modifier.width(6.dp))
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = null,
+                            tint = whiteBg,
+                            modifier = Modifier.size(tokens.iconSize)
+                        )
+                        Spacer(Modifier.width(tokens.extraPadding * 0.6f))
                         Text("Start Recovery", fontSize = tokens.bodySmall, color = whiteBg)
                     }
                 }
@@ -604,7 +647,7 @@ private fun DestinationChoiceCard(
         border = BorderStroke(1.dp, if (isSelected) Primary else sectionBorder)
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(tokens.extraPadding * 1.2f),
             verticalAlignment = Alignment.CenterVertically
         ) {
             RadioButton(
@@ -612,7 +655,7 @@ private fun DestinationChoiceCard(
                 onClick = onClick,
                 colors = RadioButtonDefaults.colors(selectedColor = Primary)
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(tokens.extraPadding * 0.8f))
             Column {
                 Text(text = title, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                 Text(text = subtitle, fontSize = tokens.caption, color = headerGrey)
@@ -650,7 +693,7 @@ private fun ImpactStatCard(
     modifier: Modifier = Modifier,
     label: String,
     value: String,
-    valueColor: androidx.compose.ui.graphics.Color = TextPrimary
+    valueColor: Color = TextPrimary
 ) {
     val tokens = LocalAppTokens.current
     Surface(
@@ -660,12 +703,12 @@ private fun ImpactStatCard(
         border = BorderStroke(1.dp, grey_border)
     ) {
         Column(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(tokens.extraPadding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(text = label, fontSize = tokens.label, color = mutedText)
-            Spacer(Modifier.height(4.dp))
-            Text(text = value, fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = valueColor)
+            Spacer(Modifier.height(tokens.extraPadding * 0.4f))
+            Text(text = value, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = valueColor)
         }
     }
 }

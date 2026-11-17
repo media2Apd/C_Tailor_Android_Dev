@@ -16,9 +16,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -65,12 +62,11 @@ import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextField
 import com.cuso.tailor.view.composable.ImageUploadSection
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.PlanLimitDialog
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StepNavigationFab
-import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.view.composable.ValidationField
@@ -101,14 +97,9 @@ fun ExpensesScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedExpenseForView by remember { mutableStateOf<ExpenseItem?>(null) }
 
-    val expenses by financeViewModel.expenseList.collectAsStateWithLifecycle()
-    val isLoadingExpenses by financeViewModel.isLoadingExpenses.collectAsStateWithLifecycle()
-    val isLoadingMoreExpenses by financeViewModel.isLoadingMoreExpenses.collectAsStateWithLifecycle()
-    val canLoadMoreExpenses by financeViewModel.canLoadMoreExpenses.collectAsStateWithLifecycle()
+    val expensesPagingState by financeViewModel.expensesPagingState.collectAsStateWithLifecycle()
     val expenseError by financeViewModel.expenseError.collectAsStateWithLifecycle()
     val chartOfAccounts by financeViewModel.chartOfAccounts.collectAsStateWithLifecycle()
-
-    val listState = rememberLazyListState()
 
     LaunchedEffect(Unit) {
         financeViewModel.fetchExpenses()
@@ -118,21 +109,6 @@ fun ExpensesScreen(
     LaunchedEffect(searchQuery) {
         delay(400)
         financeViewModel.fetchExpenses(search = searchQuery.trim().ifBlank { null })
-    }
-
-    val shouldLoadMore = remember {
-        derivedStateOf {
-            val layoutInfo = listState.layoutInfo
-            val totalItemsNumber = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-            totalItemsNumber > 0 && lastVisibleItemIndex >= totalItemsNumber - 2
-        }
-    }
-
-    LaunchedEffect(shouldLoadMore.value) {
-        if (shouldLoadMore.value && canLoadMoreExpenses && !isLoadingMoreExpenses && !isLoadingExpenses) {
-            financeViewModel.loadMoreExpenses()
-        }
     }
 
     if (showAddExpense) {
@@ -184,11 +160,7 @@ fun ExpensesScreen(
         HorizontalDivider(color = title_border)
 
         when {
-            isLoadingExpenses && expenses.isEmpty() -> {
-                ListSkeleton()
-            }
-
-            expenseError != null && expenses.isEmpty() -> {
+            expenseError != null && expensesPagingState.items.isEmpty() && !expensesPagingState.isInitialLoading -> {
                 AppErrorState(
                     title = "Failed to load Expenses",
                     message = "Something went wrong. Please check your connection and try again.",
@@ -196,7 +168,7 @@ fun ExpensesScreen(
                 )
             }
 
-            expenses.isEmpty() -> {
+            !expensesPagingState.isInitialLoading && expensesPagingState.items.isEmpty() -> {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -263,58 +235,50 @@ fun ExpensesScreen(
                         label = "Add Expenses",
                         icon = Icons.Default.Add,
                         onClick = { showAddExpense = true }
-                    )
+                    ),
+                    fabVisible = !expensesPagingState.isInitialLoading
                 ) {
-                    LazyColumn(
-                        state = listState,
+                    PaginatedDataList(
+                        state = expensesPagingState,
+                        onLoadMore = { financeViewModel.loadMoreExpenses() },
                         modifier = Modifier
                             .fillMaxSize()
                             .background(Color.Transparent)
-                    ) {
-                        items(expenses, key = { it._id }) { expense ->
-                            val status = expense.status.ifBlank { "Paid" }
-                            val (statusFg, statusBg) = expenseStatusColors(status)
+                    ) { expense ->
+                        val status = expense.status.ifBlank { "Paid" }
+                        val (statusFg, statusBg) = expenseStatusColors(status)
 
-                            val accountTitle = expense.accountId?.accountName?.ifBlank { null }
-                                ?: chartOfAccounts.find { it._id == expense.accountId?._id }?.accountName
-                                ?: "Expense"
+                        val accountTitle = expense.accountId?.accountName?.ifBlank { null }
+                            ?: chartOfAccounts.find { it._id == expense.accountId?._id }?.accountName
+                            ?: "Expense"
 
-                            val paymentTitle = expense.paymentAccountId?.accountName?.ifBlank { null }
-                                ?: chartOfAccounts.find { it._id == expense.paymentAccountId?._id }?.accountName
-                                ?: "Account"
+                        val paymentTitle = expense.paymentAccountId?.accountName?.ifBlank { null }
+                            ?: chartOfAccounts.find { it._id == expense.paymentAccountId?._id }?.accountName
+                            ?: "Account"
 
-                            DataCard(
-                                item = expense,
-                                dateText = formatExpenseDate(expense.expenseDate),
-                                topBadgeText = status,
-                                topBadgeTextColor = statusFg,
-                                topBadgeBgColor = statusBg,
-                                title = accountTitle,
-                                subtitle = "Paid via $paymentTitle",
-                                footerFields = listOf(
-                                    DataCardField(
-                                        asRow = true,
-                                        label = "Amount",
-                                        text = "${currencySymbol()}${formatAmount(expense.amount)}"
-                                    )
-                                ),
-                                actions = listOf(
-                                    MenuAction(
-                                        label = "View",
-                                        icon = Icons.Default.Visibility,
-                                        onClick = { selectedExpenseForView = expense }
-                                    )
+                        DataCard(
+                            item = expense,
+                            dateText = formatExpenseDate(expense.expenseDate),
+                            topBadgeText = status,
+                            topBadgeTextColor = statusFg,
+                            topBadgeBgColor = statusBg,
+                            title = accountTitle,
+                            subtitle = "Paid via $paymentTitle",
+                            footerFields = listOf(
+                                DataCardField(
+                                    asRow = true,
+                                    label = "Amount",
+                                    text = "${currencySymbol()}${formatAmount(expense.amount)}"
+                                )
+                            ),
+                            actions = listOf(
+                                MenuAction(
+                                    label = "View",
+                                    icon = Icons.Default.Visibility,
+                                    onClick = { selectedExpenseForView = expense }
                                 )
                             )
-                        }
-
-                        if (isLoadingMoreExpenses) {
-                            item {
-                                ThreeDotLoading()
-                            }
-                        }
-
-                        item { Spacer(Modifier.height(80.dp)) }
+                        )
                     }
                 }
             }

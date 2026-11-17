@@ -19,9 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -67,6 +64,7 @@ import com.cuso.tailor.model.inventory.StockSummaryItemDto
 import com.cuso.tailor.model.inventory.TransferStockRequest
 import com.cuso.tailor.model.inventory.WarehouseDropdownItem
 import com.cuso.tailor.ui.theme.Primary
+import com.cuso.tailor.ui.theme.TextPrimary
 import com.cuso.tailor.ui.theme.badgeGrey
 import com.cuso.tailor.ui.theme.disabled
 import com.cuso.tailor.ui.theme.grey_border
@@ -81,20 +79,17 @@ import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.ErrorMapper
 import com.cuso.tailor.view.composable.FilterDrawer
 import com.cuso.tailor.view.composable.FilterOption
 import com.cuso.tailor.view.composable.FilterSection
 import com.cuso.tailor.view.composable.FilterSectionType
 import com.cuso.tailor.view.composable.FormDropdown
-import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.SheetValue
 import com.cuso.tailor.view.composable.SmoothBottomSheet
 import com.cuso.tailor.view.composable.StatusBadge
-import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
 import com.cuso.tailor.viewmodel.InventoryViewModel
@@ -114,17 +109,11 @@ fun AllOrdersStockListScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val stockSummaryList by viewModel.stockSummaryList.collectAsState()
-    val isLoadingSummary by viewModel.isLoadingStockSummary.collectAsState()
-    val isLoadingMoreSummary by viewModel.isLoadingMoreStockSummary.collectAsState()
-    val canLoadMoreSummary by viewModel.canLoadMoreStockSummary.collectAsState()
-
+    val stockSummaryPagingState by viewModel.stockSummaryPagingState.collectAsState()
     val warehouseDropdown by viewModel.warehouseDropdown.collectAsState()
     val validReasons by viewModel.validAdjustmentReasons.collectAsState()
 
     val isSubmittingAdjustment by viewModel.isSubmittingAdjustment.collectAsState()
-    val adjustmentSuccessMessage by viewModel.adjustmentSuccessMessage.collectAsState()
-    val adjustmentErrorMessage by viewModel.adjustmentErrorMessage.collectAsState()
     val stockSummaryError by viewModel.stockSummaryError.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
@@ -132,9 +121,7 @@ fun AllOrdersStockListScreen(
     var selectedStockItem by remember { mutableStateOf<StockSummaryItemDto?>(null) }
     var activeAdjustmentType by remember { mutableStateOf(initialAdjustmentType) }
 
-    val listState = rememberLazyListState()
-
-    // ── Filter Drawer State & Sections ──
+    // Filter drawer state and sections
     val filterDrawerState = rememberFilterDrawerState()
     var filterSections by remember {
         mutableStateOf(
@@ -148,7 +135,7 @@ fun AllOrdersStockListScreen(
         )
     }
 
-    // Populate Warehouses dynamically from warehouseDropdown API
+    // Populate warehouse options dynamically
     LaunchedEffect(warehouseDropdown) {
         if (warehouseDropdown.isNotEmpty()) {
             filterSections = listOf(
@@ -176,13 +163,13 @@ fun AllOrdersStockListScreen(
         settingsViewModel.fetchBins(isRefresh = true)
     }
 
-    // Filter Logic
-    val filteredList by remember(stockSummaryList, searchQuery, filterSections) {
+    // Apply search and warehouse filter on paged items
+    val filteredList by remember(stockSummaryPagingState.items, searchQuery, filterSections) {
         derivedStateOf {
             val selectedWarehouseNames = filterSections.find { it.title == "Warehouse" }
                 ?.options?.filter { it.isSelected }?.map { it.label } ?: emptyList()
 
-            stockSummaryList.filter { item ->
+            stockSummaryPagingState.items.filter { item ->
                 val matchesSearch = searchQuery.isBlank() ||
                         item.product.contains(searchQuery, ignoreCase = true) ||
                         item.sku.contains(searchQuery, ignoreCase = true) ||
@@ -196,6 +183,10 @@ fun AllOrdersStockListScreen(
         }
     }
 
+    val displayPagingState = remember(stockSummaryPagingState, filteredList) {
+        stockSummaryPagingState.copy(items = filteredList)
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             containerColor = Color.Transparent,
@@ -203,7 +194,9 @@ fun AllOrdersStockListScreen(
             topBar = { TitleBar(title = "Stock Adjustments", onClose = onClose) }
         ) { padding ->
             Column(
-                modifier = Modifier.fillMaxSize().padding(padding)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
             ) {
                 SearchFilterBar(
                     query = searchQuery,
@@ -218,52 +211,49 @@ fun AllOrdersStockListScreen(
                 HorizontalDivider(color = grey_border)
 
                 when {
-                    isLoadingSummary && stockSummaryList.isEmpty() -> ListSkeleton()
-                    stockSummaryError != null && stockSummaryList.isEmpty() -> {
+                    stockSummaryError != null && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load stock adjustments",
                             message = stockSummaryError?.let { ErrorMapper.map(it) } ?: "Something went wrong.",
                             onRetry = { viewModel.fetchStockSummaryList() }
                         )
                     }
-                    filteredList.isEmpty() -> {
-                        Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
+
+                    !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(text = "No stock items found", fontSize = tokens.bodyMedium, color = mutedText)
                         }
                     }
+
                     else -> {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize().weight(1f),
-                            contentPadding = PaddingValues(vertical = 8.dp)
-                        ) {
-                            items(
-                                items = filteredList,
-                                key = { item -> "${item.itemId}_${item.warehouseId}_${item.variant.orEmpty()}" }
-                            ) { item ->
-                                StockAdjustmentCardItem(
-                                    stockItem = item,
-                                    tokens = tokens,
-                                    onAdjustClick = {
-                                        selectedStockItem = item
-                                        activeAdjustmentType = AdjustmentType.TransferStock
-                                        sheetState = SheetValue.Expanded
-                                    }
-                                )
-                            }
-                            if (isLoadingMoreSummary) {
-                                item(key = "pagination_loader") {
-                                    ThreeDotLoading(modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp))
+                        PaginatedDataList(
+                            state = displayPagingState,
+                            onLoadMore = { viewModel.loadMoreStockSummaryList(search = searchQuery.trim().ifBlank { null }) },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f)
+                        ) { item ->
+                            StockAdjustmentCardItem(
+                                stockItem = item,
+                                tokens = tokens,
+                                onAdjustClick = {
+                                    selectedStockItem = item
+                                    activeAdjustmentType = AdjustmentType.TransferStock
+                                    sheetState = SheetValue.Expanded
                                 }
-                            }
-                            item { Spacer(Modifier.height(40.dp)) }
+                            )
                         }
                     }
                 }
             }
         }
 
-        // ── Filter Stock Drawer ──
+        // Filter stock drawer
         FilterDrawer(
             state = filterDrawerState,
             title = "Filter Stock",
@@ -308,10 +298,6 @@ fun AllOrdersStockListScreen(
         }
     }
 }
-
-// ─────────────────────────────────────────────────────────────
-// DATA CARD COMPOSABLE
-// ─────────────────────────────────────────────────────────────
 
 @Composable
 private fun StockAdjustmentCardItem(
@@ -383,7 +369,7 @@ private fun StockAdjustmentCardItem(
                 }
             },
             title = displayProductName,
-            titleColor = Color(0xFF111827),
+            titleColor = TextPrimary,
             titleFontWeight = FontWeight.SemiBold,
             content = {
                 HorizontalDivider(color = grey_border)
@@ -397,7 +383,7 @@ private fun StockAdjustmentCardItem(
                                 text = warehouseName,
                                 fontSize = tokens.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF111827)
+                                color = TextPrimary
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
@@ -422,7 +408,7 @@ private fun StockAdjustmentCardItem(
                                 text = "$reservedStock $unitLabel",
                                 fontSize = tokens.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF111827)
+                                color = TextPrimary
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
@@ -432,7 +418,7 @@ private fun StockAdjustmentCardItem(
                                 text = reorderLevelText,
                                 fontSize = tokens.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF111827)
+                                color = TextPrimary
                             )
                         }
                     }

@@ -15,9 +15,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,7 +32,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -61,14 +57,11 @@ import com.cuso.tailor.ui.theme.yellowBg
 import com.cuso.tailor.ui.theme.yellowText
 import com.cuso.tailor.view.composable.AppCheckbox
 import com.cuso.tailor.view.composable.AppErrorState
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.ListSkeleton
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
-import com.cuso.tailor.view.composable.ThreeDotLoading
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun AllOrdersScreen(
@@ -81,13 +74,8 @@ fun AllOrdersScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
 
-    val receives by viewModel.allReceives.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoadingReceives.collectAsStateWithLifecycle()
-    val isLoadingMore by viewModel.isLoadingMoreReceives.collectAsStateWithLifecycle()
-    val canLoadMore by viewModel.canLoadMoreReceives.collectAsStateWithLifecycle()
+    val receivesPagingState by viewModel.receivesPagingState.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
-
-    val listState = rememberLazyListState()
 
     var isInitialized by remember { mutableStateOf(false) }
     LaunchedEffect(searchQuery) {
@@ -98,26 +86,6 @@ fun AllOrdersScreen(
             delay(400)
             viewModel.fetchAllReceives(search = searchQuery.trim().ifBlank { null })
         }
-    }
-
-    LaunchedEffect(listState, canLoadMore, searchQuery) {
-        snapshotFlow {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisibleItemIndex = (layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) + 1
-            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 2)
-        }
-            .distinctUntilChanged()
-            .collect { isNearBottom ->
-                if (isNearBottom &&
-                    canLoadMore &&
-                    !isLoadingMore &&
-                    !isLoading &&
-                    searchQuery.isBlank()
-                ) {
-                    viewModel.loadMoreReceives()
-                }
-            }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -167,11 +135,7 @@ fun AllOrdersScreen(
                 )
 
                 when {
-                    isLoading && receives.isEmpty() -> {
-                        ListSkeleton()
-                    }
-
-                    errorMessage != null && receives.isEmpty() -> {
+                    errorMessage != null && receivesPagingState.items.isEmpty() && !receivesPagingState.isInitialLoading -> {
                         AppErrorState(
                             title = "Failed to load orders",
                             message = errorMessage ?: "Something went wrong. Please check your connection.",
@@ -179,39 +143,26 @@ fun AllOrdersScreen(
                         )
                     }
 
-                    receives.isEmpty() -> {
+                    !receivesPagingState.isInitialLoading && receivesPagingState.items.isEmpty() -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("No purchase receives found.", color = mutedText, fontSize = tokens.bodyMedium)
                         }
                     }
 
                     else -> {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = tokens.buttonHeight * 2f),
-                            verticalArrangement = Arrangement.spacedBy(1.dp)
-                        ) {
-                            items(
-                                items = receives,
-                                key = { it.id.ifBlank { it.hashCode().toString() } }
-                            ) { receiveItem ->
-                                val poId = receiveItem.poId?.id.orEmpty()
+                        PaginatedDataList(
+                            state = receivesPagingState,
+                            onLoadMore = { viewModel.loadMoreReceives() },
+                            modifier = Modifier.fillMaxSize()
+                        ) { receiveItem ->
+                            val poId = receiveItem.poId?.id.orEmpty()
+                            Column {
                                 ReceiveOrderCard(
                                     item = receiveItem,
                                     tokens = tokens,
                                     onClick = { onOrderClick(poId, receiveItem.id) }
                                 )
-                            }
-
-                            if (isLoadingMore) {
-                                item(key = "pagination_threedot_loader") {
-                                    ThreeDotLoading(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = tokens.screenPadding)
-                                    )
-                                }
+                                Spacer(Modifier.height(1.dp))
                             }
                         }
                     }

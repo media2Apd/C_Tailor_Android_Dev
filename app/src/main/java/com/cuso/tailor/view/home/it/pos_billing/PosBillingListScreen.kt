@@ -3,8 +3,6 @@ package com.cuso.tailor.view.home.it.pos_billing
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,10 +27,9 @@ fun TerminalFleetStatusScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    val terminals by viewModel.filteredPosTerminals.collectAsState()
+    val terminalsPagingState by viewModel.posTerminalsPagingState.collectAsState()
     val metrics by viewModel.posTerminalMetrics.collectAsState()
     val searchQuery by viewModel.posSearchQuery.collectAsState()
-    val isLoading by viewModel.isLoadingPosTerminals.collectAsState()
     val errorMessage by viewModel.posTerminalsError.collectAsState()
     val selectedStatus by viewModel.selectedPosStatus.collectAsState()
 
@@ -69,9 +66,7 @@ fun TerminalFleetStatusScreen(
                     title = "Terminal Fleet Status",
                     onClose = onBack,
                     trailingContent = {
-                        ExportButton(
-                            onClick = {}
-                        )
+                        ExportButton(onClick = {})
                     }
                 )
             }
@@ -81,7 +76,6 @@ fun TerminalFleetStatusScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // Search & Filter Bar
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = viewModel::onPosSearchQueryChange,
@@ -93,143 +87,128 @@ fun TerminalFleetStatusScreen(
                     height = tokens.fieldHeight
                 )
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
+                // Metric cards grid
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = tokens.screenPadding, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // ─── 6 Metric Cards matching Screenshot 1 ───
-                    item {
-                        Column(
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        TerminalStatCard(
+                            label = "TOTAL TERMINALS",
+                            value = "${metrics?.totalTerminals ?: 0}",
+                            valueColor = title_color,
+                            badgeText = null,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TerminalStatCard(
+                            label = "ONLINE",
+                            value = "${metrics?.online?.count ?: 0}",
+                            valueColor = greentext,
+                            badgeText = metrics?.online?.percentage,
+                            badgeBg = greenBg,
+                            badgeTextColor = greentext,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        TerminalStatCard(
+                            label = "OFFLINE",
+                            value = "${metrics?.offline ?: 0}",
+                            valueColor = title_color,
+                            badgeText = null,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TerminalStatCard(
+                            label = "PAYMENT GATEWAYS",
+                            value = "${metrics?.paymentGateways?.count ?: 0}",
+                            valueColor = Primary,
+                            badgeText = metrics?.paymentGateways?.badge,
+                            badgeBg = primary_light,
+                            badgeTextColor = Primary,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        TerminalStatCard(
+                            label = "PRINTER ISSUES",
+                            value = "${metrics?.printerIssues ?: 0}",
+                            valueColor = title_color,
+                            badgeText = null,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TerminalStatCard(
+                            label = "TOTAL ACTIVE ISSUES",
+                            value = "${metrics?.totalActiveIssues ?: 0}",
+                            valueColor = title_color,
+                            badgeText = null,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(6.dp))
+
+                when {
+                    errorMessage != null && terminalsPagingState.items.isEmpty() && !terminalsPagingState.isInitialLoading -> {
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = tokens.screenPadding, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                .weight(1f)
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            // Row 1: TOTAL TERMINALS | ONLINE
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                TerminalStatCard(
-                                    label = "TOTAL TERMINALS",
-                                    value = "${metrics?.totalTerminals ?: 0}",
-                                    valueColor = title_color,
-                                    badgeText = null,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                TerminalStatCard(
-                                    label = "ONLINE",
-                                    value = "${metrics?.online?.count ?: 0}",
-                                    valueColor = greentext,
-                                    badgeText = metrics?.online?.percentage,
-                                    badgeBg = greenBg,
-                                    badgeTextColor = greentext,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-
-                            // Row 2: OFFLINE | PAYMENT GATEWAYS
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                TerminalStatCard(
-                                    label = "OFFLINE",
-                                    value = "${metrics?.offline ?: 0}",
-                                    valueColor = title_color,
-                                    badgeText = null,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                TerminalStatCard(
-                                    label = "PAYMENT GATEWAYS",
-                                    value = "${metrics?.paymentGateways?.count ?: 0}",
-                                    valueColor = Primary,
-                                    badgeText = metrics?.paymentGateways?.badge,
-                                    badgeBg = primary_light,
-                                    badgeTextColor = Primary,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-
-                            // Row 3: PRINTER ISSUES | TOTAL ACTIVE ISSUES
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                TerminalStatCard(
-                                    label = "PRINTER ISSUES",
-                                    value = "${metrics?.printerIssues ?: 0}",
-                                    valueColor = title_color,
-                                    badgeText = null,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                TerminalStatCard(
-                                    label = "TOTAL ACTIVE ISSUES",
-                                    value = "${metrics?.totalActiveIssues ?: 0}",
-                                    valueColor = title_color,
-                                    badgeText = null,
-                                    modifier = Modifier.weight(1f)
-                                )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(text = errorMessage ?: "Error", color = redText, fontSize = tokens.bodySmall)
+                                Spacer(Modifier.height(8.dp))
+                                Button(
+                                    onClick = { viewModel.fetchPosTerminalsList() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                                ) {
+                                    Text("Retry", color = whiteBg)
+                                }
                             }
                         }
                     }
 
-                    item { Spacer(Modifier.height(6.dp)) }
-
-                    // ─── Terminal List Content ───
-                    when {
-                        isLoading && terminals.isEmpty() -> {
-                            item { ListSkeleton() }
-                        }
-
-                        errorMessage != null && terminals.isEmpty() -> {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(32.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(text = errorMessage ?: "Error", color = redText, fontSize = 13.sp)
-                                        Spacer(Modifier.height(8.dp))
-                                        Button(
-                                            onClick = { viewModel.fetchPosTerminalsList() },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Primary)
-                                        ) {
-                                            Text("Retry", color = whiteBg)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        terminals.isEmpty() -> {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(40.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("No terminals found", color = mutedText, fontSize = 14.sp)
-                                }
-                            }
-                        }
-
-                        else -> {
-                            items(
-                                items = terminals,
-                                key = { it.effectiveId }
-                            ) { terminal ->
-                                TerminalDataCard(
-                                    terminal = terminal,
-                                    onClick = { onTerminalClick(terminal.effectiveId) }
-                                )
-                            }
+                    !terminalsPagingState.isInitialLoading && terminalsPagingState.items.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .padding(40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No terminals found", color = mutedText, fontSize = tokens.bodyMedium)
                         }
                     }
 
-                    item { Spacer(Modifier.height(40.dp)) }
+                    else -> {
+                        PaginatedDataList(
+                            state = terminalsPagingState,
+                            onLoadMore = { viewModel.loadMorePosTerminals() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) { terminal ->
+                            TerminalDataCard(
+                                terminal = terminal,
+                                onClick = { onTerminalClick(terminal.effectiveId) }
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -17,8 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -70,8 +68,8 @@ import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextArea
 import com.cuso.tailor.view.composable.FormTextField
-import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.LogisticsViewModel
@@ -84,18 +82,14 @@ fun AllCourierScreen(
 ) {
     val tokens = LocalAppTokens.current
 
-    // Observe data from LogisticsViewModel
-    val deliveries by viewModel.filteredCourierDeliveries.collectAsState()
-    val isLoading by viewModel.isLoadingCourierDeliveries.collectAsState()
+    val deliveriesPagingState by viewModel.courierDeliveriesPagingState.collectAsState()
     val searchQuery by viewModel.courierSearchQuery.collectAsState()
     val courierPartners by viewModel.courierPartnersList.collectAsState()
     val isAssigning by viewModel.isAssigningCourier.collectAsState()
     val assignError by viewModel.assignCourierError.collectAsState()
 
-    // Dialog state
     var selectedDeliveryForAssign by remember { mutableStateOf<CourierManagementItemDto?>(null) }
 
-    // Fetch initial data from /api/logistics/courier-management/list
     LaunchedEffect(Unit) {
         viewModel.fetchCourierManagementList()
         viewModel.fetchCourierPartners()
@@ -103,7 +97,7 @@ fun AllCourierScreen(
 
     Scaffold(
         containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0,0,0,0),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TitleBar(
                 title = "All Courier",
@@ -116,7 +110,6 @@ fun AllCourierScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Search Bar
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { viewModel.onCourierSearchQueryChange(it) },
@@ -125,49 +118,37 @@ fun AllCourierScreen(
                 height = 44.dp
             )
 
-            when {
-                isLoading && deliveries.isEmpty() -> {
-                    ListSkeleton()
+            if (!deliveriesPagingState.isInitialLoading && deliveriesPagingState.items.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(tokens.screenPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No records found",
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = headerGrey
+                    )
                 }
-
-                deliveries.isEmpty() -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(tokens.screenPadding),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No records found",
-                            fontSize = tokens.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = headerGrey
-                        )
-                    }
-                }
-
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(
-                            items = deliveries,
-                            key = { it.id.ifBlank { it.deliveryId } }
-                        ) { item ->
-                            CourierDeliveryCard(
-                                item = item,
-                                onAssignClick = { selectedDeliveryForAssign = item },
-                                onViewDetail = { id -> onViewDeliveryDetail(id) },
-                                formatDateHelper = { rawDate -> viewModel.formatDeliveryDate(rawDate) }
-                            )
-                        }
-                    }
+            } else {
+                PaginatedDataList(
+                    state = deliveriesPagingState,
+                    onLoadMore = { viewModel.loadMoreCourierManagementList() },
+                    modifier = Modifier.fillMaxSize()
+                ) { item ->
+                    CourierDeliveryCard(
+                        item = item,
+                        onAssignClick = { selectedDeliveryForAssign = item },
+                        onViewDetail = { id -> onViewDeliveryDetail(id) },
+                        formatDateHelper = { rawDate -> viewModel.formatDeliveryDate(rawDate) }
+                    )
                 }
             }
         }
     }
 
-    // Modal Dialog: Assign Delivery
     if (selectedDeliveryForAssign != null) {
         val courierOptions = remember(courierPartners) {
             courierPartners.map { it.courierName }.distinct()
@@ -180,7 +161,7 @@ fun AllCourierScreen(
             errorMessage = assignError,
             onDismiss = { selectedDeliveryForAssign = null },
             onConfirmAssign = { courier, charge, instructions ->
-                val targetDeliveryId = selectedDeliveryForAssign!!.id.ifBlank { selectedDeliveryForAssign!!.id }
+                val targetDeliveryId = selectedDeliveryForAssign!!.id
                 viewModel.assignCourier(
                     deliveryId = targetDeliveryId,
                     courierPartner = courier,

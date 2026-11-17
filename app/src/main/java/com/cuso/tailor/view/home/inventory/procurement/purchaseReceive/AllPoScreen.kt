@@ -1,30 +1,20 @@
 package com.cuso.tailor.view.home.inventory.procurement.purchaseReceive
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -49,17 +40,23 @@ import com.cuso.tailor.ui.theme.badgeGrey
 import com.cuso.tailor.ui.theme.darkGreenBg
 import com.cuso.tailor.ui.theme.greenBg
 import com.cuso.tailor.ui.theme.grey_border
-import com.cuso.tailor.ui.theme.iconMuted
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.orangeText
-import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.ui.theme.yellowBg
 import com.cuso.tailor.ui.theme.yellowText
 import com.cuso.tailor.view.composable.AppCheckbox
 import com.cuso.tailor.view.composable.AppErrorState
+import com.cuso.tailor.view.composable.DataCard
+import com.cuso.tailor.view.composable.DataCardStat
+import com.cuso.tailor.view.composable.DataCardStatsRow
+import com.cuso.tailor.view.composable.FabConfig
+import com.cuso.tailor.view.composable.FabScaffold
+import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
+import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.home.paywall.PermissionAction
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
 
@@ -88,43 +85,30 @@ fun AllOrdersScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            containerColor = Primary_background,
-            topBar = {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Primary_background)
+    ) {
+        FabScaffold(
+            modifier = Modifier.fillMaxSize(),
+            fab = FabConfig(
+                label = "Create Order",
+                icon = Icons.Default.Add,
+                requiredAction = PermissionAction.CREATE,
+                alignment = Alignment.BottomEnd,
+                endPadding = tokens.screenPadding,
+                bottomPadding = tokens.screenPadding,
+                draggable = false,
+                onClick = onCreateOrderClick
+            )
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 TitleBar(
                     title = "Purchase Receive",
                     onClose = onClose
                 )
-            },
-            floatingActionButton = {
-                Button(
-                    onClick = onCreateOrderClick,
-                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                    contentPadding = PaddingValues(horizontal = tokens.screenPadding, vertical = tokens.extraPadding)
-                ) {
-                    Text(
-                        text = "Create Order",
-                        color = whiteBg,
-                        fontSize = tokens.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.width(tokens.extraPadding * 0.6f))
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Create Order",
-                        tint = whiteBg,
-                        modifier = Modifier.size(tokens.iconSize)
-                    )
-                }
-            }
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            ) {
+
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
@@ -133,6 +117,8 @@ fun AllOrdersScreen(
                     onFilterClick = onFilterClick,
                     height = tokens.fieldHeight
                 )
+
+                HorizontalDivider(color = grey_border.copy(alpha = 0.5f), thickness = 2.dp)
 
                 when {
                     errorMessage != null && receivesPagingState.items.isEmpty() && !receivesPagingState.isInitialLoading -> {
@@ -156,14 +142,11 @@ fun AllOrdersScreen(
                             modifier = Modifier.fillMaxSize()
                         ) { receiveItem ->
                             val poId = receiveItem.poId?.id.orEmpty()
-                            Column {
-                                ReceiveOrderCard(
-                                    item = receiveItem,
-                                    tokens = tokens,
-                                    onClick = { onOrderClick(poId, receiveItem.id) }
-                                )
-                                Spacer(Modifier.height(1.dp))
-                            }
+                            ReceiveOrderCard(
+                                item = receiveItem,
+                                tokens = tokens,
+                                onClick = { onOrderClick(poId, receiveItem.id) }
+                            )
                         }
                     }
                 }
@@ -186,17 +169,21 @@ fun ReceiveOrderCard(
     val formattedDate = item.receiveDate.take(10)
     val isCompleted = item.status.equals("Completed", ignoreCase = true)
 
-    Surface(
-        color = whiteBg,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 1.2f)
-        ) {
+    val menuActions = remember(item.id) {
+        listOf(
+            MenuAction(
+                label = "View Details",
+                icon = Icons.Default.Visibility,
+                tint = Primary,
+                onClick = onClick
+            )
+        )
+    }
+
+    DataCard(
+        item = item,
+        onClick = { onClick() },
+        headerContent = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -217,100 +204,60 @@ fun ReceiveOrderCard(
 
                 Spacer(Modifier.width(tokens.extraPadding * 0.8f))
 
-                Surface(
-                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.8f),
-                    color = if (isCompleted) greenBg else yellowBg
+                StatusBadge(
+                    text = item.status,
+                    bgColor = if (isCompleted) greenBg else yellowBg,
+                    textColor = if (isCompleted) darkGreenBg else yellowText
+                )
+            }
+        },
+        title = supplierName,
+        actions = menuActions,
+        showHeaderDivider = true,
+        content = {
+            Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = tokens.extraPadding * 0.8f)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.25f))
+                            .background(badgeGrey)
+                            .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius * 0.25f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(tokens.iconSize * 0.35f)
-                                .background(if (isCompleted) darkGreenBg else yellowText, CircleShape)
-                        )
-                        Spacer(Modifier.width(4.dp))
                         Text(
-                            text = item.status,
-                            color = if (isCompleted) darkGreenBg else yellowText,
-                            fontSize = tokens.caption,
-                            fontWeight = FontWeight.Medium
+                            text = poNumber,
+                            fontSize = tokens.label,
+                            color = TextSecondary
                         )
                     }
+
+                    Spacer(Modifier.width(tokens.extraPadding * 0.8f))
+
+                    Text(
+                        text = "• Date: $formattedDate",
+                        fontSize = tokens.caption,
+                        color = mutedText
+                    )
                 }
 
-                Spacer(Modifier.weight(1f))
-
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Options",
-                    tint = iconMuted,
-                    modifier = Modifier.size(tokens.iconSize * 1.1f)
+                DataCardStatsRow(
+                    stats = listOf(
+                        DataCardStat(
+                            label = "Billing Status",
+                            value = item.billingStatus,
+                            valueColor = if (item.billingStatus == "Billed") darkGreenBg else orangeText
+                        ),
+                        DataCardStat(
+                            label = "Total Quantity",
+                            value = "$totalQty",
+                            valueColor = TextPrimary
+                        )
+                    )
                 )
-            }
-
-            Spacer(Modifier.height(tokens.extraPadding * 0.6f))
-
-            Text(
-                text = supplierName,
-                fontSize = tokens.bodySmall,
-                fontWeight = FontWeight.Medium,
-                color = TextPrimary
-            )
-
-            Spacer(Modifier.height(tokens.extraPadding * 0.4f))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.25f),
-                    color = badgeGrey,
-                    border = BorderStroke(1.dp, grey_border)
-                ) {
-                    Text(
-                        text = poNumber,
-                        fontSize = tokens.label,
-                        color = TextSecondary,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-
-                Spacer(Modifier.width(tokens.extraPadding * 0.8f))
-
-                Text(
-                    text = "• Date: $formattedDate",
-                    fontSize = tokens.caption,
-                    color = mutedText
-                )
-            }
-
-            Spacer(Modifier.height(tokens.extraPadding * 0.8f))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(text = "Billing Status", fontSize = tokens.caption, color = mutedText)
-                    Text(
-                        text = item.billingStatus,
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = if (item.billingStatus == "Billed") darkGreenBg else orangeText
-                    )
-                }
-
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(text = "Total Quantity", fontSize = tokens.caption, color = mutedText)
-                    Text(
-                        text = "$totalQty",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
-                    )
-                }
             }
         }
-    }
+    )
 }

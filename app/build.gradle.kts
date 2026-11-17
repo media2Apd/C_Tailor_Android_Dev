@@ -39,17 +39,22 @@ android {
         versionName = "1.0.1"
     }
 
+
     buildTypes {
 
         debug {
+            isDebuggable = true
+            isMinifyEnabled = false
+
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.10:5000/\""
+                "\"http://192.168.88.12:5000/\""
             )
         }
 
         release {
+            isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
 
@@ -61,10 +66,11 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"https://cuso-tailor-production.onrender.com/\""
+                "\"https://tailorapi.cusotechnologies.com/\""
             )
         }
     }
+
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

@@ -358,27 +358,57 @@ fun AppNav(
         }
 
         composable("create-order") {
-            OrderFlowNavigator(
-                onFinish = { savedOrderId ->
-                    if (savedOrderId != null) {
-                        navController.getBackStackEntry("home")
-                            .savedStateHandle["pendingOrderId"] = savedOrderId
+            val permissionViewModel: com.cuso.tailor.viewmodel.PermissionViewModel =
+                androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel()
+            com.cuso.tailor.view.home.paywall.FeatureGuard(
+                module = "sales",
+                feature = "orders",
+                action = com.cuso.tailor.view.home.paywall.PermissionAction.CREATE,
+                permissionViewModel = permissionViewModel,
+                onGoBack = { navController.popBackStack() }
+            ) {
+                OrderFlowNavigator(
+                    onFinish = { savedOrderId ->
+                        if (savedOrderId != null) {
+                            navController.getBackStackEntry("home")
+                                .savedStateHandle["pendingOrderId"] = savedOrderId
+                        }
+                        navController.popBackStack()
                     }
-                    navController.popBackStack()
-                }
-            )
+                )
+            }
         }
 
         composable("sales_sales_orders") {
-            SalesOrderScreen(
-                navController = navController,
-                onMenuClick = { navController.navigate("home") },
-                onBack = { navController.popBackStack() }
-            )
+            val permissionViewModel: com.cuso.tailor.viewmodel.PermissionViewModel =
+                androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel()
+            com.cuso.tailor.view.home.paywall.FeatureGuard(
+                module = "sales",
+                feature = "orders",
+                action = com.cuso.tailor.view.home.paywall.PermissionAction.VIEW,
+                permissionViewModel = permissionViewModel,
+                onGoBack = { navController.popBackStack() }
+            ) {
+                SalesOrderScreen(
+                    navController = navController,
+                    onMenuClick = { navController.navigate("home") },
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
 
         composable("sales_lead") {
-            LeadScreenContent()
+            val permissionViewModel: com.cuso.tailor.viewmodel.PermissionViewModel =
+                androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel()
+            com.cuso.tailor.view.home.paywall.FeatureGuard(
+                module = "sales",
+                feature = "leadManagement",
+                action = com.cuso.tailor.view.home.paywall.PermissionAction.VIEW,
+                permissionViewModel = permissionViewModel,
+                onGoBack = { navController.popBackStack() }
+            ) {
+                LeadScreenContent()
+            }
         }
 
         composable("home_organization_profile") {

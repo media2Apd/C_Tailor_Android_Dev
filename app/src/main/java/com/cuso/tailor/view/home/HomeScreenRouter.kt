@@ -6,12 +6,14 @@ package com.cuso.tailor.view.home
 
 import android.annotation.SuppressLint
 import android.os.Build
-import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import com.cuso.tailor.view.home.paywall.LocalScreenPermissions
+import com.cuso.tailor.view.home.paywall.ScreenActionPermissions
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -334,6 +336,8 @@ import com.cuso.tailor.view.home.settings.ApprovalRulesScreen
 import com.cuso.tailor.view.home.settings.CreateEditApprovalRuleScreen
 import com.cuso.tailor.viewmodel.MarketingViewModel
 import com.cuso.tailor.model.permission.PaywallModuleConfig
+import com.cuso.tailor.view.home.paywall.FeatureGuard
+import com.cuso.tailor.view.home.paywall.PermissionAction
 import com.cuso.tailor.model.settings.ServicesProductionStageDto
 import com.cuso.tailor.view.home.finance.settings.AddTaxRateScreen
 import com.cuso.tailor.view.home.finance.settings.TaxRateItem
@@ -406,6 +410,9 @@ data class HomeScreenNavigation(
     val token: String,
     val onNavigate: (String) -> Unit,
     val onSafeNavigate: (String) -> Unit,
+    val onAccessRestricted: (String) -> Unit = {},
+    val onSafeNavigateWithAction: (String, PermissionAction?) -> Unit = { route, _ -> onSafeNavigate(route) },
+    val onPaywallRequired: (PaywallModuleConfig) -> Unit = {},
     val onGoBack: () -> Unit,
     val onPopToScreen: (String) -> Unit = {},
     val onOpenDrawer: () -> Unit,
@@ -467,6 +474,8 @@ data class FinanceStateHolder(
     val onInvoiceForPaymentChange: (InvoiceViewOneData?) -> Unit = {},
     val isOrderFromFinance: Boolean = false,
     val onOrderFromFinanceChange: (Boolean) -> Unit = {},
+    val isPurchaseFromFinance: Boolean = false,
+    val onPurchaseFromFinanceChange: (Boolean) -> Unit = {},
     val prefillOrderForInvoice: OrderOverviewData? = null,
     val onPrefillOrderForInvoiceChange: (OrderOverviewData?) -> Unit = {}
 )
@@ -656,7 +665,33 @@ fun HomeScreenRouter(
     marketingState: MarketingStateHolder = MarketingStateHolder(),
     commonState: CommonStateHolder = CommonStateHolder()
 ) {
-    when (screen) {
+    val myPermissions by viewModels.permissionViewModel.myPermissions.collectAsStateWithLifecycle()
+    val modulePermissions by viewModels.permissionViewModel.modulePermissions.collectAsStateWithLifecycle()
+
+    // Provide route-level action permissions to child Composables (FabScaffold, DataCard, etc.)
+    val routePermissions = remember(screen, myPermissions, modulePermissions) {
+        val mapping = viewModels.permissionViewModel.getRouteFeatureMapping(screen)
+        if (mapping != null) {
+            val (mod, feat) = mapping
+            ScreenActionPermissions(
+                module = mod,
+                feature = feat,
+                canView = viewModels.permissionViewModel.canAction(mod, feat, PermissionAction.VIEW),
+                canCreate = viewModels.permissionViewModel.canAction(mod, feat, PermissionAction.CREATE),
+                canEdit = viewModels.permissionViewModel.canAction(mod, feat, PermissionAction.EDIT),
+                canDelete = viewModels.permissionViewModel.canAction(mod, feat, PermissionAction.DELETE),
+                canExport = viewModels.permissionViewModel.canAction(mod, feat, PermissionAction.EXPORT),
+                canPrint = viewModels.permissionViewModel.canAction(mod, feat, PermissionAction.PRINT),
+                canShare = viewModels.permissionViewModel.canAction(mod, feat, PermissionAction.SHARE),
+                canApprove = viewModels.permissionViewModel.canAction(mod, feat, PermissionAction.APPROVE)
+            )
+        } else {
+            ScreenActionPermissions()
+        }
+    }
+
+    CompositionLocalProvider(LocalScreenPermissions provides routePermissions) {
+        when (screen) {
 
         // In HomeScreenRouter when(screen):
         "module_upgrade_paywall" -> {
@@ -674,30 +709,32 @@ fun HomeScreenRouter(
         }
         // Also add "home_create_approval_rule" here so it routes to HomeAndSettingsRouter
         // Added "home_create_role" to route into HomeAndSettingsRouter
-        "home", "settings", "home_organization_profile", "home_branch_management",
-        "home_department_teams", "home_approval_rules", "home_create_approval_rule", "home_designation", "home_role_management", "home_create_role",
-        "home_opening_balance", "home_warehouse_management", "profile-settings",
-        "settings_overview", "manage_subscription", "module_settings",
-        "organization_settings", "home_business_setup" -> {
-            HomeAndSettingsRouter(
-                screen = screen,
-                selectedApprovalRuleIdForEdit = securityState.selectedApprovalRuleIdForEdit,
-                onApprovalRuleIdForEditSelected = securityState.onApprovalRuleIdForEditSelected,
-                // Forward role edit states
-                selectedRoleIdForEdit = securityState.selectedRoleIdForEdit,
-                onRoleIdForEditSelected = securityState.onRoleIdForEditSelected,
-                navController = navigation.navController,
-                widthSizeClass = navigation.widthSizeClass,
-                settingsViewModel = viewModels.settingsViewModel,
-                authViewModel = viewModels.authViewModel,
-                onNavigate = navigation.onNavigate,
-                onSafeNavigate = navigation.onSafeNavigate,
-                onGoBack = navigation.onGoBack,
-                onOpenDrawer = navigation.onOpenDrawer,
-                onRecentCustomerIdSelected = commonState.onRecentCustomerIdSelected,
-                onShowComingSoon = navigation.onShowComingSoon
-            )
-        }
+            "home", "settings", "home_organization_profile", "home_branch_management",
+            "home_department_teams", "home_approval_rules", "home_create_approval_rule", "home_designation", "home_role_management", "home_create_role",
+            "home_opening_balance", "home_warehouse_management", "profile-settings",
+            "settings_overview", "manage_subscription", "module_settings",
+            "organization_settings", "home_business_setup" -> {
+                HomeAndSettingsRouter(
+                    screen = screen,
+                    permissionViewModel = viewModels.permissionViewModel,
+                    selectedApprovalRuleIdForEdit = securityState.selectedApprovalRuleIdForEdit,
+                    onApprovalRuleIdForEditSelected = securityState.onApprovalRuleIdForEditSelected,
+                    selectedRoleIdForEdit = securityState.selectedRoleIdForEdit,
+                    onRoleIdForEditSelected = securityState.onRoleIdForEditSelected,
+                    navController = navigation.navController,
+                    widthSizeClass = navigation.widthSizeClass,
+                    settingsViewModel = viewModels.settingsViewModel,
+                    authViewModel = viewModels.authViewModel,
+                    onNavigate = navigation.onNavigate,
+                    onSafeNavigate = navigation.onSafeNavigate,
+                    onSafeNavigateWithAction = navigation.onSafeNavigateWithAction,
+                    onPaywallRequired = navigation.onPaywallRequired,
+                    onGoBack = navigation.onGoBack,
+                    onOpenDrawer = navigation.onOpenDrawer,
+                    onRecentCustomerIdSelected = commonState.onRecentCustomerIdSelected,
+                    onShowComingSoon = navigation.onShowComingSoon
+                )
+            }
 
         "inventory_allocation_rules", "inventory_create_allocation", "inventory_pdf_templates",
         "inventory_location_structure", "inventory_floor_overview", "inventory_add_floor",
@@ -706,8 +743,11 @@ fun HomeScreenRouter(
         "inventory_auto_reorder_settings"  -> {
             InventoryStructureRouter(
                 screen = screen,
+                permissionViewModel = viewModels.permissionViewModel,
                 settingsViewModel = viewModels.settingsViewModel,
                 onNavigate = navigation.onNavigate,
+                onSafeNavigate = navigation.onSafeNavigateWithAction,
+                onPaywallRequired = navigation.onPaywallRequired,
                 onGoBack = navigation.onGoBack,
                 onShowComingSoon = navigation.onShowComingSoon
             )
@@ -729,6 +769,7 @@ fun HomeScreenRouter(
         "sales_opportunity_pipeline", "sales_opportunities", "create_opportunity", "opportunity_detail" -> {
             SalesRouter(
                 screen = screen,
+                permissionViewModel = viewModels.permissionViewModel,
                 isOrderFromFinance = financeState.isOrderFromFinance,
                 onOrderFromFinanceChange = financeState.onOrderFromFinanceChange,
                 prefillOrderForInvoice = financeState.prefillOrderForInvoice,
@@ -759,6 +800,8 @@ fun HomeScreenRouter(
                 onOrderFlowOriginChange = salesState.onOrderFlowOriginChange,
                 onOrderSavedSuccessfully = salesState.onOrderSavedSuccessfully,
                 onNavigate = navigation.onNavigate,
+                onSafeNavigate = navigation.onSafeNavigateWithAction,
+                onPaywallRequired = navigation.onPaywallRequired,
                 onGoBack = navigation.onGoBack,
                 onOpenDrawer = navigation.onOpenDrawer,
                 onOpenModulesPanel = navigation.onOpenModulesPanel,
@@ -783,6 +826,8 @@ fun HomeScreenRouter(
         "finance_bank_statements", "finance_bank_statement_detail", "finance_import_bank_statement","finance_add_tax_rate" -> {
             FinanceRouter(
                 screen = screen,
+                permissionViewModel = viewModels.permissionViewModel,
+                onPurchaseFromFinanceChange = financeState.onPurchaseFromFinanceChange,
                 selectedPurchaseReturnId = financeState.selectedPurchaseReturnId,
                 onPurchaseReturnIdSelected = financeState.onPurchaseReturnIdSelected,
                 selectedStatementId = financeState.selectedStatementId,
@@ -831,6 +876,9 @@ fun HomeScreenRouter(
                 onOrderIdSelected = salesState.onOrderIdSelected,
                 onEditOrderIdChange = salesState.onEditOrderIdChange,
                 onNavigate = navigation.onNavigate,
+                onSafeNavigate = navigation.onSafeNavigateWithAction,
+                onAccessRestricted = navigation.onAccessRestricted,
+                onPaywallRequired = navigation.onPaywallRequired,
                 onGoBack = navigation.onGoBack,
                 onOpenModulesPanel = navigation.onOpenModulesPanel
             )
@@ -848,9 +896,12 @@ fun HomeScreenRouter(
         "marketing_calendar", "marketing_insights" -> {
             MarketingRouter(
                 screen = screen,
+                permissionViewModel = viewModels.permissionViewModel,
                 selectedCampaignCode = marketingState.selectedCampaignCode,
                 onCampaignCodeSelected = marketingState.onCampaignCodeSelected,
                 onNavigate = navigation.onNavigate,
+                onSafeNavigate = navigation.onSafeNavigateWithAction,
+                onPaywallRequired = navigation.onPaywallRequired,
                 onGoBack = navigation.onGoBack,
                 onShowComingSoon = navigation.onShowComingSoon
             )
@@ -871,6 +922,7 @@ fun HomeScreenRouter(
         "inventory_approvals", "inventory_pricing_list", "inventory_new_pricing", "inventory_approval_detail", "inventory_create_category" -> {
             InventoryMainRouter(
                 screen = screen,
+                permissionViewModel = viewModels.permissionViewModel,
                 selectedPriceListId = inventoryState.selectedPriceListId,
                 onPriceListIdSelected = inventoryState.onPriceListIdSelected,
                 selectedApprovalId = inventoryState.selectedApprovalId,
@@ -881,12 +933,13 @@ fun HomeScreenRouter(
                 onItemGroupIdSelected = inventoryState.onItemGroupIdSelected,
                 selectedBulkItemId = inventoryState.selectedBulkItemId,
                 onBulkItemIdSelected = inventoryState.onBulkItemIdSelected,
-                // Pass category edit parameters here
                 selectedCategoryIdForEdit = inventoryState.selectedCategoryIdForEdit,
                 onCategoryIdForEditSelected = inventoryState.onCategoryIdForEditSelected,
                 inventoryViewModel = viewModels.inventoryViewModel,
                 settingsViewModel = viewModels.settingsViewModel,
                 onNavigate = navigation.onNavigate,
+                onSafeNavigate = navigation.onSafeNavigateWithAction,
+                onPaywallRequired = navigation.onPaywallRequired,
                 onGoBack = navigation.onGoBack,
                 onOpenModulesPanel = navigation.onOpenModulesPanel,
                 onShowComingSoon = navigation.onShowComingSoon
@@ -915,6 +968,9 @@ fun HomeScreenRouter(
         "inventory_picklist", "inventory_picklist_detail", "inventory_create_package", "inventory_package_detail", "inventory_create_picklist", "inventory_packages" -> {
             InventoryProcurementRouter(
                 screen = screen,
+                permissionViewModel = viewModels.permissionViewModel,
+                isPurchaseFromFinance = financeState.isPurchaseFromFinance,
+                onPurchaseFromFinanceChange = financeState.onPurchaseFromFinanceChange,
                 selectedPackageIdForDetail = inventoryState.selectedPackageIdForDetail,
                 onPackageIdForDetailSelected = inventoryState.onPackageIdForDetailSelected,
                 selectedPackageIdForEdit = inventoryState.selectedPackageIdForEdit,
@@ -939,6 +995,8 @@ fun HomeScreenRouter(
                 onLowStockItemSelected = inventoryState.onLowStockItemSelected,
                 inventoryViewModel = viewModels.inventoryViewModel,
                 onNavigate = navigation.onNavigate,
+                onSafeNavigate = navigation.onSafeNavigateWithAction,
+                onPaywallRequired = navigation.onPaywallRequired,
                 onGoBack = navigation.onGoBack,
                 onOpenModulesPanel = navigation.onOpenModulesPanel
             )
@@ -971,8 +1029,8 @@ fun HomeScreenRouter(
         "hr_expense_finance_reimbursement","hr_edit_expense_claim","hr_add_expense_type","hr_expense_process_payment"   -> {
             HrRouter(
                 screen = screen,
+                permissionViewModel = viewModels.permissionViewModel,
                 settingsViewModel = viewModels.settingsViewModel,
-                // Forward leave policy and exit management state parameters
                 selectedPieceRateIdForEdit = hrState.selectedPieceRateIdForEdit,
                 onPieceRateIdForEditSelected = hrState.onPieceRateIdForEditSelected,
                 selectedExitRequestId = hrState.selectedExitRequestId,
@@ -1013,205 +1071,225 @@ fun HomeScreenRouter(
                 selectedShiftId = hrState.selectedShiftId,
                 onShiftIdSelected = hrState.onShiftIdSelected,
                 onNavigate = navigation.onNavigate,
+                onSafeNavigate = navigation.onSafeNavigateWithAction,
+                onPaywallRequired = navigation.onPaywallRequired,
                 onGoBack = navigation.onGoBack,
                 onOpenModulesPanel = navigation.onOpenModulesPanel
             )
         }
 
-        "logistics_dashboard", "logistics_orders", "logistics_order_detail", "logistics_delivery",
-        "delivery_detail", "logistics_order_tracking", "tracking_overview", "logistics_dispatched",
-        "logistics_shipments", "shipment_detail", "create_shipment", "logistics_courier_management",
-        "courier_overview", "logistics_courier_partner_list", "courier_partner_overview", "add_courier_partner",
-        "logistics_tracking_events", "logistics_returns", "return_detail", "create_return", "logistics_cod_screen", "logistics_cod_detail" -> {
-            LogisticsRouter(
-                screen = screen,
-                selectedReturnId = logisticsState.selectedReturnId,
-                onReturnIdSelected = logisticsState.onReturnIdSelected,
-                selectedLogisticsPackageId = logisticsState.selectedLogisticsPackageId,
-                onLogisticsPackageIdSelected = logisticsState.onLogisticsPackageIdSelected,
-                selectedShipmentId = logisticsState.selectedShipmentId,
-                onShipmentIdSelected = logisticsState.onShipmentIdSelected,
-                onOrderIdSelected = salesState.onOrderIdSelected,
-                onNavigate = navigation.onNavigate,
-                onGoBack = navigation.onGoBack,
-                onOpenModulesPanel = navigation.onOpenModulesPanel
-            )
-        }
+            "logistics_dashboard", "logistics_orders", "logistics_order_detail", "logistics_delivery",
+            "delivery_detail", "logistics_order_tracking", "tracking_overview", "logistics_dispatched",
+            "logistics_shipments", "shipment_detail", "create_shipment", "logistics_courier_management",
+            "courier_overview", "logistics_courier_partner_list", "courier_partner_overview", "add_courier_partner",
+            "logistics_tracking_events", "logistics_returns", "return_detail", "create_return", "logistics_cod_screen", "logistics_cod_detail" -> {
+                LogisticsRouter(
+                    screen = screen,
+                    permissionViewModel = viewModels.permissionViewModel,
+                    selectedReturnId = logisticsState.selectedReturnId,
+                    onReturnIdSelected = logisticsState.onReturnIdSelected,
+                    selectedLogisticsPackageId = logisticsState.selectedLogisticsPackageId,
+                    onLogisticsPackageIdSelected = logisticsState.onLogisticsPackageIdSelected,
+                    selectedShipmentId = logisticsState.selectedShipmentId,
+                    onShipmentIdSelected = logisticsState.onShipmentIdSelected,
+                    onOrderIdSelected = salesState.onOrderIdSelected,
+                    onNavigate = navigation.onNavigate,
+                    onSafeNavigate = navigation.onSafeNavigateWithAction,
+                    onPaywallRequired = navigation.onPaywallRequired,
+                    onGoBack = navigation.onGoBack,
+                    onOpenModulesPanel = navigation.onOpenModulesPanel
+                )
+            }
 
-        // Legal Module Router
-        "legal_dashboard", "legal_calendar", "legal_contracts", "legal_contract_detail", "legal_create_contract", "legal_compliance",
-        "legal_compliance_detail", "legal_create_compliance", "legal_documents", "legal_document_detail", "legal_create_document",
-        "legal_licenses", "legal_license_detail", "legal_create_license",
-        "legal_customer", "legal_customer_detail", "legal_create_customer_record",
-        "legal_employee", "legal_employee_detail", "legal_create_employee",
-        "legal_vendor", "legal_vendor_detail", "legal_create_vendor",
-        "legal_notice", "legal_notice_detail", "legal_create_notice" -> {
-            LegalRouter(
-                screen = screen,
-                selectedContractId = legalState.selectedLegalContractId,
-                onContractIdSelected = legalState.onLegalContractIdSelected,
-                selectedComplianceId = legalState.selectedLegalComplianceId,
-                onComplianceIdSelected = legalState.onLegalComplianceIdSelected,
-                selectedLegalDocumentId = legalState.selectedLegalDocumentId,
-                onLegalDocumentIdSelected = legalState.onLegalDocumentIdSelected,
-                selectedLegalLicenseId = legalState.selectedLegalLicenseId,
-                onLegalLicenseIdSelected = legalState.onLegalLicenseIdSelected,
-                selectedLegalCustomerId = legalState.selectedLegalCustomerId,
-                onLegalCustomerIdSelected = legalState.onLegalCustomerIdSelected,
-                selectedLegalEmployeeId = legalState.selectedLegalEmployeeId,
-                onLegalEmployeeIdSelected = legalState.onLegalEmployeeIdSelected,
-                selectedLegalVendorId = legalState.selectedLegalVendorId,
-                onLegalVendorIdSelected = legalState.onLegalVendorIdSelected,
-                selectedLegalNoticeId = legalState.selectedLegalNoticeId,
-                onLegalNoticeIdSelected = legalState.onLegalNoticeIdSelected,
-                onNavigate = navigation.onNavigate,
-                onGoBack = navigation.onGoBack,
-                hrViewModel = viewModels.hrViewModel,
-                branchViewModel = viewModels.branchViewModel,
-                inventoryViewModel = viewModels.inventoryViewModel
-            )
-        }
+            // Legal Module Router
+            "legal_dashboard", "legal_calendar", "legal_contracts", "legal_contract_detail", "legal_create_contract", "legal_compliance",
+            "legal_compliance_detail", "legal_create_compliance", "legal_documents", "legal_document_detail", "legal_create_document",
+            "legal_licenses", "legal_license_detail", "legal_create_license",
+            "legal_customer", "legal_customer_detail", "legal_create_customer_record",
+            "legal_employee", "legal_employee_detail", "legal_create_employee",
+            "legal_vendor", "legal_vendor_detail", "legal_create_vendor",
+            "legal_notice", "legal_notice_detail", "legal_create_notice" -> {
+                LegalRouter(
+                    screen = screen,
+                    permissionViewModel = viewModels.permissionViewModel,
+                    selectedContractId = legalState.selectedLegalContractId,
+                    onContractIdSelected = legalState.onLegalContractIdSelected,
+                    selectedComplianceId = legalState.selectedLegalComplianceId,
+                    onComplianceIdSelected = legalState.onLegalComplianceIdSelected,
+                    selectedLegalDocumentId = legalState.selectedLegalDocumentId,
+                    onLegalDocumentIdSelected = legalState.onLegalDocumentIdSelected,
+                    selectedLegalLicenseId = legalState.selectedLegalLicenseId,
+                    onLegalLicenseIdSelected = legalState.onLegalLicenseIdSelected,
+                    selectedLegalCustomerId = legalState.selectedLegalCustomerId,
+                    onLegalCustomerIdSelected = legalState.onLegalCustomerIdSelected,
+                    selectedLegalEmployeeId = legalState.selectedLegalEmployeeId,
+                    onLegalEmployeeIdSelected = legalState.onLegalEmployeeIdSelected,
+                    selectedLegalVendorId = legalState.selectedLegalVendorId,
+                    onLegalVendorIdSelected = legalState.onLegalVendorIdSelected,
+                    selectedLegalNoticeId = legalState.selectedLegalNoticeId,
+                    onLegalNoticeIdSelected = legalState.onLegalNoticeIdSelected,
+                    onNavigate = navigation.onNavigate,
+                    onSafeNavigate = navigation.onSafeNavigateWithAction,
+                    onPaywallRequired = navigation.onPaywallRequired,
+                    onGoBack = navigation.onGoBack,
+                    hrViewModel = viewModels.hrViewModel,
+                    branchViewModel = viewModels.branchViewModel,
+                    inventoryViewModel = viewModels.inventoryViewModel
+                )
+            }
 
-        // Added "services_production_orders" and "services_service_orders" to the screen list
-        "services_dashboard", "services_service_status", "sales_orders", "service_status_detail",
-        "order_management_overview", "services_delay_rework", "services_service_delivery",
-        "services_production_orders", "services_service_orders", "services_service_order",
-        "service_order_overview", "services_service_request",
-        "create_request", "review_services", "services_alteration_management",
-        "create_alteration", "view_alteration", "services_customer_complaints",
-        "services_customer_feedback", "feedback_detail",
-        "services_service_templates", "services_create_service_template",
-        "services_production_works",
-        "services_view_service_template", "review_service_request", "complaint_detail",
-        "services_production_pipeline", "services_qc_delivery", "services_assignment_mode",
-        "services_production_stages", "services_create_production_stage", "services_workflow_stages" -> {
-            ServicesRouter(
-                screen = screen,
-                servicesViewModel = viewModels.servicesViewModel,
-                settingsViewModel = viewModels.settingsViewModel,
-                selectedAssignmentJobCardId = servicesState.selectedAssignmentJobCardId,
-                onAssignmentJobCardIdSelected = servicesState.onAssignmentJobCardIdSelected,
-                selectedComplaintId = servicesState.selectedComplaintId,
-                onComplaintIdSelected = servicesState.onComplaintIdSelected,
-                selectedAlterationId = servicesState.selectedAlterationId,
-                onAlterationIdSelected = servicesState.onAlterationIdSelected,
-                selectedServiceRequestId = servicesState.selectedServiceRequestId,
-                onServiceRequestIdSelected = servicesState.onServiceRequestIdSelected,
-                navController = navigation.navController,
-                selectedManagementOrderId = salesState.selectedManagementOrderId,
-                onManagementOrderIdSelected = salesState.onManagementOrderIdSelected,
-                selectedOrderId = salesState.selectedOrderId,
-                onOrderIdSelected = salesState.onOrderIdSelected,
-                onEditOrderIdChange = salesState.onEditOrderIdChange,
-                selectedFeedbackId = servicesState.selectedFeedbackId,
-                onFeedbackIdSelected = servicesState.onFeedbackIdSelected,
-                selectedServiceTemplate = servicesState.selectedServiceTemplate,
-                onServiceTemplateSelected = servicesState.onServiceTemplateSelected,
-                selectedProductionStage = servicesState.selectedProductionStage,
-                onProductionStageSelected = servicesState.onProductionStageSelected,
-                pendingOrderReviewData = salesState.pendingOrderReviewData,
-                onPendingOrderReviewDataChange = salesState.onPendingOrderReviewDataChange,
-                onNavigate = navigation.onNavigate,
-                onGoBack = navigation.onGoBack,
-                onPopToScreen = navigation.onPopToScreen,
-                onOpenDrawer = navigation.onOpenDrawer,
-                onOpenModulesPanel = navigation.onOpenModulesPanel,
-                hrViewModel = viewModels.hrViewModel
-            )
-        }
+            "services_dashboard", "services_service_status", "sales_orders", "service_status_detail",
+            "order_management_overview", "services_delay_rework", "services_service_delivery",
+            "services_production_orders", "services_service_orders", "services_service_order",
+            "service_order_overview", "services_service_request",
+            "create_request", "review_services", "services_alteration_management",
+            "create_alteration", "view_alteration", "services_customer_complaints",
+            "services_customer_feedback", "feedback_detail",
+            "services_service_templates", "services_create_service_template",
+            "services_production_works",
+            "services_view_service_template", "review_service_request", "complaint_detail",
+            "services_production_pipeline", "services_qc_delivery", "services_assignment_mode",
+            "services_production_stages", "services_create_production_stage", "services_workflow_stages" -> {
+                ServicesRouter(
+                    screen = screen,
+                    permissionViewModel = viewModels.permissionViewModel,
+                    servicesViewModel = viewModels.servicesViewModel,
+                    settingsViewModel = viewModels.settingsViewModel,
+                    selectedAssignmentJobCardId = servicesState.selectedAssignmentJobCardId,
+                    onAssignmentJobCardIdSelected = servicesState.onAssignmentJobCardIdSelected,
+                    selectedComplaintId = servicesState.selectedComplaintId,
+                    onComplaintIdSelected = servicesState.onComplaintIdSelected,
+                    selectedAlterationId = servicesState.selectedAlterationId,
+                    onAlterationIdSelected = servicesState.onAlterationIdSelected,
+                    selectedServiceRequestId = servicesState.selectedServiceRequestId,
+                    onServiceRequestIdSelected = servicesState.onServiceRequestIdSelected,
+                    navController = navigation.navController,
+                    selectedManagementOrderId = salesState.selectedManagementOrderId,
+                    onManagementOrderIdSelected = salesState.onManagementOrderIdSelected,
+                    selectedOrderId = salesState.selectedOrderId,
+                    onOrderIdSelected = salesState.onOrderIdSelected,
+                    onEditOrderIdChange = salesState.onEditOrderIdChange,
+                    selectedFeedbackId = servicesState.selectedFeedbackId,
+                    onFeedbackIdSelected = servicesState.onFeedbackIdSelected,
+                    selectedServiceTemplate = servicesState.selectedServiceTemplate,
+                    onServiceTemplateSelected = servicesState.onServiceTemplateSelected,
+                    selectedProductionStage = servicesState.selectedProductionStage,
+                    onProductionStageSelected = servicesState.onProductionStageSelected,
+                    pendingOrderReviewData = salesState.pendingOrderReviewData,
+                    onPendingOrderReviewDataChange = salesState.onPendingOrderReviewDataChange,
+                    onNavigate = navigation.onNavigate,
+                    onSafeNavigate = navigation.onSafeNavigateWithAction,
+                    onPaywallRequired = navigation.onPaywallRequired,
+                    onGoBack = navigation.onGoBack,
+                    onPopToScreen = navigation.onPopToScreen,
+                    onOpenDrawer = navigation.onOpenDrawer,
+                    onOpenModulesPanel = navigation.onOpenModulesPanel,
+                    hrViewModel = viewModels.hrViewModel
+                )
+            }
 
-        "reports_sales",
-        "reports_sales_lead_master", "reports_sales_lead_source",
-        "reports_sales_lead_overdue", "reports_sales_lead_activity",
-        "reports_sales_opp_master", "reports_sales_opp_funnel", "reports_sales_opp_closing",
-        "reports_sales_cust_master", "reports_sales_cust_ltv",
-        "reports_sales_cust_credit", "reports_sales_cust_dormant",
-        "reports_sales_meas_master", "reports_sales_meas_stale",
-        "reports_sales_order_master", "reports_sales_order_stream",
-        "reports_sales_order_sla", "reports_sales_branch_wise",
-        "reports_sales_quote_master", "reports_sales_quote_discount", "reports_sales_quote_expiring",
-        "reports_marketing", "reports_finance", "reports_inventory",
-        "reports_logistics", "reports_services", "reports_human_resource",
-        "reports_hr_attendance_register", "reports_hr_payroll_run_audit",
-        "reports_hr_piece_rate_wage", "reports_hr_reimbursement_claims",
-        "reports_sec_incidents_alerts", "reports_sec_access_activity",
-        "reports_sec_api_integrations",
-        "reports_it_assets", "reports_it_service_desk",
-        "reports_it", "reports_security", "reports_legal" -> {
-            ReportsRouter(
-                screen = screen,
-                hrReportViewModel = hrReportViewModel,
-                onNavigate = navigation.onNavigate,
-                onGoBack = navigation.onGoBack,
-                onOpenModulesPanel = navigation.onOpenModulesPanel,
-                onShowComingSoon = navigation.onShowComingSoon
-            )
-        }
+            "reports_sales",
+            "reports_sales_lead_master", "reports_sales_lead_source",
+            "reports_sales_lead_overdue", "reports_sales_lead_activity",
+            "reports_sales_opp_master", "reports_sales_opp_funnel", "reports_sales_opp_closing",
+            "reports_sales_cust_master", "reports_sales_cust_ltv",
+            "reports_sales_cust_credit", "reports_sales_cust_dormant",
+            "reports_sales_meas_master", "reports_sales_meas_stale",
+            "reports_sales_order_master", "reports_sales_order_stream",
+            "reports_sales_order_sla", "reports_sales_branch_wise",
+            "reports_sales_quote_master", "reports_sales_quote_discount", "reports_sales_quote_expiring",
+            "reports_marketing", "reports_finance", "reports_inventory",
+            "reports_logistics", "reports_services", "reports_human_resource",
+            "reports_hr_attendance_register", "reports_hr_payroll_run_audit",
+            "reports_hr_piece_rate_wage", "reports_hr_reimbursement_claims",
+            "reports_sec_incidents_alerts", "reports_sec_access_activity",
+            "reports_sec_api_integrations",
+            "reports_it_assets", "reports_it_service_desk",
+            "reports_it", "reports_security", "reports_legal" -> {
+                ReportsRouter(
+                    screen = screen,
+                    permissionViewModel = viewModels.permissionViewModel,
+                    hrReportViewModel = hrReportViewModel,
+                    onNavigate = navigation.onNavigate,
+                    onSafeNavigate = navigation.onSafeNavigateWithAction,
+                    onPaywallRequired = navigation.onPaywallRequired,
+                    onGoBack = navigation.onGoBack,
+                    onOpenModulesPanel = navigation.onOpenModulesPanel,
+                    onShowComingSoon = navigation.onShowComingSoon
+                )
+            }
 
-        "it_dashboard", "it_device_management", "it_device_detail",
-        "it_pos_billing", "it_pos_billing_detail",
-        "it_integrations", "it_backup_recovery", "it_backup_recovery_detail", "it_backup_restore",
-        "it_asset_management", "it_asset_detail", "it_asset_register",
-        "it_service_desk", "it_service_desk_create", "it_service_desk_detail" -> {
-            ItRouter(
-                screen = screen,
-                selectedTicketId = itState.selectedTicketId,
-                onTicketIdSelected = itState.onTicketIdSelected,
-                selectedAssetId = itState.selectedAssetId,
-                onAssetIdSelected = itState.onAssetIdSelected,
-                selectedBackupSnapshotId = itState.selectedBackupSnapshotId,
-                onBackupSnapshotIdSelected = itState.onBackupSnapshotIdSelected,
-                selectedItDeviceId = itState.selectedItDeviceId,
-                onItDeviceIdSelected = itState.onItDeviceIdSelected,
-                selectedPosTerminalId = itState.selectedPosTerminalId,
-                onPosTerminalIdSelected = itState.onPosTerminalIdSelected,
-                onNavigate = navigation.onNavigate,
-                onGoBack = navigation.onGoBack,
-                onShowComingSoon = navigation.onShowComingSoon
-            )
-        }
+            "it_dashboard", "it_device_management", "it_device_detail",
+            "it_pos_billing", "it_pos_billing_detail",
+            "it_integrations", "it_backup_recovery", "it_backup_recovery_detail", "it_backup_restore",
+            "it_asset_management", "it_asset_detail", "it_asset_register",
+            "it_service_desk", "it_service_desk_create", "it_service_desk_detail" -> {
+                ItRouter(
+                    screen = screen,
+                    permissionViewModel = viewModels.permissionViewModel,
+                    selectedTicketId = itState.selectedTicketId,
+                    onTicketIdSelected = itState.onTicketIdSelected,
+                    selectedAssetId = itState.selectedAssetId,
+                    onAssetIdSelected = itState.onAssetIdSelected,
+                    selectedBackupSnapshotId = itState.selectedBackupSnapshotId,
+                    onBackupSnapshotIdSelected = itState.onBackupSnapshotIdSelected,
+                    selectedItDeviceId = itState.selectedItDeviceId,
+                    onItDeviceIdSelected = itState.onItDeviceIdSelected,
+                    selectedPosTerminalId = itState.selectedPosTerminalId,
+                    onPosTerminalIdSelected = itState.onPosTerminalIdSelected,
+                    onNavigate = navigation.onNavigate,
+                    onSafeNavigate = navigation.onSafeNavigateWithAction,
+                    onPaywallRequired = navigation.onPaywallRequired,
+                    onGoBack = navigation.onGoBack,
+                    onShowComingSoon = navigation.onShowComingSoon
+                )
+            }
 
-        // ── Security Module Router Dispatch ──
-        "security_dashboard", "security_users", "security_roles",
-        "security_data_backup", "security_create_backup", "security_backup_detail",
-        "security_recovery", "security_recovery_detail",
-        "security_api_integration", "security_create_api_integration", "security_api_integration_detail",
-        "security_api_logs", "security_api_log_detail",
-        "security_audit_logs", "security_audit_log_detail",
-        "security_mobile_security", "security_help_center", "security_support_ticket",
-        "security_create_support_ticket", "security_support_ticket_detail", "security_create_user" -> {
-            SecurityRouter(
-                screen = screen,
-                selectedIntegrationId = securityState.selectedIntegrationId,
-                onIntegrationIdSelected = securityState.onIntegrationIdSelected,
-                selectedBackupId = securityState.selectedBackupId,
-                onBackupIdSelected = securityState.onBackupIdSelected,
-                selectedRecoveryId = securityState.selectedRecoveryId,
-                onRecoveryIdSelected = securityState.onRecoveryIdSelected,
-                selectedApiLogId = securityState.selectedApiLogId,
-                onApiLogIdSelected = securityState.onApiLogIdSelected,
-                selectedAuditLogId = securityState.selectedAuditLogId,
-                onAuditLogIdSelected = securityState.onAuditLogIdSelected,
-                selectedSupportTicketId = securityState.selectedSupportTicketId,
-                onSupportTicketIdSelected = securityState.onSupportTicketIdSelected,
-                onNavigate = navigation.onNavigate,
-                onGoBack = navigation.onGoBack,
-                branchViewModel = viewModels.branchViewModel,
-                hrViewModel = viewModels.hrViewModel,
-                onShowComingSoon = navigation.onShowComingSoon
-            )
-        }
+            // ── Security Module Router Dispatch ──
+            "security_dashboard", "security_users", "security_roles",
+            "security_data_backup", "security_create_backup", "security_backup_detail",
+            "security_recovery", "security_recovery_detail",
+            "security_api_integration", "security_create_api_integration", "security_api_integration_detail",
+            "security_api_logs", "security_api_log_detail",
+            "security_audit_logs", "security_audit_log_detail",
+            "security_mobile_security", "security_help_center", "security_support_ticket",
+            "security_create_support_ticket", "security_support_ticket_detail", "security_create_user" -> {
+                SecurityRouter(
+                    screen = screen,
+                    selectedIntegrationId = securityState.selectedIntegrationId,
+                    onIntegrationIdSelected = securityState.onIntegrationIdSelected,
+                    selectedBackupId = securityState.selectedBackupId,
+                    onBackupIdSelected = securityState.onBackupIdSelected,
+                    selectedRecoveryId = securityState.selectedRecoveryId,
+                    onRecoveryIdSelected = securityState.onRecoveryIdSelected,
+                    selectedApiLogId = securityState.selectedApiLogId,
+                    onApiLogIdSelected = securityState.onApiLogIdSelected,
+                    selectedAuditLogId = securityState.selectedAuditLogId,
+                    onAuditLogIdSelected = securityState.onAuditLogIdSelected,
+                    selectedSupportTicketId = securityState.selectedSupportTicketId,
+                    onSupportTicketIdSelected = securityState.onSupportTicketIdSelected,
+                    onNavigate = navigation.onNavigate,
+                    onSafeNavigate = navigation.onSafeNavigateWithAction,
+                    onPaywallRequired = navigation.onPaywallRequired,
+                    onGoBack = navigation.onGoBack,
+                    branchViewModel = viewModels.branchViewModel,
+                    hrViewModel = viewModels.hrViewModel,
+                    permissionViewModel = viewModels.permissionViewModel,
+                    onShowComingSoon = navigation.onShowComingSoon
+                )
+            }
 
-        else -> {}
+            else -> {}
+        }
     }
 }
 
 @Composable
 private fun HomeAndSettingsRouter(
     screen: String,
+    permissionViewModel: PermissionViewModel,
     selectedApprovalRuleIdForEdit: String? = null,
     onApprovalRuleIdForEditSelected: (String?) -> Unit = {},
-    // 1. Added role parameters
     selectedRoleIdForEdit: String? = null,
     onRoleIdForEditSelected: (String?) -> Unit = {},
     navController: NavHostController,
@@ -1220,11 +1298,32 @@ private fun HomeAndSettingsRouter(
     authViewModel: Authenticate,
     onNavigate: (String) -> Unit,
     onSafeNavigate: (String) -> Unit,
+    onSafeNavigateWithAction: (String, PermissionAction?) -> Unit = { route, _ -> onSafeNavigate(route) },
+    onPaywallRequired: (PaywallModuleConfig) -> Unit = {},
     onGoBack: () -> Unit,
     onOpenDrawer: () -> Unit,
     onRecentCustomerIdSelected: (String?) -> Unit,
     onShowComingSoon: (String) -> Unit
 ) {
+    @Composable
+    fun HomeGuard(
+        module: String = "home",
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        content: @Composable () -> Unit
+    ) {
+        FeatureGuard(
+            module = module,
+            feature = feature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = module,
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = onGoBack,
+            content = content
+        )
+    }
+
     when (screen) {
         "home" -> HomeScreenContent(
             navController = navController,
@@ -1233,96 +1332,122 @@ private fun HomeAndSettingsRouter(
             onCustomerClick = { customerId ->
                 if (customerId.isNotBlank()) {
                     onRecentCustomerIdSelected(customerId)
-                    onNavigate("view_customer_recent")
+                    onSafeNavigate("view_customer_recent")
                 } else {
-                    onNavigate("sales_customers")
+                    onSafeNavigate("sales_customers")
                 }
             }
         )
 
-        "settings", "home_organization_profile" -> SettingsScreen(
-            navController = navController,
-            onMenuClick = onOpenDrawer,
-            onBack = onGoBack
-        )
+        "settings", "home_organization_profile" -> HomeGuard("home", "organizationProfile", PermissionAction.VIEW) {
+            SettingsScreen(
+                navController = navController,
+                onMenuClick = onOpenDrawer,
+                onBack = onGoBack
+            )
+        }
 
-        "home_branch_management" -> BranchSettingsScreen(
-            navController = navController,
-            onMenuClick = onOpenDrawer,
-            onBack = onGoBack
-        )
+        "home_branch_management" -> HomeGuard("home", "branches", PermissionAction.VIEW) {
+            BranchSettingsScreen(
+                navController = navController,
+                onMenuClick = onOpenDrawer,
+                onBack = onGoBack
+            )
+        }
 
-        "home_department_teams" -> DepartmentSettingsScreen(
-            navController = navController,
-            onMenuClick = onOpenDrawer,
-            onBack = onGoBack
-        )
+        "home_department_teams" -> HomeGuard("home", "departments", PermissionAction.VIEW) {
+            DepartmentSettingsScreen(
+                navController = navController,
+                onMenuClick = onOpenDrawer,
+                onBack = onGoBack
+            )
+        }
 
-        "home_designation" -> DesignationScreen(
-            navController = navController,
-            onMenuClick = onOpenDrawer,
-            onBack = onGoBack
-        )
+        "home_designation" -> HomeGuard("home", "designations", PermissionAction.VIEW) {
+            DesignationScreen(
+                navController = navController,
+                onMenuClick = onOpenDrawer,
+                onBack = onGoBack
+            )
+        }
 
-        "home_role_management" -> RoleSettingsScreen(
-            navController = navController,
-            onMenuClick = onOpenDrawer,
-            onBack = onGoBack,
-            onAddRoleClick = {
-                onRoleIdForEditSelected(null) // Ensures Create mode
-                onNavigate("home_create_role")
-            },
-            onEditRoleClick = { roleId ->
-                onRoleIdForEditSelected(roleId) // Passes ID for Edit mode
-                onNavigate("home_create_role")
-            }
-        )
+        "home_role_management" -> HomeGuard("security", "roles", PermissionAction.VIEW) {
+            RoleSettingsScreen(
+                navController = navController,
+                onMenuClick = onOpenDrawer,
+                onBack = onGoBack,
+                onAddRoleClick = {
+                    onRoleIdForEditSelected(null)
+                    onSafeNavigateWithAction("home_create_role", PermissionAction.CREATE)
+                },
+                onEditRoleClick = { roleId ->
+                    onRoleIdForEditSelected(roleId)
+                    onSafeNavigateWithAction("home_create_role", PermissionAction.EDIT)
+                }
+            )
+        }
 
-        // 3. Added dedicated Create / Edit Role Screen route
-        "home_create_role" -> CreateRoleScreen(
-            roleIdToEdit = selectedRoleIdForEdit,
-            onBack = {
-                onRoleIdForEditSelected(null)
-                onGoBack()
-            },
-            onRoleSaved = {
-                onRoleIdForEditSelected(null)
-                onGoBack()
-            }
-        )
+        "home_create_role" -> HomeGuard(
+            module = "security",
+            feature = "roles",
+            action = if (selectedRoleIdForEdit != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            CreateRoleScreen(
+                roleIdToEdit = selectedRoleIdForEdit,
+                onBack = {
+                    onRoleIdForEditSelected(null)
+                    onGoBack()
+                },
+                onRoleSaved = {
+                    onRoleIdForEditSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        "home_opening_balance" -> OpeningBalancesScreen(
-            navController = navController,
-            onBack = onGoBack
-        )
+        "home_opening_balance" -> HomeGuard("finance", "finChartOfAccounts", PermissionAction.VIEW) {
+            OpeningBalancesScreen(
+                navController = navController,
+                onBack = onGoBack
+            )
+        }
 
-        "home_warehouse_management" -> WarehouseSettingsScreen(
-            navController = navController,
-            onMenuClick = onOpenDrawer,
-            onBack = onGoBack
-        )
+        "home_warehouse_management" -> HomeGuard("home", "warehouse", PermissionAction.VIEW) {
+            WarehouseSettingsScreen(
+                navController = navController,
+                onMenuClick = onOpenDrawer,
+                onBack = onGoBack
+            )
+        }
 
-        // In HomeAndSettingsRouter:
-        "home_approval_rules" -> ApprovalRulesScreen(
-            navController = navController,
-            onBack = onGoBack,
-            onCreateRule = {
-                onApprovalRuleIdForEditSelected(null)
-                onNavigate("home_create_approval_rule")
-            },
-            onEditRule = { ruleId ->
-                onApprovalRuleIdForEditSelected(ruleId)
-                onNavigate("home_create_approval_rule")
-            }
-        )
+        "home_approval_rules" -> HomeGuard("home", "approvalRules", PermissionAction.VIEW) {
+            ApprovalRulesScreen(
+                navController = navController,
+                onBack = onGoBack,
+                onCreateRule = {
+                    onApprovalRuleIdForEditSelected(null)
+                    onSafeNavigateWithAction("home_create_approval_rule", PermissionAction.CREATE)
+                },
+                onEditRule = { ruleId ->
+                    onApprovalRuleIdForEditSelected(ruleId)
+                    onSafeNavigateWithAction("home_create_approval_rule", PermissionAction.EDIT)
+                }
+            )
+        }
 
-        "home_create_approval_rule" -> CreateEditApprovalRuleScreen(
-            ruleId = selectedApprovalRuleIdForEdit,
-            onClose = {
-                onApprovalRuleIdForEditSelected(null)
-                onGoBack()
-            }
-        )
+        "home_create_approval_rule" -> HomeGuard(
+            module = "home",
+            feature = "approvalRules",
+            action = if (selectedApprovalRuleIdForEdit != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            CreateEditApprovalRuleScreen(
+                ruleId = selectedApprovalRuleIdForEdit,
+                onClose = {
+                    onApprovalRuleIdForEditSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
         "profile-settings" -> ProfileSettingsScreen(
             onClose = onGoBack,
@@ -1435,157 +1560,213 @@ private fun HomeAndSettingsRouter(
 @Composable
 private fun InventoryStructureRouter(
     screen: String,
+    permissionViewModel: PermissionViewModel,
     settingsViewModel: SettingsViewModel,
     onNavigate: (String) -> Unit,
+    onSafeNavigate: (String, PermissionAction?) -> Unit,
+    onPaywallRequired: (PaywallModuleConfig) -> Unit,
     onGoBack: () -> Unit,
     onShowComingSoon: (String) -> Unit
 ) {
+    @Composable
+    fun StructureGuard(
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        content: @Composable () -> Unit
+    ) {
+        FeatureGuard(
+            module = "inventory",
+            feature = feature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = "inventory",
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = onGoBack,
+            content = content
+        )
+    }
+
     when (screen) {
-        "inventory_allocation_rules" -> AllocationRulesScreen(
-            onClose = onGoBack,
-            onAddNewClick = { onNavigate("inventory_create_allocation") }
-        )
+        "inventory_allocation_rules" -> StructureGuard("warehouseStructure", PermissionAction.VIEW) {
+            AllocationRulesScreen(
+                onClose = onGoBack,
+                onAddNewClick = { onSafeNavigate("inventory_create_allocation", PermissionAction.CREATE) }
+            )
+        }
 
-        "inventory_create_allocation" -> CreateAllocationScreen(
-            onClose = onGoBack,
-            onSaveRule = onGoBack
-        )
+        "inventory_create_allocation" -> StructureGuard("warehouseStructure", PermissionAction.CREATE) {
+            CreateAllocationScreen(
+                onClose = onGoBack,
+                onSaveRule = onGoBack
+            )
+        }
 
-        "inventory_pdf_templates" -> PdfTemplatesScreen(
-            onClose = onGoBack,
-            onCreateNewTemplate = { onShowComingSoon("Create Template Coming Soon") }
-        )
+        "inventory_pdf_templates" -> StructureGuard("pdftemp", PermissionAction.VIEW) {
+            PdfTemplatesScreen(
+                onClose = onGoBack,
+                onCreateNewTemplate = { onShowComingSoon("Create Template Coming Soon") }
+            )
+        }
 
-        "inventory_auto_reorder_settings" -> AutoReorderSettingsScreen(
-            onClose = onGoBack
-        )
+        "inventory_auto_reorder_settings" -> StructureGuard("autoReorderSettings", PermissionAction.VIEW) {
+            AutoReorderSettingsScreen(
+                onClose = onGoBack
+            )
+        }
 
-        "inventory_location_structure" -> LocationStructureScreen(
-            onClose = onGoBack,
-            onAddFloor = { onNavigate("inventory_add_floor") },
-            onFloorClick = { onNavigate("inventory_floor_overview") }
-        )
+        "inventory_location_structure" -> StructureGuard("warehouseStructure", PermissionAction.VIEW) {
+            LocationStructureScreen(
+                onClose = onGoBack,
+                onAddFloor = { onSafeNavigate("inventory_add_floor", PermissionAction.CREATE) },
+                onFloorClick = { onSafeNavigate("inventory_floor_overview", PermissionAction.VIEW) }
+            )
+        }
 
-        // Floor Overview -> FAB navigates to Add Section Screen
-        "inventory_floor_overview" -> FloorOverviewScreen(
-            viewModel = settingsViewModel,
-            onClose = onGoBack,
-            onAddSection = {
-                settingsViewModel.clearSelectedSectionForEdit()
-                onNavigate("inventory_add_section")
-            },
-            onEditFloor = { floor ->
-                settingsViewModel.setSelectedFloorForEdit(floor)
-                onNavigate("inventory_add_floor")
-            }
-        )
+        "inventory_floor_overview" -> StructureGuard("warehouseStructure", PermissionAction.VIEW) {
+            FloorOverviewScreen(
+                viewModel = settingsViewModel,
+                onClose = onGoBack,
+                onAddSection = {
+                    settingsViewModel.clearSelectedSectionForEdit()
+                    onSafeNavigate("inventory_add_section", PermissionAction.CREATE)
+                },
+                onEditFloor = { floor ->
+                    settingsViewModel.setSelectedFloorForEdit(floor)
+                    onSafeNavigate("inventory_add_floor", PermissionAction.EDIT)
+                }
+            )
+        }
 
         "inventory_add_floor" -> {
             val selectedFloor by settingsViewModel.selectedFloorForEdit.collectAsStateWithLifecycle()
-            AddFloorScreen(
-                floorItem = selectedFloor,
+            StructureGuard(
+                feature = "warehouseStructure",
+                action = if (selectedFloor != null) PermissionAction.EDIT else PermissionAction.CREATE
+            ) {
+                AddFloorScreen(
+                    floorItem = selectedFloor,
+                    viewModel = settingsViewModel,
+                    onClose = {
+                        settingsViewModel.clearSelectedFloorForEdit()
+                        onGoBack()
+                    },
+                    onSave = {
+                        settingsViewModel.clearSelectedFloorForEdit()
+                        onGoBack()
+                    }
+                )
+            }
+        }
+
+        "inventory_section_overview" -> StructureGuard("warehouseStructure", PermissionAction.VIEW) {
+            SectionOverviewScreen(
                 viewModel = settingsViewModel,
-                onClose = {
-                    settingsViewModel.clearSelectedFloorForEdit()
-                    onGoBack()
+                onClose = onGoBack,
+                onAddRack = {
+                    settingsViewModel.clearSelectedRackForEdit()
+                    onSafeNavigate("inventory_add_rack", PermissionAction.CREATE)
                 },
-                onSave = {
-                    settingsViewModel.clearSelectedFloorForEdit()
-                    onGoBack()
+                onEditSection = { section ->
+                    settingsViewModel.setSelectedSectionForEdit(section)
+                    onSafeNavigate("inventory_add_section", PermissionAction.EDIT)
                 }
             )
         }
-
-        // Section Overview -> FAB navigates to Add Rack Screen
-        "inventory_section_overview" -> SectionOverviewScreen(
-            viewModel = settingsViewModel,
-            onClose = onGoBack,
-            onAddRack = {
-                settingsViewModel.clearSelectedRackForEdit()
-                onNavigate("inventory_add_rack")
-            },
-            onEditSection = { section ->
-                settingsViewModel.setSelectedSectionForEdit(section)
-                onNavigate("inventory_add_section")
-            }
-        )
 
         "inventory_add_section" -> {
             val selectedSection by settingsViewModel.selectedSectionForEdit.collectAsStateWithLifecycle()
-            AddSectionScreen(
-                sectionItem = selectedSection,
+            StructureGuard(
+                feature = "warehouseStructure",
+                action = if (selectedSection != null) PermissionAction.EDIT else PermissionAction.CREATE
+            ) {
+                AddSectionScreen(
+                    sectionItem = selectedSection,
+                    viewModel = settingsViewModel,
+                    onClose = {
+                        settingsViewModel.clearSelectedSectionForEdit()
+                        onGoBack()
+                    },
+                    onSave = {
+                        settingsViewModel.clearSelectedSectionForEdit()
+                        onGoBack()
+                    }
+                )
+            }
+        }
+
+        "inventory_rack_overview" -> StructureGuard("warehouseStructure", PermissionAction.VIEW) {
+            RackOverviewScreen(
                 viewModel = settingsViewModel,
-                onClose = {
-                    settingsViewModel.clearSelectedSectionForEdit()
-                    onGoBack()
+                onClose = onGoBack,
+                onAddBin = {
+                    settingsViewModel.clearSelectedBinForEdit()
+                    onSafeNavigate("inventory_add_bin", PermissionAction.CREATE)
                 },
-                onSave = {
-                    settingsViewModel.clearSelectedSectionForEdit()
-                    onGoBack()
+                onEditRack = { rack ->
+                    settingsViewModel.setSelectedRackForEdit(rack)
+                    onSafeNavigate("inventory_add_rack", PermissionAction.EDIT)
                 }
             )
         }
-
-        // Rack Overview -> FAB navigates to Add Bin Screen
-        "inventory_rack_overview" -> RackOverviewScreen(
-            viewModel = settingsViewModel,
-            onClose = onGoBack,
-            onAddBin = {
-                settingsViewModel.clearSelectedBinForEdit()
-                onNavigate("inventory_add_bin")
-            },
-            onEditRack = { rack ->
-                settingsViewModel.setSelectedRackForEdit(rack)
-                onNavigate("inventory_add_rack")
-            }
-        )
 
         "inventory_add_rack" -> {
             val selectedRack by settingsViewModel.selectedRackForEdit.collectAsStateWithLifecycle()
-            AddRackScreen(
-                rackItem = selectedRack,
+            StructureGuard(
+                feature = "warehouseStructure",
+                action = if (selectedRack != null) PermissionAction.EDIT else PermissionAction.CREATE
+            ) {
+                AddRackScreen(
+                    rackItem = selectedRack,
+                    viewModel = settingsViewModel,
+                    onClose = {
+                        settingsViewModel.clearSelectedRackForEdit()
+                        onGoBack()
+                    },
+                    onSave = {
+                        settingsViewModel.clearSelectedRackForEdit()
+                        onGoBack()
+                    }
+                )
+            }
+        }
+
+        "inventory_bin_overview" -> StructureGuard("warehouseStructure", PermissionAction.VIEW) {
+            BinOverviewScreen(
                 viewModel = settingsViewModel,
-                onClose = {
-                    settingsViewModel.clearSelectedRackForEdit()
-                    onGoBack()
-                },
-                onSave = {
-                    settingsViewModel.clearSelectedRackForEdit()
-                    onGoBack()
+                onClose = onGoBack,
+                onEditBin = { bin ->
+                    settingsViewModel.setSelectedBinForEdit(bin)
+                    onSafeNavigate("inventory_add_bin", PermissionAction.EDIT)
                 }
             )
         }
 
-        // Bin Overview -> Displays bins only, no Add button
-        "inventory_bin_overview" -> BinOverviewScreen(
-            viewModel = settingsViewModel,
-            onClose = onGoBack,
-            onEditBin = { bin ->
-                settingsViewModel.setSelectedBinForEdit(bin)
-                onNavigate("inventory_add_bin")
-            }
-        )
-
         "inventory_add_bin" -> {
             val selectedBin by settingsViewModel.selectedBinForEdit.collectAsStateWithLifecycle()
-            AddBinScreen(
-                binItem = selectedBin,
-                viewModel = settingsViewModel,
-                onClose = {
-                    settingsViewModel.clearSelectedBinForEdit()
-                    onGoBack()
-                },
-                onSave = {
-                    settingsViewModel.clearSelectedBinForEdit()
-                    onGoBack()
-                }
-            )
+            StructureGuard(
+                feature = "warehouseStructure",
+                action = if (selectedBin != null) PermissionAction.EDIT else PermissionAction.CREATE
+            ) {
+                AddBinScreen(
+                    binItem = selectedBin,
+                    viewModel = settingsViewModel,
+                    onClose = {
+                        settingsViewModel.clearSelectedBinForEdit()
+                        onGoBack()
+                    },
+                    onSave = {
+                        settingsViewModel.clearSelectedBinForEdit()
+                        onGoBack()
+                    }
+                )
+            }
         }
     }
 }
 @Composable
 private fun SalesRouter(
     screen: String,
+    permissionViewModel: PermissionViewModel,
     isOrderFromFinance: Boolean,
     onOrderFromFinanceChange: (Boolean) -> Unit,
     prefillOrderForInvoice: OrderOverviewData?,
@@ -1616,6 +1797,8 @@ private fun SalesRouter(
     onOrderFlowOriginChange: (String?) -> Unit,
     onOrderSavedSuccessfully: (savedOrderId: String?) -> Unit,
     onNavigate: (String) -> Unit,
+    onSafeNavigate: (String, PermissionAction?) -> Unit,
+    onPaywallRequired: (PaywallModuleConfig) -> Unit,
     onGoBack: () -> Unit,
     onOpenDrawer: () -> Unit,
     onOpenModulesPanel: (String) -> Unit,
@@ -1659,134 +1842,180 @@ private fun SalesRouter(
         }
     }
 
+    @Composable
+    fun SalesGuard(
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        content: @Composable () -> Unit
+    ) {
+        FeatureGuard(
+            module = "sales",
+            feature = feature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = "sales",
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = onGoBack,
+            content = content
+        )
+    }
+
     when (screen) {
-        // Sales Dashboard Screen Route
-        "sales_dashboard" -> SalesDashboardScreen(
-            onClose = onGoBack,
-            onNavigateToOrders = { onNavigate("sales_sales_orders") },
-            onNavigateToQuotations = { onNavigate("sales_pricing_quotation") },
-            onNavigateToCustomers = { onNavigate("sales_customers") },
-            onNavigateToLeads = { onNavigate("sales_lead") },
-            onNavigateToPipeline = { onNavigate("sales_opportunity_pipeline") }
-        )
+        // 1. Dashboard (catalog key: "dashboard") - Action: VIEW
+        "sales_dashboard" -> SalesGuard("dashboard", PermissionAction.VIEW) {
+            SalesDashboardScreen(
+                onClose = onGoBack,
+                onNavigateToOrders = { onSafeNavigate("sales_sales_orders", PermissionAction.VIEW) },
+                onNavigateToQuotations = { onSafeNavigate("sales_pricing_quotation", PermissionAction.VIEW) },
+                onNavigateToCustomers = { onSafeNavigate("sales_customers", PermissionAction.VIEW) },
+                onNavigateToLeads = { onSafeNavigate("sales_lead", PermissionAction.VIEW) },
+                onNavigateToPipeline = { onSafeNavigate("sales_opportunity_pipeline", PermissionAction.VIEW) }
+            )
+        }
 
-        "sales_lead" -> LeadScreenContent(
-            onCreateLead = { onNavigate("create_lead") },
-            onViewLead = { onNavigate("view_lead") },
-            onEditLead = { onNavigate("edit_lead") },
-            onClose = {
-                onSalesSettingsModeChange(false)
-                onGoBack()
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Sales") }
-        )
+        // 2. Lead Management (catalog key: "leadManagement") - Actions: VIEW, CREATE, EDIT
+        "sales_lead" -> SalesGuard("leadManagement", PermissionAction.VIEW) {
+            LeadScreenContent(
+                onCreateLead = { onSafeNavigate("create_lead", PermissionAction.CREATE) },
+                onViewLead = { onSafeNavigate("view_lead", PermissionAction.VIEW) },
+                onEditLead = { onSafeNavigate("edit_lead", PermissionAction.EDIT) },
+                onClose = {
+                    onSalesSettingsModeChange(false)
+                    onGoBack()
+                },
+                onBreadCrumbClick = { onOpenModulesPanel("Sales") }
+            )
+        }
 
-        "create_lead" -> LeadFormScreen(
-            mode = LeadFormMode.CREATE,
-            onBack = onGoBack
-        )
+        "create_lead" -> SalesGuard("leadManagement", PermissionAction.CREATE) {
+            LeadFormScreen(
+                mode = LeadFormMode.CREATE,
+                onBack = onGoBack
+            )
+        }
 
-        "view_lead" -> LeadFormScreen(
-            mode = LeadFormMode.VIEW,
-            onBack = onGoBack,
-            onEditRequested = { onNavigate("edit_lead") },
-            onConvertToOpportunity = { onNavigate("convert_lead_to_opportunity") }
-        )
+        "view_lead" -> SalesGuard("leadManagement", PermissionAction.VIEW) {
+            LeadFormScreen(
+                mode = LeadFormMode.VIEW,
+                onBack = onGoBack,
+                onEditRequested = { onSafeNavigate("edit_lead", PermissionAction.EDIT) },
+                onConvertToOpportunity = { onSafeNavigate("convert_lead_to_opportunity", PermissionAction.CREATE) }
+            )
+        }
 
-//        "convert_lead_to_opportunity" -> ConvertLeadToOpportunityScreen(
-//            onClose = onGoBack,
-//            onConversionSuccess = onGoBack
-//        )
+        "edit_lead" -> SalesGuard("leadManagement", PermissionAction.EDIT) {
+            LeadFormScreen(
+                mode = LeadFormMode.EDIT,
+                onBack = onGoBack,
+                onConvertToOrder = { orderReviewData ->
+                    if (permissionViewModel.canUserAction("sales", "orders", PermissionAction.CREATE)) {
+                        onPendingOrderReviewDataChange(orderReviewData)
+                        onOrderFlowOriginChange("lead")
+                        onNavigate("create_order")
+                    } else {
+                        onSafeNavigate("create_order", PermissionAction.CREATE)
+                    }
+                }
+            )
+        }
 
-        "edit_lead" -> LeadFormScreen(
-            mode = LeadFormMode.EDIT,
-            onBack = onGoBack,
-            onConvertToOrder = { orderReviewData ->
-                onPendingOrderReviewDataChange(orderReviewData)
-                onOrderFlowOriginChange("lead")
-                onNavigate("create_order")
-            }
-        )
+        // 3. Opportunities Management (catalog key: "opportunities") - Actions: VIEW, CREATE, EDIT
+        "sales_opportunity_pipeline" -> SalesGuard("opportunities", PermissionAction.VIEW) {
+            OpportunityPipelineScreen(
+                onClose = onGoBack,
+                onCreateLead = { onSafeNavigate("create_lead", PermissionAction.CREATE) },
+                onAddDeal = {
+                    onOpportunityIdSelected(null)
+                    onSafeNavigate("create_opportunity", PermissionAction.CREATE)
+                },
+                onClearAll = { }
+            )
+        }
 
-        // 1. Opportunity Pipeline Screen
-        "sales_opportunity_pipeline" -> OpportunityPipelineScreen(
-            onClose = onGoBack,
-            onCreateLead = { onNavigate("create_lead") },
-            onAddDeal = {
-                onOpportunityIdSelected(null)
-                onNavigate("create_opportunity")
-            },
-            onClearAll = { }
-        )
+        "convert_lead_to_opportunity" -> SalesGuard("leadManagement", PermissionAction.EDIT) {
+            ConvertLeadToOpportunityScreen(
+                onClose = onGoBack,
+                onConversionSuccess = {
+                    onGoBack()
+                }
+            )
+        }
 
-        // 2. Convert Lead to Opportunity Screen (Standalone Page)
-        "convert_lead_to_opportunity" -> ConvertLeadToOpportunityScreen(
-            onClose = onGoBack,
-            onConversionSuccess = {
-                onGoBack()
-            }
-        )
+        "sales_opportunities" -> SalesGuard("opportunities", PermissionAction.VIEW) {
+            OpportunitiesListScreen(
+                onClose = onGoBack,
+                onAddDeal = {
+                    onOpportunityIdSelected(null)
+                    onSafeNavigate("create_opportunity", PermissionAction.CREATE)
+                },
+                onViewOpportunity = { item ->
+                    onOpportunityIdSelected(item.id)
+                    onSafeNavigate("opportunity_detail", PermissionAction.VIEW)
+                },
+                onEditOpportunity = { item ->
+                    onOpportunityIdSelected(item.id)
+                    onSafeNavigate("create_opportunity", PermissionAction.EDIT)
+                }
+            )
+        }
 
-        // 3. Opportunities List Screen
-        "sales_opportunities" -> OpportunitiesListScreen(
-            onClose = onGoBack,
-            onAddDeal = {
-                onOpportunityIdSelected(null)
-                onNavigate("create_opportunity")
-            },
-            onViewOpportunity = { item ->
-                onOpportunityIdSelected(item.id)
-                onNavigate("opportunity_detail")
-            },
-            onEditOpportunity = { item ->
-                onOpportunityIdSelected(item.id)
-                onNavigate("create_opportunity")
-            }
-        )
+        "create_opportunity" -> SalesGuard(
+            feature = "opportunities",
+            action = if (selectedOpportunityId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            CreateOpportunityScreen(
+                opportunityId = selectedOpportunityId,
+                onClose = {
+                    onOpportunityIdSelected(null)
+                    onGoBack()
+                },
+                onSubmit = {
+                    onOpportunityIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        // 4. Create Opportunity Screen
-        "create_opportunity" -> CreateOpportunityScreen(
-            opportunityId = selectedOpportunityId,
-            onClose = {
-                onOpportunityIdSelected(null)
-                onGoBack()
-            },
-            onSubmit = {
-                onOpportunityIdSelected(null)
-                onGoBack()
-            }
-        )
+        "opportunity_detail" -> SalesGuard("opportunities", PermissionAction.VIEW) {
+            OpportunityDetailScreen(
+                opportunityId = selectedOpportunityId.orEmpty(),
+                onClose = {
+                    onOpportunityIdSelected(null)
+                    onGoBack()
+                },
+                onEdit = {
+                    onSafeNavigate("create_opportunity", PermissionAction.EDIT)
+                },
+                onConvertToOrder = { onSafeNavigate("create_order", PermissionAction.CREATE) }
+            )
+        }
 
-        // 5. Opportunity Detail Screen
-        "opportunity_detail" -> OpportunityDetailScreen(
-            opportunityId = selectedOpportunityId.orEmpty(),
-            onClose = {
-                onOpportunityIdSelected(null)
-                onGoBack()
-            },
-            onEdit = {
-                onNavigate("create_opportunity")
-            },
-            onConvertToOrder = { onNavigate("create_order") }
-        )
+        // 4. Customer Management (catalog key: "customers") - Actions: VIEW, CREATE, EDIT, DELETE
+        "sales_customers" -> SalesGuard("customers", PermissionAction.VIEW) {
+            CustomerScreen(
+                navController = navController,
+                onClose = onGoBack,
+                onCreateCustomer = { onSafeNavigate("create_customer", PermissionAction.CREATE) },
+                onView = { customer ->
+                    onCustomerSelected(customer)
+                    onSafeNavigate("view_customer", PermissionAction.VIEW)
+                },
+                onEdit = { customer ->
+                    onCustomerSelected(customer)
+                    onSafeNavigate("edit_customer", PermissionAction.EDIT)
+                },
+                onDelete = { customer ->
+                    if (permissionViewModel.canUserAction("sales", "customers", PermissionAction.DELETE)) {
+                        customerViewModel.deleteCustomer(customer.id)
+                    } else {
+                        onSafeNavigate("sales_customers", PermissionAction.DELETE)
+                    }
+                },
+                onBreadCrumbClick = { onOpenModulesPanel("Sales") }
+            )
+        }
 
-        "sales_customers" -> CustomerScreen(
-            navController = navController,
-            onClose = onGoBack,
-            onCreateCustomer = { onNavigate("create_customer") },
-            onView = { customer ->
-                onCustomerSelected(customer)
-                onNavigate("view_customer")
-            },
-            onEdit = { customer ->
-                onCustomerSelected(customer)
-                onNavigate("edit_customer")
-            },
-            onDelete = { customer -> customerViewModel.deleteCustomer(customer.id) },
-            onBreadCrumbClick = { onOpenModulesPanel("Sales") }
-        )
-
-        "create_customer" -> {
+        "create_customer" -> SalesGuard("customers", PermissionAction.CREATE) {
             CustomerDetailScreen(
                 navController = navController,
                 customerId = "",
@@ -1800,7 +2029,10 @@ private fun SalesRouter(
             )
         }
 
-        "view_customer", "edit_customer" -> {
+        "view_customer", "edit_customer" -> SalesGuard(
+            feature = "customers",
+            action = if (screen == "edit_customer") PermissionAction.EDIT else PermissionAction.VIEW
+        ) {
             if (selectedCustomer != null && selectedCustomer.id.isNotBlank()) {
                 CustomerDetailScreen(
                     navController = navController,
@@ -1812,14 +2044,14 @@ private fun SalesRouter(
                         customerViewModel.refresh()
                         onGoBack()
                     },
-                    onRequestEdit = { onNavigate("edit_customer") }
+                    onRequestEdit = { onSafeNavigate("edit_customer", PermissionAction.EDIT) }
                 )
             } else {
                 onGoBack()
             }
         }
 
-        "view_customer_recent" -> {
+        "view_customer_recent" -> SalesGuard("customers", PermissionAction.VIEW) {
             if (!selectedRecentCustomerId.isNullOrBlank()) {
                 CustomerDetailScreen(
                     navController = navController,
@@ -1834,28 +2066,33 @@ private fun SalesRouter(
                         onRecentCustomerIdSelected(null)
                         onGoBack()
                     },
-                    onRequestEdit = { onNavigate("edit_customer") }
+                    onRequestEdit = { onSafeNavigate("edit_customer", PermissionAction.EDIT) }
                 )
             } else {
                 onGoBack()
             }
         }
 
-        "sales_measurements" -> MeasurementsScreen(
-            navController = navController,
-            onBack = onGoBack,
-            onCreateMeasurement = {
-                onNavigate("measurement_entry")
-            },
-            onViewMeasurement = { item ->
-                //  Check if customerId exists in clicked item
-                Log.d("MEASUREMENT_DEBUG", "STEP 1: Clicked Measurement Card -> id='${item.id}', customerId='${item.customerId}', customerName='${item.customerName}'")
-                onMeasurementItemSelected(item)
-                onNavigate("measurements_available_view")
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Sales") }
-        )
-        "measurement_entry" -> {
+        // 5. Measurements (catalog key: "measurements") - Action: VIEW
+        "sales_measurements" -> SalesGuard("measurements", PermissionAction.VIEW) {
+            MeasurementsScreen(
+                navController = navController,
+                onBack = onGoBack,
+                onCreateMeasurement = {
+                    onSafeNavigate("measurement_entry", PermissionAction.CREATE)
+                },
+                onViewMeasurement = { item ->
+                    onMeasurementItemSelected(item)
+                    onSafeNavigate("measurements_available_view", PermissionAction.VIEW)
+                },
+                onBreadCrumbClick = { onOpenModulesPanel("Sales") }
+            )
+        }
+
+        "measurement_entry" -> SalesGuard(
+            feature = if (pendingOrderReviewData != null) "orders" else "measurements",
+            action = if (pendingOrderReviewData != null) PermissionAction.CREATE else PermissionAction.VIEW
+        ) {
             val draft = OrderFlowStore.draft
             val garmentItems = draft?.items?.filterIsInstance<DynamicGarmentItem>().orEmpty()
 
@@ -1892,71 +2129,88 @@ private fun SalesRouter(
             }
         }
 
-        "measurements_available_view" -> {
-            //  Check if customerId is being passed into the dialog
-            Log.d("MEASUREMENT_DEBUG", "STEP 2: Router navigating to measurements_available_view -> customerId='${selectedMeasurementItem?.customerId}'")
+        "measurements_available_view" -> SalesGuard("measurements", PermissionAction.VIEW) {
             MeasurementsAvailableDialog(
                 customerId = selectedMeasurementItem?.customerId,
-                onGarmentSelected = { preset ->
-                    onNavigate("measurement_management_view")
+                onGarmentSelected = {
+                    onSafeNavigate("measurement_management_view", PermissionAction.VIEW)
                 },
                 onAddNew = {
-                    onNavigate("measurement_management_view")
+                    onSafeNavigate("measurement_management_view", PermissionAction.VIEW)
                 },
                 onClose = onGoBack
             )
         }
 
-        "measurement_management_view" -> {
+        "measurement_management_view" -> SalesGuard("measurements", PermissionAction.VIEW) {
             MeasurementManagementScreen(
                 customerName = selectedMeasurementItem?.customerName ?: "Hameed Rahman",
                 phone = selectedMeasurementItem?.contact ?: "+1 (555) 123-4567",
                 lastOrderDate = selectedMeasurementItem?.measuredDate ?: "Dec 20, 2025",
-                onAddField = { onNavigate("measurement_fields_config") },
+                onAddField = { onSafeNavigate("measurement_fields_config", PermissionAction.EDIT) },
                 onClose = onGoBack
             )
         }
 
-        "measurement_fields_config" -> {
+        "measurement_fields_config" -> SalesGuard("measurements", PermissionAction.VIEW) {
             MeasurementFieldsConfigScreen(
-                onAddNewCategory = { onNavigate("sales_add_garment_category") },
+                onAddNewCategory = { onSafeNavigate("sales_add_garment_category", PermissionAction.CREATE) },
                 onClose = onGoBack
             )
         }
 
-        "sales_sales_orders" -> SalesOrderScreen(
-            navController = navController,
-            onMenuClick = onOpenDrawer,
-            onBack = onGoBack,
-            onCreateOrder = {
-                onPendingOrderReviewDataChange(null)
-                onNavigate("create_order")
-            },
-            onViewOrder = { orderId ->
-                onOrderIdSelected(orderId)
-                onNavigate("order_overview")
-            },
-            onEditOrder = { orderId -> onEditOrderIdChange(orderId) },
-            onBreadCrumbClick = { onOpenModulesPanel("Sales") }
-        )
+        // 6. Sales Orders (catalog key: "orders") - Actions: VIEW, CREATE, EDIT
+        "sales_sales_orders" -> SalesGuard("orders", PermissionAction.VIEW) {
+            SalesOrderScreen(
+                navController = navController,
+                onMenuClick = onOpenDrawer,
+                onBack = onGoBack,
+                onCreateOrder = {
+                    onPendingOrderReviewDataChange(null)
+                    onSafeNavigate("create_order", PermissionAction.CREATE)
+                },
+                onViewOrder = { orderId ->
+                    onOrderIdSelected(orderId)
+                    onSafeNavigate("order_overview", PermissionAction.VIEW)
+                },
+                onEditOrder = { orderId ->
+                    if (permissionViewModel.canUserAction("sales", "orders", PermissionAction.EDIT)) {
+                        onEditOrderIdChange(orderId)
+                    } else {
+                        onSafeNavigate("create_order", PermissionAction.EDIT)
+                    }
+                },
+                onBreadCrumbClick = { onOpenModulesPanel("Sales") }
+            )
+        }
 
-        "create_order" -> CreateOrderScreen(
-            initialData = pendingOrderReviewData,
-            onBack = {
-                onPendingOrderReviewDataChange(null)
-                onGoBack()
-            },
-            onCancel = {
-                onPendingOrderReviewDataChange(null)
-                onGoBack()
-            },
-            onNextStep = { orderReviewData ->
-                onPendingOrderReviewDataChange(orderReviewData)
-                measurementIndex = 0
-                onNavigate("measurement_entry")
+        "create_order" -> SalesGuard(
+            feature = "orders",
+            action = if (pendingOrderReviewData?.orderId != null || pendingOrderReviewData?.editOrderId != null) {
+                PermissionAction.EDIT
+            } else {
+                PermissionAction.CREATE
             }
-        )
-        "order_preview" -> {
+        ) {
+            CreateOrderScreen(
+                initialData = pendingOrderReviewData,
+                onBack = {
+                    onPendingOrderReviewDataChange(null)
+                    onGoBack()
+                },
+                onCancel = {
+                    onPendingOrderReviewDataChange(null)
+                    onGoBack()
+                },
+                onNextStep = { orderReviewData ->
+                    onPendingOrderReviewDataChange(orderReviewData)
+                    measurementIndex = 0
+                    onNavigate("measurement_entry")
+                }
+            )
+        }
+
+        "order_preview" -> SalesGuard("orders", PermissionAction.CREATE) {
             pendingOrderReviewData?.let { data ->
                 OrderPreviewScreen(
                     orderData = data,
@@ -1970,7 +2224,7 @@ private fun SalesRouter(
                         } else if (orderActionState is OrderActionState.Loading ||
                             updateOrderState is UpdateOrderState.Loading
                         ) {
-                            // double tap block
+                            // Block duplicate submission while loading
                         } else {
                             val built = buildCreateOrderFields(
                                 draft = draft,
@@ -1990,7 +2244,7 @@ private fun SalesRouter(
                                     uriToMultipartPart(context, uri, "attachments")
                                 }
 
-                                // If orderId is the 24-character MongoDB hex ID, use it:
+                                // Resolve MongoDB ID when editing an existing order
                                 val editId = when {
                                     !data.orderId.isNullOrBlank() && !data.orderId.startsWith("ORD") -> data.orderId
                                     !data.editOrderId.isNullOrBlank() && !data.editOrderId.startsWith("ORD") -> data.editOrderId
@@ -1998,7 +2252,6 @@ private fun SalesRouter(
                                 }
 
                                 if (!editId.isNullOrBlank()) {
-                                    // EDIT MODE: same payload, update API
                                     salesOrderViewModel.updateOrder(
                                         orderId = editId,
                                         fields = built.fields,
@@ -2007,7 +2260,6 @@ private fun SalesRouter(
                                         voiceNotePart = null
                                     )
                                 } else {
-                                    // CREATE MODE
                                     salesOrderViewModel.createSalesOrder(
                                         fields = built.fields,
                                         imageParts = binaryImageParts,
@@ -2027,175 +2279,189 @@ private fun SalesRouter(
                     onCancel = {
                         OrderFlowStore.clear()
                         measurementIndex = 0
-//                        onPendingOrderReviewDataChange(null)
                         onNavigate("sales_sales_orders")
                     }
                 )
             } ?: run { onGoBack() }
         }
-//        "create_order_review" -> {
-//            pendingOrderReviewData?.let { data ->
-//                CreateOrderNextStep(
-//                    orderData = data,
-//                    onBack = { updatedData ->
-//                        onPendingOrderReviewDataChange(updatedData)
-//                        onGoBack()
-//                    },
-//                    onClose = onGoBack,
-//                    onSaveOrder = { _, savedOrderId ->
-//                        onOrderSavedSuccessfully(savedOrderId)
-//                    }
-//                )
-//            } ?: run { onGoBack() }
-//        }
 
-        "order_overview" -> {
+        "order_overview" -> SalesGuard("orders", PermissionAction.VIEW) {
             selectedOrderId?.let { id ->
                 OrderOverviewScreen(
                     orderId = id,
-                    showConvertToInvoice = isOrderFromFinance, // Visible only when coming from Finance module
+                    showConvertToInvoice = isOrderFromFinance,
                     onConvertToInvoice = { orderData ->
-                        onPrefillOrderForInvoiceChange(orderData) // Store order data for invoice form
-                        onNavigate("finance_create_sales_invoice") // Navigate to Create Invoice screen
+                        onPrefillOrderForInvoiceChange(orderData)
+                        onSafeNavigate("finance_create_sales_invoice", PermissionAction.CREATE)
                     },
                     onClose = {
                         onOrderFromFinanceChange(false)
                         onGoBack()
                     },
                     onEditOrder = { reviewData ->
-                        onEditOrderIdChange(id)
-                        onPendingOrderReviewDataChange(reviewData)
-                        onNavigate("create_order")
+                        if (permissionViewModel.canUserAction("sales", "orders", PermissionAction.EDIT)) {
+                            onEditOrderIdChange(id)
+                            onPendingOrderReviewDataChange(reviewData)
+                            onNavigate("create_order")
+                        } else {
+                            onSafeNavigate("create_order", PermissionAction.EDIT)
+                        }
                     },
                     onCreateNew = {
                         onEditOrderIdChange(null)
                         onPendingOrderReviewDataChange(null)
-                        onNavigate("create_order")
+                        onSafeNavigate("create_order", PermissionAction.CREATE)
                     }
                 )
             } ?: run { onGoBack() }
         }
 
-        "sales_pricing_overview" -> PricingScreen(
-            onClose = {
-                onSalesSettingsModeChange(false)
-                onGoBack()
-            },
-            onAddNewPricing = {
-                onEditingPricingIdChange(null)
-                onNavigate("create_garment_pricing")
-            },
-            onCardClick = { pricingId ->
-                onEditingPricingIdChange(pricingId)
-                onNavigate("create_garment_pricing")
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Sales") }
-        )
+        // 7. Pricing & Quotations (catalog key: "pricingQuotes") - Actions: VIEW, CREATE, EDIT
+        "sales_pricing_overview" -> SalesGuard("pricingQuotes", PermissionAction.VIEW) {
+            PricingScreen(
+                onClose = {
+                    onSalesSettingsModeChange(false)
+                    onGoBack()
+                },
+                onAddNewPricing = {
+                    onEditingPricingIdChange(null)
+                    onSafeNavigate("create_garment_pricing", PermissionAction.CREATE)
+                },
+                onCardClick = { pricingId ->
+                    onEditingPricingIdChange(pricingId)
+                    onSafeNavigate("create_garment_pricing", PermissionAction.EDIT)
+                },
+                onBreadCrumbClick = { onOpenModulesPanel("Sales") }
+            )
+        }
 
-        "garment_pricing_list" -> GarmentPricingListScreen(
-            onBack = onGoBack,
-            onAddNewPricing = {
-                onEditingPricingIdChange(null)
-                onNavigate("create_garment_pricing")
-            }
-        )
+        "garment_pricing_list" -> SalesGuard("pricingQuotes", PermissionAction.VIEW) {
+            GarmentPricingListScreen(
+                onBack = onGoBack,
+                onAddNewPricing = {
+                    onEditingPricingIdChange(null)
+                    onSafeNavigate("create_garment_pricing", PermissionAction.CREATE)
+                }
+            )
+        }
 
-        "create_garment_pricing" -> AddGarmentPricingScreen(
-            pricingId = editingPricingId,
-            onClose = {
-                onEditingPricingIdChange(null)
-                onGoBack()
-            },
-            onSave = {
-                onEditingPricingIdChange(null)
-                onGoBack()
-            }
-        )
+        "create_garment_pricing" -> SalesGuard(
+            feature = "pricingQuotes",
+            action = if (editingPricingId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            AddGarmentPricingScreen(
+                pricingId = editingPricingId,
+                onClose = {
+                    onEditingPricingIdChange(null)
+                    onGoBack()
+                },
+                onSave = {
+                    onEditingPricingIdChange(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        "sales_pricing_quotation" -> QuotationScreen(
-            onClose = {
-                onSalesSettingsModeChange(false)
-                onGoBack()
-            },
-            onAddNe = {
-                onEditingPricingIdChange(null)
-                onQuotationScreenModeChange("create")
-                onNavigate("create_quotation")
-            },
-            onView = { id ->
-                onEditingPricingIdChange(id)
-                onNavigate("view_quotation") // <-- DIRECT TO VIEW SCREEN
-            },
-            onEdit = { id ->
-                onEditingPricingIdChange(id)
-                onQuotationScreenModeChange("edit")
-                onNavigate("create_quotation")
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Sales") }
-        )
+        "sales_pricing_quotation" -> SalesGuard("pricingQuotes", PermissionAction.VIEW) {
+            QuotationScreen(
+                onClose = {
+                    onSalesSettingsModeChange(false)
+                    onGoBack()
+                },
+                onAddNe = {
+                    onEditingPricingIdChange(null)
+                    onQuotationScreenModeChange("create")
+                    onSafeNavigate("create_quotation", PermissionAction.CREATE)
+                },
+                onView = { id ->
+                    onEditingPricingIdChange(id)
+                    onSafeNavigate("view_quotation", PermissionAction.VIEW)
+                },
+                onEdit = { id ->
+                    onEditingPricingIdChange(id)
+                    onQuotationScreenModeChange("edit")
+                    onSafeNavigate("create_quotation", PermissionAction.EDIT)
+                },
+                onBreadCrumbClick = { onOpenModulesPanel("Sales") }
+            )
+        }
 
-        // ADD THIS ROUTE:
-        "view_quotation" -> QuotationViewScreen(
-            quotationId = editingPricingId.orEmpty(),
-            onClose = {
-                onEditingPricingIdChange(null)
-                onGoBack()
-            },
-            onEdit = {
-                onQuotationScreenModeChange("edit")
-                onNavigate("create_quotation")
-            }
-        )
+        "view_quotation" -> SalesGuard("pricingQuotes", PermissionAction.VIEW) {
+            QuotationViewScreen(
+                quotationId = editingPricingId.orEmpty(),
+                onClose = {
+                    onEditingPricingIdChange(null)
+                    onGoBack()
+                },
+                onEdit = {
+                    onQuotationScreenModeChange("edit")
+                    onSafeNavigate("create_quotation", PermissionAction.EDIT)
+                }
+            )
+        }
 
-        "create_quotation" -> CreateQuotationScreen(
-            quotationId = editingPricingId,
-            mode = quotationScreenMode,
-            onClose = onGoBack,
-            onSave = onGoBack,
-            token = token
-        )
+        "create_quotation" -> SalesGuard(
+            feature = "pricingQuotes",
+            action = if (quotationScreenMode == "edit") PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            CreateQuotationScreen(
+                quotationId = editingPricingId,
+                mode = quotationScreenMode,
+                onClose = onGoBack,
+                onSave = onGoBack,
+                token = token
+            )
+        }
 
-        "sales_payment_and_billing" -> PaymentListingScreen(
-            navController = navController,
-            widthSizeClass = widthSizeClass,
-            onBack = {
-                onSalesSettingsModeChange(false)
-                onGoBack()
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Sales") },
-            onPaymentClick = { orderId ->
-                onOrderIdSelected(orderId)
-                onNavigate("payment_detail")
-            }
-        )
+        // 8. Billing & Payments (catalog key: "billingAndPayments") - Action: VIEW
+        "sales_payment_and_billing" -> SalesGuard("billingAndPayments", PermissionAction.VIEW) {
+            PaymentListingScreen(
+                navController = navController,
+                widthSizeClass = widthSizeClass,
+                onBack = {
+                    onSalesSettingsModeChange(false)
+                    onGoBack()
+                },
+                onBreadCrumbClick = { onOpenModulesPanel("Sales") },
+                onPaymentClick = { orderId ->
+                    onOrderIdSelected(orderId)
+                    onSafeNavigate("payment_detail", PermissionAction.VIEW)
+                }
+            )
+        }
 
-        "payment_detail" -> PaymentInformationScreen(
-            orderId = selectedOrderId.orEmpty(),
-            onClose = onGoBack
-        )
+        "payment_detail" -> SalesGuard("billingAndPayments", PermissionAction.VIEW) {
+            PaymentInformationScreen(
+                orderId = selectedOrderId.orEmpty(),
+                onClose = onGoBack
+            )
+        }
 
-        "sales_settings" -> SalesSettingsScreen(
-            navController = navController,
-            onClose = onGoBack,
-            onAddSegmentClick = {
-                selectedSegmentForEdit = null
-                settingsViewModel.clearSelectedSegmentDetail()
-                onNavigate("sales_add_segment")
-            },
-            onEditSegmentClick = { segment ->
-                selectedSegmentForEdit = segment
-                settingsViewModel.fetchSegmentById(segment.id)
-                onNavigate("sales_add_segment")
-            },
-            onAddGarmentClick = { onNavigate("sales_add_garment") },
-            onConfigureGarmentClick = { segmentId, garmentId, garmentTitle ->
-                settingsViewModel.setSelectedGarmentForDetail(segmentId, garmentId, garmentTitle)
-                onNavigate("sales_category_detail")
-            },
-            viewModel = settingsViewModel
-        )
+        // 9. Sales Settings Submodules
+        "sales_settings" -> SalesGuard("garmentMeasurement", PermissionAction.VIEW) {
+            SalesSettingsScreen(
+                navController = navController,
+                onClose = onGoBack,
+                onAddSegmentClick = {
+                    selectedSegmentForEdit = null
+                    settingsViewModel.clearSelectedSegmentDetail()
+                    onSafeNavigate("sales_add_segment", PermissionAction.CREATE)
+                },
+                onEditSegmentClick = { segment ->
+                    selectedSegmentForEdit = segment
+                    settingsViewModel.fetchSegmentById(segment.id)
+                    onSafeNavigate("sales_add_segment", PermissionAction.EDIT)
+                },
+                onAddGarmentClick = { onSafeNavigate("sales_add_garment", PermissionAction.CREATE) },
+                onConfigureGarmentClick = { segmentId, garmentId, garmentTitle ->
+                    settingsViewModel.setSelectedGarmentForDetail(segmentId, garmentId, garmentTitle)
+                    onSafeNavigate("sales_category_detail", PermissionAction.EDIT)
+                },
+                viewModel = settingsViewModel
+            )
+        }
 
-        "sales_category_detail" -> {
+        "sales_category_detail" -> SalesGuard("garmentMeasurement", PermissionAction.EDIT) {
             val segmentId by settingsViewModel.selectedSegmentIdForStyle.collectAsStateWithLifecycle()
             val garmentId by settingsViewModel.selectedGarmentIdForStyle.collectAsStateWithLifecycle()
             val title by settingsViewModel.selectedGarmentTitleForStyle.collectAsStateWithLifecycle()
@@ -2205,148 +2471,181 @@ private fun SalesRouter(
                 segmentId = segmentId,
                 garmentId = garmentId,
                 onClose = onGoBack,
-                onAddGarmentCategoryClick = { onNavigate("sales_add_garment_category") },
+                onAddGarmentCategoryClick = { onSafeNavigate("sales_add_garment_category", PermissionAction.CREATE) },
                 viewModel = settingsViewModel
             )
         }
 
-        "sales_add_segment" -> AddSegmentScreen(
-            segmentToEdit = selectedSegmentForEdit,
-            viewModel = settingsViewModel,
-            onClose = {
-                selectedSegmentForEdit = null
-                settingsViewModel.clearSelectedSegmentDetail()
-                onGoBack()
-            },
-            onSegmentSaved = {
-                selectedSegmentForEdit = null
-                settingsViewModel.clearSelectedSegmentDetail()
-                settingsViewModel.fetchSegments()
-                onGoBack()
-            }
-        )
+        "sales_add_segment" -> SalesGuard(
+            feature = "garmentMeasurement",
+            action = if (selectedSegmentForEdit != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            AddSegmentScreen(
+                segmentToEdit = selectedSegmentForEdit,
+                viewModel = settingsViewModel,
+                onClose = {
+                    selectedSegmentForEdit = null
+                    settingsViewModel.clearSelectedSegmentDetail()
+                    onGoBack()
+                },
+                onSegmentSaved = {
+                    selectedSegmentForEdit = null
+                    settingsViewModel.clearSelectedSegmentDetail()
+                    settingsViewModel.fetchSegments()
+                    onGoBack()
+                }
+            )
+        }
 
-        "sales_garment_type" -> GarmentTypeContent(
-            viewModel = settingsViewModel,
-            onClose = {
-                onSalesSettingsModeChange(false)
-                onGoBack()
-            },
-            onAddSegmentClick = {
-                selectedSegmentForEdit = null
-                settingsViewModel.clearSelectedSegmentDetail()
-                onNavigate("sales_add_segment")
-            },
-            onEditSegmentClick = { segment ->
-                selectedSegmentForEdit = segment
-                settingsViewModel.fetchSegmentById(segment.id)
-                onNavigate("sales_add_segment")
-            },
-            onAddGarmentClick = { onNavigate("sales_add_garment") },
-            onConfigureGarmentClick = { segmentId, garmentId, garmentTitle ->
-                settingsViewModel.setSelectedGarmentForDetail(segmentId, garmentId, garmentTitle)
-                onNavigate("sales_category_detail")
-            }
-        )
+        "sales_garment_type" -> SalesGuard("garmentMeasurement", PermissionAction.VIEW) {
+            GarmentTypeContent(
+                viewModel = settingsViewModel,
+                onClose = {
+                    onSalesSettingsModeChange(false)
+                    onGoBack()
+                },
+                onAddSegmentClick = {
+                    selectedSegmentForEdit = null
+                    settingsViewModel.clearSelectedSegmentDetail()
+                    onSafeNavigate("sales_add_segment", PermissionAction.CREATE)
+                },
+                onEditSegmentClick = { segment ->
+                    selectedSegmentForEdit = segment
+                    settingsViewModel.fetchSegmentById(segment.id)
+                    onSafeNavigate("sales_add_segment", PermissionAction.EDIT)
+                },
+                onAddGarmentClick = { onSafeNavigate("sales_add_garment", PermissionAction.CREATE) },
+                onConfigureGarmentClick = { segmentId, garmentId, garmentTitle ->
+                    settingsViewModel.setSelectedGarmentForDetail(segmentId, garmentId, garmentTitle)
+                    onSafeNavigate("sales_category_detail", PermissionAction.EDIT)
+                }
+            )
+        }
 
-        "sales_garment_profile" -> GarmentProfileConfigScreen(
-            profileTitle = "Men's Shirt Profile",
-            isActive = isGarmentActive,
-            onClose = onGoBack,
-            onAddExistingClick = { onNavigate("sales_add_existing_field") },
-            onAddFieldClick = { onNavigate("sales_create_measurement_field") },
-            onPreviewClick = { onNavigate("sales_configuration_preview") },
-            onToggleActiveState = { isGarmentActive = it }
-        )
+        "sales_garment_profile" -> SalesGuard("garmentMeasurement", PermissionAction.VIEW) {
+            GarmentProfileConfigScreen(
+                profileTitle = "Men's Shirt Profile",
+                isActive = isGarmentActive,
+                onClose = onGoBack,
+                onAddExistingClick = { onSafeNavigate("sales_add_existing_field", PermissionAction.CREATE) },
+                onAddFieldClick = { onSafeNavigate("sales_create_measurement_field", PermissionAction.CREATE) },
+                onPreviewClick = { onSafeNavigate("sales_configuration_preview", PermissionAction.VIEW) },
+                onToggleActiveState = { isGarmentActive = it }
+            )
+        }
 
-        "sales_configuration_preview" -> ConfigurationPreviewScreen(
-            garmentTitle = "Men's Shirt",
-            onClose = onGoBack,
-            onBackToEdit = onGoBack,
-            onActivateConfirmed = {
-                isGarmentActive = true
-                onGoBack()
-            }
-        )
+        "sales_configuration_preview" -> SalesGuard("garmentMeasurement", PermissionAction.VIEW) {
+            ConfigurationPreviewScreen(
+                garmentTitle = "Men's Shirt",
+                onClose = onGoBack,
+                onBackToEdit = onGoBack,
+                onActivateConfirmed = {
+                    isGarmentActive = true
+                    onGoBack()
+                }
+            )
+        }
 
-        "sales_add_existing_field" -> AddExistingFieldScreen(
-            onClose = onGoBack,
-            onAddSelected = { onGoBack() },
-            viewModel = settingsViewModel
-        )
+        "sales_add_existing_field" -> SalesGuard("garmentMeasurement", PermissionAction.CREATE) {
+            AddExistingFieldScreen(
+                onClose = onGoBack,
+                onAddSelected = { onGoBack() },
+                viewModel = settingsViewModel
+            )
+        }
 
-        "sales_create_measurement_field" -> CreateMeasurementFieldScreen(
-            onClose = onGoBack,
-            onSave = { onGoBack() },
-            viewModel = settingsViewModel
-        )
+        "sales_create_measurement_field" -> SalesGuard("garmentMeasurement", PermissionAction.CREATE) {
+            CreateMeasurementFieldScreen(
+                onClose = onGoBack,
+                onSave = { onGoBack() },
+                viewModel = settingsViewModel
+            )
+        }
 
-        "sales_add_garment" -> AddNewGarmentScreen(
-            viewModel = settingsViewModel,
-            onClose = onGoBack,
-            onGarmentCreated = onGoBack
-        )
+        "sales_add_garment" -> SalesGuard("garmentMeasurement", PermissionAction.CREATE) {
+            AddNewGarmentScreen(
+                viewModel = settingsViewModel,
+                onClose = onGoBack,
+                onGarmentCreated = onGoBack
+            )
+        }
 
-        "sales_add_garment_category" -> AddNewGarmentCategoryScreen(
-            onClose = onGoBack,
-            onGarmentCategoryCreated = onGoBack,
-            viewModel = settingsViewModel
-        )
+        "sales_add_garment_category" -> SalesGuard("garmentMeasurement", PermissionAction.CREATE) {
+            AddNewGarmentCategoryScreen(
+                onClose = onGoBack,
+                onGarmentCategoryCreated = onGoBack,
+                viewModel = settingsViewModel
+            )
+        }
 
-        "sales_garment_pricing_setup" -> PricingSetupScreen(
-            onClose = onGoBack,
-            onAddGarmentPricing = {
-                onEditingPricingIdChange(null)
-                onNavigate("sales_add_garment_pricing")
-            },
-            onAddFabricPricing = { onNavigate("sales_add_fabric_pricing") },
-            onAddWorkPricing = {
-                onEditingPricingIdChange(null)
-                onNavigate("sales_add_work_pricing")
-            },
-            onEditGarmentPricing = { id ->
-                onEditingPricingIdChange(id)
-                onNavigate("sales_add_garment_pricing")
-            },
-            onEditWorkPricing = { id ->
-                onEditingPricingIdChange(id)
-                onNavigate("sales_add_work_pricing")
-            }
-        )
+        "sales_garment_pricing_setup" -> SalesGuard("pricingGarment", PermissionAction.VIEW) {
+            PricingSetupScreen(
+                onClose = onGoBack,
+                onAddGarmentPricing = {
+                    onEditingPricingIdChange(null)
+                    onSafeNavigate("sales_add_garment_pricing", PermissionAction.CREATE)
+                },
+                onAddFabricPricing = { onSafeNavigate("sales_add_fabric_pricing", PermissionAction.CREATE) },
+                onAddWorkPricing = {
+                    onEditingPricingIdChange(null)
+                    onSafeNavigate("sales_add_work_pricing", PermissionAction.CREATE)
+                },
+                onEditGarmentPricing = { id ->
+                    onEditingPricingIdChange(id)
+                    onSafeNavigate("sales_add_garment_pricing", PermissionAction.EDIT)
+                },
+                onEditWorkPricing = { id ->
+                    onEditingPricingIdChange(id)
+                    onSafeNavigate("sales_add_work_pricing", PermissionAction.EDIT)
+                }
+            )
+        }
 
-        "sales_add_garment_pricing" -> AddNewGarmentPricingScreen(
-            garmentId = editingPricingId,
-            onClose = {
-                onEditingPricingIdChange(null)
-                onGoBack()
-            },
-            onSaveSuccess = {
-                onEditingPricingIdChange(null)
-                onGoBack()
-            }
-        )
+        "sales_add_garment_pricing" -> SalesGuard(
+            feature = "pricingGarment",
+            action = if (editingPricingId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            AddNewGarmentPricingScreen(
+                garmentId = editingPricingId,
+                onClose = {
+                    onEditingPricingIdChange(null)
+                    onGoBack()
+                },
+                onSaveSuccess = {
+                    onEditingPricingIdChange(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        "sales_add_fabric_pricing" -> AddFabricPriceScreen(
-            onClose = onGoBack,
-            onSaveSuccess = onGoBack
-        )
+        "sales_add_fabric_pricing" -> SalesGuard("pricingFabric", PermissionAction.CREATE) {
+            AddFabricPriceScreen(
+                onClose = onGoBack,
+                onSaveSuccess = onGoBack
+            )
+        }
 
-        "sales_add_work_pricing" -> AddWorkPricingScreen(
-            workId = editingPricingId,
-            onClose = {
-                onEditingPricingIdChange(null)
-                onGoBack()
-            },
-            onSaveSuccess = {
-                onEditingPricingIdChange(null)
-                onGoBack()
-            }
-        )
+        "sales_add_work_pricing" -> SalesGuard(
+            feature = "pricingWork",
+            action = if (editingPricingId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            AddWorkPricingScreen(
+                workId = editingPricingId,
+                onClose = {
+                    onEditingPricingIdChange(null)
+                    onGoBack()
+                },
+                onSaveSuccess = {
+                    onEditingPricingIdChange(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        "sales_measurement_list" -> {
+        "sales_measurement_list" -> SalesGuard("measurementList", PermissionAction.VIEW) {
             MeasurementListScreen(
                 onClose = onGoBack,
-                onAddMeasurement = { onNavigate("sales_create_measurement_field") },
+                onAddMeasurement = { onSafeNavigate("sales_create_measurement_field", PermissionAction.CREATE) },
                 viewModel = settingsViewModel
             )
         }
@@ -2357,6 +2656,8 @@ private fun SalesRouter(
 @Composable
 private fun FinanceRouter(
     screen: String,
+    permissionViewModel: PermissionViewModel,
+    onPurchaseFromFinanceChange: (Boolean) -> Unit = {},
     token: String,
     selectedPurchaseReturnId: String? = null,
     onPurchaseReturnIdSelected: (String?) -> Unit = {},
@@ -2367,7 +2668,7 @@ private fun FinanceRouter(
     selectedCashShiftId: String? = null,
     onCashShiftSelected: (String?) -> Unit = {},
     onCreditNoteSelected: (String?) -> Unit = {},
-    selectedCreditNoteId: String? = null, // <-- Receive as parameter
+    selectedCreditNoteId: String? = null,
     isOrderFromFinance: Boolean,
     invoiceForPayment: InvoiceViewOneData?,
     selectedReceiptId: String?,
@@ -2405,111 +2706,190 @@ private fun FinanceRouter(
     onOrderIdSelected: (String?) -> Unit,
     onEditOrderIdChange: (String?) -> Unit,
     onNavigate: (String) -> Unit,
+    onSafeNavigate: (String, PermissionAction?) -> Unit,
+    onAccessRestricted: (String) -> Unit = {},
+    onPaywallRequired: (PaywallModuleConfig) -> Unit,
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit
 ) {
     val financeViewModel: FinanceViewModel = hiltViewModel()
     var selectedPurchaseOrderForEdit by remember { mutableStateOf<PurchaseOrder?>(null) }
     var selectedTaxRateForEdit by remember { mutableStateOf<TaxRateItemDto?>(null) }
+    var isEditingGst by remember { mutableStateOf(false) }
+
+    @Composable
+    fun FinanceGuard(
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        content: @Composable () -> Unit
+    ) {
+        FeatureGuard(
+            module = "finance",
+            feature = feature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = "finance",
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = onGoBack,
+            content = content
+        )
+    }
+
+    // Helper for shared inventory/finance purchase screens so Finance users use finance.* permissions
+    fun navigateWithFinancePermission(
+        feature: String,
+        action: PermissionAction,
+        targetRoute: String
+    ) {
+        if (!permissionViewModel.canUserAction("finance", feature, action)) {
+            // Show AccessRestrictedDialog only for VIEW permission denials
+            if (action == PermissionAction.VIEW) {
+                onAccessRestricted("Finance - $feature")
+            }
+            return
+        }
+        if (!permissionViewModel.isPlanFeatureSubscribed("finance", feature)) {
+            onPaywallRequired(permissionViewModel.getPaywallConfigForModule("finance"))
+            return
+        }
+        onPurchaseFromFinanceChange(true)
+        onNavigate(targetRoute)
+    }
 
     when (screen) {
-        // Finance Dashboard overview screen
-        "finance_dashboard" -> FinanceOverviewScreen(
-            onClose = onGoBack,
-            onViewDistribution = { onNavigate("finance_chart_of_accounts") },
-            onViewFunds = { onNavigate("finance_chart_of_accounts") },
-            onSummaryView = { title ->
-                when (title) {
-                    "Sales" -> onNavigate("finance_sales_invoices")
-                    "Purchase" -> onNavigate("finance_purchase_orders")
-                    "General Ledger" -> onNavigate("finance_chart_of_accounts")
-                    "Expenses" -> onNavigate("finance_expenses")
-                    "Funds" -> onNavigate("finance_chart_of_accounts")
+        // 0. Finance Dashboard (catalog key: "dashboard") - Action: VIEW
+        "finance_dashboard" -> FinanceGuard("dashboard", PermissionAction.VIEW) {
+            FinanceOverviewScreen(
+                onClose = onGoBack,
+                onViewDistribution = { onSafeNavigate("finance_chart_of_accounts", PermissionAction.VIEW) },
+                onViewFunds = { onSafeNavigate("finance_chart_of_accounts", PermissionAction.VIEW) },
+                onSummaryView = { title ->
+                    when (title) {
+                        "Sales" -> onSafeNavigate("finance_sales_invoices", PermissionAction.VIEW)
+                        "Purchase" -> onSafeNavigate("finance_purchase_orders", PermissionAction.VIEW)
+                        "General Ledger" -> onSafeNavigate("finance_chart_of_accounts", PermissionAction.VIEW)
+                        "Expenses" -> onSafeNavigate("finance_expenses", PermissionAction.VIEW)
+                        "Funds" -> onSafeNavigate("finance_chart_of_accounts", PermissionAction.VIEW)
+                    }
+                },
+                onGoTo = { title ->
+                    when (title) {
+                        "Sales" -> onSafeNavigate("finance_sales_invoices", PermissionAction.VIEW)
+                        "Purchase" -> onSafeNavigate("finance_purchase_orders", PermissionAction.VIEW)
+                        "General Ledger" -> onSafeNavigate("finance_trial_balance", PermissionAction.VIEW)
+                        "Expenses" -> onSafeNavigate("finance_expenses", PermissionAction.VIEW)
+                        "Funds" -> onSafeNavigate("finance_chart_of_accounts", PermissionAction.VIEW)
+                    }
+                },
+                onAlertClick = { title ->
+                    when (title) {
+                        "Supplier Payments Due" -> onSafeNavigate("finance_payments_made", PermissionAction.VIEW)
+                        "Expense Claims" -> onSafeNavigate("finance_expenses", PermissionAction.VIEW)
+                        "Bank Reconciliation" -> onSafeNavigate("finance_trial_balance", PermissionAction.VIEW)
+                    }
                 }
-            },
-            onGoTo = { title ->
-                when (title) {
-                    "Sales" -> onNavigate("finance_sales_invoices")
-                    "Purchase" -> onNavigate("finance_purchase_orders")
-                    "General Ledger" -> onNavigate("finance_trial_balance")
-                    "Expenses" -> onNavigate("finance_expenses")
-                    "Funds" -> onNavigate("finance_chart_of_accounts")
-                }
-            },
-            onAlertClick = { title ->
-                when (title) {
-                    "Supplier Payments Due" -> onNavigate("finance_payments_made")
-                    "Expense Claims" -> onNavigate("finance_expenses")
-                    "Bank Reconciliation" -> onNavigate("finance_trial_balance")
-                }
-            }
-        )
+            )
+        }
 
-        // Finance Sales Orders: sets finance origin flag to true
-        "finance_sales_orders" -> {
+        // 1. Finance Sales Orders (catalog key: "finOrders") - Actions: VIEW, CREATE, EDIT
+        "finance_sales_orders" -> FinanceGuard("finOrders", PermissionAction.VIEW) {
             SalesOrderScreen(
                 navController = navController,
                 onMenuClick = onOpenDrawer,
                 onBack = onGoBack,
                 onCreateOrder = {
-                    onPendingOrderReviewDataChange(null)
-                    onNavigate("create_order")
+                    if (permissionViewModel.canUserAction("finance", "finOrders", PermissionAction.CREATE)) {
+                        onPendingOrderReviewDataChange(null)
+                        onNavigate("create_order")
+                    } else {
+                        onSafeNavigate("finance_sales_orders", PermissionAction.CREATE)
+                    }
                 },
                 onViewOrder = { orderId ->
                     onOrderIdSelected(orderId)
-                    onOrderFromFinanceChange(true) // Set flag for finance context
+                    onOrderFromFinanceChange(true)
                     onNavigate("order_overview")
                 },
-                onEditOrder = { orderId -> onEditOrderIdChange(orderId) },
+                onEditOrder = { orderId ->
+                    if (permissionViewModel.canUserAction("finance", "finOrders", PermissionAction.EDIT)) {
+                        onEditOrderIdChange(orderId)
+                    } else {
+                        onSafeNavigate("finance_sales_orders", PermissionAction.EDIT)
+                    }
+                },
                 onBreadCrumbClick = { onOpenModulesPanel("Finance") }
             )
         }
 
-        // Single Create Sales Invoice route receiving prefilled order data
-        "finance_create_sales_invoice" -> CreateSalesInvoiceScreen(
-            prefillOrder = prefillOrderForInvoice, // Pass prefilled order object
-            onClose = {
-                onPrefillOrderForInvoiceChange(null)
-                onGoBack()
-            },
-            onInvoiceCreatedSuccessfully = {
-                onPrefillOrderForInvoiceChange(null)
-                onGoBack()
-            },
-            customerViewModel = customerViewModel,
-            inventoryViewModel = inventoryViewModel
-        )
+        // 2. Sales Invoices (catalog key: "finInvoices") - Actions: VIEW, CREATE
+        "finance_create_sales_invoice" -> FinanceGuard("finInvoices", PermissionAction.CREATE) {
+            CreateSalesInvoiceScreen(
+                prefillOrder = prefillOrderForInvoice,
+                onClose = {
+                    onPrefillOrderForInvoiceChange(null)
+                    onGoBack()
+                },
+                onInvoiceCreatedSuccessfully = {
+                    onPrefillOrderForInvoiceChange(null)
+                    onGoBack()
+                },
+                customerViewModel = customerViewModel,
+                inventoryViewModel = inventoryViewModel
+            )
+        }
 
-        "finance_sales_invoices" -> FinanceInvoiceScreen(
-            onClose = onGoBack,
-            onInvoiceClick = { invoice ->
-                onInvoiceSelected(invoice.id)
-                onNavigate("finance_invoice_detail")
-            },
-            onCreateInvoice = {
-                onPrefillOrderForInvoiceChange(null)
-                onNavigate("finance_create_sales_invoice")
-            },
-            onRecordPayment = { invoiceData ->
-                onInvoiceForPaymentChange(invoiceData)
-                onNavigate("finance_record_payment")
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
-        )
+        "finance_sales_invoices" -> FinanceGuard("finInvoices", PermissionAction.VIEW) {
+            FinanceInvoiceScreen(
+                onClose = onGoBack,
+                onInvoiceClick = { invoice ->
+                    onInvoiceSelected(invoice.id)
+                    onSafeNavigate("finance_invoice_detail", PermissionAction.VIEW)
+                },
+                onCreateInvoice = {
+                    onPrefillOrderForInvoiceChange(null)
+                    onSafeNavigate("finance_create_sales_invoice", PermissionAction.CREATE)
+                },
+                onRecordPayment = { invoiceData ->
+                    onInvoiceForPaymentChange(invoiceData)
+                    onSafeNavigate("finance_record_payment", PermissionAction.CREATE)
+                },
+                onBreadCrumbClick = { onOpenModulesPanel("Finance") }
+            )
+        }
 
-        "finance_receipts" -> CustomerReceiptsListScreen(
-            viewModel = financeViewModel,
-            onClose = onGoBack,
-            onCreateReceiptClick = {
-                onNavigate("finance_create_payment_receipt")
-            },
-            onReceiptClick = { receipt ->
-                onReceiptSelected(receipt.id)
-                onNavigate("finance_receipt_detail")
-            }
-        )
+        "finance_invoice_detail" -> FinanceGuard("finInvoices", PermissionAction.VIEW) {
+            selectedInvoiceId?.let { id ->
+                InvoiceDetailScreen(
+                    invoiceId = id,
+                    onClose = {
+                        onInvoiceSelected(null)
+                        onGoBack()
+                    },
+                    onRecordPayment = { invoiceData ->
+                        onInvoiceForPaymentChange(invoiceData)
+                        onSafeNavigate("finance_record_payment", PermissionAction.CREATE)
+                    },
+                    token = token
+                )
+            } ?: run { onGoBack() }
+        }
 
-        "finance_receipt_detail" -> {
+        // 3. Customer Receipts (catalog key: "finReceipts") - Actions: VIEW, CREATE
+        "finance_receipts" -> FinanceGuard("finReceipts", PermissionAction.VIEW) {
+            CustomerReceiptsListScreen(
+                viewModel = financeViewModel,
+                onClose = onGoBack,
+                onCreateReceiptClick = {
+                    onSafeNavigate("finance_create_payment_receipt", PermissionAction.CREATE)
+                },
+                onReceiptClick = { receipt ->
+                    onReceiptSelected(receipt.id)
+                    onSafeNavigate("finance_receipt_detail", PermissionAction.VIEW)
+                }
+            )
+        }
+
+        "finance_receipt_detail" -> FinanceGuard("finReceipts", PermissionAction.VIEW) {
             selectedReceiptId?.let { id ->
                 CustomerReceiptDetailScreen(
                     paymentId = id,
@@ -2521,76 +2901,19 @@ private fun FinanceRouter(
                 )
             } ?: run { onGoBack() }
         }
-        // New route to open Record Payment / Create Receipt Screen
-        "finance_create_payment_receipt" -> CreatePaymentReceiptScreen(
-            financeViewModel = financeViewModel,
-            customerViewModel = customerViewModel,
-            onClose = onGoBack,
-            onPaymentRecorded = {
-                financeViewModel.fetchCustomerReceipts(page = 1)
-            }
-        )
 
-        // 1. Credit Notes List Screen
-        "finance_credits" -> {
-            com.cuso.tailor.view.home.finance.credit.CreditNotesListScreen(
-                viewModel = financeViewModel,
-                onBack = onGoBack,
-                onNavigateToCreate = {
-                    onNavigate("finance_create_credit")
-                },
-                onNavigateToDetail = { id ->
-                    onCreditNoteSelected(id) // Sets ID into HomeScreen level state
-                    onNavigate("finance_credit_detail")
+        "finance_create_payment_receipt" -> FinanceGuard("finReceipts", PermissionAction.CREATE) {
+            CreatePaymentReceiptScreen(
+                financeViewModel = financeViewModel,
+                customerViewModel = customerViewModel,
+                onClose = onGoBack,
+                onPaymentRecorded = {
+                    financeViewModel.fetchCustomerReceipts(page = 1)
                 }
             )
         }
 
-        // 2. Create Credit Note Screen
-        "finance_create_credit" -> {
-            CreateCreditNoteScreen(
-                viewModel = financeViewModel,
-                inventoryViewModel = inventoryViewModel,
-                customerViewModel = customerViewModel,
-                branchViewModel = branchViewModel,
-                onBack = onGoBack
-            )
-        }
-
-        // 3. Credit Note Detail Screen (View One)
-        "finance_credit_detail" -> {
-            selectedCreditNoteId?.let { id ->
-                CreditNoteDetailScreen(
-                    creditNoteId = id,
-                    viewModel = financeViewModel,
-                    onBack = {
-                        onCreditNoteSelected(null)
-                        onGoBack()
-                    }
-                )
-            } ?: run { onGoBack() }
-        }
-
-        "finance_invoice_detail" -> {
-            selectedInvoiceId?.let { id ->
-                InvoiceDetailScreen(
-                    invoiceId = id,
-                    onClose = {
-                        onInvoiceSelected(null)
-                        onGoBack()
-                    },
-                    onRecordPayment = { invoiceData ->
-                        // Store the full invoice object globally in HomeScreen state
-                        onInvoiceForPaymentChange(invoiceData)
-                        // Trigger actual screenStack push in HomeScreen
-                        onNavigate("finance_record_payment")
-                    },
-                    token = token
-                )
-            } ?: run { onGoBack() }
-        }
-
-        "finance_record_payment" -> {
+        "finance_record_payment" -> FinanceGuard("finReceipts", PermissionAction.CREATE) {
             invoiceForPayment?.let { invoice ->
                 val recordState by financeViewModel.recordPaymentState.collectAsStateWithLifecycle()
                 val context = LocalContext.current
@@ -2603,7 +2926,7 @@ private fun FinanceRouter(
                         financeViewModel.resetRecordPaymentState()
                         onGoBack()
                     },
-                    onSavePayment = { customerId, branchId, invoiceId, amount, mode, depositAccountId, isoDate, refNo, notes, uris, sendNotification ->
+                    onSavePayment = { customerId, branchId, invoiceId, amount, mode, depositAccountId, isoDate, refNo, notes, uris, _ ->
                         val binaryParts = uris.mapNotNull { uri ->
                             uriToMultipartPart(context, uri, "attachments")
                         }
@@ -2629,21 +2952,61 @@ private fun FinanceRouter(
                     }
                 )
             } ?: run {
-                // If invoice object is null, safely go back
                 onGoBack()
             }
         }
 
-        "finance_purchase_invoices" -> PurchaseInvoiceScreen(
-            onClose = onGoBack,
-            onInvoiceClick = { invoice ->
-                onPurchaseInvoiceSelected(invoice)
-                onNavigate("finance_purchase_invoice_detail")
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
-        )
+        // 4. Customer Credit Notes (catalog key: "finCustomerCredits") - Actions: VIEW, CREATE
+        "finance_credits" -> FinanceGuard("finCustomerCredits", PermissionAction.VIEW) {
+            com.cuso.tailor.view.home.finance.credit.CreditNotesListScreen(
+                viewModel = financeViewModel,
+                onBack = onGoBack,
+                onNavigateToCreate = {
+                    onSafeNavigate("finance_create_credit", PermissionAction.CREATE)
+                },
+                onNavigateToDetail = { id ->
+                    onCreditNoteSelected(id)
+                    onSafeNavigate("finance_credit_detail", PermissionAction.VIEW)
+                }
+            )
+        }
 
-        "finance_purchase_invoice_detail" -> {
+        "finance_create_credit" -> FinanceGuard("finCustomerCredits", PermissionAction.CREATE) {
+            CreateCreditNoteScreen(
+                viewModel = financeViewModel,
+                inventoryViewModel = inventoryViewModel,
+                customerViewModel = customerViewModel,
+                branchViewModel = branchViewModel,
+                onBack = onGoBack
+            )
+        }
+
+        "finance_credit_detail" -> FinanceGuard("finCustomerCredits", PermissionAction.VIEW) {
+            selectedCreditNoteId?.let { id ->
+                CreditNoteDetailScreen(
+                    creditNoteId = id,
+                    viewModel = financeViewModel,
+                    onBack = {
+                        onCreditNoteSelected(null)
+                        onGoBack()
+                    }
+                )
+            } ?: run { onGoBack() }
+        }
+
+        // 5. Purchase Bills (catalog key: "finPurchaseBills") - Action: VIEW
+        "finance_purchase_invoices" -> FinanceGuard("finPurchaseBills", PermissionAction.VIEW) {
+            PurchaseInvoiceScreen(
+                onClose = onGoBack,
+                onInvoiceClick = { invoice ->
+                    onPurchaseInvoiceSelected(invoice)
+                    onSafeNavigate("finance_purchase_invoice_detail", PermissionAction.VIEW)
+                },
+                onBreadCrumbClick = { onOpenModulesPanel("Finance") }
+            )
+        }
+
+        "finance_purchase_invoice_detail" -> FinanceGuard("finPurchaseBills", PermissionAction.VIEW) {
             selectedPurchaseInvoice?.let { invoice ->
                 PurchaseInvoiceDetailScreen(
                     invoiceId = invoice.id,
@@ -2651,68 +3014,96 @@ private fun FinanceRouter(
                 )
             } ?: run { onGoBack() }
         }
-        "finance_purchase_orders" -> {
+
+        // 6. Purchase Orders (catalog key: "finPurchaseOrders") - Actions: VIEW, CREATE
+        "finance_purchase_orders" -> FinanceGuard("finPurchaseOrders", PermissionAction.VIEW) {
             POListScreen(
                 viewModel = inventoryViewModel,
                 onNavigateToCreate = {
                     selectedPurchaseOrderForEdit = null
-                    onNavigate("inventory_create_purchase_order_flow")
+                    navigateWithFinancePermission(
+                        feature = "finPurchaseOrders",
+                        action = PermissionAction.CREATE,
+                        targetRoute = "inventory_create_purchase_order_flow"
+                    )
                 },
                 onNavigateToDetail = { po ->
                     onPurchaseOrderForDetailSelected(po)
-                    onNavigate("inventory_purchase_order_detail_flow")
+                    navigateWithFinancePermission(
+                        feature = "finPurchaseOrders",
+                        action = PermissionAction.VIEW,
+                        targetRoute = "inventory_purchase_order_detail_flow"
+                    )
                 },
                 onClose = onGoBack
             )
         }
 
-        // 2. Purchase Receive -> Inventory Purchase Receive Screen
-        "finance_purchase_receive" -> {
+        // 7. Purchase Receives (catalog key: "finPurchaseReceives") - Actions: VIEW, CREATE
+        "finance_purchase_receive" -> FinanceGuard("finPurchaseReceives", PermissionAction.VIEW) {
             AllOrdersScreen(
                 onClose = onGoBack,
-                onCreateOrderClick = { onNavigate("inventory_create_purchase_order") },
+                onCreateOrderClick = {
+                    navigateWithFinancePermission(
+                        feature = "finPurchaseOrders",
+                        action = PermissionAction.CREATE,
+                        targetRoute = "inventory_create_purchase_order"
+                    )
+                },
                 onOrderClick = { poId, _ ->
                     onReceivePoIdSelected(poId)
-                    onNavigate("inventory_purchase_receive_detail")
+                    navigateWithFinancePermission(
+                        feature = "finPurchaseReceives",
+                        action = PermissionAction.VIEW,
+                        targetRoute = "inventory_purchase_receive_detail"
+                    )
                 }
             )
         }
 
-        // 3. Purchase Bills -> Inventory Bills List Screen
-        "finance_bills_list" -> {
+        // 8. Purchase Bills List (catalog key: "finPurchaseBills") - Actions: VIEW, CREATE
+        "finance_bills_list" -> FinanceGuard("finPurchaseBills", PermissionAction.VIEW) {
             AllBillListScreen(
                 onClose = onGoBack,
-                onCreateOrder = { onNavigate("inventory_create_purchase_order") },
+                onCreateOrder = {
+                    navigateWithFinancePermission(
+                        feature = "finPurchaseOrders",
+                        action = PermissionAction.CREATE,
+                        targetRoute = "inventory_create_purchase_order"
+                    )
+                },
                 onInvoiceClick = { billItem ->
                     if (billItem.id.isNotBlank()) {
                         onInvoiceSelected(billItem.id)
-                        onNavigate("inventory_payable_purchase_detail")
+                        navigateWithFinancePermission(
+                            feature = "finPurchaseBills",
+                            action = PermissionAction.VIEW,
+                            targetRoute = "inventory_payable_purchase_detail"
+                        )
                     }
                 },
                 onOptionsClick = { }
             )
         }
 
-        // Purchase Returns List Screen
-        // Purchase Returns List Screen
-        "finance_purchase_returns" -> {
+        // 9. Purchase Returns (catalog key: "finPurchaseReturns") - Actions: VIEW, CREATE
+        "finance_purchase_returns" -> FinanceGuard("finPurchaseReturns", PermissionAction.VIEW) {
             FinanceReturnScreen(
                 viewModel = financeViewModel,
                 onBack = onGoBack,
                 onCreateReturnClick = {
-                    onNavigate("finance_create_purchase_return") // 👈 Navigates to Create Screen
+                    onSafeNavigate("finance_create_purchase_return", PermissionAction.CREATE)
                 },
                 onReturnClick = { returnId ->
                     if (returnId.isNotBlank()) {
                         onPurchaseReturnIdSelected(returnId)
-                        onNavigate("finance_purchase_return_detail")
+                        onSafeNavigate("finance_purchase_return_detail", PermissionAction.VIEW)
                     }
                 }
             )
         }
 
-        //  Create Purchase Return Screen
-        "finance_create_purchase_return" -> {
+        "finance_create_purchase_return" -> FinanceGuard("finPurchaseReturns", PermissionAction.CREATE) {
             CreatePurchaseReturnScreen(
                 onBack = onGoBack,
                 onCreateReturn = {
@@ -2721,8 +3112,7 @@ private fun FinanceRouter(
             )
         }
 
-        // Purchase Return Detail View Screen
-        "finance_purchase_return_detail" -> {
+        "finance_purchase_return_detail" -> FinanceGuard("finPurchaseReturns", PermissionAction.VIEW) {
             selectedPurchaseReturnId?.takeIf { it.isNotBlank() }?.let { id ->
                 PurchaseReturnDetailScreen(
                     returnId = id,
@@ -2731,72 +3121,79 @@ private fun FinanceRouter(
                         onPurchaseReturnIdSelected(null)
                         onGoBack()
                     },
-                    onSettleRefund = {
-                        // Handle settle refund action
-                    },
-                    onViewPo = { poNumber ->
-                        // Navigate to PO details if needed
-                    }
+                    onSettleRefund = { },
+                    onViewPo = { _ -> }
                 )
             } ?: run {
-                // If ID is missing or null, safely navigate back to avoid blank screen
                 onGoBack()
             }
         }
 
-        "finance_vendor_credits" -> {
+        // 10. Supplier Credits (catalog key: "finSupplierCredits") - Action: VIEW
+        "finance_vendor_credits" -> FinanceGuard("finSupplierCredits", PermissionAction.VIEW) {
             VendorCreditListScreen(
                 viewModel = financeViewModel,
                 onBack = onGoBack,
-                onCreditClick = { creditId ->
-                }
+                onCreditClick = { _ -> }
             )
         }
 
-        // 4. Payments Made -> Inventory Payments Made Screen
-        "finance_payments_made" -> {
+        // 11. Payments Made (catalog key: "finPaymentsMade") - Action: VIEW
+        "finance_payments_made" -> FinanceGuard("finPaymentsMade", PermissionAction.VIEW) {
             AllInventoryPaymentScreen(
                 onClose = onGoBack,
                 onPaymentSelect = { paymentId ->
                     if (paymentId.isNotBlank()) {
                         onPaymentModeSelected(paymentId)
-                        onNavigate("inventory_payment_overview_detail")
+                        navigateWithFinancePermission(
+                            feature = "finPaymentsMade",
+                            action = PermissionAction.VIEW,
+                            targetRoute = "inventory_payment_overview_detail"
+                        )
                     }
                 },
                 onFilterClick = { }
             )
         }
-        "finance_customers" -> FinanceCustomerScreen(
-            onClose = onGoBack,
-            onCustomerClick = { customerId ->
-                onRecentCustomerIdSelected(customerId)
-                onNavigate("finance_customer_detail")
-            },
-            onCustomerEdit = { customerId ->
-                onRecentCustomerIdSelected(customerId)
-                onNavigate("finance_create_customer")
-            },
-            onAddCustomer = {
-                onRecentCustomerIdSelected(null)
-                onNavigate("finance_create_customer")
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
-        )
 
+        // 12. Finance Customers (catalog key: "finCustomers") - Actions: VIEW, CREATE, EDIT
+        "finance_customers" -> FinanceGuard("finCustomers", PermissionAction.VIEW) {
+            FinanceCustomerScreen(
+                onClose = onGoBack,
+                onCustomerClick = { customerId ->
+                    onRecentCustomerIdSelected(customerId)
+                    onSafeNavigate("finance_customer_detail", PermissionAction.VIEW)
+                },
+                onCustomerEdit = { customerId ->
+                    onRecentCustomerIdSelected(customerId)
+                    onSafeNavigate("finance_create_customer", PermissionAction.EDIT)
+                },
+                onAddCustomer = {
+                    onRecentCustomerIdSelected(null)
+                    onSafeNavigate("finance_create_customer", PermissionAction.CREATE)
+                },
+                onBreadCrumbClick = { onOpenModulesPanel("Finance") }
+            )
+        }
 
-        "finance_create_customer" -> CreateCustomerScreen(
-            customerId = selectedRecentCustomerId,
-            onClose = {
-                onRecentCustomerIdSelected(null)
-                onGoBack()
-            },
-            onCustomerCreated = {
-                onRecentCustomerIdSelected(null)
-                onGoBack()
-            }
-        )
+        "finance_create_customer" -> FinanceGuard(
+            feature = "finCustomers",
+            action = if (selectedRecentCustomerId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            CreateCustomerScreen(
+                customerId = selectedRecentCustomerId,
+                onClose = {
+                    onRecentCustomerIdSelected(null)
+                    onGoBack()
+                },
+                onCustomerCreated = {
+                    onRecentCustomerIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        "finance_customer_detail" -> {
+        "finance_customer_detail" -> FinanceGuard("finCustomers", PermissionAction.VIEW) {
             selectedRecentCustomerId?.let { id ->
                 CustomerDetailViewScreen(
                     customerId = id,
@@ -2808,27 +3205,28 @@ private fun FinanceRouter(
             } ?: run { onGoBack() }
         }
 
-        // ── FINANCE SUPPLIERS LIST (Uses InventorySuppliersScreen UI, but navigates to Finance Detail) ──
-        // ── FINANCE SUPPLIERS LIST ──
-        "finance_suppliers" -> {
+        // 13. Finance Suppliers (catalog key: "finSuppliers") - Action: VIEW
+        "finance_suppliers" -> FinanceGuard("finSuppliers", PermissionAction.VIEW) {
             InventorySuppliersScreen(
                 onClose = onGoBack,
                 onBreadCrumbClick = { onOpenModulesPanel("Finance") },
                 onSupplierClick = { supplierDto ->
                     onSupplierSelected(supplierDto.id)
-                    onNavigate("finance_supplier_detail")
+                    onSafeNavigate("finance_supplier_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // ── FINANCE SUPPLIER DETAIL ──
-        "finance_supplier_detail" -> {
+        "finance_supplier_detail" -> FinanceGuard("finSuppliers", PermissionAction.VIEW) {
             FinanceSupplierDetailScreen(
                 supplier = selectedSupplier ?: SupplierRow(id = selectedSupplierId.orEmpty()),
                 supplierId = selectedSupplierId.orEmpty(),
                 onNewOrder = {
-                    // Navigate to Create Purchase Order screen
-                    onNavigate("inventory_create_purchase_order_flow")
+                    navigateWithFinancePermission(
+                        feature = "finPurchaseOrders",
+                        action = PermissionAction.CREATE,
+                        targetRoute = "inventory_create_purchase_order_flow"
+                    )
                 },
                 onClose = {
                     onSupplierSelected(null)
@@ -2838,28 +3236,38 @@ private fun FinanceRouter(
             )
         }
 
-        "finance_expenses" -> ExpensesScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
-        )
+        // 14. Expense Management (catalog key: "expenses") - Action: VIEW
+        "finance_expenses" -> FinanceGuard("expenses", PermissionAction.VIEW) {
+            ExpensesScreen(
+                onClose = onGoBack,
+                onBreadCrumbClick = { onOpenModulesPanel("Finance") }
+            )
+        }
 
-        "finance_chart_of_accounts" -> ChartOfAccountScreen(
-            onClose = onGoBack,
-            onBreadcrumbClick = { onOpenModulesPanel("Finance") }
-        )
+        // 15. General Ledger (catalog keys: "finChartOfAccounts", "finJournalEntries") - Action: VIEW
+        "finance_chart_of_accounts" -> FinanceGuard("finChartOfAccounts", PermissionAction.VIEW) {
+            ChartOfAccountScreen(
+                onClose = onGoBack,
+                onBreadcrumbClick = { onOpenModulesPanel("Finance") }
+            )
+        }
 
-        "finance_journal_screen" -> ManualJournalEntryScreen(onClose = onGoBack)
+        "finance_journal_screen" -> FinanceGuard("finJournalEntries", PermissionAction.VIEW) {
+            ManualJournalEntryScreen(onClose = onGoBack)
+        }
 
-        "finance_trial_balance" -> TrialBalanceScreen(
-            onClose = onGoBack,
-            onAccountClick = { accountId, accountName ->
-                onLedgerAccountSelected(accountId, accountName)
-                onNavigate("finance_ledger")
-            },
-            onBreadcrumbClick = { onOpenModulesPanel("Finance") }
-        )
+        "finance_trial_balance" -> FinanceGuard("finChartOfAccounts", PermissionAction.VIEW) {
+            TrialBalanceScreen(
+                onClose = onGoBack,
+                onAccountClick = { accountId, accountName ->
+                    onLedgerAccountSelected(accountId, accountName)
+                    onSafeNavigate("finance_ledger", PermissionAction.VIEW)
+                },
+                onBreadcrumbClick = { onOpenModulesPanel("Finance") }
+            )
+        }
 
-        "finance_ledger" -> {
+        "finance_ledger" -> FinanceGuard("finChartOfAccounts", PermissionAction.VIEW) {
             selectedLedgerAccountId?.let { id ->
                 LedgerScreen(
                     accountId = id,
@@ -2873,99 +3281,119 @@ private fun FinanceRouter(
             } ?: run { onGoBack() }
         }
 
-        "finance_payments_received" -> AllPaymentScreen(
-            onViewPayment = { onNavigate("payment_detail_screen") },
-            onBreadCrumbClick = { onOpenModulesPanel("Finance") }
-        )
+        "finance_payments_received" -> FinanceGuard("finReceipts", PermissionAction.VIEW) {
+            AllPaymentScreen(
+                onViewPayment = { onSafeNavigate("payment_detail_screen", PermissionAction.VIEW) },
+                onBreadCrumbClick = { onOpenModulesPanel("Finance") }
+            )
+        }
 
-        "payment_detail_screen" -> PaymentDetailScreenAR(onClose = onGoBack)
+        "payment_detail_screen" -> FinanceGuard("finReceipts", PermissionAction.VIEW) {
+            PaymentDetailScreenAR(onClose = onGoBack)
+        }
 
-        "finance_payments_mode" -> AllPaymentListScreen(
-            onClose = onGoBack,
-            onPaymentClick = { paymentId ->
-                onPaymentModeSelected(paymentId)
-                onNavigate("payment_mode_detail")
-            }
-        )
+        "finance_payments_mode" -> FinanceGuard("finCashBooks", PermissionAction.VIEW) {
+            AllPaymentListScreen(
+                onClose = onGoBack,
+                onPaymentClick = { paymentId ->
+                    onPaymentModeSelected(paymentId)
+                    onSafeNavigate("payment_mode_detail", PermissionAction.VIEW)
+                }
+            )
+        }
 
-        "payment_mode_detail" -> PaymentDetailScreenAP(
-            onClose = {
-                onPaymentModeSelected(null)
-                onGoBack()
-            }
-        )
-        "finance_gst_settings" -> GstSettingsOverviewScreen(
-            viewModel = settingsViewModel,
-            onClose = onGoBack,
-            onAddGst = {
-                settingsViewModel.clearSelectedTaxRegistration()
-                onNavigate("finance_add_gst")
-            },
-            onEditGst = { selectedItem ->
-                settingsViewModel.fetchTaxRegistrationById(selectedItem.id)
-                onNavigate("finance_add_gst")
-            }
-        )
+        "payment_mode_detail" -> FinanceGuard("finCashBooks", PermissionAction.VIEW) {
+            PaymentDetailScreenAP(
+                onClose = {
+                    onPaymentModeSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        "finance_add_gst" -> AddGstSettingsScreen(
-            settingsViewModel = settingsViewModel,     // <-- Added this parameter
-            branchViewModel = branchViewModel,
-            inventoryViewModel = inventoryViewModel,
-            salesViewModel = salesViewModel,
-            onClose = {
-                settingsViewModel.clearSelectedTaxRegistration()
-                onGoBack()
-            },
-            onSave = {
-                settingsViewModel.clearSelectedTaxRegistration()
-                onGoBack()
-            }
-        )
+        // 16. Finance Settings / Taxes (catalog keys: "finTaxRegistration", "finTaxRatesRules")
+        "finance_gst_settings" -> FinanceGuard("finTaxRegistration", PermissionAction.VIEW) {
+            GstSettingsOverviewScreen(
+                viewModel = settingsViewModel,
+                onClose = onGoBack,
+                onAddGst = {
+                    isEditingGst = false
+                    settingsViewModel.clearSelectedTaxRegistration()
+                    onSafeNavigate("finance_add_gst", PermissionAction.CREATE)
+                },
+                onEditGst = { selectedItem ->
+                    isEditingGst = true
+                    settingsViewModel.fetchTaxRegistrationById(selectedItem.id)
+                    onSafeNavigate("finance_add_gst", PermissionAction.EDIT)
+                }
+            )
+        }
 
-        // Tax Rates Directory
-        "finance_tax_rates" -> TaxRatesScreen(
-            viewModel = settingsViewModel,
-            onClose = onGoBack,
-            onAddTaxRate = {
-                selectedTaxRateForEdit = null
-                onNavigate("finance_add_tax_rate")
-            },
-            onAddTaxGroup = {
-                onNavigate("finance_add_tax_group")
-            },
-            onEditRate = { rateItem ->
-                selectedTaxRateForEdit = rateItem
-                onNavigate("finance_add_tax_rate")
-            },
-            onDeleteRate = { rateItem ->
-                // Delete action if needed
-            }
-        )
+        "finance_add_gst" -> FinanceGuard(
+            feature = "finTaxRegistration",
+            action = if (isEditingGst) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            AddGstSettingsScreen(
+                settingsViewModel = settingsViewModel,
+                branchViewModel = branchViewModel,
+                inventoryViewModel = inventoryViewModel,
+                salesViewModel = salesViewModel,
+                onClose = {
+                    isEditingGst = false
+                    settingsViewModel.clearSelectedTaxRegistration()
+                    onGoBack()
+                },
+                onSave = {
+                    isEditingGst = false
+                    settingsViewModel.clearSelectedTaxRegistration()
+                    onGoBack()
+                }
+            )
+        }
 
-        // Add / Edit Tax Rate Screen
-        "finance_add_tax_rate" -> AddTaxRateScreen(
-            onClose = {
-                selectedTaxRateForEdit = null
-                onGoBack()
-            },
-            onSaveTaxRate = { formState ->
-                selectedTaxRateForEdit = null
-                onGoBack()
-            }
-        )
+        "finance_tax_rates" -> FinanceGuard("finTaxRatesRules", PermissionAction.VIEW) {
+            TaxRatesScreen(
+                viewModel = settingsViewModel,
+                onClose = onGoBack,
+                onAddTaxRate = {
+                    selectedTaxRateForEdit = null
+                    onSafeNavigate("finance_add_tax_rate", PermissionAction.CREATE)
+                },
+                onAddTaxGroup = {
+                    onSafeNavigate("finance_add_tax_group", PermissionAction.CREATE)
+                },
+                onEditRate = { rateItem ->
+                    selectedTaxRateForEdit = rateItem
+                    onSafeNavigate("finance_add_tax_rate", PermissionAction.EDIT)
+                },
+                onDeleteRate = { _ -> }
+            )
+        }
 
-        // Create Tax Group Screen
-        "finance_add_tax_group" -> {
-            // Trigger fetch for tax rates when entering the screen
+        "finance_add_tax_rate" -> FinanceGuard(
+            feature = "finTaxRatesRules",
+            action = if (selectedTaxRateForEdit != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            AddTaxRateScreen(
+                onClose = {
+                    selectedTaxRateForEdit = null
+                    onGoBack()
+                },
+                onSaveTaxRate = { _ ->
+                    selectedTaxRateForEdit = null
+                    onGoBack()
+                }
+            )
+        }
+
+        "finance_add_tax_group" -> FinanceGuard("finTaxRatesRules", PermissionAction.CREATE) {
             LaunchedEffect(Unit) {
                 settingsViewModel.fetchTaxRates(page = 1, limit = 100)
             }
 
-            // Correct StateFlow names from SettingsViewModel
             val taxRatesList by settingsViewModel.taxRates.collectAsStateWithLifecycle()
             val isSaving by settingsViewModel.isSubmittingTaxGroup.collectAsStateWithLifecycle()
 
-            // Map TaxRateItemDto list from ViewModel to TaxRateItem expected by AddTaxGroupScreen
             val allTaxes = remember(taxRatesList) {
                 taxRatesList.map { dto ->
                     TaxRateItem(
@@ -2981,33 +3409,29 @@ private fun FinanceRouter(
                 allTaxes = allTaxes,
                 isLoading = isSaving,
                 onCreateGroup = { name, taxRateIds ->
-                    // Call ViewModel API function to create the tax group
                     settingsViewModel.createTaxGroup(
                         name = name,
                         taxRateIds = taxRateIds,
-                        onSuccess = {
-                            onGoBack()
-                        }
+                        onSuccess = { onGoBack() }
                     )
                 }
             )
         }
 
-        // ── Cash Books List Screen ──
-        "finance_cash_book" -> {
+        // 17. Funds & Banking (catalog keys: "finCashBooks", "finBankAccounts", "finBankStatements")
+        "finance_cash_book" -> FinanceGuard("finCashBooks", PermissionAction.VIEW) {
             CashBookListScreen(
                 viewModel = financeViewModel,
                 branchViewModel = branchViewModel,
                 onBack = onGoBack,
                 onNavigateToDetail = { shiftId ->
                     onCashShiftSelected(shiftId)
-                    onNavigate("finance_cash_book_detail")
+                    onSafeNavigate("finance_cash_book_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // ── Cash Book Detail Screen ──
-        "finance_cash_book_detail" -> {
+        "finance_cash_book_detail" -> FinanceGuard("finCashBooks", PermissionAction.VIEW) {
             selectedCashShiftId?.let { shiftId ->
                 CashBookDetailScreen(
                     shiftId = shiftId,
@@ -3020,25 +3444,23 @@ private fun FinanceRouter(
             } ?: run { onGoBack() }
         }
 
-        // ── BANK ACCOUNTS LIST ──
-        "finance_bank_accounts" -> {
+        "finance_bank_accounts" -> FinanceGuard("finBankAccounts", PermissionAction.VIEW) {
             BankAccountsListScreen(
                 viewModel = financeViewModel,
                 onBack = onGoBack,
                 onNavigateToCreate = {
-                    onNavigate("finance_create_bank_account")
+                    onSafeNavigate("finance_create_bank_account", PermissionAction.CREATE)
                 },
                 onNavigateToDetail = { accountId ->
                     if (accountId.isNotBlank()) {
-                        onBankAccountIdSelected(accountId) // Sets non-null ID
-                        onNavigate("finance_bank_account_detail")
+                        onBankAccountIdSelected(accountId)
+                        onSafeNavigate("finance_bank_account_detail", PermissionAction.VIEW)
                     }
                 }
             )
         }
 
-        // ── CREATE BANK ACCOUNT ──
-        "finance_create_bank_account" -> {
+        "finance_create_bank_account" -> FinanceGuard("finBankAccounts", PermissionAction.CREATE) {
             CreateBankAccountScreen(
                 viewModel = financeViewModel,
                 branchViewModel = branchViewModel,
@@ -3046,8 +3468,7 @@ private fun FinanceRouter(
             )
         }
 
-        // ── BANK ACCOUNT DETAIL ──
-        "finance_bank_account_detail" -> {
+        "finance_bank_account_detail" -> FinanceGuard("finBankAccounts", PermissionAction.VIEW) {
             selectedBankAccountId?.takeIf { it.isNotBlank() }?.let { validId ->
                 BankAccountDetailScreen(
                     accountId = validId,
@@ -3058,30 +3479,27 @@ private fun FinanceRouter(
                     }
                 )
             } ?: run {
-                // If ID is missing or null, safely pop back to prevent blank screen
                 onGoBack()
             }
         }
 
-        // ── BANK STATEMENTS LIST SCREEN ──
-        "finance_bank_statements" -> {
+        "finance_bank_statements" -> FinanceGuard("finBankStatements", PermissionAction.VIEW) {
             BankStatementListScreen(
                 viewModel = financeViewModel,
                 onBack = onGoBack,
                 onNavigateToImport = {
-                    onNavigate("finance_import_bank_statement")
+                    onSafeNavigate("finance_import_bank_statement", PermissionAction.VIEW)
                 },
                 onNavigateToDetail = { statementId ->
                     if (statementId.isNotBlank()) {
                         onStatementIdSelected(statementId)
-                        onNavigate("finance_bank_statement_detail")
+                        onSafeNavigate("finance_bank_statement_detail", PermissionAction.VIEW)
                     }
                 }
             )
         }
 
-        // ── BANK STATEMENT DETAIL SCREEN ──
-        "finance_bank_statement_detail" -> {
+        "finance_bank_statement_detail" -> FinanceGuard("finBankStatements", PermissionAction.VIEW) {
             selectedStatementId?.takeIf { it.isNotBlank() }?.let { id ->
                 BankStatementDetailScreen(
                     statementId = id,
@@ -3094,8 +3512,7 @@ private fun FinanceRouter(
             } ?: run { onGoBack() }
         }
 
-        // ── IMPORT BANK STATEMENT FULL PAGE SCREEN ──
-        "finance_import_bank_statement" -> {
+        "finance_import_bank_statement" -> FinanceGuard("finBankStatements", PermissionAction.VIEW) {
             ImportBankStatementScreen(
                 viewModel = financeViewModel,
                 onBack = onGoBack
@@ -3113,47 +3530,64 @@ private fun FinanceRouter(
 @Composable
 private fun MarketingRouter(
     screen: String,
+    permissionViewModel: PermissionViewModel,
     selectedCampaignCode: String? = null,
     onCampaignCodeSelected: (String?) -> Unit = {},
     marketingViewModel: MarketingViewModel = hiltViewModel(),
     onNavigate: (String) -> Unit,
+    onSafeNavigate: (String, PermissionAction?) -> Unit,
+    onPaywallRequired: (PaywallModuleConfig) -> Unit,
     onGoBack: () -> Unit,
     onShowComingSoon: (String) -> Unit
 ) {
+    @Composable
+    fun MarketingGuard(
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        content: @Composable () -> Unit
+    ) {
+        FeatureGuard(
+            module = "marketing",
+            feature = feature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = "marketing",
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = onGoBack,
+            content = content
+        )
+    }
+
     when (screen) {
-        // Main Marketing Dashboard Screen
-        "marketing_dashboard" -> {
+        "marketing_dashboard" -> MarketingGuard("dashboard", PermissionAction.VIEW) {
             MarketingDashboardScreen(
                 viewModel = marketingViewModel,
                 onNavigateBack = onGoBack,
-                onNavigateToFunnelDetails = { onNavigate("marketing_website_overview") },
-                onNavigateToChannels = { onNavigate("marketing_channels") },
-                onNavigateToCampaigns = { onNavigate("marketing_all_campaigns") }
+                onNavigateToFunnelDetails = { onSafeNavigate("marketing_website_overview", PermissionAction.VIEW) },
+                onNavigateToChannels = { onSafeNavigate("marketing_channels", PermissionAction.VIEW) },
+                onNavigateToCampaigns = { onSafeNavigate("marketing_all_campaigns", PermissionAction.VIEW) }
             )
         }
 
-        // Advertising Overview Screen
-        "marketing_advertising_overview", "marketing_advertising" -> {
+        "marketing_advertising_overview", "marketing_advertising" -> MarketingGuard("advertising", PermissionAction.VIEW) {
             AdvertisingOverviewScreen(
                 viewModel = marketingViewModel,
                 onNavigateBack = onGoBack
             )
         }
 
-        // All Campaigns List Screen
-        "marketing_all_campaigns", "marketing_campaigns_overview", "marketing_campaigns" -> {
+        "marketing_all_campaigns", "marketing_campaigns_overview", "marketing_campaigns" -> MarketingGuard("campaigns", PermissionAction.VIEW) {
             AllCampaignsListScreen(
                 viewModel = marketingViewModel,
                 onNavigateBack = onGoBack,
                 onNavigateToDetail = { campaignCode ->
                     onCampaignCodeSelected(campaignCode)
-                    onNavigate("marketing_campaign_detail")
+                    onSafeNavigate("marketing_campaign_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // Campaign Details Screen (Overview, Performance, Audience, Creative, Timeline)
-        "marketing_campaign_detail" -> {
+        "marketing_campaign_detail" -> MarketingGuard("campaigns", PermissionAction.VIEW) {
             selectedCampaignCode?.takeIf { it.isNotBlank() }?.let { code ->
                 CampaignDetailOverviewScreen(
                     campaignCode = code,
@@ -3178,6 +3612,7 @@ private fun MarketingRouter(
 @Composable
 private fun InventoryMainRouter(
     screen: String,
+    permissionViewModel: PermissionViewModel,
     selectedPriceListId: String?,
     onPriceListIdSelected: (String?) -> Unit,
     selectedApprovalId: String?,
@@ -3188,12 +3623,13 @@ private fun InventoryMainRouter(
     onItemGroupIdSelected: (String?) -> Unit,
     selectedBulkItemId: String?,
     onBulkItemIdSelected: (String?) -> Unit,
-    // Add category edit parameters here
     selectedCategoryIdForEdit: String?,
     onCategoryIdForEditSelected: (String?) -> Unit,
     inventoryViewModel: InventoryViewModel,
     settingsViewModel: SettingsViewModel,
     onNavigate: (String) -> Unit,
+    onSafeNavigate: (String, PermissionAction?) -> Unit,
+    onPaywallRequired: (PaywallModuleConfig) -> Unit,
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit,
     onShowComingSoon: (String) -> Unit
@@ -3201,26 +3637,53 @@ private fun InventoryMainRouter(
     var selectedAdjustmentType by remember { mutableStateOf(AdjustmentType.TransferStock) }
     var selectedStockLocationItem by remember { mutableStateOf<StockLocationItemDto?>(null) }
 
+    @Composable
+    fun InventoryGuard(
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        content: @Composable () -> Unit
+    ) {
+        FeatureGuard(
+            module = "inventory",
+            feature = feature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = "inventory",
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = onGoBack,
+            content = content
+        )
+    }
+
     when (screen) {
-        "inventory_dashboard" -> {
+        // 1. Dashboard (catalog key: "dashboard") - Action: VIEW
+        "inventory_dashboard" -> InventoryGuard("dashboard", PermissionAction.VIEW) {
             InventoryDashboardScreen(
                 viewModel = inventoryViewModel
             )
         }
 
-        "inventory_items", "inventory_all_items" -> InventoryScreen(
-            onClose = onGoBack,
-            onAddItem = { onNavigate("inventory_create_item") },
-            onViewItem = { item ->
-                onInventoryItemIdSelected(item._id)
-                onNavigate("inventory_item_detail")
-            },
-            onEditItem = { onNavigate("inventory_create_item") },
-            onBreadCrumbClick = { onOpenModulesPanel("Inventory") }
-        )
+        // 2. All Items (catalog key: "items") - Actions: VIEW, CREATE, EDIT
+        "inventory_items", "inventory_all_items" -> InventoryGuard("items", PermissionAction.VIEW) {
+            InventoryScreen(
+                onClose = onGoBack,
+                onAddItem = {
+                    onInventoryItemIdSelected(null)
+                    onSafeNavigate("inventory_create_item", PermissionAction.CREATE)
+                },
+                onViewItem = { item ->
+                    onInventoryItemIdSelected(item._id)
+                    onSafeNavigate("inventory_item_detail", PermissionAction.VIEW)
+                },
+                onEditItem = { onSafeNavigate("inventory_create_item", PermissionAction.EDIT) },
+                onBreadCrumbClick = { onOpenModulesPanel("Inventory") }
+            )
+        }
 
-        "inventory_create_item" -> {
-            Log.d("InventoryNav", ">> Entering inventory_create_item with ID: '$selectedInventoryItemId'")
+        "inventory_create_item" -> InventoryGuard(
+            feature = "items",
+            action = if (selectedInventoryItemId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreateItemScreen(
                 itemId = selectedInventoryItemId,
                 onDismiss = {
@@ -3234,7 +3697,7 @@ private fun InventoryMainRouter(
             )
         }
 
-        "inventory_item_detail" -> {
+        "inventory_item_detail" -> InventoryGuard("items", PermissionAction.VIEW) {
             selectedInventoryItemId?.let { id ->
                 val selectedItem by inventoryViewModel.selectedItem.collectAsStateWithLifecycle()
                 val isLoadingDetail by inventoryViewModel.isLoadingItemDetail.collectAsStateWithLifecycle()
@@ -3255,40 +3718,46 @@ private fun InventoryMainRouter(
                     onAdjustStock = { item ->
                         selectedAdjustmentType = AdjustmentType.Increase
                         onInventoryItemIdSelected(item._id)
-                        onNavigate("inventory_adjustment")
+                        onSafeNavigate("inventory_adjustment", PermissionAction.VIEW)
                     },
                     onWarehouseTransfer = { item ->
                         selectedAdjustmentType = AdjustmentType.TransferStock
                         onInventoryItemIdSelected(item._id)
-                        onNavigate("inventory_transfer_stock")
+                        onSafeNavigate("inventory_transfer_stock", PermissionAction.VIEW)
                     },
                     onReorderStock = {
-                        onNavigate("inventory_create_purchase_order")
+                        onSafeNavigate("inventory_create_purchase_order", PermissionAction.CREATE)
                     },
                     onMarkInactive = { },
                     onEdit = {
-                        onNavigate("inventory_create_item")
+                        onSafeNavigate("inventory_create_item", PermissionAction.EDIT)
                     },
                     onShare = { }
                 )
             } ?: run { onGoBack() }
         }
 
-        "inventory_item_groups" -> AllItemGroupScreen(
-            onDismiss = onGoBack,
-            onAddItemGroup = { onNavigate("inventory_create_item_group") },
-            onView = { groupId ->
-                onItemGroupIdSelected(groupId)
-                onNavigate("inventory_item_group_detail")
-            },
-            onEdit = { groupId ->
-                onItemGroupIdSelected(groupId)
-                onNavigate("inventory_create_item_group")
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Inventory") }
-        )
+        // 3. Item Groups (catalog key: "itemGroups") - Actions: VIEW, CREATE, EDIT
+        "inventory_item_groups" -> InventoryGuard("itemGroups", PermissionAction.VIEW) {
+            AllItemGroupScreen(
+                onDismiss = onGoBack,
+                onAddItemGroup = {
+                    onItemGroupIdSelected(null)
+                    onSafeNavigate("inventory_create_item_group", PermissionAction.CREATE)
+                },
+                onView = { groupId ->
+                    onItemGroupIdSelected(groupId)
+                    onSafeNavigate("inventory_item_group_detail", PermissionAction.VIEW)
+                },
+                onEdit = { groupId ->
+                    onItemGroupIdSelected(groupId)
+                    onSafeNavigate("inventory_create_item_group", PermissionAction.EDIT)
+                },
+                onBreadCrumbClick = { onOpenModulesPanel("Inventory") }
+            )
+        }
 
-        "inventory_item_group_detail" -> {
+        "inventory_item_group_detail" -> InventoryGuard("itemGroups", PermissionAction.VIEW) {
             selectedItemGroupId?.let { id ->
                 ItemGroupDetailScreen(
                     itemGroupId = id,
@@ -3297,60 +3766,71 @@ private fun InventoryMainRouter(
                         onGoBack()
                     },
                     onEdit = {
-                        onNavigate("inventory_create_item_group")
+                        onSafeNavigate("inventory_create_item_group", PermissionAction.EDIT)
                     },
-                    onAdjustStock = { onNavigate("inventory_adjustment") },
+                    onAdjustStock = { onSafeNavigate("inventory_adjustment", PermissionAction.VIEW) },
                     onExportPdf = { }
                 )
             } ?: run { onGoBack() }
         }
 
-        "inventory_create_item_group" -> CreateItemGroupScreen(
-            onDismiss = {
-                onItemGroupIdSelected(null)
-                onGoBack()
-            },
-            onSaveSuccess = {
-                onItemGroupIdSelected(null)
-                onGoBack()
-            }
-        )
-
-        "inventory_bulk", "inventory_all_bulk" -> BulkListScreen(
-            onClose = onGoBack,
-            onItemClick = { itemId ->
-                if (itemId.isNotBlank()) {
-                    onBulkItemIdSelected(itemId)
-                    onNavigate("inventory_bulk_detail")
+        "inventory_create_item_group" -> InventoryGuard(
+            feature = "itemGroups",
+            action = if (selectedItemGroupId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            CreateItemGroupScreen(
+                onDismiss = {
+                    onItemGroupIdSelected(null)
+                    onGoBack()
+                },
+                onSaveSuccess = {
+                    onItemGroupIdSelected(null)
+                    onGoBack()
                 }
-            },
-            onEditClick = { itemId ->
-                if (itemId.isNotBlank()) {
-                    onBulkItemIdSelected(itemId)
-                    onNavigate("inventory_add_bulk")
-                }
-            },
-            onAddBulkClick = {
-                onBulkItemIdSelected(null)
-                onNavigate("inventory_add_bulk")
-            }
-        )
+            )
+        }
 
-        "inventory_bulk_detail" -> {
+        // 4. Bulk Operations (catalog key: "bulk") - Actions: VIEW, CREATE, EDIT
+        "inventory_bulk", "inventory_all_bulk" -> InventoryGuard("bulk", PermissionAction.VIEW) {
+            BulkListScreen(
+                onClose = onGoBack,
+                onItemClick = { itemId ->
+                    if (itemId.isNotBlank()) {
+                        onBulkItemIdSelected(itemId)
+                        onSafeNavigate("inventory_bulk_detail", PermissionAction.VIEW)
+                    }
+                },
+                onEditClick = { itemId ->
+                    if (itemId.isNotBlank()) {
+                        onBulkItemIdSelected(itemId)
+                        onSafeNavigate("inventory_add_bulk", PermissionAction.EDIT)
+                    }
+                },
+                onAddBulkClick = {
+                    onBulkItemIdSelected(null)
+                    onSafeNavigate("inventory_add_bulk", PermissionAction.CREATE)
+                }
+            )
+        }
+
+        "inventory_bulk_detail" -> InventoryGuard("bulk", PermissionAction.VIEW) {
             selectedBulkItemId?.takeIf { it.isNotBlank() }?.let { itemId ->
                 BulkDetailsScreen(
                     itemId = itemId,
                     onClose = onGoBack,
                     onEdit = { editId ->
                         onBulkItemIdSelected(editId)
-                        onNavigate("inventory_add_bulk")
+                        onSafeNavigate("inventory_add_bulk", PermissionAction.EDIT)
                     },
-                    onAdjustStock = { onNavigate("inventory_adjustment") }
+                    onAdjustStock = { onSafeNavigate("inventory_adjustment", PermissionAction.VIEW) }
                 )
             } ?: run { onGoBack() }
         }
 
-        "inventory_add_bulk" -> {
+        "inventory_add_bulk" -> InventoryGuard(
+            feature = "bulk",
+            action = if (selectedBulkItemId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             AddBulkItemScreen(
                 editItemId = selectedBulkItemId,
                 onClose = {
@@ -3364,39 +3844,45 @@ private fun InventoryMainRouter(
             )
         }
 
-        "inventory_adjustment", "inventory_adjustments" -> AllOrdersStockListScreen(
-            preselectedItemId = selectedInventoryItemId,
-            initialAdjustmentType = selectedAdjustmentType,
-            onClose = onGoBack
-        )
+        // 5. Adjustments & Transfer (catalog keys: "adjustment", "transferOrders")
+        "inventory_adjustment", "inventory_adjustments" -> InventoryGuard("adjustment", PermissionAction.VIEW) {
+            AllOrdersStockListScreen(
+                preselectedItemId = selectedInventoryItemId,
+                initialAdjustmentType = selectedAdjustmentType,
+                onClose = onGoBack
+            )
+        }
 
-        "inventory_transfer_order", "inventory_transfer_stock", "inventory_items_transfer_stock" -> TransferOrdersStockListScreen(
-            preselectedItemId = selectedInventoryItemId,
-            onClose = {
-                onInventoryItemIdSelected(null)
-                onGoBack()
-            }
-        )
+        "inventory_transfer_order", "inventory_transfer_stock", "inventory_items_transfer_stock" -> InventoryGuard("transferOrders", PermissionAction.VIEW) {
+            TransferOrdersStockListScreen(
+                preselectedItemId = selectedInventoryItemId,
+                onClose = {
+                    onInventoryItemIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        "inventory_stock_location", "inventory_location_management", "inventory_procurement_location_management" -> {
+        // 6. Location Management (catalog key: "locations") - Actions: VIEW, EDIT
+        "inventory_stock_location", "inventory_location_management", "inventory_procurement_location_management" -> InventoryGuard("locations", PermissionAction.VIEW) {
             AllStockLocationScreen(
                 inventoryViewModel = inventoryViewModel,
                 onClose = onGoBack,
                 onItemClick = { item ->
                     selectedStockLocationItem = item
                     inventoryViewModel.setSelectedStockLocationItem(item)
-                    onNavigate("inventory_stock_location_details")
+                    onSafeNavigate("inventory_stock_location_details", PermissionAction.VIEW)
                 },
                 onLocationClick = { item ->
                     selectedStockLocationItem = item
                     inventoryViewModel.setSelectedStockLocationItem(item)
-                    onNavigate("inventory_stock_location_form")
+                    onSafeNavigate("inventory_stock_location_form", PermissionAction.EDIT)
                 },
                 onOptionsClick = { _ -> }
             )
         }
 
-        "inventory_stock_location_details" -> {
+        "inventory_stock_location_details" -> InventoryGuard("locations", PermissionAction.VIEW) {
             StockLocationDetailsScreen(
                 itemId = selectedStockLocationItem?.id,
                 inventoryViewModel = inventoryViewModel,
@@ -3404,7 +3890,7 @@ private fun InventoryMainRouter(
             )
         }
 
-        "inventory_stock_location_form" -> {
+        "inventory_stock_location_form" -> InventoryGuard("locations", PermissionAction.EDIT) {
             StockLocationFormScreen(
                 item = selectedStockLocationItem,
                 onClose = {
@@ -3419,70 +3905,62 @@ private fun InventoryMainRouter(
             )
         }
 
-        "inventory_safety_stock" -> SafetyStockScreen(
-            onClose = onGoBack,
-//            onItemClick = { selectedItem ->
-//                android.util.Log.d("InventoryNav", ">> SafetyStock Card Clicked. ItemId: '${selectedItem.itemId}'")
-//                if (selectedItem.itemId.isNotBlank()) {
-//                    onInventoryItemIdSelected(selectedItem.itemId)
-//                    onNavigate("inventory_item_detail")
-//                } else {
-//                    android.util.Log.e("InventoryNav", ">> SafetyStock Card Click: ItemId is NULL or BLANK!")
-//                }
-//            },
-            onEditClick = { itemId ->
-                Log.d("InventoryNav", ">> SafetyStock 3-Dot Edit Clicked. ItemId: '$itemId'")
-                if (itemId.isNotBlank()) {
-                    onInventoryItemIdSelected(itemId)
-                    onNavigate("inventory_create_item")
-                } else {
-                    Log.e("InventoryNav", ">> SafetyStock Edit Click: ItemId is NULL or BLANK!")
-                }
-            },
-            onFilterClick = { }
-        )
+        // 7. Inventory Rules & Approvals
+        "inventory_safety_stock" -> InventoryGuard("safetyStock", PermissionAction.VIEW) {
+            SafetyStockScreen(
+                onClose = onGoBack,
+                onEditClick = { itemId ->
+                    if (itemId.isNotBlank()) {
+                        onInventoryItemIdSelected(itemId)
+                        onSafeNavigate("inventory_create_item", PermissionAction.EDIT)
+                    }
+                },
+                onFilterClick = { }
+            )
+        }
 
-        // 1. Auto Reorder List Screen
-        "inventory_auto_reorder" -> AutoReorderScreen(
-            onBack = onGoBack,
-            onCreateNewItem = {
-                println("DEBUG_NAV: Create New Item Clicked!")
-                onNavigate("inventory_auto_reorder_detail")
-            },
-            onEditItem = { item ->
-                // Navigate to edit rule
-            },
-            onFilterClick = { }
-        )
+        "inventory_auto_reorder" -> InventoryGuard("autoReorder", PermissionAction.VIEW) {
+            AutoReorderScreen(
+                onBack = onGoBack,
+                onCreateNewItem = {
+                    onSafeNavigate("inventory_auto_reorder_detail", PermissionAction.CREATE)
+                },
+                onEditItem = { _ -> },
+                onFilterClick = { }
+            )
+        }
 
-        // 2. Create Rule Screen
-        "inventory_auto_reorder_detail" -> CreateAutoReorderRuleScreen(
-            onClose = onGoBack,
-            onCreateRuleSuccess = {
-                onGoBack()
-            }
-        )
+        "inventory_auto_reorder_detail" -> InventoryGuard("autoReorder", PermissionAction.CREATE) {
+            CreateAutoReorderRuleScreen(
+                onClose = onGoBack,
+                onCreateRuleSuccess = { onGoBack() }
+            )
+        }
 
-        "inventory_multichannel_category_listing", "inventory_category_listing" -> {
+        // 8. Multi-Channel Category (catalog key: "category") - Actions: VIEW, CREATE, EDIT
+        "inventory_multichannel_category_listing", "inventory_category_listing" -> InventoryGuard("category", PermissionAction.VIEW) {
             CategoryManagementScreen(
-                viewModel = inventoryViewModel,          // <-- Share instance
+                viewModel = inventoryViewModel,
                 settingsViewModel = settingsViewModel,
                 onClose = onGoBack,
                 onAddCategory = {
                     onCategoryIdForEditSelected(null)
-                    onNavigate("inventory_create_category")
+                    onSafeNavigate("inventory_create_category", PermissionAction.CREATE)
                 },
                 onEditCategory = { category ->
                     onCategoryIdForEditSelected(category.id)
-                    onNavigate("inventory_create_category")
+                    onSafeNavigate("inventory_create_category", PermissionAction.EDIT)
                 }
             )
         }
 
-        "inventory_create_category" -> {
+        "inventory_create_category" -> InventoryGuard(
+            feature = "category",
+            action = if (selectedCategoryIdForEdit != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreateCategoryScreen(
                 categoryId = selectedCategoryIdForEdit,
-                inventoryViewModel = inventoryViewModel,   // <-- Share instance
+                inventoryViewModel = inventoryViewModel,
                 settingsViewModel = settingsViewModel,
                 onClose = {
                     onCategoryIdForEditSelected(null)
@@ -3499,19 +3977,20 @@ private fun InventoryMainRouter(
             )
         }
 
-        // ── Approvals List Screen ──
-        "inventory_approvals" -> ApprovalsListScreen(
-            viewModel = inventoryViewModel,
-            onBack = onGoBack,
-            onItemClick = { approvalId ->
-                onApprovalIdSelected(approvalId)
-                onNavigate("inventory_approval_detail")
-            },
-            onFilterClick = { }
-        )
+        // 9. Approvals (catalog key: "approvals") - Actions: VIEW, APPROVE
+        "inventory_approvals" -> InventoryGuard("approvals", PermissionAction.VIEW) {
+            ApprovalsListScreen(
+                viewModel = inventoryViewModel,
+                onBack = onGoBack,
+                onItemClick = { approvalId ->
+                    onApprovalIdSelected(approvalId)
+                    onSafeNavigate("inventory_approval_detail", PermissionAction.APPROVE)
+                },
+                onFilterClick = { }
+            )
+        }
 
-        // ── Approval Detail Screen ──
-        "inventory_approval_detail" -> {
+        "inventory_approval_detail" -> InventoryGuard("approvals", PermissionAction.APPROVE) {
             selectedApprovalId?.let { id ->
                 ApprovalDetailScreen(
                     approvalId = id,
@@ -3523,53 +4002,57 @@ private fun InventoryMainRouter(
                     onDownloadPdf = { }
                 )
             } ?: run {
-                // If id is null, safely navigate back to avoid blank screen
                 onGoBack()
             }
         }
 
-        "inventory_pricing_list" -> AllPricingScreen(
-            viewModel = inventoryViewModel,
-            onClose = onGoBack,
-            onAddNew = {
-                onPriceListIdSelected(null)
-                inventoryViewModel.clearSelectedPriceListDetail()
-                onNavigate("inventory_new_pricing")
-            },
-            onItemClick = { item ->
-                onPriceListIdSelected(item.id)
-                onNavigate("inventory_new_pricing")
-            },
-            onEditItem = { item ->
-                onPriceListIdSelected(item.id)
-                onNavigate("inventory_new_pricing")
-            }
-        )
-        "inventory_new_pricing" -> NewPriceListScreen(
-            editPriceListId = selectedPriceListId,
-            inventoryViewModel = inventoryViewModel,
-            onClose = {
-                onPriceListIdSelected(null)
-                inventoryViewModel.clearSelectedPriceListDetail()
-                onGoBack()
-            }
-        )
-
-        // Multi-Channel Basic Info Screen
-        "inventory_multichannel_basic_info" -> {
-            BasicInfoScreen(
-                onClose = onGoBack
+        // 10. Pricing & Price Lists (catalog key: "pricing") - Actions: VIEW, CREATE, EDIT
+        "inventory_pricing_list" -> InventoryGuard("pricing", PermissionAction.VIEW) {
+            AllPricingScreen(
+                viewModel = inventoryViewModel,
+                onClose = onGoBack,
+                onAddNew = {
+                    onPriceListIdSelected(null)
+                    inventoryViewModel.clearSelectedPriceListDetail()
+                    onSafeNavigate("inventory_new_pricing", PermissionAction.CREATE)
+                },
+                onItemClick = { item ->
+                    onPriceListIdSelected(item.id)
+                    onSafeNavigate("inventory_new_pricing", PermissionAction.EDIT)
+                },
+                onEditItem = { item ->
+                    onPriceListIdSelected(item.id)
+                    onSafeNavigate("inventory_new_pricing", PermissionAction.EDIT)
+                }
             )
         }
 
-        // Multi-Channel Allocation List Screen
-        "inventory_multichannel_allocation_list" -> {
+        "inventory_new_pricing" -> InventoryGuard(
+            feature = "pricing",
+            action = if (selectedPriceListId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            NewPriceListScreen(
+                editPriceListId = selectedPriceListId,
+                inventoryViewModel = inventoryViewModel,
+                onClose = {
+                    onPriceListIdSelected(null)
+                    inventoryViewModel.clearSelectedPriceListDetail()
+                    onGoBack()
+                }
+            )
+        }
+
+        "inventory_multichannel_basic_info" -> InventoryGuard("category", PermissionAction.VIEW) {
+            BasicInfoScreen(onClose = onGoBack)
+        }
+
+        "inventory_multichannel_allocation_list" -> InventoryGuard("category", PermissionAction.VIEW) {
             AllocationListScreen(
                 onClose = onGoBack,
                 onAddNew = { },
-                onViewItem = { item -> },
-                onEditItem = { item -> },
-                onDeleteItem = { item -> }
+                onViewItem = { _ -> },
+                onEditItem = { _ -> },
+                onDeleteItem = { _ -> }
             )
         }
     }
@@ -3578,6 +4061,9 @@ private fun InventoryMainRouter(
 @Composable
 private fun InventoryProcurementRouter(
     screen: String,
+    permissionViewModel: PermissionViewModel,
+    isPurchaseFromFinance: Boolean = false,
+    onPurchaseFromFinanceChange: (Boolean) -> Unit = {},
     selectedPackageIdForDetail: String? = null,
     onPackageIdForDetailSelected: (String?) -> Unit = {},
     selectedPackageIdForEdit: String? = null,
@@ -3602,26 +4088,51 @@ private fun InventoryProcurementRouter(
     onLowStockItemSelected: (LowStockItemDto?) -> Unit,
     inventoryViewModel: InventoryViewModel,
     onNavigate: (String) -> Unit,
+    onSafeNavigate: (String, PermissionAction?) -> Unit,
+    onPaywallRequired: (PaywallModuleConfig) -> Unit,
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit
 ) {
     var selectedPurchaseOrderForEdit by remember { mutableStateOf<PurchaseOrder?>(null) }
 
+    @Composable
+    fun ProcGuard(
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        financeFeature: String? = null,
+        content: @Composable () -> Unit
+    ) {
+        val activeModule = if (isPurchaseFromFinance && financeFeature != null) "finance" else "inventory"
+        val activeFeature = if (isPurchaseFromFinance && financeFeature != null) financeFeature else feature
+        FeatureGuard(
+            module = activeModule,
+            feature = activeFeature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = activeModule,
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = {
+                onPurchaseFromFinanceChange(false)
+                onGoBack()
+            },
+            content = content
+        )
+    }
+
     when (screen) {
-        // ── INVENTORY SUPPLIERS (Only Inventory navigation) ──
-        "inventory_suppliers" -> {
+        // 1. Suppliers (catalog key: "procSuppliers") - Action: VIEW
+        "inventory_suppliers" -> ProcGuard("procSuppliers", PermissionAction.VIEW) {
             InventorySuppliersScreen(
                 onClose = onGoBack,
                 onBreadCrumbClick = { onOpenModulesPanel("Inventory") },
                 onSupplierClick = { supplier ->
                     onSupplierSelected(supplier.id)
-                    onNavigate("inventory_supplier_detail") // <-- Goes to Inventory Supplier Detail!
+                    onSafeNavigate("inventory_supplier_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // ── INVENTORY SUPPLIER DETAIL ──
-        "inventory_supplier_detail" -> {
+        "inventory_supplier_detail" -> ProcGuard("procSuppliers", PermissionAction.VIEW) {
             selectedSupplierId?.let { id ->
                 InventorySupplierDetailScreen(
                     supplierId = id,
@@ -3634,150 +4145,220 @@ private fun InventoryProcurementRouter(
             } ?: run { onGoBack() }
         }
 
-        "inventory_requisitions", "inventory_procurement_purchase_request", "inventory_procurement_requisitions" -> AllRequisitionsScreen(
-            onClose = onGoBack,
-            onCreateRequisition = {
-                onRequisitionIdForDetailSelected(null)
-                onNavigate("inventory_create_requisition")
-            },
-            onEditRequisition = { requisition ->
-                onRequisitionIdForDetailSelected(requisition.id)
-                onNavigate("inventory_create_requisition")
-            },
-            onRequisitionClick = { requisition ->
-                val id = requisition.id ?: return@AllRequisitionsScreen
-                onRequisitionIdForDetailSelected(id)
-                onNavigate("inventory_requisition_detail")
-            }
-        )
+        // 2. Requisitions (catalog key: "procRequisitions") - Actions: VIEW, CREATE, EDIT
+        "inventory_requisitions", "inventory_procurement_purchase_request", "inventory_procurement_requisitions" -> ProcGuard("procRequisitions", PermissionAction.VIEW) {
+            AllRequisitionsScreen(
+                onClose = onGoBack,
+                onCreateRequisition = {
+                    onRequisitionIdForDetailSelected(null)
+                    onSafeNavigate("inventory_create_requisition", PermissionAction.CREATE)
+                },
+                onEditRequisition = { requisition ->
+                    onRequisitionIdForDetailSelected(requisition.id)
+                    onSafeNavigate("inventory_create_requisition", PermissionAction.EDIT)
+                },
+                onRequisitionClick = { requisition ->
+                    val id = requisition.id ?: return@AllRequisitionsScreen
+                    onRequisitionIdForDetailSelected(id)
+                    onSafeNavigate("inventory_requisition_detail", PermissionAction.VIEW)
+                }
+            )
+        }
 
-        "inventory_requisition_detail" -> {
+        "inventory_requisition_detail" -> ProcGuard("procRequisitions", PermissionAction.VIEW) {
             RequisitionDetailScreen(
                 requisitionId = selectedRequisitionIdForDetail,
                 onClose = {
                     onRequisitionIdForDetailSelected(null)
                     onGoBack()
                 },
-                onEdit = { onNavigate("inventory_create_requisition") },
+                onEdit = { onSafeNavigate("inventory_create_requisition", PermissionAction.EDIT) },
                 onPdfDownload = { },
-                onConvertToPO = { onNavigate("inventory_create_purchase_order") }
+                onConvertToPO = { onSafeNavigate("inventory_create_purchase_order", PermissionAction.CREATE) }
             )
         }
 
-        "inventory_create_requisition" -> CreateRequisitionScreen(
-            onClose = {
-                onRequisitionIdForDetailSelected(null)
-                onGoBack()
-            },
-            editRequisitionId = selectedRequisitionIdForDetail,
-            onSuccessSubmitted = {
-                onRequisitionIdForDetailSelected(null)
-                onGoBack()
-            }
-        )
+        "inventory_create_requisition" -> ProcGuard(
+            feature = "procRequisitions",
+            action = if (selectedRequisitionIdForDetail != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            CreateRequisitionScreen(
+                onClose = {
+                    onRequisitionIdForDetailSelected(null)
+                    onGoBack()
+                },
+                editRequisitionId = selectedRequisitionIdForDetail,
+                onSuccessSubmitted = {
+                    onRequisitionIdForDetailSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        "inventory_purchase_orders", "inventory_procurement_purchase_order", "inventory_procurement_purchase_orders", "inventory_procurement_orders" -> {
+        // 3. Purchase Orders (catalog key: "procPurchaseOrders") - Actions: VIEW, CREATE, EDIT
+        "inventory_purchase_orders", "inventory_procurement_purchase_order", "inventory_procurement_purchase_orders", "inventory_procurement_orders" -> ProcGuard("procPurchaseOrders", PermissionAction.VIEW) {
             POListScreen(
                 viewModel = inventoryViewModel,
                 onNavigateToCreate = {
+                    onPurchaseFromFinanceChange(false)
                     selectedPurchaseOrderForEdit = null
-                    onNavigate("inventory_create_purchase_order_flow")
+                    onSafeNavigate("inventory_create_purchase_order_flow", PermissionAction.CREATE)
                 },
                 onNavigateToDetail = { po ->
+                    onPurchaseFromFinanceChange(false)
                     onPurchaseOrderForDetailSelected(po)
-                    onNavigate("inventory_purchase_order_detail_flow")
+                    onSafeNavigate("inventory_purchase_order_detail_flow", PermissionAction.VIEW)
                 },
                 onClose = onGoBack
             )
         }
 
-        "inventory_purchase_order_detail_flow" -> {
+        "inventory_purchase_order_detail_flow" -> ProcGuard(
+            feature = "procPurchaseOrders",
+            action = PermissionAction.VIEW,
+            financeFeature = "finPurchaseOrders"
+        ) {
             selectedPurchaseOrderForDetail?.let { po ->
                 PODetailScreen(
                     order = po,
                     viewModel = inventoryViewModel,
                     onEdit = {
-                        selectedPurchaseOrderForEdit = po
-                        onNavigate("inventory_create_purchase_order_flow")
+                        val hasEditPerm = if (isPurchaseFromFinance) {
+                            permissionViewModel.canUserAction("finance", "finPurchaseOrders", PermissionAction.EDIT)
+                        } else {
+                            permissionViewModel.canUserAction("inventory", "procPurchaseOrders", PermissionAction.EDIT)
+                        }
+                        if (hasEditPerm) {
+                            selectedPurchaseOrderForEdit = po
+                            onNavigate("inventory_create_purchase_order_flow")
+                        } else {
+                            onSafeNavigate("inventory_create_purchase_order_flow", PermissionAction.EDIT)
+                        }
                     },
                     onClose = {
+                        onPurchaseFromFinanceChange(false)
                         onPurchaseOrderForDetailSelected(null)
                         onGoBack()
                     }
                 )
-            } ?: run { onGoBack() }
+            } ?: run {
+                onPurchaseFromFinanceChange(false)
+                onGoBack()
+            }
         }
 
-        "inventory_create_purchase_order_flow" -> {
+        "inventory_create_purchase_order_flow" -> ProcGuard(
+            feature = "procPurchaseOrders",
+            action = if (selectedPurchaseOrderForEdit != null) PermissionAction.EDIT else PermissionAction.CREATE,
+            financeFeature = "finPurchaseOrders"
+        ) {
             POCreateScreen(
                 viewModel = inventoryViewModel,
                 existingPo = selectedPurchaseOrderForEdit,
                 onDismiss = {
+                    onPurchaseFromFinanceChange(false)
                     selectedPurchaseOrderForEdit = null
                     onGoBack()
                 }
             )
         }
 
-        "inventory_purchase_receive", "inventory_procurement_purchase_receive" -> AllOrdersScreen(
-            onClose = onGoBack,
-            onCreateOrderClick = { onNavigate("inventory_create_purchase_order") },
-            onOrderClick = { poId, _ ->
-                onReceivePoIdSelected(poId)
-                onNavigate("inventory_purchase_receive_detail")
-            }
-        )
-
-        "inventory_purchase_receive_detail" -> ReceivePurchaseDetailScreen(
-            poId = selectedReceivePoId.orEmpty(),
-            onClose = {
-                onReceivePoIdSelected(null)
-                onGoBack()
-            },
-            onEditClick = { },
-            onPreviewPdfClick = { onNavigate("inventory_purchase_receive_preview_pdf") },
-            onConvertToBillSuccess = { onNavigate("inventory_purchase_new_bill") }
-        )
-
-        "inventory_purchase_new_bill" -> NewBillScreen(
-            onClose = onGoBack,
-            onCancel = onGoBack,
-            onSave = onGoBack
-        )
-
-        "inventory_purchase_receive_preview_pdf" -> PreviewPdfScreen(
-            onClose = onGoBack,
-            onEditClick = { onNavigate("inventory_purchase_receive_detail") },
-            onConvertToBillClick = { onNavigate("inventory_purchase_new_bill") }
-        )
-
-        "inventory_all_bills", "inventory_procurement_bill_list", "inventory_procurement_bills_list", "inventory_bills_list", "inventory_bill_list" -> AllBillListScreen(
-            onClose = onGoBack,
-            onCreateOrder = { onNavigate("inventory_create_purchase_order") },
-            onInvoiceClick = { billItem ->
-                if (billItem.id.isNotBlank()) {
-                    onInvoiceSelected(billItem.id)
-                    onNavigate("inventory_payable_purchase_detail")
+        // 4. Purchase Receives (catalog key: "procPurchaseReceives") - Actions: VIEW, CREATE
+        "inventory_purchase_receive", "inventory_procurement_purchase_receive" -> ProcGuard("procPurchaseReceives", PermissionAction.VIEW) {
+            AllOrdersScreen(
+                onClose = onGoBack,
+                onCreateOrderClick = {
+                    onPurchaseFromFinanceChange(false)
+                    onSafeNavigate("inventory_create_purchase_order", PermissionAction.CREATE)
+                },
+                onOrderClick = { poId, _ ->
+                    onPurchaseFromFinanceChange(false)
+                    onReceivePoIdSelected(poId)
+                    onSafeNavigate("inventory_purchase_receive_detail", PermissionAction.VIEW)
                 }
-            },
-            onOptionsClick = { }
-        )
+            )
+        }
 
-        "inventory_payable_purchase_detail" -> {
+        "inventory_purchase_receive_detail" -> ProcGuard(
+            feature = "procPurchaseReceives",
+            action = PermissionAction.VIEW,
+            financeFeature = "finPurchaseReceives"
+        ) {
+            ReceivePurchaseDetailScreen(
+                poId = selectedReceivePoId.orEmpty(),
+                onClose = {
+                    onPurchaseFromFinanceChange(false)
+                    onReceivePoIdSelected(null)
+                    onGoBack()
+                },
+                onEditClick = { },
+                onPreviewPdfClick = { onSafeNavigate("inventory_purchase_receive_preview_pdf", PermissionAction.VIEW) },
+                onConvertToBillSuccess = { onSafeNavigate("inventory_purchase_new_bill", PermissionAction.CREATE) }
+            )
+        }
+
+        "inventory_purchase_new_bill" -> ProcGuard("procPurchaseReceives", PermissionAction.CREATE) {
+            NewBillScreen(
+                onClose = onGoBack,
+                onCancel = onGoBack,
+                onSave = onGoBack
+            )
+        }
+
+        "inventory_purchase_receive_preview_pdf" -> ProcGuard("procPurchaseReceives", PermissionAction.VIEW) {
+            PreviewPdfScreen(
+                onClose = onGoBack,
+                onEditClick = { onSafeNavigate("inventory_purchase_receive_detail", PermissionAction.VIEW) },
+                onConvertToBillClick = { onSafeNavigate("inventory_purchase_new_bill", PermissionAction.CREATE) }
+            )
+        }
+
+        // 5. Purchase Bills (catalog key: "procBills") - Actions: VIEW, CREATE
+        "inventory_all_bills", "inventory_procurement_bill_list", "inventory_procurement_bills_list", "inventory_bills_list", "inventory_bill_list" -> ProcGuard("procBills", PermissionAction.VIEW) {
+            AllBillListScreen(
+                onClose = onGoBack,
+                onCreateOrder = {
+                    onPurchaseFromFinanceChange(false)
+                    onSafeNavigate("inventory_create_purchase_order", PermissionAction.CREATE)
+                },
+                onInvoiceClick = { billItem ->
+                    if (billItem.id.isNotBlank()) {
+                        onPurchaseFromFinanceChange(false)
+                        onInvoiceSelected(billItem.id)
+                        onSafeNavigate("inventory_payable_purchase_detail", PermissionAction.VIEW)
+                    }
+                },
+                onOptionsClick = { }
+            )
+        }
+
+        "inventory_payable_purchase_detail" -> ProcGuard(
+            feature = "procBills",
+            action = PermissionAction.VIEW,
+            financeFeature = "finPurchaseBills"
+        ) {
             selectedInvoiceId?.let { id ->
                 PayablePurchaseDetailScreen(
                     billId = id,
                     onClose = {
+                        onPurchaseFromFinanceChange(false)
                         onInvoiceSelected(null)
                         onGoBack()
                     },
                     onDownloadPdf = { },
-                    onRecordPayment = { onNavigate("inventory_record_bill_payment") }
+                    onRecordPayment = { onSafeNavigate("inventory_record_bill_payment", PermissionAction.CREATE) }
                 )
-            } ?: run { onGoBack() }
+            } ?: run {
+                onPurchaseFromFinanceChange(false)
+                onGoBack()
+            }
         }
 
-        "inventory_record_bill_payment" -> {
+        "inventory_record_bill_payment" -> ProcGuard(
+            feature = "procBills",
+            action = PermissionAction.CREATE,
+            financeFeature = "finPurchaseBills"
+        ) {
             selectedInvoiceId?.let { id ->
                 RecordBillPaymentScreen(
                     billId = id,
@@ -3787,89 +4368,120 @@ private fun InventoryProcurementRouter(
             } ?: run { onGoBack() }
         }
 
-        "inventory_barcode", "inventory_barcode_list", "inventory_procurement_barcode", "inventory_procurement_barcode_list", "inventory_all_barcodes" -> AllBarcodesScreen(
-            onClose = onGoBack,
-            onCreateBarcode = {
-                onBarcodeIdForDetailSelected(null)
-                onNavigate("inventory_create_barcode")
-            },
-            onBarcodeClick = { item ->
-                onBarcodeIdForDetailSelected(item.id)
-                onNavigate("inventory_create_barcode")
-            }
-        )
+        // 6. Barcodes (catalog key: "procBarcodes") - Actions: VIEW, CREATE
+        "inventory_barcode", "inventory_barcode_list", "inventory_procurement_barcode", "inventory_procurement_barcode_list", "inventory_all_barcodes" -> ProcGuard("procBarcodes", PermissionAction.VIEW) {
+            AllBarcodesScreen(
+                onClose = onGoBack,
+                onCreateBarcode = {
+                    onBarcodeIdForDetailSelected(null)
+                    onSafeNavigate("inventory_create_barcode", PermissionAction.CREATE)
+                },
+                onBarcodeClick = { item ->
+                    onBarcodeIdForDetailSelected(item.id)
+                    onSafeNavigate("inventory_create_barcode", PermissionAction.VIEW)
+                }
+            )
+        }
 
-        "inventory_create_barcode" -> BarcodeGeneratorScreen(
-            barcodeId = selectedBarcodeIdForDetail,
-            onClose = {
-                onBarcodeIdForDetailSelected(null)
-                onGoBack()
-            },
-            onBarcodeGeneratedSuccessfully = {
-                onBarcodeIdForDetailSelected(null)
-                onGoBack()
-            }
-        )
+        "inventory_create_barcode" -> ProcGuard(
+            feature = "procBarcodes",
+            action = if (selectedBarcodeIdForDetail != null) PermissionAction.VIEW else PermissionAction.CREATE
+        ) {
+            BarcodeGeneratorScreen(
+                barcodeId = selectedBarcodeIdForDetail,
+                onClose = {
+                    onBarcodeIdForDetailSelected(null)
+                    onGoBack()
+                },
+                onBarcodeGeneratedSuccessfully = {
+                    onBarcodeIdForDetailSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        "inventory_low_stock_alerts", "inventory_low_stock_alert" -> {
+        // 7. Low Stock Alerts (catalog key: "lowStockAlert") - Action: VIEW
+        "inventory_low_stock_alerts", "inventory_low_stock_alert" -> ProcGuard("lowStockAlert", PermissionAction.VIEW) {
             LowStockAlertsScreen(
                 onClose = onGoBack,
                 onReorderClick = { item ->
+                    onPurchaseFromFinanceChange(false)
                     onLowStockItemSelected(item)
                     if (item.warehouseId != null) {
                         inventoryViewModel.fetchLowStockItemDetail(item.itemId, item.warehouseId)
                     } else {
                         inventoryViewModel.setReorderItemDirectly(item)
                     }
-                    onNavigate("inventory_create_purchase_order")
+                    onSafeNavigate("inventory_create_purchase_order", PermissionAction.CREATE)
                 },
-                onCreateNewItem = { onNavigate("inventory_create_purchase_order") },
+                onCreateNewItem = {
+                    onPurchaseFromFinanceChange(false)
+                    onSafeNavigate("inventory_create_purchase_order", PermissionAction.CREATE)
+                },
                 onBreadcrumbClick = { onOpenModulesPanel("Inventory") }
             )
         }
 
-        "inventory_create_purchase_order" -> {
+        "inventory_create_purchase_order" -> ProcGuard(
+            feature = "procPurchaseOrders",
+            action = PermissionAction.CREATE,
+            financeFeature = "finPurchaseOrders"
+        ) {
             CreatePurchaseOrderScreen(
                 initialItem = selectedLowStockItem,
                 onClose = {
+                    onPurchaseFromFinanceChange(false)
                     onLowStockItemSelected(null)
                     onGoBack()
                 },
                 onCancel = {
+                    onPurchaseFromFinanceChange(false)
                     onLowStockItemSelected(null)
                     onGoBack()
                 },
                 onCreateOrder = {
+                    onPurchaseFromFinanceChange(false)
                     onLowStockItemSelected(null)
                     onGoBack()
                 }
             )
         }
 
-        "inventory_payables_payments" -> AllPaymentListScreen(
-            onClose = onGoBack,
-            onPaymentClick = { paymentId ->
-                onPaymentModeSelected(paymentId)
-                onNavigate("payment_mode_detail")
-            }
-        )
-
-        "inventory_payments_made" -> AllInventoryPaymentScreen(
-            onClose = onGoBack,
-            onPaymentSelect = { paymentId ->
-                if (paymentId.isNotBlank()) {
+        // 8. Payments Made (catalog key: "procPaymentsMade") - Action: VIEW
+        "inventory_payables_payments" -> ProcGuard("procPaymentsMade", PermissionAction.VIEW) {
+            AllPaymentListScreen(
+                onClose = onGoBack,
+                onPaymentClick = { paymentId ->
                     onPaymentModeSelected(paymentId)
-                    onNavigate("inventory_payment_overview_detail")
+                    onSafeNavigate("payment_mode_detail", PermissionAction.VIEW)
                 }
-            },
-            onFilterClick = { }
-        )
+            )
+        }
 
-        "inventory_payment_overview_detail" -> {
+        "inventory_payments_made" -> ProcGuard("procPaymentsMade", PermissionAction.VIEW) {
+            AllInventoryPaymentScreen(
+                onClose = onGoBack,
+                onPaymentSelect = { paymentId ->
+                    if (paymentId.isNotBlank()) {
+                        onPurchaseFromFinanceChange(false)
+                        onPaymentModeSelected(paymentId)
+                        onSafeNavigate("inventory_payment_overview_detail", PermissionAction.VIEW)
+                    }
+                },
+                onFilterClick = { }
+            )
+        }
+
+        "inventory_payment_overview_detail" -> ProcGuard(
+            feature = "procPaymentsMade",
+            action = PermissionAction.VIEW,
+            financeFeature = "finPaymentsMade"
+        ) {
             PaymentOverviewDetailScreen(
                 paymentId = selectedPaymentModeId.orEmpty(),
                 viewModel = inventoryViewModel,
                 onClose = {
+                    onPurchaseFromFinanceChange(false)
                     onPaymentModeSelected(null)
                     onGoBack()
                 },
@@ -3879,46 +4491,46 @@ private fun InventoryProcurementRouter(
             )
         }
 
-        "inventory_credits", "inventory_procurement_credits", "inventory_payables_credits" -> AllCreditsScreen(
-            onClose = onGoBack,
-            onCreditClick = { },
-            onOptionsClick = { }
-        )
+        // 9. Vendor Credits & Purchase Returns (catalog keys: "procVendorCredits", "procPurchaseReturn")
+        "inventory_credits", "inventory_procurement_credits", "inventory_payables_credits" -> ProcGuard("procVendorCredits", PermissionAction.VIEW) {
+            AllCreditsScreen(
+                onClose = onGoBack,
+                onCreditClick = { },
+                onOptionsClick = { }
+            )
+        }
 
-        "inventory_returns", "inventory_procurement_returns", "inventory_procurement_return", "inventory_return" -> AllReturnsScreen(
-            onClose = onGoBack,
-            onCreateReturnClick = {
-                // If you have a create return screen, navigate here (e.g., onNavigate("create_return"))
-            },
-            onReturnItemClick = { returnItem ->
-                // Handle click if needed
-            },
-            onEditRma = { },
-            onPdfExport = { }
-        )
+        "inventory_returns", "inventory_procurement_returns", "inventory_procurement_return", "inventory_return" -> ProcGuard("procPurchaseReturn", PermissionAction.VIEW) {
+            AllReturnsScreen(
+                onClose = onGoBack,
+                onCreateReturnClick = { },
+                onReturnItemClick = { _ -> },
+                onEditRma = { },
+                onPdfExport = { }
+            )
+        }
 
-        // ── Inventory Picklist Screen ──
-        "inventory_picklist" -> {
+        // 10. Picklist & Packages (catalog keys: "picklist", "packages") - Actions: VIEW, CREATE, EDIT
+        "inventory_picklist" -> ProcGuard("picklist", PermissionAction.VIEW) {
             PicklistListScreen(
                 viewModel = inventoryViewModel,
                 onClose = onGoBack,
                 onCreatePicklistClick = {
                     onPicklistIdSelected(null)
-                    onNavigate("inventory_create_picklist")
+                    onSafeNavigate("inventory_create_picklist", PermissionAction.CREATE)
                 },
                 onEditPicklistClick = { editId ->
                     onPicklistIdSelected(editId)
-                    onNavigate("inventory_create_picklist")
+                    onSafeNavigate("inventory_create_picklist", PermissionAction.EDIT)
                 },
                 onPicklistItemClick = { item ->
                     onPicklistIdSelected(item.id)
-                    onNavigate("inventory_picklist_detail")
+                    onSafeNavigate("inventory_picklist_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // ── Inventory Picklist Detail Screen ──
-        "inventory_picklist_detail" -> {
+        "inventory_picklist_detail" -> ProcGuard("picklist", PermissionAction.VIEW) {
             selectedPicklistId?.let { id ->
                 PicklistDetailScreen(
                     picklistId = id,
@@ -3929,66 +4541,50 @@ private fun InventoryProcurementRouter(
                     },
                     onEditClick = { editId ->
                         onPicklistIdSelected(editId)
-                        onNavigate("inventory_create_picklist")
+                        onSafeNavigate("inventory_create_picklist", PermissionAction.EDIT)
                     }
                 )
             } ?: run { onGoBack() }
         }
 
-
-        // ── Create / Edit Picklist Screen ──
-        "inventory_create_picklist" -> {
+        "inventory_create_picklist" -> ProcGuard(
+            feature = "picklist",
+            action = if (selectedPicklistId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreatePicklistScreen(
                 picklistId = selectedPicklistId,
                 viewModel = inventoryViewModel,
-                onClose = {
-                    onGoBack()
-                },
-                onCancel = {
-                    onGoBack()
-                },
-                onSuccessSaved = {
-                    onGoBack()
-                }
+                onClose = { onGoBack() },
+                onCancel = { onGoBack() },
+                onSuccessSaved = { onGoBack() }
             )
         }
 
-        // ── Packages Screen Route ──
-        // ── Packages Screen Route ──
-        "inventory_packages" -> {
+        "inventory_packages" -> ProcGuard("packages", PermissionAction.VIEW) {
             PackagesScreen(
                 viewModel = inventoryViewModel,
                 onNavigateBack = onGoBack,
                 onCreatePackageClick = {
                     onPackageIdForEditSelected(null)
                     onPackageIdForDetailSelected(null)
-                    onNavigate("inventory_create_package")
+                    onSafeNavigate("inventory_create_package", PermissionAction.CREATE)
                 },
                 onPackageItemClick = { pkg ->
-                    // Set ID and navigate to Detail Screen
                     onPackageIdForDetailSelected(pkg.id)
-                    onNavigate("inventory_package_detail")
+                    onSafeNavigate("inventory_package_detail", PermissionAction.VIEW)
                 },
                 onEditPackageClick = { pkg ->
-                    // Set ID for Edit mode and navigate to Create/Edit Screen
                     onPackageIdForDetailSelected(null)
                     onPackageIdForEditSelected(pkg.id)
-                    onNavigate("inventory_create_package")
+                    onSafeNavigate("inventory_create_package", PermissionAction.EDIT)
                 }
             )
         }
-//        "inventory_create_package" -> {
-//            CreatePackageScreen(
-//                viewModel = inventoryViewModel,
-//                onClose = onGoBack,
-//                onPackageCreated = onGoBack
-//            )
-//        }
 
-
-
-        // ── 2. Create / Edit Package Screen Route ──
-        "inventory_create_package" -> {
+        "inventory_create_package" -> ProcGuard(
+            feature = "packages",
+            action = if (selectedPackageIdForEdit != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreatePackageScreen(
                 packageId = selectedPackageIdForEdit,
                 viewModel = inventoryViewModel,
@@ -4003,8 +4599,7 @@ private fun InventoryProcurementRouter(
             )
         }
 
-        // ── 3. Package Detail Screen Route ──
-        "inventory_package_detail" -> {
+        "inventory_package_detail" -> ProcGuard("packages", PermissionAction.VIEW) {
             selectedPackageIdForDetail?.let { id ->
                 PackageDetailScreen(
                     packageId = id,
@@ -4016,30 +4611,37 @@ private fun InventoryProcurementRouter(
                     onEditClick = { editId ->
                         onPackageIdForDetailSelected(null)
                         onPackageIdForEditSelected(editId)
-                        onNavigate("inventory_create_package")
+                        onSafeNavigate("inventory_create_package", PermissionAction.EDIT)
                     }
                 )
             } ?: run { onGoBack() }
         }
-        "inventory_billing" -> AllBillsScreen(
-            onClose = onGoBack,
-            onCreateBillClick = { onNavigate("inventory_create_bill") },
-            onBillDetailsClick = { _ -> onNavigate("inventory_bill_preview") },
-            onFilterClick = { }
-        )
 
-        "inventory_bill_preview" -> BillPdfPreviewScreen(
-            onClose = onGoBack,
-            onEditClick = { onNavigate("inventory_create_bill") },
-            onConvertToBillClick = { onNavigate("inventory_create_bill") }
-        )
+        "inventory_billing" -> ProcGuard("procBills", PermissionAction.VIEW) {
+            AllBillsScreen(
+                onClose = onGoBack,
+                onCreateBillClick = { onSafeNavigate("inventory_create_bill", PermissionAction.CREATE) },
+                onBillDetailsClick = { _ -> onSafeNavigate("inventory_bill_preview", PermissionAction.VIEW) },
+                onFilterClick = { }
+            )
+        }
 
-        "inventory_create_bill" -> NewVendorInvoiceScreen(
-            onBack = onGoBack,
-            onCancel = onGoBack,
-            onSaveDraft = onGoBack,
-            onSaveAndSend = onGoBack
-        )
+        "inventory_bill_preview" -> ProcGuard("procBills", PermissionAction.VIEW) {
+            BillPdfPreviewScreen(
+                onClose = onGoBack,
+                onEditClick = { onSafeNavigate("inventory_create_bill", PermissionAction.EDIT) },
+                onConvertToBillClick = { onSafeNavigate("inventory_create_bill", PermissionAction.CREATE) }
+            )
+        }
+
+        "inventory_create_bill" -> ProcGuard("procBills", PermissionAction.CREATE) {
+            NewVendorInvoiceScreen(
+                onBack = onGoBack,
+                onCancel = onGoBack,
+                onSaveDraft = onGoBack,
+                onSaveAndSend = onGoBack
+            )
+        }
     }
 }
 
@@ -4047,6 +4649,7 @@ private fun InventoryProcurementRouter(
 @Composable
 private fun HrRouter(
     screen: String,
+    permissionViewModel: PermissionViewModel,
     settingsViewModel: SettingsViewModel,
     selectedPieceRateIdForEdit: String? = null,
     onPieceRateIdForEditSelected: (String?) -> Unit = {},
@@ -4088,331 +4691,397 @@ private fun HrRouter(
     selectedShiftId: String?,
     onShiftIdSelected: (String?) -> Unit,
     onNavigate: (String) -> Unit,
+    onSafeNavigate: (String, PermissionAction?) -> Unit,
+    onPaywallRequired: (PaywallModuleConfig) -> Unit,
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit
 ) {
+    @Composable
+    fun HrGuard(
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        content: @Composable () -> Unit
+    ) {
+        FeatureGuard(
+            module = "hr",
+            feature = feature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = "hr",
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = onGoBack,
+            content = content
+        )
+    }
+
     when (screen) {
-        // HR Dashboard screen
-        "hr_dashboard" -> HrDashboardScreen(
-            onClose = onGoBack,
-            onNavigateToLeave = { onNavigate("hr_apply_leave") },
-            onNavigateToAttendance = { onNavigate("hr_daily_attendance") },
-            onNavigateToShift = { onNavigate("hr_attendance_shift_management") },
-            onNavigateToCreateFeed = { onNavigate("hr_create_feed") }
-        )
-        "hr_create_feed" -> CreateFeedScreen(
-            onClose = onGoBack,
-            onSubmit = { postCategory, title, description, status, branchIds, departmentIds, employmentTypes, pollQuestion, pollOptions, allowMultipleAnswers, closingDate ->
-                onGoBack()
+        // 1. HR Dashboard
+        "hr_dashboard" -> HrGuard("hrDashboard", PermissionAction.VIEW) {
+            HrDashboardScreen(
+                onClose = onGoBack,
+                onNavigateToLeave = { onSafeNavigate("hr_apply_leave", PermissionAction.VIEW) },
+                onNavigateToAttendance = { onSafeNavigate("hr_daily_attendance", PermissionAction.VIEW) },
+                onNavigateToShift = { onSafeNavigate("hr_attendance_shift_management", PermissionAction.VIEW) },
+                onNavigateToCreateFeed = { onSafeNavigate("hr_create_feed", PermissionAction.VIEW) }
+            )
+        }
+
+        "hr_create_feed" -> HrGuard("hrDashboard", PermissionAction.VIEW) {
+            CreateFeedScreen(
+                onClose = onGoBack,
+                onSubmit = { _, _, _, _, _, _, _, _, _, _, _ -> onGoBack() }
+            )
+        }
+
+        // 2. Employee Management
+        "hr_all_employees", "hr_employee_management" -> HrGuard("employeeManagement", PermissionAction.VIEW) {
+            AllEmployeesScreen(
+                onDismiss = onGoBack,
+                onAddEmployee = {
+                    onEmployeeScreenModeChange(ScreenMode.CREATE)
+                    onEmployeeIdSelected(null)
+                    onSafeNavigate("hr_employee_onboarding", PermissionAction.CREATE)
+                },
+                onView = { employee ->
+                    onEmployeeScreenModeChange(ScreenMode.VIEW)
+                    onEmployeeIdSelected(employee._id)
+                    onSafeNavigate("hr_employee_onboarding", PermissionAction.VIEW)
+                },
+                onEdit = { employee ->
+                    onEmployeeScreenModeChange(ScreenMode.EDIT)
+                    onEmployeeIdSelected(employee._id)
+                    onSafeNavigate("hr_employee_onboarding", PermissionAction.EDIT)
+                },
+                onDelete = { },
+                hrViewModel = hrViewModel,
+                onBreadCrumbClick = { onOpenModulesPanel("HR") }
+            )
+        }
+
+        "hr_employee_onboarding" -> HrGuard(
+            feature = "employeeManagement",
+            action = when (employeeScreenMode) {
+                ScreenMode.CREATE -> PermissionAction.CREATE
+                ScreenMode.EDIT -> PermissionAction.EDIT
+                ScreenMode.VIEW -> PermissionAction.VIEW
             }
-        )
-        "hr_all_employees", "hr_employee_management" -> AllEmployeesScreen(
-            onDismiss = onGoBack,
-            onAddEmployee = {
-                onEmployeeScreenModeChange(ScreenMode.CREATE)
-                onEmployeeIdSelected(null)
-                onNavigate("hr_employee_onboarding")
-            },
-            onView = { employee ->
-                onEmployeeScreenModeChange(ScreenMode.VIEW)
-                onEmployeeIdSelected(employee._id)
-                onNavigate("hr_employee_onboarding")
-            },
-            onEdit = { employee ->
-                onEmployeeScreenModeChange(ScreenMode.EDIT)
-                onEmployeeIdSelected(employee._id)
-                onNavigate("hr_employee_onboarding")
-            },
-            onDelete = { },
-            hrViewModel = hrViewModel,
-            onBreadCrumbClick = { onOpenModulesPanel("HR") }
-        )
+        ) {
+            EmployeeOnboardingScreen(
+                mode = employeeScreenMode,
+                memberIdToLoad = selectedEmployeeId,
+                onDismiss = {
+                    onEmployeeIdSelected(null)
+                    onGoBack()
+                },
+                onCreateEmployee = {
+                    onEmployeeIdSelected(null)
+                    onGoBack()
+                },
+                onUpdateEmployee = {
+                    onEmployeeIdSelected(null)
+                    onGoBack()
+                },
+                onNavigateToEdit = { editMemberId ->
+                    onEmployeeScreenModeChange(ScreenMode.EDIT)
+                    onEmployeeIdSelected(editMemberId)
+                },
+                hrViewModel = hrViewModel
+            )
+        }
 
-        "hr_employee_onboarding" -> EmployeeOnboardingScreen(
-            mode = employeeScreenMode,
-            memberIdToLoad = selectedEmployeeId,
-            onDismiss = {
-                onEmployeeIdSelected(null)
-                onGoBack()
-            },
-            onCreateEmployee = {
-                onEmployeeIdSelected(null)
-                onGoBack()
-            },
-            onUpdateEmployee = {
-                onEmployeeIdSelected(null)
-                onGoBack()
-            },
-            onNavigateToEdit = { editMemberId ->
-                onEmployeeScreenModeChange(ScreenMode.EDIT)
-                onEmployeeIdSelected(editMemberId)
-            },
-            hrViewModel = hrViewModel
-        )
-        // Organization Structure screen (opened from "All Employees" sub-item)
-        "hr_organization_structure" -> OrganizationStructureScreen(
-            hrViewModel = hrViewModel,
-            onClose = onGoBack
-        )
+        // 3. Organization Structure
+        "hr_organization_structure" -> HrGuard("allEmployees", PermissionAction.VIEW) {
+            OrganizationStructureScreen(
+                hrViewModel = hrViewModel,
+                onClose = onGoBack
+            )
+        }
 
-        "hr_daily_attendance", "hr_attendance" -> AttendanceListScreen(
-            onClose = onGoBack,
-            onManualEntryClick = { onNavigate("hr_attendance_manual_entry") },
-            viewModel = hrViewModel
-        )
+        // 4. Attendance Management
+        "hr_daily_attendance", "hr_attendance" -> HrGuard("dailyAttendance", PermissionAction.VIEW) {
+            AttendanceListScreen(
+                onClose = onGoBack,
+                onManualEntryClick = { onSafeNavigate("hr_attendance_manual_entry", PermissionAction.CREATE) },
+                viewModel = hrViewModel
+            )
+        }
 
-        "hr_attendance_manual_entry" -> ManualAttendanceEntryScreen(
-            onClose = onGoBack,
-            onSubmit = { onGoBack() },
-            viewModel = hrViewModel
-        )
+        "hr_attendance_manual_entry" -> HrGuard("manualEntry", PermissionAction.CREATE) {
+            ManualAttendanceEntryScreen(
+                onClose = onGoBack,
+                onSubmit = { onGoBack() },
+                viewModel = hrViewModel
+            )
+        }
 
-        "hr_attendance_shift_management", "hr_shift_list" -> ShiftListOverviewScreen(
-            viewModel = hrViewModel,
-            onClose = onGoBack,
-            onAddShiftClick = {
-                onShiftIdSelected(null)
-                onNavigate("hr_create_shift")
-            },
-            onEditShift = { shift ->
-                onShiftIdSelected(shift.id)
-                onNavigate("hr_create_shift")
-            }
-        )
+        "hr_attendance_shift_management", "hr_shift_list" -> HrGuard("shiftManagement", PermissionAction.VIEW) {
+            ShiftListOverviewScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onAddShiftClick = {
+                    onShiftIdSelected(null)
+                    onSafeNavigate("hr_create_shift", PermissionAction.CREATE)
+                },
+                onEditShift = { shift ->
+                    onShiftIdSelected(shift.id)
+                    onSafeNavigate("hr_create_shift", PermissionAction.EDIT)
+                }
+            )
+        }
 
-        "hr_create_shift" -> CreateNewListScreen(
-            viewModel = hrViewModel,
-            shiftIdToEdit = selectedShiftId,
-            onClose = {
-                onShiftIdSelected(null)
-                onGoBack()
-            },
-            onSubmitSuccess = {
-                onShiftIdSelected(null)
-                onGoBack()
-            }
-        )
+        "hr_create_shift" -> HrGuard(
+            feature = "shiftManagement",
+            action = if (selectedShiftId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            CreateNewListScreen(
+                viewModel = hrViewModel,
+                shiftIdToEdit = selectedShiftId,
+                onClose = {
+                    onShiftIdSelected(null)
+                    onGoBack()
+                },
+                onSubmitSuccess = {
+                    onShiftIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        "hr_monthly_attendance" -> AttendanceCalendarScreen(
-            onClose = onGoBack
-        )
+        "hr_monthly_attendance" -> HrGuard("monthlyAttendance", PermissionAction.VIEW) {
+            AttendanceCalendarScreen(onClose = onGoBack)
+        }
 
-        "hr_attendance_detail" -> AttendanceDetailScreen(
-            onClose = {
-                onAttendanceIdSelected(null)
-                onGoBack()
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("HR") },
-            onHistoryClick = { }
-        )
+        "hr_attendance_detail" -> HrGuard("dailyAttendance", PermissionAction.VIEW) {
+            AttendanceDetailScreen(
+                onClose = {
+                    onAttendanceIdSelected(null)
+                    onGoBack()
+                },
+                onBreadCrumbClick = { onOpenModulesPanel("HR") },
+                onHistoryClick = { }
+            )
+        }
 
-        "hr_leave_approval" -> LeaveApprovalScreen(
-            onClose = onGoBack,
-            viewModel = hrViewModel
-        )
+        // 5. Leave Management
+        "hr_leave_approval" -> HrGuard("leaveApproval", PermissionAction.VIEW) {
+            LeaveApprovalScreen(onClose = onGoBack, viewModel = hrViewModel)
+        }
 
-        "hr_apply_leave" -> ApplyLeaveScreen(
-            onClose = onGoBack,
-            viewModel = hrViewModel
-        )
+        "hr_apply_leave" -> HrGuard("leaveDashboard", PermissionAction.VIEW) {
+            ApplyLeaveScreen(onClose = onGoBack, viewModel = hrViewModel)
+        }
 
-        "hr_payroll_salary_structure", "hr_payroll_salary_components" -> SalaryComponentListScreen(
-            onClose = onGoBack,
-            viewModel = hrViewModel,
-            onCreateComponentClick = {
-                // Clear ID for Create Mode and navigate
-                onSalaryComponentIdSelected(null)
-                onNavigate("hr_payroll_salary_components_create")
-            },
-            onEditComponentClick = { componentId ->
-                // Set ID for Edit Mode (triggers view-one API and prefill)
-                onSalaryComponentIdSelected(componentId)
-                onNavigate("hr_payroll_salary_components_create")
-            },
-            onViewComponentClick = { componentId ->
-                // Set ID for View Mode
-                onSalaryComponentIdSelected(componentId)
-                onNavigate("hr_payroll_salary_components_create")
-            }
-        )
+        // 6. Payroll Management
+        "hr_payroll_salary_structure", "hr_payroll_salary_components" -> HrGuard("salaryStructureMaster", PermissionAction.VIEW) {
+            SalaryComponentListScreen(
+                onClose = onGoBack,
+                viewModel = hrViewModel,
+                onCreateComponentClick = {
+                    onSalaryComponentIdSelected(null)
+                    onSafeNavigate("hr_payroll_salary_components_create", PermissionAction.CREATE)
+                },
+                onEditComponentClick = { componentId ->
+                    onSalaryComponentIdSelected(componentId)
+                    onSafeNavigate("hr_payroll_salary_components_create", PermissionAction.EDIT)
+                },
+                onViewComponentClick = { componentId ->
+                    onSalaryComponentIdSelected(componentId)
+                    onSafeNavigate("hr_payroll_salary_components_create", PermissionAction.VIEW)
+                }
+            )
+        }
 
-        "hr_payroll_salary_components_create" -> SalaryComponentFormScreen(
-            componentId = selectedSalaryComponentId,
-            onClose = {
-                onSalaryComponentIdSelected(null)
-                onGoBack()
-            },
-            viewModel = hrViewModel
-        )
+        "hr_payroll_salary_components_create" -> HrGuard(
+            feature = "salaryStructureMaster",
+            action = if (selectedSalaryComponentId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            SalaryComponentFormScreen(
+                componentId = selectedSalaryComponentId,
+                onClose = {
+                    onSalaryComponentIdSelected(null)
+                    onGoBack()
+                },
+                viewModel = hrViewModel
+            )
+        }
 
-        // ─────────────────────────────────────────────
-        // SALARY TEMPLATES LIST SCREEN
-        // ─────────────────────────────────────────────
-        "hr_payroll_salary_templates" -> SalaryTemplateListScreen(
-            viewModel = hrViewModel,
-            onClose = onGoBack,
-            onCreateTemplateClick = {
-                // Clear ID for create mode and navigate
-                onSalaryTemplateIdSelected(null)
-                onNavigate("hr_payroll_salary_templates_form")
-            },
-            onEditTemplateClick = { templateId ->
-                // Set ID for edit mode (triggers view-one API) and navigate
-                onSalaryTemplateIdSelected(templateId)
-                onNavigate("hr_payroll_salary_templates_form")
-            },
-            onViewTemplateClick = { templateId ->
-                // Set ID for view mode and navigate
-                onSalaryTemplateIdSelected(templateId)
-                onNavigate("hr_payroll_salary_templates_form")
-            }
-        )
+        "hr_payroll_salary_templates" -> HrGuard("salaryStructureMaster", PermissionAction.VIEW) {
+            SalaryTemplateListScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onCreateTemplateClick = {
+                    onSalaryTemplateIdSelected(null)
+                    onSafeNavigate("hr_payroll_salary_templates_form", PermissionAction.CREATE)
+                },
+                onEditTemplateClick = { templateId ->
+                    onSalaryTemplateIdSelected(templateId)
+                    onSafeNavigate("hr_payroll_salary_templates_form", PermissionAction.EDIT)
+                },
+                onViewTemplateClick = { templateId ->
+                    onSalaryTemplateIdSelected(templateId)
+                    onSafeNavigate("hr_payroll_salary_templates_form", PermissionAction.VIEW)
+                }
+            )
+        }
 
-        // ─────────────────────────────────────────────
-        // SALARY TEMPLATE FORM SCREEN (CREATE / EDIT)
-        // ─────────────────────────────────────────────
-        "hr_payroll_salary_templates_form" -> SalaryTemplateFormScreen(
-            templateId = selectedSalaryTemplateId,
-            viewModel = hrViewModel,
-            onClose = {
-                onSalaryTemplateIdSelected(null)
-                onGoBack()
-            }
-        )
+        "hr_payroll_salary_templates_form" -> HrGuard(
+            feature = "salaryStructureMaster",
+            action = if (selectedSalaryTemplateId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            SalaryTemplateFormScreen(
+                templateId = selectedSalaryTemplateId,
+                viewModel = hrViewModel,
+                onClose = {
+                    onSalaryTemplateIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        // ─────────────────────────────────────────────
-        // TRAINING PROGRAM LIST SCREEN (VIEW ALL & DELETE)
-        // ─────────────────────────────────────────────
-        "hr_training_management" -> TrainingProgramListScreen(
-            viewModel = hrViewModel,
-            onClose = onGoBack,
-            onAddProgramClick = {
-                // Clear selected program ID for create mode and navigate
-                onTrainingProgramIdSelected(null)
-                onNavigate("hr_add_edit_program")
-            },
-            onEditProgramClick = { programId ->
-                // Set selected program ID for edit mode (triggers view-one API) and navigate
-                onTrainingProgramIdSelected(programId)
-                onNavigate("hr_add_edit_program")
-            }
-        )
+        // 7. Training Management
+        "hr_training_management" -> HrGuard("trainingProgram", PermissionAction.VIEW) {
+            TrainingProgramListScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onAddProgramClick = {
+                    onTrainingProgramIdSelected(null)
+                    onSafeNavigate("hr_add_edit_program", PermissionAction.CREATE)
+                },
+                onEditProgramClick = { programId ->
+                    onTrainingProgramIdSelected(programId)
+                    onSafeNavigate("hr_add_edit_program", PermissionAction.EDIT)
+                }
+            )
+        }
 
-        // ─────────────────────────────────────────────
-        // ADD / EDIT PROGRAM SCREEN (VIEW ONE / CREATE / UPDATE)
-        // ─────────────────────────────────────────────
-        "hr_add_edit_program" -> AddEditProgramScreen(
-            programId = selectedTrainingProgramId,
-            viewModel = hrViewModel,
-            onClose = {
-                onTrainingProgramIdSelected(null)
-                onGoBack()
-            },
-            onSaveSuccess = {
-                onTrainingProgramIdSelected(null)
-                onGoBack()
-            }
-        )
+        "hr_add_edit_program" -> HrGuard(
+            feature = "trainingProgram",
+            action = if (selectedTrainingProgramId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            AddEditProgramScreen(
+                programId = selectedTrainingProgramId,
+                viewModel = hrViewModel,
+                onClose = {
+                    onTrainingProgramIdSelected(null)
+                    onGoBack()
+                },
+                onSaveSuccess = {
+                    onTrainingProgramIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        // ─────────────────────────────────────────────
-        // TRAINING ASSIGNMENT LIST SCREEN (VIEW ALL & DELETE)
-        // ─────────────────────────────────────────────
-        "hr_training_assignment_list" -> TrainingAssignmentListScreen(
-            viewModel = hrViewModel,
-            onClose = onGoBack,
-            onAssignTrainingClick = {
-                onTrainingAssignmentIdSelected(null)
-                onNavigate("hr_assign_training_form")
-            },
-            onEditAssignmentClick = { id ->
-                onTrainingAssignmentIdSelected(id)
-                onNavigate("hr_assign_training_form")
-            }
-        )
+        "hr_training_assignment_list" -> HrGuard("assignmentManagement", PermissionAction.VIEW) {
+            TrainingAssignmentListScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onAssignTrainingClick = {
+                    onTrainingAssignmentIdSelected(null)
+                    onSafeNavigate("hr_assign_training_form", PermissionAction.CREATE)
+                },
+                onEditAssignmentClick = { id ->
+                    onTrainingAssignmentIdSelected(id)
+                    onSafeNavigate("hr_assign_training_form", PermissionAction.EDIT)
+                }
+            )
+        }
 
-        // ── Document Management Routes ──
-        "hr_employee_document_upload" -> EmployeeDocumentListScreen(
-            viewModel = hrViewModel,
-            onClose = onGoBack,
-            onNavigateToUpload = {
-                // Clear ID for Create Mode
-                onDocumentIdSelected(null)
-                onNavigate("hr_new_document_upload")
-            },
-            onEditDocument = { docId ->
-                // Set ID for Edit Mode (triggers view-one and prefill)
-                onDocumentIdSelected(docId)
-                onNavigate("hr_new_document_upload")
-            }
-        )
+        "hr_assign_training_form" -> HrGuard(
+            feature = "assignmentManagement",
+            action = if (selectedTrainingAssignmentId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            AssignTrainingScreen(
+                assignmentId = selectedTrainingAssignmentId,
+                viewModel = hrViewModel,
+                onClose = {
+                    onTrainingAssignmentIdSelected(null)
+                    onGoBack()
+                },
+                onAssignSuccess = {
+                    onTrainingAssignmentIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        "hr_new_document_upload" -> EmployeeDocumentUploadScreen(
-            documentId = selectedDocumentId,
-            viewModel = hrViewModel,
-            onClose = {
-                onDocumentIdSelected(null)
-                onGoBack()
-            }
-        )
+        // 8. Document Management
+        "hr_employee_document_upload" -> HrGuard("employeeDocuments", PermissionAction.VIEW) {
+            EmployeeDocumentListScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onNavigateToUpload = {
+                    onDocumentIdSelected(null)
+                    onSafeNavigate("hr_new_document_upload", PermissionAction.CREATE)
+                },
+                onEditDocument = { docId ->
+                    onDocumentIdSelected(docId)
+                    onSafeNavigate("hr_new_document_upload", PermissionAction.EDIT)
+                }
+            )
+        }
 
-        // ── Document Category Routes ──
-        "hr_document_categories" -> DocumentCategoryListScreen(
-            viewModel = hrViewModel,
-            onClose = onGoBack,
-            onNavigateToAddCategory = {
-                onDocumentCategoryIdSelected(null)
-                onNavigate("hr_add_document_category")
-            },
-            onEditCategory = { categoryId ->
-                onDocumentCategoryIdSelected(categoryId)
-                onNavigate("hr_add_document_category")
-            }
-        )
+        "hr_new_document_upload" -> HrGuard(
+            feature = "employeeDocuments",
+            action = if (selectedDocumentId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            EmployeeDocumentUploadScreen(
+                documentId = selectedDocumentId,
+                viewModel = hrViewModel,
+                onClose = {
+                    onDocumentIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        "hr_add_document_category" -> AddDocumentCategoryScreen(
-            categoryId = selectedDocumentCategoryId,
-            viewModel = hrViewModel,
-            onClose = {
-                onDocumentCategoryIdSelected(null)
-                onGoBack()
-            }
-        )
+        "hr_document_categories" -> HrGuard("documentCategories", PermissionAction.VIEW) {
+            DocumentCategoryListScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onNavigateToAddCategory = {
+                    onDocumentCategoryIdSelected(null)
+                    onSafeNavigate("hr_add_document_category", PermissionAction.CREATE)
+                },
+                onEditCategory = { categoryId ->
+                    onDocumentCategoryIdSelected(categoryId)
+                    onSafeNavigate("hr_add_document_category", PermissionAction.EDIT)
+                }
+            )
+        }
 
-        // ─────────────────────────────────────────────
-        // ASSIGN TRAINING SCREEN (VIEW ONE / CREATE / UPDATE)
-        // ─────────────────────────────────────────────
-        "hr_assign_training_form" -> AssignTrainingScreen(
-            assignmentId = selectedTrainingAssignmentId,
-            viewModel = hrViewModel,
-            onClose = {
-                onTrainingAssignmentIdSelected(null)
-                onGoBack()
-            },
-            onAssignSuccess = {
-                onTrainingAssignmentIdSelected(null)
-                onGoBack()
-            }
-        )
+        "hr_add_document_category" -> HrGuard(
+            feature = "documentCategories",
+            action = if (selectedDocumentCategoryId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            AddDocumentCategoryScreen(
+                categoryId = selectedDocumentCategoryId,
+                viewModel = hrViewModel,
+                onClose = {
+                    onDocumentCategoryIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
 
-        // ─────────────────────────────────────────────
-        // EXPENSE CLAIMS & APPROVALS SCREEN
-        // ─────────────────────────────────────────────
-        "hr_expense_claims" -> ExpenseManagementScreen(
-            viewModel = hrViewModel,
-            onClose = onGoBack,
-            onViewClaimDetail = { claimId ->
-                onExpenseClaimIdSelected(claimId)
-                onNavigate("hr_expense_claim_detail")
-            }
-        )
+        // 9. Expense Management
+        "hr_expense_claims" -> HrGuard("approvals", PermissionAction.VIEW) {
+            ExpenseManagementScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onViewClaimDetail = { claimId ->
+                    onExpenseClaimIdSelected(claimId)
+                    onSafeNavigate("hr_expense_claim_detail", PermissionAction.VIEW)
+                }
+            )
+        }
 
-        // Read-only Details without Manager Approval actions
-        "hr_expense_claim_detail_readonly" -> {
+        "hr_expense_claim_detail_readonly" -> HrGuard("newClaims", PermissionAction.VIEW) {
             selectedExpenseClaimId?.takeIf { it.isNotBlank() }?.let { id ->
                 ExpenseClaimDetailScreen(
                     claimId = id,
-                    title = "Expense Details",      // Set header to Expense Details
-                    showApprovalActions = false,    // Hide approval actions
+                    title = "Expense Details",
+                    showApprovalActions = false,
                     viewModel = hrViewModel,
                     onClose = {
                         onExpenseClaimIdSelected(null)
@@ -4422,8 +5091,7 @@ private fun HrRouter(
             } ?: run { onGoBack() }
         }
 
-        // Full Details with Manager Approval actions
-        "hr_expense_claim_detail" -> {
+        "hr_expense_claim_detail" -> HrGuard("approvals", PermissionAction.VIEW) {
             selectedExpenseClaimId?.takeIf { it.isNotBlank() }?.let { id ->
                 ExpenseClaimDetailScreen(
                     claimId = id,
@@ -4438,63 +5106,59 @@ private fun HrRouter(
             } ?: run { onGoBack() }
         }
 
-        // ─────────────────────────────────────────────
-        // EXPENSE TYPE LIST
-        // ─────────────────────────────────────────────
-        "hr_expense_type" -> ExpenseTypeScreen(
-            viewModel = hrViewModel,
-            onClose = onGoBack,
-            onExpenseTypeClick = { type ->
-                onExpenseClaimIdSelected(type.id)
-                onNavigate("hr_expense_claim_detail_readonly")
-            },
-            onAddNewExpenseType = {
-                onExpenseTypeIdSelected(null)
-                onNavigate("hr_add_expense_type")
-            },
-            onEditExpenseType = { id ->
-                onExpenseTypeIdSelected(id)
-                onNavigate("hr_add_expense_type")
-            }
-        )
+        "hr_expense_type" -> HrGuard("expenseType", PermissionAction.VIEW) {
+            ExpenseTypeScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onExpenseTypeClick = { type ->
+                    onExpenseClaimIdSelected(type.id)
+                    onSafeNavigate("hr_expense_claim_detail_readonly", PermissionAction.VIEW)
+                },
+                onAddNewExpenseType = {
+                    onExpenseTypeIdSelected(null)
+                    onSafeNavigate("hr_add_expense_type", PermissionAction.CREATE)
+                },
+                onEditExpenseType = { id ->
+                    onExpenseTypeIdSelected(id)
+                    onSafeNavigate("hr_add_expense_type", PermissionAction.EDIT)
+                }
+            )
+        }
 
-        // ─────────────────────────────────────────────
-        // ADD / EDIT EXPENSE TYPE SCREEN
-        // ─────────────────────────────────────────────
-        "hr_add_expense_type" -> AddExpenseTypeScreen(
-            expenseTypeId = selectedExpenseTypeId,
-            viewModel = hrViewModel,
-            onClose = {
-                onExpenseTypeIdSelected(null)
-                onGoBack()
-            },
-            onSavedSuccess = {
-                onExpenseTypeIdSelected(null)
-                onGoBack()
-            }
-        )
-        // ─────────────────────────────────────────────
-        // FINANCE REIMBURSEMENT SCREEN
-        // ─────────────────────────────────────────────
-        "hr_expense_finance_reimbursement" -> {
+        "hr_add_expense_type" -> HrGuard(
+            feature = "expenseType",
+            action = if (selectedExpenseTypeId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            AddExpenseTypeScreen(
+                expenseTypeId = selectedExpenseTypeId,
+                viewModel = hrViewModel,
+                onClose = {
+                    onExpenseTypeIdSelected(null)
+                    onGoBack()
+                },
+                onSavedSuccess = {
+                    onExpenseTypeIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
+
+        "hr_expense_finance_reimbursement" -> HrGuard("financeReimbursement", PermissionAction.VIEW) {
             FinanceReimbursementScreen(
                 viewModel = hrViewModel,
                 onClose = onGoBack,
                 onViewDetail = { claim ->
                     onExpenseClaimIdSelected(claim.id)
-                    onNavigate("hr_expense_claim_detail_readonly")
+                    onSafeNavigate("hr_expense_claim_detail_readonly", PermissionAction.VIEW)
                 },
                 onProcessPayClick = { claim ->
                     onClaimForPaymentSelected(claim)
-                    onNavigate("hr_expense_process_payment")
+                    onSafeNavigate("hr_expense_process_payment", PermissionAction.CREATE)
                 }
             )
         }
 
-        // ─────────────────────────────────────────────
-        // PROCESS PAYMENT STANDALONE SCREEN
-        // ─────────────────────────────────────────────
-        "hr_expense_process_payment" -> {
+        "hr_expense_process_payment" -> HrGuard("financeReimbursement", PermissionAction.CREATE) {
             selectedClaimForPayment?.let { claim ->
                 ProcessPaymentScreen(
                     claim = claim,
@@ -4512,36 +5176,37 @@ private fun HrRouter(
             } ?: run { onGoBack() }
         }
 
-        // ─────────────────────────────────────────────
-        // NEW CLAIMS LIST (View goes to details without approvals)
-        // ─────────────────────────────────────────────
-        "hr_expense_new_claim" -> NewClaimsScreen(
-            viewModel = hrViewModel,
-            onClose = onGoBack,
-            onClaimClick = { claim ->
-                onExpenseClaimIdSelected(claim.id)
-                onNavigate("hr_expense_claim_detail_readonly")
-            },
-            onEditClaimClick = { claim ->
-                onExpenseClaimIdSelected(claim.id)
-                onNavigate("hr_edit_expense_claim") // Navigates to Edit Expense Claim Screen
-            },
-            onNavigateToSubmitClaim = {
-                onExpenseClaimIdSelected(null)
-                onNavigate("hr_submit_expense_claim") // Navigates to Submit Expense Claim Screen
-            }
-        )
+        "hr_expense_new_claim" -> HrGuard("newClaims", PermissionAction.VIEW) {
+            NewClaimsScreen(
+                viewModel = hrViewModel,
+                onClose = onGoBack,
+                onClaimClick = { claim ->
+                    onExpenseClaimIdSelected(claim.id)
+                    onSafeNavigate("hr_expense_claim_detail_readonly", PermissionAction.VIEW)
+                },
+                onEditClaimClick = { claim ->
+                    onExpenseClaimIdSelected(claim.id)
+                    onSafeNavigate("hr_edit_expense_claim", PermissionAction.EDIT)
+                },
+                onNavigateToSubmitClaim = {
+                    onExpenseClaimIdSelected(null)
+                    onSafeNavigate("hr_submit_expense_claim", PermissionAction.CREATE)
+                }
+            )
+        }
 
-        "hr_submit_expense_claim" -> SubmitExpenseClaimScreen(
-            hrViewModel = hrViewModel,
-            onClose = onGoBack,
-            onSubmitSuccess = {
-                hrViewModel.fetchExpenseClaims(page = 1, limit = 10, status = null, search = null)
-                onGoBack()
-            }
-        )
+        "hr_submit_expense_claim" -> HrGuard("newClaims", PermissionAction.CREATE) {
+            SubmitExpenseClaimScreen(
+                hrViewModel = hrViewModel,
+                onClose = onGoBack,
+                onSubmitSuccess = {
+                    hrViewModel.fetchExpenseClaims(page = 1, limit = 10, status = null, search = null)
+                    onGoBack()
+                }
+            )
+        }
 
-        "hr_edit_expense_claim" -> {
+        "hr_edit_expense_claim" -> HrGuard("newClaims", PermissionAction.EDIT) {
             selectedExpenseClaimId?.let { id ->
                 EditExpenseClaimScreen(
                     claimId = id,
@@ -4559,28 +5224,27 @@ private fun HrRouter(
             } ?: run { onGoBack() }
         }
 
-        // 1. Leave Types List Screen
-        "hr_leave_types" -> {
+        // 10. HR Settings (Leave Types, Leave Policies, Piece Rate)
+        "hr_leave_types" -> HrGuard("leaveTypes", PermissionAction.VIEW) {
             LeaveTypesListScreen(
                 viewModel = settingsViewModel,
                 onClose = onGoBack,
                 onCreateNew = {
                     onLeaveTypeIdForEditSelected(null)
-                    onNavigate("hr_create_leave_type")
+                    onSafeNavigate("hr_create_leave_type", PermissionAction.CREATE)
                 },
                 onViewLeaveType = { leaveTypeId ->
                     onLeaveTypeIdForViewSelected(leaveTypeId)
-                    onNavigate("hr_view_leave_type")
+                    onSafeNavigate("hr_view_leave_type", PermissionAction.VIEW)
                 },
                 onEditLeaveType = { leaveTypeId ->
                     onLeaveTypeIdForEditSelected(leaveTypeId)
-                    onNavigate("hr_create_leave_type")
+                    onSafeNavigate("hr_create_leave_type", PermissionAction.EDIT)
                 }
             )
         }
 
-        // 2. Full Page View Details Screen
-        "hr_view_leave_type" -> {
+        "hr_view_leave_type" -> HrGuard("leaveTypes", PermissionAction.VIEW) {
             LeaveTypeViewScreen(
                 leaveTypeId = selectedLeaveTypeIdForView.orEmpty(),
                 viewModel = settingsViewModel,
@@ -4591,13 +5255,15 @@ private fun HrRouter(
                 onEdit = { leaveTypeId ->
                     onLeaveTypeIdForViewSelected(null)
                     onLeaveTypeIdForEditSelected(leaveTypeId)
-                    onNavigate("hr_create_leave_type")
+                    onSafeNavigate("hr_create_leave_type", PermissionAction.EDIT)
                 }
             )
         }
 
-        // 3. Full Page Create / Edit Form Screen
-        "hr_create_leave_type" -> {
+        "hr_create_leave_type" -> HrGuard(
+            feature = "leaveTypes",
+            action = if (selectedLeaveTypeIdForEdit != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreateLeaveTypeScreen(
                 leaveTypeIdToEdit = selectedLeaveTypeIdForEdit,
                 viewModel = settingsViewModel,
@@ -4613,28 +5279,29 @@ private fun HrRouter(
             )
         }
 
-        // ── 1. Leave Policies List Screen ──
-        "hr_leave_policies" -> {
+        "hr_leave_policies" -> HrGuard("leavePolicies", PermissionAction.VIEW) {
             LeavePoliciesScreen(
                 viewModel = settingsViewModel,
                 onBack = onGoBack,
                 onCreatePolicy = {
                     onLeavePolicyIdForEditSelected(null)
-                    onNavigate("hr_create_leave_policy")
+                    onSafeNavigate("hr_create_leave_policy", PermissionAction.CREATE)
                 },
                 onViewPolicy = { policyId ->
                     onLeavePolicyIdForViewSelected(policyId)
-                    onNavigate("hr_view_leave_policy")
+                    onSafeNavigate("hr_view_leave_policy", PermissionAction.VIEW)
                 },
                 onEditPolicy = { policyId ->
                     onLeavePolicyIdForEditSelected(policyId)
-                    onNavigate("hr_create_leave_policy")
+                    onSafeNavigate("hr_create_leave_policy", PermissionAction.EDIT)
                 }
             )
         }
 
-        // ── 2. Create / Edit Leave Policy Screen ──
-        "hr_create_leave_policy" -> {
+        "hr_create_leave_policy" -> HrGuard(
+            feature = "leavePolicies",
+            action = if (selectedLeavePolicyIdForEdit != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreateLeavePolicyScreen(
                 viewModel = settingsViewModel,
                 editPolicyId = selectedLeavePolicyIdForEdit,
@@ -4650,8 +5317,7 @@ private fun HrRouter(
             )
         }
 
-        // ── 3. View Details Leave Policy Screen ──
-        "hr_view_leave_policy" -> {
+        "hr_view_leave_policy" -> HrGuard("leavePolicies", PermissionAction.VIEW) {
             selectedLeavePolicyIdForView?.takeIf { it.isNotBlank() }?.let { validId ->
                 ViewLeavePolicyScreen(
                     policyId = validId,
@@ -4663,32 +5329,31 @@ private fun HrRouter(
                     onEditPolicy = { policyId ->
                         onLeavePolicyIdForViewSelected(null)
                         onLeavePolicyIdForEditSelected(policyId)
-                        onNavigate("hr_create_leave_policy")
+                        onSafeNavigate("hr_create_leave_policy", PermissionAction.EDIT)
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // ── 1. Piece Rate Setup List Screen ──
-        "hr_piece_rate_setup" -> {
+        "hr_piece_rate_setup" -> HrGuard("pieceRate", PermissionAction.VIEW) {
             PieceRateSetupListScreen(
                 viewModel = settingsViewModel,
                 onBack = onGoBack,
                 onAddRate = {
-                    onPieceRateIdForEditSelected(null) // Clears ID for create mode
-                    onNavigate("hr_add_edit_piece_rate")
+                    onPieceRateIdForEditSelected(null)
+                    onSafeNavigate("hr_add_edit_piece_rate", PermissionAction.CREATE)
                 },
                 onEditRate = { rateId ->
-                    onPieceRateIdForEditSelected(rateId) // Sets ID for edit / history mode
-                    onNavigate("hr_add_edit_piece_rate")
+                    onPieceRateIdForEditSelected(rateId)
+                    onSafeNavigate("hr_add_edit_piece_rate", PermissionAction.EDIT)
                 }
             )
         }
 
-        // ── 2. Add / Edit Piece Rate Screen (With Rate History) ──
-        "hr_add_edit_piece_rate" -> {
+        "hr_add_edit_piece_rate" -> HrGuard(
+            feature = "pieceRate",
+            action = if (selectedPieceRateIdForEdit != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             AddEditPieceRateScreen(
                 rateId = selectedPieceRateIdForEdit,
                 viewModel = settingsViewModel,
@@ -4704,23 +5369,20 @@ private fun HrRouter(
             )
         }
 
-        // ── 1. Exit Management List Screen ──
-        "hr_exit_management" -> {
+        // 11. Exit Management
+        "hr_exit_management" -> HrGuard("allRequests", PermissionAction.VIEW) {
             ExitManagementScreen(
                 viewModel = hrViewModel,
                 onClose = onGoBack,
-                onCreateNewRequest = {
-                    onNavigate("hr_exit_request_form")
-                },
+                onCreateNewRequest = { onSafeNavigate("hr_exit_request_form", PermissionAction.CREATE) },
                 onOpenApproval = { exitRequestId ->
                     onExitRequestIdSelected(exitRequestId)
-                    onNavigate("hr_exit_manager_approval")
+                    onSafeNavigate("hr_exit_manager_approval", PermissionAction.VIEW)
                 }
             )
         }
 
-        // ── 2. Exit Request Create Form Screen ──
-        "hr_exit_request_form" -> {
+        "hr_exit_request_form" -> HrGuard("allRequests", PermissionAction.CREATE) {
             ExitRequestFormScreen(
                 viewModel = hrViewModel,
                 onClose = onGoBack,
@@ -4731,8 +5393,7 @@ private fun HrRouter(
             )
         }
 
-        // ── 3. Manager Approval / Review Screen ──
-        "hr_exit_manager_approval" -> {
+        "hr_exit_manager_approval" -> HrGuard("allRequests", PermissionAction.VIEW) {
             selectedExitRequestId?.takeIf { it.isNotBlank() }?.let { validId ->
                 ManagerApprovalScreen(
                     exitRequestId = validId,
@@ -4742,29 +5403,25 @@ private fun HrRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // ── 4. Exit Clearance List Screen (Reuses view-all API) ──
-        "hr_exit_clearance" -> {
+        "hr_exit_clearance" -> HrGuard("clearance", PermissionAction.VIEW) {
             ExitClearanceListScreen(
                 viewModel = hrViewModel,
                 onClose = onGoBack,
                 onOpenClearanceDetail = { exitRequestId ->
                     onExitRequestIdSelected(exitRequestId)
-                    onNavigate("hr_exit_clearance_detail")
+                    onSafeNavigate("hr_exit_clearance_detail", PermissionAction.VIEW)
                 },
                 onOpenManagerApproval = { exitRequestId ->
                     onExitRequestIdSelected(exitRequestId)
-                    onNavigate("hr_exit_manager_approval")
+                    onSafeNavigate("hr_exit_manager_approval", PermissionAction.VIEW)
                 }
             )
         }
 
-        // ── 5. Exit Clearance Detail / Checklist Screen (Reuses view-one API) ──
-        "hr_exit_clearance_detail" -> {
+        "hr_exit_clearance_detail" -> HrGuard("clearance", PermissionAction.VIEW) {
             selectedExitRequestId?.takeIf { it.isNotBlank() }?.let { validId ->
                 ExitClearanceDetailScreen(
                     exitRequestId = validId,
@@ -4775,28 +5432,24 @@ private fun HrRouter(
                     },
                     onOpenManagerApproval = { exitRequestId ->
                         onExitRequestIdSelected(exitRequestId)
-                        onNavigate("hr_exit_manager_approval")
+                        onSafeNavigate("hr_exit_manager_approval", PermissionAction.VIEW)
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // ── 6. Final Settlement List Screen (Reuses view-all API) ──
-        "hr_exit_settlements" -> {
+        "hr_exit_settlements" -> HrGuard("settlements", PermissionAction.VIEW) {
             ExitSettlementListScreen(
                 viewModel = hrViewModel,
                 onClose = onGoBack,
                 onProcessSettlement = { exitRequestId ->
                     onExitRequestIdSelected(exitRequestId)
-                    onNavigate("hr_exit_settlement_detail")
+                    onSafeNavigate("hr_exit_settlement_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // ── 7. Final Settlement Detail / Save Screen ──
-        "hr_exit_settlement_detail" -> {
+        "hr_exit_settlement_detail" -> HrGuard("settlements", PermissionAction.VIEW) {
             selectedExitRequestId?.takeIf { it.isNotBlank() }?.let { validId ->
                 ExitSettlementDetailScreen(
                     exitRequestId = validId,
@@ -4806,9 +5459,7 @@ private fun HrRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
     }
 }
@@ -4818,6 +5469,7 @@ private fun HrRouter(
 @Composable
 private fun LogisticsRouter(
     screen: String,
+    permissionViewModel: PermissionViewModel,
     selectedReturnId: String? = null,
     onReturnIdSelected: (String?) -> Unit = {},
     selectedLogisticsPackageId: String? = null,
@@ -4826,37 +5478,57 @@ private fun LogisticsRouter(
     onShipmentIdSelected: (String?) -> Unit = {},
     onOrderIdSelected: (String?) -> Unit,
     onNavigate: (String) -> Unit,
+    onSafeNavigate: (String, PermissionAction?) -> Unit,
+    onPaywallRequired: (PaywallModuleConfig) -> Unit,
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit
 ) {
-    // Shared Hilt LogisticsViewModel instance
     val logisticsViewModel: LogisticsViewModel = hiltViewModel()
 
+    @Composable
+    fun LogisticsGuard(
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        content: @Composable () -> Unit
+    ) {
+        FeatureGuard(
+            module = "logistics",
+            feature = feature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = "logistics",
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = onGoBack,
+            content = content
+        )
+    }
+
     when (screen) {
-        // Logistics Dashboard
-        "logistics_dashboard" -> LogisticsDashboardScreen(
-            onNavigateBack = onGoBack,
-            onViewAllShipments = { onNavigate("logistics_order_tracking") },
-            onViewAllCodOrders = { onNavigate("logistics_cod_screen") }
-        )
+        "logistics_dashboard" -> LogisticsGuard("dashboard", PermissionAction.VIEW) {
+            LogisticsDashboardScreen(
+                onNavigateBack = onGoBack,
+                onViewAllShipments = { onSafeNavigate("logistics_order_tracking", PermissionAction.VIEW) },
+                onViewAllCodOrders = { onSafeNavigate("logistics_cod_screen", PermissionAction.VIEW) }
+            )
+        }
 
-        // Orders List
-        "logistics_orders" -> OrderListScreen(
-            viewModel = logisticsViewModel,
-            onClose = onGoBack,
-            onViewOrderDetails = { packageItem ->
-                val targetId = packageItem._id.ifBlank {
-                    packageItem.packageId ?: packageItem.orderId ?: ""
+        "logistics_orders" -> LogisticsGuard("orderList", PermissionAction.VIEW) {
+            OrderListScreen(
+                viewModel = logisticsViewModel,
+                onClose = onGoBack,
+                onViewOrderDetails = { packageItem ->
+                    val targetId = packageItem._id.ifBlank {
+                        packageItem.packageId ?: packageItem.orderId ?: ""
+                    }
+                    if (targetId.isNotBlank()) {
+                        onLogisticsPackageIdSelected(targetId)
+                        onSafeNavigate("logistics_order_detail", PermissionAction.VIEW)
+                    }
                 }
-                if (targetId.isNotBlank()) {
-                    onLogisticsPackageIdSelected(targetId)
-                    onNavigate("logistics_order_detail")
-                }
-            }
-        )
+            )
+        }
 
-        // Order Detail Screen
-        "logistics_order_detail" -> {
+        "logistics_order_detail" -> LogisticsGuard("orderList", PermissionAction.VIEW) {
             selectedLogisticsPackageId?.takeIf { it.isNotBlank() }?.let { id ->
                 LogisticsOrderDetailScreen(
                     orderId = id,
@@ -4870,31 +5542,27 @@ private fun LogisticsRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // Dispatch List Screen
-        "logistics_dispatched" -> DispatchListScreen(
-            viewModel = logisticsViewModel,
-            onClose = onGoBack
-        )
+        "logistics_dispatched" -> LogisticsGuard("dispatched", PermissionAction.VIEW) {
+            DispatchListScreen(viewModel = logisticsViewModel, onClose = onGoBack)
+        }
 
-        // Delivery Management Screen
-        "logistics_delivery" -> DeliveryListScreen(
-            viewModel = logisticsViewModel,
-            onNavigateBack = onGoBack,
-            onViewDeliveryDetail = { deliveryId ->
-                if (deliveryId.isNotBlank()) {
-                    onLogisticsPackageIdSelected(deliveryId)
-                    onNavigate("delivery_detail")
+        "logistics_delivery" -> LogisticsGuard("delivery", PermissionAction.VIEW) {
+            DeliveryListScreen(
+                viewModel = logisticsViewModel,
+                onNavigateBack = onGoBack,
+                onViewDeliveryDetail = { deliveryId ->
+                    if (deliveryId.isNotBlank()) {
+                        onLogisticsPackageIdSelected(deliveryId)
+                        onSafeNavigate("delivery_detail", PermissionAction.VIEW)
+                    }
                 }
-            }
-        )
+            )
+        }
 
-        // Delivery Detail Screen
-        "delivery_detail" -> {
+        "delivery_detail" -> LogisticsGuard("delivery", PermissionAction.VIEW) {
             selectedLogisticsPackageId?.takeIf { it.isNotBlank() }?.let { id ->
                 DeliveryDetailScreen(
                     deliveryId = id,
@@ -4904,30 +5572,27 @@ private fun LogisticsRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // ── 1. SHIPMENTS LIST SCREEN ──
-        "logistics_shipments" -> ShipmentListScreen(
-            viewModel = logisticsViewModel,
-            onNavigateBack = onGoBack,
-            onNavigateToDetails = { shipmentId ->
-                val cleanId = shipmentId.trim()
-                if (cleanId.isNotBlank()) {
-                    onShipmentIdSelected(cleanId)
-                    onNavigate("shipment_detail")
+        "logistics_shipments" -> LogisticsGuard("shipments", PermissionAction.VIEW) {
+            ShipmentListScreen(
+                viewModel = logisticsViewModel,
+                onNavigateBack = onGoBack,
+                onNavigateToDetails = { shipmentId ->
+                    val cleanId = shipmentId.trim()
+                    if (cleanId.isNotBlank()) {
+                        onShipmentIdSelected(cleanId)
+                        onSafeNavigate("shipment_detail", PermissionAction.VIEW)
+                    }
+                },
+                onCreateShipmentClick = {
+                    onSafeNavigate("create_shipment", PermissionAction.CREATE)
                 }
-            },
-            onCreateShipmentClick = {
-                // Navigates to Create Shipment Screen
-                onNavigate("create_shipment")
-            }
-        )
+            )
+        }
 
-        // ── 2. CREATE SHIPMENT SCREEN ──
-        "create_shipment" -> {
+        "create_shipment" -> LogisticsGuard("shipments", PermissionAction.CREATE) {
             CreateShipmentScreen(
                 logisticsViewModel = logisticsViewModel,
                 onClose = onGoBack,
@@ -4935,8 +5600,7 @@ private fun LogisticsRouter(
             )
         }
 
-        // ── 3. SHIPMENT DETAIL SCREEN ──
-        "shipment_detail" -> {
+        "shipment_detail" -> LogisticsGuard("shipments", PermissionAction.VIEW) {
             selectedShipmentId?.takeIf { it.isNotBlank() }?.let { validId ->
                 ShipmentDetailScreen(
                     shipmentId = validId,
@@ -4946,67 +5610,55 @@ private fun LogisticsRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // ── ALL COURIER LIST SCREEN ──
-        "logistics_courier_management" -> {
+        "logistics_courier_management" -> LogisticsGuard("courierManagement", PermissionAction.VIEW) {
             AllCourierScreen(
                 viewModel = logisticsViewModel,
                 onBack = onGoBack,
                 onViewDeliveryDetail = { deliveryId ->
-                    // Guard against null or blank IDs before navigating
                     val cleanId = deliveryId.trim()
                     if (cleanId.isNotBlank()) {
                         onLogisticsPackageIdSelected(cleanId)
-                        onNavigate("courier_overview")
+                        onSafeNavigate("courier_overview", PermissionAction.VIEW)
                     }
                 }
             )
         }
 
-        // ── COURIER OVERVIEW DETAIL SCREEN ──
-        "courier_overview" -> {
-            // Null-safe guard: only render screen when ID is present
+        "courier_overview" -> LogisticsGuard("courierManagement", PermissionAction.VIEW) {
             selectedLogisticsPackageId?.takeIf { it.isNotBlank() }?.let { validId ->
                 CourierOverviewScreen(
                     deliveryId = validId,
                     viewModel = logisticsViewModel,
                     onBack = {
-                        onLogisticsPackageIdSelected(null) // Cleanly reset ID on exit
+                        onLogisticsPackageIdSelected(null)
                         onGoBack()
                     }
                 )
-            } ?: run {
-                // Safe fallback to prevent blank screens
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // ── COURIER PARTNERS LIST SCREEN ──
-        "logistics_courier_partner_list" -> {
+        "logistics_courier_partner_list" -> LogisticsGuard("courierPartners", PermissionAction.VIEW) {
             CourierPartnerListScreen(
                 viewModel = logisticsViewModel,
                 onBack = onGoBack,
                 onNewShipmentClick = {
-                    // Clear ID so the screen opens in Create / Add mode
                     onLogisticsPackageIdSelected(null)
-                    onNavigate("add_courier_partner")
+                    onSafeNavigate("add_courier_partner", PermissionAction.CREATE)
                 },
                 onViewCourierDetail = { courierId ->
                     val cleanId = courierId.trim()
                     if (cleanId.isNotBlank()) {
                         onLogisticsPackageIdSelected(cleanId)
-                        onNavigate("courier_partner_overview")
+                        onSafeNavigate("courier_partner_overview", PermissionAction.VIEW)
                     }
                 }
             )
         }
 
-        // ── COURIER PARTNER OVERVIEW SCREEN ──
-        "courier_partner_overview" -> {
+        "courier_partner_overview" -> LogisticsGuard("courierPartners", PermissionAction.VIEW) {
             selectedLogisticsPackageId?.takeIf { it.isNotBlank() }?.let { validId ->
                 CourierPartnerOverviewScreen(
                     courierId = validId,
@@ -5016,82 +5668,80 @@ private fun LogisticsRouter(
                         onGoBack()
                     },
                     onEditCourierClick = {
-                        // Keeps selectedLogisticsPackageId to open in Edit mode
-                        onNavigate("add_courier_partner")
+                        onSafeNavigate("add_courier_partner", PermissionAction.EDIT)
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // ── ADD / EDIT COURIER PARTNER SCREEN ──
-        "add_courier_partner" -> {
+        "add_courier_partner" -> LogisticsGuard(
+            feature = "courierPartners",
+            action = if (selectedLogisticsPackageId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             AddEditCourierPartnerScreen(
                 courierIdToEdit = selectedLogisticsPackageId,
                 viewModel = logisticsViewModel,
-                onBack = {
-                    onGoBack()
+                onBack = { onGoBack() }
+            )
+        }
+
+        "logistics_tracking_events", "logistics_order_tracking" -> LogisticsGuard("trackingEvents", PermissionAction.VIEW) {
+            TrackingEventsListScreen(
+                viewModel = logisticsViewModel,
+                onNavigateBack = onGoBack,
+                onViewEventDetail = { shipmentId ->
+                    val cleanId = shipmentId.trim()
+                    if (cleanId.isNotBlank()) {
+                        onShipmentIdSelected(cleanId)
+                        onSafeNavigate("tracking_overview", PermissionAction.VIEW)
+                    }
                 }
             )
         }
 
-        // ── TRACKING EVENTS LIST SCREEN ──
-        "logistics_tracking_events", "logistics_order_tracking" -> TrackingEventsListScreen(
-            viewModel = logisticsViewModel,
-            onNavigateBack = onGoBack,
-            onViewEventDetail = { shipmentId ->
-                val cleanId = shipmentId.trim()
-                if (cleanId.isNotBlank()) {
-                    onShipmentIdSelected(cleanId)
-                    onNavigate("tracking_overview")
-                }
-            }
-        )
-
-        // Tracking Overview Screen
-        "tracking_overview" -> {
+        "tracking_overview" -> LogisticsGuard("trackingEvents", PermissionAction.VIEW) {
             selectedShipmentId?.takeIf { it.isNotBlank() }?.let { trackingId ->
                 TrackingOverviewScreen(
                     viewModel = logisticsViewModel,
                     trackingIdentifier = trackingId,
                     onViewShipment = { shipmentId ->
                         onShipmentIdSelected(shipmentId)
-                        onNavigate("shipment_detail")
+                        onSafeNavigate("shipment_detail", PermissionAction.VIEW)
                     },
                     onClose = {
                         onShipmentIdSelected(null)
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // Returns List Screen
-        "logistics_returns" -> LogisticsReturnScreen(
-            onNavigateBack = onGoBack,
-            onCreateReturnClick = {
-                onReturnIdSelected(null)
-                onNavigate("create_return")
-            },
-            onEditReturnClick = { returnId ->
-                onReturnIdSelected(returnId)
-                onNavigate("create_return")
-            },
-            onReturnClick = { returnItem ->
-                val targetId = returnItem.id.ifBlank { returnItem.returnId }
-                if (targetId.isNotBlank()) {
-                    onReturnIdSelected(targetId)
-                    onNavigate("return_detail")
-                }
-            },
-            viewModel = logisticsViewModel
-        )
+        "logistics_returns" -> LogisticsGuard("returns", PermissionAction.VIEW) {
+            LogisticsReturnScreen(
+                onNavigateBack = onGoBack,
+                onCreateReturnClick = {
+                    onReturnIdSelected(null)
+                    onSafeNavigate("create_return", PermissionAction.CREATE)
+                },
+                onEditReturnClick = { returnId ->
+                    onReturnIdSelected(returnId)
+                    onSafeNavigate("create_return", PermissionAction.EDIT)
+                },
+                onReturnClick = { returnItem ->
+                    val targetId = returnItem.id.ifBlank { returnItem.returnId }
+                    if (targetId.isNotBlank()) {
+                        onReturnIdSelected(targetId)
+                        onSafeNavigate("return_detail", PermissionAction.VIEW)
+                    }
+                },
+                viewModel = logisticsViewModel
+            )
+        }
 
-        // Create / Edit Return Request Screen
-        "create_return" -> {
+        "create_return" -> LogisticsGuard(
+            feature = "returns",
+            action = if (selectedReturnId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreateReturnRequestScreen(
                 returnIdToEdit = selectedReturnId,
                 onNavigateBack = {
@@ -5102,8 +5752,7 @@ private fun LogisticsRouter(
             )
         }
 
-        // Return Details Screen (Protected against null or blank ID)
-        "return_detail" -> {
+        "return_detail" -> LogisticsGuard("returns", PermissionAction.VIEW) {
             selectedReturnId?.takeIf { it.isNotBlank() }?.let { validReturnId ->
                 ReturnRequestDetailsScreen(
                     returnId = validReturnId,
@@ -5113,32 +5762,27 @@ private fun LogisticsRouter(
                     },
                     viewModel = logisticsViewModel
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // ── ALL COURIER LIST SCREEN ──
-        // ── ALL COD SCREEN ──
-        "logistics_cod_screen" -> {
+        "logistics_cod_screen" -> LogisticsGuard("codOrders", PermissionAction.VIEW) {
             AllCodScreen(
                 viewModel = logisticsViewModel,
                 onBack = onGoBack,
                 onCreateOrderClick = {
-                    onNavigate("create_order")
+                    onSafeNavigate("create_order", PermissionAction.CREATE)
                 },
                 onViewDeliveryDetail = { deliveryId ->
                     val cleanId = deliveryId.trim()
                     if (cleanId.isNotBlank()) {
                         onLogisticsPackageIdSelected(cleanId)
-                        onNavigate("logistics_cod_detail")
+                        onSafeNavigate("logistics_cod_detail", PermissionAction.VIEW)
                     }
                 }
             )
         }
 
-        // ── COD ORDER DETAIL OVERVIEW SCREEN ──
-        "logistics_cod_detail" -> {
+        "logistics_cod_detail" -> LogisticsGuard("codOrders", PermissionAction.VIEW) {
             selectedLogisticsPackageId?.takeIf { it.isNotBlank() }?.let { validId ->
                 CodOrderOverviewScreen(
                     codOrderId = validId,
@@ -5149,12 +5793,10 @@ private fun LogisticsRouter(
                     },
                     onViewTrackingHistory = { trackingId ->
                         onShipmentIdSelected(trackingId)
-                        onNavigate("tracking_overview")
+                        onSafeNavigate("tracking_overview", PermissionAction.VIEW)
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
     }
 }
@@ -5162,6 +5804,7 @@ private fun LogisticsRouter(
 @Composable
 private fun LegalRouter(
     screen: String,
+    permissionViewModel: PermissionViewModel,
     hrViewModel: HrViewModel,
     inventoryViewModel: InventoryViewModel,
     branchViewModel: BranchViewModel,
@@ -5183,93 +5826,102 @@ private fun LegalRouter(
     onLegalNoticeIdSelected: (String?) -> Unit = {},
     legalViewModel: LegalViewModel = hiltViewModel(),
     onNavigate: (String) -> Unit,
+    onSafeNavigate: (String, PermissionAction?) -> Unit,
+    onPaywallRequired: (PaywallModuleConfig) -> Unit,
     onGoBack: () -> Unit
 ) {
+    @Composable
+    fun LegalGuard(
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        content: @Composable () -> Unit
+    ) {
+        FeatureGuard(
+            module = "legal",
+            feature = feature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = "legal",
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = onGoBack,
+            content = content
+        )
+    }
+
     when (screen) {
-        "legal_dashboard" -> LegalDashboardScreen()
+        "legal_dashboard" -> LegalGuard("dashboard", PermissionAction.VIEW) {
+            LegalDashboardScreen()
+        }
 
-        // ── Audit & Legal Calendar Route ──
-        "legal_calendar" -> AuditLegalCalendarScreen(
-            onNavigateBack = onGoBack,
-            onScheduleClick = {
-                onNavigate("legal_create_compliance")
-            },
-            onEventClick = { event ->
-                when (event.module?.lowercase()) {
-                    "compliance" -> {
-                        event.recordId?.let { id ->
+        "legal_calendar" -> LegalGuard("auditCalendar", PermissionAction.VIEW) {
+            AuditLegalCalendarScreen(
+                onNavigateBack = onGoBack,
+                onScheduleClick = {
+                    onSafeNavigate("legal_create_compliance", PermissionAction.CREATE)
+                },
+                onEventClick = { event ->
+                    when (event.module?.lowercase()) {
+                        "compliance" -> event.recordId?.let { id ->
                             onComplianceIdSelected(id)
-                            onNavigate("legal_compliance_detail")
+                            onSafeNavigate("legal_compliance_detail", PermissionAction.VIEW)
                         }
-                    }
-                    "contract" -> {
-                        event.recordId?.let { id ->
+                        "contract" -> event.recordId?.let { id ->
                             onContractIdSelected(id)
-                            onNavigate("legal_contract_detail")
+                            onSafeNavigate("legal_contract_detail", PermissionAction.VIEW)
                         }
-                    }
-                    "license" -> {
-                        event.recordId?.let { id ->
+                        "license" -> event.recordId?.let { id ->
                             onLegalLicenseIdSelected(id)
-                            onNavigate("legal_license_detail")
+                            onSafeNavigate("legal_license_detail", PermissionAction.VIEW)
                         }
-                    }
-                    "employee" -> {
-                        event.recordId?.let { id ->
+                        "employee" -> event.recordId?.let { id ->
                             onLegalEmployeeIdSelected(id)
-                            onNavigate("legal_employee_detail")
+                            onSafeNavigate("legal_employee_detail", PermissionAction.VIEW)
                         }
-                    }
-                    "vendor" -> {
-                        event.recordId?.let { id ->
+                        "vendor" -> event.recordId?.let { id ->
                             onLegalVendorIdSelected(id)
-                            onNavigate("legal_vendor_detail")
+                            onSafeNavigate("legal_vendor_detail", PermissionAction.VIEW)
                         }
-                    }
-                    "customer" -> {
-                        event.recordId?.let { id ->
+                        "customer" -> event.recordId?.let { id ->
                             onLegalCustomerIdSelected(id)
-                            onNavigate("legal_customer_detail")
+                            onSafeNavigate("legal_customer_detail", PermissionAction.VIEW)
                         }
-                    }
-                    "notice" -> {
-                        event.recordId?.let { id ->
+                        "notice" -> event.recordId?.let { id ->
                             onLegalNoticeIdSelected(id)
-                            onNavigate("legal_notice_detail")
+                            onSafeNavigate("legal_notice_detail", PermissionAction.VIEW)
                         }
-                    }
-                    "document" -> {
-                        event.recordId?.let { id ->
+                        "document" -> event.recordId?.let { id ->
                             onLegalDocumentIdSelected(id)
-                            onNavigate("legal_document_detail")
+                            onSafeNavigate("legal_document_detail", PermissionAction.VIEW)
                         }
                     }
-                }
-            },
-            viewModel = legalViewModel
-        )
+                },
+                viewModel = legalViewModel
+            )
+        }
 
-        "legal_contracts" -> LegalContractsScreen(
-            onBack = onGoBack,
-            onCreateContract = {
-                onContractIdSelected(null)
-                onNavigate("legal_create_contract")
-            },
-            onContractClick = { contractId ->
-                if (contractId.isNotBlank()) {
-                    onContractIdSelected(contractId)
-                    onNavigate("legal_contract_detail")
+        "legal_contracts" -> LegalGuard("contracts", PermissionAction.VIEW) {
+            LegalContractsScreen(
+                onBack = onGoBack,
+                onCreateContract = {
+                    onContractIdSelected(null)
+                    onSafeNavigate("legal_create_contract", PermissionAction.CREATE)
+                },
+                onContractClick = { contractId ->
+                    if (contractId.isNotBlank()) {
+                        onContractIdSelected(contractId)
+                        onSafeNavigate("legal_contract_detail", PermissionAction.VIEW)
+                    }
+                },
+                onEditContract = { contractId ->
+                    if (contractId.isNotBlank()) {
+                        onContractIdSelected(contractId)
+                        onSafeNavigate("legal_create_contract", PermissionAction.EDIT)
+                    }
                 }
-            },
-            onEditContract = { contractId ->
-                if (contractId.isNotBlank()) {
-                    onContractIdSelected(contractId)
-                    onNavigate("legal_create_contract")
-                }
-            }
-        )
+            )
+        }
 
-        "legal_contract_detail" -> {
+        "legal_contract_detail" -> LegalGuard("contracts", PermissionAction.VIEW) {
             selectedContractId?.takeIf { it.isNotBlank() }?.let { validId ->
                 ContractOverviewScreen(
                     contractId = validId,
@@ -5278,12 +5930,13 @@ private fun LegalRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        "legal_create_contract" -> {
+        "legal_create_contract" -> LegalGuard(
+            feature = "contracts",
+            action = if (selectedContractId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreateLegalContractScreen(
                 contractIdToEdit = selectedContractId,
                 onClose = {
@@ -5293,29 +5946,29 @@ private fun LegalRouter(
             )
         }
 
-        "legal_compliance" -> {
+        "legal_compliance" -> LegalGuard("compliance", PermissionAction.VIEW) {
             LegalComplianceScreen(
                 onBack = onGoBack,
                 onAddCompliance = {
                     onComplianceIdSelected(null)
-                    onNavigate("legal_create_compliance")
+                    onSafeNavigate("legal_create_compliance", PermissionAction.CREATE)
                 },
                 onComplianceClick = { compliance ->
                     if (compliance.id.isNotBlank()) {
                         onComplianceIdSelected(compliance.id)
-                        onNavigate("legal_compliance_detail")
+                        onSafeNavigate("legal_compliance_detail", PermissionAction.VIEW)
                     }
                 },
                 onEditCompliance = { complianceId ->
                     if (complianceId.isNotBlank()) {
                         onComplianceIdSelected(complianceId)
-                        onNavigate("legal_create_compliance")
+                        onSafeNavigate("legal_create_compliance", PermissionAction.EDIT)
                     }
                 }
             )
         }
 
-        "legal_compliance_detail" -> {
+        "legal_compliance_detail" -> LegalGuard("compliance", PermissionAction.VIEW) {
             selectedComplianceId?.takeIf { it.isNotBlank() }?.let { validId ->
                 LegalComplianceDetailScreen(
                     complianceId = validId,
@@ -5326,48 +5979,46 @@ private fun LegalRouter(
                     onEdit = { id ->
                         if (id.isNotBlank()) {
                             onComplianceIdSelected(id)
-                            onNavigate("legal_create_compliance")
+                            onSafeNavigate("legal_create_compliance", PermissionAction.EDIT)
                         }
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        "legal_create_compliance" -> {
+        "legal_create_compliance" -> LegalGuard(
+            feature = "compliance",
+            action = if (selectedComplianceId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreateLegalComplianceScreen(
                 complianceIdToEdit = selectedComplianceId,
-                onClose = {
-//                    onComplianceIdSelected(null)
-                    onGoBack()
-                }
+                onClose = { onGoBack() }
             )
         }
 
-        "legal_documents" -> {
+        "legal_documents" -> LegalGuard("documents", PermissionAction.VIEW) {
             LegalDocumentsScreen(
                 onBack = onGoBack,
                 onAddDocument = {
                     onLegalDocumentIdSelected(null)
-                    onNavigate("legal_create_document")
+                    onSafeNavigate("legal_create_document", PermissionAction.CREATE)
                 },
                 onDocumentClick = { doc ->
                     if (doc.id.isNotBlank()) {
                         onLegalDocumentIdSelected(doc.id)
-                        onNavigate("legal_document_detail")
+                        onSafeNavigate("legal_document_detail", PermissionAction.VIEW)
                     }
                 },
                 onEditDocument = { docId ->
                     if (docId.isNotBlank()) {
                         onLegalDocumentIdSelected(docId)
-                        onNavigate("legal_create_document")
+                        onSafeNavigate("legal_create_document", PermissionAction.EDIT)
                     }
                 }
             )
         }
 
-        "legal_document_detail" -> {
+        "legal_document_detail" -> LegalGuard("documents", PermissionAction.VIEW) {
             selectedLegalDocumentId?.takeIf { it.isNotBlank() }?.let { validId ->
                 LegalDocumentDetailScreen(
                     documentId = validId,
@@ -5378,49 +6029,46 @@ private fun LegalRouter(
                     onEdit = { id ->
                         if (id.isNotBlank()) {
                             onLegalDocumentIdSelected(id)
-                            onNavigate("legal_create_document")
+                            onSafeNavigate("legal_create_document", PermissionAction.EDIT)
                         }
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        "legal_create_document" -> {
+        "legal_create_document" -> LegalGuard(
+            feature = "documents",
+            action = if (selectedLegalDocumentId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreateUpdateLegalDocumentScreen(
                 documentIdToEdit = selectedLegalDocumentId,
-                onClose = {
-                    onGoBack()
-                }
+                onClose = { onGoBack() }
             )
         }
 
-        // ── Legal License List ──
-        "legal_licenses" -> {
+        "legal_licenses" -> LegalGuard("licenses", PermissionAction.VIEW) {
             LegalLicenseScreen(
                 onBack = onGoBack,
                 onAddLicense = {
                     onLegalLicenseIdSelected(null)
-                    onNavigate("legal_create_license")
+                    onSafeNavigate("legal_create_license", PermissionAction.CREATE)
                 },
                 onLicenseClick = { license ->
                     if (license.id.isNotBlank()) {
                         onLegalLicenseIdSelected(license.id)
-                        onNavigate("legal_license_detail")
+                        onSafeNavigate("legal_license_detail", PermissionAction.VIEW)
                     }
                 },
                 onEditLicense = { licenseId ->
                     if (licenseId.isNotBlank()) {
                         onLegalLicenseIdSelected(licenseId)
-                        onNavigate("legal_create_license")
+                        onSafeNavigate("legal_create_license", PermissionAction.EDIT)
                     }
                 }
             )
         }
 
-        // ── Legal License Detail (Protected against null ID) ──
-        "legal_license_detail" -> {
+        "legal_license_detail" -> LegalGuard("licenses", PermissionAction.VIEW) {
             selectedLegalLicenseId?.takeIf { it.isNotBlank() }?.let { validId ->
                 LegalLicenseDetailScreen(
                     licenseId = validId,
@@ -5431,17 +6079,17 @@ private fun LegalRouter(
                     onEditLicense = { id ->
                         if (id.isNotBlank()) {
                             onLegalLicenseIdSelected(id)
-                            onNavigate("legal_create_license")
+                            onSafeNavigate("legal_create_license", PermissionAction.EDIT)
                         }
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // ── Legal License Create / Edit ──
-        "legal_create_license" -> {
+        "legal_create_license" -> LegalGuard(
+            feature = "licenses",
+            action = if (selectedLegalLicenseId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreateLegalLicenseScreen(
                 licenseIdToEdit = selectedLegalLicenseId,
                 onClose = {
@@ -5451,29 +6099,29 @@ private fun LegalRouter(
             )
         }
 
-        "legal_customer" -> {
+        "legal_customer" -> LegalGuard("customerLegal", PermissionAction.VIEW) {
             LegalCustomerListScreen(
                 onBack = onGoBack,
                 onAddCustomerRecord = {
                     onLegalCustomerIdSelected(null)
-                    onNavigate("legal_create_customer_record")
+                    onSafeNavigate("legal_create_customer_record", PermissionAction.CREATE)
                 },
                 onRecordClick = { item ->
                     if (item.id.isNotBlank()) {
                         onLegalCustomerIdSelected(item.id)
-                        onNavigate("legal_customer_detail")
+                        onSafeNavigate("legal_customer_detail", PermissionAction.VIEW)
                     }
                 },
                 onEditRecord = { id ->
                     if (id.isNotBlank()) {
                         onLegalCustomerIdSelected(id)
-                        onNavigate("legal_create_customer_record")
+                        onSafeNavigate("legal_create_customer_record", PermissionAction.EDIT)
                     }
                 }
             )
         }
 
-        "legal_customer_detail" -> {
+        "legal_customer_detail" -> LegalGuard("customerLegal", PermissionAction.VIEW) {
             selectedLegalCustomerId?.takeIf { it.isNotBlank() }?.let { validId ->
                 LegalCustomerDetailScreen(
                     recordId = validId,
@@ -5484,54 +6132,52 @@ private fun LegalRouter(
                     onEditRecord = { id ->
                         if (id.isNotBlank()) {
                             onLegalCustomerIdSelected(id)
-                            onNavigate("legal_create_customer_record")
+                            onSafeNavigate("legal_create_customer_record", PermissionAction.EDIT)
                         }
                     }
                 )
             } ?: run { onGoBack() }
         }
 
-        "legal_create_customer_record" -> {
+        "legal_create_customer_record" -> LegalGuard(
+            feature = "customerLegal",
+            action = if (selectedLegalCustomerId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreateLegalCustomerScreen(
                 recordIdToEdit = selectedLegalCustomerId,
-                onClose = {
-//                    onLegalCustomerIdSelected(null)
-                    onGoBack()
-                }
+                onClose = { onGoBack() }
             )
         }
 
-        // ── Employee & Labour Legal List ──
-        "legal_employee" -> {
+        "legal_employee" -> LegalGuard("employeeLegal", PermissionAction.VIEW) {
             LegalEmployeeListScreen(
                 viewModel = legalViewModel,
                 onNavigateBack = onGoBack,
                 onNavigateToCreate = {
                     onLegalEmployeeIdSelected(null)
-                    onNavigate("legal_create_employee")
+                    onSafeNavigate("legal_create_employee", PermissionAction.CREATE)
                 },
                 onNavigateToEdit = { employeeId ->
                     if (employeeId.isNotBlank()) {
                         onLegalEmployeeIdSelected(employeeId)
-                        onNavigate("legal_create_employee")
+                        onSafeNavigate("legal_create_employee", PermissionAction.EDIT)
                     }
                 },
                 onNavigateToDetail = { employeeId ->
                     if (employeeId.isNotBlank()) {
                         onLegalEmployeeIdSelected(employeeId)
-                        onNavigate("legal_employee_detail")
+                        onSafeNavigate("legal_employee_detail", PermissionAction.VIEW)
                     }
                 }
             )
         }
 
-        // ── Employee & Labour Legal Detail (Null-safe guard) ──
-        "legal_employee_detail" -> {
+        "legal_employee_detail" -> LegalGuard("employeeLegal", PermissionAction.VIEW) {
             selectedLegalEmployeeId?.takeIf { it.isNotBlank() }?.let { validId ->
                 LegalEmployeeDetailScreen(
                     recordId = validId,
                     viewModel = legalViewModel,
-                    hrViewModel = hrViewModel, // Pass hrViewModel to resolve member names
+                    hrViewModel = hrViewModel,
                     onNavigateBack = {
                         onLegalEmployeeIdSelected(null)
                         onGoBack()
@@ -5539,17 +6185,17 @@ private fun LegalRouter(
                     onNavigateToEdit = { id ->
                         if (id.isNotBlank()) {
                             onLegalEmployeeIdSelected(id)
-                            onNavigate("legal_create_employee")
+                            onSafeNavigate("legal_create_employee", PermissionAction.EDIT)
                         }
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // ── Employee & Labour Legal Create / Edit ──
-        "legal_create_employee" -> {
+        "legal_create_employee" -> LegalGuard(
+            feature = "employeeLegal",
+            action = if (selectedLegalEmployeeId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             val departmentViewModel: DepartmentViewModel = hiltViewModel()
             LegalEmployeeCreateEditScreen(
                 idToEdit = selectedLegalEmployeeId,
@@ -5564,32 +6210,30 @@ private fun LegalRouter(
             )
         }
 
-        // ── Legal Vendor & Supplier List ──
-        "legal_vendor" -> {
+        "legal_vendor" -> LegalGuard("vendorLegal", PermissionAction.VIEW) {
             LegalVendorListScreen(
                 viewModel = legalViewModel,
                 onNavigateBack = onGoBack,
                 onNavigateToCreate = {
                     onLegalVendorIdSelected(null)
-                    onNavigate("legal_create_vendor")
+                    onSafeNavigate("legal_create_vendor", PermissionAction.CREATE)
                 },
                 onNavigateToDetail = { vendorId ->
                     if (vendorId.isNotBlank()) {
                         onLegalVendorIdSelected(vendorId)
-                        onNavigate("legal_vendor_detail")
+                        onSafeNavigate("legal_vendor_detail", PermissionAction.VIEW)
                     }
                 },
                 onNavigateToEdit = { vendorId ->
                     if (vendorId.isNotBlank()) {
                         onLegalVendorIdSelected(vendorId)
-                        onNavigate("legal_create_vendor")
+                        onSafeNavigate("legal_create_vendor", PermissionAction.EDIT)
                     }
                 }
             )
         }
 
-        // ── Legal Vendor & Supplier Detail ──
-        "legal_vendor_detail" -> {
+        "legal_vendor_detail" -> LegalGuard("vendorLegal", PermissionAction.VIEW) {
             selectedLegalVendorId?.takeIf { it.isNotBlank() }?.let { validId ->
                 LegalVendorDetailScreen(
                     vendorId = validId,
@@ -5601,17 +6245,17 @@ private fun LegalRouter(
                     onNavigateToEdit = { id ->
                         if (id.isNotBlank()) {
                             onLegalVendorIdSelected(id)
-                            onNavigate("legal_create_vendor")
+                            onSafeNavigate("legal_create_vendor", PermissionAction.EDIT)
                         }
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // ── Legal Vendor & Supplier Create / Edit ──
-        "legal_create_vendor" -> {
+        "legal_create_vendor" -> LegalGuard(
+            feature = "vendorLegal",
+            action = if (selectedLegalVendorId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreateEditLegalVendorScreen(
                 idToEdit = selectedLegalVendorId,
                 viewModel = legalViewModel,
@@ -5625,32 +6269,30 @@ private fun LegalRouter(
             )
         }
 
-        // ── Legal Notice & Dispute List ──
-        "legal_notice" -> {
+        "legal_notice" -> LegalGuard("notices", PermissionAction.VIEW) {
             LegalNoticeListScreen(
                 viewModel = legalViewModel,
                 onNavigateBack = onGoBack,
                 onNavigateToCreate = {
                     onLegalNoticeIdSelected(null)
-                    onNavigate("legal_create_notice")
+                    onSafeNavigate("legal_create_notice", PermissionAction.CREATE)
                 },
                 onNavigateToDetail = { noticeId ->
                     if (noticeId.isNotBlank()) {
                         onLegalNoticeIdSelected(noticeId)
-                        onNavigate("legal_notice_detail")
+                        onSafeNavigate("legal_notice_detail", PermissionAction.VIEW)
                     }
                 },
                 onNavigateToEdit = { noticeId ->
                     if (noticeId.isNotBlank()) {
                         onLegalNoticeIdSelected(noticeId)
-                        onNavigate("legal_create_notice")
+                        onSafeNavigate("legal_create_notice", PermissionAction.EDIT)
                     }
                 }
             )
         }
 
-        // ── Legal Notice & Dispute Detail ──
-        "legal_notice_detail" -> {
+        "legal_notice_detail" -> LegalGuard("notices", PermissionAction.VIEW) {
             selectedLegalNoticeId?.takeIf { it.isNotBlank() }?.let { validId ->
                 LegalNoticeDetailScreen(
                     noticeId = validId,
@@ -5662,17 +6304,17 @@ private fun LegalRouter(
                     onNavigateToEdit = { id ->
                         if (id.isNotBlank()) {
                             onLegalNoticeIdSelected(id)
-                            onNavigate("legal_create_notice")
+                            onSafeNavigate("legal_create_notice", PermissionAction.EDIT)
                         }
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // ── Legal Notice & Dispute Create / Edit ──
-        "legal_create_notice" -> {
+        "legal_create_notice" -> LegalGuard(
+            feature = "notices",
+            action = if (selectedLegalNoticeId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreateEditLegalNoticeScreen(
                 idToEdit = selectedLegalNoticeId,
                 viewModel = legalViewModel,
@@ -5690,9 +6332,10 @@ private fun LegalRouter(
 @Composable
 private fun ServicesRouter(
     screen: String,
+    permissionViewModel: PermissionViewModel,
     hrViewModel: HrViewModel,
     servicesViewModel: ServicesViewModel,
-    settingsViewModel: SettingsViewModel, // <-- 1. ADD THIS
+    settingsViewModel: SettingsViewModel,
     selectedAssignmentJobCardId: String? = null,
     onAssignmentJobCardIdSelected: (String?) -> Unit = {},
     selectedComplaintId: String? = null,
@@ -5711,36 +6354,61 @@ private fun ServicesRouter(
     onFeedbackIdSelected: (String?) -> Unit,
     selectedServiceTemplate: ProductionTemplateDto?,
     onServiceTemplateSelected: (ProductionTemplateDto?) -> Unit,
-    selectedProductionStage: ServicesProductionStageDto?, // <-- 2. ADD THIS
-    onProductionStageSelected: (ServicesProductionStageDto?) -> Unit, // <-- 3. ADD THIS
+    selectedProductionStage: ServicesProductionStageDto?,
+    onProductionStageSelected: (ServicesProductionStageDto?) -> Unit,
     pendingOrderReviewData: OrderReviewData?,
     onPendingOrderReviewDataChange: (OrderReviewData?) -> Unit,
     onNavigate: (String) -> Unit,
+    onSafeNavigate: (String, PermissionAction?) -> Unit,
+    onPaywallRequired: (PaywallModuleConfig) -> Unit,
     onGoBack: () -> Unit,
     onPopToScreen: (String) -> Unit = {},
     onOpenDrawer: () -> Unit,
     onOpenModulesPanel: (String) -> Unit
 ) {
-    // Add state for editing a stage and inject the ViewModel
     var selectedStageForEdit by remember { mutableStateOf<ServicesProductionStageDto?>(null) }
     val productionStagesViewModel: SettingsViewModel = hiltViewModel()
-    when (screen) {
-        "services_dashboard" -> ServicesDashboardScreen(
-            onNavigateToRequests = { onNavigate("services_service_request") },
-            onNavigateToComplaints = { onNavigate("services_customer_feedback") }
-        )
-        "services_service_status", "sales_orders" -> ServiceStatusScreen(
-            navController = navController,
-            onMenuClick = onOpenDrawer,
-            onBack = onGoBack,
-            onViewOrder = { orderId ->
-                onManagementOrderIdSelected(orderId)
-                onNavigate("service_status_detail")
-            },
-            onBreadCrumbClick = { onOpenModulesPanel("Services") }
-        )
 
-        "service_status_detail", "order_management_overview" -> {
+    @Composable
+    fun ServicesGuard(
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        content: @Composable () -> Unit
+    ) {
+        FeatureGuard(
+            module = "services",
+            feature = feature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = "services",
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = onGoBack,
+            content = content
+        )
+    }
+
+    when (screen) {
+        "services_dashboard" -> ServicesGuard("dashboard", PermissionAction.VIEW) {
+            ServicesDashboardScreen(
+                onNavigateToRequests = { onSafeNavigate("services_service_request", PermissionAction.VIEW) },
+                onNavigateToComplaints = { onSafeNavigate("services_customer_feedback", PermissionAction.VIEW) }
+            )
+        }
+
+        "services_service_status", "sales_orders" -> ServicesGuard("workflowStages", PermissionAction.VIEW) {
+            ServiceStatusScreen(
+                navController = navController,
+                onMenuClick = onOpenDrawer,
+                onBack = onGoBack,
+                onViewOrder = { orderId ->
+                    onManagementOrderIdSelected(orderId)
+                    onSafeNavigate("service_status_detail", PermissionAction.VIEW)
+                },
+                onBreadCrumbClick = { onOpenModulesPanel("Services") }
+            )
+        }
+
+        "service_status_detail", "order_management_overview" -> ServicesGuard("workflowStages", PermissionAction.VIEW) {
             selectedManagementOrderId?.let { id ->
                 ServiceStatusDetailScreen(
                     orderId = id,
@@ -5753,57 +6421,62 @@ private fun ServicesRouter(
             } ?: run { onGoBack() }
         }
 
-        "services_delay_rework" -> DelayReworkTrackingScreen(
-            onClose = onGoBack,
-            onLogNewDelay = { },
-            onRegisterAlteration = { onNavigate("create_alteration") },
-            onCreateReworkOrder = { onNavigate("create_order") },
-            onViewLog = { },
-            onGenerateReport = { }
-        )
+        "services_delay_rework" -> ServicesGuard("workflowStages", PermissionAction.VIEW) {
+            DelayReworkTrackingScreen(
+                onClose = onGoBack,
+                onLogNewDelay = { },
+                onRegisterAlteration = { onSafeNavigate("create_alteration", PermissionAction.CREATE) },
+                onCreateReworkOrder = { onSafeNavigate("create_order", PermissionAction.CREATE) },
+                onViewLog = { },
+                onGenerateReport = { }
+            )
+        }
 
-        "services_service_delivery" -> ServiceDeliveryStatusScreen(
-            onClose = onGoBack,
-            onContactCustomer = { },
-            onEditDetails = { },
-            onReschedule = { },
-            onMarkDelivered = { },
-            onViewUrgentOrder = { }
-        )
+        "services_service_delivery" -> ServicesGuard("workflowStages", PermissionAction.VIEW) {
+            ServiceDeliveryStatusScreen(
+                onClose = onGoBack,
+                onContactCustomer = { },
+                onEditDetails = { },
+                onReschedule = { },
+                onMarkDelivered = { },
+                onViewUrgentOrder = { }
+            )
+        }
 
-        // Match "services_service_order", "services_service_orders", and "services_production_orders"
         "services_production_orders",
         "services_service_orders",
-        "services_service_order" -> ServiceOrderScreen(
-            navController = navController,
-            onMenuClick = onOpenDrawer,
-            onBack = onGoBack,
-            onCreateOrder = {
-                onPendingOrderReviewDataChange(null)
-                onNavigate("create_order")
-            },
-            onViewOrder = { orderId ->
-                onOrderIdSelected(orderId)
-                onNavigate("service_order_overview") // Navigates to ServiceOrderOverviewScreen
-            },
-            onEditOrder = { orderId -> onEditOrderIdChange(orderId) },
-            onBreadCrumbClick = { onOpenModulesPanel("Services") }
-        )
-        // ── Production Works Screen ──
-        "services_production_works" -> ProductionWorksScreen(
-            onClose = onGoBack,
-            onOrderClick = { orderId ->
-                // Ensure orderId is never null or blank before navigating
-                if (orderId.isNotBlank()) {
+        "services_service_order" -> ServicesGuard("productionOrders", PermissionAction.VIEW) {
+            ServiceOrderScreen(
+                navController = navController,
+                onMenuClick = onOpenDrawer,
+                onBack = onGoBack,
+                onCreateOrder = {
+                    onPendingOrderReviewDataChange(null)
+                    onSafeNavigate("create_order", PermissionAction.CREATE)
+                },
+                onViewOrder = { orderId ->
                     onOrderIdSelected(orderId)
-                    onNavigate("services_production_pipeline")
-                }
-            },
-            viewModel = servicesViewModel
-        )
+                    onSafeNavigate("service_order_overview", PermissionAction.VIEW)
+                },
+                onEditOrder = { orderId -> onEditOrderIdChange(orderId) },
+                onBreadCrumbClick = { onOpenModulesPanel("Services") }
+            )
+        }
 
-        // ── Production Pipeline Screen ──
-        "services_production_pipeline" -> {
+        "services_production_works" -> ServicesGuard("productionWorks", PermissionAction.VIEW) {
+            ProductionWorksScreen(
+                onClose = onGoBack,
+                onOrderClick = { orderId ->
+                    if (orderId.isNotBlank()) {
+                        onOrderIdSelected(orderId)
+                        onSafeNavigate("services_production_pipeline", PermissionAction.VIEW)
+                    }
+                },
+                viewModel = servicesViewModel
+            )
+        }
+
+        "services_production_pipeline" -> ServicesGuard("productionWorks", PermissionAction.VIEW) {
             val orderIdToLoad = selectedOrderId?.takeIf { it.isNotBlank() }
             if (orderIdToLoad != null) {
                 OrderProductionPipelineScreen(
@@ -5815,83 +6488,71 @@ private fun ServicesRouter(
                     },
                     onVerifyClick = { id ->
                         onOrderIdSelected(id)
-                        onNavigate("services_qc_delivery")
+                        onSafeNavigate("services_qc_delivery", PermissionAction.VIEW)
                     },
                     onGoToAssignmentClick = { id, jobCardId ->
-                        // Keep the order id and remember which garment to open for assignment
                         onOrderIdSelected(id)
                         onAssignmentJobCardIdSelected(jobCardId)
-                        onNavigate("services_assignment_mode")
+                        onSafeNavigate("services_assignment_mode", PermissionAction.VIEW)
                     }
                 )
             } else {
-                // If ID is missing, safely pop back to prevent blank screen
                 onGoBack()
             }
         }
 
-        // ── Assignment Mode: opens Assign Garment Production for one job card ──
-        "services_assignment_mode" -> {
+        "services_assignment_mode" -> ServicesGuard("productionWorks", PermissionAction.VIEW) {
             val orderIdToLoad = selectedOrderId?.takeIf { it.isNotBlank() }
             val jobCardId = selectedAssignmentJobCardId?.takeIf { it.isNotBlank() }
             if (orderIdToLoad != null && jobCardId != null) {
                 ServiceOrderOverviewScreen(
                     orderId = orderIdToLoad,
                     initialAssignJobCardId = jobCardId,
-                    // Back arrow / back gesture returns to Production Details
                     onClose = onGoBack,
-                    // "Assign & Route to Workshop" success returns to Production Details
                     onAssignmentRouted = onGoBack,
                     onCreateNew = {
                         onPendingOrderReviewDataChange(null)
-                        onNavigate("create_order")
+                        onSafeNavigate("create_order", PermissionAction.CREATE)
                     }
                 )
             } else {
-                // Missing ids: safely pop back to avoid a blank screen
                 onGoBack()
             }
         }
 
-        // ── QC & Delivery Dispatch Screen ──
-        "services_qc_delivery" -> {
+        "services_qc_delivery" -> ServicesGuard("productionWorks", PermissionAction.VIEW) {
             val orderIdToLoad = selectedOrderId?.takeIf { it.isNotBlank() }
             if (orderIdToLoad != null) {
                 QualityDeliveryDispatchScreen(
                     orderId = orderIdToLoad,
                     viewModel = servicesViewModel,
                     onBack = onGoBack,
-                    onBackToOrders = {
-                        // Pop QC and pipeline screens in one step and land on Production Works.
-                        // selectedOrderId is intentionally NOT cleared here: clearing it while
-                        // the QC/pipeline routes are still composing triggers their
-                        // "missing id" fallback (onGoBack) and causes the blank screen.
-                        // Production Works sets it again on the next order click.
-                        onPopToScreen("services_production_works")
-                    }
+                    onBackToOrders = { onPopToScreen("services_production_works") }
                 )
             } else {
                 onGoBack()
             }
         }
-        // ── Production / Workflow Stages List Screen ──
-        "services_production_stages", "services_workflow_stages" -> {
+
+        "services_production_stages", "services_workflow_stages" -> ServicesGuard("workflowStages", PermissionAction.VIEW) {
             ProductionStagesListScreen(
                 viewModel = settingsViewModel,
                 onClose = onGoBack,
                 onAddNewStage = {
                     onProductionStageSelected(null)
-                    onNavigate("services_create_production_stage")
+                    onSafeNavigate("services_create_production_stage", PermissionAction.CREATE)
                 },
                 onEditStage = { stage ->
                     onProductionStageSelected(stage)
-                    onNavigate("services_create_production_stage")
+                    onSafeNavigate("services_create_production_stage", PermissionAction.EDIT)
                 }
             )
         }
 
-        // ── Add / Edit Production Stage Screen ──
-        "services_create_production_stage" -> {
+        "services_create_production_stage" -> ServicesGuard(
+            feature = "workflowStages",
+            action = if (selectedProductionStage != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             AddEditProductionStageScreen(
                 stageToEdit = selectedProductionStage,
                 viewModel = settingsViewModel,
@@ -5901,46 +6562,50 @@ private fun ServicesRouter(
                 }
             )
         }
-        "service_order_overview" -> {
+
+        "service_order_overview" -> ServicesGuard("productionOrders", PermissionAction.VIEW) {
             selectedOrderId?.let { id ->
                 ServiceOrderOverviewScreen(
                     orderId = id,
                     onClose = onGoBack,
                     onCreateNew = {
                         onPendingOrderReviewDataChange(null)
-                        onNavigate("create_order")
+                        onSafeNavigate("create_order", PermissionAction.CREATE)
                     }
                 )
             } ?: run { onGoBack() }
         }
 
-        "services_service_request" -> ServiceRequestScreen(
-            onClose = onGoBack,
-            onCreateNewRequest = { onNavigate("create_request") },
-            onViewClick = { requestId ->
-                onServiceRequestIdSelected(requestId)
-                onNavigate("review_services")
-            }
-        )
+        "services_service_request" -> ServicesGuard("serviceRequests", PermissionAction.VIEW) {
+            ServiceRequestScreen(
+                onClose = onGoBack,
+                onCreateNewRequest = { onSafeNavigate("create_request", PermissionAction.CREATE) },
+                onViewClick = { requestId ->
+                    onServiceRequestIdSelected(requestId)
+                    onSafeNavigate("review_services", PermissionAction.VIEW)
+                }
+            )
+        }
 
-// Create Service Request Route with Review Navigation Callback
-        "create_request" -> CreateServiceRequest(
-            onClose = onGoBack,
-            onCancel = onGoBack,
-            onNavigateToReview = { onNavigate("review_service_request") }
-        )
+        "create_request" -> ServicesGuard("serviceRequests", PermissionAction.CREATE) {
+            CreateServiceRequest(
+                onClose = onGoBack,
+                onCancel = onGoBack,
+                onNavigateToReview = { onSafeNavigate("review_service_request", PermissionAction.CREATE) }
+            )
+        }
 
-// In-Progress Creation Review Screen (Preserves Form Data)
-        "review_service_request" -> ReviewServiceRequestScreen(
-            onBackToEdit = onGoBack,
-            onSuccessSubmitted = {
-                onGoBack()
-                onGoBack()
-            }
-        )
+        "review_service_request" -> ServicesGuard("serviceRequests", PermissionAction.CREATE) {
+            ReviewServiceRequestScreen(
+                onBackToEdit = onGoBack,
+                onSuccessSubmitted = {
+                    onGoBack()
+                    onGoBack()
+                }
+            )
+        }
 
-// View Existing Service Request Details
-        "review_services" -> {
+        "review_services" -> ServicesGuard("serviceRequests", PermissionAction.VIEW) {
             if (!selectedServiceRequestId.isNullOrBlank()) {
                 ServiceRequestDetailsScreen(
                     requestId = selectedServiceRequestId,
@@ -5954,30 +6619,26 @@ private fun ServicesRouter(
             }
         }
 
-        "services_alteration_management" -> {
-            val servicesViewModel: ServicesViewModel = hiltViewModel()
-
+        "services_alteration_management" -> ServicesGuard("alterations", PermissionAction.VIEW) {
             AlterationManagementScreen(
                 viewModel = servicesViewModel,
                 onClose = onGoBack,
                 onCreateNewAlteration = {
                     onAlterationIdSelected(null)
-                    onNavigate("create_alteration")
+                    onSafeNavigate("create_alteration", PermissionAction.CREATE)
                 },
                 onBreadcrumbClick = { onOpenModulesPanel("Services") },
                 onItemClick = { item ->
                     if (item.id.isNotBlank()) {
                         onAlterationIdSelected(item.id)
-                        onNavigate("view_alteration")
+                        onSafeNavigate("view_alteration", PermissionAction.VIEW)
                     }
                 }
             )
         }
 
-        // Handles both create and view cleanly without 'CreateAlterationManagementScreen'
-        "view_alteration", "create_alteration" -> {
+        "view_alteration", "create_alteration" -> ServicesGuard("alterations", PermissionAction.VIEW) {
             selectedAlterationId?.takeIf { it.isNotBlank() }?.let { validId ->
-                val servicesViewModel: ServicesViewModel = hiltViewModel()
                 ViewAlterationManagementScreen(
                     alterationId = validId,
                     viewModel = servicesViewModel,
@@ -5986,44 +6647,28 @@ private fun ServicesRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-//        "services_customer_feedback" -> CustomerFeedbackScreen(
-//            onDismiss = onGoBack,
-//            onView = { feedbackId ->
-//                onFeedbackIdSelected(feedbackId)
-//                onNavigate("feedback_detail")
-//            },
-//            onEdit = { },
-//            onDelete = { },
-//            onBreadCrumbClick = { onOpenModulesPanel("Services") }
-//        )
+        "services_service_templates" -> ServicesGuard("serviceTemplates", PermissionAction.VIEW) {
+            ServiceTemplateListScreen(
+                onClose = onGoBack,
+                onAddNewTemplate = {
+                    onServiceTemplateSelected(null)
+                    onSafeNavigate("services_create_service_template", PermissionAction.CREATE)
+                },
+                onViewTemplate = { templateItem ->
+                    onServiceTemplateSelected(templateItem)
+                    onSafeNavigate("services_view_service_template", PermissionAction.VIEW)
+                },
+                onEditTemplate = { templateItem ->
+                    onServiceTemplateSelected(templateItem)
+                    onSafeNavigate("services_create_service_template", PermissionAction.EDIT)
+                }
+            )
+        }
 
-
-
-        "services_service_templates" -> ServiceTemplateListScreen(
-            onClose = onGoBack,
-            onAddNewTemplate = {
-                Log.d("TEMPLATE_NAV_DEBUG", ">> Add New Clicked: clearing selected template")
-                onServiceTemplateSelected(null)
-                onNavigate("services_create_service_template")
-            },
-            onViewTemplate = { templateItem ->
-                Log.d("TEMPLATE_NAV_DEBUG", ">> View Template Clicked: id='${templateItem.id}', name='${templateItem.name}'")
-                onServiceTemplateSelected(templateItem)
-                onNavigate("services_view_service_template")
-            },
-            onEditTemplate = { templateItem ->
-                Log.d("TEMPLATE_NAV_DEBUG", ">> Edit Template Clicked: id='${templateItem.id}', name='${templateItem.name}'")
-                onServiceTemplateSelected(templateItem)
-                onNavigate("services_create_service_template")
-            }
-        )
-
-        "services_view_service_template" -> {
+        "services_view_service_template" -> ServicesGuard("serviceTemplates", PermissionAction.VIEW) {
             selectedServiceTemplate?.id?.let { id ->
                 ServiceTemplateDetailViewScreen(
                     templateId = id,
@@ -6039,8 +6684,10 @@ private fun ServicesRouter(
             } ?: run { onGoBack() }
         }
 
-        "services_create_service_template" -> {
-            Log.d("TEMPLATE_NAV_DEBUG", ">> Navigating to Create/Edit Screen with templateId: '${selectedServiceTemplate?.id}'")
+        "services_create_service_template" -> ServicesGuard(
+            feature = "serviceTemplates",
+            action = if (selectedServiceTemplate != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             CreateServiceTemplateWizardScreen(
                 templateIdToEdit = selectedServiceTemplate?.id,
                 onClose = {
@@ -6054,25 +6701,23 @@ private fun ServicesRouter(
             )
         }
 
-        // ── Customer Complaints Screen ──
-        "services_customer_complaints" -> {
+        "services_customer_complaints" -> ServicesGuard("customerComplaints", PermissionAction.VIEW) {
             ComplaintListScreen(
                 viewModel = servicesViewModel,
                 onBack = onGoBack,
                 onComplaintClick = { complaintId ->
                     onComplaintIdSelected(complaintId)
-                    onNavigate("complaint_detail")
+                    onSafeNavigate("complaint_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // In HomeScreenRouter.kt inside ServicesRouter:
-        "complaint_detail" -> {
+        "complaint_detail" -> ServicesGuard("customerComplaints", PermissionAction.VIEW) {
             selectedComplaintId?.let { id ->
                 ComplaintDetailViewScreen(
                     complaintId = id,
                     viewModel = servicesViewModel,
-                    hrViewModel = hrViewModel, // 👈 Pass hrViewModel here
+                    hrViewModel = hrViewModel,
                     onBack = {
                         onComplaintIdSelected(null)
                         onGoBack()
@@ -6081,20 +6726,19 @@ private fun ServicesRouter(
                 )
             } ?: run { onGoBack() }
         }
-        // ── Customer Feedback Screen ──
-        "services_customer_feedback" -> {
+
+        "services_customer_feedback" -> ServicesGuard("customerFeedback", PermissionAction.VIEW) {
             CustomerFeedbackScreen(
                 viewModel = servicesViewModel,
                 onBack = onGoBack,
                 onFeedbackClick = { feedbackId ->
                     onFeedbackIdSelected(feedbackId)
-                    onNavigate("feedback_detail")
+                    onSafeNavigate("feedback_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // ── Customer Feedback Detail Screen ──
-        "feedback_detail" -> {
+        "feedback_detail" -> ServicesGuard("customerFeedback", PermissionAction.VIEW) {
             selectedFeedbackId?.let { id ->
                 FeedbackDetailScreen(
                     feedbackId = id,
@@ -6104,9 +6748,7 @@ private fun ServicesRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
     }
 }
@@ -6120,6 +6762,7 @@ private fun ServicesRouter(
 @Composable
 private fun ItRouter(
     screen: String,
+    permissionViewModel: PermissionViewModel,
     selectedTicketId: String? = null,
     onTicketIdSelected: (String?) -> Unit = {},
     selectedAssetId: String? = null,
@@ -6132,31 +6775,49 @@ private fun ItRouter(
     onPosTerminalIdSelected: (String?) -> Unit = {},
     itViewModel: ItViewModel = hiltViewModel(),
     onNavigate: (String) -> Unit,
+    onSafeNavigate: (String, PermissionAction?) -> Unit,
+    onPaywallRequired: (PaywallModuleConfig) -> Unit,
     onGoBack: () -> Unit,
     onShowComingSoon: (String) -> Unit
 ) {
+    @Composable
+    fun ItGuard(
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        content: @Composable () -> Unit
+    ) {
+        FeatureGuard(
+            module = "it",
+            feature = feature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = "it",
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = onGoBack,
+            content = content
+        )
+    }
+
     when (screen) {
-        "it_dashboard" -> {
+        "it_dashboard" -> ItGuard("dashboard", PermissionAction.VIEW) {
             ItDashboardScreen(
-                onNavigateToRoute = { route -> onNavigate(route) },
+                onNavigateToRoute = { route -> onSafeNavigate(route, null) },
                 viewModel = itViewModel
             )
         }
 
-        // All Device Screen
-        "it_device_management" -> {
+        "it_device_management" -> ItGuard("deviceManagement", PermissionAction.VIEW) {
             AllDeviceScreen(
                 viewModel = itViewModel,
                 onBack = onGoBack,
                 onDeviceClick = { deviceId ->
                     onItDeviceIdSelected(deviceId)
-                    onNavigate("it_device_detail")
+                    onSafeNavigate("it_device_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // Device Detail Screen
-        "it_device_detail" -> {
+        "it_device_detail" -> ItGuard("deviceManagement", PermissionAction.VIEW) {
             selectedItDeviceId?.takeIf { it.isNotBlank() }?.let { id ->
                 DeviceDetailScreen(
                     deviceId = id,
@@ -6166,25 +6827,21 @@ private fun ItRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // POS Billing Fleet Status
-        "it_pos_billing" -> {
+        "it_pos_billing" -> ItGuard("posAndBillingTechnology", PermissionAction.VIEW) {
             TerminalFleetStatusScreen(
                 viewModel = itViewModel,
                 onBack = onGoBack,
                 onTerminalClick = { id ->
                     onPosTerminalIdSelected(id)
-                    onNavigate("it_pos_billing_detail")
+                    onSafeNavigate("it_pos_billing_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // POS Details Screen
-        "it_pos_billing_detail" -> {
+        "it_pos_billing_detail" -> ItGuard("posAndBillingTechnology", PermissionAction.VIEW) {
             selectedPosTerminalId?.takeIf { it.isNotBlank() }?.let { id ->
                 PosDetailScreen(
                     posTerminalId = id,
@@ -6194,12 +6851,10 @@ private fun ItRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        "it_integrations" -> {
+        "it_integrations" -> ItGuard("integrations", PermissionAction.VIEW) {
             val marketingViewModel: MarketingViewModel = hiltViewModel()
             IntegrationManagementScreen(
                 viewModel = marketingViewModel,
@@ -6207,20 +6862,18 @@ private fun ItRouter(
             )
         }
 
-        // IT Backup & Recovery List
-        "it_backup_recovery" -> {
+        "it_backup_recovery" -> ItGuard("backupAndRecovery", PermissionAction.VIEW) {
             BackupRecoveryListScreen(
                 viewModel = itViewModel,
                 onBack = onGoBack,
                 onBackupClick = { snapshotId ->
                     onBackupSnapshotIdSelected(snapshotId)
-                    onNavigate("it_backup_recovery_detail")
+                    onSafeNavigate("it_backup_recovery_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // IT Backup & Recovery Detail
-        "it_backup_recovery_detail" -> {
+        "it_backup_recovery_detail" -> ItGuard("backupAndRecovery", PermissionAction.VIEW) {
             selectedBackupSnapshotId?.takeIf { it.isNotBlank() }?.let { validSnapshotId ->
                 BackupRecoveryDetailScreen(
                     snapshotId = validSnapshotId,
@@ -6231,47 +6884,38 @@ private fun ItRouter(
                     },
                     onRestoreClick = { targetBackupId ->
                         onBackupSnapshotIdSelected(targetBackupId)
-                        onNavigate("it_backup_restore")
+                        onSafeNavigate("it_backup_restore", PermissionAction.EDIT)
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // IT Backup Restore Configuration Screen
-        "it_backup_restore" -> {
+        "it_backup_restore" -> ItGuard("backupAndRecovery", PermissionAction.EDIT) {
             selectedBackupSnapshotId?.takeIf { it.isNotBlank() }?.let { validSnapshotId ->
                 RestoreBackupScreen(
                     snapshotId = validSnapshotId,
                     viewModel = itViewModel,
                     onBack = onGoBack,
-                    onRestoreTriggered = {
-                        onGoBack()
-                    }
+                    onRestoreTriggered = { onGoBack() }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // IT Asset Management List Screen
-        "it_asset_management" -> {
+        "it_asset_management" -> ItGuard("itAssetManagement", PermissionAction.VIEW) {
             ItAssetListScreen(
                 viewModel = itViewModel,
                 onNavigateBack = onGoBack,
                 onNavigateDetail = { assetId ->
                     onAssetIdSelected(assetId)
-                    onNavigate("it_asset_detail")
+                    onSafeNavigate("it_asset_detail", PermissionAction.VIEW)
                 },
                 onNavigateRegister = {
-                    onNavigate("it_asset_register")
+                    onSafeNavigate("it_asset_register", PermissionAction.CREATE)
                 }
             )
         }
 
-        // IT Asset Detail Screen
-        "it_asset_detail" -> {
+        "it_asset_detail" -> ItGuard("itAssetManagement", PermissionAction.VIEW) {
             selectedAssetId?.takeIf { it.isNotBlank() }?.let { validAssetId ->
                 ItAssetDetailScreen(
                     assetId = validAssetId,
@@ -6282,47 +6926,41 @@ private fun ItRouter(
                     },
                     onNavigateDevice = { deviceId ->
                         onItDeviceIdSelected(deviceId)
-                        onNavigate("it_device_detail")
+                        onSafeNavigate("it_device_detail", PermissionAction.VIEW)
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // Register New Asset Screen
-        "it_asset_register" -> {
+        "it_asset_register" -> ItGuard("itAssetManagement", PermissionAction.CREATE) {
             ItRegisterAssetScreen(
                 viewModel = itViewModel,
                 onNavigateBack = onGoBack
             )
         }
 
-        // ── IT Service Desk List Screen ──
-        "it_service_desk" -> {
+        "it_service_desk" -> ItGuard("itServiceDesk", PermissionAction.VIEW) {
             ItServiceDeskListScreen(
                 viewModel = itViewModel,
                 onNavigateBack = onGoBack,
                 onNavigateDetail = { ticketId ->
                     onTicketIdSelected(ticketId)
-                    onNavigate("it_service_desk_detail")
+                    onSafeNavigate("it_service_desk_detail", PermissionAction.VIEW)
                 },
                 onNavigateCreate = {
-                    onNavigate("it_service_desk_create")
+                    onSafeNavigate("it_service_desk_create", PermissionAction.CREATE)
                 }
             )
         }
 
-        // ── IT Service Desk Create Ticket Screen ──
-        "it_service_desk_create" -> {
+        "it_service_desk_create" -> ItGuard("itServiceDesk", PermissionAction.CREATE) {
             ItCreateTicketScreen(
                 viewModel = itViewModel,
                 onNavigateBack = onGoBack
             )
         }
 
-        // ── IT Service Desk Detail Screen ──
-        "it_service_desk_detail" -> {
+        "it_service_desk_detail" -> ItGuard("itServiceDesk", PermissionAction.VIEW) {
             selectedTicketId?.takeIf { it.isNotBlank() }?.let { validTicketId ->
                 ItTicketDetailScreen(
                     ticketId = validTicketId,
@@ -6332,9 +6970,7 @@ private fun ItRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
         else -> onGoBack()
@@ -6360,51 +6996,69 @@ private fun SecurityRouter(
     onApiLogIdSelected: (String?) -> Unit = {},
     selectedAuditLogId: String? = null,
     onAuditLogIdSelected: (String?) -> Unit = {},
-    selectedSupportTicketId: String? = null,                       // <-- ADDED THIS
-    onSupportTicketIdSelected: (String?) -> Unit = {},            // <-- ADDED THIS
+    selectedSupportTicketId: String? = null,
+    onSupportTicketIdSelected: (String?) -> Unit = {},
     securityViewModel: SecurityViewModel = hiltViewModel(),
     hrViewModel: HrViewModel,
     branchViewModel: BranchViewModel,
     permissionViewModel: PermissionViewModel = hiltViewModel(),
     onNavigate: (String) -> Unit,
+    onSafeNavigate: (String, PermissionAction?) -> Unit,
+    onPaywallRequired: (PaywallModuleConfig) -> Unit,
     onGoBack: () -> Unit,
     onShowComingSoon: (String) -> Unit
 ) {
     var selectedHelpArticleSlug by remember { mutableStateOf<String?>(null) }
 
+    @Composable
+    fun SecurityGuard(
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        content: @Composable () -> Unit
+    ) {
+        FeatureGuard(
+            module = "security",
+            feature = feature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = "security",
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = onGoBack,
+            content = content
+        )
+    }
+
     when (screen) {
-        "security_dashboard" -> {
+        "security_dashboard" -> SecurityGuard("dashboard", PermissionAction.VIEW) {
             SecurityDashboardScreen(
                 viewModel = securityViewModel,
                 onClose = onGoBack
             )
         }
-        // ── MOBILE ACCESS ROUTE ──
-        "security_mobile_security" -> {
+
+        "security_mobile_security" -> SecurityGuard("mobileSecurity", PermissionAction.VIEW) {
             MobileAccessScreen(
                 viewModel = securityViewModel,
                 onBack = onGoBack
             )
         }
 
-        // ── SUPPORT TICKETS LIST ROUTE ──
-        "security_support_ticket" -> {
+        "security_support_ticket" -> SecurityGuard("supportTicket", PermissionAction.VIEW) {
             SupportTicketsListScreen(
                 onClose = onGoBack,
                 onCreateTicket = {
                     onSupportTicketIdSelected(null)
-                    onNavigate("security_create_support_ticket")
+                    onSafeNavigate("security_create_support_ticket", PermissionAction.CREATE)
                 },
                 onViewTicket = { ticketId: String ->
                     onSupportTicketIdSelected(ticketId)
-                    onNavigate("security_support_ticket_detail")
+                    onSafeNavigate("security_support_ticket_detail", PermissionAction.VIEW)
                 },
                 viewModel = securityViewModel
             )
         }
 
-        // ── CREATE SUPPORT TICKET ROUTE ──
-        "security_create_support_ticket" -> {
+        "security_create_support_ticket" -> SecurityGuard("supportTicket", PermissionAction.CREATE) {
             CreateSupportTicketScreen(
                 viewModel = securityViewModel,
                 hrViewModel = hrViewModel,
@@ -6416,8 +7070,7 @@ private fun SecurityRouter(
             )
         }
 
-        // ── SUPPORT TICKET DETAIL ROUTE ──
-        "security_support_ticket_detail" -> {
+        "security_support_ticket_detail" -> SecurityGuard("supportTicket", PermissionAction.VIEW) {
             selectedSupportTicketId?.takeIf { it.isNotBlank() }?.let { validTicketId: String ->
                 SupportTicketDetailScreen(
                     ticketId = validTicketId,
@@ -6428,46 +7081,41 @@ private fun SecurityRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // ── HELP CENTER ROUTE ──
-        "security_help_center" -> {
+        "security_help_center" -> SecurityGuard("helpCenter", PermissionAction.VIEW) {
             if (selectedHelpArticleSlug != null) {
                 HelpArticleDetailScreen(
                     articleSlug = selectedHelpArticleSlug!!,
                     viewModel = securityViewModel,
                     onBack = { selectedHelpArticleSlug = null },
-                    onCreateTicketClick = { onNavigate("security_support_ticket") }
+                    onCreateTicketClick = { onSafeNavigate("security_support_ticket", PermissionAction.VIEW) }
                 )
             } else {
                 HelpCenterScreen(
                     viewModel = securityViewModel,
                     onBack = onGoBack,
-                    onArticleClick = { article ->
-                        selectedHelpArticleSlug = article.slug
-                    },
-                    onCreateTicketClick = { onNavigate("security_support_ticket") }
+                    onArticleClick = { article -> selectedHelpArticleSlug = article.slug },
+                    onCreateTicketClick = { onSafeNavigate("security_support_ticket", PermissionAction.VIEW) }
                 )
             }
         }
 
-        "security_users" -> {
+        "security_users" -> SecurityGuard("users", PermissionAction.VIEW) {
             UserManagementScreen(
                 securityViewModel = securityViewModel,
                 permissionViewModel = permissionViewModel,
                 onBack = onGoBack,
                 onCreateUserClick = {
-                    onNavigate("security_create_user")
+                    onSafeNavigate("security_create_user", PermissionAction.CREATE)
                 },
-                onViewUserClick = { /* Handle view */ },
-                onEditUserClick = { /* Handle edit */ }
+                onViewUserClick = { },
+                onEditUserClick = { }
             )
         }
 
-        "security_create_user" -> {
+        "security_create_user" -> SecurityGuard("users", PermissionAction.CREATE) {
             val departmentViewModel: DepartmentViewModel = hiltViewModel()
             val designationViewModel: DesignationViewModel = hiltViewModel()
 
@@ -6485,31 +7133,27 @@ private fun SecurityRouter(
             )
         }
 
-        "security_roles" -> {
-            onNavigate("home_role_management")
+        "security_roles" -> SecurityGuard("roles", PermissionAction.VIEW) {
+            LaunchedEffect(Unit) {
+                onNavigate("home_role_management")
+            }
         }
 
-        // =========================================================================
-        // SECURITY DATA BACKUP FLOW
-        // =========================================================================
-
-        // 1. Data Backup List Screen
-        "security_data_backup" -> {
+        "security_data_backup" -> SecurityGuard("dataBackup", PermissionAction.VIEW) {
             DataBackupListScreen(
                 viewModel = securityViewModel,
                 onNavigateBack = onGoBack,
                 onNavigateToDetail = { backupId ->
                     onBackupIdSelected(backupId)
-                    onNavigate("security_backup_detail")
+                    onSafeNavigate("security_backup_detail", PermissionAction.VIEW)
                 },
                 onNavigateToCreate = {
-                    onNavigate("security_create_backup")
+                    onSafeNavigate("security_create_backup", PermissionAction.CREATE)
                 }
             )
         }
 
-        // 2. Create Backup Screen
-        "security_create_backup" -> {
+        "security_create_backup" -> SecurityGuard("dataBackup", PermissionAction.CREATE) {
             CreateBackupScreen(
                 viewModel = securityViewModel,
                 onNavigateBack = onGoBack,
@@ -6520,8 +7164,7 @@ private fun SecurityRouter(
             )
         }
 
-        // 3. Backup Detail Screen
-        "security_backup_detail" -> {
+        "security_backup_detail" -> SecurityGuard("dataBackup", PermissionAction.VIEW) {
             selectedBackupId?.takeIf { it.isNotBlank() }?.let { validId ->
                 DataBackupDetailScreen(
                     backupId = validId,
@@ -6531,29 +7174,21 @@ private fun SecurityRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // =========================================================================
-        // SECURITY DATA RECOVERY FLOW
-        // =========================================================================
-
-        // 1. Data Recovery List Screen (Restore modal triggers recovery and navigates)
-        "security_recovery" -> {
+        "security_recovery" -> SecurityGuard("recovery", PermissionAction.VIEW) {
             DataRecoveryListScreen(
                 viewModel = securityViewModel,
                 onNavigateBack = onGoBack,
                 onNavigateToRecoveryDetail = { recoveryId ->
                     onRecoveryIdSelected(recoveryId)
-                    onNavigate("security_recovery_detail")
+                    onSafeNavigate("security_recovery_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // 2. Recovery Details Screen (Shows live circular gauge, verification, and timeline)
-        "security_recovery_detail" -> {
+        "security_recovery_detail" -> SecurityGuard("recovery", PermissionAction.VIEW) {
             selectedRecoveryId?.takeIf { it.isNotBlank() }?.let { validRecoveryId ->
                 DataRecoveryDetailScreen(
                     recoveryId = validRecoveryId,
@@ -6563,35 +7198,34 @@ private fun SecurityRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // 1. API Integration List Screen
-        "security_api_integration" -> {
+        "security_api_integration" -> SecurityGuard("apiSecurity", PermissionAction.VIEW) {
             ApiIntegrationListScreen(
                 viewModel = securityViewModel,
                 onNavigateBack = onGoBack,
                 onNavigateToDetail = { integrationId ->
                     onIntegrationIdSelected(integrationId)
-                    onNavigate("security_api_integration_detail")
+                    onSafeNavigate("security_api_integration_detail", PermissionAction.VIEW)
                 },
                 onNavigateToAdd = {
-                    onIntegrationIdSelected(null) // Clears ID for fresh Create Mode
-                    onNavigate("security_create_api_integration")
+                    onIntegrationIdSelected(null)
+                    onSafeNavigate("security_create_api_integration", PermissionAction.CREATE)
                 },
                 onNavigateToEdit = { integrationId ->
-                    onIntegrationIdSelected(integrationId) // Sets ID for Edit Mode (prefill)
-                    onNavigate("security_create_api_integration")
+                    onIntegrationIdSelected(integrationId)
+                    onSafeNavigate("security_create_api_integration", PermissionAction.EDIT)
                 }
             )
         }
 
-        // 2. Add / Edit API Integration Screen
-        "security_create_api_integration" -> {
+        "security_create_api_integration" -> SecurityGuard(
+            feature = "apiSecurity",
+            action = if (selectedIntegrationId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
             AddApiIntegrationScreen(
-                integrationIdToEdit = selectedIntegrationId, // Receives null for Create, non-null for Edit
+                integrationIdToEdit = selectedIntegrationId,
                 viewModel = securityViewModel,
                 onNavigateBack = {
                     onIntegrationIdSelected(null)
@@ -6605,8 +7239,7 @@ private fun SecurityRouter(
             )
         }
 
-        // 3. API Integration Detail Screen
-        "security_api_integration_detail" -> {
+        "security_api_integration_detail" -> SecurityGuard("apiSecurity", PermissionAction.VIEW) {
             selectedIntegrationId?.takeIf { it.isNotBlank() }?.let { validId ->
                 ApiIntegrationDetailScreen(
                     integrationId = validId,
@@ -6616,29 +7249,21 @@ private fun SecurityRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // =========================================================================
-        // SECURITY API LOGS NAVIGATION FLOW
-        // =========================================================================
-
-        // 1. API Logs List Screen
-        "security_api_logs" -> {
+        "security_api_logs" -> SecurityGuard("apiLogs", PermissionAction.VIEW) {
             ApiLogsListScreen(
                 viewModel = securityViewModel,
                 onNavigateBack = onGoBack,
                 onNavigateToDetail = { logId ->
                     onApiLogIdSelected(logId)
-                    onNavigate("security_api_log_detail")
+                    onSafeNavigate("security_api_log_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // 2. API Log Detail Screen
-        "security_api_log_detail" -> {
+        "security_api_log_detail" -> SecurityGuard("apiLogs", PermissionAction.VIEW) {
             selectedApiLogId?.takeIf { it.isNotBlank() }?.let { validId ->
                 ApiLogDetailScreen(
                     logId = validId,
@@ -6648,29 +7273,21 @@ private fun SecurityRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
-        // =========================================================================
-        // SECURITY AUDIT LOGS FLOW
-        // =========================================================================
-
-        // 1. Audit Logs List Screen
-        "security_audit_logs" -> {
+        "security_audit_logs" -> SecurityGuard("auditLogs", PermissionAction.VIEW) {
             AuditLogsListScreen(
                 viewModel = securityViewModel,
                 onNavigateBack = onGoBack,
                 onNavigateToDetail = { logId ->
                     onAuditLogIdSelected(logId)
-                    onNavigate("security_audit_log_detail")
+                    onSafeNavigate("security_audit_log_detail", PermissionAction.VIEW)
                 }
             )
         }
 
-        // 2. Audit Log Detail Screen
-        "security_audit_log_detail" -> {
+        "security_audit_log_detail" -> SecurityGuard("auditLogs", PermissionAction.VIEW) {
             selectedAuditLogId?.takeIf { it.isNotBlank() }?.let { validId ->
                 AuditLogDetailScreen(
                     logId = validId,
@@ -6680,9 +7297,7 @@ private fun SecurityRouter(
                         onGoBack()
                     }
                 )
-            } ?: run {
-                onGoBack()
-            }
+            } ?: run { onGoBack() }
         }
 
         else -> {
@@ -6694,286 +7309,208 @@ private fun SecurityRouter(
 @Composable
 private fun ReportsRouter(
     screen: String,
+    permissionViewModel: PermissionViewModel,
     hrReportViewModel: ReportViewModel = hiltViewModel(),
     onNavigate: (String) -> Unit,
+    onSafeNavigate: (String, PermissionAction?) -> Unit,
+    onPaywallRequired: (PaywallModuleConfig) -> Unit,
     onGoBack: () -> Unit,
     onOpenModulesPanel: (String) -> Unit,
     onShowComingSoon: (String) -> Unit
 ) {
+    @Composable
+    fun ReportsGuard(
+        feature: String,
+        action: PermissionAction = PermissionAction.VIEW,
+        content: @Composable () -> Unit
+    ) {
+        FeatureGuard(
+            module = "reports",
+            feature = feature,
+            action = action,
+            permissionViewModel = permissionViewModel,
+            upgradeKey = "reports",
+            onUpgradeRequired = onPaywallRequired,
+            onGoBack = onGoBack,
+            content = content
+        )
+    }
+
     when (screen) {
-        // 1. Sales & Order Reports Hub
-        "reports_sales" -> SalesOrderReportsScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") },
-            onReportClick = { reportItem ->
-                val id = reportItem.id.lowercase()
-                val title = reportItem.title.lowercase()
-                when {
-                    id == "leadmasterregister" || id.contains("lead_master") || title.contains("lead master") -> {
-                        onNavigate("reports_sales_lead_master")
+        "reports_sales" -> ReportsGuard("orderMasterRegister", PermissionAction.VIEW) {
+            SalesOrderReportsScreen(
+                onClose = onGoBack,
+                onBreadCrumbClick = { onOpenModulesPanel("Reports") },
+                onReportClick = { reportItem ->
+                    val id = reportItem.id.lowercase()
+                    val title = reportItem.title.lowercase()
+                    when {
+                        id == "leadmasterregister" || id.contains("lead_master") || title.contains("lead master") -> onSafeNavigate("reports_sales_lead_master", PermissionAction.VIEW)
+                        id == "leadsourceperformance" || id.contains("lead_source") || title.contains("lead source") || title.contains("marketing roi") -> onSafeNavigate("reports_sales_lead_source", PermissionAction.VIEW)
+                        id == "leadoverduefollowups" || id.contains("overdue_followup") || title.contains("overdue follow") -> onSafeNavigate("reports_sales_lead_overdue", PermissionAction.VIEW)
+                        id == "leadfollowupactivity" || id.contains("followup_activity") || id.contains("follow_up") ||
+                                title.contains("follow-up") || title.contains("follow up") || title.contains("followup") -> onSafeNavigate("reports_sales_lead_activity", PermissionAction.VIEW)
+                        id == "oppmasterregister" || id.contains("opp_master") || title.contains("opportunity pipeline") || title.contains("opportunity master") -> onSafeNavigate("reports_sales_opp_master", PermissionAction.VIEW)
+                        id == "oppstagefunnel" || id.contains("stage_funnel") || title.contains("stage funnel") || title.contains("funnel") -> onSafeNavigate("reports_sales_opp_funnel", PermissionAction.VIEW)
+                        id == "oppclosingalerts" || id.contains("closing") || title.contains("closing soon") || title.contains("overdue deal") -> onSafeNavigate("reports_sales_opp_closing", PermissionAction.VIEW)
+                        id == "custmasterregister" || id.contains("cust_master") || id.contains("customer_master") || title.contains("customer master") -> onSafeNavigate("reports_sales_cust_master", PermissionAction.VIEW)
+                        id == "custltvrevenue" || id.contains("ltv") || title.contains("lifetime value") || title.contains("ltv") -> onSafeNavigate("reports_sales_cust_ltv", PermissionAction.VIEW)
+                        id == "custcreditreceivables" || id.contains("credit") || id.contains("dues") || id.contains("receivable") ||
+                                title.contains("credit") || title.contains("dues") || title.contains("receivable") -> onSafeNavigate("reports_sales_cust_credit", PermissionAction.VIEW)
+                        id == "custdormantwinback" || id.contains("dormant") || id.contains("winback") ||
+                                title.contains("dormant") || title.contains("win-back") || title.contains("win back") -> onSafeNavigate("reports_sales_cust_dormant", PermissionAction.VIEW)
+                        id == "measmasterregister" || id.contains("meas_master") || title.contains("measurement master") -> onSafeNavigate("reports_sales_meas_master", PermissionAction.VIEW)
+                        id == "measstaleaudit" || id.contains("stale") || title.contains("stale") || title.contains("outdated measurement") -> onSafeNavigate("reports_sales_meas_stale", PermissionAction.VIEW)
+                        id == "ordermasterregister" || id.contains("order_master") || title.contains("order master") -> onSafeNavigate("reports_sales_order_master", PermissionAction.VIEW)
+                        id == "orderproductstream" || id.contains("product_stream") || title.contains("product stream") -> onSafeNavigate("reports_sales_order_stream", PermissionAction.VIEW)
+                        id == "orderdeliverysla" || id.contains("delivery_sla") || title.contains("delivery sla") || title.contains("on-time") -> onSafeNavigate("reports_sales_order_sla", PermissionAction.VIEW)
+                        id == "branchwisesales" || id.contains("branch") || title.contains("branch-wise") || title.contains("branch wise") -> onSafeNavigate("reports_sales_branch_wise", PermissionAction.VIEW)
+                        id == "quotemasterregister" || id.contains("quote_master") || title.contains("quotation master") -> onSafeNavigate("reports_sales_quote_master", PermissionAction.VIEW)
+                        id == "quotediscountleakage" || id.contains("discount") || id.contains("leakage") ||
+                                title.contains("discount") || title.contains("leakage") || title.contains("margin audit") -> onSafeNavigate("reports_sales_quote_discount", PermissionAction.VIEW)
+                        id == "quoteexpiringaudit" || id.contains("expiring") || title.contains("expiring") -> onSafeNavigate("reports_sales_quote_expiring", PermissionAction.VIEW)
+                        else -> onShowComingSoon("Coming Soon, Stay tuned!")
                     }
-                    id == "leadsourceperformance" || id.contains("lead_source") || title.contains("lead source") || title.contains("marketing roi") -> {
-                        onNavigate("reports_sales_lead_source")
-                    }
-                    id == "leadoverduefollowups" || id.contains("overdue_followup") || title.contains("overdue follow") -> {
-                        onNavigate("reports_sales_lead_overdue")
-                    }
-                    id == "leadfollowupactivity" || id.contains("followup_activity") || id.contains("follow_up") ||
-                            title.contains("follow-up") || title.contains("follow up") || title.contains("followup") -> {
-                        onNavigate("reports_sales_lead_activity")
-                    }
-
-                    id == "oppmasterregister" || id.contains("opp_master") || title.contains("opportunity pipeline") || title.contains("opportunity master") -> {
-                        onNavigate("reports_sales_opp_master")
-                    }
-                    id == "oppstagefunnel" || id.contains("stage_funnel") || title.contains("stage funnel") || title.contains("funnel") -> {
-                        onNavigate("reports_sales_opp_funnel")
-                    }
-                    id == "oppclosingalerts" || id.contains("closing") || title.contains("closing soon") || title.contains("overdue deal") -> {
-                        onNavigate("reports_sales_opp_closing")
-                    }
-
-                    id == "custmasterregister" || id.contains("cust_master") || id.contains("customer_master") || title.contains("customer master") -> {
-                        onNavigate("reports_sales_cust_master")
-                    }
-                    id == "custltvrevenue" || id.contains("ltv") || title.contains("lifetime value") || title.contains("ltv") -> {
-                        onNavigate("reports_sales_cust_ltv")
-                    }
-                    id == "custcreditreceivables" || id.contains("credit") || id.contains("dues") || id.contains("receivable") ||
-                            title.contains("credit") || title.contains("dues") || title.contains("receivable") -> {
-                        onNavigate("reports_sales_cust_credit")
-                    }
-                    id == "custdormantwinback" || id.contains("dormant") || id.contains("winback") ||
-                            title.contains("dormant") || title.contains("win-back") || title.contains("win back") -> {
-                        onNavigate("reports_sales_cust_dormant")
-                    }
-
-                    id == "measmasterregister" || id.contains("meas_master") || title.contains("measurement master") -> {
-                        onNavigate("reports_sales_meas_master")
-                    }
-                    id == "measstaleaudit" || id.contains("stale") || title.contains("stale") || title.contains("outdated measurement") -> {
-                        onNavigate("reports_sales_meas_stale")
-                    }
-
-                    id == "ordermasterregister" || id.contains("order_master") || title.contains("order master") -> {
-                        onNavigate("reports_sales_order_master")
-                    }
-                    id == "orderproductstream" || id.contains("product_stream") || title.contains("product stream") -> {
-                        onNavigate("reports_sales_order_stream")
-                    }
-                    id == "orderdeliverysla" || id.contains("delivery_sla") || title.contains("delivery sla") || title.contains("on-time") -> {
-                        onNavigate("reports_sales_order_sla")
-                    }
-                    id == "branchwisesales" || id.contains("branch") || title.contains("branch-wise") || title.contains("branch wise") -> {
-                        onNavigate("reports_sales_branch_wise")
-                    }
-
-                    id == "quotemasterregister" || id.contains("quote_master") || title.contains("quotation master") -> {
-                        onNavigate("reports_sales_quote_master")
-                    }
-                    id == "quotediscountleakage" || id.contains("discount") || id.contains("leakage") ||
-                            title.contains("discount") || title.contains("leakage") || title.contains("margin audit") -> {
-                        onNavigate("reports_sales_quote_discount")
-                    }
-                    id == "quoteexpiringaudit" || id.contains("expiring") || title.contains("expiring") -> {
-                        onNavigate("reports_sales_quote_expiring")
-                    }
-
-                    else -> onShowComingSoon("Coming Soon, Stay tuned!")
                 }
-            }
-        )
+            )
+        }
 
-        "reports_sales_lead_master" -> LeadMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_lead_source" -> LeadSourcePerformanceReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_lead_overdue" -> LeadOverdueFollowupsReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_lead_activity" -> LeadFollowupActivityReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_lead_master" -> ReportsGuard("leadMasterRegister", PermissionAction.VIEW) { LeadMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_lead_source" -> ReportsGuard("leadSourcePerformance", PermissionAction.VIEW) { LeadSourcePerformanceReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_lead_overdue" -> ReportsGuard("leadOverdueFollowups", PermissionAction.VIEW) { LeadOverdueFollowupsReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_lead_activity" -> ReportsGuard("leadFollowupActivity", PermissionAction.VIEW) { LeadFollowupActivityReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
 
-        "reports_sales_opp_master" -> OpportunityMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_opp_funnel" -> OpportunityStageFunnelReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_opp_closing" -> OpportunityClosingAlertsReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_opp_master" -> ReportsGuard("oppMasterRegister", PermissionAction.VIEW) { OpportunityMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_opp_funnel" -> ReportsGuard("oppStageFunnel", PermissionAction.VIEW) { OpportunityStageFunnelReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_opp_closing" -> ReportsGuard("oppClosingAlerts", PermissionAction.VIEW) { OpportunityClosingAlertsReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
 
-        "reports_sales_cust_master" -> CustomerMasterDirectoryReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_cust_ltv" -> CustomerLtvRevenueReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_cust_credit" -> CustomerCreditReceivablesReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_cust_dormant" -> CustomerDormantWinbackReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_cust_master" -> ReportsGuard("custMasterRegister", PermissionAction.VIEW) { CustomerMasterDirectoryReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_cust_ltv" -> ReportsGuard("custLtvRevenue", PermissionAction.VIEW) { CustomerLtvRevenueReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_cust_credit" -> ReportsGuard("custCreditReceivables", PermissionAction.VIEW) { CustomerCreditReceivablesReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_cust_dormant" -> ReportsGuard("custDormantWinback", PermissionAction.VIEW) { CustomerDormantWinbackReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
 
-        "reports_sales_meas_master" -> MeasurementMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_meas_stale" -> MeasurementStaleAuditReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_meas_master" -> ReportsGuard("measMasterRegister", PermissionAction.VIEW) { MeasurementMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_meas_stale" -> ReportsGuard("measStaleAudit", PermissionAction.VIEW) { MeasurementStaleAuditReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
 
-        "reports_sales_order_master" -> OrderMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_order_stream" -> OrderProductStreamReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_order_sla" -> DeliverySlaReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_branch_wise" -> BranchWiseSalesReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_order_master" -> ReportsGuard("orderMasterRegister", PermissionAction.VIEW) { OrderMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_order_stream" -> ReportsGuard("orderProductStream", PermissionAction.VIEW) { OrderProductStreamReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_order_sla" -> ReportsGuard("orderDeliverySla", PermissionAction.VIEW) { DeliverySlaReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_branch_wise" -> ReportsGuard("branchWiseSales", PermissionAction.VIEW) { BranchWiseSalesReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
 
-        "reports_sales_quote_master" -> QuotationMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_quote_discount" -> QuotationDiscountLeakageReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
-        "reports_sales_quote_expiring" -> QuotationExpiringAuditReportScreen(onClose = onGoBack, viewModel = hrReportViewModel)
+        "reports_sales_quote_master" -> ReportsGuard("quoteMasterRegister", PermissionAction.VIEW) { QuotationMasterRegisterReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_quote_discount" -> ReportsGuard("quoteDiscountLeakage", PermissionAction.VIEW) { QuotationDiscountLeakageReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sales_quote_expiring" -> ReportsGuard("quoteExpiringAudit", PermissionAction.VIEW) { QuotationExpiringAuditReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
 
-        // 2. Marketing Reports
-        "reports_marketing" -> MarketingReportsScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
-        )
+        "reports_marketing" -> ReportsGuard("mktCampaignPerformance", PermissionAction.VIEW) {
+            MarketingReportsScreen(onClose = onGoBack, onBreadCrumbClick = { onOpenModulesPanel("Reports") })
+        }
 
-        // 3. Finance & Accounts Reports
-        "reports_finance" -> FinanceReportsScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
-        )
+        "reports_finance" -> ReportsGuard("revenueExpenseSummary", PermissionAction.VIEW) {
+            FinanceReportsScreen(onClose = onGoBack, onBreadCrumbClick = { onOpenModulesPanel("Reports") })
+        }
 
-        // 4. Inventory Reports
-        "reports_inventory" -> InventoryReportsScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
-        )
+        "reports_inventory" -> ReportsGuard("invStockSummary", PermissionAction.VIEW) {
+            InventoryReportsScreen(onClose = onGoBack, onBreadCrumbClick = { onOpenModulesPanel("Reports") })
+        }
 
-        // 5. Logistics & Delivery Reports
-        "reports_logistics" -> LogisticsReportsScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
-        )
+        "reports_logistics" -> ReportsGuard("logDeliveryPerformance", PermissionAction.VIEW) {
+            LogisticsReportsScreen(onClose = onGoBack, onBreadCrumbClick = { onOpenModulesPanel("Reports") })
+        }
 
-        // 6. Customer Service Reports
-        "reports_services" -> ServiceReportsScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
-        )
+        "reports_services" -> ReportsGuard("servicePerformanceSla", PermissionAction.VIEW) {
+            ServiceReportsScreen(onClose = onGoBack, onBreadCrumbClick = { onOpenModulesPanel("Reports") })
+        }
 
-        // 7. HR & Payroll Reports Hub
-        "reports_human_resource" -> HrPayrollReportsScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") },
-            onReportClick = { reportItem ->
-                when (reportItem.id) {
-                    "hr_attendance_register" -> onNavigate("reports_hr_attendance_register")
-                    "hr_payroll_run_audit" -> onNavigate("reports_hr_payroll_run_audit")
-                    "hr_piece_rate_wage" -> onNavigate("reports_hr_piece_rate_wage")
-                    "hr_reimbursement_claims" -> onNavigate("reports_hr_reimbursement_claims")
-                    else -> onShowComingSoon("Coming Soon, Stay tuned!")
+        "reports_human_resource" -> ReportsGuard("hrAttendanceRegister", PermissionAction.VIEW) {
+            HrPayrollReportsScreen(
+                onClose = onGoBack,
+                onBreadCrumbClick = { onOpenModulesPanel("Reports") },
+                onReportClick = { reportItem ->
+                    when (reportItem.id) {
+                        "hr_attendance_register" -> onSafeNavigate("reports_hr_attendance_register", PermissionAction.VIEW)
+                        "hr_payroll_run_audit" -> onSafeNavigate("reports_hr_payroll_run_audit", PermissionAction.VIEW)
+                        "hr_piece_rate_wage" -> onSafeNavigate("reports_hr_piece_rate_wage", PermissionAction.VIEW)
+                        "hr_reimbursement_claims" -> onSafeNavigate("reports_hr_reimbursement_claims", PermissionAction.VIEW)
+                        else -> onShowComingSoon("Coming Soon, Stay tuned!")
+                    }
                 }
-            }
-        )
+            )
+        }
 
-        // 7a. Attendance Register & Analytics Report
-        "reports_hr_attendance_register" -> AttendanceReportScreen(
-            onClose = onGoBack,
-            viewModel = hrReportViewModel
-        )
+        "reports_hr_attendance_register" -> ReportsGuard("hrAttendanceRegister", PermissionAction.VIEW) { AttendanceReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_hr_payroll_run_audit" -> ReportsGuard("hrPayrollRuns", PermissionAction.VIEW) { PayrollRunReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_hr_piece_rate_wage" -> ReportsGuard("hrPieceRates", PermissionAction.VIEW) { PieceRateReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_hr_reimbursement_claims" -> ReportsGuard("hrReimbursements", PermissionAction.VIEW) { ReimbursementReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
 
-        // 7b. Payroll Run Audit & Analytics Report
-        "reports_hr_payroll_run_audit" -> PayrollRunReportScreen(
-            onClose = onGoBack,
-            viewModel = hrReportViewModel
-        )
-
-        // 7c. Piece Rate Master & Wage Report
-        "reports_hr_piece_rate_wage" -> PieceRateReportScreen(
-            onClose = onGoBack,
-            viewModel = hrReportViewModel
-        )
-
-        // 7d. Reimbursement Claims & Settlement Report
-        "reports_hr_reimbursement_claims" -> ReimbursementReportScreen(
-            onClose = onGoBack,
-            viewModel = hrReportViewModel
-        )
-
-        // 8. IT & Systems Reports Hub
-        "reports_it" -> ItReportsScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") },
-            onReportClick = { reportItem ->
-                val id = reportItem.id.lowercase()
-                val title = reportItem.title.lowercase()
-                when {
-                    id in setOf("it_asset_register", "it_assets", "it_asset_report") ||
-                            title.contains("asset") || title.contains("hardware") -> {
-                        onNavigate("reports_it_assets")
+        "reports_it" -> ReportsGuard("itAssetRegister", PermissionAction.VIEW) {
+            ItReportsScreen(
+                onClose = onGoBack,
+                onBreadCrumbClick = { onOpenModulesPanel("Reports") },
+                onReportClick = { reportItem ->
+                    val id = reportItem.id.lowercase()
+                    val title = reportItem.title.lowercase()
+                    when {
+                        id in setOf("it_asset_register", "it_assets", "it_asset_report") ||
+                                title.contains("asset") || title.contains("hardware") -> onSafeNavigate("reports_it_assets", PermissionAction.VIEW)
+                        id in setOf("it_service_desk", "it_service_desk_report", "it_sla_report") ||
+                                title.contains("service desk") || title.contains("ticket") || title.contains("sla") -> onSafeNavigate("reports_it_service_desk", PermissionAction.VIEW)
+                        else -> onShowComingSoon("Coming Soon, Stay tuned!")
                     }
-                    id in setOf("it_service_desk", "it_service_desk_report", "it_sla_report") ||
-                            title.contains("service desk") || title.contains("ticket") || title.contains("sla") -> {
-                        onNavigate("reports_it_service_desk")
-                    }
-                    else -> onShowComingSoon("Coming Soon, Stay tuned!")
                 }
-            }
-        )
+            )
+        }
 
-        // 8a. IT Asset Report
-        "reports_it_assets" -> ItAssetReportScreen(
-            onClose = onGoBack,
-            viewModel = hrReportViewModel
-        )
+        "reports_it_assets" -> ReportsGuard("itAssetRegister", PermissionAction.VIEW) { ItAssetReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_it_service_desk" -> ReportsGuard("itServiceDesk", PermissionAction.VIEW) {
+            ItServiceDeskReportScreen(
+                onClose = onGoBack,
+                onViewTicketAudit = { _ -> onSafeNavigate("it_service_desk", PermissionAction.VIEW) },
+                viewModel = hrReportViewModel
+            )
+        }
 
-        // 8b. IT Service Desk Report
-        "reports_it_service_desk" -> ItServiceDeskReportScreen(
-            onClose = onGoBack,
-            onViewTicketAudit = { _ ->
-                onNavigate("it_service_desk")
-            },
-            viewModel = hrReportViewModel
-        )
-        // 9. Security Reports Hub
-        "reports_security" -> SecurityReportsScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") },
-            onReportClick = { reportItem ->
-                val id = reportItem.id.lowercase()
-                val title = reportItem.title.lowercase()
-                when {
-                    id in setOf("sec_incidents_alerts", "security_incidents_alerts") ||
-                            title.contains("incident") || title.contains("alert") -> {
-                        onNavigate("reports_sec_incidents_alerts")
+        "reports_security" -> ReportsGuard("secIncidentsAlerts", PermissionAction.VIEW) {
+            SecurityReportsScreen(
+                onClose = onGoBack,
+                onBreadCrumbClick = { onOpenModulesPanel("Reports") },
+                onReportClick = { reportItem ->
+                    val id = reportItem.id.lowercase()
+                    val title = reportItem.title.lowercase()
+                    when {
+                        id in setOf("sec_incidents_alerts", "security_incidents_alerts") ||
+                                title.contains("incident") || title.contains("alert") -> onSafeNavigate("reports_sec_incidents_alerts", PermissionAction.VIEW)
+                        id in setOf(
+                            "sec_access_activity",
+                            "security_access_activity",
+                            "sec_access_permission",
+                            "sec_access_permissions",
+                            "security_access_permission"
+                        ) || title.contains("access") || title.contains("permission") -> onSafeNavigate("reports_sec_access_activity", PermissionAction.VIEW)
+                        id in setOf(
+                            "sec_api_integrations",
+                            "security_api_integrations",
+                            "sec_api_integration",
+                            "sec_api_security",
+                            "security_api_security"
+                        ) || title.contains("api") || title.contains("integration") -> onSafeNavigate("reports_sec_api_integrations", PermissionAction.VIEW)
+                        else -> onShowComingSoon("Coming Soon, Stay tuned!")
                     }
-                    id in setOf(
-                        "sec_access_activity",
-                        "security_access_activity",
-                        "sec_access_permission",
-                        "sec_access_permissions",
-                        "security_access_permission"
-                    ) || title.contains("access") || title.contains("permission") -> {
-                        onNavigate("reports_sec_access_activity")
-                    }
-                    id in setOf(
-                        "sec_api_integrations",
-                        "security_api_integrations",
-                        "sec_api_integration",
-                        "sec_api_security",
-                        "security_api_security"
-                    ) || title.contains("api") || title.contains("integration") -> {
-                        onNavigate("reports_sec_api_integrations")
-                    }
-                    else -> onShowComingSoon("Coming Soon, Stay tuned!")
                 }
-            }
-        )
+            )
+        }
 
-        // 9a. Security Incidents & Alerts Report
-        "reports_sec_incidents_alerts" -> SecurityIncidentsReportScreen(
-            onClose = onGoBack,
-            viewModel = hrReportViewModel
-        )
+        "reports_sec_incidents_alerts" -> ReportsGuard("secIncidentsAlerts", PermissionAction.VIEW) { SecurityIncidentsReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_sec_access_activity" -> ReportsGuard("secAccessActivity", PermissionAction.VIEW) {
+            AccessActivityReportScreen(
+                onClose = onGoBack,
+                onAuditLogClick = { _ -> onSafeNavigate("security_audit_logs", PermissionAction.VIEW) },
+                viewModel = hrReportViewModel
+            )
+        }
+        "reports_sec_api_integrations" -> ReportsGuard("secApiIntegrations", PermissionAction.VIEW) { ApiIntegrationSecurityReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
 
-        // 9b. Access & Permission Activity Report
-        "reports_sec_access_activity" -> AccessActivityReportScreen(
-            onClose = onGoBack,
-            onAuditLogClick = { item ->
-                onNavigate("security_audit_logs")
-            },
-            viewModel = hrReportViewModel
-        )
-
-        // 9c. API & Integration Security Report
-        "reports_sec_api_integrations" -> ApiIntegrationSecurityReportScreen(
-            onClose = onGoBack,
-            viewModel = hrReportViewModel
-        )
-
-        // 10. Legal & Audit Reports
-        "reports_legal" -> LegalReportsScreen(
-            onClose = onGoBack,
-            onBreadCrumbClick = { onOpenModulesPanel("Reports") }
-        )
+        "reports_legal" -> ReportsGuard("legalContractsExpiry", PermissionAction.VIEW) {
+            LegalReportsScreen(onClose = onGoBack, onBreadCrumbClick = { onOpenModulesPanel("Reports") })
+        }
     }
 }

@@ -33,10 +33,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.cuso.tailor.viewmodel.PermissionViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,6 +70,8 @@ fun OrganizationSettingsScreen(
 ) {
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
+    val permissionViewModel: PermissionViewModel = hiltViewModel()
+    val myPermissions by permissionViewModel.myPermissions.collectAsState()
 
     // Accordion expand/collapse states
     var isTaxesExpanded by remember { mutableStateOf(false) }
@@ -109,76 +114,108 @@ fun OrganizationSettingsScreen(
                     .padding(top = 14.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Navigation items
-                // Example inside OrganizationSettingsScreen.kt
-                SettingsNavCard(
-                    title = "Organization Profile",
-                    tokens = tokens,
-                    onClick = { onNavigate("organization_profile") }
-                )
+                // Observe myPermissions so items recompose when permissions update
+                val hideTaxRates = remember(myPermissions) { permissionViewModel.isFeatureHidden("finance", "finTaxRatesRules") }
+                val hideGstSettings = remember(myPermissions) { permissionViewModel.isFeatureHidden("finance", "finTaxRegistration") }
 
-                SettingsNavCard(
-                    title = "Business Setup",
-                    tokens = tokens,
-                    onClick = { onNavigate("business_setup") }
-                )
-
-                SettingsAccordionCard(
-                    title = "Taxes & GST",
-                    isExpanded = isTaxesExpanded,
-                    tokens = tokens,
-                    onHeaderClick = { isTaxesExpanded = !isTaxesExpanded }
-                ) {
-                    SettingsSubItemRow(title = "Tax Rates", tokens = tokens) { onNavigate("tax_rates") }
-                    HorizontalDivider(color = BorderGray)
-                    SettingsSubItemRow(title = "GST Settings", tokens = tokens) { onNavigate("gst_settings") }
+                if (!permissionViewModel.isFeatureHidden("home", "organizationProfile")) {
+                    SettingsNavCard(
+                        title = "Organization Profile",
+                        tokens = tokens,
+                        onClick = { onNavigate("organization_profile") }
+                    )
                 }
 
-                SettingsNavCard(
-                    title = "Branch Management",
-                    tokens = tokens,
-                    onClick = { onNavigate("branch_management") }
-                )
+                if (!permissionViewModel.isModuleHidden("home")) {
+                    SettingsNavCard(
+                        title = "Business Setup",
+                        tokens = tokens,
+                        onClick = { onNavigate("business_setup") }
+                    )
+                }
 
-                SettingsNavCard(
-                    title = "Department & Teams",
-                    tokens = tokens,
-                    onClick = { onNavigate("department_teams") }
-                )
-                SettingsNavCard(
-                    title = "Approval Inbox",
-                    tokens = tokens,
-                    onClick = { onNavigate("department_teams") }
-                )
-                SettingsNavCard(
-                    title = "Approval Rules",
-                    tokens = tokens,
-                    onClick = { onNavigate("approval_rules") }
-                )
+                if (!hideTaxRates || !hideGstSettings) {
+                    SettingsAccordionCard(
+                        title = "Taxes & GST",
+                        isExpanded = isTaxesExpanded,
+                        tokens = tokens,
+                        onHeaderClick = { isTaxesExpanded = !isTaxesExpanded }
+                    ) {
+                        if (!hideTaxRates) {
+                            SettingsSubItemRow(title = "Tax Rates", tokens = tokens) { onNavigate("tax_rates") }
+                        }
+                        if (!hideTaxRates && !hideGstSettings) {
+                            HorizontalDivider(color = BorderGray)
+                        }
+                        if (!hideGstSettings) {
+                            SettingsSubItemRow(title = "GST Settings", tokens = tokens) { onNavigate("gst_settings") }
+                        }
+                    }
+                }
 
-                SettingsNavCard(
-                    title = "Designation",
-                    tokens = tokens,
-                    onClick = { onNavigate("designation") }
-                )
+                if (!permissionViewModel.isFeatureHidden("home", "branches")) {
+                    SettingsNavCard(
+                        title = "Branch Management",
+                        tokens = tokens,
+                        onClick = { onNavigate("branch_management") }
+                    )
+                }
 
-                SettingsNavCard(
-                    title = "Role",
-                    tokens = tokens,
-                    onClick = { onNavigate("role") }
-                )
+                if (!permissionViewModel.isFeatureHidden("home", "departments")) {
+                    SettingsNavCard(
+                        title = "Department & Teams",
+                        tokens = tokens,
+                        onClick = { onNavigate("department_teams") }
+                    )
+                }
 
-                SettingsNavCard(
-                    title = "Opening Balance",
-                    tokens = tokens,
-                    onClick = { onNavigate("opening_balance") }
-                )
+                if (!permissionViewModel.isFeatureHidden("home", "approvalInbox")) {
+                    SettingsNavCard(
+                        title = "Approval Inbox",
+                        tokens = tokens,
+                        onClick = { onNavigate("department_teams") }
+                    )
+                }
 
-                SettingsNavCard(
-                    title = "Warehouse",
-                    tokens = tokens,
-                    onClick = { onNavigate("warehouse") }
-                )
+                if (!permissionViewModel.isFeatureHidden("home", "approvalRules")) {
+                    SettingsNavCard(
+                        title = "Approval Rules",
+                        tokens = tokens,
+                        onClick = { onNavigate("approval_rules") }
+                    )
+                }
+
+                if (!permissionViewModel.isFeatureHidden("home", "designations")) {
+                    SettingsNavCard(
+                        title = "Designation",
+                        tokens = tokens,
+                        onClick = { onNavigate("designation") }
+                    )
+                }
+
+                if (!permissionViewModel.isFeatureHidden("security", "roles")) {
+                    SettingsNavCard(
+                        title = "Role",
+                        tokens = tokens,
+                        onClick = { onNavigate("role") }
+                    )
+                }
+
+                if (!permissionViewModel.isFeatureHidden("finance", "finChartOfAccounts")) {
+                    SettingsNavCard(
+                        title = "Opening Balance",
+                        tokens = tokens,
+                        onClick = { onNavigate("opening_balance") }
+                    )
+                }
+
+                if (!permissionViewModel.isFeatureHidden("home", "warehouse")) {
+                    SettingsNavCard(
+                        title = "Warehouse",
+                        tokens = tokens,
+                        onClick = { onNavigate("warehouse") }
+                    )
+                }
 
                 // Manage Subscription Accordion
                 SettingsAccordionCard(

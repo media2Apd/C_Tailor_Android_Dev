@@ -26,8 +26,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.sp
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.home.paywall.LocalScreenPermissions
+import com.cuso.tailor.view.home.paywall.PermissionAction
+import com.cuso.tailor.view.home.paywall.isActionLabelPermitted
+import com.cuso.tailor.view.home.paywall.isFabPermitted
 import kotlin.math.roundToInt
 
 /**
@@ -39,6 +44,8 @@ data class FabConfig(
     val icon: ImageVector = Icons.Default.KeyboardArrowDown,
     val onClick: () -> Unit = {},
     val menuActions: List<MenuAction> = emptyList(), // Attached dropdown items
+    val enabled: Boolean = true,
+    val requiredAction: PermissionAction? = null,
     val alignment: Alignment = Alignment.CenterEnd,
     val startPadding: Dp = 0.dp,
     val topPadding: Dp = 0.dp,
@@ -98,10 +105,24 @@ fun FabScaffold(
                 enter = fadeIn(tween(200)) + scaleIn(tween(200), initialScale = 0.8f),
                 exit = fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 0.8f)
             ) {
+                val screenPermissions = LocalScreenPermissions.current
+                val hasAnyAllowedMenuAction = if (fab.menuActions.isNotEmpty()) {
+                    fab.menuActions.any { action ->
+                        action.enabled && isActionLabelPermitted(action.label, screenPermissions)
+                    }
+                } else {
+                    true
+                }
+                val isFabEnabled = fab.enabled &&
+                        hasAnyAllowedMenuAction &&
+                        isFabPermitted(fab.label, fab.requiredAction, screenPermissions)
+                val fabContentColor = if (isFabEnabled) whiteBg else Color(0xFF9CA3AF)
+
                 var isMenuExpanded by remember { mutableStateOf(false) }
 
                 Box {
                     Button(
+                        enabled = isFabEnabled,
                         onClick = {
                             if (fab.menuActions.isNotEmpty()) {
                                 isMenuExpanded = !isMenuExpanded
@@ -109,7 +130,12 @@ fun FabScaffold(
                                 fab.onClick()
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Primary,
+                            contentColor = whiteBg,
+                            disabledContainerColor = Color(0xFFE5E7EB),
+                            disabledContentColor = Color(0xFF9CA3AF)
+                        ),
                         shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                         modifier = Modifier
@@ -150,12 +176,12 @@ fun FabScaffold(
                             }
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(fab.label, color = whiteBg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text(fab.label, color = fabContentColor, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                             Spacer(Modifier.width(6.dp))
                             Icon(
                                 imageVector = if (fab.menuActions.isNotEmpty() && isMenuExpanded) Icons.Default.KeyboardArrowUp else fab.icon,
                                 contentDescription = null,
-                                tint = whiteBg,
+                                tint = fabContentColor,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -174,13 +200,16 @@ fun FabScaffold(
                                 .border(1.dp, sectionBorder, RoundedCornerShape(10.dp))
                         ) {
                             fab.menuActions.forEach { action ->
+                                val actionEnabled = action.enabled &&
+                                        isActionLabelPermitted(action.label, screenPermissions)
                                 DropdownMenuItem(
+                                    enabled = actionEnabled,
                                     text = {
                                         Text(
                                             text = action.label,
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = action.textColor
+                                            color = if (actionEnabled) action.textColor else Color(0xFF9CA3AF)
                                         )
                                     },
                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),

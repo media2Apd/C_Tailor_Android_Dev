@@ -245,6 +245,7 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
             "All Employees"             -> "hr_organization_structure"
             "Production Team"           -> "hr_production_team"
             "Daily Attendance"           -> "hr_daily_attendance"
+            "Leave Dashboard",
             "Apply for Leave"            -> "hr_apply_leave"
             "Manual Entry"               -> "hr_attendance_manual_entry"
             "Monthly Attendance"         -> "hr_monthly_attendance"
@@ -292,6 +293,8 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
             "Employee & Labour Legal" -> "legal_employee"
             // Vendor & Supplier Legal mapping
             "Vendor & Supplier Legal", "Vendor & Supplier", "Vendor Legal", "Vendors", "Vendor" -> "legal_vendor"
+            // Legal Notices & Dispute mapping
+            "Legal Notices & Dispute", "Legal Notices", "Notices" -> "legal_notice"
             // Audit & Legal Calendar mapping
             "Audit & Legal Calendar", "Legal Calendar", "Audit Calendar", "Calendar" -> "legal_calendar"
             else -> "legal_${subItem.lowercase().replace(" ", "_").replace("&", "and")}"
@@ -744,15 +747,24 @@ fun FullSideBar(
     onLogout: () -> Unit,
     user: User? = null,
     defaultSelectedMenu: String = "Home",
+    myPermissions: MyPermissionsData? = null,
+    getFeatureMapping: (String) -> Pair<String, String>? = { null },
     onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> }
 ) {
+    val visibleItems = remember(myPermissions) {
+        filterMenuItemsByPermission(
+            items = SidebarConfig.getFullMenuItems(),
+            myPermissions = myPermissions,
+            getFeatureMapping = getFeatureMapping
+        )
+    }
     AppSidebarContent(
         isOpen = isOpen,
         onClose = onClose,
         onMenuItemClick = onMenuItemClick,
         onLogout = onLogout,
         user = user,
-        menuItems = SidebarConfig.getFullMenuItems(),
+        menuItems = visibleItems,
         defaultSelectedMenu = defaultSelectedMenu,
         isSalesMode = false,
         onBlurScrimChange = onBlurScrimChange
@@ -767,15 +779,24 @@ fun SalesSideBar(
     onLogout: () -> Unit,
     user: User? = null,
     defaultSelectedMenu: String = "Sales",
+    myPermissions: MyPermissionsData? = null,
+    getFeatureMapping: (String) -> Pair<String, String>? = { null },
     onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> }
 ) {
+    val visibleItems = remember(myPermissions) {
+        filterMenuItemsByPermission(
+            items = SidebarConfig.getSalesMenuItems(),
+            myPermissions = myPermissions,
+            getFeatureMapping = getFeatureMapping
+        )
+    }
     AppSidebarContent(
         isOpen = isOpen,
         onClose = onClose,
         onMenuItemClick = onMenuItemClick,
         onLogout = onLogout,
         user = user,
-        menuItems = SidebarConfig.getSalesMenuItems(),
+        menuItems = visibleItems,
         defaultSelectedMenu = defaultSelectedMenu,
         isSalesMode = true,
         onBlurScrimChange = onBlurScrimChange
@@ -1335,13 +1356,22 @@ fun ModulesPanel(
     initialExpandedModule: String? = null,
     initialExpandedCategory: String? = null,
     initialActiveSubItem: String? = null,
+    myPermissions: MyPermissionsData? = null,
+    getFeatureMapping: (String) -> Pair<String, String>? = { null },
     onModuleCategoryClick: (menu: String, category: String, subItem: String?) -> Unit // 👈 3 parameters
 ) {
+    val visibleModules = remember(myPermissions) {
+        filterMenuItemsByPermission(
+            items = SidebarConfig.getFullMenuItems().filter { it.label != "Home" },
+            myPermissions = myPermissions,
+            getFeatureMapping = getFeatureMapping
+        )
+    }
     ModulesPanelContent(
         isOpen = isOpen,
         onClose = onClose,
         onModuleCategoryClick = onModuleCategoryClick,
-        menuItems = SidebarConfig.getFullMenuItems().filter { it.label != "Home" },
+        menuItems = visibleModules,
         showFrequentlyUsed = true,
         initialExpandedModule = initialExpandedModule,
         initialExpandedCategory = initialExpandedCategory,
@@ -1361,6 +1391,7 @@ private val quickAccessIconTint = Color(0xFF4338CA)
 fun QuickAccessPanel(
     isOpen: Boolean,
     onClose: () -> Unit,
+    myPermissions: MyPermissionsData? = null,
     onItemClick: (String) -> Unit,
     onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> }
 ) {
@@ -1428,8 +1459,14 @@ fun QuickAccessPanel(
                         horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                     ) {
                         row.forEach { item ->
+                            val isCreateAllowed = when (item.route) {
+                                "create_order" -> myPermissions == null || myPermissions.isOwner || myPermissions.canCreate("sales", "orders")
+                                "create_customer" -> myPermissions == null || myPermissions.isOwner || myPermissions.canCreate("sales", "customers")
+                                else -> true
+                            }
                             QuickAccessGridItem(
                                 item = item,
+                                enabled = isCreateAllowed,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 onClose()
@@ -1449,8 +1486,9 @@ fun QuickAccessPanel(
 
 @Composable
 private fun QuickAccessGridItem(
-    item: QuickAccessItem,
     modifier: Modifier = Modifier,
+    item: QuickAccessItem,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     val tokens = LocalAppTokens.current
@@ -1459,6 +1497,7 @@ private fun QuickAccessGridItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .clickable(
+                enabled = enabled,
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             ) { onClick() }
@@ -1467,13 +1506,13 @@ private fun QuickAccessGridItem(
             modifier = Modifier
                 .size(tokens.iconSize * 3f)
                 .clip(CircleShape)
-                .background(quickaccessBg),
+                .background(if (enabled) quickaccessBg else Color(0xFFF3F4F6)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 painter = painterResource(item.icon),
                 contentDescription = item.label,
-                tint = quickAccessIconTint,
+                tint = if (enabled) quickAccessIconTint else Color(0xFF9CA3AF),
                 modifier = Modifier.size(tokens.iconSize * 1.3f)
             )
         }
@@ -1481,7 +1520,7 @@ private fun QuickAccessGridItem(
         Text(
             item.label,
             fontSize = tokens.caption,
-            color = Color(0xFF374151),
+            color = if (enabled) Color(0xFF374151) else Color(0xFF9CA3AF),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
@@ -1608,7 +1647,8 @@ private fun ModulesPanelContent(
         if (isOpen) {
             sheetState = SheetValue.Collapsed
             searchQuery = ""
-            val target = initialExpandedModule ?: menuItems.firstOrNull()?.label
+            val target = initialExpandedModule?.takeIf { label -> menuItems.any { it.label == label } }
+                ?: menuItems.firstOrNull()?.label
             expandedModule = target
             activeCategory = initialExpandedCategory
             activeSubItem = initialActiveSubItem
@@ -1990,40 +2030,63 @@ private fun ModulesPanelContent(
 
 fun filterMenuItemsByPermission(
     items: List<MenuItem>,
-    myPermissions: MyPermissionsData?
+    myPermissions: MyPermissionsData?,
+    getFeatureMapping: (String) -> Pair<String, String>? = { null }
 ): List<MenuItem> {
     if (myPermissions == null || myPermissions.isOwner) return items
 
     return items.mapNotNull { menu ->
         val moduleKey = menu.label.lowercase()
 
-        // Filter categories & subitems
+        // 1. Module-level "hidden": true -> hide entire module from Sidebar & ModulesPanel
+        if (myPermissions.isModuleHidden(moduleKey)) {
+            return@mapNotNull null
+        }
+
+        // Home without sub-categories stays visible when not hidden
+        if (menu.categories.isEmpty()) {
+            return@mapNotNull menu
+        }
+
+        // 2. Filter out only sub-items/categories that have "hidden": true
+        //    (Keep "hidden": false && "view": false visible so clicking triggers AccessRestrictedDialog)
         val filteredSubItems = mutableMapOf<String, List<String>>()
-        val allowedCategories = menu.categories.filter { category ->
-            val featureKey = category.lowercase().replace(" ", "").replace("&", "")
-            val canViewCat = myPermissions.canView(moduleKey, category) ||
-                    myPermissions.canView(moduleKey, featureKey)
-
-            if (canViewCat) {
-                val subList = menu.subItems[category]?.filter { sub ->
-                    val subKey = sub.lowercase().replace(" ", "").replace("&", "")
-                    myPermissions.canView(moduleKey, sub) || myPermissions.canView(moduleKey, subKey)
-                } ?: emptyList()
-
-                if (subList.isNotEmpty()) {
-                    filteredSubItems[category] = subList
+        val visibleCategories = menu.categories.filter { category ->
+            val rawSubs = menu.subItems[category]
+            if (!rawSubs.isNullOrEmpty()) {
+                val visibleSubs = rawSubs.filter { sub ->
+                    val navKey = buildNavigationKey(menu.label, sub, category)
+                    val mapping = getFeatureMapping(navKey)
+                    if (mapping != null) {
+                        !myPermissions.isFeatureHidden(mapping.first, mapping.second)
+                    } else {
+                        val subKey = sub.lowercase().replace(" ", "").replace("&", "")
+                        !myPermissions.isFeatureHidden(moduleKey, subKey)
+                    }
                 }
-                true
+                if (visibleSubs.isNotEmpty()) {
+                    filteredSubItems[category] = visibleSubs
+                    true
+                } else {
+                    false
+                }
             } else {
-                false
+                val navKey = buildNavigationKey(menu.label, category, null)
+                val mapping = getFeatureMapping(navKey)
+                if (mapping != null) {
+                    !myPermissions.isFeatureHidden(mapping.first, mapping.second)
+                } else {
+                    val catKey = category.lowercase().replace(" ", "").replace("&", "")
+                    !myPermissions.isFeatureHidden(moduleKey, catKey)
+                }
             }
         }
 
-        if (allowedCategories.isEmpty() && menu.label != "Home") {
+        if (visibleCategories.isEmpty() && menu.label != "Home") {
             null
         } else {
             menu.copy(
-                categories = allowedCategories,
+                categories = visibleCategories,
                 subItems = filteredSubItems
             )
         }

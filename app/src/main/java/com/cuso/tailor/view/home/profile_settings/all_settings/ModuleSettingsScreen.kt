@@ -33,12 +33,15 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.home.paywall.AccessRestrictedDialog
 import com.cuso.tailor.view.home.sales.settings.design.DesignSetupScreen
 import com.cuso.tailor.viewmodel.PermissionViewModel
 
 // Sub-Item Model supporting optional nested children
 data class ModuleSubItem(
     val title: String,
+    val permissionModule: String? = null,
+    val permissionFeature: String? = null,
     val onClick: (() -> Unit)? = null,
     val children: List<ModuleSubItem> = emptyList()
 )
@@ -94,12 +97,26 @@ fun ModuleSettingsScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
     val permissionViewModel: PermissionViewModel = hiltViewModel()
+    val myPermissions by permissionViewModel.myPermissions.collectAsState()
+    var restrictedPermissionLabel by remember { mutableStateOf<String?>(null) }
 
-    fun checkAndNavigate(module: String, feature: String, action: () -> Unit) {
-        if (permissionViewModel.hasFeatureAccess(module, feature)) {
-            action()
-        } else {
-            onNavigateToModule("module_upgrade_paywall")
+    fun checkAndNavigate(
+        module: String,
+        feature: String,
+        permissionLabel: String = "$module.$feature",
+        action: () -> Unit
+    ) {
+        when {
+            !permissionViewModel.canViewFeature(module, feature) -> {
+                // view == false -> Show AccessRestrictedDialog & DO NOT navigate (no API hit)
+                restrictedPermissionLabel = permissionLabel
+            }
+            !permissionViewModel.isPlanFeatureSubscribed(module, feature) -> {
+                onNavigateToModule("module_upgrade_paywall")
+            }
+            else -> {
+                action()
+            }
         }
     }
     // State to toggle the full Design Setup screen overlay
@@ -149,7 +166,7 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.home,
                 tags = listOf("Dashboard", "Widgets", "Shortcuts"),
                 isConfigured = true,
-                onConfigure = { checkAndNavigate("home", "organizationProfile", onConfigureHome) }
+                onConfigure = { checkAndNavigate("home", "organizationProfile", "Home", onConfigureHome) }
             ),
 
             // 2. Sales
@@ -161,20 +178,37 @@ fun ModuleSettingsScreen(
                 tags = listOf("Orders", "Pricing", "Approvals"),
                 isConfigured = true,
                 subItems = listOf(
-                    ModuleSubItem(title = "Garment", onClick = { checkAndNavigate("sales", "garmentMeasurement", onConfigureSales) }),
-                    ModuleSubItem(title = "Garment Pricing", onClick = { checkAndNavigate("sales", "pricingGarment", onConfigureSalesPricing) }),
-                    ModuleSubItem(title = "Measurement List", onClick = { checkAndNavigate("sales", "measurementList", onNavigateMeasurementList) }),
+                    ModuleSubItem(
+                        title = "Garment",
+                        permissionModule = "sales",
+                        permissionFeature = "garmentMeasurement",
+                        onClick = { checkAndNavigate("sales", "garmentMeasurement", "Sales - Garment", onConfigureSales) }
+                    ),
+                    ModuleSubItem(
+                        title = "Garment Pricing",
+                        permissionModule = "sales",
+                        permissionFeature = "pricingGarment",
+                        onClick = { checkAndNavigate("sales", "pricingGarment", "Sales - Garment Pricing", onConfigureSalesPricing) }
+                    ),
+                    ModuleSubItem(
+                        title = "Measurement List",
+                        permissionModule = "sales",
+                        permissionFeature = "measurementList",
+                        onClick = { checkAndNavigate("sales", "measurementList", "Sales - Measurement List", onNavigateMeasurementList) }
+                    ),
                     ModuleSubItem(
                         title = "Design Setup",
+                        permissionModule = "sales",
+                        permissionFeature = "designSetup",
                         onClick = {
-                            checkAndNavigate("sales", "designSetup") {
+                            checkAndNavigate("sales", "designSetup", "Sales - Design Setup") {
                                 onNavigateDesignSetup()
                                 isDesignSetupOpen = true
                             }
                         }
                     )
                 ),
-                onConfigure = { checkAndNavigate("sales", "designSetup", onConfigureSales) }
+                onConfigure = { checkAndNavigate("sales", "designSetup", "Sales", onConfigureSales) }
             ),
 
             // 3. Marketing
@@ -185,7 +219,7 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.marketing,
                 tags = listOf("Campaigns", "Lead Sources", "Communication"),
                 isConfigured = true,
-                onConfigure = { checkAndNavigate("marketing", "dashboard", onConfigureMarketing) }
+                onConfigure = { checkAndNavigate("marketing", "dashboard", "Marketing", onConfigureMarketing) }
             ),
 
             // 4. Finance
@@ -197,10 +231,20 @@ fun ModuleSettingsScreen(
                 tags = listOf("Billing", "Payments", "Accounting"),
                 isConfigured = true,
                 subItems = listOf(
-                    ModuleSubItem(title = "GST Settings", onClick = { checkAndNavigate("finance", "finTaxRegistration", onNavigateGstSettings) }),
-                    ModuleSubItem(title = "Tax Rates & Rules", onClick = { checkAndNavigate("finance", "finTaxRatesRules", onNavigateTaxRates) })
+                    ModuleSubItem(
+                        title = "GST Settings",
+                        permissionModule = "finance",
+                        permissionFeature = "finTaxRegistration",
+                        onClick = { checkAndNavigate("finance", "finTaxRegistration", "Finance - GST Settings", onNavigateGstSettings) }
+                    ),
+                    ModuleSubItem(
+                        title = "Tax Rates & Rules",
+                        permissionModule = "finance",
+                        permissionFeature = "finTaxRatesRules",
+                        onClick = { checkAndNavigate("finance", "finTaxRatesRules", "Finance - Tax Rates & Rules", onNavigateTaxRates) }
+                    )
                 ),
-                onConfigure = { checkAndNavigate("finance", "finChartOfAccounts", onConfigureFinance) }
+                onConfigure = { checkAndNavigate("finance", "finChartOfAccounts", "Finance", onConfigureFinance) }
             ),
 
             // 5. Inventory
@@ -215,25 +259,27 @@ fun ModuleSettingsScreen(
                     ModuleSubItem(
                         title = "Warehouse Structure",
                         children = listOf(
-                            ModuleSubItem(title = "Warehouse", onClick = { checkAndNavigate("inventory", "warehouseStructure", onNavigateLocationStructure) }),
-                            ModuleSubItem(title = "Floor", onClick = { checkAndNavigate("inventory", "warehouseStructure", onNavigateFloorOverview) }),
-                            ModuleSubItem(title = "Section", onClick = { checkAndNavigate("inventory", "warehouseStructure", onNavigateSectionOverview) }),
-                            ModuleSubItem(title = "Rack", onClick = { checkAndNavigate("inventory", "warehouseStructure", onNavigateRackOverview) }),
-                            ModuleSubItem(title = "Bin", onClick = { checkAndNavigate("inventory", "warehouseStructure", onNavigateBinOverview) })
+                            ModuleSubItem(title = "Warehouse", permissionModule = "inventory", permissionFeature = "warehouseStructure", onClick = { checkAndNavigate("inventory", "warehouseStructure", "Inventory - Warehouse", onNavigateLocationStructure) }),
+                            ModuleSubItem(title = "Floor", permissionModule = "inventory", permissionFeature = "warehouseStructure", onClick = { checkAndNavigate("inventory", "warehouseStructure", "Inventory - Floor", onNavigateFloorOverview) }),
+                            ModuleSubItem(title = "Section", permissionModule = "inventory", permissionFeature = "warehouseStructure", onClick = { checkAndNavigate("inventory", "warehouseStructure", "Inventory - Section", onNavigateSectionOverview) }),
+                            ModuleSubItem(title = "Rack", permissionModule = "inventory", permissionFeature = "warehouseStructure", onClick = { checkAndNavigate("inventory", "warehouseStructure", "Inventory - Rack", onNavigateRackOverview) }),
+                            ModuleSubItem(title = "Bin", permissionModule = "inventory", permissionFeature = "warehouseStructure", onClick = { checkAndNavigate("inventory", "warehouseStructure", "Inventory - Bin", onNavigateBinOverview) })
                         )
                     ),
                     ModuleSubItem(
                         title = "Auto Reorder Settings",
-                        onClick = { checkAndNavigate("inventory", "autoReorderSettings", onNavigateAutoReorder) }
+                        permissionModule = "inventory",
+                        permissionFeature = "autoReorderSettings",
+                        onClick = { checkAndNavigate("inventory", "autoReorderSettings", "Inventory - Auto Reorder Settings", onNavigateAutoReorder) }
                     ),
                     ModuleSubItem(
                         title = "Customization",
                         children = listOf(
-                            ModuleSubItem(title = "PDF Templates", onClick = { checkAndNavigate("inventory", "pdftemp", onNavigatePdfTemplates) })
+                            ModuleSubItem(title = "PDF Templates", permissionModule = "inventory", permissionFeature = "pdftemp", onClick = { checkAndNavigate("inventory", "pdftemp", "Inventory - PDF Templates", onNavigatePdfTemplates) })
                         )
                     )
                 ),
-                onConfigure = { checkAndNavigate("inventory", "warehouseStructure", onNavigateLocationStructure) }
+                onConfigure = { checkAndNavigate("inventory", "warehouseStructure", "Inventory", onNavigateLocationStructure) }
             ),
 
             // 6. Logistics
@@ -244,7 +290,7 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.logistics,
                 tags = listOf("Delivery", "Dispatch", "Shipment"),
                 isConfigured = true,
-                onConfigure = { checkAndNavigate("logistics", "delivery", onConfigureLogistics) }
+                onConfigure = { checkAndNavigate("logistics", "delivery", "Logistics", onConfigureLogistics) }
             ),
 
             // 7. Services
@@ -258,20 +304,20 @@ fun ModuleSettingsScreen(
                 subItems = listOf(
                     ModuleSubItem(
                         title = "Service Templates",
-                        onClick = { checkAndNavigate("services", "serviceTemplates", onNavigateServiceTemplates) }
+                        permissionModule = "services",
+                        permissionFeature = "serviceTemplates",
+                        onClick = { checkAndNavigate("services", "serviceTemplates", "Services - Service Templates", onNavigateServiceTemplates) }
                     ),
-                    // ── ADD WORKFLOW STAGES SUB-ITEM HERE ──
-                    // Services sub-items
                     ModuleSubItem(
                         title = "Workflow Stages",
-                        // Use the real feature key returned by the permissions API
-                        onClick = { checkAndNavigate("services", "workflowStages", onNavigateProductionStages) }
-                    ),
+                        permissionModule = "services",
+                        permissionFeature = "workflowStages",
+                        onClick = { checkAndNavigate("services", "workflowStages", "Services - Workflow Stages", onNavigateProductionStages) }
+                    )
                 ),
-                onConfigure = { checkAndNavigate("services", "dashboard", onConfigureServices) }
+                onConfigure = { checkAndNavigate("services", "dashboard", "Services", onConfigureServices) }
             ),
 
-            // 8. Human Resources
             // 8. Human Resources
             ModuleSettingItem(
                 id = "hr",
@@ -283,25 +329,30 @@ fun ModuleSettingsScreen(
                 subItems = listOf(
                     ModuleSubItem(
                         title = "Leave Types",
+                        permissionModule = "hr",
+                        permissionFeature = "leaveTypes",
                         onClick = {
-                            checkAndNavigate("hr", "leaveTypes", onNavigateLeaveTypes)
+                            checkAndNavigate("hr", "leaveTypes", "HR - Leave Types", onNavigateLeaveTypes)
                         }
                     ),
                     ModuleSubItem(
                         title = "Leave Policies",
+                        permissionModule = "hr",
+                        permissionFeature = "leavePolicies",
                         onClick = {
-                            checkAndNavigate("hr", "leavePolicies", onNavigateLeavePolicies)
+                            checkAndNavigate("hr", "leavePolicies", "HR - Leave Policies", onNavigateLeavePolicies)
                         }
                     ),
                     ModuleSubItem(
                         title = "Piece Rate Setup",
+                        permissionModule = "hr",
+                        permissionFeature = "pieceRate",
                         onClick = {
-                            // Match the exact permission key ("pieceRate") returned by /api/permissions/me
-                            checkAndNavigate("hr", "pieceRate", onNavigatePieceRateSetup)
+                            checkAndNavigate("hr", "pieceRate", "HR - Piece Rate Setup", onNavigatePieceRateSetup)
                         }
                     )
                 ),
-                onConfigure = { checkAndNavigate("hr", "employeeManagement", onConfigureHR) }
+                onConfigure = { checkAndNavigate("hr", "employeeManagement", "Human Resources", onConfigureHR) }
             ),
 
             // 9. IT
@@ -312,7 +363,7 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.it,
                 tags = listOf("Assets", "Access", "System Rules"),
                 isConfigured = true,
-                onConfigure = { checkAndNavigate("it", "deviceManagement", onConfigureIT) }
+                onConfigure = { checkAndNavigate("it", "deviceManagement", "IT", onConfigureIT) }
             ),
 
             // 10. Legal
@@ -323,7 +374,7 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.legal,
                 tags = listOf("Contracts", "Approvals", "Documents"),
                 isConfigured = true,
-                onConfigure = { checkAndNavigate("legal", "dashboard", onConfigureLegal) }
+                onConfigure = { checkAndNavigate("legal", "dashboard", "Legal", onConfigureLegal) }
             ),
 
             // 11. Security
@@ -334,7 +385,7 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.security,
                 tags = listOf("Access", "Authentication", "Policies"),
                 isConfigured = true,
-                onConfigure = { checkAndNavigate("security", "dashboard", onConfigureSecurity) }
+                onConfigure = { checkAndNavigate("security", "dashboard", "Security", onConfigureSecurity) }
             ),
 
             // 12. Reports
@@ -345,46 +396,81 @@ fun ModuleSettingsScreen(
                 icon = R.drawable.reports,
                 tags = listOf("Reports", "Visibility", "Exports"),
                 isConfigured = true,
-                onConfigure = { checkAndNavigate("reports", "orderMasterRegister", onConfigureReports) }
+                onConfigure = { checkAndNavigate("reports", "orderMasterRegister", "Reports", onConfigureReports) }
             )
         )
     }
 
-    val filteredModules = remember(searchQuery, moduleList) {
-        if (searchQuery.isBlank()) moduleList
-        else moduleList.filter {
-            it.title.contains(searchQuery, ignoreCase = true) ||
-                    it.description.contains(searchQuery, ignoreCase = true) ||
-                    it.tags.any { tag -> tag.contains(searchQuery, ignoreCase = true) }
+    fun filterVisibleSubItems(items: List<ModuleSubItem>): List<ModuleSubItem> {
+        return items.mapNotNull { item ->
+            val mod = item.permissionModule
+            val feat = item.permissionFeature
+            if (mod != null && feat != null && permissionViewModel.isFeatureHidden(mod, feat)) {
+                return@mapNotNull null
+            }
+            if (item.children.isNotEmpty()) {
+                val visibleChildren = filterVisibleSubItems(item.children)
+                if (visibleChildren.isEmpty()) null else item.copy(children = visibleChildren)
+            } else {
+                item
+            }
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Primary_background)
-    ) {
-        TitleBar(title = "Module Settings", onClose = onClose)
-        HorizontalDivider(color = title_border)
-
-        SearchFilterBar(
-            query = searchQuery,
-            onQueryChange = { searchQuery = it },
-            placeholder = "Search Module Settings...",
-            accentColor = Primary,
-            borderColor = BorderGray,
-            textSecondaryColor = TextSecondary,
-            onFilterClick = { }
-        )
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = tokens.screenPadding, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            items(filteredModules, key = { it.id }) { module ->
-                ModuleSettingCard(module = module)
+    val filteredModules = remember(searchQuery, moduleList, myPermissions) {
+        moduleList
+            .filter { module -> !permissionViewModel.isModuleHidden(module.id) }
+            .map { module ->
+                if (module.subItems.isEmpty()) module
+                else module.copy(subItems = filterVisibleSubItems(module.subItems))
             }
+            .filter { module ->
+                if (searchQuery.isBlank()) true
+                else {
+                    module.title.contains(searchQuery, ignoreCase = true) ||
+                            module.description.contains(searchQuery, ignoreCase = true) ||
+                            module.tags.any { tag -> tag.contains(searchQuery, ignoreCase = true) }
+                }
+            }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Primary_background)
+        ) {
+            TitleBar(title = "Module Settings", onClose = onClose)
+            HorizontalDivider(color = title_border)
+
+            SearchFilterBar(
+                query = searchQuery,
+                onQueryChange = { searchQuery = it },
+                placeholder = "Search Module Settings...",
+                accentColor = Primary,
+                borderColor = BorderGray,
+                textSecondaryColor = TextSecondary,
+                onFilterClick = { }
+            )
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = tokens.screenPadding, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                items(filteredModules, key = { it.id }) { module ->
+                    ModuleSettingCard(module = module)
+                }
+            }
+        }
+
+        restrictedPermissionLabel?.let { permissionLabel ->
+            AccessRestrictedDialog(
+                onRequestAccess = { restrictedPermissionLabel = null },
+                onGoBack = { restrictedPermissionLabel = null },
+                onDismiss = { restrictedPermissionLabel = null },
+                requiredPermission = permissionLabel
+            )
         }
     }
 }

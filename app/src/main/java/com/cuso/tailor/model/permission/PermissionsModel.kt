@@ -1,8 +1,16 @@
 @file:Suppress("unused")
+
 package com.cuso.tailor.model.permission
 
-
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonSerializationContext
+import com.google.gson.JsonSerializer
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
+import java.lang.reflect.Type
 
 enum class PermissionAction {
     VIEW, CREATE, EDIT, DELETE, EXPORT, PRINT, SHARE, APPROVE
@@ -51,7 +59,9 @@ data class ModulePermissionsData(
         return allowedList.any { it.equals(featureKey, ignoreCase = true) }
     }
 }
+
 data class ActionPermission(
+    @SerializedName("hidden") val hidden: Boolean = false,
     @SerializedName("view") val view: Boolean = false,
     @SerializedName("create") val create: Boolean = false,
     @SerializedName("edit") val edit: Boolean = false,
@@ -62,6 +72,64 @@ data class ActionPermission(
     @SerializedName("approve") val approve: Boolean = false
 )
 
+@JsonAdapter(ModulePermissionSetAdapter::class)
+data class ModulePermissionSet(
+    val hidden: Boolean = false,
+    val features: Map<String, ActionPermission> = emptyMap()
+)
+
+class ModulePermissionSetAdapter :
+    JsonDeserializer<ModulePermissionSet>,
+    JsonSerializer<ModulePermissionSet> {
+
+    override fun deserialize(
+        json: JsonElement?,
+        typeOfT: Type?,
+        context: JsonDeserializationContext?
+    ): ModulePermissionSet {
+        if (json == null || !json.isJsonObject) return ModulePermissionSet()
+
+        val obj = json.asJsonObject
+        val isHidden = obj.get("hidden")
+            ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }
+            ?.asBoolean ?: false
+
+        val features = mutableMapOf<String, ActionPermission>()
+        for ((key, value) in obj.entrySet()) {
+            if (key == "hidden") continue
+            if (value != null && value.isJsonObject && context != null) {
+                val action = context.deserialize<ActionPermission>(
+                    value,
+                    ActionPermission::class.java
+                ) ?: ActionPermission()
+                features[key] = action
+            }
+        }
+
+        return ModulePermissionSet(
+            hidden = isHidden,
+            features = features
+        )
+    }
+
+    override fun serialize(
+        src: ModulePermissionSet?,
+        typeOfSrc: Type?,
+        context: JsonSerializationContext?
+    ): JsonElement {
+        val obj = JsonObject()
+        if (src == null) return obj
+
+        obj.addProperty("hidden", src.hidden)
+        src.features.forEach { (key, value) ->
+            if (context != null) {
+                obj.add(key, context.serialize(value, ActionPermission::class.java))
+            }
+        }
+        return obj
+    }
+}
+
 data class MyPermissionsResponse(
     @SerializedName("success") val success: Boolean = false,
     @SerializedName("message") val message: String = "",
@@ -70,12 +138,35 @@ data class MyPermissionsResponse(
 
 data class MyPermissionsData(
     @SerializedName("isOwner") val isOwner: Boolean = false,
-    @SerializedName("permissions") val permissions: Map<String, Map<String, ActionPermission>>? = null,
+    @SerializedName("permissions") val permissions: Map<String, ModulePermissionSet>? = null,
     @SerializedName("visible") val visible: List<String> = emptyList()
 ) {
+    private fun getModuleSet(module: String): ModulePermissionSet? {
+        val normalized = module.trim()
+        return permissions?.entries
+            ?.firstOrNull { it.key.equals(normalized, ignoreCase = true) }
+            ?.value
+    }
+
+    fun isModuleHidden(module: String): Boolean {
+        if (isOwner) return false
+        return getModuleSet(module)?.hidden == true
+    }
+
+    fun isFeatureHidden(module: String, feature: String): Boolean {
+        if (isOwner) return false
+        val moduleSet = getModuleSet(module) ?: return false
+        if (moduleSet.hidden) return true
+        val featurePerm = moduleSet.features.entries
+            .firstOrNull { it.key.equals(feature.trim(), ignoreCase = true) }
+            ?.value ?: return false
+        return featurePerm.hidden
+    }
+
     fun getActions(module: String, feature: String): ActionPermission {
         if (isOwner) {
             return ActionPermission(
+                hidden = false,
                 view = true,
                 create = true,
                 edit = true,
@@ -86,31 +177,59 @@ data class MyPermissionsData(
                 approve = true
             )
         }
-        val moduleMap = permissions?.get(module.lowercase().trim()) ?: return ActionPermission()
-        return moduleMap[feature.trim()] ?: ActionPermission()
+        val moduleSet = getModuleSet(module) ?: return ActionPermission()
+        if (moduleSet.hidden) return ActionPermission(hidden = true)
+
+        return moduleSet.features.entries
+            .firstOrNull { it.key.equals(feature.trim(), ignoreCase = true) }
+            ?.value ?: ActionPermission()
     }
 
-    fun canView(module: String, feature: String): Boolean =
-        isOwner || getActions(module, feature).view
+    fun canView(module: String, feature: String): Boolean {
+        if (isOwner) return true
+        val actions = getActions(module, feature)
+        return !actions.hidden && actions.view
+    }
 
-    fun canCreate(module: String, feature: String): Boolean =
-        isOwner || getActions(module, feature).create
+    fun canCreate(module: String, feature: String): Boolean {
+        if (isOwner) return true
+        val actions = getActions(module, feature)
+        return !actions.hidden && actions.create
+    }
 
-    fun canEdit(module: String, feature: String): Boolean =
-        isOwner || getActions(module, feature).edit
+    fun canEdit(module: String, feature: String): Boolean {
+        if (isOwner) return true
+        val actions = getActions(module, feature)
+        return !actions.hidden && actions.edit
+    }
 
-    fun canDelete(module: String, feature: String): Boolean =
-        isOwner || getActions(module, feature).delete
+    fun canDelete(module: String, feature: String): Boolean {
+        if (isOwner) return true
+        val actions = getActions(module, feature)
+        return !actions.hidden && actions.delete
+    }
 
-    fun canExport(module: String, feature: String): Boolean =
-        isOwner || getActions(module, feature).export
+    fun canExport(module: String, feature: String): Boolean {
+        if (isOwner) return true
+        val actions = getActions(module, feature)
+        return !actions.hidden && actions.export
+    }
 
-    fun canPrint(module: String, feature: String): Boolean =
-        isOwner || getActions(module, feature).print
+    fun canPrint(module: String, feature: String): Boolean {
+        if (isOwner) return true
+        val actions = getActions(module, feature)
+        return !actions.hidden && actions.print
+    }
 
-    fun canShare(module: String, feature: String): Boolean =
-        isOwner || getActions(module, feature).share
+    fun canShare(module: String, feature: String): Boolean {
+        if (isOwner) return true
+        val actions = getActions(module, feature)
+        return !actions.hidden && actions.share
+    }
 
-    fun canApprove(module: String, feature: String): Boolean =
-        isOwner || getActions(module, feature).approve
+    fun canApprove(module: String, feature: String): Boolean {
+        if (isOwner) return true
+        val actions = getActions(module, feature)
+        return !actions.hidden && actions.approve
+    }
 }

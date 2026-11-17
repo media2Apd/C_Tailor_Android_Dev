@@ -26,6 +26,7 @@ import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.PagingUiState
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
+import com.cuso.tailor.view.home.paywall.PermissionAction
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.util.Locale
 
@@ -91,10 +92,20 @@ fun AllBillListScreen(
             .fillMaxSize()
             .background(Primary_background)
     ) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            topBar = {
+        FabScaffold(
+            modifier = Modifier.fillMaxSize(),
+            fab = FabConfig(
+                label = "Create Order",
+                icon = Icons.Default.Add,
+                requiredAction = PermissionAction.CREATE,
+                alignment = Alignment.BottomEnd,
+                endPadding = tokens.screenPadding,
+                bottomPadding = tokens.screenPadding,
+                draggable = false,
+                onClick = onCreateOrder
+            )
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -103,36 +114,7 @@ fun AllBillListScreen(
                     TitleBar(title = "All Bill List", onClose = onClose)
                     HorizontalDivider(color = title_border)
                 }
-            },
-            floatingActionButton = {
-                ExtendedFloatingActionButton(
-                    onClick = onCreateOrder,
-                    containerColor = Primary,
-                    contentColor = whiteBg,
-                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                    modifier = Modifier.height(tokens.buttonHeight)
-                ) {
-                    Text(
-                        text = "Create Order",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = whiteBg
-                    )
-                    Spacer(Modifier.width(tokens.extraPadding * 0.4f))
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Create",
-                        tint = whiteBg,
-                        modifier = Modifier.size(tokens.iconSize)
-                    )
-                }
-            }
-        ) { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
+
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = {

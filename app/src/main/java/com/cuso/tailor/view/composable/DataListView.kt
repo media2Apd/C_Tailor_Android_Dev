@@ -47,6 +47,8 @@
     import coil.compose.AsyncImage
     import com.cuso.tailor.adaptive_screen.LocalAppTokens
     import com.cuso.tailor.ui.theme.*
+    import com.cuso.tailor.view.home.paywall.LocalScreenPermissions
+    import com.cuso.tailor.view.home.paywall.isActionLabelPermitted
 
     // --- String Utilities ---
 
@@ -169,12 +171,19 @@
                     color = whiteBg,
                     border = BorderStroke(1.dp, Color(0xFFE5E7EB))
                 ) {
+                    val screenPermissions = LocalScreenPermissions.current
                     Column {
                         actions.forEach { action ->
+                            // Disable non-VIEW actions (Edit, Delete, etc.) when permission is missing; keep View clickable
+                            val isActionEnabled = action.enabled &&
+                                    isActionLabelPermitted(action.label, screenPermissions)
+                            val effectiveTint = if (isActionEnabled) action.tint else Color(0xFFD1D5DB)
+                            val effectiveTextColor = if (isActionEnabled) action.textColor else Color(0xFF9CA3AF)
+
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable(enabled = action.enabled) {
+                                    .clickable(enabled = isActionEnabled) {
                                         expanded = false
                                         action.onClick()
                                     }
@@ -183,13 +192,13 @@
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 action.icon?.let {
-                                    Icon(it, null, tint = action.tint, modifier = Modifier.size(16.dp))
+                                    Icon(it, null, tint = effectiveTint, modifier = Modifier.size(16.dp))
                                 }
                                 Text(
                                     text = action.label,
                                     fontSize = tokens.bodySmall,
                                     fontWeight = FontWeight.Medium,
-                                    color = action.textColor
+                                    color = effectiveTextColor
                                 )
                             }
                         }

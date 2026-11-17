@@ -2,21 +2,17 @@ package com.cuso.tailor.view.home.inventory.procurement.requisitions
 
 import android.util.Log
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
@@ -24,14 +20,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,7 +33,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -62,18 +52,23 @@ import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.redBg
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_color
-import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.ui.theme.yellowBg
 import com.cuso.tailor.ui.theme.yellowText
-import com.cuso.tailor.view.composable.ActionDropdownMenu
 import com.cuso.tailor.view.composable.AppCheckbox
 import com.cuso.tailor.view.composable.AppErrorState
+import com.cuso.tailor.view.composable.DataCard
+import com.cuso.tailor.view.composable.DataCardStat
+import com.cuso.tailor.view.composable.DataCardStatsRow
 import com.cuso.tailor.view.composable.DeleteModel
 import com.cuso.tailor.view.composable.ErrorMapper
+import com.cuso.tailor.view.composable.FabConfig
+import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
+import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.TitleBar
+import com.cuso.tailor.view.home.paywall.PermissionAction
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
 
@@ -110,44 +105,25 @@ fun AllRequisitionsScreen(
             .fillMaxSize()
             .background(Primary_background)
     ) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            topBar = {
+        FabScaffold(
+            modifier = Modifier.fillMaxSize(),
+            fab = FabConfig(
+                label = "Purchase Request",
+                icon = Icons.Default.Add,
+                requiredAction = PermissionAction.CREATE,
+                alignment = Alignment.BottomEnd,
+                endPadding = tokens.screenPadding,
+                bottomPadding = tokens.screenPadding,
+                draggable = false,
+                onClick = onCreateRequisition
+            )
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 TitleBar(
                     title = "All Requisitions",
                     onClose = onClose
                 )
-            },
-            floatingActionButton = {
-                ExtendedFloatingActionButton(
-                    onClick = onCreateRequisition,
-                    containerColor = Primary,
-                    contentColor = whiteBg,
-                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                    modifier = Modifier.height(tokens.buttonHeight)
-                ) {
-                    Text(
-                        text = "Purchase Request",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = whiteBg
-                    )
-                    Spacer(Modifier.width(tokens.extraPadding * 0.4f))
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Create",
-                        tint = whiteBg,
-                        modifier = Modifier.size(tokens.iconSize)
-                    )
-                }
-            }
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            ) {
+
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
@@ -216,37 +192,34 @@ fun AllRequisitionsScreen(
                             val itemId = item.id ?: item.prNumber ?: item.hashCode().toString()
                             val isChecked = selectedItemIds.contains(itemId)
 
-                            Column {
-                                RequisitionCardItem(
-                                    item = item,
-                                    isChecked = isChecked,
-                                    tokens = tokens,
-                                    onCheckedChange = { checked ->
-                                        selectedItemIds = if (checked) {
-                                            selectedItemIds + itemId
-                                        } else {
-                                            selectedItemIds - itemId
-                                        }
-                                    },
-                                    onClick = {
-                                        Log.d("REQ_LIST", "Card clicked -> ID: ${item.id}, PR: ${item.prNumber}")
-                                        onRequisitionClick(item)
-                                    },
-                                    onEdit = { onEditRequisition(item) },
-                                    onApprove = {
-                                        item.id?.let { id ->
-                                            viewModel.actionRequisitionApproval(id, "Approved")
-                                        }
-                                    },
-                                    onReject = {
-                                        item.id?.let { id ->
-                                            viewModel.actionRequisitionApproval(id, "Rejected")
-                                        }
-                                    },
-                                    onDeleteClick = { itemToDelete = item }
-                                )
-                                Spacer(Modifier.height(tokens.extraPadding * 0.8f))
-                            }
+                            RequisitionCardItem(
+                                item = item,
+                                isChecked = isChecked,
+                                tokens = tokens,
+                                onCheckedChange = { checked ->
+                                    selectedItemIds = if (checked) {
+                                        selectedItemIds + itemId
+                                    } else {
+                                        selectedItemIds - itemId
+                                    }
+                                },
+                                onClick = {
+                                    Log.d("REQ_LIST", "Card clicked -> ID: ${item.id}, PR: ${item.prNumber}")
+                                    onRequisitionClick(item)
+                                },
+                                onEdit = { onEditRequisition(item) },
+                                onApprove = {
+                                    item.id?.let { id ->
+                                        viewModel.actionRequisitionApproval(id, "Approved")
+                                    }
+                                },
+                                onReject = {
+                                    item.id?.let { id ->
+                                        viewModel.actionRequisitionApproval(id, "Rejected")
+                                    }
+                                },
+                                onDeleteClick = { itemToDelete = item }
+                            )
                         }
                     }
                 }
@@ -288,6 +261,7 @@ private fun RequisitionCardItem(
             status.equals("Submitted", ignoreCase = true) ||
             status.equals("Pending Approval", ignoreCase = true)
     val isApproved = status.equals("Approved", ignoreCase = true)
+    val isRejected = status.equals("Rejected", ignoreCase = true)
 
     val menuActions = remember(status) {
         listOf(
@@ -341,19 +315,23 @@ private fun RequisitionCardItem(
     val requestDate = item.createdAt?.take(10) ?: "—"
     val requiredBy = item.requiredByDate?.take(10) ?: "—"
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-        colors = CardDefaults.cardColors(containerColor = whiteBg),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 1.2f)
-        ) {
+    val priorityBg = if (priority.equals("High", ignoreCase = true)) redBg else yellowBg
+    val priorityText = if (priority.equals("High", ignoreCase = true)) redText else yellowText
+
+    val statusBg = when {
+        isApproved -> greenBg
+        isRejected -> redBg
+        else -> yellowBg
+    }
+    val statusTextColor = when {
+        isApproved -> darkGreenBg
+        isRejected -> redText
+        else -> yellowText
+    }
+
+    DataCard(
+        item = item,
+        headerContent = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -374,116 +352,37 @@ private fun RequisitionCardItem(
 
                 Spacer(Modifier.width(tokens.extraPadding))
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 2f))
-                        .background(if (priority.equals("High", ignoreCase = true)) redBg else yellowBg)
-                        .padding(horizontal = tokens.extraPadding * 0.8f)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(tokens.iconSize * 0.3f)
-                                .clip(CircleShape)
-                                .background(if (priority.equals("High", ignoreCase = true)) redText else yellowText)
-                        )
-                        Spacer(Modifier.width(tokens.extraPadding * 0.4f))
-                        Text(
-                            text = priority,
-                            fontSize = tokens.label,
-                            fontWeight = FontWeight.Medium,
-                            color = if (priority.equals("High", ignoreCase = true)) redText else yellowText
-                        )
-                    }
-                }
+                StatusBadge(
+                    text = priority,
+                    bgColor = priorityBg,
+                    textColor = priorityText
+                )
 
                 Spacer(Modifier.weight(1f))
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 2f))
-                        .background(
-                            when {
-                                isApproved -> greenBg
-                                status.equals("Rejected", ignoreCase = true) -> redBg
-                                else -> yellowBg
-                            }
-                        )
-                        .padding(horizontal = tokens.extraPadding * 0.8f)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(tokens.iconSize * 0.3f)
-                                .clip(CircleShape)
-                                .background(
-                                    when {
-                                        isApproved -> darkGreenBg
-                                        status.equals("Rejected", ignoreCase = true) -> redText
-                                        else -> yellowText
-                                    }
-                                )
-                        )
-                        Spacer(Modifier.width(tokens.extraPadding * 0.4f))
-                        Text(
-                            text = status,
-                            fontSize = tokens.label,
-                            fontWeight = FontWeight.Medium,
-                            color = when {
-                                isApproved -> darkGreenBg
-                                status.equals("Rejected", ignoreCase = true) -> redText
-                                else -> yellowText
-                            }
-                        )
-                    }
-                }
-
-                Spacer(Modifier.width(tokens.extraPadding * 0.4f))
-
-                ActionDropdownMenu(
-                    actions = menuActions,
-                    icon = Icons.Default.MoreVert
+                StatusBadge(
+                    text = status,
+                    bgColor = statusBg,
+                    textColor = statusTextColor
                 )
             }
-
-            Spacer(Modifier.height(tokens.extraPadding * 1.2f))
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("REQUESTED BY", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(2.dp))
-                    Text(requestedBy, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = title_color)
-
-                    Spacer(Modifier.height(tokens.extraPadding * 0.8f))
-
-                    Text("ITEMS", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(2.dp))
-                    Text(itemsCountText, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Primary)
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("DEPARTMENT", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(2.dp))
-                    Text(department, fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = title_color)
-
-                    Spacer(Modifier.height(tokens.extraPadding * 0.8f))
-
-                    Text("REQUEST DATE", fontSize = tokens.label, color = mutedText, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(2.dp))
-                    Text(requestDate, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
-                }
-            }
-
-            Spacer(Modifier.height(tokens.extraPadding * 1.2f))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Required By:", fontSize = tokens.caption, color = mutedText)
-                Text(requiredBy, fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = title_color)
+        },
+        smalltitle = "REQUESTED BY",
+        title = requestedBy,
+        subtitle = department,
+        actions = menuActions,
+        showHeaderDivider = true,
+        onClick = { onClick() },
+        content = {
+            Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
+                DataCardStatsRow(
+                    stats = listOf(
+                        DataCardStat(label = "ITEMS", value = itemsCountText, valueColor = Primary),
+                        DataCardStat(label = "REQUEST DATE", value = requestDate, valueColor = title_color),
+                        DataCardStat(label = "REQUIRED BY", value = requiredBy, valueColor = title_color)
+                    )
+                )
             }
         }
-    }
+    )
 }

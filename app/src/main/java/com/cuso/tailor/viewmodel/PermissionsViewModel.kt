@@ -7,11 +7,10 @@ import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.database.dao.PermissionDao
 import com.cuso.tailor.database.entities.PlanModuleEntity
 import com.cuso.tailor.database.entities.UserPermissionEntity
-import com.cuso.tailor.model.permission.ActionPermission
+import com.cuso.tailor.model.permission.ModulePermissionSet
 import com.cuso.tailor.model.permission.ModulePermissionsData
 import com.cuso.tailor.model.permission.ModulePermissionsResponse
 import com.cuso.tailor.model.permission.MyPermissionsData
-import com.cuso.tailor.model.permission.MyPermissionsResponse
 import com.cuso.tailor.model.permission.PaywallModuleConfig
 import com.cuso.tailor.model.permission.PlanFeatureModuleGroup
 import com.cuso.tailor.model.permission.PlanLimitsData
@@ -30,7 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
+import com.cuso.tailor.model.permission.MyPermissionsResponse
 @HiltViewModel
 class PermissionViewModel @Inject constructor(
     private val apiRepository: ApiRepository,
@@ -74,7 +73,7 @@ class PermissionViewModel @Inject constructor(
 
             if (cachedUserPerms != null) {
                 val listType = object : TypeToken<List<String>>() {}.type
-                val mapType = object : TypeToken<Map<String, Map<String, ActionPermission>>>() {}.type
+                val mapType = object : TypeToken<Map<String, ModulePermissionSet>>() {}.type
 
                 val visibleList: List<String> = try {
                     gson.fromJson(cachedUserPerms.visiblePermissionsJson, listType) ?: emptyList()
@@ -82,7 +81,7 @@ class PermissionViewModel @Inject constructor(
                     emptyList()
                 }
 
-                val permissionsMap: Map<String, Map<String, ActionPermission>> = try {
+                val permissionsMap: Map<String, ModulePermissionSet> = try {
                     gson.fromJson(cachedUserPerms.rawPermissionsJson, mapType) ?: emptyMap()
                 } catch (e: Exception) {
                     emptyMap()
@@ -220,6 +219,41 @@ class PermissionViewModel @Inject constructor(
     }
 
     /**
+     * Returns true if the module has "hidden": true in /api/permissions/me
+     */
+    fun isModuleHidden(module: String): Boolean {
+        val myData = _myPermissions.value ?: return false
+        if (myData.isOwner) return false
+        return myData.isModuleHidden(module)
+    }
+
+    /**
+     * Returns true if the feature (or its module) has "hidden": true in /api/permissions/me
+     */
+    fun isFeatureHidden(module: String, feature: String): Boolean {
+        val myData = _myPermissions.value ?: return false
+        if (myData.isOwner) return false
+        return myData.isFeatureHidden(module, feature)
+    }
+
+    /**
+     * Checks ONLY user view permission (used to show AccessRestrictedDialog when view == false)
+     */
+    fun canViewFeature(module: String, feature: String): Boolean {
+        val myData = _myPermissions.value ?: return true
+        if (myData.isOwner) return true
+        return myData.canView(module, feature)
+    }
+
+    /**
+     * Route-level user view check (returns false when view == false)
+     */
+    fun canViewPermissionForRoute(route: String): Boolean {
+        val mapping = getRouteFeatureMapping(route) ?: return true
+        return canViewFeature(mapping.first, mapping.second)
+    }
+
+    /**
      * Checks if user has access to a specific module feature (combining plan subscription and view permissions).
      */
     fun hasFeatureAccess(module: String, feature: String): Boolean {
@@ -292,10 +326,13 @@ class PermissionViewModel @Inject constructor(
 
     // Inside PermissionViewModel.kt
 
-    fun canAction(module: String, feature: String, action: PermissionAction): Boolean {
+    /**
+     * Checks ONLY user role permissions (without plan check),
+     * so view/action == false triggers AccessRestrictedDialog instead of Paywall.
+     */
+    fun canUserAction(module: String, feature: String, action: PermissionAction): Boolean {
         val myData = _myPermissions.value ?: return true
         if (myData.isOwner) return true
-        if (!isPlanFeatureSubscribed(module, feature)) return false
 
         return when (action) {
             PermissionAction.VIEW -> myData.canView(module, feature)
@@ -307,6 +344,11 @@ class PermissionViewModel @Inject constructor(
             PermissionAction.SHARE -> myData.canShare(module, feature)
             PermissionAction.APPROVE -> myData.canApprove(module, feature)
         }
+    }
+
+    fun canAction(module: String, feature: String, action: PermissionAction): Boolean {
+        if (!isPlanFeatureSubscribed(module, feature)) return false
+        return canUserAction(module, feature, action)
     }
 
     fun canActionForRoute(route: String, action: PermissionAction): Boolean {
@@ -347,13 +389,13 @@ class PermissionViewModel @Inject constructor(
             "sales_dashboard" -> "sales" to "dashboard"
             "sales_lead", "create_lead", "view_lead", "edit_lead", "convert_lead_to_opportunity" -> "sales" to "leadManagement"
             "sales_opportunity_pipeline", "sales_opportunities", "create_opportunity", "opportunity_detail" -> "sales" to "opportunities"
-            "sales_sales_orders", "create_order", "order_preview", "order_overview", "sales_orders", "service_order_overview", "order_management_overview" -> "sales" to "orders"
+            "sales_sales_orders", "create_order", "measurement_entry", "order_preview", "create_order_review", "order_overview", "sales_orders", "service_order_overview", "order_management_overview" -> "sales" to "orders"
             "sales_customers", "create_customer", "view_customer", "edit_customer", "view_customer_recent" -> "sales" to "customers"
-            "sales_measurements", "measurement_entry", "measurements_available_view", "measurement_management_view", "measurement_fields_config" -> "sales" to "measurements"
+            "sales_measurements", "measurements_available_view", "measurement_management_view", "measurement_fields_config" -> "sales" to "measurements"
             "sales_pricing_overview", "garment_pricing_list", "create_garment_pricing", "sales_pricing_quotation", "create_quotation", "view_quotation" -> "sales" to "pricingQuotes"
             "sales_payment_and_billing", "payment_detail" -> "sales" to "billingAndPayments"
-            "sales_garment_type", "sales_add_segment", "sales_category_detail", "sales_garment_profile", "sales_configuration_preview", "sales_add_existing_field", "sales_create_measurement_field", "sales_add_garment", "sales_add_garment_category" -> "sales" to "garmentMeasurement"
-            "sales_settings" -> "sales" to "designSetup"
+            "sales_settings", "sales_garment_type", "sales_add_segment", "sales_category_detail", "sales_garment_category_detail", "sales_garment_profile", "sales_configuration_preview", "sales_add_existing_field", "sales_create_measurement_field", "sales_add_garment", "sales_add_garment_category" -> "sales" to "garmentMeasurement"
+            "sales_design_setup" -> "sales" to "designSetup"
             "sales_garment_pricing_setup", "sales_add_garment_pricing" -> "sales" to "pricingGarment"
             "sales_add_fabric_pricing" -> "sales" to "pricingFabric"
             "sales_add_work_pricing" -> "sales" to "pricingWork"
@@ -370,7 +412,8 @@ class PermissionViewModel @Inject constructor(
             "finance_purchase_orders" -> "finance" to "finPurchaseOrders"
             "finance_purchase_receive" -> "finance" to "finPurchaseReceives"
             "finance_bills_list", "finance_purchase_invoices", "finance_purchase_invoice_detail" -> "finance" to "finPurchaseBills"
-            "finance_payments_made", "finance_record_payment" -> "finance" to "finPaymentsMade"
+            "finance_payments_made" -> "finance" to "finPaymentsMade"
+            "finance_record_payment" -> "finance" to "finReceipts"
             "finance_purchase_returns", "finance_purchase_return_detail", "finance_create_purchase_return" -> "finance" to "finPurchaseReturns"
             "finance_vendor_credits" -> "finance" to "finSupplierCredits"
             "finance_chart_of_accounts", "finance_trial_balance", "finance_ledger", "home_opening_balance" -> "finance" to "finChartOfAccounts"
@@ -380,7 +423,7 @@ class PermissionViewModel @Inject constructor(
             "finance_cash_book", "finance_cash_book_detail", "finance_payments_mode", "payment_mode_detail" -> "finance" to "finCashBooks"
             "finance_bank_statements", "finance_bank_statement_detail", "finance_import_bank_statement" -> "finance" to "finBankStatements"
             "finance_add_gst", "finance_gst_settings" -> "finance" to "finTaxRegistration"
-            "finance_tax_rates", "finance_add_tax_group" -> "finance" to "finTaxRatesRules"
+            "finance_tax_rates", "finance_add_tax_rate", "finance_add_tax_group" -> "finance" to "finTaxRatesRules"
 
             // ── 4. INVENTORY MODULE ──
             "inventory_dashboard" -> "inventory" to "dashboard"
@@ -392,27 +435,27 @@ class PermissionViewModel @Inject constructor(
             "inventory_transfer_order", "inventory_transfer_stock", "inventory_items_transfer_stock" -> "inventory" to "transferOrders"
             "inventory_suppliers", "inventory_supplier_detail", "inventory_procurement_suppliers" -> "inventory" to "procSuppliers"
             "inventory_requisitions", "inventory_create_requisition", "inventory_requisition_detail", "inventory_procurement_purchase_request", "inventory_procurement_requisitions" -> "inventory" to "procRequisitions"
-            "inventory_purchase_orders", "inventory_create_purchase_order_flow", "inventory_purchase_order_detail_flow", "inventory_procurement_purchase_order", "inventory_procurement_purchase_orders", "inventory_procurement_orders" -> "inventory" to "procPurchaseOrders"
+            "inventory_purchase_orders", "inventory_create_purchase_order", "inventory_create_purchase_order_flow", "inventory_purchase_order_detail_flow", "inventory_procurement_purchase_order", "inventory_procurement_purchase_orders", "inventory_procurement_orders" -> "inventory" to "procPurchaseOrders"
             "inventory_purchase_receive", "inventory_purchase_receive_detail", "inventory_purchase_new_bill", "inventory_purchase_receive_preview_pdf", "inventory_procurement_purchase_receive" -> "inventory" to "procPurchaseReceives"
-            "inventory_all_bills", "inventory_billing", "inventory_bill_preview", "inventory_create_bill", "inventory_payable_purchase_detail", "inventory_procurement_bill_list", "inventory_procurement_bills_list", "inventory_bills_list", "inventory_bill_list" -> "inventory" to "procBills"
-            "inventory_payments_made", "inventory_payment_overview_detail", "inventory_record_bill_payment", "inventory_payables_payments" -> "inventory" to "procPaymentsMade"
+            "inventory_all_bills", "inventory_billing", "inventory_bill_preview", "inventory_create_bill", "inventory_payable_purchase_detail", "inventory_record_bill_payment", "inventory_procurement_bill_list", "inventory_procurement_bills_list", "inventory_bills_list", "inventory_bill_list" -> "inventory" to "procBills"
+            "inventory_payments_made", "inventory_payment_overview_detail", "inventory_payables_payments" -> "inventory" to "procPaymentsMade"
             "inventory_returns", "inventory_procurement_returns", "inventory_procurement_return", "inventory_return" -> "inventory" to "procPurchaseReturn"
             "inventory_credits", "inventory_procurement_credits", "inventory_payables_credits" -> "inventory" to "procVendorCredits"
             "inventory_barcode", "inventory_create_barcode", "inventory_barcode_list", "inventory_procurement_barcode", "inventory_procurement_barcode_list", "inventory_all_barcodes" -> "inventory" to "procBarcodes"
             "inventory_stock_location", "inventory_location_management", "inventory_procurement_location_management", "inventory_stock_location_details", "inventory_stock_location_form" -> "inventory" to "locations"
-            "inventory_low_stock_alerts", "inventory_low_stock_alert", "inventory_create_purchase_order" -> "inventory" to "lowStockAlert"
+            "inventory_low_stock_alerts", "inventory_low_stock_alert" -> "inventory" to "lowStockAlert"
             "inventory_auto_reorder", "inventory_auto_reorder_detail" -> "inventory" to "autoReorder"
             "inventory_safety_stock" -> "inventory" to "safetyStock"
             "inventory_picklist", "inventory_picklist_detail", "inventory_create_picklist" -> "inventory" to "picklist"
             "inventory_packages", "inventory_create_package", "inventory_package_detail" -> "inventory" to "packages"
-            "inventory_category_listing", "inventory_create_category", "inventory_multichannel_category_listing" -> "inventory" to "category"
+            "inventory_category_listing", "inventory_create_category", "inventory_multichannel_category_listing", "inventory_multichannel_basic_info", "inventory_multichannel_allocation_list" -> "inventory" to "category"
             "inventory_approvals", "inventory_approval_detail" -> "inventory" to "approvals"
-            "inventory_location_structure", "inventory_floor_overview", "inventory_add_floor", "inventory_section_overview", "inventory_add_section", "inventory_rack_overview", "inventory_add_rack", "inventory_bin_overview", "inventory_add_bin" -> "inventory" to "warehouseStructure"
+            "inventory_location_structure", "inventory_floor_overview", "inventory_add_floor", "inventory_section_overview", "inventory_add_section", "inventory_rack_overview", "inventory_add_rack", "inventory_bin_overview", "inventory_add_bin", "inventory_allocation_rules", "inventory_create_allocation" -> "inventory" to "warehouseStructure"
             "inventory_auto_reorder_settings" -> "inventory" to "autoReorderSettings"
             "inventory_pdf_templates" -> "inventory" to "pdftemp"
 
             // ── 5. HR MODULE ──
-            "hr_dashboard" -> "hr" to "hrDashboard"
+            "hr_dashboard", "hr_create_feed" -> "hr" to "hrDashboard"
             "hr_all_employees", "hr_employee_onboarding", "hr_employee_management" -> "hr" to "employeeManagement"
             "hr_organization_structure" -> "hr" to "allEmployees"
             "hr_daily_attendance", "hr_attendance", "hr_attendance_detail" -> "hr" to "dailyAttendance"
@@ -420,17 +463,29 @@ class PermissionViewModel @Inject constructor(
             "hr_attendance_manual_entry" -> "hr" to "manualEntry"
             "hr_attendance_shift_management", "hr_shift_list", "hr_create_shift" -> "hr" to "shiftManagement"
             "hr_leave_approval" -> "hr" to "leaveApproval"
-            "hr_apply_leave" -> "hr" to "leaveDashboard"
-            "hr_payroll_salary_structure", "hr_payroll_salary_templates", "hr_payroll_salary_templates_form" -> "hr" to "salaryStructureMaster"
-            "hr_payroll_salary_components", "hr_payroll_salary_components_create" -> "hr" to "employeeSalaryAssignment"
-            "hr_expense_claims", "hr_expense_claim_detail", "hr_expense_claim_detail_readonly" -> "hr" to "approvals"
-            "hr_expense_new_claim", "hr_submit_expense_claim", "hr_edit_expense_claim" -> "hr" to "newClaims"
+            "hr_apply_leave", "hr_leave_dashboard" -> "hr" to "leaveDashboard"
+            "hr_leave_balance" -> "hr" to "leaveBalance"
+            "hr_leave_types", "hr_create_leave_type", "hr_view_leave_type" -> "hr" to "leaveTypes"
+            "hr_leave_policies", "hr_create_leave_policy", "hr_view_leave_policy" -> "hr" to "leavePolicies"
+            "hr_piece_rate_setup", "hr_add_edit_piece_rate" -> "hr" to "pieceRate"
+            "hr_payroll_salary_structure", "hr_payroll_salary_templates", "hr_payroll_salary_templates_form", "hr_payroll_salary_components", "hr_payroll_salary_components_create" -> "hr" to "salaryStructureMaster"
+            "hr_payroll_salary_assignment" -> "hr" to "employeeSalaryAssignment"
+            "hr_payroll_processing" -> "hr" to "payrollProcessing"
+            "hr_payroll_payslip" -> "hr" to "payslipManagement"
+            "hr_payroll_statutory_compliance" -> "hr" to "statutoryCompliance"
+            "hr_payroll_reimbursements_bonus" -> "hr" to "reimbursementAndBonus"
+            "hr_payroll_loans_advances" -> "hr" to "loansAdvances"
+            "hr_expense_claims", "hr_expense_claim_detail", "hr_expense_approvals" -> "hr" to "approvals"
+            "hr_expense_new_claim", "hr_submit_expense_claim", "hr_edit_expense_claim", "hr_expense_claim_detail_readonly" -> "hr" to "newClaims"
             "hr_expense_type", "hr_add_expense_type" -> "hr" to "expenseType"
             "hr_expense_finance_reimbursement", "hr_expense_process_payment" -> "hr" to "financeReimbursement"
             "hr_training_management", "hr_add_edit_program" -> "hr" to "trainingProgram"
             "hr_training_assignment_list", "hr_assign_training_form" -> "hr" to "assignmentManagement"
             "hr_employee_document_upload", "hr_new_document_upload" -> "hr" to "employeeDocuments"
             "hr_document_categories", "hr_add_document_category" -> "hr" to "documentCategories"
+            "hr_exit_management", "hr_exit_request_form", "hr_exit_manager_approval" -> "hr" to "allRequests"
+            "hr_exit_clearance", "hr_exit_clearance_detail" -> "hr" to "clearance"
+            "hr_exit_settlements", "hr_exit_settlement_detail" -> "hr" to "settlements"
 
             // ── 6. MARKETING MODULE ──
             "marketing_dashboard" -> "marketing" to "dashboard"
@@ -465,7 +520,7 @@ class PermissionViewModel @Inject constructor(
             "services_customer_complaints", "complaint_detail" -> "services" to "customerComplaints"
             "services_customer_feedback", "feedback_detail" -> "services" to "customerFeedback"
             "services_service_templates", "services_create_service_template", "services_view_service_template" -> "services" to "serviceTemplates"
-            "services_service_status", "service_status_detail", "services_service_delivery", "services_delay_rework" -> "services" to "workflowStages"
+            "services_service_status", "service_status_detail", "services_service_delivery", "services_delay_rework", "services_production_stages", "services_create_production_stage", "services_workflow_stages" -> "services" to "workflowStages"
 
             // ── 9. IT MODULE ──
             "it_dashboard" -> "it" to "dashboard"
@@ -491,26 +546,51 @@ class PermissionViewModel @Inject constructor(
             // ── 11. SECURITY MODULE ──
             "security_dashboard" -> "security" to "dashboard"
             "security_roles", "home_role_management", "home_create_role" -> "security" to "roles"
-            "security_data_backup" -> "security" to "dataBackup"
-            "security_recovery" -> "security" to "recovery"
-            "security_api_integration" -> "security" to "apiSecurity"
-            "security_api_logs" -> "security" to "apiLogs"
+            "security_data_backup", "security_create_backup", "security_backup_detail" -> "security" to "dataBackup"
+            "security_recovery", "security_recovery_detail" -> "security" to "recovery"
+            "security_api_integration", "security_create_api_integration", "security_api_integration_detail" -> "security" to "apiSecurity"
+            "security_api_logs", "security_api_log_detail" -> "security" to "apiLogs"
             "security_mobile_security" -> "security" to "mobileSecurity"
             "security_help_center" -> "security" to "helpCenter"
-            "security_support_ticket" -> "security" to "supportTicket"
-            "security_audit_logs" -> "security" to "auditLogs"
+            "security_support_ticket", "security_create_support_ticket", "security_support_ticket_detail" -> "security" to "supportTicket"
+            "security_audit_logs", "security_audit_log_detail" -> "security" to "auditLogs"
             "security_users", "security_create_user" -> "security" to "users"
 
             // ── 12. REPORTS MODULE ──
-            "reports_sales" -> "reports" to "orderMasterRegister"
+            "reports_sales", "reports_sales_order_master" -> "reports" to "orderMasterRegister"
+            "reports_sales_lead_master" -> "reports" to "leadMasterRegister"
+            "reports_sales_lead_source" -> "reports" to "leadSourcePerformance"
+            "reports_sales_lead_overdue" -> "reports" to "leadOverdueFollowups"
+            "reports_sales_lead_activity" -> "reports" to "leadFollowupActivity"
+            "reports_sales_opp_master" -> "reports" to "oppMasterRegister"
+            "reports_sales_opp_funnel" -> "reports" to "oppStageFunnel"
+            "reports_sales_opp_closing" -> "reports" to "oppClosingAlerts"
+            "reports_sales_cust_master" -> "reports" to "custMasterRegister"
+            "reports_sales_cust_ltv" -> "reports" to "custLtvRevenue"
+            "reports_sales_cust_credit" -> "reports" to "custCreditReceivables"
+            "reports_sales_cust_dormant" -> "reports" to "custDormantWinback"
+            "reports_sales_meas_master" -> "reports" to "measMasterRegister"
+            "reports_sales_meas_stale" -> "reports" to "measStaleAudit"
+            "reports_sales_order_stream" -> "reports" to "orderProductStream"
+            "reports_sales_order_sla" -> "reports" to "orderDeliverySla"
+            "reports_sales_branch_wise" -> "reports" to "branchWiseSales"
+            "reports_sales_quote_master" -> "reports" to "quoteMasterRegister"
+            "reports_sales_quote_discount" -> "reports" to "quoteDiscountLeakage"
+            "reports_sales_quote_expiring" -> "reports" to "quoteExpiringAudit"
             "reports_marketing" -> "reports" to "mktCampaignPerformance"
             "reports_finance" -> "reports" to "revenueExpenseSummary"
             "reports_inventory" -> "reports" to "invStockSummary"
             "reports_logistics" -> "reports" to "logDeliveryPerformance"
             "reports_services" -> "reports" to "servicePerformanceSla"
-            "reports_human_resource" -> "reports" to "hrAttendanceRegister"
-            "reports_it" -> "reports" to "itAssetRegister"
-            "reports_security" -> "reports" to "secIncidentsAlerts"
+            "reports_human_resource", "reports_hr_attendance_register" -> "reports" to "hrAttendanceRegister"
+            "reports_hr_payroll_run_audit" -> "reports" to "hrPayrollRuns"
+            "reports_hr_piece_rate_wage" -> "reports" to "hrPieceRates"
+            "reports_hr_reimbursement_claims" -> "reports" to "hrReimbursements"
+            "reports_it", "reports_it_assets" -> "reports" to "itAssetRegister"
+            "reports_it_service_desk" -> "reports" to "itServiceDesk"
+            "reports_security", "reports_sec_incidents_alerts" -> "reports" to "secIncidentsAlerts"
+            "reports_sec_access_activity" -> "reports" to "secAccessActivity"
+            "reports_sec_api_integrations" -> "reports" to "secApiIntegrations"
             "reports_legal" -> "reports" to "legalContractsExpiry"
 
             else -> null
@@ -519,8 +599,25 @@ class PermissionViewModel @Inject constructor(
 
     fun getRouteAction(route: String): PermissionAction {
         return when {
-            route.contains("create") || route.contains("add") -> PermissionAction.CREATE
-            route.contains("edit") || route.contains("update") -> PermissionAction.EDIT
+            route.contains("create") ||
+                    route.contains("add") ||
+                    route == "finance_record_payment" ||
+                    route == "inventory_record_bill_payment" ||
+                    route == "inventory_purchase_new_bill" ||
+                    route == "inventory_auto_reorder_detail" ||
+                    route == "hr_attendance_manual_entry" ||
+                    route == "hr_submit_expense_claim" ||
+                    route == "hr_expense_process_payment" ||
+                    route == "hr_exit_request_form" ||
+                    route == "it_asset_register" -> PermissionAction.CREATE
+            route.contains("edit") ||
+                    route.contains("update") ||
+                    route == "inventory_stock_location_form" ||
+                    route == "it_backup_restore" -> PermissionAction.EDIT
+            route == "home_approval_rules" ||
+                    route == "inventory_approvals" ||
+                    route == "hr_leave_approval" ||
+                    route == "hr_exit_manager_approval" -> PermissionAction.VIEW
             route.contains("approval") || route.contains("approve") -> PermissionAction.APPROVE
             else -> PermissionAction.VIEW
         }

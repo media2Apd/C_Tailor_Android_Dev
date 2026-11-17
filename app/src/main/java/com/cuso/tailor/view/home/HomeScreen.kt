@@ -126,6 +126,7 @@ import com.cuso.tailor.model.settings.ProductionTemplateDto
 import com.cuso.tailor.model.settings.ServicesProductionStageDto
 import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.view.home.paywall.AccessRestrictedDialog
+import com.cuso.tailor.view.home.paywall.PermissionAction
 import com.cuso.tailor.view.home.paywall.WorkspaceLockedScreen
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.InventoryViewModel
@@ -183,6 +184,7 @@ val LeadmutedText = mutedText
 fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSizeClass) {
 
     val permissionViewModel: PermissionViewModel = hiltViewModel()
+    val myPermissions by permissionViewModel.myPermissions.collectAsStateWithLifecycle()
     // Paywall presentation state
     var paywallModuleConfig by remember { mutableStateOf<PaywallModuleConfig?>(null) }
     val isWorkspaceLocked by permissionViewModel.isWorkspaceLocked.collectAsStateWithLifecycle()
@@ -285,6 +287,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedCustomer by remember { mutableStateOf<CustomerItem?>(null) }
     var selectedOrderId by remember { mutableStateOf<String?>(null) }
     var isOrderFromFinance by remember { mutableStateOf(false) }
+    var isPurchaseFromFinance by remember { mutableStateOf(false) }
     var prefillOrderForInvoice by remember { mutableStateOf<OrderOverviewData?>(null) }
     val context = LocalContext.current
     val activity = context as ComponentActivity
@@ -1036,16 +1039,26 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         listOf("security_", "marketing_", "it_", "legal_", "hr_", "sales_", "finance_", "inventory_", "logistics_", "services_", "reports_", "home_")
     }
 
-    // Inside HomeScreen.kt -> safeNavigate(route: String)
-    fun safeNavigate(route: String) {
+    // Checks user role permission and plan subscription before pushing a route
+    fun safeNavigate(route: String, overrideAction: PermissionAction? = null) {
         val navKey = normalizeRoute(route)
         val mapping = permissionViewModel.getRouteFeatureMapping(navKey)
 
         if (mapping != null) {
             val (module, feature) = mapping
-            val requiredAction = permissionViewModel.getRouteAction(navKey)
+            val requiredAction = overrideAction ?: permissionViewModel.getRouteAction(navKey)
 
-            // 1. Plan Subscription check
+            // 1. User Permission check FIRST -> show AccessRestrictedDialog only for VIEW denials
+            val hasUserPermission = permissionViewModel.canUserAction(module, feature, requiredAction)
+            if (!hasUserPermission) {
+                if (requiredAction == PermissionAction.VIEW) {
+                    restrictedFeatureName = "${module.replaceFirstChar { it.uppercase() }} - $feature"
+                    showAccessRestrictedDialog = true
+                }
+                return
+            }
+
+            // 2. Plan Subscription check -> Paywall if feature not in plan
             val isPlanSubscribed = permissionViewModel.isPlanFeatureSubscribed(module, feature)
             if (!isPlanSubscribed) {
                 val targetPaywallKey = when (navKey) {
@@ -1063,14 +1076,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 }
                 paywallModuleConfig = permissionViewModel.getPaywallConfigForModule(targetPaywallKey)
                 navigateTo("module_upgrade_paywall")
-                return
-            }
-
-            // 2. Granular Action / View check
-            val hasPermission = permissionViewModel.canAction(module, feature, requiredAction)
-            if (!hasPermission) {
-                restrictedFeatureName = "${module.replaceFirstChar { it.uppercase() }} - $feature"
-                showAccessRestrictedDialog = true
                 return
             }
         }
@@ -1121,7 +1126,14 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     }
 
     LaunchedEffect(editOrderId) {
-        editOrderId?.let { orderOverviewViewModel.fetchSalesOverview(it) }
+        editOrderId?.let { id ->
+            // Block API call silently when edit permission is denied
+            if (!permissionViewModel.canUserAction("sales", "orders", PermissionAction.EDIT)) {
+                editOrderId = null
+            } else {
+                orderOverviewViewModel.fetchSalesOverview(id)
+            }
+        }
     }
 
     val userEntity by authViewModel.user.collectAsStateWithLifecycle()
@@ -1477,22 +1489,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                         isDrawerOpen = false
                                     }
 
-                                    "home_organization_profile",
-                                    "home_branch_management",
-                                    "home_department_teams",
-                                    "home_designation",
-                                    "home_role_management",
-                                    "home_warehouse_management",
-                                    "home_opening_balance" -> {
-                                        navigateTo(route)
-                                        isDrawerOpen = false
-                                    }
-
-                                    "sales_garment_type" -> {
-                                        navigateTo("sales_garment_type")
-                                        isDrawerOpen = false
-                                    }
-
                                     else -> {
                                         safeNavigate(route)
                                         isDrawerOpen = false
@@ -1512,6 +1508,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             showHomePanel = showHomePanel,
                             showSalesPanel = showSalesPanel,
                             isSalesSettingsMode = isSalesSettingsMode,
+                            myPermissions = myPermissions,
+                            getFeatureMapping = { route ->
+                                permissionViewModel.getRouteFeatureMapping(normalizeRoute(route))
+                            },
                             onBlurScrimChange = { radius, _ -> sidebarBlur = radius }
                         )
                     }
@@ -1535,7 +1535,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         modifier = Modifier
                             .fillMaxSize()
                             .background(Color.Transparent)
-                            .blurScrim(sidebarBlur)
+                            .blurScrim(if (showAccessRestrictedDialog) 16.dp else sidebarBlur)
                     ) {
                         AnimatedContent(
                             targetState = currentScreen,
@@ -1652,6 +1652,16 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                             token = token,
                                             onNavigate = { navigateTo(it) },
                                             onSafeNavigate = { safeNavigate(it) },
+                                            onAccessRestricted = { permissionLabel ->
+                                                // Show AccessRestrictedDialog directly without navigating or hitting APIs
+                                                restrictedFeatureName = permissionLabel
+                                                showAccessRestrictedDialog = true
+                                            },
+                                            onSafeNavigateWithAction = { route, action -> safeNavigate(route, action) },
+                                            onPaywallRequired = { config ->
+                                                paywallModuleConfig = config
+                                                navigateTo("module_upgrade_paywall")
+                                            },
                                             onGoBack = { goBack() },
                                             onPopToScreen = { popBackTo(it) },
                                             onOpenDrawer = { isDrawerOpen = true },
@@ -1751,6 +1761,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                             onInvoiceForPaymentChange = { invoiceForPayment = it },
                                             isOrderFromFinance = isOrderFromFinance,
                                             onOrderFromFinanceChange = { isOrderFromFinance = it },
+                                            isPurchaseFromFinance = isPurchaseFromFinance,
+                                            onPurchaseFromFinanceChange = { isPurchaseFromFinance = it },
                                             prefillOrderForInvoice = prefillOrderForInvoice,
                                             onPrefillOrderForInvoiceChange = {
                                                 prefillOrderForInvoice = it
@@ -2003,6 +2015,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             isOpen = showModulesPanel,
             onClose = { showModulesPanel = false },
             initialExpandedModule = modulesPanelInitialExpanded,
+            myPermissions = myPermissions,
+            getFeatureMapping = { route ->
+                permissionViewModel.getRouteFeatureMapping(normalizeRoute(route))
+            },
             onModuleCategoryClick = { menu, category, subItem ->
                 val rawNavKey = when {
                     // Direct match for Audit & Legal Calendar click
@@ -2056,27 +2072,23 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         QuickAccessPanel(
             isOpen = showQuickAccessPanel,
             onClose = { showQuickAccessPanel = false },
+            myPermissions = myPermissions,
             onItemClick = { route ->
                 when (route) {
                     "create_picklist", "inventory_create_picklist" -> {
-                        isSalesSettingsMode = false
                         selectedPicklistId = null
-                        navigateTo("inventory_create_picklist")
+                        safeNavigate("inventory_create_picklist")
                     }
                     "create_order" -> {
-                        isSalesSettingsMode = false
                         pendingOrderReviewData = null
-                        navigateTo("create_order")
+                        safeNavigate("create_order")
                     }
                     "create_customer" -> {
-                        isSalesSettingsMode = false
-                        navigateTo("sales_customers")
-                        navigateTo("create_customer")
+                        safeNavigate("create_customer")
                     }
                     "quick_add" -> { }
                     else -> {
-                        isSalesSettingsMode = false
-                        navigateTo(route)
+                        safeNavigate(route)
                     }
                 }
             },
@@ -2333,6 +2345,8 @@ fun BottomBar(
     showHomePanel: Boolean = false,
     showSalesPanel: Boolean = false,
     isSalesSettingsMode: Boolean = false,
+    myPermissions: com.cuso.tailor.model.permission.MyPermissionsData? = null,
+    getFeatureMapping: (String) -> Pair<String, String>? = { null },
     onBlurScrimChange: (radius: Dp, scrim: Float) -> Unit = { _, _ -> }
 ) {
     val tokens = LocalAppTokens.current
@@ -2408,6 +2422,8 @@ fun BottomBar(
                 onLogout = onLogout,
                 onBlurScrimChange = onBlurScrimChange,
                 user = user,
+                myPermissions = myPermissions,
+                getFeatureMapping = getFeatureMapping,
                 defaultSelectedMenu = if (currentScreen == "sales_settings" || currentScreen == "sales_garment_type") "Sales" else "Home"
             )
         } else {
@@ -2421,6 +2437,8 @@ fun BottomBar(
                 onLogout = onLogout,
                 onBlurScrimChange = onBlurScrimChange,
                 user = user,
+                myPermissions = myPermissions,
+                getFeatureMapping = getFeatureMapping,
                 defaultSelectedMenu = "Home"
             )
         }

@@ -1,4 +1,4 @@
-@file:Suppress("UNUSED_PARAMETER", "AssignedValueIsNeverRead", "DEPRECATION", "unusedVariable")
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
 
 package com.cuso.tailor.view.home.sales.settings.garment.garment_category_detail
 
@@ -40,7 +40,8 @@ import com.cuso.tailor.model.settings.MeasurementFieldItem
 import com.cuso.tailor.model.settings.StyleMeasurementFieldDetail
 import com.cuso.tailor.model.settings.StyleMeasurementFieldEntry
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.sales.lead.MiniSwitch
 import com.cuso.tailor.view.home.sales.settings.garment.ToggleSegmentStatusDialog
@@ -356,7 +357,8 @@ fun GarmentCategoryListView(
                             val fieldsCount = item.measurementFields.size
                             val requiredCount = item.measurementFields.count { it.isRequired }
                             val charge = item.stitchingCharge.toInt()
-                            val metaInfoText = "$fieldsCount Fields · $requiredCount Required · Stitching Charge: ${currencySymbol()}$charge"
+                            val metaInfoText =
+                                $$"$$fieldsCount Fields · $$requiredCount Required · Stitching Charge: $${formatCurrency()}$$charge"
 
                             Card(
                                 shape = RoundedCornerShape(tokens.cardCornerRadius),

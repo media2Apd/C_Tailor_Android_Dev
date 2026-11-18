@@ -1,4 +1,4 @@
-@file:Suppress("SpellCheckingInspection", "unused")
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
 
 package com.cuso.tailor.view.home.inventory.procurement.purchaseReceive
 
@@ -58,18 +58,15 @@ import com.cuso.tailor.ui.theme.dividerColor
 import com.cuso.tailor.ui.theme.iconMuted
 import com.cuso.tailor.ui.theme.modelGray
 import com.cuso.tailor.ui.theme.mutedText
-import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.AppCheckbox
 import com.cuso.tailor.view.composable.DatePickerField
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FormActionButtons
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextArea
 import com.cuso.tailor.view.composable.FormTextField
 import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.viewmodel.FinanceViewModel
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
@@ -395,8 +392,8 @@ fun NewBillScreen(
                         BillItemRow(
                             title = item.itemId?.name ?: "Product",
                             quantity = "${item.qtyReceived}",
-                            rate = String.format(Locale.US, "${currencySymbol()}%,.2f", item.rate),
-                            amount = String.format(Locale.US, "${currencySymbol()}%,.2f", item.total),
+                            rate = String.format(Locale.US, "${formatCurrency()}%,.2f", item.rate),
+                            amount = String.format(Locale.US, "${formatCurrency()}%,.2f", item.total),
                             tokens = tokens
                         )
                         Spacer(Modifier.height(tokens.extraPadding * 1.4f))
@@ -406,8 +403,8 @@ fun NewBillScreen(
                         BillItemRow(
                             title = item.itemId?.name ?: "Product",
                             quantity = "${item.qty}",
-                            rate = String.format(Locale.US, "${currencySymbol()}%,.2f", item.rate),
-                            amount = String.format(Locale.US, "${currencySymbol()}%,.2f", item.total),
+                            rate = String.format(Locale.US, "${formatCurrency()}%,.2f", item.rate),
+                            amount = String.format(Locale.US, "${formatCurrency()}%,.2f", item.total),
                             tokens = tokens
                         )
                         Spacer(Modifier.height(tokens.extraPadding * 1.4f))
@@ -494,7 +491,7 @@ fun NewBillScreen(
                             )
 
                             Text(
-                                text = String.format(Locale.US, "${currencySymbol()}%.2f", rowAmount),
+                                text = String.format(Locale.US, "${formatCurrency()}%.2f", rowAmount),
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = TextPrimary,
@@ -540,13 +537,13 @@ fun NewBillScreen(
 
                 SummaryRow(
                     label = "Subtotal",
-                    value = String.format(Locale.US, "${currencySymbol()}%,.2f", subtotal),
+                    value = String.format(Locale.US, "${formatCurrency()}%,.2f", subtotal),
                     tokens = tokens
                 )
                 Spacer(Modifier.height(tokens.extraPadding * 0.8f))
                 SummaryRow(
                     label = "Tax Total (${taxPercentage.toInt()}%)",
-                    value = String.format(Locale.US, "${currencySymbol()}%,.2f", taxTotal),
+                    value = String.format(Locale.US, "${formatCurrency()}%,.2f", taxTotal),
                     tokens = tokens
                 )
                 Spacer(Modifier.height(tokens.extraPadding * 0.8f))
@@ -573,7 +570,7 @@ fun NewBillScreen(
                         color = TextPrimary
                     )
                     Text(
-                        text = String.format(Locale.US, "${currencySymbol()}%,.2f", grandTotal),
+                        text = String.format(Locale.US, "${formatCurrency()}%,.2f", grandTotal),
                         fontSize = tokens.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary

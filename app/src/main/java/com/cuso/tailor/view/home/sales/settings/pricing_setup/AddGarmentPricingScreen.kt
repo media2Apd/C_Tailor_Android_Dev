@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
+
 package com.cuso.tailor.view.home.sales.settings.pricing_setup
 
 import androidx.compose.foundation.layout.*
@@ -16,9 +18,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.utils.currencySymbol
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextField
@@ -157,7 +158,7 @@ fun AddNewGarmentPricingScreen(
                     FormTextField(
                         value = basePrice,
                         onValueChange = { basePrice = it },
-                        placeholder = "${currencySymbol()}1,200",
+                        placeholder = "${formatCurrency()}1,200",
                         keyboardType = KeyboardType.Number
                     )
 

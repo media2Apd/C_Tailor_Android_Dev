@@ -37,7 +37,8 @@ import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.sales.*
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardField
@@ -257,7 +258,7 @@ private fun CustomerOverviewTab(customer: CustomerItemV2) {
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "${currencySymbol()}${formatIndianNumber(customer.outstanding ?: 0.0)}",
+                    text = "${formatCurrency()}${formatIndianNumber(customer.outstanding ?: 0.0)}",
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = title_color
@@ -281,7 +282,7 @@ private fun CustomerOverviewTab(customer: CustomerItemV2) {
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "${currencySymbol()}${formatIndianNumber(customer.totalPaid ?: 0.0)}",
+                    text = "${formatCurrency()}${formatIndianNumber(customer.totalPaid ?: 0.0)}",
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = greentext
@@ -511,7 +512,7 @@ private fun CustomerPurchaseOrdersTab(
                 SummaryMetricCard(
                     modifier = Modifier.weight(1f),
                     title = "TOTAL VALUE",
-                    value = "${currencySymbol()}${formatIndianNumber(totalInvoicedValue)}",
+                    value = "${formatCurrency()}${formatIndianNumber(totalInvoicedValue)}",
                     subtitle = "Net invoiced value",
                     icon = {
                         Icon(
@@ -651,7 +652,7 @@ private fun CustomerTransactionsTab(viewModel: FinanceViewModel) {
                             text = dateStr
                         ),
                         DataCardField(
-                            text = "Amount: ${currencySymbol()}${formatIndianNumber(amount)}"
+                            text = "Amount: ${formatCurrency()}${formatIndianNumber(amount)}"
                         )
                     )
                 )
@@ -727,7 +728,7 @@ private fun CustomerPreferencesTab(customer: CustomerItemV2) {
                     )
                     PreferenceColumnItem(
                         label = "Credit Limit",
-                        value = "${currencySymbol()}${formatIndianNumber(customer.creditLimit ?: 0.0)}",
+                        value = "${formatCurrency()}${formatIndianNumber(customer.creditLimit ?: 0.0)}",
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -927,7 +928,7 @@ private fun CustomerOrderDataCard(
                 text = itemsSummary
             ),
             DataCardField(
-                text = "Total: ${currencySymbol()}${formatIndianNumber(grandTotal)} | Balance: ${currencySymbol()}${formatIndianNumber(balance)}"
+                text = "Total: ${formatCurrency()}${formatIndianNumber(grandTotal)} | Balance: ${formatCurrency()}${formatIndianNumber(balance)}"
             )
         ),
         actions = listOf(

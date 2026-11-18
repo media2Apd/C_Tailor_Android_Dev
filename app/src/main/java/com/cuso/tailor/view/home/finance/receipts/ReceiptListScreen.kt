@@ -28,6 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.finance.CustomerPaymentItem
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.FinanceViewModel
 import java.text.SimpleDateFormat
@@ -191,8 +192,8 @@ private fun ReceiptCardItem(
         ?: "INV-0011"
 
     val paymentTypeBadge = if (item.isAdvancePayment || item.invoice == null) "ADVANCE PAYMENT" else "INVOICE PAYMENT"
-    val formattedReceiptAmount = "${currencySymbol()} ${String.format("%,.0f", item.amount)}"
-    val formattedUnusedBalance = "${currencySymbol()} ${String.format("%,.0f", item.unallocatedAmount)}"
+    val formattedReceiptAmount = "${formatCurrency()} ${String.format("%,.0f", item.amount)}"
+    val formattedUnusedBalance = "${formatCurrency()} ${String.format("%,.0f", item.unallocatedAmount)}"
 
     // Dropdown overflow actions
     val menuActions = remember {

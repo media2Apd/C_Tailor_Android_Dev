@@ -29,7 +29,6 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardField
-import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
@@ -89,14 +88,15 @@ fun RoleSettingsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
-                fab = FabConfig(
-                    label = "Add Role",
-                    icon = Icons.Default.Add,
-                    onClick = onAddRoleClick, // Navigates to full CreateRoleScreen
-                    endPadding = tokens.screenPadding,
-                    bottomPadding = tokens.screenPadding,
-                    draggable = true
-                ),
+                fab = null,
+//                fab = FabConfig(
+//                    label = "Add Role",
+//                    icon = Icons.Default.Add,
+//                    onClick = onAddRoleClick, // Navigates to full CreateRoleScreen
+//                    endPadding = tokens.screenPadding,
+//                    bottomPadding = tokens.screenPadding,
+//                    draggable = true
+//                ),
                 fabVisible = true
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {

@@ -207,10 +207,11 @@ data class ConvertToOrderData(
 )
 
 /**
- * Request payload for converting a lead to an opportunity
+ * Request payload for converting a lead to an opportunity.
+ * leadId is marked @Transient because it is passed in the URL path.
  */
 data class ConvertLeadToOpportunityRequest(
-    @SerializedName("leadId") val leadId: String,
+    @Transient val leadId: String = "",
     @SerializedName("name") val name: String,
     @SerializedName("branchId") val branchId: String,
     @SerializedName("stageId") val stageId: String,
@@ -221,10 +222,73 @@ data class ConvertLeadToOpportunityRequest(
 )
 
 /**
- * API response for converting a lead to an opportunity
+ * API response wrapper for converting a lead to an opportunity
  */
 data class ConvertLeadToOpportunityResponse(
     @SerializedName("success") val success: Boolean = false,
     @SerializedName("message") val message: String = "",
-    @SerializedName("data") val data: OpportunityDto? = null
+    @SerializedName("data") val data: ConvertLeadToOpportunityData? = null
+)
+
+/**
+ * Nested data payload containing the created customer, updated lead, and created opportunity
+ */
+data class ConvertLeadToOpportunityData(
+    @SerializedName("customer") val customer: ConvertedCustomerDto? = null,
+    @SerializedName("lead") val lead: LeadTableItem? = null,
+    @SerializedName("opportunity") val opportunity: ConvertedOpportunityDto? = null
+)
+
+data class ConvertedCustomerDto(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("organizationId") val organizationId: String? = null,
+    @SerializedName("branchId") val branchId: String? = null,
+    @SerializedName("customerCode") val customerCode: String? = null,
+    @SerializedName("fullName") val fullName: String? = null,
+    @SerializedName("mobileNumber") val mobileNumber: String? = null,
+    @SerializedName("email") val email: String? = null,
+    @SerializedName("customerType") val customerType: String? = null,
+    @SerializedName("customerLevel") val customerLevel: String? = null,
+    @SerializedName("preferredContactMethod") val preferredContactMethod: String? = null,
+    @SerializedName("preferredLanguage") val preferredLanguage: String? = null,
+    @SerializedName("sameAsBillingAddress") val sameAsBillingAddress: Boolean = false,
+    @SerializedName("approvalStatus") val approvalStatus: String? = null,
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("creditLimit") val creditLimit: Double = 0.0,
+    @SerializedName("creditPeriodDays") val creditPeriodDays: Int = 0,
+    @SerializedName("storeCredit") val storeCredit: Double = 0.0,
+    @SerializedName("taxIdType") val taxIdType: String? = null,
+    @SerializedName("createdBy") val createdBy: String? = null,
+    @SerializedName("createdAt") val createdAt: String? = null,
+    @SerializedName("updatedAt") val updatedAt: String? = null
+)
+
+data class ConvertedOpportunityDto(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("opportunityCode") val opportunityCode: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("organizationId") val organizationId: String? = null,
+    @SerializedName("branchId") val branchId: String? = null,
+    @SerializedName("leadId") val leadId: String? = null,
+    @SerializedName("customerId") val customerId: String? = null,
+    @SerializedName("salespersonId") val salespersonId: String? = null,
+    @SerializedName("stageId") val stageId: String? = null,
+    @SerializedName("estimatedValue") val estimatedValue: Double = 0.0,
+    @SerializedName("expectedClosingDate") val expectedClosingDate: String? = null,
+    @SerializedName("currency") val currency: String? = null,
+    @SerializedName("notes") val notes: String? = null,
+    @SerializedName("garmentSpecifications") val garmentSpecifications: List<ConvertedOpportunityGarmentSpecDto> = emptyList(),
+    @SerializedName("isConverted") val isConverted: Boolean = false,
+    @SerializedName("approvalStatus") val approvalStatus: String? = null,
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("createdBy") val createdBy: String? = null,
+    @SerializedName("createdAt") val createdAt: String? = null,
+    @SerializedName("updatedAt") val updatedAt: String? = null
+)
+
+data class ConvertedOpportunityGarmentSpecDto(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("garmentId") val garmentId: String? = null,
+    @SerializedName("garmentCategoryId") val garmentCategoryId: String? = null,
+    @SerializedName("quantity") val quantity: Int = 1
 )

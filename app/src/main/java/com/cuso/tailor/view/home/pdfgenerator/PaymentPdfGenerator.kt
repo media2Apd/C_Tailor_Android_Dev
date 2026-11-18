@@ -27,7 +27,8 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.core.graphics.createBitmap
 import com.cuso.tailor.model.finance.CustomerPaymentDetailData
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -291,10 +292,10 @@ class FinancePaymentReceiptPdfGenerator(private val context: Context) {
         val statusBg = if (isVoid) "#FEE2E2" else "#E0F2FE"
         val statusColor = if (isVoid) "#DC2626" else "#0284C7"
 
-        val formattedAmount = "${currencySymbol()}${String.format(Locale.getDefault(), "%,.0f", data.amount)}"
+        val formattedAmount = "${formatCurrency()}${String.format(Locale.getDefault(), "%,.0f", data.amount)}"
         val invoice = data.invoice
         val billNumber = invoice?.invoiceNumber ?: (data.salesOrder?.orderCode ?: data.paymentNumber)
-        val billAmount = if (invoice != null) "${currencySymbol()}${String.format(Locale.getDefault(), "%,.0f", invoice.grandTotal)}" else formattedAmount
+        val billAmount = if (invoice != null) "${formatCurrency()}${String.format(Locale.getDefault(), "%,.0f", invoice.grandTotal)}" else formattedAmount
 
         return """
         <!DOCTYPE html>

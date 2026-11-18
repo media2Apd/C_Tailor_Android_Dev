@@ -32,6 +32,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.finance.OpenCashShiftRequest
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
@@ -182,7 +183,7 @@ fun CashBookListScreen(
                                 ) {
                                     Text("Debit (Inflow)", fontSize = tokens.bodySmall, color = mutedText)
                                     Text(
-                                        text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.totalCashCollected)}",
+                                        text = "${formatCurrency()}${String.format(Locale.US, "%,.2f", item.totalCashCollected)}",
                                         fontSize = tokens.bodySmall,
                                         color = greentext,
                                         fontWeight = FontWeight.Medium
@@ -197,7 +198,7 @@ fun CashBookListScreen(
                                 ) {
                                     Text("Credit (Outflow)", fontSize = tokens.bodySmall, color = mutedText)
                                     Text(
-                                        text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.totalCashWithdrawn)}",
+                                        text = "${formatCurrency()}${String.format(Locale.US, "%,.2f", item.totalCashWithdrawn)}",
                                         fontSize = tokens.bodySmall,
                                         color = redText,
                                         fontWeight = FontWeight.Medium
@@ -212,7 +213,7 @@ fun CashBookListScreen(
                                 ) {
                                     Text("Balance", fontSize = tokens.bodySmall, color = mutedText)
                                     Text(
-                                        text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.actualClosingBalance)}",
+                                        text = "${formatCurrency()}${String.format(Locale.US, "%,.2f", item.actualClosingBalance)}",
                                         fontSize = tokens.bodySmall,
                                         color = TitleColor,
                                         fontWeight = FontWeight.Medium

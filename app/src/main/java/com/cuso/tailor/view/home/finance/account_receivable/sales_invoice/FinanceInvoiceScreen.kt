@@ -50,7 +50,8 @@ import com.cuso.tailor.model.finance.InvoiceItem
 import com.cuso.tailor.model.finance.InvoiceViewOneData
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.view.home.pdfgenerator.InvoicePdfGenerator
@@ -280,9 +281,9 @@ private fun InvoiceDataCard(
         topBadgeInline = true,
         footerAsRows = true,
         footerFields = listOf(
-            DataCardField(label = "Amount", text = "${currencySymbol()}${formatIndianNumber(invoice.totalAmount)}"),
-            DataCardField(label = "Paid", text = "${currencySymbol()}${formatIndianNumber(invoice.paidAmount)}"),
-            DataCardField(label = "Balance", text = "${currencySymbol()}${formatIndianNumber(invoice.balanceAmount)}"),
+            DataCardField(label = "Amount", text = "${formatCurrency()}${formatIndianNumber(invoice.totalAmount)}"),
+            DataCardField(label = "Paid", text = "${formatCurrency()}${formatIndianNumber(invoice.paidAmount)}"),
+            DataCardField(label = "Balance", text = "${formatCurrency()}${formatIndianNumber(invoice.balanceAmount)}"),
             DataCardField(
                 label = "Due Date",
                 text = formatInvoiceDate(invoice.dueDate ?: invoice.invoiceDate)

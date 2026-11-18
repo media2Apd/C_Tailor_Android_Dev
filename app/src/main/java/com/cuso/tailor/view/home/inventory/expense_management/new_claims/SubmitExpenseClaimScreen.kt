@@ -26,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.hr.attendance_management.employees.uriToFile
 import com.cuso.tailor.viewmodel.Authenticate
@@ -204,7 +205,7 @@ fun SubmitExpenseClaimScreen(
                     FormTextField(
                         value = amount,
                         onValueChange = { amount = it },
-                        placeholder = "${currencySymbol()}0.00",
+                        placeholder = "${formatCurrency()}0.00",
                         keyboardType = KeyboardType.Decimal
                     )
 
@@ -214,7 +215,7 @@ fun SubmitExpenseClaimScreen(
                     FormTextField(
                         value = taxInput,
                         onValueChange = { taxInput = it },
-                        placeholder = "${currencySymbol()}0.00",
+                        placeholder = "${formatCurrency()}0.00",
                         keyboardType = KeyboardType.Decimal
                     )
                 }

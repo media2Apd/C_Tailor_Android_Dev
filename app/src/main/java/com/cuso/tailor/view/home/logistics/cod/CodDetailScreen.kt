@@ -1,4 +1,4 @@
-@file:Suppress("unused","AssignedValueIsNeverRead")
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
 
 package com.cuso.tailor.view.home.logistics.cod
 
@@ -46,7 +46,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import androidx.core.net.toUri
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 
 @Composable
 fun CodOrderOverviewScreen(
@@ -185,7 +186,7 @@ fun CodOrderOverviewScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "${currencySymbol()}${formatIndianNumber(order.codAmount)}",
+                            text = "${formatCurrency()}${formatIndianNumber(order.codAmount)}",
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             color = title_color
@@ -597,7 +598,7 @@ fun CodOrderOverviewScreen(
                         Spacer(Modifier.height(10.dp))
 
                         Text(
-                            text = "Confirm that ${currencySymbol()}${formatIndianNumber(data?.codAmount ?: 0.0)} has been collected for ${data?.codNumber}. The order will be marked as paid.",
+                            text = "Confirm that ${formatCurrency()}${formatIndianNumber(data?.codAmount ?: 0.0)} has been collected for ${data?.codNumber}. The order will be marked as paid.",
                             fontSize = tokens.bodySmall,
                             color = TextSecondary,
                             lineHeight = 18.sp

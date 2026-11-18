@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.logistics.AllCourierItemDto
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.viewmodel.LogisticsViewModel
@@ -222,7 +223,7 @@ private fun AllCodCard(
                         )
                         Spacer(Modifier.height(3.dp))
                         Text(
-                            text = "${currencySymbol()}${formatIndianNumber(item.codAmount)}",
+                            text = "${formatCurrency()}${formatIndianNumber(item.codAmount)}",
                             fontSize = tokens.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = title_color

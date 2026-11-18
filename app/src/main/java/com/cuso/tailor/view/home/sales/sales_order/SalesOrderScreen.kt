@@ -29,7 +29,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.viewmodel.OrderActionState
@@ -304,7 +305,7 @@ fun SalesOrderScreen(
                                                 footerFields = listOf(
                                                     DataCardField(
                                                         label = "Order Value",
-                                                        text = "${currencySymbol()}${formatIndianNumber(order.totalAmount)}",
+                                                        text = "${formatCurrency()}${formatIndianNumber(order.totalAmount)}",
                                                         textColor = Primary,
                                                         valueFontWeight = FontWeight.SemiBold,
                                                         asColumn = true

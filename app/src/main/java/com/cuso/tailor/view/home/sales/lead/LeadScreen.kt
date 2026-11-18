@@ -61,6 +61,7 @@ import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.view.home.formatLeadDate
 import com.cuso.tailor.model.sales.OrderReviewData
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.home.toIsoDate
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
@@ -276,6 +277,8 @@ fun LeadFormScreen(
     }
 
     val branches = (branchState as? BranchUiState.Success)?.branches ?: emptyList()
+    val branchOptions = remember(branches) { branches.mapNotNull { it.name } }
+    val branchIdMap = remember(branches) { branches.mapNotNull { b -> b.name?.let { name -> name to b.id } }.toMap() }
 
     val activeGarments: List<GarmentItem> = remember(allGarments) {
         allGarments.filter { it.status.equals("Active", ignoreCase = true) }
@@ -284,28 +287,105 @@ fun LeadFormScreen(
         activeGarments.map { it.displayName?.takeIf { n -> n.isNotBlank() } ?: it.name }
     }
 
-    val leadSourceOptions = remember(apiLeadSources, leadsList) {
-        (apiLeadSources + leadsList.map { it.effectiveSource }.filter { it.isNotBlank() && it != "—" })
-            .distinct()
-            .ifEmpty { listOf("No Lead Source Found") }
+    // Option maps matching SalesData.js (UI Display Label -> Backend Payload ID)
+    val leadSourceMap = remember {
+        linkedMapOf(
+            "Walk-in" to "Walk-in",
+            "Instagram" to "Instagram",
+            "Facebook" to "Facebook",
+            "Google" to "Google",
+            "Referral" to "Referral",
+            "Website" to "Website",
+            "Other" to "Other"
+        )
     }
-    val genderOptions = remember(apiGenderOptions) {
-        apiGenderOptions.ifEmpty { listOf("Male", "Female", "Other") }
+    val leadSourceOptions = remember(leadSourceMap) { leadSourceMap.keys.toList() }
+
+    val genderMap = remember {
+        linkedMapOf(
+            "Male" to "Male",
+            "Female" to "Female",
+            "Other" to "Other"
+        )
     }
-    val preferredContactOptions = remember(apiContactOptions) {
-        apiContactOptions.ifEmpty { listOf("Whatsapp", "Call", "Email", "SMS") }
+    val genderOptions = remember(genderMap) { genderMap.keys.toList() }
+
+    val contactMethodMap = remember {
+        linkedMapOf(
+            "WhatsApp" to "Whatsapp",
+            "Call" to "Call",
+            "Email" to "Email",
+            "SMS" to "SMS"
+        )
     }
-    val enquiryClassificationOptions = remember(apiEnquiryOptions, leadsList) {
-        (apiEnquiryOptions + leadsList.mapNotNull { it.enquiryType?.takeIf { e -> e.isNotBlank() } })
-            .distinct()
-            .ifEmpty { listOf("New Order", "Alteration", "Repair", "Custom Tailoring") }
+    val preferredContactOptions = remember(contactMethodMap) { contactMethodMap.keys.toList() }
+
+    val enquiryTypeMap = remember {
+        linkedMapOf(
+            "New Order" to "New_Order",
+            "Alteration" to "Alteration",
+            "Repair" to "Repair",
+            "Other" to "Other"
+        )
     }
-    val priorityOptions = remember(apiPriorityOptions) {
-        apiPriorityOptions.ifEmpty { listOf("Low", "Medium", "High", "Urgent") }
+    val enquiryClassificationOptions = remember(enquiryTypeMap) { enquiryTypeMap.keys.toList() }
+
+    val priorityMap = remember {
+        linkedMapOf(
+            "Low" to "Low",
+            "Medium" to "Medium",
+            "High" to "High",
+            "Urgent" to "Urgent"
+        )
     }
-    val fabricSourceOptions = listOf("Customer_Provided", "Store_Provided", "Other")
-    val lifecycleStatusOptions = listOf("Active", "Inactive", "Archived")
-    val appointmentStatusOptions = listOf("None", "Scheduled", "Confirmed", "Completed", "Cancelled")
+    val priorityOptions = remember(priorityMap) { priorityMap.keys.toList() }
+
+    val fabricSourceMap = remember {
+        linkedMapOf(
+            "Customer Provided" to "Customer_Provided",
+            "Store Provided" to "Store_Provided"
+        )
+    }
+    val fabricSourceOptions = remember(fabricSourceMap) { fabricSourceMap.keys.toList() }
+
+    // Match LeadForm.jsx lifecycle record options
+    val lifecycleStatusOptions = listOf("Active", "Draft")
+
+    val appointmentStatusMap = remember {
+        linkedMapOf(
+            "None" to "None",
+            "Scheduled" to "Scheduled",
+            "Rescheduled" to "Rescheduled",
+            "Completed" to "Completed",
+            "Cancelled" to "Cancelled",
+            "No Show" to "No_Show"
+        )
+    }
+    val appointmentStatusOptions = remember(appointmentStatusMap) { appointmentStatusMap.keys.toList() }
+
+    val leadStatusMap = remember(salesStatuses) {
+        val defaults = linkedMapOf(
+            "New" to "New",
+            "Scheduled" to "Scheduled",
+            "In Progress" to "In_Progress",
+            "Contacted" to "Contacted",
+            "Qualified" to "Qualified",
+            "Not Qualified" to "Not_Qualified",
+            "Lost" to "Lost",
+            "Junk" to "Junk"
+        )
+        if (salesStatuses.isNotEmpty()) {
+            val dynamicMap = linkedMapOf<String, String>()
+            salesStatuses.forEach { st ->
+                val label = defaults.entries.firstOrNull { it.value.equals(st.name, ignoreCase = true) }?.key ?: st.name
+                dynamicMap[label] = st.name
+            }
+            dynamicMap
+        } else {
+            defaults
+        }
+    }
+    val statusOptions = remember(leadStatusMap) { leadStatusMap.keys.toList() }
 
     val staffDisplayList = remember(staffList) {
         staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
@@ -313,24 +393,32 @@ fun LeadFormScreen(
     val staffIdMap = remember(staffList) {
         staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
     }
-    val statusOptions = remember(salesStatuses) {
-        salesStatuses.map { it.name }.ifEmpty { listOf("New", "Scheduled", "In_Progress", "Contacted", "Qualified", "Not_Qualified", "Lost", "Junk") }
+
+    val todayFormatted = remember {
+        java.text.SimpleDateFormat("dd-MM-yyyy", java.util.Locale.ENGLISH).format(java.util.Date())
     }
 
-    // Lead information form states
-    var leadSource by remember { mutableStateOf(l?.source ?: "-") }
-    var enquiryDate by remember { mutableStateOf(l?.let { formatLeadDate(it.enquiryDate) } ?: "-") }
-    var leadOwner by remember { mutableStateOf(l?.leadOwner ?: "") }
-    var pipelineStatus by remember { mutableStateOf(l?.status ?: "New") }
-    var lifecycleStatus by remember { mutableStateOf("Active") }
+    // Lead information form states initialized to match INITIAL_FORM_DATA in LeadForm.jsx
+    var selectedBranchId by remember { mutableStateOf("") }
+    LaunchedEffect(branches) {
+        if (selectedBranchId.isBlank() && branches.isNotEmpty()) {
+            selectedBranchId = branches.first().id
+        }
+    }
 
-    var customerType by remember { mutableStateOf(l?.customerType?.replaceFirstChar { c -> c.uppercase() } ?: "-") }
+    var leadSource by remember { mutableStateOf(l?.source?.takeIf { it.isNotBlank() && it != "—" } ?: "") }
+    var enquiryDate by remember { mutableStateOf(l?.let { formatLeadDate(it.enquiryDate) }?.takeIf { it.isNotBlank() && it != "—" } ?: todayFormatted) }
+    var leadOwner by remember { mutableStateOf(l?.leadOwner ?: "") }
+    var pipelineStatus by remember { mutableStateOf(l?.status?.takeIf { it.isNotBlank() } ?: "") }
+    var lifecycleStatus by remember { mutableStateOf("") }
+
+    var customerType by remember { mutableStateOf(l?.customerType?.replaceFirstChar { c -> c.uppercase() }?.takeIf { it.isNotBlank() } ?: "") }
     var fullName by remember { mutableStateOf(l?.fullName ?: "") }
     var mobileNumber by remember { mutableStateOf(l?.phone ?: "") }
     var emailAddress by remember { mutableStateOf(l?.email ?: "") }
     var gender by remember { mutableStateOf(l?.gender ?: "") }
-    var dateOfBirth by remember { mutableStateOf(l?.let { formatLeadDate(it.dob) } ?: "") }
-    var selectedIso by remember { mutableStateOf("-") }
+    var dateOfBirth by remember { mutableStateOf(l?.let { formatLeadDate(it.dob) }?.takeIf { it != "—" } ?: "") }
+    var selectedIso by remember { mutableStateOf("") }
 
     var flatDoorNo by remember { mutableStateOf("") }
     var streetLandmark by remember { mutableStateOf(l?.address ?: "") }
@@ -338,16 +426,16 @@ fun LeadFormScreen(
     var city by remember { mutableStateOf(l?.city ?: "") }
     var stateProvince by remember { mutableStateOf("") }
     var pincode by remember { mutableStateOf("") }
-    var country by remember { mutableStateOf("-") }
-    var preferredContact by remember { mutableStateOf(l?.preferredContactMethod ?: "-") }
+    var country by remember { mutableStateOf("") }
+    var preferredContact by remember { mutableStateOf(l?.preferredContactMethod?.takeIf { it.isNotBlank() } ?: "") }
 
-    var enquiryClassification by remember { mutableStateOf(l?.enquiryType ?: "-") }
-    var requiredCompletionDate by remember { mutableStateOf(l?.let { formatLeadDate(it.requiredDate) } ?: "") }
-    var minBudget by remember { mutableStateOf(l?.budgetMin?.toString() ?: "1500") }
-    var maxBudget by remember { mutableStateOf(l?.budgetMax?.toString() ?: "50000") }
+    var enquiryClassification by remember { mutableStateOf(l?.enquiryType?.takeIf { it.isNotBlank() } ?: "") }
+    var requiredCompletionDate by remember { mutableStateOf(l?.let { formatLeadDate(it.requiredDate) }?.takeIf { it != "—" } ?: "") }
+    var minBudget by remember { mutableStateOf(l?.budgetMin?.takeIf { it > 0 }?.toString() ?: "") }
+    var maxBudget by remember { mutableStateOf(l?.budgetMax?.takeIf { it > 0 }?.toString() ?: "") }
 
     var garmentSpecs by remember {
-        mutableStateOf(listOf(LeadGarmentItemRow(quantity = l?.estimatedQuantity?.takeIf { it > 0 }?.toString() ?: "-")))
+        mutableStateOf(listOf(LeadGarmentItemRow(quantity = l?.estimatedQuantity?.takeIf { it > 0 }?.toString() ?: "1")))
     }
 
     var fabricProvided by remember { mutableStateOf(false) }
@@ -356,15 +444,16 @@ fun LeadFormScreen(
 
     var appointmentRequired by remember { mutableStateOf(l?.appointmentRequired ?: false) }
     var assignedStaff by remember { mutableStateOf(l?.assignedStaff ?: "") }
-    var priorityLevel by remember { mutableStateOf(l?.priority ?: "-") }
-    var nextFollowUpDate by remember { mutableStateOf(l?.let { formatLeadDate(it.followUpDate) } ?: "") }
-    var appointmentDate by remember { mutableStateOf(l?.let { formatLeadDate(it.appointmentDate) } ?: "") }
-    var appointmentTime by remember { mutableStateOf(l?.appointmentTime ?: "-") }
-    var appointmentStatus by remember { mutableStateOf("-") }
+    var priorityLevel by remember { mutableStateOf(l?.priority?.takeIf { it.isNotBlank() } ?: "") }
+    var nextFollowUpDate by remember { mutableStateOf(l?.let { formatLeadDate(it.followUpDate) }?.takeIf { it != "—" } ?: "") }
+    var appointmentDate by remember { mutableStateOf(l?.let { formatLeadDate(it.appointmentDate) }?.takeIf { it != "—" } ?: "") }
+    var appointmentTime by remember { mutableStateOf(l?.appointmentTime?.takeIf { it != "—" } ?: "") }
+    var appointmentStatus by remember { mutableStateOf("") }
 
     var internalNotes by remember { mutableStateOf(l?.internalNotes ?: "") }
     var customerNotes by remember { mutableStateOf(l?.customerNotes ?: "") }
 
+    var branchExpanded by remember { mutableStateOf(false) }
     var leadSourceExpanded by remember { mutableStateOf(false) }
     var leadOwnerExpanded by remember { mutableStateOf(false) }
     var pipelineStatusExpanded by remember { mutableStateOf(false) }
@@ -377,7 +466,7 @@ fun LeadFormScreen(
     var priorityLevelExpanded by remember { mutableStateOf(false) }
     var appointmentStatusExpanded by remember { mutableStateOf(false) }
 
-    var expandedSection by remember { mutableStateOf("-") }
+    var expandedSection by remember { mutableStateOf("") }
 
     var validationError by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
@@ -400,95 +489,172 @@ fun LeadFormScreen(
     val isLeadConverted = matchingLeadItem?.isConverted == true ||
             l?.status?.contains("Convert", ignoreCase = true) == true
 
+    val selectedBranchLabel = branchIdMap.entries.firstOrNull { it.value == selectedBranchId }?.key ?: ""
+
     fun submitLeadForm() {
         if (!isEditable) return
 
-        if (fullName.isBlank()) {
-            errorField = "fullName"
-            validationError = "Full Name is required"
-            expandedSection = "customer"
-            return
+        errorField = null
+        validationError = null
+
+        // 1. Branch verification
+        val resolvedBranchId = selectedBranchId.ifBlank {
+            if (branches.size == 1) branches.first().id else ""
         }
-        if (mobileNumber.isBlank()) {
-            errorField = "mobileNumber"
-            validationError = "Mobile Number is required"
-            expandedSection = "customer"
-            return
-        }
-        if (enquiryDate.isBlank()) {
-            errorField = "enquiryDate"
-            validationError = "Enquiry Date is required"
+        if (resolvedBranchId.isBlank()) {
+            errorField = "branchId"
+            validationError = "Please select a branch location"
             expandedSection = "lead_info"
             return
         }
+
+        // 2. Full Name verification
+        if (fullName.trim().isBlank()) {
+            errorField = "fullName"
+            validationError = "Customer full name is required"
+            expandedSection = "customer"
+            return
+        }
+
+        // 3. Mobile Number verification (digits only, 7-15 characters)
+        val cleanPhone = mobileNumber.replace(Regex("\\D"), "")
+        if (cleanPhone.length !in 7..15) {
+            errorField = "mobileNumber"
+            validationError = "Please enter a valid mobile number with country code"
+            expandedSection = "customer"
+            return
+        }
+
+        // 4. Enquiry Date verification
+        if (enquiryDate.isBlank()) {
+            errorField = "enquiryDate"
+            validationError = "Enquiry date is required"
+            expandedSection = "lead_info"
+            return
+        }
+
+        // 5. Required Completion Date verification
         if (requiredCompletionDate.isBlank()) {
             errorField = "requiredCompletionDate"
-            validationError = "Required Completion Date is required"
+            validationError = "Required completion date is required"
             expandedSection = "enquiry"
             return
+        }
+
+        // 6. Garment Specifications verification (template and qty >= 1; category is optional)
+        if (garmentSpecs.isEmpty()) {
+            errorField = "garmentSpecifications"
+            validationError = "Please add at least one garment specification"
+            expandedSection = "enquiry"
+            return
+        }
+        if (garmentSpecs.any { it.templateId.isBlank() }) {
+            errorField = "garmentSpecifications"
+            validationError = "Please select a garment template for every row added"
+            expandedSection = "enquiry"
+            return
+        }
+        if (garmentSpecs.any { (it.quantity.toIntOrNull() ?: 0) < 1 }) {
+            errorField = "garmentSpecifications"
+            validationError = "Quantity must be at least 1 for all garments"
+            expandedSection = "enquiry"
+            return
+        }
+
+        // 7. Budget range verification
+        val parsedMinBudget = if (minBudget.isNotBlank()) minBudget.toIntOrNull() ?: 0 else 0
+        val parsedMaxBudget = if (maxBudget.isNotBlank()) maxBudget.toIntOrNull() ?: 0 else 0
+        if (parsedMinBudget < 0) {
+            errorField = "budgetMin"
+            validationError = "Minimum budget cannot be negative"
+            expandedSection = "enquiry"
+            return
+        }
+        if (minBudget.isNotBlank() && parsedMaxBudget > 0 && parsedMaxBudget < parsedMinBudget) {
+            errorField = "budgetMax"
+            validationError = "Maximum budget cannot be less than minimum budget"
+            expandedSection = "enquiry"
+            return
+        }
+
+        // 8. Conditional Appointment validation
+        if (appointmentRequired) {
+            if (appointmentDate.isBlank()) {
+                errorField = "appointmentDate"
+                validationError = "Appointment date is required when appointment is enabled"
+                expandedSection = "appointment"
+                return
+            }
+            if (appointmentTime.isBlank()) {
+                errorField = "appointmentTime"
+                validationError = "Appointment time is required when appointment is enabled"
+                expandedSection = "appointment"
+                return
+            }
         }
 
         fun safeIsoDate(dateStr: String): String {
             return if (dateStr.isNotBlank()) dateStr.toIsoDate().ifBlank { dateStr } else ""
         }
 
-        val activeBranchId = (branchViewModel.uiState.value as? BranchUiState.Success)
-            ?.branches?.firstOrNull()?.id
-
-        val parsedMinBudget = minBudget.toIntOrNull() ?: 0
-        val parsedMaxBudget = maxBudget.toIntOrNull() ?: 0
-
-        val garmentsPayload = garmentSpecs.mapNotNull { row ->
-            if (row.templateId.isNotBlank() && row.categoryId.isNotBlank()) {
-                com.cuso.tailor.model.sales.LeadGarmentSpecificationPayload(
-                    garmentId = row.templateId,
-                    garmentCategoryId = row.categoryId,
-                    quantity = row.quantity.toIntOrNull() ?: 1
-                )
-            } else null
+        // Include every valid garment row (garmentCategoryId is optional in LeadForm.jsx)
+        val garmentsPayload = garmentSpecs.map { row ->
+            com.cuso.tailor.model.sales.LeadGarmentSpecificationPayload(
+                garmentId = row.templateId,
+                garmentCategoryId = row.categoryId,
+                quantity = row.quantity.toIntOrNull() ?: 1
+            )
         }
 
         val addressPayload = com.cuso.tailor.model.sales.LeadAddressDto(
-            flatNo = flatDoorNo,
-            street = streetLandmark,
-            areaZone = areaZone,
-            city = city,
-            subdivisionName = stateProvince,
-            pincode = pincode
+            flatNo = flatDoorNo.trim(),
+            street = streetLandmark.trim(),
+            areaZone = areaZone.trim(),
+            city = city.trim(),
+            subdivisionName = stateProvince.trim(),
+            pincode = pincode.trim()
         )
 
+        val resolvedAppointmentStatus = if (appointmentRequired) {
+            if (appointmentStatus == "None" || appointmentStatus.isBlank()) "Scheduled" else appointmentStatus
+        } else {
+            "None"
+        }
+
+        val resolvedCustomerType = customerType.ifBlank { "Individual" }
+
         val request = CreateLeadFormRequest(
-            branchId = activeBranchId,
-            leadSource = leadSource,
+            branchId = resolvedBranchId,
+            leadSource = leadSource.ifBlank { "Direct" },
             enquiryDate = safeIsoDate(enquiryDate),
             leadOwner = leadOwner,
-            leadStatus = pipelineStatus,
-            customerType = customerType,
-            fullName = fullName,
-            mobileNumber = mobileNumber,
-            email = emailAddress.takeIf { it.isNotBlank() },
-            gender = gender.takeIf { it.isNotBlank() },
-            dateOfBirth = safeIsoDate(dateOfBirth).takeIf { it.isNotBlank() },
-            preferredContactMethod = preferredContact,
-            enquiryType = enquiryClassification,
+            leadStatus = pipelineStatus.ifBlank { "New" },
+            customerType = resolvedCustomerType,
+            fullName = fullName.trim(),
+            mobileNumber = cleanPhone,
+            email = emailAddress.trim().takeIf { it.isNotBlank() },
+            gender = if (resolvedCustomerType.equals("Individual", ignoreCase = true)) gender.takeIf { it.isNotBlank() } else null,
+            dateOfBirth = if (resolvedCustomerType.equals("Individual", ignoreCase = true)) safeIsoDate(dateOfBirth).takeIf { it.isNotBlank() } else null,
+            preferredContactMethod = preferredContact.ifBlank { "Whatsapp" },
+            enquiryType = enquiryClassification.ifBlank { "New_Order" },
             requiredDate = safeIsoDate(requiredCompletionDate),
             address = addressPayload,
             garmentSpecifications = garmentsPayload,
             budgetMin = parsedMinBudget,
             budgetMax = parsedMaxBudget,
             isFabricProvided = fabricProvided,
-            fabricSource = fabricSource.takeIf { fabricProvided && it.isNotBlank() },
-            fabricNotes = fabricNotes.takeIf { fabricProvided && it.isNotBlank() },
+            fabricSource = if (fabricProvided) fabricSource.ifBlank { "Customer_Provided" } else null,
+            fabricNotes = if (fabricProvided) fabricNotes.trim().takeIf { it.isNotBlank() } else null,
             isAppointmentRequired = appointmentRequired,
             appointmentDate = if (appointmentRequired) safeIsoDate(appointmentDate) else null,
             appointmentTime = if (appointmentRequired) appointmentTime.takeIf { it.isNotBlank() } else null,
-            appointmentStatus = if (appointmentRequired) appointmentStatus else "None",
+            appointmentStatus = resolvedAppointmentStatus,
             assignedStaffId = assignedStaff.takeIf { it.isNotBlank() },
             followUpDate = safeIsoDate(nextFollowUpDate).takeIf { it.isNotBlank() },
-            priorityLevel = priorityLevel,
-            internalNotes = internalNotes.takeIf { it.isNotBlank() },
-            customerNotes = customerNotes.takeIf { it.isNotBlank() },
-            status = lifecycleStatus
+            priorityLevel = priorityLevel.ifBlank { "Medium" },
+            internalNotes = internalNotes.trim().takeIf { it.isNotBlank() },
+            customerNotes = customerNotes.trim().takeIf { it.isNotBlank() },
+            status = lifecycleStatus.ifBlank { "Active" }
         )
 
         if (isCreate) {
@@ -573,12 +739,23 @@ fun LeadFormScreen(
                             Spacer(Modifier.height(14.dp))
 
                             FormDropdown(
+                                label = "Branch Location *",
+                                value = selectedBranchLabel.ifEmpty { "Select Branch" },
+                                expanded = branchExpanded && isEditable,
+                                onExpandChange = { if (isEditable) branchExpanded = it },
+                                options = branchOptions,
+                                onOptionSelected = { label -> selectedBranchId = branchIdMap[label] ?: "" },
+                                enabled = isEditable
+                            )
+
+                            Spacer(Modifier.height(14.dp))
+                            FormDropdown(
                                 label = "Lead Source",
-                                value = leadSource.ifEmpty { "Select an option" },
+                                value = leadSourceMap.entries.firstOrNull { it.value == leadSource }?.key ?: leadSource.ifEmpty { "Select an option" },
                                 expanded = leadSourceExpanded && isEditable,
                                 onExpandChange = { if (isEditable) leadSourceExpanded = it },
                                 options = leadSourceOptions,
-                                onOptionSelected = { leadSource = it },
+                                onOptionSelected = { label -> leadSource = leadSourceMap[label] ?: label },
                                 enabled = isEditable
                             )
 
@@ -605,18 +782,18 @@ fun LeadFormScreen(
                             Spacer(Modifier.height(14.dp))
                             FormDropdown(
                                 label = "Lead Pipeline Status",
-                                value = pipelineStatus.ifEmpty { "Select an option" },
+                                value = leadStatusMap.entries.firstOrNull { it.value == pipelineStatus }?.key ?: pipelineStatus.ifEmpty { "Select an option" },
                                 expanded = pipelineStatusExpanded && isEditable,
                                 onExpandChange = { if (isEditable) pipelineStatusExpanded = it },
                                 options = statusOptions,
-                                onOptionSelected = { pipelineStatus = it },
+                                onOptionSelected = { label -> pipelineStatus = leadStatusMap[label] ?: label },
                                 enabled = isEditable
                             )
 
                             Spacer(Modifier.height(14.dp))
                             FormDropdown(
                                 label = "Lifecycle Status",
-                                value = lifecycleStatus,
+                                value = lifecycleStatus.ifEmpty { "Select an option" },
                                 expanded = lifecycleStatusExpanded && isEditable,
                                 onExpandChange = { if (isEditable) lifecycleStatusExpanded = it },
                                 options = lifecycleStatusOptions,
@@ -659,7 +836,10 @@ fun LeadFormScreen(
                             )
 
                             Spacer(Modifier.height(14.dp))
-                            FormLabel("Full Name", isRequired = true)
+                            FormLabel(
+                                if (customerType.equals("Corporate", ignoreCase = true)) "Company / Client Name" else "Full Name",
+                                isRequired = true
+                            )
                             FormTextField(
                                 value = fullName,
                                 onValueChange = { fullName = it },
@@ -687,15 +867,15 @@ fun LeadFormScreen(
                                 enabled = isEditable
                             )
 
-                            if (customerType.equals("Individual", ignoreCase = true)) {
+                            if (!customerType.equals("Corporate", ignoreCase = true)) {
                                 Spacer(Modifier.height(14.dp))
                                 FormDropdown(
                                     label = "Gender",
-                                    value = gender.ifEmpty { "Select an option" },
+                                    value = genderMap.entries.firstOrNull { it.value == gender }?.key ?: gender.ifEmpty { "Select an option" },
                                     expanded = genderExpanded && isEditable,
                                     onExpandChange = { if (isEditable) genderExpanded = it },
                                     options = genderOptions,
-                                    onOptionSelected = { gender = it },
+                                    onOptionSelected = { label -> gender = genderMap[label] ?: label },
                                     enabled = isEditable
                                 )
 
@@ -753,11 +933,11 @@ fun LeadFormScreen(
                             Spacer(Modifier.height(14.dp))
                             FormDropdown(
                                 label = "Preferred Contact Method",
-                                value = preferredContact,
+                                value = contactMethodMap.entries.firstOrNull { it.value == preferredContact }?.key ?: preferredContact.ifEmpty { "Select an option" },
                                 expanded = preferredContactExpanded && isEditable,
                                 onExpandChange = { if (isEditable) preferredContactExpanded = it },
                                 options = preferredContactOptions,
-                                onOptionSelected = { preferredContact = it },
+                                onOptionSelected = { label -> preferredContact = contactMethodMap[label] ?: label },
                                 enabled = isEditable
                             )
                         }
@@ -778,11 +958,11 @@ fun LeadFormScreen(
 
                             FormDropdown(
                                 label = "Enquiry Classification",
-                                value = enquiryClassification,
+                                value = enquiryTypeMap.entries.firstOrNull { it.value == enquiryClassification }?.key ?: enquiryClassification.ifEmpty { "Select an option" },
                                 expanded = enquiryClassificationExpanded && isEditable,
                                 onExpandChange = { if (isEditable) enquiryClassificationExpanded = it },
                                 options = enquiryClassificationOptions,
-                                onOptionSelected = { enquiryClassification = it },
+                                onOptionSelected = { label -> enquiryClassification = enquiryTypeMap[label] ?: label },
                                 enabled = isEditable
                             )
 
@@ -949,7 +1129,7 @@ fun LeadFormScreen(
                             Text("Customer Expected Budget Range (INR)", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = TextPrimary)
                             Spacer(Modifier.height(8.dp))
 
-                            FormLabel("MINIMUM BUDGET (${currencySymbol()})")
+                            FormLabel("MINIMUM BUDGET (${formatCurrency()})")
                             FormTextField(
                                 value = minBudget,
                                 onValueChange = { minBudget = it },
@@ -959,7 +1139,7 @@ fun LeadFormScreen(
                             )
 
                             Spacer(Modifier.height(14.dp))
-                            FormLabel("MAXIMUM BUDGET (${currencySymbol()})")
+                            FormLabel("MAXIMUM BUDGET (${formatCurrency()})")
                             FormTextField(
                                 value = maxBudget,
                                 onValueChange = { maxBudget = it },
@@ -993,25 +1173,27 @@ fun LeadFormScreen(
                             }
                         ) {
                             Text("Customer-provided or store-procured fabric details", fontSize = tokens.caption, color = headerGrey)
-                            Spacer(Modifier.height(14.dp))
+                            if (fabricProvided) {
+                                Spacer(Modifier.height(14.dp))
 
-                            FormDropdown(
-                                label = "Fabric Source",
-                                value = fabricSource.ifEmpty { "Select an option" },
-                                expanded = fabricSourceExpanded && isEditable,
-                                onExpandChange = { if (isEditable) fabricSourceExpanded = it },
-                                options = fabricSourceOptions,
-                                onOptionSelected = { fabricSource = it },
-                                enabled = isEditable
-                            )
+                                FormDropdown(
+                                    label = "Fabric Source",
+                                    value = fabricSourceMap.entries.firstOrNull { it.value == fabricSource }?.key ?: fabricSource.ifEmpty { "Select an option" },
+                                    expanded = fabricSourceExpanded && isEditable,
+                                    onExpandChange = { if (isEditable) fabricSourceExpanded = it },
+                                    options = fabricSourceOptions,
+                                    onOptionSelected = { label -> fabricSource = fabricSourceMap[label] ?: label },
+                                    enabled = isEditable
+                                )
 
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Fabric Notes & Material Details")
-                            FormTextArea(
-                                value = fabricNotes,
-                                onValueChange = { fabricNotes = it },
-                                enabled = isEditable
-                            )
+                                Spacer(Modifier.height(14.dp))
+                                FormLabel("Fabric Notes & Material Details")
+                                FormTextArea(
+                                    value = fabricNotes,
+                                    onValueChange = { fabricNotes = it },
+                                    enabled = isEditable
+                                )
+                            }
                         }
                     }
 
@@ -1026,11 +1208,15 @@ fun LeadFormScreen(
                             },
                             showArrow = false,
                             trailing = {
-                                MiniSwitch(
-                                    checked = appointmentRequired,
-                                    onCheckedChange = { if (isEditable) appointmentRequired = it },
-                                    enabled = isEditable
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("Appointment Required?", fontSize = tokens.caption, color = headerGrey)
+                                    Spacer(Modifier.width(8.dp))
+                                    MiniSwitch(
+                                        checked = appointmentRequired,
+                                        onCheckedChange = { if (isEditable) appointmentRequired = it },
+                                        enabled = isEditable
+                                    )
+                                }
                             }
                         ) {
                             Text("Assigned Staff, measurement schedule, and follow-up priority", fontSize = tokens.caption, color = headerGrey)
@@ -1049,11 +1235,11 @@ fun LeadFormScreen(
                             Spacer(Modifier.height(14.dp))
                             FormDropdown(
                                 label = "Priority Level",
-                                value = priorityLevel,
+                                value = priorityMap.entries.firstOrNull { it.value == priorityLevel }?.key ?: priorityLevel.ifEmpty { "Select an option" },
                                 expanded = priorityLevelExpanded && isEditable,
                                 onExpandChange = { if (isEditable) priorityLevelExpanded = it },
                                 options = priorityOptions,
-                                onOptionSelected = { priorityLevel = it },
+                                onOptionSelected = { label -> priorityLevel = priorityMap[label] ?: label },
                                 enabled = isEditable
                             )
 
@@ -1067,15 +1253,16 @@ fun LeadFormScreen(
 
                             if (appointmentRequired) {
                                 Spacer(Modifier.height(14.dp))
-                                FormLabel("Appointment Date")
+                                FormLabel("Appointment Date", isRequired = true)
                                 DatePickerField(
                                     value = appointmentDate,
                                     onDateSelected = { if (isEditable) appointmentDate = it },
+                                    isError = errorField == "appointmentDate",
                                     enabled = isEditable
                                 )
 
                                 Spacer(Modifier.height(14.dp))
-                                FormLabel("Appointment Time")
+                                FormLabel("Appointment Time", isRequired = true)
                                 TimePickerField(
                                     value = appointmentTime,
                                     onTimeSelected = { if (isEditable) appointmentTime = it },
@@ -1085,11 +1272,11 @@ fun LeadFormScreen(
                                 Spacer(Modifier.height(14.dp))
                                 FormDropdown(
                                     label = "Appointment Status",
-                                    value = appointmentStatus,
+                                    value = appointmentStatusMap.entries.firstOrNull { it.value == appointmentStatus }?.key ?: appointmentStatus.ifEmpty { "Select an option" },
                                     expanded = appointmentStatusExpanded && isEditable,
                                     onExpandChange = { if (isEditable) appointmentStatusExpanded = it },
                                     options = appointmentStatusOptions,
-                                    onOptionSelected = { appointmentStatus = it },
+                                    onOptionSelected = { label -> appointmentStatus = appointmentStatusMap[label] ?: label },
                                     enabled = isEditable
                                 )
                             }
@@ -1291,10 +1478,10 @@ fun LeadScreenContent(
         }
     }
 
-    // Display all leads in the table matching filters
+    // Display all leads in the table matching filters and enforce unique IDs for LazyColumn
     val filteredLeads by remember(leads, searchQuery, filterSections) {
         derivedStateOf {
-            leads.filter { lead ->
+            leads.distinctBy { it.id }.filter { lead ->
                 val personName = lead.name
                 val enquiryType = lead.enquiryType ?: ""
                 val matchesSearch = searchQuery.isBlank() ||
@@ -1361,7 +1548,7 @@ fun LeadScreenContent(
                 "Lost" to (grey_border to headerGrey)
             statusName.contains("Qualified", ignoreCase = true) ->
                 "Qualified" to (greenBg to darkGreenBg)
-            else -> (if (statusName.isBlank()) "—" else statusName) to (grey_border to mutedText)
+            else -> (statusName.ifBlank { "—" }) to (grey_border to mutedText)
         }
     }
 
@@ -1545,7 +1732,7 @@ fun LeadScreenContent(
                                                             iconTint = Primary,
                                                             iconBackgroundColor = primary_light,
                                                             iconCircleSize = 24.dp,
-                                                            text = "${currencySymbol()}${formatIndianNumber(lead.minBudget)} - ${currencySymbol()}${formatIndianNumber(lead.maxBudget)}",
+                                                            text = "${formatCurrency()}${formatIndianNumber(lead.minBudget)} - ${formatCurrency()}${formatIndianNumber(lead.maxBudget)}",
                                                             textColor = TextLog
                                                         )
                                                     ),
@@ -1698,8 +1885,8 @@ fun BudgetRangeLabels(
 ) {
     val tokens = LocalAppTokens.current
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text("${currencySymbol()}${formatIndianNumber(min)}", fontSize = tokens.caption, color = headerGrey)
-        Text("${currencySymbol()}${formatIndianNumber(currentValue)}", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = Primary)
-        Text("${currencySymbol()}${formatIndianNumber(max)}", fontSize = tokens.caption, color = headerGrey)
+        Text("${formatCurrency()}${formatIndianNumber(min)}", fontSize = tokens.caption, color = headerGrey)
+        Text("${formatCurrency()}${formatIndianNumber(currentValue)}", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = Primary)
+        Text("${formatCurrency()}${formatIndianNumber(max)}", fontSize = tokens.caption, color = headerGrey)
     }
 }

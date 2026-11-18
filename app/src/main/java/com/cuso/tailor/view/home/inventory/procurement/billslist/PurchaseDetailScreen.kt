@@ -1,4 +1,4 @@
-@file:Suppress("unused", "SpellCheckingInspection")
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
 
 package com.cuso.tailor.view.home.inventory.procurement.billslist
 
@@ -41,6 +41,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.ProcurementBillDetailData
 import com.cuso.tailor.model.inventory.ProcurementBillDetailLine
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.view.home.pdfgenerator.ProcurementBillPdfGenerator
@@ -463,7 +464,7 @@ fun PurchaseDetailScreen(
                                                 Text("Balance Due", fontSize = tokens.bodySmall, color = close_color)
                                                 Spacer(Modifier.height(2.dp))
                                                 Text(
-                                                    text = "${currencySymbol()}${formatIndianNumber(detail.balanceDue)}",
+                                                    text = "${formatCurrency()}${formatIndianNumber(detail.balanceDue)}",
                                                     fontSize = tokens.bodySmall,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = title_color
@@ -552,7 +553,7 @@ fun PurchaseDetailScreen(
                                                             color = close_color
                                                         )
                                                         Text(
-                                                            text = "${currencySymbol()}${formatIndianNumber(line.lineTotal)}",
+                                                            text = "${formatCurrency()}${formatIndianNumber(line.lineTotal)}",
                                                             fontSize = tokens.bodyMedium,
                                                             fontWeight = FontWeight.Medium,
                                                             color = title_color
@@ -574,7 +575,7 @@ fun PurchaseDetailScreen(
                                                             color = close_color
                                                         )
                                                         Text(
-                                                            text = "Rate:  ${currencySymbol()}${formatIndianNumber(line.rate)}",
+                                                            text = "Rate:  ${formatCurrency()}${formatIndianNumber(line.rate)}",
                                                             fontSize = tokens.caption,
                                                             color = close_color
                                                         )
@@ -602,7 +603,7 @@ fun PurchaseDetailScreen(
                                             ) {
                                                 Text(text = "Subtotal", fontSize = tokens.bodySmall, color = title_color)
                                                 Text(
-                                                    text = "${currencySymbol()}${formatIndianNumber(detail.subtotal)}",
+                                                    text = "${formatCurrency()}${formatIndianNumber(detail.subtotal)}",
                                                     fontSize = tokens.bodySmall,
                                                     fontWeight = FontWeight.Normal,
                                                     color = title_color
@@ -618,7 +619,7 @@ fun PurchaseDetailScreen(
                                             ) {
                                                 Text(text = "Due", fontSize = tokens.bodySmall, color = title_color)
                                                 Text(
-                                                    text = "${currencySymbol()}${formatIndianNumber(detail.balanceDue)}",
+                                                    text = "${formatCurrency()}${formatIndianNumber(detail.balanceDue)}",
                                                     fontSize = tokens.bodySmall,
                                                     fontWeight = FontWeight.Normal,
                                                     color = title_color
@@ -641,7 +642,7 @@ fun PurchaseDetailScreen(
                                                     color = title_color
                                                 )
                                                 Text(
-                                                    text = "${currencySymbol()}${formatIndianNumber(detail.grandTotal)}",
+                                                    text = "${formatCurrency()}${formatIndianNumber(detail.grandTotal)}",
                                                     fontSize = tokens.bodyMedium,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = Primary
@@ -735,7 +736,7 @@ fun PurchaseDetailScreen(
                                                         color = close_color
                                                     )
                                                     Text(
-                                                        text = "${currencySymbol()}${formatIndianNumber(detail.amountPaid)}",
+                                                        text = "${formatCurrency()}${formatIndianNumber(detail.amountPaid)}",
                                                         fontSize = tokens.bodyMedium,
                                                         fontWeight = FontWeight.Medium,
                                                         color = title_color
@@ -1222,7 +1223,7 @@ fun BillPreviewReceiptCard(
 
             ReceiptSummaryRow(
                 label = "Subtotal",
-                value = "${currencySymbol()}${formatIndianNumber(detail.subtotal)}",
+                value = "${formatCurrency()}${formatIndianNumber(detail.subtotal)}",
                 textColor = TextPrimary,
                 tokens = tokens
             )
@@ -1231,7 +1232,7 @@ fun BillPreviewReceiptCard(
                 Spacer(Modifier.height(tokens.extraPadding * 0.8f))
                 ReceiptSummaryRow(
                     label = "Discount",
-                    value = "-${currencySymbol()}${formatIndianNumber(detail.totalDiscount)}",
+                    value = "-${formatCurrency()}${formatIndianNumber(detail.totalDiscount)}",
                     textColor = greentext,
                     tokens = tokens
                 )
@@ -1240,7 +1241,7 @@ fun BillPreviewReceiptCard(
             Spacer(Modifier.height(tokens.extraPadding * 0.8f))
             ReceiptSummaryRow(
                 label = "Tax",
-                value = "${currencySymbol()}${formatIndianNumber(detail.totalTax)}",
+                value = "${formatCurrency()}${formatIndianNumber(detail.totalTax)}",
                 textColor = TextPrimary,
                 tokens = tokens
             )
@@ -1262,7 +1263,7 @@ fun BillPreviewReceiptCard(
                     letterSpacing = 0.5.sp
                 )
                 Text(
-                    text = "${currencySymbol()}${formatIndianNumber(detail.grandTotal)}",
+                    text = "${formatCurrency()}${formatIndianNumber(detail.grandTotal)}",
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = blackTitle
@@ -1453,7 +1454,7 @@ private fun ReceiptItemCard(
                     }
                 }
                 Text(
-                    text = "${currencySymbol()}${formatIndianNumber(line.lineTotal)}",
+                    text = "${formatCurrency()}${formatIndianNumber(line.lineTotal)}",
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = blackTitle
@@ -1471,7 +1472,7 @@ private fun ReceiptItemCard(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Unit: ", fontSize = tokens.caption, color = close_color)
-                    Text("${currencySymbol()}${formatIndianNumber(line.rate)}", fontSize = tokens.caption, fontWeight = FontWeight.Medium, color = blackTitle)
+                    Text("${formatCurrency()}${formatIndianNumber(line.rate)}", fontSize = tokens.caption, fontWeight = FontWeight.Medium, color = blackTitle)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Qty: ", fontSize = tokens.caption, color = close_color)

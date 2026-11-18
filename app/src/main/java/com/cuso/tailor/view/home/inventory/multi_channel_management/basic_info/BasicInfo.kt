@@ -44,6 +44,7 @@ import com.cuso.tailor.view.home.sales.lead.MiniSwitch
 import java.util.Locale
 import java.util.UUID
 import androidx.core.graphics.toColorInt
+import com.cuso.tailor.utils.formatCurrency
 
 // ==============================================================================
 // 1. DATA MODELS & STATE HOLDERS
@@ -1259,7 +1260,7 @@ private fun StepVariants(
                                     )
 
                                     Text(
-                                        text = "${currencySymbol()} ${variant.price}",
+                                        text = "${formatCurrency()} ${variant.price}",
                                         fontSize = tokens.bodyMedium,
                                         fontWeight = FontWeight.Medium,
                                         color = TextPrimary
@@ -1388,7 +1389,7 @@ private fun StepPricing(
                 Spacer(Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Column(modifier = Modifier.weight(1f)) {
-                        FormLabel("Selling Price (${currencySymbol()})")
+                        FormLabel("Selling Price (${formatCurrency()})")
                         FormTextField(
                             value = sellingPrice,
                             onValueChange = onSellingPriceChange,
@@ -1397,7 +1398,7 @@ private fun StepPricing(
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        FormLabel("Discount Price (${currencySymbol()})")
+                        FormLabel($$"Discount Price ($${formatCurrency()})")
                         FormTextField(
                             value = discountPrice,
                             onValueChange = onDiscountPriceChange,
@@ -2275,7 +2276,7 @@ private fun StepPreview(
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = if (sellingPrice.isNotBlank()) "${currencySymbol()}$sellingPrice.00" else "${currencySymbol()}45.00",
+                                text = if (sellingPrice.isNotBlank()) "${formatCurrency()}$sellingPrice.00" else "${formatCurrency()}45.00",
                                 fontSize = tokens.bodyLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
@@ -2490,7 +2491,7 @@ private fun StepPreview(
                 ) {
                     Text("Selling Price", fontSize = tokens.bodySmall, color = headerGrey)
                     Text(
-                        text = if (sellingPrice.isNotBlank()) "${currencySymbol()}$sellingPrice.00" else "$45.00",
+                        text = if (sellingPrice.isNotBlank()) "${formatCurrency()}$sellingPrice.00" else "$45.00",
                         fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = TextPrimary
@@ -2762,7 +2763,7 @@ private fun PriceInputField(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "${currencySymbol()} ",
+                text = "${formatCurrency()} ",
                 fontSize = tokens.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = headerGrey

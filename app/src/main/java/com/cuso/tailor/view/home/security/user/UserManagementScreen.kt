@@ -1,4 +1,4 @@
-@file:Suppress("UNUSED_PARAMETER")
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
 
 package com.cuso.tailor.view.home.security.user
 
@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileDownload
@@ -57,15 +56,16 @@ fun UserManagementScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Primary_background),
-        fab = FabConfig(
-            label = "Create User",
-            icon = Icons.Default.Add,
-            onClick = {
-                if (canCreateUser) {
-                    onCreateUserClick()
-                }
-            }
-        )
+        fab = null,
+//        fab = FabConfig(
+//            label = "Create User",
+//            icon = Icons.Default.Add,
+//            onClick = {
+//                if (canCreateUser) {
+//                    onCreateUserClick()
+//                }
+//            }
+//        )
     ) {
         Column(
             modifier = Modifier

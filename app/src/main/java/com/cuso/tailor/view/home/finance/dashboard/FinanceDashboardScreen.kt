@@ -47,9 +47,10 @@ import com.cuso.tailor.model.finance.*
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.viewmodel.FinanceViewModel
 import androidx.core.graphics.toColorInt
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.FinanceDashboardSkeleton
 import com.cuso.tailor.view.composable.FormDropdown
-import com.cuso.tailor.view.composable.currencySymbol
+
 
 // =============================================================
 // SCREEN (DYNAMIC API DATA WITH SMOOTH ANIMATIONS)
@@ -190,7 +191,7 @@ fun FinanceOverviewScreen(
                                     iconBg = primary_light,
                                     iconTint = BluePrimary,
                                     title = "Total Receivables",
-                                    value = "${currencySymbol()} ${formatAmount(kpiData?.totalReceivables?.amount ?: 0.0)}",
+                                    value = "${formatCurrency()} ${formatAmount(kpiData?.totalReceivables?.amount ?: 0.0)}",
                                     trend = kpiData?.totalReceivables?.salesGrowth,
                                     modifier = Modifier.weight(1f)
                                 )
@@ -199,7 +200,7 @@ fun FinanceOverviewScreen(
                                     iconBg = redBg,
                                     iconTint = redText,
                                     title = "Total Payables",
-                                    value = "${currencySymbol()} ${formatAmount(kpiData?.totalPayables?.amount ?: 0.0)}",
+                                    value = "${formatCurrency()} ${formatAmount(kpiData?.totalPayables?.amount ?: 0.0)}",
                                     trend = kpiData?.totalPayables?.billingGrowth,
                                     modifier = Modifier.weight(1f)
                                 )
@@ -214,7 +215,7 @@ fun FinanceOverviewScreen(
                                     iconBg = primary_light,
                                     iconTint = BluePrimary,
                                     title = "Total Funds",
-                                    value = "${currencySymbol()} ${formatAmount(kpiData?.totalFunds?.amount ?: 0.0)}",
+                                    value = "${formatCurrency()} ${formatAmount(kpiData?.totalFunds?.amount ?: 0.0)}",
                                     trend = kpiData?.totalFunds?.growth,
                                     modifier = Modifier.weight(1f)
                                 )
@@ -223,7 +224,7 @@ fun FinanceOverviewScreen(
                                     iconBg = greenBg,
                                     iconTint = darkGreenBg,
                                     title = "Monthly Collected",
-                                    value = "${currencySymbol()} ${formatAmount(kpiData?.periodCollected?.amount ?: 0.0)}",
+                                    value = "${formatCurrency()} ${formatAmount(kpiData?.periodCollected?.amount ?: 0.0)}",
                                     trend = kpiData?.periodCollected?.growth,
                                     modifier = Modifier.weight(1f)
                                 )
@@ -238,7 +239,7 @@ fun FinanceOverviewScreen(
                                     iconBg = orangeBg,
                                     iconTint = orangeText,
                                     title = "Monthly Expenses",
-                                    value = "${currencySymbol()} ${formatAmount(kpiData?.periodExpenses?.amount ?: 0.0)}",
+                                    value = "${formatCurrency()} ${formatAmount(kpiData?.periodExpenses?.amount ?: 0.0)}",
                                     trend = kpiData?.periodExpenses?.growth,
                                     modifier = Modifier.weight(1f)
                                 )
@@ -659,7 +660,7 @@ private fun FinanceDistributionCard(
                             color = TextPrimary
                         )
                         Text(
-                            text = "${item.percentage.toInt()}% • ${currencySymbol()}${formatAmount(item.amount)}",
+                            text = "${item.percentage.toInt()}% • ${formatCurrency()}${formatAmount(item.amount)}",
                             fontSize = tokens.caption,
                             color = mutedText
                         )
@@ -711,7 +712,7 @@ private fun BankSnapshotCard(
         Text(text = "Total Cash & Bank Balance", fontSize = tokens.caption, color = mutedText)
         Spacer(Modifier.height(2.dp))
         Text(
-            text = "${currencySymbol()} ${formatAmount(snapshot?.totalBalance ?: 0.0)}",
+            text = "${formatCurrency()} ${formatAmount(snapshot?.totalBalance ?: 0.0)}",
             fontSize = tokens.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = TextPrimary
@@ -732,7 +733,7 @@ private fun BankSnapshotCard(
                         modifier = Modifier.weight(1f)
                     )
                     Text(
-                        text = "${currencySymbol()} ${formatAmount(bank.balance)}",
+                        text = "${formatCurrency()} ${formatAmount(bank.balance)}",
                         fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = TextPrimary
@@ -799,7 +800,7 @@ private fun TransactionRow(item: RecentTransactionDto) {
         Spacer(Modifier.width(8.dp))
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = "${currencySymbol()} ${formatAmount(item.amount)}",
+                text = "${formatCurrency()} ${formatAmount(item.amount)}",
                 fontSize = tokens.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = TextPrimary

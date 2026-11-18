@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
+
 package com.cuso.tailor.utils
 
 import android.os.Build
@@ -18,6 +20,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.text.DecimalFormat
+import java.text.NumberFormat
 import java.util.Currency as JavaCurrency
 import java.util.Locale
 
@@ -40,7 +44,7 @@ object CurrencyHelper {
         scope.launch(Dispatchers.IO) {
             try {
                 val cachedSettings = settingsDao.getSettings()
-                val code = cachedSettings?.currency?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+                val code = normalizeCode(cachedSettings?.currency)
                 currentCode = code
                 val resolvedSymbol = resolveSymbolForCode(code)
 
@@ -54,7 +58,7 @@ object CurrencyHelper {
         }
 
         settingsDao.getSettingsFlow()
-            .map { it?.currency?.trim()?.uppercase()?.takeIf { code -> code.isNotBlank() } }
+            .map { normalizeCode(it?.currency) }
             .distinctUntilChanged()
             .onEach { code ->
                 currentCode = code
@@ -73,22 +77,59 @@ object CurrencyHelper {
      * Prioritizes Room DB's active currency over legacy "INR" fallbacks.
      */
     fun getSymbol(currencyCode: String? = null): String {
-        val dbCode = currentCode?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
-        val passedCode = currencyCode?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+        // Settings currency from Room DB always wins
+        val dbCode = normalizeCode(currentCode)
+        // Passed code is used only when the database has no currency yet
+        val passedCode = normalizeCode(currencyCode)
 
-        // If Room DB has a code (e.g. CNY), use it even if caller passes legacy fallback "INR"
-        val targetCode = when {
-            // Case 1: Caller passed an explicit non-INR code different from default
-            passedCode != null && passedCode != "INR" -> passedCode
-            // Case 2: Room DB code exists (e.g., CNY)
-            dbCode != null -> dbCode
-            // Case 3: Fallback to passed code if Room DB is empty
-            passedCode != null -> passedCode
-            // Case 4: No currency available anywhere -> return empty string ""
-            else -> return ""
-        }
+        val targetCode = dbCode ?: passedCode ?: return ""
 
         return resolveSymbolForCode(targetCode)
+    }
+
+    private fun localeForCurrency(code: String): Locale {
+        return when (code) {
+            "INR" -> Locale("en", "IN")
+            else -> Locale.getDefault()
+        }
+    }
+
+    /**
+     * Formats an amount with the active currency.
+     * - amount == null: returns only the currency symbol (same as the JS helper)
+     * - autoDecimals = true: whole numbers show no decimals, others show [decimals] digits
+     */
+    fun format(
+        amount: Number?,
+        currencyCode: String? = null,
+        decimals: Int = 2,
+        autoDecimals: Boolean = true
+    ): String {
+        val code = normalizeCode(currentCode) ?: normalizeCode(currencyCode)
+        ?: return amount?.toString() ?: ""
+
+        if (amount == null) return resolveSymbolForCode(code)
+
+        val value = amount.toDouble()
+        val isWhole = value == Math.floor(value) && !value.isInfinite()
+        val fraction = if (autoDecimals && isWhole) 0 else decimals
+
+        return try {
+            val formatter = NumberFormat.getCurrencyInstance(localeForCurrency(code)) as DecimalFormat
+            formatter.currency = JavaCurrency.getInstance(code)
+
+            // Use the same symbol that getSymbol() returns so UI stays consistent
+            val symbols = formatter.decimalFormatSymbols
+            symbols.currencySymbol = resolveSymbolForCode(code)
+            formatter.decimalFormatSymbols = symbols
+
+            formatter.minimumFractionDigits = fraction
+            formatter.maximumFractionDigits = decimals
+            formatter.format(value)
+        } catch (e: Exception) {
+            Log.e(TAG, "format() failed for code '$code': ${e.message}")
+            "${resolveSymbolForCode(code)}$value"
+        }
     }
 
     private fun resolveSymbolForCode(code: String?): String {
@@ -111,10 +152,32 @@ object CurrencyHelper {
         }
     }
 }
+/**
+ * Cleans a raw currency value from the database.
+ * Accepts values like "INR", " eur ", "CNY (CY)" and returns a valid 3 letter ISO code or null.
+ */
+private fun normalizeCode(raw: String?): String? {
+    if (raw.isNullOrBlank()) return null
+    val token = Regex("[A-Za-z]{3}").find(raw)?.value?.uppercase() ?: return null
+    return try {
+        JavaCurrency.getInstance(token)
+        token
+    } catch (e: Exception) {
+        null
+    }
+}
+
 
 @Composable
 fun currentCurrency(): String = LocalCurrencySymbol.current
 
 fun currencySymbol(code: String? = null): String = CurrencyHelper.getSymbol(code)
 
-fun String?.toCurrencySymbol(): String = CurrencyHelper.getSymbol(this)
+fun String?.toformatCurrency(): String = CurrencyHelper.getSymbol(this)
+
+fun formatCurrency(
+    amount: Number? = null,
+    currency: String? = null,
+    decimals: Int = 2,
+    autoDecimals: Boolean = true
+): String = CurrencyHelper.format(amount, currency, decimals, autoDecimals)

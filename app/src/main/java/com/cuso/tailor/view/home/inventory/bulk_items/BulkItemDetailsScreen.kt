@@ -34,6 +34,7 @@ import com.cuso.tailor.view.home.pdfgenerator.BulkItemPdfGenerator
 import com.cuso.tailor.view.home.subscriptions.WhiteCard
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import androidx.core.net.toUri
+import com.cuso.tailor.utils.formatCurrency
 
 @Composable
 fun BulkDetailsScreen(
@@ -464,7 +465,7 @@ fun OverviewTabContent(item: BulkItemDoc) {
         Spacer(Modifier.height(20.dp))
         SectionHeader(Icons.Default.ShoppingCart, "PURCHASE INFORMATION")
         Text("Cost Price", fontSize = tokens.caption, color = iconMuted)
-        Text("${currencySymbol()}${item.costPrice}", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = TextPrimary)
+        Text("${formatCurrency()}${item.costPrice}", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = TextPrimary)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Purchase Account", fontSize = tokens.bodySmall, color = TextSecondary)
             Text(item.purchaseAccountId ?: "Cost of Goods Sold (COGS)", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextLog)
@@ -473,7 +474,7 @@ fun OverviewTabContent(item: BulkItemDoc) {
         Spacer(Modifier.height(20.dp))
         SectionHeader(Icons.Default.Sell, "SALES INFORMATION")
         Text("Selling Price", fontSize = tokens.caption, color = iconMuted)
-        Text("${currencySymbol()}${item.sellingPrice}", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = TextPrimary)
+        Text("${formatCurrency()}${item.sellingPrice}", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = TextPrimary)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Sales Account", fontSize = tokens.bodySmall, color = TextSecondary)
             Text(item.salesAccountId ?: "Sales Revenue", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextLog)
@@ -614,7 +615,7 @@ fun AssociatedItemCard(item: AssociatedItemDto) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Acc. Stock: ${item.accountingStock.toInt()}", fontSize = tokens.label, color = TextSecondary)
                     Text("Qty Req: ${item.qtyRequired}", fontSize = tokens.label, color = TextSecondary)
-                    Text("${currencySymbol()}${item.totalValue}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text("${formatCurrency()}${item.totalValue}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = TextPrimary)
                 }
             }
         }

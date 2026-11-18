@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.model.finance.JournalEntryItem
 import com.cuso.tailor.model.finance.JournalEntryLineRequest
 import com.cuso.tailor.ui.theme.title_color
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.AccordionSection
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.BackFabButton
@@ -52,7 +53,7 @@ import com.cuso.tailor.view.composable.PlanLimitDialog
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.view.composable.TrailingFabButton
-import com.cuso.tailor.view.composable.currencySymbol
+
 import com.cuso.tailor.view.home.toIsoDate
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
@@ -516,7 +517,7 @@ fun JournalEntryFormScreen(
                     ) {
                         Text("Total Debit", fontSize = 14.sp, color = TextSecondary)
                         Text(
-                            "${currencySymbol()}${"%.2f".format(totalDebit)}",
+                            "${formatCurrency()}${"%.2f".format(totalDebit)}",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF111827)
@@ -530,7 +531,7 @@ fun JournalEntryFormScreen(
                     ) {
                         Text("Total Credit", fontSize = 14.sp, color = TextSecondary)
                         Text(
-                            "${currencySymbol()}${"%.2f".format(totalCredit)}",
+                            "${formatCurrency()}${"%.2f".format(totalCredit)}",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF111827)
@@ -544,7 +545,7 @@ fun JournalEntryFormScreen(
                     ) {
                         Text("Difference", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111827))
                         Text(
-                            "${currencySymbol()}${"%.2f".format(abs(totalDebit - totalCredit))}",
+                            "${formatCurrency()}${"%.2f".format(abs(totalDebit - totalCredit))}",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = if (isBalanced) GreenText else RedText

@@ -17,6 +17,14 @@ data class PlanLimitsResponse(
 data class PlanLimitsData(
     @SerializedName("activePlanCode")
     val activePlanCode: String? = null,
+    @SerializedName("hasActiveSubscription")
+    val hasActiveSubscription: Boolean = false,
+    @SerializedName("isTrialExpired")
+    val isTrialExpired: Boolean = false,
+    @SerializedName("hasUsedTrial")
+    val hasUsedTrial: Boolean = false,
+    @SerializedName("lockReason")
+    val lockReason: String? = null,
     @SerializedName("subscription")
     val subscription: PlanSubscriptionDto? = null,
     @SerializedName("limits")
@@ -34,18 +42,52 @@ data class PlanSubscriptionDto(
     val planName: String? = null,
     @SerializedName("planCode")
     val planCode: String? = null,
+    @SerializedName("planPriceId")
+    val planPriceId: String? = null,
     @SerializedName("status")
     val status: String? = null,
+    @SerializedName("isTrial")
+    val isTrial: Boolean = false,
+    @SerializedName("trialEndDate")
+    val trialEndDate: String? = null,
     @SerializedName("startDate")
     val startDate: String? = null,
     @SerializedName("endDate")
     val endDate: String? = null,
+    @SerializedName("currentPeriodEnd")
+    val currentPeriodEnd: String? = null,
     @SerializedName("billingPeriod")
     val billingPeriod: String? = null,
     @SerializedName("currency")
     val currency: String? = null,
     @SerializedName("gatewayUsed")
-    val gatewayUsed: String? = null
+    val gatewayUsed: String? = null,
+    @SerializedName("trial")
+    val trial: PlanTrialDto? = null
+)
+
+/**
+ * Trial progress details returned inside subscription.trial from GET /api/plans/limits
+ */
+data class PlanTrialDto(
+    @SerializedName("hasPlan")
+    val hasPlan: Boolean = false,
+    @SerializedName("isTrial")
+    val isTrial: Boolean = false,
+    @SerializedName("status")
+    val status: String? = null,
+    @SerializedName("daysRemaining")
+    val daysRemaining: Int = 0,
+    @SerializedName("headerText")
+    val headerText: String? = null,
+    @SerializedName("progressText")
+    val progressText: String? = null,
+    @SerializedName("trialEndsFormatted")
+    val trialEndsFormatted: String? = null,
+    @SerializedName("progressPercentage")
+    val progressPercentage: Float = 0f,
+    @SerializedName("isExpired")
+    val isExpired: Boolean = false
 )
 
 data class PlanLimitsDto(

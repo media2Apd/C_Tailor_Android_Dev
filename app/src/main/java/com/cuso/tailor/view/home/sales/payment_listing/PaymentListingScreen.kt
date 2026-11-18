@@ -24,6 +24,7 @@ import androidx.navigation.NavController
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.adaptive_screen.getAdaptiveTokens
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.viewmodel.BranchUiState
@@ -316,7 +317,7 @@ fun PaymentListingScreen(
                                                         )
                                                         Spacer(Modifier.height(2.dp))
                                                         Text(
-                                                            text = "${currencySymbol()}${formatIndianNumber(billing?.paidAmount ?: 0.0)}",
+                                                            text = "${formatCurrency()}${formatIndianNumber(billing?.paidAmount ?: 0.0)}",
                                                             color = TextPrimary,
                                                             fontSize = tokens.bodyMedium,
                                                             fontWeight = FontWeight.Medium
@@ -343,7 +344,7 @@ fun PaymentListingScreen(
                                                         )
                                                         Spacer(Modifier.height(2.dp))
                                                         Text(
-                                                            text = "${currencySymbol()}${formatIndianNumber(balance)}",
+                                                            text = "${formatCurrency()}${formatIndianNumber(balance)}",
                                                             color = if (balance <= 0.0) greentext else redText,
                                                             fontSize = tokens.bodyMedium,
                                                             fontWeight = FontWeight.Medium

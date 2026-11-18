@@ -24,6 +24,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.ProcurementBillItem
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.PagingUiState
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.view.home.paywall.PermissionAction
@@ -37,8 +38,8 @@ data class PayableInvoiceItemModel(
     val status: String = "Draft",
     val date: String = "-",
     val dueDate: String = "-",
-    val balanceDueDate: String = "${currencySymbol()}0",
-    val totalAmount: String = "${currencySymbol()}0",
+    val balanceDueDate: String = "${formatCurrency()}0",
+    val totalAmount: String = "${formatCurrency()}0",
     val raw: ProcurementBillItem? = null
 )
 
@@ -308,8 +309,8 @@ private fun ProcurementBillItem.toUiModel(): PayableInvoiceItemModel {
         status = status.ifBlank { "Draft" },
         date = formatIsoDate(billDate),
         dueDate = formatIsoDate(dueDate),
-        balanceDueDate = "${currencySymbol()}${formatIndianNumber(balanceDue)}",
-        totalAmount = "${currencySymbol()}${formatIndianNumber(grandTotal)}",
+        balanceDueDate = "${formatCurrency()}${formatIndianNumber(balanceDue)}",
+        totalAmount = "${formatCurrency()}${formatIndianNumber(grandTotal)}",
         raw = this
     )
 }

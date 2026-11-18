@@ -29,15 +29,15 @@ data class WorkPricingListResponse(
  * Request model for creating or updating Work Pricing.
  */
 data class WorkPricingRequest(
-    @SerializedName("workType") val workType: String,
-    @SerializedName("segmentId") val segmentId: String,
-    @SerializedName("basePrice") val basePrice: Double,
-    @SerializedName("status") val status: String? = null,
-    @SerializedName("isTaxable") val isTaxable: Boolean = false,
-    @SerializedName("garmentId") val garmentId: String? = null,
-    @SerializedName("garmentCategoryId") val garmentCategoryId: String? = null,
-    @SerializedName("taxGroupId") val taxGroupId: String? = null,
-    @SerializedName("incomeAccount") val incomeAccount: String? = null
+    val workType: String,
+    val segmentId: String? = null,
+    val garmentId: String? = null,
+    val garmentCategoryId: String? = null,
+    val sacCode: String? = null,
+    val basePrice: Double,
+    val isTaxable: Boolean = true,
+    val taxGroupId: String? = null,
+    val status: String? = null
 )
 
 /**
@@ -108,6 +108,7 @@ data class WorkPricingDetail(
     @SerializedName("basePrice") val basePrice: Double,
     @SerializedName("status") val status: String,
     @SerializedName("isTaxable") val isTaxable: Boolean,
+    @SerializedName("sacCode", alternate = ["hsnSacCode"]) val sacCode: String? = null,
 
     // UI looks for detail.segment
     @SerializedName("segmentId") val segment: WorkPricingSegment?,

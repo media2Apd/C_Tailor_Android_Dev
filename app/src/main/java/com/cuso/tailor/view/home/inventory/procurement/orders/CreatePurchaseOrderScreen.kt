@@ -1,13 +1,5 @@
-@file:Suppress(
-    "UNUSED_PARAMETER",
-    "unused",
-    "UNCHECKED_CAST",
-    "DEPRECATION",
-    "AssignedValueIsNeverRead",
-    "GrazieInspection",
-    "SpellCheckingInspection",
-    "unusedvariable"
-)
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
+
 
 package com.cuso.tailor.view.home.inventory.procurement.orders
 
@@ -24,9 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.LowStockItemDto
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.util.Locale
@@ -280,7 +273,7 @@ fun CreatePurchaseOrderScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = "${currencySymbol()}",
+                                            text = formatCurrency(),
                                             fontSize = tokens.bodySmall,
                                             color = TextSecondary,
                                             fontWeight = FontWeight.Medium
@@ -339,7 +332,7 @@ fun CreatePurchaseOrderScreen(
                             }
 
                             Text(
-                                text = "${currencySymbol()} ${String.format(Locale.US, "%,.0f", totalOrderValue)}",
+                                text = "${formatCurrency()} ${String.format(Locale.US, "%,.0f", totalOrderValue)}",
                                 fontSize = tokens.bodyLarge,
                                 fontWeight = FontWeight.Medium,
                                 color = Primary
@@ -480,7 +473,7 @@ fun CreatePurchaseOrderScreen(
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
-                                            imageVector = Icons.Outlined.InsertDriveFile,
+                                            imageVector = Icons.AutoMirrored.Outlined.InsertDriveFile,
                                             contentDescription = null,
                                             tint = Primary,
                                             modifier = Modifier.size(tokens.iconSize)

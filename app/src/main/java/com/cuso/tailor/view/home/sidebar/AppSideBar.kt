@@ -579,7 +579,7 @@ object SidebarConfig {
                     "Organization Structure",
                     "Attendance Management",
                     "Leave Management",
-                    "Payroll Management",
+//                    "Payroll Management",
                     "Expense Management",
                     "Training Management",
                     "Document Management",
@@ -603,13 +603,13 @@ object SidebarConfig {
                         "Leave Balance",
                         "Leave Approval"
                     ),
-                    "Payroll Management" to listOf(
-                        "Salary Templates",
-                        "Salary Components",
-                        "Reimbursements",
-                        "Bonus & Incentive",
-                        "Bonus Approval"
-                    ),
+//                    "Payroll Management" to listOf(
+//                        "Salary Templates",
+//                        "Salary Components",
+//                        "Reimbursements",
+//                        "Bonus & Incentive",
+//                        "Bonus Approval"
+//                    ),
                     "Expense Management" to listOf(
                         "Approvals",
                         "New Claims",

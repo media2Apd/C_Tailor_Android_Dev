@@ -18,6 +18,7 @@ import com.cuso.tailor.model.finance.BankStatementLineDto
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.utils.PagingUiState
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.viewmodel.FinanceViewModel
 
 @SuppressLint("DefaultLocale")
@@ -153,7 +154,7 @@ fun BankStatementListScreen(
                             footerFields = listOf(
                                 DataCardField(
                                     label = "Debit",
-                                    text = "${currencySymbol()}${
+                                    text = "${formatCurrency()}${
                                         String.format(
                                             LocalLocale.current.platformLocale,
                                             "%,.2f",
@@ -165,7 +166,7 @@ fun BankStatementListScreen(
                                 ),
                                 DataCardField(
                                     label = "Credit",
-                                    text = "${currencySymbol()}${
+                                    text = "${formatCurrency()}${
                                         String.format(
                                             LocalLocale.current.platformLocale,
                                             "%,.2f",
@@ -177,7 +178,7 @@ fun BankStatementListScreen(
                                 ),
                                 DataCardField(
                                     label = "Run Balance",
-                                    text = "${currencySymbol()}${
+                                    text = "${formatCurrency()}${
                                         String.format(
                                             LocalLocale.current.platformLocale,
                                             "%,.2f",

@@ -23,7 +23,8 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.finance.CreateCreditNoteLineRequest
 import com.cuso.tailor.model.finance.CreateCreditNoteRequest
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.utils.toIsoDateTime
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.BranchUiState
@@ -526,7 +527,7 @@ fun CreateCreditNoteScreen(
                                     }
 
                                     Column(modifier = Modifier.weight(1f)) {
-                                        FormLabel(text = "Rate (${currencySymbol()})", isRequired = true)
+                                        FormLabel(text = "Rate (${formatCurrency()})", isRequired = true)
                                         FormTextField(
                                             value = item.rate,
                                             onValueChange = { newRate ->
@@ -565,7 +566,7 @@ fun CreateCreditNoteScreen(
                                     horizontalArrangement = Arrangement.End
                                 ) {
                                     Text(
-                                        text = "Item Total: ${currencySymbol()}${String.format(Locale.US, "%.2f", lineTotal)}",
+                                        text = "Item Total: ${formatCurrency()}${String.format(Locale.US, "%.2f", lineTotal)}",
                                         fontSize = tokens.caption,
                                         fontWeight = FontWeight.Medium,
                                         color = TitleColor
@@ -639,7 +640,7 @@ fun CreateCreditNoteScreen(
                     ) {
                         Text("Sub Total:", fontSize = tokens.bodySmall, color = TextSecondary)
                         Text(
-                            text = "${currencySymbol()}${String.format(Locale.US, "%.2f", subtotal)}",
+                            text = "${formatCurrency()}${String.format(Locale.US, "%.2f", subtotal)}",
                             fontSize = tokens.bodySmall,
                             color = TitleColor,
                             fontWeight = FontWeight.Medium
@@ -654,7 +655,7 @@ fun CreateCreditNoteScreen(
                     ) {
                         Text("Tax:", fontSize = tokens.bodySmall, color = TextSecondary)
                         Text(
-                            text = "+${currencySymbol()}${String.format(Locale.US, "%.2f", totalTax)}",
+                            text = "+${formatCurrency()}${String.format(Locale.US, "%.2f", totalTax)}",
                             fontSize = tokens.bodySmall,
                             color = greentext,
                             fontWeight = FontWeight.Medium
@@ -675,7 +676,7 @@ fun CreateCreditNoteScreen(
                             color = TitleColor
                         )
                         Text(
-                            text = "${currencySymbol()}${String.format(Locale.US, "%.2f", totalCredits)}",
+                            text = "${formatCurrency()}${String.format(Locale.US, "%.2f", totalCredits)}",
                             fontSize = tokens.bodyLarge,
                             fontWeight = FontWeight.Medium,
                             color = Primary

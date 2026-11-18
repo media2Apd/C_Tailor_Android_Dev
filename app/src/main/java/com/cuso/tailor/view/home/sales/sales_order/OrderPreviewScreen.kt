@@ -47,7 +47,8 @@ import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.sales.OrderReviewData
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
 data class OrderConfirmData(
@@ -348,20 +349,20 @@ fun OrderPreviewScreen(
                         pricing.lines.forEachIndexed { lineIndex, line ->
                             PriceLineItem(
                                 name = "#${line.itemNumber} ${line.title} x${line.quantity}",
-                                price = "${currencySymbol()}${formatIndianNumber(line.total)}"
+                                price = "${formatCurrency()}${formatIndianNumber(line.total)}"
                             )
 
                             // Component breakdown for this item
                             if (line.stitching > 0.0) {
-                                PriceBreakdownLine("Stitching", "${currencySymbol()}${formatIndianNumber(line.stitching)}")
+                                PriceBreakdownLine("Stitching", "${formatCurrency()}${formatIndianNumber(line.stitching)}")
                             }
                             if (line.fabric > 0.0) {
-                                PriceBreakdownLine("Fabric", "${currencySymbol()}${formatIndianNumber(line.fabric)}")
+                                PriceBreakdownLine("Fabric", "${formatCurrency()}${formatIndianNumber(line.fabric)}")
                             }
                             if (line.additionalWork > 0.0) {
-                                PriceBreakdownLine("Additional Work", "${currencySymbol()}${formatIndianNumber(line.additionalWork)}")
+                                PriceBreakdownLine("Additional Work", "${formatCurrency()}${formatIndianNumber(line.additionalWork)}")
                             }
-                            PriceBreakdownLine("GST", "${currencySymbol()}${formatIndianNumber(line.gst)}")
+                            PriceBreakdownLine("GST", "${formatCurrency()}${formatIndianNumber(line.gst)}")
 
                             // Item configuration details entered in Create Order
                             line.details.forEach { (detailLabel, detailValue) ->
@@ -380,9 +381,9 @@ fun OrderPreviewScreen(
                     HorizontalDivider(color = dividerColor)
                     Spacer(Modifier.height(8.dp))
 
-                    PriceSummaryLine("Subtotal", "${currencySymbol()}${formatIndianNumber(subtotal)}")
-                    PriceSummaryLine("Discount", "- ${currencySymbol()}${formatIndianNumber(discountAmount)}", isRed = true)
-                    PriceSummaryLine("Tax (GST)", "+ ${currencySymbol()}${formatIndianNumber(taxAmount)}")
+                    PriceSummaryLine("Subtotal", "${formatCurrency()}${formatIndianNumber(subtotal)}")
+                    PriceSummaryLine("Discount", "- ${formatCurrency()}${formatIndianNumber(discountAmount)}", isRed = true)
+                    PriceSummaryLine("Tax (GST)", "+ ${formatCurrency()}${formatIndianNumber(taxAmount)}")
 
                     Spacer(Modifier.height(6.dp))
                     HorizontalDivider(color = dividerColor)
@@ -394,7 +395,7 @@ fun OrderPreviewScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Grand Total", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = title_color)
-                        Text("${currencySymbol()}${formatIndianNumber(grandTotal)}", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Primary)
+                        Text("${formatCurrency()}${formatIndianNumber(grandTotal)}", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = Primary)
                     }
                 }
 
@@ -411,7 +412,7 @@ fun OrderPreviewScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text("+ Add Custom Charges", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = Primary)
-                        Text("Discount: ${currencySymbol()}${formatIndianNumber(discountAmount)}", fontSize = tokens.bodySmall, color = headerGrey)
+                        Text("Discount: ${formatCurrency()}${formatIndianNumber(discountAmount)}", fontSize = tokens.bodySmall, color = headerGrey)
                     }
 
                     Spacer(Modifier.height(12.dp))
@@ -488,12 +489,12 @@ fun OrderPreviewScreen(
                     FormTextField(
                         value = paymentAmountReceived,
                         onValueChange = { paymentAmountReceived = it },
-                        placeholder = "${currencySymbol()} 0",
+                        placeholder = "${formatCurrency()} 0",
                         keyboardType = KeyboardType.Number
                     )
                     Text(
                         text = if (advancePaid > 0.0) {
-                            "* Payment of ${currencySymbol()}${formatIndianNumber(advancePaid)} will be recorded with this order."
+                            "* Payment of ${formatCurrency()}${formatIndianNumber(advancePaid)} will be recorded with this order."
                         } else {
                             "* No payment collected right now."
                         },
@@ -532,7 +533,7 @@ fun OrderPreviewScreen(
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text("Advance Paid", fontSize = 11.sp, color = Color(0xFF166534))
                                 Spacer(Modifier.height(4.dp))
-                                Text("${currencySymbol()}${formatIndianNumber(advancePaid)}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF166534))
+                                Text("${formatCurrency()}${formatIndianNumber(advancePaid)}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF166534))
                             }
                         }
 
@@ -544,7 +545,7 @@ fun OrderPreviewScreen(
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text("Balance Due", fontSize = 11.sp, color = Color(0xFF991B1B))
                                 Spacer(Modifier.height(4.dp))
-                                Text("${currencySymbol()}${formatIndianNumber(balanceDue)}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF991B1B))
+                                Text("${formatCurrency()}${formatIndianNumber(balanceDue)}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF991B1B))
                             }
                         }
                     }

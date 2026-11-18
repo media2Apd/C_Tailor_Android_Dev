@@ -30,6 +30,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.hr.ExpenseClaimAttachmentDto
 import com.cuso.tailor.model.hr.ExpenseClaimDto
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.HrViewModel
 import java.text.NumberFormat
@@ -297,7 +298,7 @@ private fun AmountBreakdownCard(claim: ExpenseClaimDto) {
                         .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "INR (${currencySymbol()})",
+                        text = "INR (${formatCurrency()})",
                         fontSize = tokens.label,
                         fontWeight = FontWeight.Medium,
                         color = Primary

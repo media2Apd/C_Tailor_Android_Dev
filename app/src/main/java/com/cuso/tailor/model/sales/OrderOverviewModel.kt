@@ -111,6 +111,7 @@ data class OrderOverviewData(
     @SerializedName("salespersonId") val salespersonId: OrderSalesperson? = null,
     @SerializedName("paymentTermId") val paymentTermId: OrderPaymentTerm? = null,
     @SerializedName("orderType") val orderType: String? = null,
+    @SerializedName("orderSource") val orderSource: String? = null,
     @SerializedName("priority") val priority: String? = null,
     @SerializedName("orderNotes") val orderNotes: String? = null,
     @SerializedName("billingNotes") val billingNotes: String? = null,

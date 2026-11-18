@@ -39,10 +39,11 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.finance.CustomerPaymentDetailData
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.currencySymbol
+
 import com.cuso.tailor.view.home.pdfgenerator.FinancePaymentReceiptPdfGenerator
 import com.cuso.tailor.viewmodel.FinanceViewModel
 import java.text.SimpleDateFormat
@@ -852,4 +853,4 @@ private fun SummaryRow(
 }
 
 @SuppressLint("DefaultLocale")
-private fun formatRupee(amount: Double): String = "${currencySymbol()}${String.format("%,.2f", amount)}"
+private fun formatRupee(amount: Double): String = "${formatCurrency()}${String.format("%,.2f", amount)}"

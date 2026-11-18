@@ -39,7 +39,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.logistics.*
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.DatePickerField
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.viewmodel.LogisticsViewModel
@@ -262,7 +263,7 @@ fun LogisticsDashboardScreen(
                                     )
                                     KpiCard(
                                         title = "COD Collections",
-                                        value = kpis.codCollections?.value ?: "${currencySymbol()}0",
+                                        value = kpis.codCollections?.value ?: "${formatCurrency()}0",
                                         trend = kpis.codCollections?.comparison.orEmpty(),
                                         icon = Icons.Default.CurrencyRupee,
                                         iconColor = chartEmerald,
@@ -917,7 +918,7 @@ fun LogisticsDashboardScreen(
                                             }
 
                                             Text(
-                                                text = "${currencySymbol()}${order.amount.toInt()}",
+                                                text = "${formatCurrency()}${order.amount.toInt()}",
                                                 fontSize = tokens.caption,
                                                 fontWeight = FontWeight.Medium,
                                                 color = TextPrimary,
@@ -930,7 +931,7 @@ fun LogisticsDashboardScreen(
                                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                                             ) {
                                                 Text(
-                                                    text = "${currencySymbol()}${order.collected.toInt()}",
+                                                    text = "${formatCurrency()}${order.collected.toInt()}",
                                                     fontSize = tokens.caption,
                                                     fontWeight = FontWeight.Medium,
                                                     color = if (order.collected > 0) chartEmerald else headerGrey

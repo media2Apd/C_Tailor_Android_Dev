@@ -48,7 +48,8 @@ import com.cuso.tailor.model.hr.MyProfileData
 import com.cuso.tailor.model.hr.OrgDashboardData
 import com.cuso.tailor.model.hr.ShiftDetailData
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.DataCardProgressBar
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormTextField
@@ -5540,7 +5541,7 @@ private fun OverviewSectionContent(
             KpiStatCard(
                 modifier = Modifier.weight(1f),
                 title = "Payroll This Month",
-                value = "${currencySymbol()} 0",
+                value = "${formatCurrency()} 0",
                 subLabel = "Processed payout",
                 subLabelColor = headerGrey,
                 icon = Icons.Default.AccountBalanceWallet

@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
+
 package com.cuso.tailor.view.home.inventory.approval
 
 import androidx.compose.foundation.background
@@ -38,7 +40,8 @@ import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import com.cuso.tailor.R
-import com.cuso.tailor.view.composable.currencySymbol
+import com.cuso.tailor.utils.formatCurrency
+
 
 @Composable
 fun ApprovalDetailScreen(
@@ -190,12 +193,12 @@ fun ApprovalDetailScreen(
                         ApprovalCardContainer(tokens = tokens) {
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Text("Total Estimated Amount", fontSize = tokens.caption, color = headerGrey)
-                                Text("${currencySymbol()}${data.estimatedTotal.toInt()}", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Medium, color = title_color)
+                                Text("${formatCurrency()}${data.estimatedTotal.toInt()}", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Medium, color = title_color)
 
                                 HorizontalDivider(color = dividerColor, thickness = 1.dp)
 
-                                TwoColumnRow(label = "Estimated Subtotal", value = "${currencySymbol()}${data.estimatedSubtotal.toInt()}", tokens = tokens)
-                                TwoColumnRow(label = "GST Amount", value = "${currencySymbol()}${data.estimatedTax.toInt()}", tokens = tokens)
+                                TwoColumnRow(label = "Estimated Subtotal", value = "${formatCurrency()}${data.estimatedSubtotal.toInt()}", tokens = tokens)
+                                TwoColumnRow(label = "GST Amount", value = "${formatCurrency()}${data.estimatedTax.toInt()}", tokens = tokens)
 
                                 HorizontalDivider(color = dividerColor, thickness = 1.dp)
 
@@ -380,11 +383,11 @@ private fun RequestedItemApiCard(item: ApprovalItemDoc, tokens: AppDesignTokens)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Unit Cost", fontSize = tokens.caption, color = dataCardField)
-                    Text("${currencySymbol()}${item.rate.toInt()}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
+                    Text("${formatCurrency()}${item.rate.toInt()}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("Total", fontSize = tokens.caption, color = dataCardField)
-                    Text("${currencySymbol()}${item.total.toInt()}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
+                    Text("${formatCurrency()}${item.total.toInt()}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
                 }
             }
         }

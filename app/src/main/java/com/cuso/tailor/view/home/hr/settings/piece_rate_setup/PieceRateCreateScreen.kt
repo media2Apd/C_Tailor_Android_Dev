@@ -90,7 +90,6 @@ fun AddEditPieceRateScreen(
         topBar = {
             TitleBar(
                 title = if (isEdit) "Edit Piece Rate" else "Add Piece Rate",
-                subtitle = "Configure regular and overtime piece rate for tailor work",
                 onClose = onClose
             )
         },

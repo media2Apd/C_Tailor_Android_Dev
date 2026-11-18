@@ -18,7 +18,6 @@ import com.cuso.tailor.model.sales.BillingPaymentListResponse
 import com.cuso.tailor.model.sales.CancelOrderRequest
 import com.cuso.tailor.model.sales.CancelOrderResponse
 import com.cuso.tailor.model.sales.CategoryItem
-import com.cuso.tailor.model.sales.ConvertLeadToOpportunityRequest
 import com.cuso.tailor.model.sales.ConvertToOrderData
 import com.cuso.tailor.model.sales.CreateLeadFormRequest
 import com.cuso.tailor.model.sales.CustomerAnalyticsData
@@ -599,21 +598,21 @@ class SalesViewModel @Inject constructor(
     private val _convertLeadState = MutableStateFlow<OpportunityActionState>(OpportunityActionState.Idle)
     val convertLeadState: StateFlow<OpportunityActionState> = _convertLeadState.asStateFlow()
 
-    fun convertLeadToOpportunity(request: ConvertLeadToOpportunityRequest) {
-        viewModelScope.launch {
-            _convertLeadState.value = OpportunityActionState.Loading
-            repository.convertLeadToOpportunity(request).fold(
-                onSuccess = { response ->
-                    _convertLeadState.value = OpportunityActionState.Success(response.message)
-                },
-                onFailure = { error ->
-                    _convertLeadState.value = OpportunityActionState.Error(
-                        error.localizedMessage ?: "Failed to convert lead"
-                    )
-                }
-            )
-        }
-    }
+//    fun convertLeadToOpportunity(request: ConvertLeadToOpportunityRequest) {
+//        viewModelScope.launch {
+//            _convertLeadState.value = OpportunityActionState.Loading
+//            repository.convertLeadToOpportunity(request).fold(
+//                onSuccess = { response ->
+//                    _convertLeadState.value = OpportunityActionState.Success(response.message)
+//                },
+//                onFailure = { error ->
+//                    _convertLeadState.value = OpportunityActionState.Error(
+//                        error.localizedMessage ?: "Failed to convert lead"
+//                    )
+//                }
+//            )
+//        }
+//    }
 
     fun resetConvertLeadState() {
         _convertLeadState.value = OpportunityActionState.Idle

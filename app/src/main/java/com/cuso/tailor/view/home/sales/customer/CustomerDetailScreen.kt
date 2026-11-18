@@ -5,6 +5,7 @@
     "AssignedValueIsNeverRead",
     "unused_variable",
     "unused_parameter",
+    "VariableNeverRead",
     "UnusedMaterial3ScaffoldPaddingParameter", "SameParameterValue"
 )
 package com.cuso.tailor.view.home.sales.customer
@@ -38,12 +39,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.toIsoDate
 import com.cuso.tailor.viewmodel.CustomerCreateState
@@ -779,7 +780,7 @@ private fun OrderPaymentStep() {
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OrderStatBox(modifier = Modifier.weight(1f), label = "Last orders", value = "Jan 2026")
-                OrderStatBox(modifier = Modifier.weight(1f), label = "Avg. order value", value = "${currencySymbol()}15.6K", highlight = true)
+                OrderStatBox(modifier = Modifier.weight(1f), label = "Avg. order value", value = "${formatCurrency()}15.6K", highlight = true)
             }
         }
         Spacer(Modifier.height(16.dp))
@@ -798,7 +799,7 @@ private fun OrderPaymentStep() {
                 Column {
                     Text("Total Spend", fontSize = tokens.bodySmall, color = greentext)
                     Spacer(Modifier.height(4.dp))
-                    Text("${currencySymbol()}4,36,800", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = greentext)
+                    Text("${formatCurrency()}4,36,800", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = greentext)
                 }
             }
             Spacer(Modifier.height(10.dp))
@@ -811,7 +812,7 @@ private fun OrderPaymentStep() {
                 Column {
                     Text("Pending Payment", fontSize = tokens.bodySmall, color = redText)
                     Spacer(Modifier.height(4.dp))
-                    Text("${currencySymbol()}8,500", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = redText)
+                    Text("${formatCurrency()}8,500", fontSize = tokens.h2, fontWeight = FontWeight.Bold, color = redText)
                 }
             }
         }
@@ -834,9 +835,9 @@ private fun OrderPaymentStep() {
 
             OrderHistoryTable(
                 orders = listOf(
-                    OrderHistoryRow("ORD-01", "Jan 6, 2026", "Wedding Sherwani", "${currencySymbol()}3,500", "Completed"),
-                    OrderHistoryRow("ORD-02", "Jan 6, 2026", "Designer Blouse", "${currencySymbol()}3,500", "Pending"),
-                    OrderHistoryRow("ORD-03", "Jan 6, 2026", "Custom Suit", "${currencySymbol()}3,500", "In Progress")
+                    OrderHistoryRow("ORD-01", "Jan 6, 2026", "Wedding Sherwani", "${formatCurrency()}3,500", "Completed"),
+                    OrderHistoryRow("ORD-02", "Jan 6, 2026", "Designer Blouse", "${formatCurrency()}3,500", "Pending"),
+                    OrderHistoryRow("ORD-03", "Jan 6, 2026", "Custom Suit", "${formatCurrency()}3,500", "In Progress")
                 )
             )
         }

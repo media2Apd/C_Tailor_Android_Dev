@@ -55,6 +55,7 @@ import com.cuso.tailor.ui.theme.TextSecondary
 import com.cuso.tailor.ui.theme.dividerColor
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.DatePickerField
 import com.cuso.tailor.view.composable.FormAccordionCard
 import com.cuso.tailor.view.composable.FormActionButtons
@@ -67,7 +68,7 @@ import com.cuso.tailor.view.composable.ImageUploadSection
 import com.cuso.tailor.view.composable.LineItemFormEntry
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.currencySymbol
+
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -597,7 +598,7 @@ fun POCreateScreen(
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                             Text("Subtotal", fontSize = tokens.bodySmall, color = TextSecondary)
                             Text(
-                                text = String.format(Locale.US, "${currencySymbol()} %,.2f", calculatedSubtotal),
+                                text = String.format(Locale.US, "${formatCurrency()} %,.2f", calculatedSubtotal),
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = TextPrimary
@@ -609,7 +610,7 @@ fun POCreateScreen(
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                             Text("Tax", fontSize = tokens.bodySmall, color = TextSecondary)
                             Text(
-                                text = String.format(Locale.US, "${currencySymbol()} %,.2f", calculatedTax),
+                                text = String.format(Locale.US, "${formatCurrency()} %,.2f", calculatedTax),
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = TextPrimary
@@ -623,7 +624,7 @@ fun POCreateScreen(
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                             Text("Grand Total", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
                             Text(
-                                text = String.format(Locale.US, "${currencySymbol()} %,.2f", calculatedGrandTotal),
+                                text = String.format(Locale.US, "${formatCurrency()} %,.2f", calculatedGrandTotal),
                                 fontSize = tokens.bodyLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = Primary

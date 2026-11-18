@@ -84,15 +84,17 @@ fun DesignSetupScreen(
     val dynamicSuccess by viewModel.dynamicSuccessMessage.collectAsState()
     val dynamicError by viewModel.dynamicErrorMessage.collectAsState()
 
-    // Fetch designs initially
+    // Fetch dropdown metadata once on entry
     LaunchedEffect(Unit) {
-        viewModel.fetchDesigns()
         viewModel.fetchSegments()
         viewModel.fetchGarments()
     }
 
-    // Trigger debounced search when user types
+    // Fetch designs initially and debounce subsequent search input
     LaunchedEffect(searchQuery) {
+        if (searchQuery.isNotBlank()) {
+            kotlinx.coroutines.delay(350)
+        }
         viewModel.fetchDesigns(search = searchQuery.takeIf { it.isNotBlank() })
     }
 
@@ -155,7 +157,7 @@ fun DesignSetupScreen(
                 SearchFilterBar(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
-                    placeholder = "Search SO number, customer...",
+                    placeholder = "Search designs...",
                     accentColor = Primary,
                     borderColor = BorderGray,
                     textSecondaryColor = TextSecondary,

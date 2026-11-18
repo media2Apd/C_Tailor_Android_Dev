@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.sales.OpportunityDto
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.OpportunityDetailUiState
 import com.cuso.tailor.viewmodel.OpportunityViewModel
@@ -160,7 +161,7 @@ fun OpportunityDetailScreen(
                         ) {
                             DetailMetricBox(
                                 label = "VALUE",
-                                value = "${currencySymbol()}${item.estimatedValue?.toLong() ?: 0}",
+                                value = "${formatCurrency()}${item.estimatedValue?.toLong() ?: 0}",
                                 valueColor = Primary,
                                 modifier = Modifier.weight(1f)
                             )
@@ -264,7 +265,7 @@ fun OpportunityDetailScreen(
                         DealInfoRow(label = "Mobile", value = item.customer?.mobileNumber ?: "—")
                         DealInfoRow(label = "Store", value = item.branch?.name ?: "Main Branch")
                         DealInfoRow(label = "Stage", value = item.stage?.name ?: "—", leadingDotColor = Primary, valueColor = Primary)
-                        DealInfoRow(label = "Value", value = "${currencySymbol()}${item.estimatedValue ?: 0.0}")
+                        DealInfoRow(label = "Value", value = "${formatCurrency()}${item.estimatedValue ?: 0.0}")
                         DealInfoRow(label = "Closing Date", value = item.expectedClosingDate?.take(10) ?: "—")
 
                         // Probability Progress Bar
@@ -380,7 +381,7 @@ fun OpportunityDetailScreen(
                                 color = TextPrimary
                             )
                             Text(
-                                text = "${currencySymbol()}${item.estimatedValue ?: 0.0}",
+                                text = "${formatCurrency()}${item.estimatedValue ?: 0.0}",
                                 fontSize = tokens.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = Primary

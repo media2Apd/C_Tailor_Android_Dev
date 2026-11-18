@@ -4,7 +4,7 @@ package com.cuso.tailor.view.home.pdfgenerator
 //import android.print.PrintManager
 //import android.webkit.WebView
 //import android.webkit.WebViewClient
-//import com.cuso.tailor.utils.currencySymbol
+//
 //import com.itextpdf.kernel.colors.ColorConstants
 //import com.itextpdf.kernel.font.PdfFontFactory
 //import com.itextpdf.kernel.geom.PageSize
@@ -94,11 +94,11 @@ package com.cuso.tailor.view.home.pdfgenerator
 //
 //            data.items.forEach { item ->
 //                // Main Item Row: Qty x Name
-//                addReceiptRow(itemTable, "${item.quantity} x ${item.name}", "${currencySymbol()}${item.price.toInt()}", font)
+//                addReceiptRow(itemTable, "${item.quantity} x ${item.name}", "${formatCurrency()}${item.price.toInt()}", font)
 //
 //                // Additional Charges Sub-Row
 //                if (item.additionalCharge > 0) {
-//                    addReceiptRow(itemTable, "  + Addl Charges", "${currencySymbol()}${item.additionalCharge.toInt()}", font, 10f, ColorConstants.GRAY)
+//                    addReceiptRow(itemTable, "  + Addl Charges", "${formatCurrency()}${item.additionalCharge.toInt()}", font, 10f, ColorConstants.GRAY)
 //                }
 //            }
 //            document.add(itemTable)
@@ -107,17 +107,17 @@ package com.cuso.tailor.view.home.pdfgenerator
 //
 //            // Charges and Payments
 //            val summaryTable = Table(UnitValue.createPercentArray(floatArrayOf(70f, 30f))).useAllAvailableWidth()
-//            addReceiptRow(summaryTable, "Extra Charges:", "${currencySymbol()}${data.otherCharges.toInt()}", font)
-//            addReceiptRow(summaryTable, "Discount:", "- ${currencySymbol()}${0}", font) // Placeholder for discount if needed
-//            addReceiptRow(summaryTable, "PAID NOW:", "${currencySymbol()}${data.paidAmount.toInt()}", fontBold)
+//            addReceiptRow(summaryTable, "Extra Charges:", "${formatCurrency()}${data.otherCharges.toInt()}", font)
+//            addReceiptRow(summaryTable, "Discount:", "- ${formatCurrency()}${0}", font) // Placeholder for discount if needed
+//            addReceiptRow(summaryTable, "PAID NOW:", "${formatCurrency()}${data.paidAmount.toInt()}", fontBold)
 //            document.add(summaryTable)
 //
 //            document.add(Paragraph("-----------------------------").setTextAlignment(TextAlignment.CENTER))
 //
 //            // Final Bill and Balance
 //            val finalTable = Table(UnitValue.createPercentArray(floatArrayOf(70f, 30f))).useAllAvailableWidth()
-//            addReceiptRow(finalTable, "Total Bill:", "${currencySymbol()}${data.totalAmount.toInt()}", font)
-//            addReceiptRow(finalTable, "Balance:", "${currencySymbol()}${data.balanceAmount.toInt()}", font)
+//            addReceiptRow(finalTable, "Total Bill:", "${formatCurrency()}${data.totalAmount.toInt()}", font)
+//            addReceiptRow(finalTable, "Balance:", "${formatCurrency()}${data.balanceAmount.toInt()}", font)
 //            document.add(finalTable)
 //
 //            document.add(Paragraph("-----------------------------").setTextAlignment(TextAlignment.CENTER))
@@ -151,12 +151,12 @@ package com.cuso.tailor.view.home.pdfgenerator
 //            """
 //            <div class="row">
 //                <span>${item.quantity} x ${item.name}</span>
-//                <span>${currencySymbol()}${item.price.toInt()}</span>
+//                <span>${formatCurrency()}${item.price.toInt()}</span>
 //            </div>
 //            ${if (item.additionalCharge > 0) """
 //            <div class="row sub-item">
 //                <span>&nbsp;&nbsp;+ Addl Charges</span>
-//                <span>${currencySymbol()}${item.additionalCharge.toInt()}</span>
+//                <span>${formatCurrency()}${item.additionalCharge.toInt()}</span>
 //            </div>
 //            """ else ""}
 //            """.trimIndent()
@@ -200,14 +200,14 @@ package com.cuso.tailor.view.home.pdfgenerator
 //
 //            <div class="divider"></div>
 //
-//            <div class="row"><span>Extra Charges:</span><span>${currencySymbol()}${data.otherCharges.toInt()}</span></div>
-//            <div class="row"><span>Discount:</span><span>- ${currencySymbol()}0</span></div>
-//            <div class="row bold"><span>PAID NOW:</span><span>${currencySymbol()}${data.paidAmount.toInt()}</span></div>
+//            <div class="row"><span>Extra Charges:</span><span>${formatCurrency()}${data.otherCharges.toInt()}</span></div>
+//            <div class="row"><span>Discount:</span><span>- ${formatCurrency()}0</span></div>
+//            <div class="row bold"><span>PAID NOW:</span><span>${formatCurrency()}${data.paidAmount.toInt()}</span></div>
 //
 //            <div class="divider"></div>
 //
-//            <div class="row"><span>Total Bill:</span><span>${currencySymbol()}${data.totalAmount.toInt()}</span></div>
-//            <div class="row"><span>Balance:</span><span>${currencySymbol()}${data.balanceAmount.toInt()}</span></div>
+//            <div class="row"><span>Total Bill:</span><span>${formatCurrency()}${data.totalAmount.toInt()}</span></div>
+//            <div class="row"><span>Balance:</span><span>${formatCurrency()}${data.balanceAmount.toInt()}</span></div>
 //
 //            <div class="divider"></div>
 //

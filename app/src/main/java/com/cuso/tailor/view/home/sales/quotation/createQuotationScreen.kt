@@ -61,7 +61,8 @@ import com.cuso.tailor.model.settings.GarmentStyleItem
 import com.cuso.tailor.model.settings.WorkPricingItem
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.pdfgenerator.QuotationPdfGenerator
 import com.cuso.tailor.viewmodel.*
@@ -152,7 +153,7 @@ data class QuotationScopeItem(
 }
 
 private fun formatPrice(amount: Double): String =
-    "${currencySymbol()}${String.format(Locale.US, "%,.0f", amount)}"
+    "${formatCurrency()}${String.format(Locale.US, "%,.0f", amount)}"
 
 // ─────────────────────────────────────────────────────────────
 // HELPERS
@@ -1336,7 +1337,7 @@ private fun ScopeGarmentCard(
                                         }
                                     ) {
                                         Text(
-                                            text = if (isSelected) "✓ ${workItem.workType} (${currencySymbol()}${workItem.basePrice.toInt()})" else "+ ${workItem.workType} (${currencySymbol()}${workItem.basePrice.toInt()})",
+                                            text = if (isSelected) "✓ ${workItem.workType} (${formatCurrency()}${workItem.basePrice.toInt()})" else "+ ${workItem.workType} (${formatCurrency()}${workItem.basePrice.toInt()})",
                                             fontSize = tokens.caption,
                                             fontWeight = FontWeight.Medium,
                                             color = if (isSelected) Primary else TextPrimary,

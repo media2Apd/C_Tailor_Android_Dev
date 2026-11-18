@@ -32,6 +32,8 @@ import com.cuso.tailor.model.login_forgotPassword_resetPassword.Settings
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Subscription
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Tokens
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.User
+import com.cuso.tailor.model.login_forgotPassword_resetPassword.ChangeTemporaryPasswordRequest
+import com.cuso.tailor.model.login_forgotPassword_resetPassword.ChangeTemporaryPasswordResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.VerifyTwoFARequest
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.VerifyTwoFAResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.organizationSetUpRequest
@@ -46,7 +48,7 @@ import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.repository.AuthRepository
 import com.cuso.tailor.repository.LoginRepository
 import com.cuso.tailor.utils.launchBusy
-import com.cuso.tailor.utils.toCurrencySymbol
+import com.cuso.tailor.utils.toformatCurrency
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
@@ -62,6 +64,7 @@ import javax.inject.Inject
 
 // Authentication Endpoints
 private const val VERIFY_2FA_URL = "/api/auth/login/verify-2fa"
+private const val CHANGE_TEMP_PASSWORD_URL = "/api/auth/change-password"
 private const val PERMISSIONS_ME_URL = "/api/permissions/me"
 private const val PLAN_MODULES_URL = "/api/common/plan-setups/customer/my-plan-modules"
 
@@ -75,6 +78,11 @@ sealed class UiState {
         val method: String,
         val message: String
     ) : UiState()
+    data class MustChangePassword(
+        val challengeToken: String?,
+        val message: String
+    ) : UiState()
+    data class WorkspaceLocked(val message: String) : UiState()
     data class LoginSuccess(
         val firstName: String,
         val lastName: String,
@@ -137,7 +145,7 @@ class Authenticate @Inject constructor(
     // Currency Symbol State (Observed directly from Room DB)
     val currencySymbol: StateFlow<String> = settingsDao.getSettingsFlow()
         .map { entity ->
-            entity?.currency.toCurrencySymbol()
+            entity?.currency.toformatCurrency()
         }
         .stateIn(
             scope = viewModelScope,
@@ -242,20 +250,45 @@ class Authenticate @Inject constructor(
             if (result.isSuccess) {
                 val response = result.getOrNull()
                 if (response != null) {
-                    if (response.requiresTwoFA && !response.challengeToken.isNullOrBlank()) {
-                        _accountState.value = UiState.TwoFactorRequired(
-                            challengeToken = response.challengeToken,
-                            method = response.method ?: "authenticator",
-                            message = response.message.ifBlank {
-                                "Please enter the code from your authenticator app to complete login."
+                    when {
+                        response.workspaceLocked -> {
+                            _accountState.value = UiState.WorkspaceLocked(
+                                response.message.ifBlank {
+                                    "Your workspace is currently locked. Please contact your administrator."
+                                }
+                            )
+                        }
+                        response.requiresTwoFA && !response.challengeToken.isNullOrBlank() -> {
+                            // Always complete 2FA verification before any password-change or home navigation
+                            _accountState.value = UiState.TwoFactorRequired(
+                                challengeToken = response.challengeToken,
+                                method = response.method ?: "authenticator",
+                                message = response.message.ifBlank {
+                                    "Please enter the code from your authenticator app to complete login."
+                                }
+                            )
+                        }
+                        response.mustChangePassword -> {
+                            // Persist temporary session tokens only if needed for the change-password API call
+                            response.data?.let { loginData ->
+                                loginRepository.saveLoginData(loginData)
+                                loadTokens()
                             }
-                        )
-                    } else if (response.data != null) {
-                        completeLoginSession(response.data)
-                    } else {
-                        _accountState.value = UiState.Error(
-                            response.message.ifBlank { "Invalid email or password" }
-                        )
+                            _accountState.value = UiState.MustChangePassword(
+                                challengeToken = response.challengeToken ?: response.data?.tokens?.sessionLoginToken,
+                                message = response.message.ifBlank {
+                                    "Your administrator gave you a temporary password. Choose a new one to continue."
+                                }
+                            )
+                        }
+                        response.data != null -> {
+                            completeLoginSession(response.data)
+                        }
+                        else -> {
+                            _accountState.value = UiState.Error(
+                                response.message.ifBlank { "Invalid email or password" }
+                            )
+                        }
                     }
                 }
             } else {
@@ -263,6 +296,73 @@ class Authenticate @Inject constructor(
                     result.exceptionOrNull()?.message ?: "Invalid password"
                 )
             }
+        }
+    }
+
+    /**
+     * Updates the temporary password and completes the login session when login data is returned.
+     */
+    fun changeTemporaryPassword(
+        temporaryPassword: String,
+        newPassword: String,
+        confirmPassword: String,
+        challengeToken: String? = null
+    ) {
+        _accountState.value = UiState.Loading
+
+        launchBusy {
+            val request = ChangeTemporaryPasswordRequest(
+                temporaryPassword = temporaryPassword,
+                newPassword = newPassword,
+                confirmPassword = confirmPassword,
+                challengeToken = challengeToken
+            )
+
+            val result = apiRepo.request<ChangeTemporaryPasswordResponse> {
+                post(CHANGE_TEMP_PASSWORD_URL, request)
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val loginData = res.data
+                    when {
+                        res.workspaceLocked -> {
+                            _accountState.value = UiState.WorkspaceLocked(
+                                res.message.ifBlank {
+                                    "Your workspace is currently locked. Please contact your administrator."
+                                }
+                            )
+                        }
+                        res.requiresTwoFA && !res.challengeToken.isNullOrBlank() -> {
+                            _accountState.value = UiState.TwoFactorRequired(
+                                challengeToken = res.challengeToken,
+                                method = res.method ?: "authenticator",
+                                message = res.message.ifBlank {
+                                    "Please enter the code from your authenticator app to complete login."
+                                }
+                            )
+                        }
+                        res.success && loginData != null -> {
+                            completeLoginSession(loginData)
+                        }
+                        res.success -> {
+                            _accountState.value = UiState.Success(
+                                res.message.ifBlank { "Password updated successfully. Please sign in." }
+                            )
+                        }
+                        else -> {
+                            _accountState.value = UiState.Error(
+                                res.message.ifBlank { "Failed to update password" }
+                            )
+                        }
+                    }
+                },
+                onFailure = { error ->
+                    _accountState.value = UiState.Error(
+                        error.message ?: "Failed to update password"
+                    )
+                }
+            )
         }
     }
 
@@ -295,12 +395,35 @@ class Authenticate @Inject constructor(
             result.fold(
                 onSuccess = { res ->
                     val loginData = res.data
-                    if (res.success && loginData != null) {
-                        completeLoginSession(loginData)
-                    } else {
-                        _accountState.value = UiState.Error(
-                            res.message.ifBlank { "Invalid verification code" }
-                        )
+                    when {
+                        res.workspaceLocked -> {
+                            _accountState.value = UiState.WorkspaceLocked(
+                                res.message.ifBlank {
+                                    "Your workspace is currently locked. Please contact your administrator."
+                                }
+                            )
+                        }
+                        res.mustChangePassword -> {
+                            // Transition to Set New Password screen right after 2FA verification
+                            res.data?.let { data ->
+                                loginRepository.saveLoginData(data)
+                                loadTokens()
+                            }
+                            _accountState.value = UiState.MustChangePassword(
+                                challengeToken = res.challengeToken ?: res.data?.tokens?.sessionLoginToken,
+                                message = res.message.ifBlank {
+                                    "Your administrator gave you a temporary password. Choose a new one to continue."
+                                }
+                            )
+                        }
+                        res.success && loginData != null -> {
+                            completeLoginSession(loginData)
+                        }
+                        else -> {
+                            _accountState.value = UiState.Error(
+                                res.message.ifBlank { "Invalid verification code" }
+                            )
+                        }
                     }
                 },
                 onFailure = { error ->

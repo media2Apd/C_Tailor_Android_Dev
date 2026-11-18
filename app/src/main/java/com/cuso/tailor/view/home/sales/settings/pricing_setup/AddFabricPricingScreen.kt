@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
+
 package com.cuso.tailor.view.home.sales.settings.pricing_setup
 
 import androidx.compose.foundation.layout.*
@@ -14,17 +16,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.DatePickerField
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextField
 import com.cuso.tailor.view.composable.StepNavigationFab
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.view.home.sales.lead.MiniSwitch
-//import com.cuso.mobile.viewmodel.SettingsViewModel
 
 @Composable
 fun AddFabricPriceScreen(
@@ -129,7 +129,7 @@ fun AddFabricPriceScreen(
                         FormTextField(
                             value = newSalesPrice,
                             onValueChange = { newSalesPrice = it },
-                            placeholder = "${currencySymbol()} 500",
+                            placeholder = "${formatCurrency()} 500",
                             keyboardType = KeyboardType.Number
                         )
                     }
@@ -178,7 +178,7 @@ fun AddFabricPriceScreen(
                         FormTextField(
                             value = pricePerMeter,
                             onValueChange = { pricePerMeter = it },
-                            placeholder = "${currencySymbol()} 600",
+                            placeholder = "${formatCurrency()} 600",
                             keyboardType = KeyboardType.Number
                         )
                     }

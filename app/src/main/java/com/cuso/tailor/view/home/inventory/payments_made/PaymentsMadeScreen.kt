@@ -50,8 +50,9 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 import androidx.core.graphics.toColorInt
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.PaginatedDataList
-import com.cuso.tailor.view.composable.currencySymbol
+
 
 // =============================================================================
 // ALL INVENTORY PAYMENT SCREEN WITH VOID CARD DISABLED
@@ -197,7 +198,7 @@ fun AllInventoryPaymentScreen(
                                                 )
                                                 Spacer(modifier = Modifier.height(2.dp))
                                                 Text(
-                                                    text = "${currencySymbol()}${formatIndianNumber(payment.amount)}",
+                                                    text = "${formatCurrency()}${formatIndianNumber(payment.amount)}",
                                                     fontSize = tokens.bodyLarge,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = if (isVoid) mutedText else Primary
@@ -406,7 +407,7 @@ fun PaymentOverviewDetailScreen(
                     val displayReceiptDate = formatIsoToDisplayDate(payment.paymentDate)
 
                     val currency = payment.billId?.currency?.ifBlank { "INR" } ?: "INR"
-                    val currencySymbol = if (currency.equals("INR", ignoreCase = true)) currencySymbol() else "$currency "
+                    val currencySymbol = if (currency.equals("INR", ignoreCase = true)) formatCurrency() else "$currency "
                     val displayTotalAmountPaid = "$currencySymbol${formatDouble(payment.amount)}"
                     val displayRecipientName = supplier?.name?.ifBlank { "-" } ?: "-"
                     val displayReferenceNumber = payment.referenceNumber?.ifBlank { "-" } ?: "-"

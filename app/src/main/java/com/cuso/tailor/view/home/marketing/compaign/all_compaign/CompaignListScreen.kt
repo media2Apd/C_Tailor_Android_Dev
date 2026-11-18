@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.MarketingViewModel
 
@@ -142,7 +143,7 @@ fun AllCampaignsListScreen(
                                 ),
                                 DataCardField(
                                     label = "Spend",
-                                    text = "${currencySymbol()}${(campaign.spendValue / 1000).toInt()}K",
+                                    text = "${formatCurrency()}${(campaign.spendValue / 1000).toInt()}K",
                                     labelColor = mutedText,
                                     textColor = TextPrimary
                                 ),
@@ -175,7 +176,7 @@ fun AllCampaignsListScreen(
                                         }
                                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                             Text("Revenue", fontSize = tokens.label, color = mutedText)
-                                            Text("${currencySymbol()}${(campaign.revenueValue / 1000).toInt()}K", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                            Text("${formatCurrency()}${(campaign.revenueValue / 1000).toInt()}K", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = TextPrimary)
                                         }
                                     }
 

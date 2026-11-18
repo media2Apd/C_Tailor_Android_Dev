@@ -77,7 +77,8 @@ import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.ui.theme.yellowBg
 import com.cuso.tailor.ui.theme.yellowText
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.TitleBar
@@ -255,11 +256,11 @@ private fun PrimaryMetricCardsSection(
     val row1 = summaryData?.kpiRibbonRow1
 
     // LOG CURRENT SYMBOL AND VALUES
-    val currentSymbol = currencySymbol()
+    val currentSymbol = formatCurrency()
     android.util.Log.d("MarketingDashboard", ">>> PrimaryMetricCardsSection: currentSymbol = '$currentSymbol'")
 
-    val revenueVal = row1?.marketingRevenue?.value?.takeIf { it.isNotBlank() && it != "--" }?.let { "${currencySymbol()}$it" } ?: "${currencySymbol()}0.0L"
-    val spendVal = row1?.marketingSpend?.value?.takeIf { it.isNotBlank() && it != "--" }?.let { "${currencySymbol()}$it" } ?: "${currencySymbol()}0.0L"
+    val revenueVal = row1?.marketingRevenue?.value?.takeIf { it.isNotBlank() && it != "--" }?.let { "${formatCurrency()}$it" } ?: "${formatCurrency()}0.0L"
+    val spendVal = row1?.marketingSpend?.value?.takeIf { it.isNotBlank() && it != "--" }?.let { "${formatCurrency()}$it" } ?: "${formatCurrency()}0.0L"
     val roasVal = row1?.roas?.value?.takeIf { it.isNotBlank() && it != "--" } ?: "0x"
     val ordersVal = row1?.ordersFromMarketing?.value?.takeIf { it.isNotBlank() && it != "--" } ?: "0"
     val newCustVal = row1?.newCustomers?.value?.takeIf { it.isNotBlank() && it != "--" } ?: "0"
@@ -428,9 +429,9 @@ private fun KeyPerformanceRatiosSection(
     val returningCust = row2?.returningCustomers?.value?.takeIf { it != "--" } ?: "0"
     val activeCampaigns = row2?.activeCampaigns?.value?.takeIf { it != "--" }
         ?: campaignsList.count { it.status.equals("Active", ignoreCase = true) }.toString()
-    val aovVal = row2?.avgOrderValue?.value?.takeIf { it != "--" }?.let { "${currencySymbol()}$it" } ?: "${currencySymbol()}0"
+    val aovVal = row2?.avgOrderValue?.value?.takeIf { it != "--" }?.let { "${formatCurrency()}$it" } ?: "${formatCurrency()}0"
     val webTrafficVal = row2?.websiteTraffic?.value?.takeIf { it != "--" } ?: "0"
-    val cpaVal = row2?.costPerAcquisition?.value?.takeIf { it != "--" }?.let { "${currencySymbol()}$it" } ?: "${currencySymbol()}0"
+    val cpaVal = row2?.costPerAcquisition?.value?.takeIf { it != "--" }?.let { "${formatCurrency()}$it" } ?: "${formatCurrency()}0"
     val repeatRateVal = row2?.repeatPurchaseRate?.value?.takeIf { it != "--" } ?: "0%"
 
     Column(
@@ -652,8 +653,8 @@ private fun MarketingGrowthOverviewSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ChartLegendItem(color = chartBlue, label = "Promotions")
-                ChartLegendItem(color = chartViolet, label = "Spend (${currencySymbol()})")
-                ChartLegendItem(color = chartEmerald, label = "Revenue (${currencySymbol()})")
+                ChartLegendItem(color = chartViolet, label = "Spend (${formatCurrency()})")
+                ChartLegendItem(color = chartEmerald, label = "Revenue (${formatCurrency()})")
             }
 
             Text(
@@ -1008,7 +1009,7 @@ private fun MarketingChannelsSection(
 
     val totalReach = channelData?.kpiCards?.get("totalReach")?.value ?: matrix.sumOf { it.raw?.spend?.toLong() ?: 0L }.toString()
     val totalPromotions = matrix.sumOf { it.raw?.prom ?: 0L }.toString()
-    val totalRevenue = channelData?.kpiCards?.get("totalRevenue")?.value ?: "${currencySymbol()}0"
+    val totalRevenue = channelData?.kpiCards?.get("totalRevenue")?.value ?: "${formatCurrency()}0"
     val overallRoi = channelData?.kpiCards?.get("overallRoi")?.value ?: "0%"
 
     Column(

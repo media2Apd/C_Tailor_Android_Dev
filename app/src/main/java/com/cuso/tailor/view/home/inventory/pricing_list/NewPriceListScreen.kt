@@ -35,6 +35,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.*
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.sales.lead.MiniSwitch
 import com.cuso.tailor.viewmodel.InventoryViewModel
@@ -60,9 +61,9 @@ data class EditableSkuLineItem(
             val base = if (basedOn == "COST_PRICE") baseCost else sellingPrice
             return when (adjustmentType) {
                 "MARKUP %" -> base + (base * (v / 100.0))
-                "MARKUP ${currencySymbol()}" -> base + v
+                "MARKUP ${formatCurrency()}" -> base + v
                 "DISCOUNT %" -> base - (base * (v / 100.0))
-                "DISCOUNT ${currencySymbol()}" -> (base - v).coerceAtLeast(0.0)
+                "DISCOUNT ${formatCurrency()}" -> (base - v).coerceAtLeast(0.0)
                 "FIXED PRICE" -> v
                 else -> base
             }
@@ -185,9 +186,9 @@ fun NewPriceListScreen(
             rule?.let {
                 allItemsAdjustmentType = when (it.adjustmentType) {
                     "MARKUP_PERCENT" -> "MARKUP %"
-                    "MARKUP_AMOUNT" -> "MARKUP ${currencySymbol()}"
+                    "MARKUP_AMOUNT" -> "MARKUP ${formatCurrency()}"
                     "DISCOUNT_PERCENT" -> "DISCOUNT %"
-                    "DISCOUNT_AMOUNT" -> "DISCOUNT ${currencySymbol()}"
+                    "DISCOUNT_AMOUNT" -> "DISCOUNT ${formatCurrency()}"
                     "FIXED_PRICE" -> "FIXED PRICE"
                     else -> "MARKUP %"
                 }
@@ -205,9 +206,9 @@ fun NewPriceListScreen(
                 val popItem = itemDto.item
                 val adjDisplay = when (itemDto.adjustmentType) {
                     "MARKUP_PERCENT" -> "MARKUP %"
-                    "MARKUP_AMOUNT" -> "MARKUP ${currencySymbol()}"
+                    "MARKUP_AMOUNT" -> "MARKUP ${formatCurrency()}"
                     "DISCOUNT_PERCENT" -> "DISCOUNT %"
-                    "DISCOUNT_AMOUNT" -> "DISCOUNT ${currencySymbol()}"
+                    "DISCOUNT_AMOUNT" -> "DISCOUNT ${formatCurrency()}"
                     "FIXED_PRICE" -> "FIXED PRICE"
                     else -> "MARKUP %"
                 }
@@ -270,9 +271,9 @@ fun NewPriceListScreen(
 
             val universalApiAdjType = when (allItemsAdjustmentType) {
                 "MARKUP %" -> "MARKUP_PERCENT"
-                "MARKUP ${currencySymbol()}" -> "MARKUP_AMOUNT"
+                "MARKUP ${formatCurrency()}" -> "MARKUP_AMOUNT"
                 "DISCOUNT %" -> "DISCOUNT_PERCENT"
-                "DISCOUNT ${currencySymbol()}" -> "DISCOUNT_AMOUNT"
+                "DISCOUNT ${formatCurrency()}" -> "DISCOUNT_AMOUNT"
                 "FIXED PRICE" -> "FIXED_PRICE"
                 else -> "MARKUP_PERCENT"
             }
@@ -298,9 +299,9 @@ fun NewPriceListScreen(
                     skuItems.filter { it.isSelected }.map { sku ->
                         val apiAdjType = when (sku.adjustmentType) {
                             "MARKUP %" -> "MARKUP_PERCENT"
-                            "MARKUP ${currencySymbol()}" -> "MARKUP_AMOUNT"
+                            "MARKUP ${formatCurrency()}" -> "MARKUP_AMOUNT"
                             "DISCOUNT %" -> "DISCOUNT_PERCENT"
-                            "DISCOUNT ${currencySymbol()}" -> "DISCOUNT_AMOUNT"
+                            "DISCOUNT ${formatCurrency()}" -> "DISCOUNT_AMOUNT"
                             "FIXED PRICE" -> "FIXED_PRICE"
                             else -> "MARKUP_PERCENT"
                         }
@@ -347,9 +348,9 @@ fun NewPriceListScreen(
                     skuItems.filter { it.isSelected }.map { sku ->
                         val apiAdjType = when (sku.adjustmentType) {
                             "MARKUP %" -> "MARKUP_PERCENT"
-                            "MARKUP ${currencySymbol()}" -> "MARKUP_AMOUNT"
+                            "MARKUP ${formatCurrency()}" -> "MARKUP_AMOUNT"
                             "DISCOUNT %" -> "DISCOUNT_PERCENT"
-                            "DISCOUNT ${currencySymbol()}" -> "DISCOUNT_AMOUNT"
+                            "DISCOUNT ${formatCurrency()}" -> "DISCOUNT_AMOUNT"
                             "FIXED PRICE" -> "FIXED_PRICE"
                             else -> "MARKUP_PERCENT"
                         }
@@ -654,7 +655,7 @@ fun NewPriceListScreen(
                                         value = allItemsAdjustmentType,
                                         expanded = adjExpanded,
                                         onExpandChange = { adjExpanded = it },
-                                        options = listOf("MARKUP %", "MARKUP ${currencySymbol()}", "DISCOUNT %", "DISCOUNT ${currencySymbol()}"),
+                                        options = listOf("MARKUP %", "MARKUP ${formatCurrency()}", "DISCOUNT %", "DISCOUNT ${formatCurrency()}"),
                                         onOptionSelected = { allItemsAdjustmentType = it }
                                     )
 
@@ -831,7 +832,7 @@ fun NewPriceListScreen(
             // ── Bulk Update Confirmation Dialog ──
             if (showBulkUpdateDialog) {
                 val bulkAdjustmentOptions = remember {
-                    listOf("Select an option", "MARKUP %", "MARKUP ${currencySymbol()}", "DISCOUNT %", "DISCOUNT ${currencySymbol()}", "FIXED PRICE")
+                    listOf("Select an option", "MARKUP %", "MARKUP ${formatCurrency()}", "DISCOUNT %", "DISCOUNT ${formatCurrency()}", "FIXED PRICE")
                 }
                 var bulkDropdownExpanded by remember { mutableStateOf(false) }
 
@@ -937,7 +938,7 @@ private fun ApiSkuProductCardRow(
     var dropdownExpanded by remember { mutableStateOf(false) }
 
     val markupOptions = remember {
-        listOf("option", "MARKUP %", "MARKUP ${currencySymbol()}", "DISCOUNT %", "DISCOUNT ${currencySymbol()}", "FIXED PRICE")
+        listOf("option", "MARKUP %", "MARKUP ${formatCurrency()}", "DISCOUNT %", "DISCOUNT ${formatCurrency()}", "FIXED PRICE")
     }
 
     Column(
@@ -968,7 +969,7 @@ private fun ApiSkuProductCardRow(
         ) {
             Column {
                 Text("Base Cost", fontSize = tokens.caption, color = TextSecondary)
-                Text("${currencySymbol()}${"%.2f".format(itemSku.baseCost)}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TextPrimary)
+                Text("${formatCurrency()}${"%.2f".format(itemSku.baseCost)}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TextPrimary)
             }
 
             Box {
@@ -1045,7 +1046,7 @@ private fun ApiSkuProductCardRow(
             Column(horizontalAlignment = Alignment.End) {
                 Text("Computed", fontSize = tokens.caption, color = TextSecondary)
                 Text(
-                    text = "${currencySymbol()}${"%.2f".format(itemSku.computedPrice)}",
+                    text = "${formatCurrency()}${"%.2f".format(itemSku.computedPrice)}",
                     fontSize = tokens.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = TextPrimary

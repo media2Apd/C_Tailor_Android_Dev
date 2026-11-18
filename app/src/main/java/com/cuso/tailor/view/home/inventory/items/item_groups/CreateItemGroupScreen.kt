@@ -1,13 +1,5 @@
-@file:Suppress(
-    "UNUSED_PARAMETER",
-    "unused",
-    "UNCHECKED_CAST",
-    "DEPRECATION",
-    "AssignedValueIsNeverRead",
-    "GrazieInspection",
-    "SpellCheckingInspection",
-    "unusedvariable"
-)
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
+
 
 package com.cuso.tailor.view.home.inventory.items.item_groups
 
@@ -81,8 +73,6 @@ import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.view.composable.AccordionSection
 import com.cuso.tailor.view.composable.AppButton
 import com.cuso.tailor.view.composable.AppCheckbox
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextArea
@@ -96,9 +86,10 @@ import com.cuso.tailor.viewmodel.InventoryViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
 import java.util.UUID
 import androidx.core.net.toUri
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.AttributeTypeSelector
 import com.cuso.tailor.view.composable.AttributeValueSelector
-import com.cuso.tailor.view.composable.currencySymbol
+
 
 data class AttributeEntry(
     val id: String = UUID.randomUUID().toString(),
@@ -601,7 +592,7 @@ fun CreateItemGroupScreen(
                             costPrice = it
                             recalculateVariants()
                         },
-                        placeholder = "${currencySymbol()}0",
+                        placeholder = "${formatCurrency()}0",
                         keyboardType = KeyboardType.Number
                     )
                     Text("Default cost for all generated variants", fontSize = tokens.label, color = TextSecondary, modifier = Modifier.padding(top = 4.dp))
@@ -614,7 +605,7 @@ fun CreateItemGroupScreen(
                             sellingPrice = it
                             recalculateVariants()
                         },
-                        placeholder = "${currencySymbol()}0",
+                        placeholder = "${formatCurrency()}0",
                         keyboardType = KeyboardType.Number
                     )
                     Text("Default selling price for all generated variants", fontSize = tokens.label, color = TextSecondary, modifier = Modifier.padding(top = 4.dp))
@@ -868,7 +859,7 @@ fun CreateItemGroupScreen(
                                             onValueChange = {
                                                 if (actualIndex != -1) variants[actualIndex] = variant.copy(cost = it)
                                             },
-                                            placeholder = "${currencySymbol()}0",
+                                            placeholder = "${formatCurrency()}0",
                                             keyboardType = KeyboardType.Number
                                         )
                                         Spacer(Modifier.height(14.dp))
@@ -878,7 +869,7 @@ fun CreateItemGroupScreen(
                                             onValueChange = {
                                                 if (actualIndex != -1) variants[actualIndex] = variant.copy(price = it)
                                             },
-                                            placeholder = "${currencySymbol()}0",
+                                            placeholder = "${formatCurrency()}0",
                                             keyboardType = KeyboardType.Number
                                         )
                                         Spacer(Modifier.height(14.dp))
@@ -935,11 +926,11 @@ fun CreateItemGroupScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Column(modifier = Modifier.weight(1f)) {
                                 FormLabel("Cost")
-                                FormTextField(value = bulkCost, onValueChange = { bulkCost = it }, placeholder = "${currencySymbol()}0", keyboardType = KeyboardType.Number)
+                                FormTextField(value = bulkCost, onValueChange = { bulkCost = it }, placeholder = "${formatCurrency()}0", keyboardType = KeyboardType.Number)
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 FormLabel("Price")
-                                FormTextField(value = bulkPrice, onValueChange = { bulkPrice = it }, placeholder = "${currencySymbol()}0", keyboardType = KeyboardType.Number)
+                                FormTextField(value = bulkPrice, onValueChange = { bulkPrice = it }, placeholder = "${formatCurrency()}0", keyboardType = KeyboardType.Number)
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 FormLabel("Re-Order Point")

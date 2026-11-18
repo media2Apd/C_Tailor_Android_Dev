@@ -47,6 +47,7 @@ import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.FinanceViewModel
 import com.cuso.tailor.viewmodel.ImportBankStatementState
 import android.os.Environment
+import com.cuso.tailor.utils.formatCurrency
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.BufferedReader
@@ -849,7 +850,7 @@ fun ImportBankStatementScreen(
 
                                     // DEBIT
                                     Text(
-                                        text = if (item.debit > 0) "${currencySymbol()}${String.format(Locale.US, "%,.0f", item.debit)}" else "—",
+                                        text = if (item.debit > 0) "${formatCurrency()}${String.format(Locale.US, "%,.0f", item.debit)}" else "—",
                                         fontSize = tokens.caption,
                                         fontWeight = FontWeight.Medium,
                                         color = if (item.debit > 0) redText else mutedText,
@@ -859,7 +860,7 @@ fun ImportBankStatementScreen(
 
                                     // CREDIT
                                     Text(
-                                        text = if (item.credit > 0) "${currencySymbol()}${String.format(Locale.US, "%,.0f", item.credit)}" else "—",
+                                        text = if (item.credit > 0) "${formatCurrency()}${String.format(Locale.US, "%,.0f", item.credit)}" else "—",
                                         fontSize = tokens.caption,
                                         fontWeight = FontWeight.Medium,
                                         color = if (item.credit > 0) darkGreenBg else mutedText,
@@ -869,7 +870,7 @@ fun ImportBankStatementScreen(
 
                                     // BALANCE
                                     Text(
-                                        text = if (item.balance != null) "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.balance)}" else "—",
+                                        text = if (item.balance != null) "${formatCurrency()}${String.format(Locale.US, "%,.2f", item.balance)}" else "—",
                                         fontSize = tokens.caption,
                                         fontWeight = FontWeight.Medium,
                                         color = TextPrimary,

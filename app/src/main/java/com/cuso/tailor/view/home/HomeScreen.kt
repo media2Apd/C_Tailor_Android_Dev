@@ -148,6 +148,7 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
+import com.cuso.tailor.BuildConfig
 import com.cuso.tailor.ui.theme.TextPrimary
 import com.cuso.tailor.ui.theme.TextSecondary
 import com.cuso.tailor.ui.theme.activity_purple_bg
@@ -189,6 +190,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var paywallModuleConfig by remember { mutableStateOf<PaywallModuleConfig?>(null) }
     val isWorkspaceLocked by permissionViewModel.isWorkspaceLocked.collectAsStateWithLifecycle()
     var isRefreshing by remember { mutableStateOf(false) }
+    // Triggers recomposition and API reload for whichever screen is currently active
+    var refreshKey by remember { mutableIntStateOf(0) }
 
     // Near the other dialog states in HomeScreen:
     var showAccessRestrictedDialog by remember { mutableStateOf(false) }
@@ -246,10 +249,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
     }
 
-    FirebaseMessaging.getInstance().token.addOnSuccessListener { fcmToken ->
-        android.util.Log.d("FCM_TEST_TOKEN", fcmToken)
-        // topbarEventViewModel.syncFcmTokenToServer(fcmToken) // Keep commented until backend adds the API
-    }
+//    FirebaseMessaging.getInstance().token.addOnSuccessListener { fcmToken ->
+//        android.util.Log.d("FCM_TEST_TOKEN", fcmToken)
+//        // topbarEventViewModel.syncFcmTokenToServer(fcmToken) // Keep commented until backend adds the API
+//    }
 
     fun resetToHome() {
         screenStack.clear()
@@ -264,18 +267,24 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     // Holds the dynamic portalName from Room DB
     var portalName by remember { mutableStateOf("") }
 
-    // Trial badge and dialog state (connect to your API / PermissionViewModel trial data)
+    // Observe plan limits from PermissionViewModel and map trial details dynamically from API
+    val planLimits by permissionViewModel.planLimits.collectAsStateWithLifecycle()
     var showTrialDialog by remember { mutableStateOf(false) }
-    val trialInfo by remember {
-        mutableStateOf<TrialUiState?>(
+    val trialInfo: TrialUiState? = remember(planLimits) {
+        val apiTrial = planLimits?.subscription?.trial
+        if (apiTrial != null && apiTrial.isTrial && !apiTrial.isExpired) {
             TrialUiState(
                 isTrial = true,
-                daysRemaining = 1,
-                progressText = "Day 14 of 14",
-                progressPercentage = 100f,
-                trialEndsFormatted = "16 Nov 2026"
+                daysRemaining = apiTrial.daysRemaining,
+                headerText = apiTrial.headerText.orEmpty(),
+                progressText = apiTrial.progressText.orEmpty(),
+                progressPercentage = apiTrial.progressPercentage,
+                trialEndsFormatted = apiTrial.trialEndsFormatted.orEmpty(),
+                status = apiTrial.status.orEmpty()
             )
-        )
+        } else {
+            null
+        }
     }
 
     var isDrawerOpen by remember { mutableStateOf(false) }
@@ -1164,13 +1173,15 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
     LaunchedEffect(token, userEntity) {
         if (token.isNotEmpty()) {
+            // Fetch live subscription limits and trial status from /api/plans/limits
+            permissionViewModel.fetchPlanLimitsAndModules()
             profileViewModel.loadOrganization(token)
             topbarEventViewModel.fetchNotifications()
             topbarEventViewModel.fetchBusinessAgenda()
 
-            // Connect real-time Socket for instant Notification & Business Agenda updates
+            // Connect real-time Socket using BuildConfig.BASE_URL (trimmed to avoid double slashes)
             topbarEventViewModel.startRealtimeSync(
-                baseUrl = "http://192.168.88.12:5000",
+                baseUrl = BuildConfig.BASE_URL.trimEnd('/'),
                 accessToken = token,
                 memberId = userEntity?.memberId.orEmpty(),
                 organizationId = userEntity?.organizationId.orEmpty()
@@ -1209,11 +1220,14 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
     val legalViewModel: LegalViewModel = hiltViewModel()
 
-    LaunchedEffect(currentScreen) {
-        if (currentScreen == "sales_customers") {
-            customerViewModel.loadCustomers()
-        } else if (currentScreen == "legal_employee") {
+    // Re-runs top-level screen API calls when currentScreen changes or user triggers refresh
+    LaunchedEffect(currentScreen, refreshKey) {
+        if (currentScreen == "legal_employee") {
             legalViewModel.fetchLegalEmployees()
+        } else if (refreshKey > 0 && currentScreen == "notifications") {
+            topbarEventViewModel.fetchNotifications()
+        } else if (refreshKey > 0 && currentScreen == "business_agenda") {
+            topbarEventViewModel.fetchBusinessAgenda()
         }
     }
 
@@ -1523,8 +1537,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                         isRefreshing = true
                         // Hard reload: clears old cache in Room and fetches fresh data from network
                         permissionViewModel.fetchPermissions(forceRefresh = true) {
+                            // Refresh trial and subscription limits alongside permissions
+                            permissionViewModel.fetchPlanLimitsAndModules()
                             isRefreshing = false
-                            DynamicIslandManager.showSuccess("Permissions updated successfully")
                         }
                     },
                     modifier = Modifier
@@ -1577,8 +1592,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             },
                             label = "screen_transition"
                         ) { screen ->
-                            when (screen) {
-                                "global_search" -> {
+                            // Recreates only the active screen subtree on refresh so its LaunchedEffects re-run
+                            key(refreshKey) {
+                                when (screen) {
+                                    "global_search" -> {
                                     GlobalSearchScreen(
                                         userEntity = userEntity,
                                         permissionViewModel = permissionViewModel,
@@ -2004,7 +2021,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                         )
                                     )
                                 }
-                            } // Closes when (screen)
+                                } // Closes when (screen)
+                            } // Closes key(refreshKey)
                         }
                     }
                 }
@@ -3080,13 +3098,15 @@ fun String.toIsoDate(): String {
     }
 }
 
-// UI state model matching React useOnboardingState().trial
+// UI state model mapped directly from subscription.trial in GET /api/plans/limits
 data class TrialUiState(
     val isTrial: Boolean = false,
     val daysRemaining: Int = 0,
+    val headerText: String = "",
     val progressText: String = "",
     val progressPercentage: Float = 0f,
-    val trialEndsFormatted: String = ""
+    val trialEndsFormatted: String = "",
+    val status: String = ""
 )
 
 @Composable
@@ -3179,8 +3199,9 @@ fun TrialStatusDialog(
                             fontWeight = FontWeight.SemiBold,
                             color = TextPrimary
                         )
+                        // Render trial status dynamically from API response
                         StatusBadge(
-                            text = "ACTIVE",
+                            text = trial.status.ifBlank { "-" }.uppercase(),
                             bgColor = greenBg,
                             textColor = greentext,
                             cornerRadius = tokens.cardCornerRadius * 0.4f,
@@ -3203,9 +3224,9 @@ fun TrialStatusDialog(
 
                 Spacer(modifier = Modifier.height(tokens.extraPadding))
 
-                // Days Remaining Headline
+                // Days Remaining Headline from API
                 Text(
-                    text = "${trial.daysRemaining} days remaining",
+                    text = if (trial.daysRemaining == 1) "1 day remaining" else "${trial.daysRemaining} days remaining",
                     fontSize = tokens.h2,
                     fontWeight = FontWeight.SemiBold,
                     color = TextPrimary

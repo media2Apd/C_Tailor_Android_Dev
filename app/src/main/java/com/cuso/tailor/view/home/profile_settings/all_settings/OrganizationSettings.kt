@@ -1,4 +1,4 @@
-@file:Suppress("unused")
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
 
 package com.cuso.tailor.view.home.profile_settings.all_settings
 
@@ -97,10 +97,8 @@ fun OrganizationSettingsScreen(
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
-                placeholder = "Search Customers...",
-                showFilterIcon = true,
-                onFilterClick = { /* Handle Filter Action */ },
-                height = tokens.fieldHeight * 1.15f
+                placeholder = "Search Settings...",
+                isSearchBarAlone = true
             )
 
             HorizontalDivider(color = grey_border)
@@ -126,32 +124,32 @@ fun OrganizationSettingsScreen(
                     )
                 }
 
-                if (!permissionViewModel.isModuleHidden("home")) {
-                    SettingsNavCard(
-                        title = "Business Setup",
-                        tokens = tokens,
-                        onClick = { onNavigate("business_setup") }
-                    )
-                }
-
-                if (!hideTaxRates || !hideGstSettings) {
-                    SettingsAccordionCard(
-                        title = "Taxes & GST",
-                        isExpanded = isTaxesExpanded,
-                        tokens = tokens,
-                        onHeaderClick = { isTaxesExpanded = !isTaxesExpanded }
-                    ) {
-                        if (!hideTaxRates) {
-                            SettingsSubItemRow(title = "Tax Rates", tokens = tokens) { onNavigate("tax_rates") }
-                        }
-                        if (!hideTaxRates && !hideGstSettings) {
-                            HorizontalDivider(color = BorderGray)
-                        }
-                        if (!hideGstSettings) {
-                            SettingsSubItemRow(title = "GST Settings", tokens = tokens) { onNavigate("gst_settings") }
-                        }
-                    }
-                }
+//                if (!permissionViewModel.isModuleHidden("home")) {
+//                    SettingsNavCard(
+//                        title = "Business Setup",
+//                        tokens = tokens,
+//                        onClick = { onNavigate("business_setup") }
+//                    )
+//                }
+//
+//                if (!hideTaxRates || !hideGstSettings) {
+//                    SettingsAccordionCard(
+//                        title = "Taxes & GST",
+//                        isExpanded = isTaxesExpanded,
+//                        tokens = tokens,
+//                        onHeaderClick = { isTaxesExpanded = !isTaxesExpanded }
+//                    ) {
+//                        if (!hideTaxRates) {
+//                            SettingsSubItemRow(title = "Tax Rates", tokens = tokens) { onNavigate("tax_rates") }
+//                        }
+//                        if (!hideTaxRates && !hideGstSettings) {
+//                            HorizontalDivider(color = BorderGray)
+//                        }
+//                        if (!hideGstSettings) {
+//                            SettingsSubItemRow(title = "GST Settings", tokens = tokens) { onNavigate("gst_settings") }
+//                        }
+//                    }
+//                }
 
                 if (!permissionViewModel.isFeatureHidden("home", "branches")) {
                     SettingsNavCard(
@@ -169,13 +167,13 @@ fun OrganizationSettingsScreen(
                     )
                 }
 
-                if (!permissionViewModel.isFeatureHidden("home", "approvalInbox")) {
-                    SettingsNavCard(
-                        title = "Approval Inbox",
-                        tokens = tokens,
-                        onClick = { onNavigate("department_teams") }
-                    )
-                }
+//                if (!permissionViewModel.isFeatureHidden("home", "approvalInbox")) {
+//                    SettingsNavCard(
+//                        title = "Approval Inbox",
+//                        tokens = tokens,
+//                        onClick = { onNavigate("department_teams") }
+//                    )
+//                }
 
                 if (!permissionViewModel.isFeatureHidden("home", "approvalRules")) {
                     SettingsNavCard(
@@ -193,21 +191,21 @@ fun OrganizationSettingsScreen(
                     )
                 }
 
-                if (!permissionViewModel.isFeatureHidden("security", "roles")) {
-                    SettingsNavCard(
-                        title = "Role",
-                        tokens = tokens,
-                        onClick = { onNavigate("role") }
-                    )
-                }
-
-                if (!permissionViewModel.isFeatureHidden("finance", "finChartOfAccounts")) {
-                    SettingsNavCard(
-                        title = "Opening Balance",
-                        tokens = tokens,
-                        onClick = { onNavigate("opening_balance") }
-                    )
-                }
+//                if (!permissionViewModel.isFeatureHidden("security", "roles")) {
+//                    SettingsNavCard(
+//                        title = "Role",
+//                        tokens = tokens,
+//                        onClick = { onNavigate("role") }
+//                    )
+//                }
+//
+//                if (!permissionViewModel.isFeatureHidden("finance", "finChartOfAccounts")) {
+//                    SettingsNavCard(
+//                        title = "Opening Balance",
+//                        tokens = tokens,
+//                        onClick = { onNavigate("opening_balance") }
+//                    )
+//                }
 
                 if (!permissionViewModel.isFeatureHidden("home", "warehouse")) {
                     SettingsNavCard(
@@ -226,18 +224,18 @@ fun OrganizationSettingsScreen(
                 ) {
                     val subscriptionItems = listOf(
                         "Overview",
-                        "Current Plan",
-                        "Usage & Limits",
-                        "Compare Plans",
-                        "Upgrade / Downgrade",
-                        "Billing Cycle",
-                        "Payment Methods",
-                        "Billing Information",
-                        "Invoices & Receipts",
-                        "Add-ons",
-                        "Usage Alerts",
-                        "Renewal & Cancellation",
-                        "Subscription History"
+                        "Current Plan"
+//                        "Usage & Limits",
+//                        "Compare Plans",
+//                        "Upgrade / Downgrade",
+//                        "Billing Cycle",
+//                        "Payment Methods",
+//                        "Billing Information",
+//                        "Invoices & Receipts",
+//                        "Add-ons",
+//                        "Usage Alerts",
+//                        "Renewal & Cancellation",
+//                        "Subscription History"
                     )
 
                     subscriptionItems.forEachIndexed { index, item ->

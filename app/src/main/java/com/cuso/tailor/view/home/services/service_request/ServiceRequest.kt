@@ -15,7 +15,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.service.ServiceRequestData
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.ServicesViewModel
 import kotlinx.coroutines.delay
@@ -172,7 +173,7 @@ fun ServiceRequestCard(
             ),
             DataCardField(
                 label = "Amount",
-                text = "${currencySymbol()}${item.grandTotal.toInt()}"
+                text = "${formatCurrency()}${item.grandTotal.toInt()}"
             ),
             DataCardField(
                 label = "Priority",

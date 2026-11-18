@@ -4309,8 +4309,7 @@ private fun InventoryProcurementRouter(
             PreviewPdfScreen(
                 onClose = onGoBack,
                 onEditClick = { onSafeNavigate("inventory_purchase_receive_detail", PermissionAction.VIEW) },
-                onConvertToBillClick = { onSafeNavigate("inventory_purchase_new_bill", PermissionAction.CREATE) }
-            )
+            ) { onSafeNavigate("inventory_purchase_new_bill", PermissionAction.CREATE) }
         }
 
         // 5. Purchase Bills (catalog key: "procBills") - Actions: VIEW, CREATE

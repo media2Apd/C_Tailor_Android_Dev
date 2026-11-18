@@ -202,7 +202,6 @@ fun ModuleSettingsScreen(
                         permissionFeature = "designSetup",
                         onClick = {
                             checkAndNavigate("sales", "designSetup", "Sales - Design Setup") {
-                                onNavigateDesignSetup()
                                 isDesignSetupOpen = true
                             }
                         }

@@ -16,6 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.ActionDropdownMenu
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
@@ -24,7 +25,6 @@ import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
 
@@ -161,7 +161,7 @@ fun ApprovalsListScreen(
                                         }
                                         Spacer(modifier = Modifier.height(3.dp))
                                         Text(
-                                            text = "${currencySymbol()}${item.totalAmount.toInt()}",
+                                            text = "${formatCurrency()}${item.totalAmount.toInt()}",
                                             fontSize = tokens.bodyMedium,
                                             fontWeight = FontWeight.Medium,
                                             color = title_color

@@ -31,6 +31,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.ProcurementBillDetailData
 import com.cuso.tailor.model.inventory.RecordPaymentRequest
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.viewmodel.FinanceViewModel
@@ -317,7 +318,7 @@ private fun RecordPaymentFormContent(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "${currencySymbol()} ",
+                                text = "${formatCurrency()} ",
                                 fontSize = tokens.bodyMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = title_color
@@ -359,7 +360,7 @@ private fun RecordPaymentFormContent(
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(Modifier.width(8.dp))
-                            val formattedBalance = if (detail.balanceDue > 0) "${currencySymbol()}${formatIndianNumber(detail.balanceDue)}" else "${currencySymbol()}0"
+                            val formattedBalance = if (detail.balanceDue > 0) "${formatCurrency()}${formatIndianNumber(detail.balanceDue)}" else "${formatCurrency()}0"
                             Text(
                                 text = "Remaining balance for this vendor is $formattedBalance.",
                                 fontSize = tokens.caption,

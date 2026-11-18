@@ -1,4 +1,4 @@
-@file:Suppress("UNUSED_PARAMETER", "AssignedValueIsNeverRead", "SpellCheckingInspection")
+@file:Suppress("UNUSED_PARAMETER", "AssignedValueIsNeverRead", "SpellCheckingInspection", "VariableNeverRead")
 
 package com.cuso.tailor.view.home.finance.settings
 
@@ -16,6 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.settings.TaxRateItemDto
 import com.cuso.tailor.ui.theme.*
@@ -26,6 +28,9 @@ import com.cuso.tailor.view.composable.FormTextField
 import com.cuso.tailor.view.composable.StepNavigationFab
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
+import com.cuso.tailor.viewmodel.SettingsViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 // ---------------------------------------------------------------------------
@@ -50,21 +55,30 @@ data class AddTaxRateFormState(
 fun AddTaxRateScreen(
     taxRateToEdit: TaxRateItemDto? = null,
     isLoading: Boolean = false,
+    viewModel: SettingsViewModel = hiltViewModel(),
     onClose: () -> Unit,
+    onSaveSuccess: () -> Unit = onClose,
     taxTypeOptions: List<String> = listOf("GST", "CGST", "SGST", "IGST", "CESS", "VAT", "Custom"),
-    onSaveTaxRate: (AddTaxRateFormState) -> Unit
+    onSaveTaxRate: ((AddTaxRateFormState) -> Unit)? = null
 ) {
     val tokens = LocalAppTokens.current
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
     val isEditMode = taxRateToEdit != null
 
     var taxName by remember { mutableStateOf("") }
     var ratePercent by remember { mutableStateOf("") }
-    var taxType by remember { mutableStateOf("GST") }
+    var taxType by remember { mutableStateOf("") }
     var taxTypeExpanded by remember { mutableStateOf(false) }
     var effectiveDate by remember { mutableStateOf("") }
+
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val isSubmittingTaxRate by viewModel.isSubmittingTaxRate.collectAsStateWithLifecycle()
+    val effectiveLoading = isLoading || isSubmittingTaxRate
 
     // Prefill form if editing an existing tax rate
     LaunchedEffect(taxRateToEdit) {
@@ -92,8 +106,8 @@ fun AddTaxRateScreen(
         )
     }
 
-    // Validation rule: name and rate are mandatory
-    val isFormValid = taxName.isNotBlank() && ratePercent.isNotBlank()
+    // Validation rule: name, rate, and taxType are mandatory
+    val isFormValid = taxName.isNotBlank() && ratePercent.isNotBlank() && taxType.isNotBlank()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -137,7 +151,7 @@ fun AddTaxRateScreen(
                         value = ratePercent,
                         onValueChange = { ratePercent = it },
                         placeholder = "e.g. 18",
-                        keyboardType = KeyboardType.Number,
+                        keyboardType = KeyboardType.Decimal,
                         enabled = !isEditMode // Rate is locked when editing to preserve ledger consistency
                     )
                     if (isEditMode) {
@@ -155,11 +169,12 @@ fun AddTaxRateScreen(
                     FormLabel(text = "Tax Type", isRequired = true)
                     Spacer(Modifier.height(6.dp))
                     FormDropdown(
-                        value = taxType,
+                        value = taxType.ifEmpty { "Select Tax Type" },
                         expanded = taxTypeExpanded,
                         onExpandChange = { taxTypeExpanded = it },
                         options = taxTypeOptions,
-                        onOptionSelected = { taxType = it }
+                        onOptionSelected = { taxType = it },
+                        enabled = !isEditMode
                     )
                 }
 
@@ -171,6 +186,7 @@ fun AddTaxRateScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable(
+                                enabled = !isEditMode,
                                 indication = null,
                                 interactionSource = remember { MutableInteractionSource() }
                             ) { datePickerDialog.show() }
@@ -193,20 +209,62 @@ fun AddTaxRateScreen(
             showTrailingArrow = false,
             trailingAction = TrailingFabAction.Next(
                 label = when {
-                    isLoading -> "Saving..."
+                    effectiveLoading -> "Saving..."
                     isEditMode -> "Update Tax Rate"
                     else -> "Save Tax Rate"
                 },
-                enabled = isFormValid && !isLoading,
+                enabled = isFormValid && !effectiveLoading,
                 onClick = {
-                    if (isFormValid && !isLoading) {
-                        onSaveTaxRate(
-                            AddTaxRateFormState(
-                                name = taxName.trim(),
-                                rate = ratePercent.trim(),
-                                taxType = taxType,
-                                effectiveFrom = effectiveDate.ifBlank { null }
-                            )
+                    val parsedRate = ratePercent.trim().toDoubleOrNull()
+                    if (taxName.isBlank()) {
+                        errorMessage = "Tax name is required."
+                        return@Next
+                    }
+                    if (taxType.isBlank()) {
+                        errorMessage = "Tax type is required."
+                        return@Next
+                    }
+                    if (taxRateToEdit == null && (parsedRate == null || parsedRate < 0.0)) {
+                        errorMessage = "Please enter a valid tax rate."
+                        return@Next
+                    }
+
+                    val formState = AddTaxRateFormState(
+                        name = taxName.trim(),
+                        rate = ratePercent.trim(),
+                        taxType = taxType,
+                        effectiveFrom = effectiveDate.ifBlank { null }
+                    )
+
+                    if (taxRateToEdit != null) {
+                        viewModel.updateTaxRate(
+                            id = taxRateToEdit.id,
+                            name = formState.name,
+                            onSuccess = { msg ->
+                                successMessage = msg
+                                onSaveTaxRate?.invoke(formState)
+                                scope.launch {
+                                    delay(800)
+                                    onSaveSuccess()
+                                }
+                            },
+                            onError = { errorMessage = it }
+                        )
+                    } else {
+                        viewModel.createTaxRate(
+                            name = formState.name,
+                            rate = formState.rate,
+                            taxType = formState.taxType,
+                            effectiveFrom = formState.effectiveFrom,
+                            onSuccess = { msg ->
+                                successMessage = msg
+                                onSaveTaxRate?.invoke(formState)
+                                scope.launch {
+                                    delay(800)
+                                    onSaveSuccess()
+                                }
+                            },
+                            onError = { errorMessage = it }
                         )
                     }
                 }

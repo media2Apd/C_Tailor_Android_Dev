@@ -30,10 +30,10 @@ import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.finance.BankAccountItemDto
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.viewmodel.FinanceViewModel
 import java.util.Locale
 
@@ -149,7 +149,7 @@ fun BankAccountDetailScreen(
                         }
 
                         Text(
-                            text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.chartOfAccountId?.openingBalance ?: 0.0)}",
+                            text = "${formatCurrency()}${String.format(Locale.US, "%,.2f", item.chartOfAccountId?.openingBalance ?: 0.0)}",
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Medium,
                             color = TitleColor
@@ -181,7 +181,7 @@ fun BankAccountDetailScreen(
                 ) {
                     MetricBox(
                         title = "CLEARED BALANCE",
-                        amount = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.chartOfAccountId?.openingBalance ?: 0.0)}",
+                        amount = "${formatCurrency()}${String.format(Locale.US, "%,.2f", item.chartOfAccountId?.openingBalance ?: 0.0)}",
                         caption = "Reconciled: Recently",
                         icon = Icons.Outlined.CheckCircle,
                         iconTint = greentext,
@@ -190,7 +190,7 @@ fun BankAccountDetailScreen(
 
                     MetricBox(
                         title = "UNCLEARED",
-                        amount = "${currencySymbol()}0.00",
+                        amount = "${formatCurrency()}0.00",
                         caption = "0 pending trans.",
                         icon = Icons.Outlined.History,
                         iconTint = yellowText,

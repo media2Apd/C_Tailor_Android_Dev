@@ -28,8 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.currencySymbol
 
 data class LineItemDetail(
     val title: String,
@@ -373,7 +373,7 @@ fun BillPdfPreviewScreen(
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = "$  |  ${currencySymbol()}  |  €  |  AED",
+                                        text = "$  |  ${formatCurrency()}  |  €  |  AED",
                                         fontSize = tokens.label,
                                         color = TextSecondary,
                                         fontWeight = FontWeight.Medium
@@ -586,7 +586,7 @@ fun BillPdfPreviewScreen(
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
                                         Text(
-                                            text = "${currencySymbol()}${"%,.2f".format(item.totalAmount)}",
+                                            text = "${formatCurrency()}${"%,.2f".format(item.totalAmount)}",
                                             fontSize = tokens.bodySmall,
                                             fontWeight = FontWeight.Bold,
                                             color = TextPrimary
@@ -626,7 +626,7 @@ fun BillPdfPreviewScreen(
                                             color = close_color
                                         )
                                         Text(
-                                            text = "${currencySymbol()}${"%,.2f".format(item.unitPrice)}",
+                                            text = "${formatCurrency()}${"%,.2f".format(item.unitPrice)}",
                                             fontSize = tokens.caption,
                                             fontWeight = FontWeight.Bold,
                                             color = TextPrimary
@@ -639,7 +639,7 @@ fun BillPdfPreviewScreen(
                                             color = close_color
                                         )
                                         Text(
-                                            text = if (item.discount != null) "${currencySymbol()}${
+                                            text = if (item.discount != null) "${formatCurrency()}${
                                                 "%,.2f".format(
                                                     item.discount
                                                 )
@@ -723,7 +723,7 @@ fun BillPdfPreviewScreen(
                                     color = TextSecondary
                                 )
                                 Text(
-                                    text = "${currencySymbol()}23,050.00",
+                                    text = "${formatCurrency()}23,050.00",
                                     fontSize = tokens.bodySmall,
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary
@@ -740,7 +740,7 @@ fun BillPdfPreviewScreen(
                                     color = greentext
                                 )
                                 Text(
-                                    text = "-${currencySymbol()}800.00",
+                                    text = "-${formatCurrency()}800.00",
                                     fontSize = tokens.bodySmall,
                                     fontWeight = FontWeight.Bold,
                                     color = greentext
@@ -757,7 +757,7 @@ fun BillPdfPreviewScreen(
                                     color = TextSecondary
                                 )
                                 Text(
-                                    text = "${currencySymbol()}2,245.00",
+                                    text = "${formatCurrency()}2,245.00",
                                     fontSize = tokens.bodySmall,
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary
@@ -774,7 +774,7 @@ fun BillPdfPreviewScreen(
                                     color = TextSecondary
                                 )
                                 Text(
-                                    text = "${currencySymbol()}150.00",
+                                    text = "${formatCurrency()}150.00",
                                     fontSize = tokens.bodySmall,
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary
@@ -809,7 +809,7 @@ fun BillPdfPreviewScreen(
                                     color = TextPrimary
                                 )
                                 Text(
-                                    text = "${currencySymbol()}24,845.00",
+                                    text = "${formatCurrency()}24,845.00",
                                     fontSize = tokens.h2,
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary

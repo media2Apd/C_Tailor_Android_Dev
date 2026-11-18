@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
+
 package com.cuso.tailor.view.home.sales.pricing
 
 import androidx.compose.foundation.border
@@ -28,10 +30,9 @@ import com.cuso.tailor.model.sales.PriceAdjustmentDto
 import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_border
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.AccordionSection
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextField
@@ -575,7 +576,7 @@ private fun PriceAdjustmentField(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Add, contentDescription = null, tint = LeadPrimary, modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(6.dp))
-            Text("${currencySymbol()}", fontSize = 13.sp, color = Color(0xFF374151))
+            Text(formatCurrency(), fontSize = 13.sp, color = Color(0xFF374151))
             BasicTextField(
                 value = price,
                 onValueChange = onPriceChange,

@@ -1,118 +1,118 @@
 package com.cuso.tailor.view.home.sales.sales_order
 
-import android.net.Uri
-import androidx.annotation.DrawableRes
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cuso.tailor.database.entities.SelectedGarment
-import com.cuso.tailor.model.sales.ChargeRequest
-import com.cuso.tailor.model.sales.CreateGarmentRequestForCreateOrder
-import com.cuso.tailor.model.sales.CreateOrderRequest
-import com.cuso.tailor.model.sales.CustomerRequest
-import com.cuso.tailor.model.sales.FabricDetailsRequest
-import com.cuso.tailor.model.sales.GarmentModelRequest
-import com.cuso.tailor.model.sales.MeasurementValueRequest
-import com.cuso.tailor.model.sales.PaymentDetailsRequest
-import com.cuso.tailor.model.image_voice.createImageParts
-import com.cuso.tailor.model.image_voice.createVoiceNotePart
-import com.cuso.tailor.viewmodel.OrderActionState
-import com.cuso.tailor.viewmodel.SalesOrderViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import com.cuso.tailor.R
-import com.cuso.tailor.ui.theme.grey_border
-import com.cuso.tailor.ui.theme.light_grey
-import com.cuso.tailor.ui.theme.title_border
-import com.cuso.tailor.ui.theme.whiteBg
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
-import com.cuso.tailor.view.composable.ErrorMapper
-import com.cuso.tailor.view.composable.StepNavigationFab
-import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.TrailingFabAction
-import com.cuso.tailor.viewmodel.SalesViewModel
-import kotlinx.coroutines.delay
-import org.json.JSONArray
-import org.json.JSONObject
-
-// ─── Colors ───────────────────────────────────────────────────────────────────
-private val AccentBlue = Color(0xFF4F46E5)
-private val AccentBlueBg = Color(0xFFF0EEFE)
-private val SuccessGreen = Color(0xFF22C55E)
-private val SectionBg = Color(0xFFFFFFFF)
-private val PageBg = light_grey
-private val BorderColor = grey_border
-private val LabelGray = Color(0xFF9CA3AF)
-private val TextPrimary = Color(0xFF111827)
-private val TextSecond = Color(0xFF6B7280)
-
-//// ─── Data holder ──────────────────────────────────────────────────────────────
-//data class OrderReviewData(
-//    val leadId: String? = null,
-//    val orderId: String? = null,
-//    val customerId: String,
-//    val branchId: String? = null,
-//    val fullName: String,
-//    val countryCode: String,
-//    val phone: String,
-//    val gender: String? = null,
-//    val dressFor: String,
-//    val address: String,
-//    val garments: List<SelectedGarment>,
-//    val orderDate: String = "",
-//    val source: String = "Walk-in",
-//    val trialDate: String,
-//    val deliveryDate: String,
-//    val discount: Double = 0.0,
-//    val paidSoFar: Double = 0.0,
-//    val designImages: List<Uri> = emptyList(),
-//    val existingImageUrls: List<String> = emptyList(),
-//    val voiceNoteUri: Uri? = null
+//import android.net.Uri
+//import androidx.annotation.DrawableRes
+//import androidx.compose.animation.AnimatedVisibility
+//import androidx.compose.animation.expandVertically
+//import androidx.compose.animation.fadeIn
+//import androidx.compose.animation.fadeOut
+//import androidx.compose.animation.shrinkVertically
+//import androidx.compose.foundation.Image
+//import androidx.compose.foundation.background
+//import androidx.compose.foundation.border
+//import androidx.compose.foundation.clickable
+//import androidx.compose.foundation.interaction.MutableInteractionSource
+//import androidx.compose.foundation.layout.*
+//import androidx.compose.foundation.rememberScrollState
+//import androidx.compose.foundation.shape.RoundedCornerShape
+//import androidx.compose.foundation.text.BasicTextField
+//import androidx.compose.foundation.text.KeyboardOptions
+//import androidx.compose.foundation.verticalScroll
+//import androidx.compose.material.icons.Icons
+//import androidx.compose.material.icons.filled.*
+//import androidx.compose.material3.*
+//import androidx.compose.runtime.*
+//import androidx.compose.ui.Alignment
+//import androidx.compose.ui.Modifier
+//import androidx.compose.ui.draw.clip
+//import androidx.compose.ui.graphics.Color
+//import androidx.compose.ui.platform.LocalContext
+//import androidx.compose.ui.res.painterResource
+//import androidx.compose.ui.text.TextStyle
+//import androidx.compose.ui.text.font.FontWeight
+//import androidx.compose.ui.text.input.KeyboardType
+//import androidx.compose.ui.text.style.TextAlign
+//import androidx.compose.ui.unit.Dp
+//import androidx.compose.ui.unit.dp
+//import androidx.compose.ui.unit.sp
+//import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+//import androidx.lifecycle.compose.collectAsStateWithLifecycle
+//import com.cuso.tailor.database.entities.SelectedGarment
+//import com.cuso.tailor.model.sales.ChargeRequest
+//import com.cuso.tailor.model.sales.CreateGarmentRequestForCreateOrder
+//import com.cuso.tailor.model.sales.CreateOrderRequest
+//import com.cuso.tailor.model.sales.CustomerRequest
+//import com.cuso.tailor.model.sales.FabricDetailsRequest
+//import com.cuso.tailor.model.sales.GarmentModelRequest
+//import com.cuso.tailor.model.sales.MeasurementValueRequest
+//import com.cuso.tailor.model.sales.PaymentDetailsRequest
+//import com.cuso.tailor.model.image_voice.createImageParts
+//import com.cuso.tailor.model.image_voice.createVoiceNotePart
+//import com.cuso.tailor.viewmodel.OrderActionState
+//import com.cuso.tailor.viewmodel.SalesOrderViewModel
+//import java.text.SimpleDateFormat
+//import java.util.Date
+//import java.util.Locale
+//import com.cuso.tailor.R
+//import com.cuso.tailor.ui.theme.grey_border
+//import com.cuso.tailor.ui.theme.light_grey
+//import com.cuso.tailor.ui.theme.title_border
+//import com.cuso.tailor.ui.theme.whiteBg
+//import com.cuso.tailor.view.composable.DynamicIslandError
+//import com.cuso.tailor.view.composable.DynamicIslandSuccess
+//import com.cuso.tailor.view.composable.ErrorMapper
+//import com.cuso.tailor.view.composable.StepNavigationFab
+//import com.cuso.tailor.view.composable.TitleBar
+//import com.cuso.tailor.view.composable.TrailingFabAction
+//import com.cuso.tailor.viewmodel.SalesViewModel
+//import kotlinx.coroutines.delay
+//import org.json.JSONArray
+//import org.json.JSONObject
+//
+//// ─── Colors ───────────────────────────────────────────────────────────────────
+//private val AccentBlue = Color(0xFF4F46E5)
+//private val AccentBlueBg = Color(0xFFF0EEFE)
+//private val SuccessGreen = Color(0xFF22C55E)
+//private val SectionBg = Color(0xFFFFFFFF)
+//private val PageBg = light_grey
+//private val BorderColor = grey_border
+//private val LabelGray = Color(0xFF9CA3AF)
+//private val TextPrimary = Color(0xFF111827)
+//private val TextSecond = Color(0xFF6B7280)
+//
+////// ─── Data holder ──────────────────────────────────────────────────────────────
+////data class OrderReviewData(
+////    val leadId: String? = null,
+////    val orderId: String? = null,
+////    val customerId: String,
+////    val branchId: String? = null,
+////    val fullName: String,
+////    val countryCode: String,
+////    val phone: String,
+////    val gender: String? = null,
+////    val dressFor: String,
+////    val address: String,
+////    val garments: List<SelectedGarment>,
+////    val orderDate: String = "",
+////    val source: String = "Walk-in",
+////    val trialDate: String,
+////    val deliveryDate: String,
+////    val discount: Double = 0.0,
+////    val paidSoFar: Double = 0.0,
+////    val designImages: List<Uri> = emptyList(),
+////    val existingImageUrls: List<String> = emptyList(),
+////    val voiceNoteUri: Uri? = null
+////)
+//
+//// ─── Charge model ──────────────────────────────────────────────────────────────
+//data class ChargeItem(
+//    val id: String,
+//    val name: String = "",
+//    val amount: String = ""
 //)
-
-// ─── Charge model ──────────────────────────────────────────────────────────────
-data class ChargeItem(
-    val id: String,
-    val name: String = "",
-    val amount: String = ""
-)
-
-private fun newChargeId(): String = "charge_${System.nanoTime()}"
-
+//
+//private fun newChargeId(): String = "charge_${System.nanoTime()}"
+//
 
 //
 //@OptIn(ExperimentalMaterial3Api::class)
@@ -413,7 +413,7 @@ private fun newChargeId(): String = "charge_${System.nanoTime()}"
 //                                HorizontalDivider(color = BorderColor, modifier = Modifier.padding(vertical = 12.dp))
 //                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
 //                                    Text("Total Items: ${orderData.garments.size}", fontSize = 14.sp, color = TextSecond)
-//                                    Text("Subtotal   ${currencySymbol()}${"%.2f".format(subtotal)}", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
+//                                    Text("Subtotal   ${formatCurrency()}${"%.2f".format(subtotal)}", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
 //                                }
 //                            }
 //                        }
@@ -444,7 +444,7 @@ private fun newChargeId(): String = "charge_${System.nanoTime()}"
 //                                ) {
 //                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
 //                                        Text("Subtotal", fontSize = 14.sp, color = TextSecond)
-//                                        Text("${currencySymbol()}${"%.2f".format(subtotal)}", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+//                                        Text("${formatCurrency()}${"%.2f".format(subtotal)}", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
 //                                    }
 //
 //                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -466,7 +466,7 @@ private fun newChargeId(): String = "charge_${System.nanoTime()}"
 //                                    horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
 //                                ) {
 //                                    Text("Grand Total", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
-//                                    Text("${currencySymbol()}${"%.2f".format(grandTotal)}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+//                                    Text("${formatCurrency()}${"%.2f".format(grandTotal)}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
 //                                }
 //
 //                                Column(
@@ -479,11 +479,11 @@ private fun newChargeId(): String = "charge_${System.nanoTime()}"
 //                                ) {
 //                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
 //                                        Text("Paid So Far", fontSize = 13.sp, color = TextSecond)
-//                                        Text("${currencySymbol()}${"%.2f".format(orderData.paidSoFar)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = SuccessGreen)
+//                                        Text("${formatCurrency()}${"%.2f".format(orderData.paidSoFar)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = SuccessGreen)
 //                                    }
 //                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
 //                                        Text("Balance Due", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = TextSecond)
-//                                        Text("${currencySymbol()}${"%.2f".format(balanceDue)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = SuccessGreen)
+//                                        Text("${formatCurrency()}${"%.2f".format(balanceDue)}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = SuccessGreen)
 //                                    }
 //                                }
 //                            }
@@ -707,7 +707,7 @@ private fun newChargeId(): String = "charge_${System.nanoTime()}"
 //            .padding(horizontal = 8.dp),
 //        verticalAlignment = Alignment.CenterVertically
 //    ) {
-//        Text("${currencySymbol()}", fontSize = 13.sp, color = LabelGray)
+//        Text("${formatCurrency()}", fontSize = 13.sp, color = LabelGray)
 //        Spacer(Modifier.width(4.dp))
 //        BasicTextField(
 //            value = value,

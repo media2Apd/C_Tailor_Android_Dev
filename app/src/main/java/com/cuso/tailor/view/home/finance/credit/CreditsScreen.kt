@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
+
 package com.cuso.tailor.view.home.finance.credit
 
 import androidx.compose.foundation.background
@@ -22,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.finance.CreditNoteItemDto
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.FinanceViewModel
 import java.text.SimpleDateFormat
@@ -266,7 +269,7 @@ fun CreditNotesListScreen(
                                                     )
                                                     Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                                                     Text(
-                                                        text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.grandTotal)}",
+                                                        text = "${formatCurrency()}${String.format(Locale.US, "%,.2f", item.grandTotal)}",
                                                         fontSize = tokens.bodySmall,
                                                         color = TitleColor,
                                                         fontWeight = FontWeight.Medium
@@ -280,7 +283,7 @@ fun CreditNotesListScreen(
                                                     )
                                                     Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                                                     Text(
-                                                        text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.remainingBalance)}",
+                                                        text = "${formatCurrency()}${String.format(Locale.US, "%,.2f", item.remainingBalance)}",
                                                         fontSize = tokens.bodySmall,
                                                         color = TitleColor,
                                                         fontWeight = FontWeight.Medium

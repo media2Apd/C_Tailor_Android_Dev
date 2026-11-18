@@ -32,13 +32,14 @@ import com.cuso.tailor.viewmodel.FinanceViewModel
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextArea
 import com.cuso.tailor.view.composable.SettingsTabs
 import com.cuso.tailor.view.composable.TabItem
 import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.currencySymbol
+
 import com.cuso.tailor.viewmodel.OrderUiState
 import com.cuso.tailor.viewmodel.SalesOrderViewModel
 
@@ -174,8 +175,8 @@ fun BankStatementDetailScreen(
                             StatementMetricCard(
                                 modifier = Modifier.weight(1f),
                                 title = "Passbook Balances",
-                                primaryText = "Open: ${currencySymbol()}${String.format(LocalLocale.current.platformLocale, "%,.0f", st?.openingBalance ?: 0.0)}",
-                                secondaryText = "Close: ${currencySymbol()}${String.format(LocalLocale.current.platformLocale, "%,.0f", st?.closingBalance ?: 0.0)}",
+                                primaryText = "Open: ${formatCurrency()}${String.format(LocalLocale.current.platformLocale, "%,.0f", st?.openingBalance ?: 0.0)}",
+                                secondaryText = "Close: ${formatCurrency()}${String.format(LocalLocale.current.platformLocale, "%,.0f", st?.closingBalance ?: 0.0)}",
                                 icon = Icons.Default.CreditCard,
                                 iconTint = TextSecondary,
                                 primaryTextColor = TextPrimary
@@ -184,7 +185,7 @@ fun BankStatementDetailScreen(
                             StatementMetricCard(
                                 modifier = Modifier.weight(1f),
                                 title = "Total Deposits (Credits)",
-                                primaryText = "+${currencySymbol()}${String.format(LocalLocale.current.platformLocale, "%,.0f", st?.totalDeposits ?: 0.0)}",
+                                primaryText = "+${formatCurrency()}${String.format(LocalLocale.current.platformLocale, "%,.0f", st?.totalDeposits ?: 0.0)}",
                                 secondaryText = "Money In",
                                 icon = Icons.Default.CheckCircle,
                                 iconTint = greentext,
@@ -200,7 +201,7 @@ fun BankStatementDetailScreen(
                             StatementMetricCard(
                                 modifier = Modifier.weight(1f),
                                 title = "Total Withdrawals",
-                                primaryText = "-${currencySymbol()}${String.format(LocalLocale.current.platformLocale, "%,.2f", st?.totalWithdrawals ?: 0.0)}",
+                                primaryText = "-${formatCurrency()}${String.format(LocalLocale.current.platformLocale, "%,.2f", st?.totalWithdrawals ?: 0.0)}",
                                 secondaryText = "Money Out",
                                 icon = Icons.Default.ErrorOutline,
                                 iconTint = redText,
@@ -477,7 +478,7 @@ private fun StatementTableRow(
 
         // 4. DEBIT
         Text(
-            text = if (line.withdrawal > 0) "${currencySymbol()}${String.format(LocalLocale.current.platformLocale, "%,.2f", line.withdrawal)}" else "—",
+            text = if (line.withdrawal > 0) "${formatCurrency()}${String.format(LocalLocale.current.platformLocale, "%,.2f", line.withdrawal)}" else "—",
             fontSize = tokens.bodySmall,
             color = if (line.withdrawal > 0) redText else TextSecondary,
             modifier = Modifier.width(100.dp)
@@ -485,7 +486,7 @@ private fun StatementTableRow(
 
         // 5. CREDIT
         Text(
-            text = if (line.deposit > 0) "${currencySymbol()}${String.format(LocalLocale.current.platformLocale, "%,.0f", line.deposit)}" else "—",
+            text = if (line.deposit > 0) "${formatCurrency()}${String.format(LocalLocale.current.platformLocale, "%,.0f", line.deposit)}" else "—",
             fontSize = tokens.bodySmall,
             fontWeight = if (line.deposit > 0) FontWeight.Medium else FontWeight.Normal,
             color = if (line.deposit > 0) greentext else TextSecondary,
@@ -494,7 +495,7 @@ private fun StatementTableRow(
 
         // 6. RUN BALANCE
         Text(
-            text = line.runningBalance?.let { "${currencySymbol()}${String.format(LocalLocale.current.platformLocale, "%,.2f", it)}" } ?: "—",
+            text = line.runningBalance?.let { "${formatCurrency()}${String.format(LocalLocale.current.platformLocale, "%,.2f", it)}" } ?: "—",
             fontSize = tokens.bodySmall,
             color = TextPrimary,
             modifier = Modifier.width(110.dp)
@@ -830,9 +831,9 @@ private fun ManualMatchDialog(
                             )
                             val isDeposit = line.deposit > 0
                             val amt = if (isDeposit) {
-                                "+${currencySymbol()}${String.format(platformLocale, "%,.0f", line.deposit)}"
+                                "+${formatCurrency()}${String.format(platformLocale, "%,.0f", line.deposit)}"
                             } else {
-                                "-${currencySymbol()}${String.format(platformLocale, "%,.0f", line.withdrawal)}"
+                                "-${formatCurrency()}${String.format(platformLocale, "%,.0f", line.withdrawal)}"
                             }
                             Text(
                                 text = amt,

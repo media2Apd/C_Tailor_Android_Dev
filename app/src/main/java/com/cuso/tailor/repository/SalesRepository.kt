@@ -28,7 +28,6 @@ import com.cuso.tailor.model.sales.CreateCustomerRequest
 import com.cuso.tailor.model.sales.CreateLeadFormRequest
 import com.cuso.tailor.model.sales.CreateLeadFormResponse
 import com.cuso.tailor.model.sales.CreateOpportunityRequest
-import com.cuso.tailor.model.sales.CreateOrderRequest
 import com.cuso.tailor.model.sales.CreateQuotationRequest
 import com.cuso.tailor.model.sales.CreateQuotationResponse
 import com.cuso.tailor.model.sales.CustomerDetailV2
@@ -383,11 +382,19 @@ class SalesRepository @Inject constructor(
     ): Result<ConvertLeadToOpportunityResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = salesLeadApi.convertLeadToOpportunity(accessToken, csrfToken, request)
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+            val response = salesLeadApi.convertLeadToOpportunity(
+                accessToken = accessToken,
+                csrfToken = csrfToken,
+                leadId = request.leadId,
+                request = request
+            )
+            val body = response.body()
+            if (response.isSuccessful && body != null && body.success) {
+                Result.success(body)
             } else {
-                val errorMsg = response.errorBody()?.string() ?: "Failed to convert lead"
+                val errorMsg = body?.message?.takeIf { it.isNotBlank() }
+                    ?: response.errorBody()?.string()
+                    ?: "Failed to convert lead"
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
@@ -1684,10 +1691,25 @@ class SalesRepository @Inject constructor(
         return try {
             val (token, csrfToken) = getAuthHeaders()
             val response = salesOppertunitiesApiService.createOpportunity(token, csrfToken, request)
-            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
-                Result.success(response.body()!!.data!!)
-            } else Result.failure(Exception(response.errorBody()?.string() ?: "Failed to create opportunity"))
-        } catch (e: Exception) { Result.failure(e) }
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                val rawError = response.errorBody()?.string()
+                val parsedMessage = try {
+                    rawError?.let {
+                        com.google.gson.JsonParser.parseString(it).asJsonObject.get("message")?.asString
+                    }
+                } catch (_: Exception) {
+                    null
+                }
+                Result.failure(
+                    Exception(parsedMessage ?: body?.message ?: rawError ?: "Failed to create opportunity")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     // 4. DELETE ONE

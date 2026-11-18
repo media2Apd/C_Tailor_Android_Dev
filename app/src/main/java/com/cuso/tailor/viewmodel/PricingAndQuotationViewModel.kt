@@ -12,7 +12,8 @@
     import com.cuso.tailor.model.sales.PricingStatValue
     import com.cuso.tailor.model.sales.PricingStats
     import com.cuso.tailor.repository.SalesRepository
-    import com.cuso.tailor.utils.currencySymbol
+    
+    import com.cuso.tailor.utils.formatCurrency
     import com.cuso.tailor.utils.launchBusy
     import dagger.hilt.android.lifecycle.HiltViewModel
     import kotlinx.coroutines.delay
@@ -156,9 +157,9 @@
             return PricingQuotationData(
                 stats = PricingStats(
                     activeQuotations = PricingStatValue(value = "24", changePercent = 12.0),
-                    avgQuoteValue = PricingStatValue(value = "${currencySymbol()}2,450", changePercent = 8.0),
+                    avgQuoteValue = PricingStatValue(value = "${formatCurrency()}2,450", changePercent = 8.0),
                     approvalRate = PricingStatValue(value = "78%", changePercent = 5.0),
-                    thisMonth = PricingStatValue(value = "${currencySymbol()}58.8k", changePercent = 15.0)
+                    thisMonth = PricingStatValue(value = "${formatCurrency()}58.8k", changePercent = 15.0)
                 ),
                 categories = listOf(
                     PricingCategoryItem(

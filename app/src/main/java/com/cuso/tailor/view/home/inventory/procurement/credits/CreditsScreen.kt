@@ -25,6 +25,7 @@ import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.PagingUiState
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 
 // ─────────────────────────────────────────────────────────────
@@ -39,8 +40,8 @@ data class CreditItemModel(
     val customerInitial: String = "H",
     val customerName: String = "Siva",
     val createdBy: String = "Rahman",
-    val amount: String = "${currencySymbol()} 50,000",
-    val balance: String = "${currencySymbol()} 20,000",
+    val amount: String = "${formatCurrency()} 50,000",
+    val balance: String = "${formatCurrency()} 20,000",
     val billNo: String = "BILL-88940",
     val reason: String = "Price Adjustments"
 )

@@ -64,7 +64,7 @@ import com.cuso.tailor.model.settings.GarmentItem
 import com.cuso.tailor.model.settings.GarmentStyleItem
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
-import com.cuso.tailor.utils.currencySymbol
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.*
 import com.google.gson.Gson
@@ -105,8 +105,8 @@ data class DynamicFabricItem(
     override var isItemExpanded: Boolean = false,
     var itemId: String = "",
     var selection: String = "",
-    var quantity: String = "1",
-    var unit: String = "Meters (m)",
+    var quantity: String = "",
+    var unit: String = "",
     var warehouseId: String = "",
     var warehouseName: String = "",
     var binId: String = "",
@@ -122,8 +122,8 @@ data class DynamicAccessoryItem(
     override var isItemExpanded: Boolean = false,
     var itemId: String = "",
     var selection: String = "",
-    var quantity: String = "1",
-    var unit: String = "Pieces (Pcs)",
+    var quantity: String = "",
+    var unit: String = "",
     var warehouseId: String = "",
     var warehouseName: String = "",
     var binId: String = "",
@@ -140,7 +140,7 @@ data class ConfiguredOrderItem(
     var garmentType: String = "",
     var quantity: Int = 1,
     var productionTemplateName: String = "",
-    var fabricSource: String = "Store Provided",
+    var fabricSource: String = "",
     var fabricSelection: String = "",
     var designPreset: String = "",
     var colorAccent: String = "",
@@ -161,14 +161,14 @@ data class ConfiguredOrderItem(
     var sketchFileName: String = "",
     var selectedPlacements: List<String> = listOf("Front", "Back", "Neckline", "Sleeves"),
     var selectedMaterials: List<String> = listOf("Silk Thread", "Zari", "Stones", "Pearls"),
-    var primaryColor: String = "Antique Gold",
-    var secondaryColor: String = "Crimson Maroon",
-    var coverage: String = "Medium",
-    var workTarget: String = "Custom Area",
-    var areaDescription: String = "Neckline floral motif and 2.5-inch sleeve borders",
-    var estArea: String = "120 sq. in",
-    var borderLength: String = "2.2 meters",
-    var countDetail: String = "65 pearls",
+    var primaryColor: String = "",
+    var secondaryColor: String = "",
+    var coverage: String = "",
+    var workTarget: String = "",
+    var areaDescription: String = "",
+    var estArea: String = "",
+    var borderLength: String = "",
+    var countDetail: String = "",
     var customizationInstructions: String = "",
     var isDesignPreviewApproved: Boolean = true,
     var productionInstructions: String = "",
@@ -231,18 +231,12 @@ private fun validateRequiredOrderFields(
                 if (cfg.fabricSource.isBlank() || cfg.fabricSource == "-") {
                     return "Please select Fabric Source for Item #$itemNum"
                 }
-                if (cfg.fabricSelection.isBlank()) {
-                    return if (cfg.fabricSource.equals("Customer Provided", ignoreCase = true)) {
-                        "Please enter customer fabric details for Item #$itemNum"
-                    } else {
-                        "Please select store fabric for Item #$itemNum"
-                    }
+                // Match React validatePageOne: only Store Provided fabric requires selecting a store fabric
+                if (cfg.fabricSource.equals("Store Provided", ignoreCase = true) && cfg.fabricSelection.isBlank()) {
+                    return "Please select store fabric for Item #$itemNum"
                 }
                 if (cfg.productionTemplateId.isBlank()) {
                     return "Please select Production Workflow Template for Item #$itemNum"
-                }
-                if (cfg.deliveryDate.isBlank()) {
-                    return "Please select Item Delivery Date for Item #$itemNum"
                 }
             }
             is DynamicFabricItem -> {
@@ -284,7 +278,10 @@ private fun validateRequiredOrderFields(
 
     if (paymentType.isBlank() || paymentType == "-") return "Please select payment type"
     if (paymentType == "Advance") {
-        if (advanceAmount.trim().isBlank() || advanceAmount == "-") return "Please enter advance amount required"
+        // Allow 0 or positive numeric amount (matching React advanceAmountRequired: 0)
+        if (advanceAmount.trim().isBlank() || advanceAmount == "-" || advanceAmount.trim().toDoubleOrNull() == null) {
+            return "Please enter a valid advance amount required"
+        }
     }
 
     return null
@@ -352,7 +349,7 @@ fun CreateOrderScreen(
     var phone by rememberSaveable { mutableStateOf(initialData?.phone?.takeIf { it.isNotBlank() } ?: savedDraft?.phone ?: "") }
     var fullName by rememberSaveable { mutableStateOf(initialData?.fullName?.takeIf { it.isNotBlank() } ?: savedDraft?.customerName ?: "") }
     var customerType by rememberSaveable {
-        mutableStateOf(initialData?.dressFor.orEmpty().ifBlank { savedDraft?.customerType ?: "Individual" })
+        mutableStateOf(initialData?.dressFor.orEmpty().ifBlank { savedDraft?.customerType ?: "" })
     }
     var selectedBranchId by rememberSaveable {
         mutableStateOf(initialData?.branchId?.takeIf { it.isNotBlank() } ?: savedDraft?.branchId ?: "")
@@ -366,10 +363,11 @@ fun CreateOrderScreen(
     var salespersonName by rememberSaveable { mutableStateOf(savedDraft?.salespersonName ?: "") }
     var gender by rememberSaveable { mutableStateOf(initialData?.gender ?: "") }
     var dressFor by rememberSaveable { mutableStateOf(initialData?.dressFor ?: "") }
-    var source by rememberSaveable { mutableStateOf(initialData?.source ?: "Direct") }
-    var countryCode by rememberSaveable { mutableStateOf(initialData?.countryCode ?: "+91") }
-    var orderType by rememberSaveable { mutableStateOf(savedDraft?.orderType ?: "New Stitching") }
-    val priority by rememberSaveable { mutableStateOf("Medium") }
+    // Match React createInitialFormData defaults (orderSource: "Walk-in", paymentType: "Advance", advanceAmount: "0")
+    var source by rememberSaveable { mutableStateOf(initialData?.source?.takeIf { it.isNotBlank() } ?: "") }
+    var countryCode by rememberSaveable { mutableStateOf(initialData?.countryCode ?: "") }
+    var orderType by rememberSaveable { mutableStateOf(savedDraft?.orderType ?: "") }
+    val priority by rememberSaveable { mutableStateOf("") }
 
     var dynamicOrderItems by remember {
         mutableStateOf(
@@ -384,10 +382,11 @@ fun CreateOrderScreen(
                             garmentCategory = g.categoryName.ifBlank { g.category },
                             quantity = g.quantity,
                             stitchingPrice = g.price,
-                            fabricSource = g.fabricSource.ifBlank { "Customer Provided" },
+                            fabricSource = g.fabricSource.ifBlank { "" },
                             fabricSelection = g.fabricType,
                             colorAccent = g.colorTone,
                             designPreset = g.pattern,
+                            deliveryDate = todayFormatted,
                             trialRequired = g.trialRequired
                         )
                     )
@@ -397,7 +396,8 @@ fun CreateOrderScreen(
                     DynamicGarmentItem(
                         isItemExpanded = true,
                         config = ConfiguredOrderItem(
-                            fabricSource = "-",
+                            fabricSource = "Customer Provided",
+                            deliveryDate = todayFormatted,
                             isCustomizationEnabled = true,
                             selectedWorkPricingIds = emptyList()
                         )
@@ -415,19 +415,29 @@ fun CreateOrderScreen(
                 ?: ""
         )
     }
-    var paymentType by rememberSaveable { mutableStateOf(savedDraft?.paymentType ?: "-") }
+    // Payment & Billing states aligned with React PaymentBillingSection.jsx
+    var paymentType by rememberSaveable { mutableStateOf(savedDraft?.paymentType ?: "Advance") }
+    var paymentTermId by rememberSaveable { mutableStateOf("") }
+    var paymentTermName by rememberSaveable { mutableStateOf("") }
+    var paymentMode by rememberSaveable { mutableStateOf("Cash") }
     var advanceAmount by rememberSaveable {
         mutableStateOf(
             if ((initialData?.paidSoFar ?: 0.0) > 0.0) {
                 initialData!!.paidSoFar.toInt().toString()
             } else {
-                savedDraft?.advanceAmount ?: "-"
+                savedDraft?.advanceAmount ?: "0"
             }
         )
     }
+    var billingNotes by rememberSaveable { mutableStateOf("") }
 
     var isPrefilled by rememberSaveable { mutableStateOf(savedDraft != null) }
     var existingImageUrls by remember { mutableStateOf(initialData?.existingImageUrls ?: emptyList()) }
+
+    // Collect inventory and template flows before LaunchedEffect(orderOverviewState) so they are in scope
+    val fabricItemList by inventoryViewModel.fabricItemList.collectAsStateWithLifecycle()
+    val accessoryItemList by inventoryViewModel.accessoryItemList.collectAsStateWithLifecycle()
+    val productionTemplates by inventoryViewModel.productionTemplates.collectAsStateWithLifecycle()
 
     // ── NEW: collect the overview state ──
     val orderOverviewState by orderOverviewViewModel.overviewState.collectAsStateWithLifecycle()
@@ -468,9 +478,13 @@ fun CreateOrderScreen(
 
         expectedDeliveryDate = formatIsoDateForDisplay(data.dueDate)
 
-        orderType = data.orderType
-            ?.takeIf { it.isNotBlank() }
-            ?: orderType
+        // Map backend orderType enum to Android dropdown label
+        orderType = when (data.orderType) {
+            "New_Stitching" -> "New Stitching"
+            "Retail_Sale" -> "Retail Sale"
+            else -> data.orderType?.takeIf { it.isNotBlank() } ?: orderType
+        }
+        source = data.orderSource?.takeIf { it.isNotBlank() } ?: source
 
 
         /* ───────── 2. CUSTOMER DETAILS ───────── */
@@ -547,25 +561,20 @@ fun CreateOrderScreen(
             ?.takeIf { it.isNotBlank() }
             ?: paymentType
 
+        data.paymentTermId?.let { term ->
+            paymentTermId = term.id.orEmpty()
+            paymentTermName = term.name.orEmpty()
+        }
+
+        paymentMode = data.paymentMode
+            ?.takeIf { it.isNotBlank() }
+            ?: paymentMode
+
+        // Map Advance Amount Collected Now directly from advanceAmountPaid (matching React)
         val paid = data.advanceAmountPaid ?: 0.0
+        advanceAmount = if (paid > 0.0) paid.toInt().toString() else "0"
 
-        advanceAmount = if (paid > 0.0) {
-            paid.toInt().toString()
-        } else {
-            "-"
-        }
-
-        val disc = data.totalDiscount ?: 0.0
-
-        discountText = if (disc > 0.0) {
-            if (disc % 1.0 == 0.0) {
-                disc.toLong().toString()
-            } else {
-                disc.toString()
-            }
-        } else {
-            ""
-        }
+        billingNotes = data.billingNotes.orEmpty()
 
 
         /* ───────── 6. LINE ITEMS ───────── */
@@ -579,6 +588,14 @@ fun CreateOrderScreen(
             )
         }
 
+        // Group child Garment_Material and Garment_Addon lines by parentLineId (matching React CASE 1)
+        val childMaterialByParent: Map<String?, OrderOverviewItem> = allLines
+            .filter {
+                it.lineType.equals("Garment_Material", ignoreCase = true) &&
+                        !it.parentLineId.isNullOrBlank()
+            }
+            .associateBy { it.parentLineId }
+
         val addonLines = allLines.filter {
             it.lineType.equals(
                 "Garment_Addon",
@@ -586,7 +603,6 @@ fun CreateOrderScreen(
             )
         }
 
-        // Group addons by their parent garment line id
         val addonsByParent: Map<String?, List<OrderOverviewItem>> =
             addonLines.groupBy { item ->
                 item.parentLineId
@@ -598,7 +614,7 @@ fun CreateOrderScreen(
             dynamicOrderItems = garmentLines.map { gItem ->
 
                 val cfg = gItem.customGarment
-
+                val linkedMaterial = childMaterialByParent[gItem._id]
                 val lineAddons = addonsByParent[gItem._id].orEmpty()
 
 
@@ -653,6 +669,7 @@ fun CreateOrderScreen(
                 /* ───────── FABRIC SOURCE ───────── */
 
                 val resolvedFabricSource = when {
+                    linkedMaterial != null -> "Store Provided"
 
                     cfg?.fabricSource.equals(
                         "Store_Provided",
@@ -673,34 +690,25 @@ fun CreateOrderScreen(
                     }
 
                     else -> {
-                        "Store Provided"
+                        "Customer Provided"
                     }
                 }
 
-
-                /*
-                 * Fabric pricing list was removed because
-                 * fabricPricingList is not available in this scope.
-                 *
-                 * The order API already provides fabricNotes,
-                 * so keep the selected fabric name directly.
-                 */
+                // Restore fabric details and pricing from linked child material when present
                 val fabricSelection = cfg?.fabricNotes.orEmpty()
+                val fabricRate = linkedMaterial?.unitPrice ?: 0.0
+                val fabricMeters = linkedMaterial?.quantity?.toDouble()?.coerceAtLeast(1.0) ?: 2.5
+                val fabricGstRate = linkedMaterial?.taxGroupId?.totalRate
+                    ?: gItem.taxGroupId?.totalRate
+                    ?: 5.0
 
-                val fabricRate = 0.0
-
-
-                /*
-                 * Production template list was removed because
-                 * productionTemplates is not available in this scope.
-                 *
-                 * Keep the productionTemplateId received from
-                 * the order API.
-                 */
                 val productionTemplateId =
                     gItem.productionTemplateId.orEmpty()
 
-                val productionTemplateName = ""
+                val productionTemplateName = productionTemplates
+                    .find { it.id == productionTemplateId }
+                    ?.name
+                    .orEmpty()
 
 
                 /* ───────── BUILD DYNAMIC GARMENT ───────── */
@@ -785,8 +793,11 @@ fun CreateOrderScreen(
                         fabricRate =
                             fabricRate,
 
+                        fabricMeters =
+                            fabricMeters,
+
                         fabricGstRate =
-                            gItem.taxGroupId?.totalRate ?: 5.0,
+                            fabricGstRate,
 
                         selectedWorkPricingIds =
                             selectedWorkIds,
@@ -847,10 +858,47 @@ fun CreateOrderScreen(
         isPrefilled = true
     }
 
+    // Dynamically resolve orderType based on item types (matching React SalesOrderForm.jsx)
+    val hasGarments = remember(dynamicOrderItems) {
+        dynamicOrderItems.any { it is DynamicGarmentItem }
+    }
+    val hasRetailOrFabric = remember(dynamicOrderItems) {
+        dynamicOrderItems.any { it is DynamicFabricItem || it is DynamicAccessoryItem }
+    }
+    LaunchedEffect(hasGarments, hasRetailOrFabric, isEditMode) {
+        if (isEditMode) return@LaunchedEffect
+        when {
+            hasGarments && hasRetailOrFabric -> if (orderType != "Mixed") orderType = "Mixed"
+            !hasGarments && hasRetailOrFabric -> if (orderType != "Retail Sale") orderType = "Retail Sale"
+            hasGarments && !hasRetailOrFabric -> {
+                if (orderType == "Mixed" || orderType == "Retail Sale") {
+                    orderType = "New Stitching"
+                }
+            }
+        }
+    }
 
-    val fabricItemList by inventoryViewModel.fabricItemList.collectAsStateWithLifecycle()
-    val accessoryItemList by inventoryViewModel.accessoryItemList.collectAsStateWithLifecycle()
-    val productionTemplates by inventoryViewModel.productionTemplates.collectAsStateWithLifecycle()
+    // Auto-assign default workflow template to custom garments on create (matching React SalesOrderForm.jsx)
+    LaunchedEffect(productionTemplates, dynamicOrderItems.size, isEditMode) {
+        if (productionTemplates.isNotEmpty() && !isEditMode) {
+            val defaultTemplate = productionTemplates.first()
+            val needsDefault = dynamicOrderItems.any {
+                it is DynamicGarmentItem && it.config.productionTemplateId.isBlank()
+            }
+            if (needsDefault) {
+                dynamicOrderItems = dynamicOrderItems.map { entry ->
+                    if (entry is DynamicGarmentItem && entry.config.productionTemplateId.isBlank()) {
+                        entry.copy(
+                            config = entry.config.copy(
+                                productionTemplateId = defaultTemplate.id,
+                                productionTemplateName = defaultTemplate.name
+                            )
+                        )
+                    } else entry
+                }
+            }
+        }
+    }
 
     var showDiscardDialog by remember { mutableStateOf(false) }
 
@@ -916,13 +964,13 @@ fun CreateOrderScreen(
 
     val branchNames = remember(branches) {
         branches.map { branch ->
-            branch.name?.takeIf { it.isNotBlank() } ?: branch.branchId ?: "Branch"
+            branch.name?.takeIf { it.isNotBlank() } ?: branch.branchId ?: ""
         }
     }
 
     val branchNameToIdMap = remember(branches) {
         branches.associate { branch ->
-            val displayName = branch.name?.takeIf { it.isNotBlank() } ?: branch.branchId ?: "Branch"
+            val displayName = branch.name?.takeIf { it.isNotBlank() } ?: branch.branchId ?: ""
             displayName to branch.id
         }
     }
@@ -945,11 +993,11 @@ fun CreateOrderScreen(
     var selectedPresetDesign by remember {
         mutableStateOf(
             DesignItem(
-                id = "6ab4cbab9a1fbdafed06a436",
-                name = "V-Neck Basic",
-                designType = "Front Neck",
-                code = "V-NECK-001",
-                status = "Active"
+                id = "",
+                name = "",
+                designType = "",
+                code = "",
+                status = ""
             )
         )
     }
@@ -969,7 +1017,7 @@ fun CreateOrderScreen(
     }
 
     val recordedVoiceNoteUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
-    var expandedSection by rememberSaveable { mutableStateOf("customer") }
+    var expandedSection by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(expandedSection) {
         if (expandedSection == "pricing") {
@@ -981,6 +1029,9 @@ fun CreateOrderScreen(
     var branchExpanded by remember { mutableStateOf(false) }
     var orderTypeExpanded by remember { mutableStateOf(false) }
     var paymentTypeExpanded by remember { mutableStateOf(false) }
+    var paymentTermExpanded by remember { mutableStateOf(false) }
+    var paymentModeExpanded by remember { mutableStateOf(false) }
+    var collectedByExpanded by remember { mutableStateOf(false) }
     var salespersonExpanded by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -1009,6 +1060,13 @@ fun CreateOrderScreen(
                 ) {
                     var customerDropdownExpanded by remember { mutableStateOf(false) }
                     var selectedCustomerLabel by rememberSaveable { mutableStateOf(fullName) }
+
+                    // Sync dropdown display label when customer details are prefilled in edit mode
+                    LaunchedEffect(fullName, phone) {
+                        if (fullName.isNotBlank() && selectedCustomerLabel.isBlank()) {
+                            selectedCustomerLabel = if (phone.isNotBlank()) "$fullName ($phone)" else fullName
+                        }
+                    }
 
                     val customerOptions = remember(customerSearchResults) {
                         customerSearchResults.map { "${it.name} (${it.mobile ?: "No phone"})" }
@@ -1074,7 +1132,7 @@ fun CreateOrderScreen(
 
                     FormDropdown(
                         label = "Customer Type",
-                        value = customerType.ifEmpty { "Individual" },
+                        value = customerType.ifEmpty { "Select Customer Type" },
                         expanded = customerTypeExpanded,
                         onExpandChange = { customerTypeExpanded = it },
                         options = listOf("Individual", "Corporate"),
@@ -1132,7 +1190,7 @@ fun CreateOrderScreen(
 
                     FormDropdown(
                         label = "Order Type",
-                        value = orderType.ifEmpty { "New Stitching" },
+                        value = orderType.ifEmpty { "Select Order Type" },
                         expanded = orderTypeExpanded,
                         onExpandChange = { orderTypeExpanded = it },
                         options = listOf("New Stitching", "Alteration", "Repair", "Retail Sale", "Mixed"),
@@ -1345,13 +1403,20 @@ fun CreateOrderScreen(
                                                                 if (chosenGarment != null) {
                                                                     settingsViewModel.fetchGarmentStyles(segmentId = null, garmentId = chosenGarment.id)
 
+                                                                    // Keep existing/default productionTemplateId if garment blueprint does not specify one
+                                                                    val resolvedTemplateId = chosenGarment.productionTemplateId
+                                                                        ?.takeIf { it.isNotBlank() }
+                                                                        ?: currentGarment.productionTemplateId.ifBlank {
+                                                                            productionTemplates.firstOrNull()?.id.orEmpty()
+                                                                        }
+
                                                                     val updated = currentGarment.copy(
                                                                         garmentType = selectedTypeName,
                                                                         garmentCategory = "Select Category",
                                                                         garmentCategoryId = "",
                                                                         garmentId = chosenGarment.id,
                                                                         segmentId = chosenGarment.applicableSegments.firstOrNull()?.id.orEmpty(),
-                                                                        productionTemplateId = chosenGarment.productionTemplateId.orEmpty(),
+                                                                        productionTemplateId = resolvedTemplateId,
                                                                         stitchingSacCode = chosenGarment.sacCode.orEmpty(),
                                                                         stitchingPrice = chosenGarment.baseStitchingCharge
                                                                     )
@@ -1434,7 +1499,7 @@ fun CreateOrderScreen(
                                                 var fabSourceOpen by remember { mutableStateOf(false) }
                                                 FormDropdown(
                                                     label = "Fabric Source",
-                                                    value = currentGarment.fabricSource.ifEmpty { "Store Provided" },
+                                                    value = currentGarment.fabricSource.ifEmpty { "" },
                                                     expanded = fabSourceOpen,
                                                     onExpandChange = { fabSourceOpen = it },
                                                     options = listOf("Store Provided", "Customer Provided"),
@@ -1626,14 +1691,13 @@ fun CreateOrderScreen(
 
                                                 Spacer(Modifier.height(12.dp))
 
-                                                var itemDeliveryDate by rememberSaveable { mutableStateOf(currentGarment.deliveryDate.ifBlank { todayFormatted }) }
+                                                val displayedItemDeliveryDate = currentGarment.deliveryDate.ifBlank { todayFormatted }
 
                                                 FormLabel("Item Delivery Date", isRequired = true)
 
                                                 DatePickerField(
-                                                    value = itemDeliveryDate,
+                                                    value = displayedItemDeliveryDate,
                                                     onDateSelected = { selectedDate ->
-                                                        itemDeliveryDate = selectedDate
                                                         expectedDeliveryDate = selectedDate
                                                         val updated = currentGarment.copy(deliveryDate = selectedDate)
                                                         dynamicOrderItems = dynamicOrderItems.map { orderItem ->
@@ -2575,7 +2639,7 @@ fun CreateOrderScreen(
                                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                                     ) {
                                                         Text(
-                                                            text = "${currencySymbol()}${String.format(Locale.US, "%.2f", lineGrandTotal)}",
+                                                            text = "${formatCurrency()}${String.format(Locale.US, "%.2f", lineGrandTotal)}",
                                                             fontSize = tokens.bodyLarge,
                                                             fontWeight = FontWeight.Medium,
                                                             color = Primary,
@@ -2594,18 +2658,19 @@ fun CreateOrderScreen(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                                 ) {
-                                                    QuickPriceBox("Stitching", "${currencySymbol()}${stitchingLineSubtotal.toInt()}", Modifier.weight(1f))
-                                                    QuickPriceBox("Fabric", "${currencySymbol()}${fabricLineSubtotal.toInt()}", Modifier.weight(1f))
+                                                    QuickPriceBox("Stitching",
+                                                        $$"$${formatCurrency()}$${stitchingLineSubtotal.toInt()}", Modifier.weight(1f))
+                                                    QuickPriceBox("Fabric", "${formatCurrency()}${fabricLineSubtotal.toInt()}", Modifier.weight(1f))
                                                     QuickPriceBox(
                                                         label = "Addl. Work",
-                                                        value = "${currencySymbol()}${addlWorkTotal.toInt()}",
+                                                        value = "${formatCurrency()}${addlWorkTotal.toInt()}",
                                                         modifier = Modifier.weight(1.1f),
                                                         bg = primary_light,
                                                         tint = Primary
                                                     )
                                                     QuickPriceBox(
                                                         label = "GST",
-                                                        value = "${currencySymbol()}${lineTotalTax.toInt()}",
+                                                        value = "${formatCurrency()}${lineTotalTax.toInt()}",
                                                         modifier = Modifier.weight(0.9f),
                                                         tint = darkGreenBg
                                                     )
@@ -2657,7 +2722,7 @@ fun CreateOrderScreen(
                                                                     val updated = garmentConfig.copy(fabricMeters = parsedMeters)
                                                                     dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                                 },
-                                                                rateLabel = "Rate (${currencySymbol()}/m)",
+                                                                rateLabel = "Rate (${formatCurrency()}/m)",
                                                                 rateValue = if (garmentConfig.fabricRate == 0.0) "" else garmentConfig.fabricRate.toInt().toString(),
                                                                 onRateChange = { input ->
                                                                     val parsedRate = input.toDoubleOrNull() ?: 0.0
@@ -2671,8 +2736,8 @@ fun CreateOrderScreen(
                                                                     dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                                 },
                                                                 onDropdownOpen = { inventoryViewModel.fetchTaxGroups() },
-                                                                gstComputed = "${currencySymbol()}${fabricGstAmount.toInt()}",
-                                                                lineTotal = "${currencySymbol()}${(fabricLineSubtotal + fabricGstAmount).toInt()}",
+                                                                gstComputed = "${formatCurrency()}${fabricGstAmount.toInt()}",
+                                                                lineTotal = "${formatCurrency()}${(fabricLineSubtotal + fabricGstAmount).toInt()}",
                                                                 onDelete = {
                                                                     val updated = garmentConfig.copy(fabricSource = "Customer Provided", fabricRate = 0.0)
                                                                     dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
@@ -2690,7 +2755,7 @@ fun CreateOrderScreen(
                                                                 val updated = garmentConfig.copy(quantity = parsedQty)
                                                                 dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                             },
-                                                            rateLabel = "Rate (${currencySymbol()}/pc)",
+                                                            rateLabel = "Rate (${formatCurrency()}/pc)",
                                                             rateValue = if (garmentConfig.stitchingPrice == 0.0) "" else garmentConfig.stitchingPrice.toInt().toString(),
                                                             onRateChange = { input ->
                                                                 val parsedPrice = input.toDoubleOrNull() ?: 0.0
@@ -2704,8 +2769,8 @@ fun CreateOrderScreen(
                                                                 dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                             },
                                                             onDropdownOpen = { inventoryViewModel.fetchTaxGroups() },
-                                                            gstComputed = "${currencySymbol()}${stitchingGstAmount.toInt()}",
-                                                            lineTotal = "${currencySymbol()}${(stitchingLineSubtotal + stitchingGstAmount).toInt()}",
+                                                            gstComputed = "${formatCurrency()}${stitchingGstAmount.toInt()}",
+                                                            lineTotal = "${formatCurrency()}${(stitchingLineSubtotal + stitchingGstAmount).toInt()}",
                                                             onDelete = {
                                                                 val updated = garmentConfig.copy(stitchingPrice = 0.0)
                                                                 dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
@@ -2760,8 +2825,8 @@ fun CreateOrderScreen(
                                                                                 dynamicOrderItems = dynamicOrderItems.map { if (it.id == item.id) item.copy(config = updated) else it }
                                                                             },
                                                                             onDropdownOpen = { inventoryViewModel.fetchTaxGroups() },
-                                                                            gstComputed = "${currencySymbol()}${workGst.toInt()}",
-                                                                            total = "${currencySymbol()}${(currentAmount + workGst).toInt()}",
+                                                                            gstComputed = "${formatCurrency()}${workGst.toInt()}",
+                                                                            total = "${formatCurrency()}${(currentAmount + workGst).toInt()}",
                                                                             onDelete = {
                                                                                 val updatedIds = garmentConfig.selectedWorkPricingIds - workItem.id
                                                                                 val updated = garmentConfig.copy(selectedWorkPricingIds = updatedIds)
@@ -2779,10 +2844,12 @@ fun CreateOrderScreen(
                                     }
 
                                     is DynamicFabricItem -> {
-                                        // Selected inventory item, used for its warehouses and bins
+                                        // Selected inventory item, used for its warehouses, bins, and pricing
                                         val selectedFabricInv = fabricItemList.find {
                                             it._id == item.itemId || it.id == item.itemId
                                         }
+                                        val fabricQty = item.quantity.toDoubleOrNull() ?: 1.0
+                                        dynamicSubtotal += (selectedFabricInv?.sellingPrice ?: 0.0) * fabricQty
 
                                         // Warehouses that belong to the selected fabric
                                         val availableWarehouses = selectedFabricInv?.warehouses ?: emptyList()
@@ -3005,10 +3072,12 @@ fun CreateOrderScreen(
                                     }
 
                                     is DynamicAccessoryItem -> {
-                                        // Selected inventory item, used for its warehouses and bins
+                                        // Selected inventory item, used for its warehouses, bins, and pricing
                                         val selectedAccInv = accessoryItemList.find {
                                             it._id == item.itemId || it.id == item.itemId
                                         }
+                                        val accQty = item.quantity.toDoubleOrNull() ?: 1.0
+                                        dynamicSubtotal += (selectedAccInv?.sellingPrice ?: 0.0) * accQty
 
                                         // Warehouses that belong to the selected accessory
                                         val availableWarehouses = selectedAccInv?.warehouses ?: emptyList()
@@ -3235,7 +3304,7 @@ fun CreateOrderScreen(
 
                             Spacer(Modifier.height(14.dp))
                             Text(
-                                text = "Currency: INR (${currencySymbol()}) • GST: Standard live tax engine applied",
+                                text = "Currency: INR (${formatCurrency()}) • GST: Standard live tax engine applied",
                                 fontSize = tokens.label,
                                 color = TextSecondary
                             )
@@ -3243,7 +3312,7 @@ fun CreateOrderScreen(
                             Spacer(Modifier.height(10.dp))
                             HorizontalDivider(color = BorderGray)
                             Spacer(Modifier.height(10.dp))
-                            FormLabel("Total Discount (${currencySymbol()})")
+                            FormLabel("Total Discount (${formatCurrency()})")
                             FormTextField(
                                 value = discountText,
                                 onValueChange = { discountText = it.filter { c -> c.isDigit() || c == '.' } },
@@ -3254,13 +3323,13 @@ fun CreateOrderScreen(
 
                             val grandTotalCalculated = (dynamicSubtotal - totalDiscount + dynamicTaxTotal).coerceAtLeast(0.0)
 
-                            SummaryRow("Subtotal", "${currencySymbol()}${String.format(Locale.US, "%.2f", dynamicSubtotal)}")
+                            SummaryRow("Subtotal", "${formatCurrency()}${String.format(Locale.US, "%.2f", dynamicSubtotal)}")
                             Spacer(Modifier.height(6.dp))
-                            SummaryRow("Total Discount", "-${currencySymbol()}${String.format(Locale.US, "%.2f", totalDiscount)}", valueColor = redText)
+                            SummaryRow("Total Discount", "-${formatCurrency()}${String.format(Locale.US, "%.2f", totalDiscount)}", valueColor = redText)
                             Spacer(Modifier.height(6.dp))
-                            SummaryRow("Total Tax (GST)", "+${currencySymbol()}${String.format(Locale.US, "%.2f", dynamicTaxTotal)}")
+                            SummaryRow("Total Tax (GST)", "+${formatCurrency()}${String.format(Locale.US, "%.2f", dynamicTaxTotal)}")
                             Spacer(Modifier.height(6.dp))
-                            SummaryRow("Delivery Charges", "${currencySymbol()}0.00")
+                            SummaryRow("Delivery Charges", "${formatCurrency()}0.00")
 
                             Spacer(Modifier.height(12.dp))
                             HorizontalDivider(color = BorderGray)
@@ -3278,7 +3347,7 @@ fun CreateOrderScreen(
                                     color = TextPrimary
                                 )
                                 Text(
-                                    text = "${currencySymbol()}${String.format(Locale.US, "%.2f", grandTotalCalculated)}",
+                                    text = "${formatCurrency()}${String.format(Locale.US, "%.2f", grandTotalCalculated)}",
                                     fontSize = tokens.bodyLarge,
                                     fontWeight = FontWeight.Medium,
                                     color = Primary
@@ -3294,25 +3363,91 @@ fun CreateOrderScreen(
                     expanded = expandedSection == "payment",
                     onHeaderClick = { expandedSection = if (expandedSection == "payment") "" else "payment" }
                 ) {
+                    // 1. Payment Type ("Advance" vs "Without_Payment")
                     FormDropdown(
                         label = "Payment Type",
-                        value = paymentType.ifEmpty { "" },
+                        value = paymentType.ifEmpty { "Advance" },
                         expanded = paymentTypeExpanded,
                         onExpandChange = { paymentTypeExpanded = it },
                         options = listOf("Advance", "Without_Payment"),
-                        onOptionSelected = { paymentType = it },
+                        onOptionSelected = { selectedType ->
+                            paymentType = selectedType
+                            if (selectedType == "Without_Payment") {
+                                advanceAmount = "0"
+                            }
+                        },
                         isRequired = true
                     )
-                    if (paymentType == "Advance") {
+
+                    Spacer(Modifier.height(14.dp))
+
+                    // 2. Payment Terms
+                    FormDropdown(
+                        label = "Payment Terms",
+                        value = paymentTermName.ifEmpty { "Select Payment Terms" },
+                        expanded = paymentTermExpanded,
+                        onExpandChange = { paymentTermExpanded = it },
+                        options = if (paymentTermName.isNotBlank()) listOf(paymentTermName) else listOf("Due on Receipt"),
+                        onOptionSelected = { selectedTerm ->
+                            paymentTermName = selectedTerm
+                        },
+                        isRequired = true
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    // 3. Payment Mode
+                    FormDropdown(
+                        label = "Payment Mode",
+                        value = paymentMode.ifEmpty { "Cash" },
+                        expanded = paymentModeExpanded,
+                        onExpandChange = { paymentModeExpanded = it },
+                        options = listOf("Cash", "UPI", "Card", "Bank_Transfer"),
+                        onOptionSelected = { paymentMode = it },
+                        isRequired = true
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    // 4. Collected By (mapped to salespersonId, matching React PaymentBillingSection.jsx)
+                    FormDropdown(
+                        label = "Collected By",
+                        value = salespersonName.ifEmpty { "Select Staff Member" },
+                        expanded = collectedByExpanded,
+                        onExpandChange = { collectedByExpanded = it },
+                        options = salespersonNames.ifEmpty { listOf("Loading staff...") },
+                        onOptionSelected = { name ->
+                            val id = salespersonNameToId[name]
+                            if (id != null) {
+                                salespersonName = name
+                                salespersonId = id
+                            }
+                        },
+                        isRequired = true
+                    )
+
+                    // 5. Advance Amount Collected Now (hidden when Without_Payment is selected)
+                    if (paymentType != "Without_Payment") {
                         Spacer(Modifier.height(14.dp))
 
-                        FormLabel("Advance Amount Required", isRequired = true)
+                        FormLabel("Advance Amount Collected Now")
                         FormTextField(
                             value = advanceAmount,
-                            onValueChange = { advanceAmount = it },
-                            placeholder = "Enter Payment"
+                            onValueChange = { advanceAmount = it.filter { c -> c.isDigit() || c == '.' } },
+                            placeholder = "0",
+                            keyboardType = KeyboardType.Number
                         )
                     }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    // 6. Billing / Credit Notes
+                    FormLabel("Billing / Credit Notes")
+                    FormTextArea(
+                        value = billingNotes,
+                        onValueChange = { billingNotes = it },
+                        placeholder = "Note down any partial payment terms, client ledger references, or transaction notes..."
+                    )
                 }
 
                 // 6. ATTACHMENTS & IMAGES
@@ -3402,7 +3537,12 @@ fun CreateOrderScreen(
                                 orderId = orderIdText.trim(),
                                 orderDate = orderDate.trim(),
                                 orderType = orderType,
-                                expectedDeliveryDate = expectedDeliveryDate.trim(),
+                                // Resolve effective delivery date from form or first garment item
+                                expectedDeliveryDate = expectedDeliveryDate.trim().ifBlank {
+                                    itemsForDraft.filterIsInstance<DynamicGarmentItem>()
+                                        .firstOrNull()?.config?.deliveryDate?.trim()
+                                        .orEmpty()
+                                },
                                 paymentType = paymentType,
                                 advanceAmount = advanceAmount.trim(),
                                 items = itemsForDraft,
@@ -3410,6 +3550,8 @@ fun CreateOrderScreen(
                                 taxGroupIdByRate = taxGroupIdByRate,
                                 workMeta = workMetaMap
                             )
+
+                            val resolvedDeliveryDate = OrderFlowStore.draft?.expectedDeliveryDate.orEmpty()
 
                             val reviewData = OrderReviewData(
                                 leadId = initialData?.leadId,
@@ -3426,7 +3568,7 @@ fun CreateOrderScreen(
                                 source = source.trim(),
                                 orderDate = orderDate.trim(),
                                 trialDate = initialData?.trialDate.orEmpty(),
-                                deliveryDate = expectedDeliveryDate.trim(),
+                                deliveryDate = resolvedDeliveryDate,
                                 discount = totalDiscount,
                                 paidSoFar = advanceAmount.trim().toDoubleOrNull() ?: 0.0,
                                 designImages = selectedImages,
@@ -4079,7 +4221,7 @@ private fun EditableBreakdownItemCard(
                                 .padding(horizontal = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("${currencySymbol()} ", fontSize = tokens.caption, color = TextSecondary)
+                            Text("${formatCurrency()} ", fontSize = tokens.caption, color = TextSecondary)
                             BasicTextField(
                                 value = rateValue,
                                 onValueChange = onRateChange,
@@ -4288,7 +4430,7 @@ private fun EditableCraftLineItemCard(
                 }
 
                 Column(Modifier.weight(1f)) {
-                    Text("Amount (${currencySymbol()})", fontSize = tokens.label, color = TextSecondary)
+                    Text("Amount (${formatCurrency()})", fontSize = tokens.label, color = TextSecondary)
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -4303,7 +4445,7 @@ private fun EditableCraftLineItemCard(
                                 .padding(horizontal = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("${currencySymbol()} ", fontSize = tokens.label, color = TextSecondary)
+                            Text("${formatCurrency()} ", fontSize = tokens.label, color = TextSecondary)
                             BasicTextField(
                                 value = amount,
                                 onValueChange = onAmountChange,

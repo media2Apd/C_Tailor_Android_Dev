@@ -53,12 +53,26 @@ class AuthRepository @Inject constructor(
                 deviceId = deviceInfoHelper.getDeviceId(),
                 deviceInfo = deviceInfoHelper.getDeviceInfo()
             )
-
             val response = authApi.verifyPassword(request)
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
-                Result.failure(Exception("Invalid email or password"))
+                val errorBody = response.errorBody()?.string()
+                val parsedError = try {
+                    if (!errorBody.isNullOrBlank()) {
+                        Gson().fromJson(errorBody, PasswordResponse::class.java)
+                    } else null
+                } catch (_: Exception) {
+                    null
+                }
+
+                if (parsedError != null && (parsedError.workspaceLocked || parsedError.mustChangePassword || parsedError.requiresTwoFA)) {
+                    Result.success(parsedError)
+                } else {
+                    val message = parsedError?.message?.takeIf { it.isNotBlank() }
+                        ?: "Invalid email or password"
+                    Result.failure(Exception(message))
+                }
             }
         } catch (e: Exception) {
             Result.failure(Exception("Network error: ${e.message}"))

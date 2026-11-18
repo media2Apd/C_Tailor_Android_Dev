@@ -28,6 +28,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.finance.BankAccountItemDto
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.FinanceViewModel
 import java.util.Locale
@@ -272,7 +273,7 @@ fun BankAccountsListScreen(
                                                     )
                                                     Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                                                     Text(
-                                                        text = "${currencySymbol()}${String.format(Locale.US, "%,.2f", item.chartOfAccountId?.openingBalance ?: 0.0)}",
+                                                        text = "${formatCurrency()}${String.format(Locale.US, "%,.2f", item.chartOfAccountId?.openingBalance ?: 0.0)}",
                                                         fontSize = tokens.bodyMedium,
                                                         fontWeight = FontWeight.Medium,
                                                         color = TitleColor

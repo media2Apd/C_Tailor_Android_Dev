@@ -40,6 +40,7 @@ import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.ui.theme.yellowBg
 import com.cuso.tailor.ui.theme.yellowText
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardField
@@ -54,7 +55,7 @@ import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.currencySymbol
+
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
@@ -285,7 +286,7 @@ fun InventoryScreen(
                                 footerFields = listOf(
                                     DataCardField(label = "Type", text = itemType),
                                     DataCardField(label = "Stock", text = stockText),
-                                    DataCardField(label = "Selling Price", text = "${currencySymbol()}${"%.2f".format(item.sellingPrice)}")
+                                    DataCardField(label = "Selling Price", text = "${formatCurrency()}${"%.2f".format(item.sellingPrice)}")
                                 ),
                                 actions = listOf(
                                     MenuAction(label = "View", icon = Icons.Default.Visibility, onClick = { onViewItem(item) }),

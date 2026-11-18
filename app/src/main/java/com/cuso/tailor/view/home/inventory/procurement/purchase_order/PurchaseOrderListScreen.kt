@@ -67,6 +67,7 @@ import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.ui.theme.yellowBg
 import com.cuso.tailor.ui.theme.yellowText
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
@@ -77,7 +78,7 @@ import com.cuso.tailor.view.composable.FilterSectionType
 import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.currencySymbol
+
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import kotlinx.coroutines.delay
@@ -364,7 +365,7 @@ fun PurchaseOrderCard(
                 Column {
                     Text(text = "Order Total", fontSize = tokens.label, color = mutedText)
                     Text(
-                        text = "${currencySymbol()}${order.grandTotal.toInt()}",
+                        text = "${formatCurrency()}${order.grandTotal.toInt()}",
                         fontSize = tokens.bodyLarge,
                         fontWeight = FontWeight.Bold,
                         color = Primary

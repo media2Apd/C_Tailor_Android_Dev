@@ -1,8 +1,6 @@
 @file:Suppress("unused", "unusedVariable", "AssignedValueIsNeverRead", "VariableNeverRead")
 package com.cuso.tailor.view.home.finance.account_receivable.sales_invoice
 
-import com.cuso.tailor.utils.currencySymbol
-
 import android.app.DatePickerDialog
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -35,7 +33,7 @@ import com.cuso.tailor.model.finance.CreateInvoiceLineItemRequest
 import com.cuso.tailor.model.sales.OrderOverviewData
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
-import com.cuso.tailor.utils.currencySymbol
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.utils.uriToMultipartPart
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
@@ -674,7 +672,7 @@ fun CreateSalesInvoiceScreen(
                                     }
 
                                     Text(
-                                        text = "${currencySymbol()}${formatIndianNumber(line.lineAmount.toLong())}",
+                                        text = "${formatCurrency()}${formatIndianNumber(line.lineAmount.toLong())}",
                                         fontSize = tokens.bodySmall,
                                         fontWeight = FontWeight.Medium,
                                         color = TextPrimary,
@@ -767,14 +765,14 @@ fun CreateSalesInvoiceScreen(
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Sub Total:", fontSize = tokens.bodySmall, color = TextSecondary)
-                        Text(text = "${currencySymbol()}${formatIndianNumber(subTotal.toLong())}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
+                        Text(text = "${formatCurrency()}${formatIndianNumber(subTotal.toLong())}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
                     }
 
                     Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Tax Total:", fontSize = tokens.bodySmall, color = darkGreenBg)
-                        Text(text = "+${currencySymbol()}${formatIndianNumber(totalTax.toLong())}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = darkGreenBg)
+                        Text(text = "+${formatCurrency()}${formatIndianNumber(totalTax.toLong())}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = darkGreenBg)
                     }
 
                     Spacer(Modifier.height(tokens.extraPadding))
@@ -783,7 +781,7 @@ fun CreateSalesInvoiceScreen(
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text(text = "Total Due:", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TextPrimary)
-                        Text(text = "${currencySymbol()}${formatIndianNumber(totalDue.toLong())}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Primary)
+                        Text(text = "${formatCurrency()}${formatIndianNumber(totalDue.toLong())}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Primary)
                     }
 
                     Spacer(Modifier.height(tokens.extraPadding * 1.5f))

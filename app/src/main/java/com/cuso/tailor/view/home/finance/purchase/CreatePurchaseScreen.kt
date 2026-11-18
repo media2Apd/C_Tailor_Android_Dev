@@ -37,6 +37,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.finance.PurchaseReturnItemPayload
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.CreatePurchaseReturnState
 import com.cuso.tailor.viewmodel.FinanceViewModel
@@ -617,7 +618,7 @@ fun CreatePurchaseReturnScreen(
                                         Column {
                                             Text("UNIT COST", fontSize = tokens.label, color = iconMuted)
                                             Text(
-                                                text = "${currencySymbol()}${formatDouble(rowItem.rate)}",
+                                                text = "${formatCurrency()}${formatDouble(rowItem.rate)}",
                                                 fontSize = tokens.caption,
                                                 fontWeight = FontWeight.Medium,
                                                 color = TextPrimary
@@ -637,7 +638,7 @@ fun CreatePurchaseReturnScreen(
                                         Column(horizontalAlignment = Alignment.End) {
                                             Text("RETURN VALUE", fontSize = tokens.label, color = iconMuted)
                                             Text(
-                                                text = "${currencySymbol()}${formatDouble(itemReturnValue)}",
+                                                text = "${formatCurrency()}${formatDouble(itemReturnValue)}",
                                                 fontSize = tokens.caption,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = Primary
@@ -889,8 +890,8 @@ fun CreatePurchaseReturnScreen(
 
                     HorizontalDivider(color = sectionBorder, modifier = Modifier.padding(vertical = tokens.extraPadding * 0.6f))
 
-                    SummaryRow("Item Return Subtotal", "${currencySymbol()}${formatDouble(subtotal)}")
-                    SummaryRow("Tax", "${currencySymbol()}${formatDouble(taxTotal)}")
+                    SummaryRow("Item Return Subtotal", "${formatCurrency()}${formatDouble(subtotal)}")
+                    SummaryRow("Tax", "${formatCurrency()}${formatDouble(taxTotal)}")
 
                     Spacer(Modifier.height(tokens.extraPadding * 0.6f))
 
@@ -900,7 +901,7 @@ fun CreatePurchaseReturnScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Return Total", fontSize = tokens.bodySmall, color = TextPrimary)
-                        Text("${currencySymbol()}${formatDouble(grandTotal)}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Primary)
+                        Text("${formatCurrency()}${formatDouble(grandTotal)}", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Primary)
                     }
                 }
             }

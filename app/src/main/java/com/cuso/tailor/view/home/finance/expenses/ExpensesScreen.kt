@@ -50,6 +50,7 @@ import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardField
@@ -70,7 +71,7 @@ import com.cuso.tailor.view.composable.StepNavigationFab
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.view.composable.ValidationField
-import com.cuso.tailor.view.composable.currencySymbol
+
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.CreateAccountState
@@ -268,7 +269,7 @@ fun ExpensesScreen(
                                 DataCardField(
                                     asRow = true,
                                     label = "Amount",
-                                    text = "${currencySymbol()}${formatAmount(expense.amount)}"
+                                    text = "${formatCurrency()}${formatAmount(expense.amount)}"
                                 )
                             ),
                             actions = listOf(
@@ -332,7 +333,7 @@ fun ExpenseDetailScreen(
             ExpenseDetailField(label = "Expense Date", value = formatExpenseDate(expense.expenseDate))
             ExpenseDetailField(label = "Expense Account", value = expenseAccountName)
             ExpenseDetailField(label = "Payment Mode", value = paymentAccountName)
-            ExpenseDetailField(label = "Amount", value = "${currencySymbol()}${formatAmount(expense.amount)}")
+            ExpenseDetailField(label = "Amount", value = "${formatCurrency()}${formatAmount(expense.amount)}")
 
             if (!expense.referenceNumber.isNullOrBlank()) {
                 ExpenseDetailField(label = "Reference Number", value = expense.referenceNumber)

@@ -1,4 +1,4 @@
-@file:Suppress("AssignedValueIsNeverRead")
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
 package com.cuso.tailor.view.home.sales.oppertunity.oppertunities
 
 import androidx.compose.foundation.background
@@ -25,6 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.sales.OpportunityListItem
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.OpportunitiesUiState
 import com.cuso.tailor.viewmodel.OpportunityActionState
@@ -325,7 +326,7 @@ fun OpportunityMetricsGrid() {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            MetricCard(label = "Total Pipeline", value = "${currencySymbol()}24.8L", modifier = Modifier.weight(1f))
+            MetricCard(label = "Total Pipeline", value = "${formatCurrency()}24.8L", modifier = Modifier.weight(1f))
             MetricCard(label = "Active Deals", value = "42", modifier = Modifier.weight(1f))
         }
 

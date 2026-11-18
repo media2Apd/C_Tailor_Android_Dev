@@ -31,7 +31,6 @@ import com.cuso.tailor.model.settings.GarmentItem
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatLeadDate
-import com.cuso.tailor.view.home.toIsoDate
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.CustomerUiState
@@ -295,21 +294,27 @@ fun CreateOpportunityScreen(
         val parsedAmount = estimatedValue.toDoubleOrNull() ?: 0.0
 
         val garmentPayloads = garmentSpecs.mapNotNull { row ->
-            if (row.templateId.isNotBlank() && row.categoryId.isNotBlank()) {
+            if (row.templateId.isNotBlank()) {
                 CreateGarmentSpecPayload(
                     garmentId = row.templateId,
-                    garmentCategoryId = row.categoryId,
-                    quantity = row.quantity.toIntOrNull() ?: 1
+                    garmentCategoryId = row.categoryId.takeIf { it.isNotBlank() },
+                    quantity = row.quantity.toIntOrNull()?.coerceAtLeast(1) ?: 1
                 )
             } else null
         }
 
         if (garmentPayloads.isEmpty()) {
-            validationError = "Please add at least one complete garment specification"
+            validationError = "Please select at least one garment template"
             return
         }
 
-        val formattedDate = expectedClosingDate.toIsoDate().ifBlank { expectedClosingDate }
+        // Convert dd-MM-yyyy to yyyy-MM-dd to match the API request format
+        val dateParts = expectedClosingDate.trim().split("-")
+        val formattedDate = if (dateParts.size == 3 && dateParts[0].length == 2 && dateParts[2].length == 4) {
+            "${dateParts[2]}-${dateParts[1]}-${dateParts[0]}"
+        } else {
+            expectedClosingDate.trim()
+        }
 
         val request = CreateOpportunityRequest(
             name = opportunityName.trim(),
@@ -321,6 +326,7 @@ fun CreateOpportunityScreen(
             estimatedValue = parsedAmount,
             expectedClosingDate = formattedDate,
             notes = notes.trim().takeIf { it.isNotBlank() },
+            status = "Active",
             garmentSpecifications = garmentPayloads
         )
 
@@ -778,16 +784,26 @@ fun CreateOpportunityScreen(
             }
         }
 
+        // Track API loading state to update button text and prevent duplicate submissions
+        val isSaving = createState is OpportunityActionState.Loading
+
         // Bottom Action Bar
         StepNavigationFab(
             showBack = true,
             backLabel = "Cancel",
             showBackArrow = false,
-            onBack = onClose,
+            onBack = { if (!isSaving) onClose() },
             trailingAction = TrailingFabAction.Update(
-                label = if (isEditMode) "Update" else "Create Opportunity",
-                isLoading = createState is OpportunityActionState.Loading,
-                onClick = { handleSaveOpportunity() }
+                label = when {
+                    isSaving -> if (isEditMode) "Updating..." else "Creating..."
+                    isEditMode -> "Update"
+                    else -> "Create Opportunity"
+                },
+                isLoading = isSaving,
+                onClick = {
+                    // Ignore clicks while the create/update request is in progress
+                    if (!isSaving) handleSaveOpportunity()
+                }
             ),
             showTrailingArrow = false,
             modifier = Modifier.align(Alignment.BottomCenter)

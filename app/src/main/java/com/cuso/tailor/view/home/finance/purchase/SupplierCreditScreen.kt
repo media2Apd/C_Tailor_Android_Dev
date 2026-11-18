@@ -1,4 +1,4 @@
-@file:Suppress("UNUSED_VARIABLE", "SpellCheckingInspection")
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
 package com.cuso.tailor.view.home.finance.purchase
 
 import android.annotation.SuppressLint
@@ -20,12 +20,12 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.finance.VendorCreditItemDto
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.currencySymbol
 import com.cuso.tailor.viewmodel.FinanceViewModel
 
 @SuppressLint("DefaultLocale")
@@ -224,7 +224,7 @@ private fun VendorCreditCard(
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = "${currencySymbol()}${String.format(platformLocale, "%,.2f", item.grandTotal)}",
+                                text = "${formatCurrency()}${String.format(platformLocale, "%,.2f", item.grandTotal)}",
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = TextPrimary
@@ -243,7 +243,7 @@ private fun VendorCreditCard(
                             )
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = "${currencySymbol()}${String.format(platformLocale, "%,.2f", item.remainingBalance)}",
+                                text = "${formatCurrency()}${String.format(platformLocale, "%,.2f", item.remainingBalance)}",
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = TextPrimary

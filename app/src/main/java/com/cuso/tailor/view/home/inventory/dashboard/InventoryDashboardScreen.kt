@@ -37,10 +37,12 @@ import coil.compose.AsyncImage
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.*
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.ListSkeleton
-import com.cuso.tailor.view.composable.currencySymbol
+
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.util.Locale
+import androidx.core.graphics.toColorInt
 
 @Composable
 fun InventoryDashboardScreen(
@@ -132,7 +134,7 @@ fun InventoryDashboardScreen(
                         ),
                         MetricCardUiData(
                             title = "Inventory Value",
-                            value = summary?.inventoryValue?.displayValue ?: "${currencySymbol()}${summary?.inventoryValue?.value ?: 0}",
+                            value = summary?.inventoryValue?.displayValue ?: "${formatCurrency()}${summary?.inventoryValue?.value ?: 0}",
                             changePercent = summary?.inventoryValue?.changePercent ?: 0.0,
                             isPositive = (summary?.inventoryValue?.changePercent ?: 0.0) >= 0,
                             icon = Icons.AutoMirrored.Outlined.TrendingUp,
@@ -466,7 +468,7 @@ fun InventoryValueStockCard(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ChartLegendItem(color = Primary, text = "Value (${currencySymbol()})", isCircle = true)
+                ChartLegendItem(color = Primary, text = "Value (${formatCurrency()})", isCircle = true)
                 ChartLegendItem(color = Color(0xFF14B8A6), text = "Incoming", isCircle = false)
                 ChartLegendItem(color = Color(0xFF3B82F6), text = "Outgoing", isCircle = false)
             }
@@ -806,7 +808,7 @@ fun StockHealthSectionCard(stockHealth: StockHealthData?) {
                         segments.forEach { seg ->
                             val sweepAngle = (seg.percent.toFloat() / 100f) * 360f
                             val parsedColor = try {
-                                Color(android.graphics.Color.parseColor(seg.color))
+                                Color(seg.color.toColorInt())
                             } catch (_: Exception) {
                                 chartEmerald
                             }
@@ -843,7 +845,7 @@ fun StockHealthSectionCard(stockHealth: StockHealthData?) {
 
             stockHealth?.segments?.forEach { seg ->
                 val parsedColor = try {
-                    Color(android.graphics.Color.parseColor(seg.color))
+                    Color(seg.color.toColorInt())
                 } catch (_: Exception) {
                     chartEmerald
                 }
@@ -1120,7 +1122,7 @@ fun SlowMovingSectionCard(products: List<SlowMovingProductItem>) {
                     modifier = Modifier.weight(1.1f)
                 )
                 Text(
-                    text = "Value (${currencySymbol()})",
+                    text = "Value (${formatCurrency()})",
                     fontSize = tokens.caption,
                     color = mutedText,
                     fontWeight = FontWeight.Medium,

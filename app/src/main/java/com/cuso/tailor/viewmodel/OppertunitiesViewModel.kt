@@ -5,7 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.model.sales.*
 import com.cuso.tailor.repository.SalesRepository
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -249,7 +250,7 @@ class OpportunityViewModel @Inject constructor(
             ?: "Silk Sarees"
 
         val formattedDate = formatIsoDate(expectedClosingDate)
-        val valueString = estimatedValue?.let { "${currencySymbol()}${it.toLong()}" } ?: "${currencySymbol()}0"
+        val valueString = estimatedValue?.let { "${formatCurrency()}${it.toLong()}" } ?: "${formatCurrency()}0"
 
         return OpportunityListItem(
             id = id,

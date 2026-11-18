@@ -22,6 +22,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.PriceListItemDto
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.InventoryViewModel
 
@@ -168,7 +169,7 @@ private fun PriceListItemCard(
         .replaceFirstChar { it.uppercase() }
 
     val roundOffDisplay = if (item.roundOff?.enabled == true) {
-        "${currencySymbol()}${item.roundOff.value}"
+        "${formatCurrency()}${item.roundOff.value}"
     } else {
         "—"
     }

@@ -35,7 +35,8 @@ import coil.compose.AsyncImage
 import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.FormTextArea
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.StatusBadge
@@ -683,11 +684,11 @@ fun ViewAlterationManagementScreen(
 
                         Spacer(Modifier.height(tokens.extraPadding))
 
-                        FinancialRow(label = "Service Total:", value = "${currencySymbol()} ${serviceTotal.toInt()}", tokens = tokens)
+                        FinancialRow(label = "Service Total:", value = "${formatCurrency()} ${serviceTotal.toInt()}", tokens = tokens)
                         Spacer(Modifier.height(tokens.extraPadding * 0.5f))
                         FinancialRow(
                             label = "Advance Paid:",
-                            value = "${currencySymbol()} ${advancePaid.toInt()}",
+                            value = "${formatCurrency()} ${advancePaid.toInt()}",
                             valueColor = greentext,
                             tokens = tokens
                         )
@@ -717,7 +718,7 @@ fun ViewAlterationManagementScreen(
                                     color = yellowText
                                 )
                                 Text(
-                                    text = "${currencySymbol()} ${balanceAmount.toInt()}",
+                                    text = "${formatCurrency()} ${balanceAmount.toInt()}",
                                     fontSize = tokens.bodyMedium,
                                     fontWeight = FontWeight.Medium,
                                     color = yellowText

@@ -15,7 +15,8 @@ import androidx.compose.ui.graphics.Color
 import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.redText
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardField
@@ -40,8 +41,8 @@ private val dummySuppliers = List(6) {
         code = "001",
         phone = "8778239060",
         city = "Chennai",
-        outstanding = "${currencySymbol()}10,000",
-        lastBill = "${currencySymbol()}450",
+        outstanding = "${formatCurrency()}10,000",
+        lastBill = "${formatCurrency()}450",
         isActive = true
     )
 }

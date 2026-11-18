@@ -1,3 +1,5 @@
+@file:Suppress("UNUSED_PARAMETER", "unused","AssignedValueIsNeverRead","unusedVariable","VariableNeverRead")
+
 package com.cuso.tailor.view.home.inventory.procurement.purchaseReceive
 
 import androidx.compose.foundation.BorderStroke
@@ -57,11 +59,10 @@ import com.cuso.tailor.model.inventory.ReceiveHistoryByPoResponse
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.sectionBorder
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.ActionRowButtons
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.TitleBar
-import com.cuso.tailor.view.composable.currencySymbol
+
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.util.Locale
 
@@ -426,7 +427,7 @@ fun ItemProgressCard(item: PoItemOverviewDto, isFirst: Boolean) {
             }
 
             Text(
-                text = String.format(Locale.US, "${currencySymbol()}%,.2f", item.rate),
+                text = String.format(Locale.US, "${formatCurrency()}%,.2f", item.rate),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF1E2238)
@@ -569,7 +570,7 @@ fun ShipmentHistoryRow(
 
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = String.format(Locale.US, "${currencySymbol()}%,.2f", item.grandTotal),
+                text = String.format(Locale.US, "${formatCurrency()}%,.2f", item.grandTotal),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1E2238)

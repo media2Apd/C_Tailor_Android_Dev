@@ -37,6 +37,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.finance.CashDrawerShiftItemDto
 import com.cuso.tailor.model.finance.CloseCashShiftRequest
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.pdfgenerator.CashDrawerPdfGenerator
 import com.cuso.tailor.viewmodel.CloseCashShiftState
@@ -202,7 +203,7 @@ fun CashBookDetailScreen(
                 ) {
                     MetricBox(
                         title = "Opening Float",
-                        amount = "${currencySymbol()}${formatAmount(item.openingBalance)}",
+                        amount = "${formatCurrency()}${formatAmount(item.openingBalance)}",
                         caption = "Starting drawer balance",
                         icon = Icons.Outlined.AccountBalanceWallet,
                         iconTint = headerGrey,
@@ -210,7 +211,7 @@ fun CashBookDetailScreen(
                     )
                     MetricBox(
                         title = "Cash Inflows (Sales)",
-                        amount = "+${currencySymbol()}${formatAmount(item.totalCashCollected)}",
+                        amount = "+${formatCurrency()}${formatAmount(item.totalCashCollected)}",
                         caption = "POS Receipts & Sales",
                         icon = Icons.AutoMirrored.Outlined.CallReceived,
                         iconTint = greentext,
@@ -225,7 +226,7 @@ fun CashBookDetailScreen(
                 ) {
                     MetricBox(
                         title = "Cash Outflows",
-                        amount = "-${currencySymbol()}${formatAmount(item.totalCashWithdrawn)}",
+                        amount = "-${formatCurrency()}${formatAmount(item.totalCashWithdrawn)}",
                         caption = "Expenses & Contra Deposits",
                         icon = Icons.AutoMirrored.Outlined.CallMade,
                         iconTint = orangeText,
@@ -234,7 +235,7 @@ fun CashBookDetailScreen(
                     )
                     MetricBox(
                         title = "Expected In Drawer",
-                        amount = "${currencySymbol()}${formatAmount(item.expectedClosingBalance)}",
+                        amount = "${formatCurrency()}${formatAmount(item.expectedClosingBalance)}",
                         caption = "Calculated running total",
                         icon = Icons.Outlined.Storefront,
                         iconTint = Primary,
@@ -280,7 +281,7 @@ fun CashBookDetailScreen(
                                 Text("Counted Cash", fontSize = tokens.label, color = mutedText)
                                 Spacer(Modifier.height(tokens.extraPadding * 0.2f))
                                 Text(
-                                    text = "${currencySymbol()}${formatAmount(item.actualClosingBalance)}",
+                                    text = "${formatCurrency()}${formatAmount(item.actualClosingBalance)}",
                                     fontSize = tokens.bodyLarge,
                                     fontWeight = FontWeight.Medium,
                                     color = TitleColor
@@ -290,7 +291,7 @@ fun CashBookDetailScreen(
                             Column(horizontalAlignment = Alignment.End) {
                                 Text("Discrepancy", fontSize = tokens.label, color = mutedText)
                                 Spacer(Modifier.height(tokens.extraPadding * 0.2f))
-                                val diffPrefix = if (diff >= 0) "+${currencySymbol()}" else "-${currencySymbol()}"
+                                val diffPrefix = if (diff >= 0) "+${formatCurrency()}" else "-${formatCurrency()}"
                                 val diffColor = when {
                                     diff > 0 -> greentext
                                     diff < 0 -> redText
@@ -518,7 +519,7 @@ fun CloseCashDrawerShiftDialog(
                             Text("Opening Float", fontSize = tokens.label, color = mutedText)
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = "${currencySymbol()}${formatAmount(item.openingBalance)}",
+                                text = "${formatCurrency()}${formatAmount(item.openingBalance)}",
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = TitleColor
@@ -528,7 +529,7 @@ fun CloseCashDrawerShiftDialog(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("Net Activity", fontSize = tokens.label, color = mutedText)
                             Spacer(Modifier.height(2.dp))
-                            val netPrefix = if (netActivity >= 0) "+${currencySymbol()}" else "-${currencySymbol()}"
+                            val netPrefix = if (netActivity >= 0) "+${formatCurrency()}" else "-${formatCurrency()}"
                             val netColor = if (netActivity >= 0) greentext else redText
                             Text(
                                 text = "$netPrefix${formatAmount(abs(netActivity))}",
@@ -542,7 +543,7 @@ fun CloseCashDrawerShiftDialog(
                             Text("Expected Drawer", fontSize = tokens.label, color = mutedText)
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = "${currencySymbol()}${formatAmount(item.expectedClosingBalance)}",
+                                text = "${formatCurrency()}${formatAmount(item.expectedClosingBalance)}",
                                 fontSize = tokens.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = TitleColor

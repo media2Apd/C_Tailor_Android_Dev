@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.hr.attendance_management.employees.uriToFile
 import com.cuso.tailor.viewmodel.HrViewModel
@@ -208,7 +209,7 @@ fun EditExpenseClaimScreen(
                         FormTextField(
                             value = baseAmount,
                             onValueChange = { baseAmount = it },
-                            placeholder = "${currencySymbol()} 0",
+                            placeholder = "${formatCurrency()} 0",
                             keyboardType = KeyboardType.Number
                         )
 
@@ -218,7 +219,7 @@ fun EditExpenseClaimScreen(
                         FormTextField(
                             value = taxAmount,
                             onValueChange = { taxAmount = it },
-                            placeholder = "${currencySymbol()} 0",
+                            placeholder = "${formatCurrency()} 0",
                             keyboardType = KeyboardType.Number
                         )
 
@@ -244,7 +245,7 @@ fun EditExpenseClaimScreen(
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    text = "${currencySymbol()}${String.format(Locale.US, "%.2f", grandTotal)}",
+                                    text = "${formatCurrency()}${String.format(Locale.US, "%.2f", grandTotal)}",
                                     fontSize = tokens.bodyLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = Primary

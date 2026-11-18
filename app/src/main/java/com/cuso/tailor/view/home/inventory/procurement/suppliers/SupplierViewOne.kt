@@ -43,6 +43,7 @@ import com.cuso.tailor.model.inventory.SupplierLedgerEntry
 import com.cuso.tailor.model.inventory.SupplierPendingItem
 import com.cuso.tailor.model.inventory.SupplierPurchaseActivity
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.inventory.settings.SectionHeader
 import com.cuso.tailor.viewmodel.InventoryViewModel
@@ -1251,7 +1252,7 @@ private fun formatCurrency(value: Double): String {
     format.maximumFractionDigits = 2
     format.minimumFractionDigits = 2
 
-    return "${currencySymbol()}${format.format(value)}"
+    return "${formatCurrency()}${format.format(value)}"
 }
 
 private fun formatDateString(isoDate: String?): String? {

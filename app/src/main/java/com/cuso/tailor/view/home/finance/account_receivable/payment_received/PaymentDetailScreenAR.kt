@@ -37,7 +37,8 @@ import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.home.finance.account_payable.payment_mode.OrderLineItem
 import com.cuso.tailor.view.home.finance.account_payable.payment_mode.PaymentHistoryEntry
 import com.cuso.tailor.ui.theme.grey_border
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 
 // ── Colors used only inside this screen ──
 private val LabelGray = Color(0xFF9CA3AF)
@@ -49,13 +50,13 @@ private val AmountGreen = Color(0xFF16A34A)
 
 // ── Static dummy data (mirrors the screenshot) ──
 private val dummyOrderItems = listOf(
-    OrderLineItem("Cotton Saree", 3, "${currencySymbol()}1,200", "${currencySymbol()}3,600"),
-    OrderLineItem("Blouse Stitching", 3, "${currencySymbol()}250", "${currencySymbol()}750")
+    OrderLineItem("Cotton Saree", 3, "${formatCurrency()}1,200", "${formatCurrency()}3,600"),
+    OrderLineItem("Blouse Stitching", 3, "${formatCurrency()}250", "${formatCurrency()}750")
 )
 
 private val dummyPaymentHistory = listOf(
-    PaymentHistoryEntry("12/02/2026", "ID: UPI452190", "UPI", "${currencySymbol()}1,000"),
-    PaymentHistoryEntry("14/02/2026", "ID: CASH17712", "CASH", "${currencySymbol()}1,000")
+    PaymentHistoryEntry("12/02/2026", "ID: UPI452190", "UPI", "${formatCurrency()}1,000"),
+    PaymentHistoryEntry("14/02/2026", "ID: CASH17712", "CASH", "${formatCurrency()}1,000")
 )
 
 @Composable
@@ -196,13 +197,13 @@ fun PaymentDetailScreenAP(
                 }
 
 
-                DetailFieldRow("Subtotal", "${currencySymbol()}4,350")
-                FieldRowNormal("Tax(0%)", "${currencySymbol()}0")
+                DetailFieldRow("Subtotal", "${formatCurrency()}4,350")
+                FieldRowNormal("Tax(0%)", "${formatCurrency()}0")
 
                 HorizontalDivider(color = BorderGray)
 
-                FieldRowNormal("Total Amount", "${currencySymbol()}4,350")
-                DetailFieldRow("Amount Paid", "${currencySymbol()}2,000", valueColor = greentext)
+                FieldRowNormal("Total Amount", "${formatCurrency()}4,350")
+                DetailFieldRow("Amount Paid", "${formatCurrency()}2,000", valueColor = greentext)
 
                 // ── Balance Due highlighted ──
                 Row(
@@ -214,7 +215,7 @@ fun PaymentDetailScreenAP(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Balance Due", fontSize = tokens.bodyMedium, color = redText)
-                    Text("${currencySymbol()}2,350", fontSize = tokens.bodyMedium, color = redText)
+                    Text("${formatCurrency()}2,350", fontSize = tokens.bodyMedium, color = redText)
                 }
             }
 

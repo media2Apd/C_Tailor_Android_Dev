@@ -28,7 +28,8 @@ import android.webkit.WebViewClient
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import com.cuso.tailor.R
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -67,7 +68,7 @@ class PaymentReceiptPdfGenerator(private val context: Context) {
         val referenceNumber: String = "-",
         val paymentMode: String = "Bank Account",
         val amountInWords: String = "",
-        val currencySymbol: String = "${currencySymbol()}",
+        val currencySymbol: String = formatCurrency(),
         val bills: List<AppliedBillItem> = emptyList(),
         val preparedBy: String = "-",
         val showSignature: Boolean = true,
@@ -290,7 +291,7 @@ class PaymentReceiptPdfGenerator(private val context: Context) {
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
             val bytes = outputStream.toByteArray()
             "data:image/png;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             ""
         }
     }

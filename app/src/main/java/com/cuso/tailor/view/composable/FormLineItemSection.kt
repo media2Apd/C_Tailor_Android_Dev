@@ -35,14 +35,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.AppDesignTokens
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.ui.theme.BorderGray
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.disabled
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import java.util.Locale
 import java.util.UUID
 
@@ -290,7 +290,7 @@ fun FormLineItemsSection(
                                 contentAlignment = Alignment.CenterStart
                             ) {
                                 Text(
-                                    text = if (itemEntry.total.isNotBlank()) "${currencySymbol()} ${itemEntry.total}" else "-",
+                                    text = if (itemEntry.total.isNotBlank()) "${formatCurrency()} ${itemEntry.total}" else "-",
                                     fontSize = tokens.bodySmall,
                                     fontWeight = FontWeight.Bold,
                                     color = title_color

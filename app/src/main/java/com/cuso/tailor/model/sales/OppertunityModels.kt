@@ -96,13 +96,13 @@ data class CreateOpportunityRequest(
     @SerializedName("estimatedValue") val estimatedValue: Double,
     @SerializedName("expectedClosingDate") val expectedClosingDate: String,
     @SerializedName("notes") val notes: String? = null,
-    @SerializedName("currency") val currency: String = "INR",
+    @SerializedName("status") val status: String = "Active",
     @SerializedName("garmentSpecifications") val garmentSpecifications: List<CreateGarmentSpecPayload>
 )
 
 data class CreateGarmentSpecPayload(
     @SerializedName("garmentId") val garmentId: String,
-    @SerializedName("garmentCategoryId") val garmentCategoryId: String,
+    @SerializedName("garmentCategoryId") val garmentCategoryId: String? = null,
     @SerializedName("quantity") val quantity: Int
 )
 
@@ -170,6 +170,7 @@ data class OpportunityDto(
     @SerializedName("salespersonId") val salesperson: SalespersonMiniDto? = null,
     @SerializedName("expectedClosingDate") val expectedClosingDate: String? = null,
     @SerializedName("notes") val notes: String? = null,
+    @SerializedName("isConverted") val isConverted: Boolean = false,
     @SerializedName("status") val status: String? = "Active",
     @SerializedName("createdAt") val createdAt: String? = null,
     @SerializedName("updatedAt") val updatedAt: String? = null

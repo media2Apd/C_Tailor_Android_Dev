@@ -47,7 +47,8 @@ import com.cuso.tailor.ui.theme.BluePrimary
 import com.cuso.tailor.ui.theme.close_color
 import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.title_border
-import com.cuso.tailor.utils.currencySymbol
+
+import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.FabConfig
@@ -316,7 +317,7 @@ fun BranchSettingsScreen(
                                                             modifier = Modifier.size(18.dp)
                                                         )
                                                         Text(
-                                                            text = "${currencySymbol()} Active Orders",
+                                                            text = "${formatCurrency()} Active Orders",
                                                             fontSize = 14.sp,
                                                             color = textBodyColor
                                                         )

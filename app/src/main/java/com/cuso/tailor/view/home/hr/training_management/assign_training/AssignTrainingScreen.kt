@@ -51,6 +51,8 @@ import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.DepartmentUiState
 import com.cuso.tailor.viewmodel.DepartmentViewModel
 import com.cuso.tailor.viewmodel.HrViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 /**
  * Screen allowing users to assign training programs to departments and employees.
@@ -143,8 +145,8 @@ fun AssignTrainingScreen(
                     .filter { it._id in selectedEmployeeIds }
                     .map { "${it.firstName} ${it.lastName}".trim() }
 
-                startDate = item.startDate?.take(10).orEmpty()
-                endDate = item.endDate?.take(10).orEmpty()
+                startDate = formatToApiDate(item.startDate.orEmpty())
+                endDate = formatToApiDate(item.endDate.orEmpty())
 
                 deliveryMode = when (item.mode) {
                     "On_Site" -> "On-site Workshop"
@@ -179,7 +181,7 @@ fun AssignTrainingScreen(
             .background(Color.Transparent)
     ) {
         TitleBar(
-            title = if (isEditMode) "Edit Training Assignment" else "Training Assignment",
+            title = if (isEditMode) "Edit Training Assignment" else "Create Training Assignment",
             onClose = onClose
         )
         Spacer(modifier = Modifier.height(10.dp))
@@ -264,7 +266,7 @@ fun AssignTrainingScreen(
                         FormLabel("SCHEDULE (START)", isRequired = true)
                         DatePickerField(
                             value = startDate,
-                            onDateSelected = { startDate = it }
+                            onDateSelected = { startDate = formatToApiDate(it) }
                         )
                     }
 
@@ -273,7 +275,7 @@ fun AssignTrainingScreen(
                         FormLabel("SCHEDULE (END)", isRequired = true)
                         DatePickerField(
                             value = endDate,
-                            onDateSelected = { endDate = it }
+                            onDateSelected = { endDate = formatToApiDate(it) }
                         )
                     }
                 }
@@ -360,8 +362,8 @@ fun AssignTrainingScreen(
                                 else -> "Virtual"
                             }
 
-                            val formattedStart = if (startDate.contains("T")) startDate else startDate
-                            val formattedEnd = if (endDate.contains("T")) endDate else endDate
+                            val formattedStart = formatToApiDate(startDate)
+                            val formattedEnd = formatToApiDate(endDate)
 
                             val request = SaveAssignedTrainingRequest(
                                 trainingProgramId = programIdToSubmit,
@@ -419,4 +421,32 @@ fun AssignTrainingScreen(
             }
         }
     }
+}
+
+private fun formatToApiDate(dateString: String): String {
+    val trimmed = dateString.trim()
+    if (trimmed.isBlank()) return ""
+
+    // Already ISO format like "2026-11-19T00:00:00.000Z" -> "2026-11-19"
+    val cleanDate = if (trimmed.contains("T")) trimmed.substringBefore("T") else trimmed
+
+    val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+        isLenient = false
+    }
+    val inputPatterns = listOf("yyyy-MM-dd", "dd/MM/yyyy", "dd-MM-yyyy", "yyyy/MM/dd")
+
+    for (pattern in inputPatterns) {
+        try {
+            val inputFormat = SimpleDateFormat(pattern, Locale.US).apply {
+                isLenient = false
+            }
+            val parsed = inputFormat.parse(cleanDate)
+            if (parsed != null) {
+                return outputFormat.format(parsed)
+            }
+        } catch (_: Exception) {
+            // Try next pattern
+        }
+    }
+    return cleanDate
 }

@@ -167,7 +167,16 @@ import com.cuso.tailor.view.home.topBarEvents.NotificationsScreen
 import com.cuso.tailor.viewmodel.ReportViewModel
 import com.cuso.tailor.viewmodel.TopbarEventViewModel
 import com.google.firebase.messaging.FirebaseMessaging
-
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollDispatcher
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
+import kotlinx.coroutines.launch
 // EntryPoint to access Room AppDatabase
 @EntryPoint
 @InstallIn(SingletonComponent::class)
@@ -390,7 +399,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     var selectedPieceRateIdForEdit by remember { mutableStateOf<String?>(null) }
     // State to track selected Exit Request ID for Manager Approval
     var selectedExitRequestId by remember { mutableStateOf<String?>(null) }
-
+    // State to track selected Production Team ID for View / Edit
+    var selectedProductionTeamId by remember { mutableStateOf<String?>(null) }
     //Secutiry State
     var selectedBackupId by remember { mutableStateOf<String?>(null) }
     var selectedRecoveryId by remember { mutableStateOf<String?>(null) }
@@ -880,6 +890,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "hr_exit_clearance_detail",
             "hr_exit_settlements",
             "hr_exit_settlement_detail",
+            "hr_production_team",
+            "hr_create_production_team",
+            "hr_production_team_detail",
 
             // ── Logistics ──
             "logistics_dashboard",
@@ -1048,7 +1061,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         listOf("security_", "marketing_", "it_", "legal_", "hr_", "sales_", "finance_", "inventory_", "logistics_", "services_", "reports_", "home_")
     }
 
-    // Checks user role permission and plan subscription before pushing a route
+    // Checks plan subscription FIRST, then user role permissions before pushing a route
     fun safeNavigate(route: String, overrideAction: PermissionAction? = null) {
         val navKey = normalizeRoute(route)
         val mapping = permissionViewModel.getRouteFeatureMapping(navKey)
@@ -1057,17 +1070,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             val (module, feature) = mapping
             val requiredAction = overrideAction ?: permissionViewModel.getRouteAction(navKey)
 
-            // 1. User Permission check FIRST -> show AccessRestrictedDialog only for VIEW denials
-            val hasUserPermission = permissionViewModel.canUserAction(module, feature, requiredAction)
-            if (!hasUserPermission) {
-                if (requiredAction == PermissionAction.VIEW) {
-                    restrictedFeatureName = "${module.replaceFirstChar { it.uppercase() }} - $feature"
-                    showAccessRestrictedDialog = true
-                }
-                return
-            }
-
-            // 2. Plan Subscription check -> Paywall if feature not in plan
+            // 1. Highest priority: Plan Subscription check -> show Upgrade Paywall if feature is not in the plan
             val isPlanSubscribed = permissionViewModel.isPlanFeatureSubscribed(module, feature)
             if (!isPlanSubscribed) {
                 val targetPaywallKey = when (navKey) {
@@ -1085,6 +1088,16 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 }
                 paywallModuleConfig = permissionViewModel.getPaywallConfigForModule(targetPaywallKey)
                 navigateTo("module_upgrade_paywall")
+                return
+            }
+
+            // 2. Plan is valid: now check user role permission -> show AccessRestrictedDialog only for VIEW denials
+            val hasUserPermission = permissionViewModel.canUserAction(module, feature, requiredAction)
+            if (!hasUserPermission) {
+                if (requiredAction == PermissionAction.VIEW) {
+                    restrictedFeatureName = "${module.replaceFirstChar { it.uppercase() }} - $feature"
+                    showAccessRestrictedDialog = true
+                }
                 return
             }
         }
@@ -1136,8 +1149,13 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
 
     LaunchedEffect(editOrderId) {
         editOrderId?.let { id ->
-            // Block API call silently when edit permission is denied
-            if (!permissionViewModel.canUserAction("sales", "orders", PermissionAction.EDIT)) {
+            // 1. Check plan subscription first before checking edit permission
+            if (!permissionViewModel.isPlanFeatureSubscribed("sales", "orders")) {
+                paywallModuleConfig = permissionViewModel.getPaywallConfigForModule("sales")
+                navigateTo("module_upgrade_paywall")
+                editOrderId = null
+            } else if (!permissionViewModel.canUserAction("sales", "orders", PermissionAction.EDIT)) {
+                // 2. Block API call silently when edit permission is denied
                 editOrderId = null
             } else {
                 orderOverviewViewModel.fetchSalesOverview(id)
@@ -1278,6 +1296,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 "hr_exit_manager_approval",
                 "hr_exit_clearance_detail",
                 "hr_exit_settlement_detail" -> selectedExitRequestId = null
+                // Clear selected production team ID when leaving create/edit or detail screen
+                "hr_create_production_team",
+                "hr_production_team_detail" -> selectedProductionTeamId = null
                 "security_support_ticket_detail" -> selectedSupportTicketId = null
                 "security_create_support_ticket" -> { /* No persisted ID to reset */ }
                 "security_help_article_detail" -> { /* Reset article state */ }
@@ -1531,6 +1552,25 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                     }
                 }
             ) { innerPadding ->
+                // Dispatcher to forward unconsumed vertical drags from non-scrollable areas to PullToRefreshBox
+                val pullNestedScrollDispatcher = remember { NestedScrollDispatcher() }
+                val noOpNestedScrollConnection = remember { object : NestedScrollConnection {} }
+                val pullDraggableState = rememberDraggableState { delta ->
+                    val available = Offset(0f, delta)
+                    // Allow PullToRefreshBox to consume upward pull first if already pulled down
+                    val preConsumed = pullNestedScrollDispatcher.dispatchPreScroll(
+                        available = available,
+                        source = NestedScrollSource.UserInput
+                    )
+                    // Forward remaining downward pull delta to trigger the refresh indicator
+                    val remaining = available - preConsumed
+                    pullNestedScrollDispatcher.dispatchPostScroll(
+                        consumed = preConsumed,
+                        available = remaining,
+                        source = NestedScrollSource.UserInput
+                    )
+                }
+
                 PullToRefreshBox(
                     isRefreshing = isRefreshing,
                     onRefresh = {
@@ -1551,6 +1591,24 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                             .fillMaxSize()
                             .background(Color.Transparent)
                             .blurScrim(if (showAccessRestrictedDialog) 16.dp else sidebarBlur)
+                            // Connect dispatcher to the parent PullToRefreshBox nested scroll node
+                            .nestedScroll(noOpNestedScrollConnection, pullNestedScrollDispatcher)
+                            // Capture unconsumed vertical drags anywhere on screen (including empty states)
+                            .draggable(
+                                state = pullDraggableState,
+                                orientation = Orientation.Vertical,
+                                onDragStopped = { velocity ->
+                                    coroutineScope.launch {
+                                        val availableVelocity = Velocity(0f, velocity)
+                                        val preConsumed = pullNestedScrollDispatcher.dispatchPreFling(availableVelocity)
+                                        // Notify PullToRefreshBox that finger was released to trigger refresh or snap back
+                                        pullNestedScrollDispatcher.dispatchPostFling(
+                                            consumed = preConsumed,
+                                            available = availableVelocity - preConsumed
+                                        )
+                                    }
+                                }
+                            )
                     ) {
                         AnimatedContent(
                             targetState = currentScreen,
@@ -1850,6 +1908,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                                             selectedExitRequestId = selectedExitRequestId,
                                             onExitRequestIdSelected = {
                                                 selectedExitRequestId = it
+                                            },
+                                            selectedProductionTeamId = selectedProductionTeamId,
+                                            onProductionTeamIdSelected = {
+                                                selectedProductionTeamId = it
                                             },
                                             onEmployeeIdSelected = { selectedEmployeeId = it },
                                             selectedAttendanceId = selectedAttendanceId,
@@ -2935,6 +2997,8 @@ fun normalizeRoute(rawKey: String): String {
         "hr_dashboard", "hr_team_dashboard" -> "hr_dashboard"
         "hr_employees",
         "hr_employee_management" -> "hr_all_employees"
+        "hr_production_team",
+        "hr_production_teams" -> "hr_production_team"
         "hr_payroll_salary_structure",
         "hr_salary_templates",
         "hr_payroll_salary_templates" -> "hr_payroll_salary_templates"

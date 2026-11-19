@@ -35,6 +35,8 @@ import com.cuso.tailor.model.sales.LeadTableItem
 import com.cuso.tailor.model.sales.OpportunityAnalyticsData
 import com.cuso.tailor.model.sales.OpportunityAnalyticsResponse
 import com.cuso.tailor.model.sales.OrderItem
+import com.cuso.tailor.model.sales.PaymentTermDropdownDto
+import com.cuso.tailor.model.sales.PaymentTermsDropdownResponse
 import com.cuso.tailor.model.sales.QuotationAnalyticsData
 import com.cuso.tailor.model.sales.QuotationAnalyticsResponse
 import com.cuso.tailor.model.sales.RecentFollowUpItem
@@ -69,6 +71,9 @@ import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "SalesViewModel"
+
+// Finance payment terms dropdown endpoint
+private const val FINANCE_PAYMENT_TERMS_DROPDOWN_URL = "/api/finance/settings/payment-terms/dropdown"
 
 /**
  * ViewModel managing Sales, Leads pipeline, Customer searches,
@@ -1116,6 +1121,48 @@ class SalesViewModel @Inject constructor(
             }.onSuccess { _recentFollowUps.value = it.data }
 
             _isLoadingDashboard.value = false
+        }
+    }
+
+    // =============================================================
+    // Payment Terms Dropdown State & API
+    // =============================================================
+
+    private val _paymentTermsList = MutableStateFlow<List<PaymentTermDropdownDto>>(emptyList())
+    val paymentTermsList: StateFlow<List<PaymentTermDropdownDto>> = _paymentTermsList.asStateFlow()
+
+    private val _isLoadingPaymentTerms = MutableStateFlow(false)
+    val isLoadingPaymentTerms: StateFlow<Boolean> = _isLoadingPaymentTerms.asStateFlow()
+
+    private val _paymentTermsError = MutableStateFlow<String?>(null)
+    val paymentTermsError: StateFlow<String?> = _paymentTermsError.asStateFlow()
+
+    /**
+     * Fetches payment terms dropdown options from /api/finance/settings/payment-terms/dropdown.
+     */
+    fun fetchPaymentTermsDropdown() {
+        viewModelScope.launch {
+            _isLoadingPaymentTerms.value = true
+            _paymentTermsError.value = null
+
+            val result = apiRepository.request<PaymentTermsDropdownResponse> {
+                get(FINANCE_PAYMENT_TERMS_DROPDOWN_URL)
+            }
+
+            result.fold(
+                onSuccess = { response ->
+                    if (response.success) {
+                        _paymentTermsList.value = response.data
+                    } else {
+                        _paymentTermsError.value = response.message ?: "Failed to fetch payment terms"
+                    }
+                },
+                onFailure = { error ->
+                    _paymentTermsError.value = error.message ?: "Network error loading payment terms"
+                }
+            )
+
+            _isLoadingPaymentTerms.value = false
         }
     }
 

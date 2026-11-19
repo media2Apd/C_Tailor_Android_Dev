@@ -42,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -220,8 +221,8 @@ private fun resolveRouteKey(menu: String, category: String, subItem: String?): S
 private fun hasAccessToRoute(permissionViewModel: PermissionViewModel, routeKey: String): Boolean {
     val mapping = permissionViewModel.getRouteFeatureMapping(routeKey) ?: return true
     val (module, feature) = mapping
-    val requiredAction = permissionViewModel.getRouteAction(routeKey)
-    return permissionViewModel.canAction(module, feature, requiredAction)
+    // Keep all non-hidden pages searchable so clicking an unsubscribed page triggers the Upgrade Paywall
+    return !permissionViewModel.isFeatureHidden(module, feature)
 }
 
 @Composable
@@ -239,7 +240,10 @@ fun GlobalSearchScreen(
     var isSearchFocused by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
 
-    val allPages = remember(permissionViewModel) {
+    val myPermissions by permissionViewModel.myPermissions.collectAsStateWithLifecycle()
+    val modulePermissions by permissionViewModel.modulePermissions.collectAsStateWithLifecycle()
+
+    val allPages = remember(permissionViewModel, myPermissions, modulePermissions) {
         extractSearchablePages(permissionViewModel)
     }
 
@@ -248,7 +252,9 @@ fun GlobalSearchScreen(
         if (trimmed.isEmpty()) {
             emptyList()
         } else {
-            allPages.filter { it.searchTerms.contains(trimmed) }
+            // Match all typed keywords anywhere in the page title, breadcrumb, module, or route
+            val words = trimmed.split(Regex("\\s+")).filter { it.isNotBlank() }
+            allPages.filter { page -> words.all { page.searchTerms.contains(it) } }
         }
     }
 

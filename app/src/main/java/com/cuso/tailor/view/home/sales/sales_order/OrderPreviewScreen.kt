@@ -11,6 +11,7 @@
 
 package com.cuso.tailor.view.home.sales.sales_order
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
@@ -61,10 +62,14 @@ data class OrderConfirmData(
 @Composable
 fun OrderPreviewScreen(
     orderData: OrderReviewData,
+    isFinalizing: Boolean = false,
     onClose: () -> Unit = {},
     onConfirmOrder: (OrderConfirmData) -> Unit = {},
     onCancel: () -> Unit = {}
 ) {
+    // Prevent system back navigation while order submission is in progress
+    BackHandler(enabled = isFinalizing) {}
+
     val tokens = LocalAppTokens.current
     val scrollState = rememberScrollState()
 
@@ -150,7 +155,10 @@ fun OrderPreviewScreen(
         topBar = {
             TitleBar(
                 title = if (isEditMode) "Update Order Preview" else "Order Preview",
-                onClose = onClose
+                onClose = {
+                    // Ignore close taps while finalizing
+                    if (!isFinalizing) onClose()
+                }
             )
         },
         containerColor = Color.Transparent
@@ -720,31 +728,51 @@ fun OrderPreviewScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Cancel button on the left: also clears the saved flow state
-                BackFabButton(
-                    showArrow = false,
-                    onClick = { showDiscardDialog = true },
-                    label = "Cancel"
-                )
-
-                // Trailing FAB (confirm and finalize) on the right
-                // Bottom FAB  (Before: onClick = onConfirmOrder)
-                TrailingFabButton(
-                    action = TrailingFabAction.Next(
-                        label = if (isEditMode) "Update Order" else "Confirm and Finalize Order",
+                // Cancel button on the left: disabled while finalizing
+                Box(
+                    modifier = Modifier.graphicsLayer {
+                        alpha = if (isFinalizing) 0.5f else 1f
+                    }
+                ) {
+                    BackFabButton(
+                        showArrow = false,
                         onClick = {
-                            onConfirmOrder(
-                                OrderConfirmData(
-                                    paymentAmountReceived = advancePaid,
-                                    paymentMode = "Cash",
-                                    isFullPayment = isFullAdvance,
-                                    collectedBy = collectedBy,
-                                    orderNotes = operationalNotes
-                                )
-                            )
-                        }
+                            if (!isFinalizing) showDiscardDialog = true
+                        },
+                        label = "Cancel"
                     )
-                )
+                }
+
+                // Trailing FAB on the right: shows "Finalizing..." and blocks clicks when loading
+                Box(
+                    modifier = Modifier.graphicsLayer {
+                        alpha = if (isFinalizing) 0.6f else 1f
+                    }
+                ) {
+                    TrailingFabButton(
+                        action = TrailingFabAction.Next(
+                            label = when {
+                                isFinalizing -> "Finalizing..."
+                                isEditMode -> "Update Order"
+                                else -> "Confirm and Finalize Order"
+                            },
+                            onClick = {
+                                // Ignore taps while order submission is already running
+                                if (!isFinalizing) {
+                                    onConfirmOrder(
+                                        OrderConfirmData(
+                                            paymentAmountReceived = advancePaid,
+                                            paymentMode = "Cash",
+                                            isFullPayment = isFullAdvance,
+                                            collectedBy = collectedBy,
+                                            orderNotes = operationalNotes
+                                        )
+                                    )
+                                }
+                            }
+                        )
+                    )
+                }
             }
         }
     }

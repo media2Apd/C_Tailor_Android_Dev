@@ -114,7 +114,24 @@ fun FeatureGuard(
     }
 
     when {
-        // Show AccessRestrictedDialog only when VIEW permission is denied
+        // 1. Highest priority: Plan does not include this feature -> show upgrade paywall first
+        !isPlanSubscribed -> {
+            if (onUpgradeRequired != null) {
+                LaunchedEffect(module, feature, upgradeKey) {
+                    onUpgradeRequired(permissionViewModel.getPaywallConfigForModule(upgradeKey))
+                }
+            } else {
+                AccessRestrictedDialog(
+                    requiredPermission = "${module.replaceFirstChar { it.uppercase() }} - $feature",
+                    message = "This feature is not included in your current subscription plan.",
+                    onGoBack = onGoBack,
+                    onDismiss = onGoBack,
+                    onRequestAccess = onGoBack
+                )
+            }
+        }
+
+        // 2. Plan is subscribed: now check role permission and show AccessRestrictedDialog only for VIEW denials
         !hasActionPermission -> {
             if (action == PermissionAction.VIEW) {
                 AccessRestrictedDialog(
@@ -129,23 +146,6 @@ fun FeatureGuard(
                 LaunchedEffect(module, feature, action) {
                     onGoBack()
                 }
-            }
-        }
-
-        // Plan does not include this feature -> show upgrade paywall or restriction dialog
-        !isPlanSubscribed -> {
-            if (onUpgradeRequired != null) {
-                LaunchedEffect(module, feature, upgradeKey) {
-                    onUpgradeRequired(permissionViewModel.getPaywallConfigForModule(upgradeKey))
-                }
-            } else {
-                AccessRestrictedDialog(
-                    requiredPermission = "${module.replaceFirstChar { it.uppercase() }} - $feature",
-                    message = "This feature is not included in your current subscription plan.",
-                    onGoBack = onGoBack,
-                    onDismiss = onGoBack,
-                    onRequestAccess = onGoBack
-                )
             }
         }
 

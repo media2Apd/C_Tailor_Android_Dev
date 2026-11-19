@@ -203,64 +203,69 @@ fun InventoryScreen(
             }
             HorizontalDivider(color = title_border)
 
-            when {
-                errorMessage != null && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
-                    AppErrorState(
-                        title = "Failed to load inventory screen",
-                        message = "Something went wrong. Please check your connection and try again.",
-                        onRetry = { inventoryViewModel.fetchInventoryItems(search = searchQuery.trim().ifBlank { null }) }
-                    )
-                }
+            val isErrorState = errorMessage != null &&
+                    displayPagingState.items.isEmpty() &&
+                    !displayPagingState.isInitialLoading
 
-                !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(lightGray)
-                            .padding(top = 60.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(RoundedCornerShape(tokens.cardCornerRadius))
-                                .background(background_light_purple),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Inventory2,
-                                contentDescription = null,
-                                tint = Primary,
-                                modifier = Modifier.size(tokens.iconSize * 1.6f)
-                            )
-                        }
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            text = if (searchQuery.isNotBlank() || activeFilterCount > 0) "No Matching Items" else "No Items Found",
-                            fontSize = tokens.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = if (searchQuery.isNotBlank() || activeFilterCount > 0) "Try adjusting your search or filters" else "Start by adding your first inventory item",
-                            fontSize = tokens.bodySmall,
-                            color = mutedText,
-                            textAlign = TextAlign.Center
+            // Wrap all content states in FabScaffold so the Add Item FAB stays visible on empty state too
+            FabScaffold(
+                modifier = Modifier.fillMaxSize(),
+                fab = FabConfig(
+                    label = "Add Item",
+                    icon = Icons.Default.Add,
+                    onClick = onAddItem
+                ),
+                fabVisible = !displayPagingState.isInitialLoading && !isErrorState
+            ) {
+                when {
+                    isErrorState -> {
+                        AppErrorState(
+                            title = "Failed to load inventory screen",
+                            message = "Something went wrong. Please check your connection and try again.",
+                            onRetry = { inventoryViewModel.fetchInventoryItems(search = searchQuery.trim().ifBlank { null }) }
                         )
                     }
-                }
 
-                else -> {
-                    FabScaffold(
-                        modifier = Modifier.fillMaxSize(),
-                        fab = FabConfig(
-                            label = "Add Item",
-                            icon = Icons.Default.Add,
-                            onClick = onAddItem
-                        ),
-                        fabVisible = !displayPagingState.isInitialLoading
-                    ) {
+                    !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(lightGray)
+                                .padding(top = 60.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(RoundedCornerShape(tokens.cardCornerRadius))
+                                    .background(background_light_purple),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Inventory2,
+                                    contentDescription = null,
+                                    tint = Primary,
+                                    modifier = Modifier.size(tokens.iconSize * 1.6f)
+                                )
+                            }
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                text = if (searchQuery.isNotBlank() || activeFilterCount > 0) "No Matching Items" else "No Items Found",
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = if (searchQuery.isNotBlank() || activeFilterCount > 0) "Try adjusting your search or filters" else "Start by adding your first inventory item",
+                                fontSize = tokens.bodySmall,
+                                color = mutedText,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    else -> {
                         PaginatedDataList(
                             state = displayPagingState,
                             onLoadMore = { inventoryViewModel.loadMoreInventoryItems() },

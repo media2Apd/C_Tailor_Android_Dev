@@ -98,17 +98,23 @@ fun HrDashboardScreen(
     val legalFiles by viewModel.legalFiles.collectAsState()
     val designationDetail by viewModel.designationHistory.collectAsState()
 
-    // Automatically trigger Shift and Career Designation APIs when respective tab is chosen
-    LaunchedEffect(selectedDashboardTab, myProfile) {
-        if (selectedDashboardTab == "Shift") {
-            val shiftId = myProfile?.shiftId
-            if (!shiftId.isNullOrBlank()) {
-                hrViewModel.fetchShiftDetail(shiftId)
-            }
-        } else if (selectedDashboardTab == "Career History") {
-            val desId = myProfile?.designationId?._id
-            if (!desId.isNullOrBlank()) {
-                viewModel.fetchCareerDesignationHistory(desId)
+    // Automatically trigger sub-tab APIs only when Dashboard section is active
+    LaunchedEffect(selectedSpace, selectedSection, selectedDashboardTab, myProfile) {
+        if (selectedSpace == "My Space" && selectedSection == "Dashboard") {
+            when (selectedDashboardTab) {
+                "Feed" -> viewModel.fetchEmployeeFeed()
+                "Shift" -> {
+                    val shiftId = myProfile?.shiftId
+                    if (!shiftId.isNullOrBlank()) {
+                        hrViewModel.fetchShiftDetail(shiftId)
+                    }
+                }
+                "Career History" -> {
+                    val desId = myProfile?.designationId?._id
+                    if (!desId.isNullOrBlank()) {
+                        viewModel.fetchCareerDesignationHistory(desId)
+                    }
+                }
             }
         }
     }
@@ -177,7 +183,12 @@ fun HrDashboardScreen(
                         feedList = feedList,
                         legalFiles = legalFiles,
                         designationDetail = designationDetail,
-                        onFetchFeed = { viewModel.fetchEmployeeFeed() },
+                        selectedSection = selectedSection,
+                        sections = sections,
+                        onSelectSection = { selectedSection = it },
+                        selectedDashboardTab = selectedDashboardTab,
+                        dashboardTabs = dashboardTabs,
+                        onSelectDashboardTab = { selectedDashboardTab = it },
                         onPunch = { viewModel.performPunchAction() },
                         onNavigateToLeave = onNavigateToLeave,
                         onNavigateToAttendance = onNavigateToAttendance,
@@ -484,10 +495,11 @@ private fun AttendanceSubTabContent(
                                 ) {
                                     Text(rec.date?.take(10) ?: "—", fontSize = tokens.caption, color = TextPrimary)
                                     Text("General Shift", fontSize = tokens.caption, color = TextSecondary)
+                                    val recStatus = rec.status
                                     StatusBadge(
-                                        text = rec.status.uppercase(),
-                                        bgColor = if (rec.status.equals("present", true)) greenBg else redBg,
-                                        textColor = if (rec.status.equals("present", true)) greentext else redText
+                                        text = recStatus.uppercase().ifBlank { "—" },
+                                        bgColor = if (recStatus.equals("present", true)) greenBg else redBg,
+                                        textColor = if (recStatus.equals("present", true)) greentext else redText
                                     )
                                 }
                                 if (idx < history.lastIndex) {
@@ -541,7 +553,7 @@ private fun ShiftSubTabContent(
     val fullDayMinutes = 480 // 8 hours
 
     // Next upcoming shift calculation
-    val today = java.time.LocalDate.now()
+    val today = remember { java.time.LocalDate.now() }
     val tomorrow = today.plusDays(1)
     val nextShiftDateLabel = tomorrow.format(DateTimeFormatter.ofPattern("EEEE, dd MMM yyyy", Locale.US))
 
@@ -1159,17 +1171,18 @@ private fun FilesSubTabContent(
         return if (ext.length > 4) ext.take(4) else ext
     }
 
-    // Flatten document groups from all legal records
+    // Flatten document groups from all legal records (null-safe for Gson)
     val allDocuments = remember(legalRecords) {
         legalRecords.flatMap { rec ->
-            val refNo = rec.legalRecordNumber.ifBlank { "" }
+            val refNo = rec.legalRecordNumber
             val expiry = formatDisplayDate(rec.endDate)
 
             val contracts = rec.employmentContractDocuments.map { doc ->
+                val docName = doc.documentName
                 UiLegalDocument(
                     id = doc._id,
-                    name = doc.documentName,
-                    ext = getExtension(doc.documentName),
+                    name = docName,
+                    ext = getExtension(docName),
                     url = doc.documentUrl,
                     refNo = refNo,
                     category = "Employment Contract",
@@ -1179,10 +1192,11 @@ private fun FilesSubTabContent(
                 )
             }
             val labours = rec.labourDocuments.map { doc ->
+                val docName = doc.documentName
                 UiLegalDocument(
                     id = doc._id,
-                    name = doc.documentName,
-                    ext = getExtension(doc.documentName),
+                    name = docName,
+                    ext = getExtension(docName),
                     url = doc.documentUrl,
                     refNo = refNo,
                     category = "Labour Document",
@@ -1192,10 +1206,11 @@ private fun FilesSubTabContent(
                 )
             }
             val supportings = rec.supportingDocuments.map { doc ->
+                val docName = doc.documentName
                 UiLegalDocument(
                     id = doc._id,
-                    name = doc.documentName,
-                    ext = getExtension(doc.documentName),
+                    name = docName,
+                    ext = getExtension(docName),
                     url = doc.documentUrl,
                     refNo = refNo,
                     category = "Supporting Document",
@@ -1210,7 +1225,7 @@ private fun FilesSubTabContent(
 
     // Filter states
     var searchQuery by remember { mutableStateOf("") }
-    var selectedCategoryTab by remember { mutableStateOf("All Documents") }
+    var selectedCategoryTab by remember { mutableStateOf("ALL") }
 
     var selectedStatus by remember { mutableStateOf("All Status") }
     var isStatusDropdownExpanded by remember { mutableStateOf(false) }
@@ -1224,19 +1239,19 @@ private fun FilesSubTabContent(
     val supportingCount = remember(allDocuments) { allDocuments.count { it.category == "Supporting Document" } }
 
     val categoryTabs = listOf(
-        "All Documents (${allDocuments.size})",
-        "Employment Contract ($contractCount)",
-        "Labour Document ($labourCount)",
-        "Supporting Document ($supportingCount)"
+        "ALL" to "All Documents (${allDocuments.size})",
+        "CONTRACT" to "Employment Contract ($contractCount)",
+        "LABOUR" to "Labour Document ($labourCount)",
+        "SUPPORTING" to "Supporting Document ($supportingCount)"
     )
 
     // Filtered documents list
     val filteredDocuments = remember(allDocuments, searchQuery, selectedCategoryTab, selectedStatus, selectedExpiry) {
         allDocuments.filter { doc ->
-            val matchesCategory = when {
-                selectedCategoryTab.startsWith("Employment Contract") -> doc.category == "Employment Contract"
-                selectedCategoryTab.startsWith("Labour Document") -> doc.category == "Labour Document"
-                selectedCategoryTab.startsWith("Supporting Document") -> doc.category == "Supporting Document"
+            val matchesCategory = when (selectedCategoryTab) {
+                "CONTRACT" -> doc.category == "Employment Contract"
+                "LABOUR" -> doc.category == "Labour Document"
+                "SUPPORTING" -> doc.category == "Supporting Document"
                 else -> true
             }
 
@@ -1348,17 +1363,17 @@ private fun FilesSubTabContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(categoryTabs) { tab ->
-                        val isSelected = selectedCategoryTab == tab || (selectedCategoryTab == "All Documents" && tab.startsWith("All Documents"))
+                    items(categoryTabs, key = { it.first }) { (key, label) ->
+                        val isSelected = selectedCategoryTab == key
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSelected) Primary else light_grey)
-                                .clickable { selectedCategoryTab = tab }
+                                .clickable { selectedCategoryTab = key }
                                 .padding(horizontal = 14.dp, vertical = 7.dp)
                         ) {
                             Text(
-                                text = tab,
+                                text = label,
                                 fontSize = tokens.caption,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                                 color = if (isSelected) whiteBg else TextSecondary
@@ -1834,7 +1849,7 @@ private fun OrgSpaceContent(orgData: OrgDashboardData?) {
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Text(
-                                text = dept.departmentName,
+                                text = dept.departmentName.ifBlank { "—" },
                                 fontSize = tokens.caption,
                                 color = TextSecondary,
                                 modifier = Modifier.width(90.dp),
@@ -1907,7 +1922,8 @@ private fun OrgSpaceContent(orgData: OrgDashboardData?) {
                 }
 
                 // Trend status area
-                val hasTrend = orgData?.monthlyHiringAttritionTrend?.months?.any { it.hires > 0 || it.exits > 0 } == true
+                val trendMonths = orgData?.monthlyHiringAttritionTrend?.months.orEmpty()
+                val hasTrend = trendMonths.any { it.hires > 0 || it.exits > 0 }
                 if (!hasTrend) {
                     Box(
                         modifier = Modifier
@@ -1928,7 +1944,7 @@ private fun OrgSpaceContent(orgData: OrgDashboardData?) {
                             .padding(top = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        orgData.monthlyHiringAttritionTrend.months.takeLast(6).forEach { m ->
+                        trendMonths.takeLast(6).forEach { m ->
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text("${m.hires}", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = greentext)
                                 Spacer(Modifier.height(4.dp))
@@ -2420,7 +2436,12 @@ private fun MySpaceContent(
     feedList: List<com.cuso.tailor.model.hr.AnnouncementItemData> = emptyList(),
     legalFiles: List<com.cuso.tailor.model.hr.LegalEmployeeData> = emptyList(),
     designationDetail: com.cuso.tailor.model.hr.DesignationDetailData? = null,
-    onFetchFeed: () -> Unit = {},
+    selectedSection: String,
+    sections: List<String>,
+    onSelectSection: (String) -> Unit,
+    selectedDashboardTab: String,
+    dashboardTabs: List<String>,
+    onSelectDashboardTab: (String) -> Unit,
     onPunch: () -> Unit,
     onNavigateToLeave: () -> Unit,
     onNavigateToAttendance: () -> Unit,
@@ -2432,32 +2453,6 @@ private fun MySpaceContent(
     val p = myProfile
     val isCheckedIn = t?.checkedIn == true
 
-    // ── Dynamic Live Seconds Timer ──
-    var elapsedSeconds by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(isCheckedIn, t?.firstIn) {
-        if (isCheckedIn && !t.firstIn.isNullOrBlank()) {
-            try {
-                val checkInEpoch = Instant.parse(t.firstIn).epochSecond
-                while (true) {
-                    val currentEpoch = Instant.now().epochSecond
-                    elapsedSeconds = (currentEpoch - checkInEpoch).coerceAtLeast(0L)
-                    kotlinx.coroutines.delay(1000L)
-                }
-            } catch (_: Exception) {
-                elapsedSeconds = 0L
-            }
-        } else {
-            elapsedSeconds = (t?.totalWorkingMinutes?.toLong() ?: 0L) * 60L
-        }
-    }
-
-    val timerText = remember(elapsedSeconds) {
-        val hours = elapsedSeconds / 3600
-        val mins = (elapsedSeconds % 3600) / 60
-        val secs = elapsedSeconds % 60
-        String.format(Locale.US, "%02d:%02d:%02d", hours, mins, secs)
-    }
-
     val initials = remember(p) {
         "${p?.firstName?.take(1) ?: "N"}${p?.lastName?.take(1) ?: "S"}".uppercase()
     }
@@ -2466,21 +2461,6 @@ private fun MySpaceContent(
     }
     val roleMemberId = remember(p) {
         "${p?.role ?: "owner"} • ${p?.memberId ?: ""}"
-    }
-
-    var selectedSection by remember { mutableStateOf("Overview") }
-    val sections = listOf("Overview", "Dashboard")
-
-    var selectedDashboardTab by remember { mutableStateOf("Profile") }
-    val dashboardTabs = listOf(
-        "Profile", "Feed", "Approvals", "Leave", "Attendance", "Shift", "Files", "Time Logs", "Career History"
-    )
-
-    // Trigger API fetch immediately when switching to Feed
-    LaunchedEffect(selectedDashboardTab) {
-        if (selectedDashboardTab == "Feed") {
-            onFetchFeed()
-        }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -2531,11 +2511,10 @@ private fun MySpaceContent(
                     textColor = if (isCheckedIn) greentext else Primary
                 )
 
-                Text(
-                    text = timerText,
-                    fontSize = tokens.h1,
-                    fontWeight = FontWeight.Bold,
-                    color = title_color
+                LivePunchTimerText(
+                    isCheckedIn = isCheckedIn,
+                    firstIn = t?.firstIn,
+                    totalWorkingMinutes = t?.totalWorkingMinutes ?: 0
                 )
 
                 val lastTimestamp = if (isCheckedIn) t.firstIn else t?.lastOut
@@ -2731,7 +2710,7 @@ private fun MySpaceContent(
                     val isSelected = selectedSection == sec
                     Column(
                         modifier = Modifier
-                            .clickable { selectedSection = sec }
+                            .clickable { onSelectSection(sec) }
                             .padding(vertical = 4.dp)
                     ) {
                         Text(
@@ -2778,12 +2757,7 @@ private fun MySpaceContent(
                                 if (isSelected) Primary else sectionBorder,
                                 RoundedCornerShape(tokens.cardCornerRadius * 0.45f)
                             )
-                            .clickable {
-                                selectedDashboardTab = tab
-                                if (tab == "Feed") {
-                                    onFetchFeed()
-                                }
-                            }
+                            .clickable { onSelectDashboardTab(tab) }
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
@@ -2827,6 +2801,48 @@ private fun MySpaceContent(
             }
         }
     }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+private fun LivePunchTimerText(
+    isCheckedIn: Boolean,
+    firstIn: String?,
+    totalWorkingMinutes: Int
+) {
+    val tokens = LocalAppTokens.current
+    var elapsedSeconds by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(isCheckedIn, firstIn, totalWorkingMinutes) {
+        if (isCheckedIn && !firstIn.isNullOrBlank()) {
+            try {
+                val checkInEpoch = Instant.parse(firstIn).epochSecond
+                while (true) {
+                    val currentEpoch = Instant.now().epochSecond
+                    elapsedSeconds = (currentEpoch - checkInEpoch).coerceAtLeast(0L)
+                    kotlinx.coroutines.delay(1000L)
+                }
+            } catch (_: Exception) {
+                elapsedSeconds = 0L
+            }
+        } else {
+            elapsedSeconds = totalWorkingMinutes.toLong() * 60L
+        }
+    }
+
+    val timerText = remember(elapsedSeconds) {
+        val hours = elapsedSeconds / 3600
+        val mins = (elapsedSeconds % 3600) / 60
+        val secs = elapsedSeconds % 60
+        String.format(Locale.US, "%02d:%02d:%02d", hours, mins, secs)
+    }
+
+    Text(
+        text = timerText,
+        fontSize = tokens.h1,
+        fontWeight = FontWeight.Bold,
+        color = title_color
+    )
 }
 
 // =========================================================================
@@ -3048,10 +3064,10 @@ private fun FeedSubTabContent(
             }
         } else {
             filteredAnnouncements.forEach { feed ->
-                val author = "${feed.createdBy?.firstName.orEmpty()} ${feed.createdBy?.lastName.orEmpty()}".trim().ifBlank { "" }
+                val author = "${feed.createdBy?.firstName.orEmpty()} ${feed.createdBy?.lastName.orEmpty()}".trim().ifBlank { "—" }
                 val role = "Executive Office"
-                val initials = author.split(" ").map { it.take(1) }.take(2).joinToString("").uppercase().ifBlank { "" }
-                val categoryName = feed.postCategory.replace("_", " ").ifBlank { "" }
+                val initials = author.split(" ").filter { it.isNotBlank() }.map { it.take(1) }.take(2).joinToString("").uppercase().ifBlank { "—" }
+                val categoryName = feed.postCategory.replace("_", " ").ifBlank { "General" }
                 val audienceLabel = if (feed.audience?.type?.contains("Filtered", ignoreCase = true) == true) "Selected Employees" else "All Employees"
                 val timeAgo = formatDisplayTimeAgo(feed.publishedAt ?: feed.createdAt)
 
@@ -3546,6 +3562,7 @@ private fun TimeLogsSubTabContent(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Row(
+                                            modifier = Modifier.weight(1f, fill = false),
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
@@ -3564,7 +3581,9 @@ private fun TimeLogsSubTabContent(
                                                 text = title,
                                                 fontSize = tokens.caption,
                                                 fontWeight = FontWeight.Medium,
-                                                color = title_color
+                                                color = title_color,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
 
@@ -4141,7 +4160,7 @@ private fun CareerHistorySubTabContent(
                                 )
                             }
                             Text(
-                                text = des?.description?.ifBlank { "Mobile App Development" } ?: "Mobile App Development",
+                                text = des?.description.orEmpty().ifBlank { "" },
                                 fontSize = tokens.caption,
                                 color = TextSecondary
                             )

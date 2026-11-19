@@ -752,7 +752,7 @@ fun CreateCustomerScreen(
                     }
                 },
                 enabled = fullName.isNotBlank() && mobileNumber.isNotBlank() && !isSaving,
-                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary, disabledContainerColor = disabled),
                 shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
                 modifier = Modifier.height(tokens.buttonHeight)
             ) {

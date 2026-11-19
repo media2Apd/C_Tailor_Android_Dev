@@ -382,6 +382,9 @@ import com.cuso.tailor.view.home.hr.settings.piece_rate_setup.PieceRateSetupList
 import com.cuso.tailor.view.home.hr.exit_request.ExitManagementScreen
 import com.cuso.tailor.view.home.hr.exit_request.ExitRequestFormScreen
 import com.cuso.tailor.view.home.hr.exit_request.ManagerApprovalScreen
+import com.cuso.tailor.view.home.hr.organization_structure.CreateProductionTeamScreen
+import com.cuso.tailor.view.home.hr.organization_structure.ProductionTeamDetailScreen
+import com.cuso.tailor.view.home.hr.organization_structure.ProductionTeamsScreen
 import com.cuso.tailor.view.home.hr.settlement.ExitSettlementDetailScreen
 import com.cuso.tailor.view.home.hr.settlement.ExitSettlementListScreen
 import com.cuso.tailor.view.home.reports.it.reports.ItAssetReportScreen
@@ -552,7 +555,10 @@ data class HrStateHolder(
     val onPieceRateIdForEditSelected: (String?) -> Unit = {},
     // Exit Request navigation states
     val selectedExitRequestId: String? = null,
-    val onExitRequestIdSelected: (String?) -> Unit = {}
+    val onExitRequestIdSelected: (String?) -> Unit = {},
+    // Production Team navigation states
+    val selectedProductionTeamId: String? = null,
+    val onProductionTeamIdSelected: (String?) -> Unit = {}
 )
 
 data class LogisticsStateHolder(
@@ -1025,6 +1031,7 @@ fun HomeScreenRouter(
         "hr_exit_clearance", "hr_exit_clearance_detail",
         "hr_exit_settlements", "hr_exit_settlement_detail",
         "hr_new_document_upload", "hr_organization_structure",
+        "hr_production_team", "hr_create_production_team", "hr_production_team_detail",
         "hr_expense_claims","hr_expense_new_claim", "hr_expense_type", "hr_submit_expense_claim", "hr_expense_claim_detail","hr_expense_claim_detail_readonly",
         "hr_expense_finance_reimbursement","hr_edit_expense_claim","hr_add_expense_type","hr_expense_process_payment"   -> {
             HrRouter(
@@ -1035,6 +1042,8 @@ fun HomeScreenRouter(
                 onPieceRateIdForEditSelected = hrState.onPieceRateIdForEditSelected,
                 selectedExitRequestId = hrState.selectedExitRequestId,
                 onExitRequestIdSelected = hrState.onExitRequestIdSelected,
+                selectedProductionTeamId = hrState.selectedProductionTeamId,
+                onProductionTeamIdSelected = hrState.onProductionTeamIdSelected,
                 selectedLeavePolicyIdForEdit = hrState.selectedLeavePolicyIdForEdit,
                 onLeavePolicyIdForEditSelected = hrState.onLeavePolicyIdForEditSelected,
                 selectedLeavePolicyIdForView = hrState.selectedLeavePolicyIdForView,
@@ -1499,6 +1508,7 @@ private fun HomeAndSettingsRouter(
         "module_settings" -> ModuleSettingsScreen(
             onClose = onGoBack,
             onNavigateToModule = { route -> onSafeNavigate(route) },
+            onPaywallRequired = onPaywallRequired,
             onConfigureHome = { onSafeNavigate("home_organization_profile") },
             onConfigureSales = { onSafeNavigate("sales_garment_type") },
             onNavigateLeaveTypes = { onSafeNavigate("hr_leave_types") },
@@ -1908,11 +1918,16 @@ private fun SalesRouter(
                 mode = LeadFormMode.EDIT,
                 onBack = onGoBack,
                 onConvertToOrder = { orderReviewData ->
-                    if (permissionViewModel.canUserAction("sales", "orders", PermissionAction.CREATE)) {
+                    // 1. Check plan subscription first
+                    if (!permissionViewModel.isPlanFeatureSubscribed("sales", "orders")) {
+                        onPaywallRequired(permissionViewModel.getPaywallConfigForModule("sales"))
+                    } else if (permissionViewModel.canUserAction("sales", "orders", PermissionAction.CREATE)) {
+                        // 2. Plan is valid and user has permission
                         onPendingOrderReviewDataChange(orderReviewData)
                         onOrderFlowOriginChange("lead")
                         onNavigate("create_order")
                     } else {
+                        // 3. Plan is valid, trigger access restricted flow
                         onSafeNavigate("create_order", PermissionAction.CREATE)
                     }
                 }
@@ -2005,9 +2020,14 @@ private fun SalesRouter(
                     onSafeNavigate("edit_customer", PermissionAction.EDIT)
                 },
                 onDelete = { customer ->
-                    if (permissionViewModel.canUserAction("sales", "customers", PermissionAction.DELETE)) {
+                    // 1. Check plan subscription first
+                    if (!permissionViewModel.isPlanFeatureSubscribed("sales", "customers")) {
+                        onPaywallRequired(permissionViewModel.getPaywallConfigForModule("sales"))
+                    } else if (permissionViewModel.canUserAction("sales", "customers", PermissionAction.DELETE)) {
+                        // 2. Plan is valid and user has delete permission
                         customerViewModel.deleteCustomer(customer.id)
                     } else {
+                        // 3. Plan is valid, trigger permission flow
                         onSafeNavigate("sales_customers", PermissionAction.DELETE)
                     }
                 },
@@ -2174,9 +2194,14 @@ private fun SalesRouter(
                     onSafeNavigate("order_overview", PermissionAction.VIEW)
                 },
                 onEditOrder = { orderId ->
-                    if (permissionViewModel.canUserAction("sales", "orders", PermissionAction.EDIT)) {
+                    // 1. Check plan subscription first
+                    if (!permissionViewModel.isPlanFeatureSubscribed("sales", "orders")) {
+                        onPaywallRequired(permissionViewModel.getPaywallConfigForModule("sales"))
+                    } else if (permissionViewModel.canUserAction("sales", "orders", PermissionAction.EDIT)) {
+                        // 2. Plan is valid and user has edit permission
                         onEditOrderIdChange(orderId)
                     } else {
+                        // 3. Plan is valid, trigger permission flow
                         onSafeNavigate("create_order", PermissionAction.EDIT)
                     }
                 },
@@ -2195,11 +2220,9 @@ private fun SalesRouter(
             CreateOrderScreen(
                 initialData = pendingOrderReviewData,
                 onBack = {
-                    onPendingOrderReviewDataChange(null)
                     onGoBack()
                 },
                 onCancel = {
-                    onPendingOrderReviewDataChange(null)
                     onGoBack()
                 },
                 onNextStep = { orderReviewData ->
@@ -2212,8 +2235,13 @@ private fun SalesRouter(
 
         "order_preview" -> SalesGuard("orders", PermissionAction.CREATE) {
             pendingOrderReviewData?.let { data ->
+                // True while either create or update order request is running
+                val isFinalizing = orderActionState is OrderActionState.Loading ||
+                        updateOrderState is UpdateOrderState.Loading
+
                 OrderPreviewScreen(
                     orderData = data,
+                    isFinalizing = isFinalizing,
                     onClose = {
                         onGoBack()
                     },
@@ -2226,11 +2254,14 @@ private fun SalesRouter(
                         ) {
                             // Block duplicate submission while loading
                         } else {
+                            // Pass selected payment term code (fallback to paymentTermId if code is empty)
+                            val selectedPaymentTerm = draft.paymentTermId
+
                             val built = buildCreateOrderFields(
                                 draft = draft,
                                 measurements = OrderFlowStore.measurements,
                                 salespersonId = draft.salespersonId,
-                                paymentTermId = TEMP_PAYMENT_TERM_ID,
+                                paymentTermId = selectedPaymentTerm,
                                 paymentMode = confirm.paymentMode,
                                 advanceAmountPaid = confirm.paymentAmountReceived,
                                 isFullPayment = confirm.isFullPayment,
@@ -2299,11 +2330,16 @@ private fun SalesRouter(
                         onGoBack()
                     },
                     onEditOrder = { reviewData ->
-                        if (permissionViewModel.canUserAction("sales", "orders", PermissionAction.EDIT)) {
+                        // 1. Check plan subscription first
+                        if (!permissionViewModel.isPlanFeatureSubscribed("sales", "orders")) {
+                            onPaywallRequired(permissionViewModel.getPaywallConfigForModule("sales"))
+                        } else if (permissionViewModel.canUserAction("sales", "orders", PermissionAction.EDIT)) {
+                            // 2. Plan is valid and user has permission
                             onEditOrderIdChange(id)
                             onPendingOrderReviewDataChange(reviewData)
                             onNavigate("create_order")
                         } else {
+                            // 3. Plan is valid, trigger access restricted flow
                             onSafeNavigate("create_order", PermissionAction.EDIT)
                         }
                     },
@@ -2735,21 +2771,22 @@ private fun FinanceRouter(
         )
     }
 
-    // Helper for shared inventory/finance purchase screens so Finance users use finance.* permissions
+    // Helper for shared inventory/finance purchase screens: check plan subscription first, then permissions
     fun navigateWithFinancePermission(
         feature: String,
         action: PermissionAction,
         targetRoute: String
     ) {
+        // 1. Highest priority: check plan subscription first
+        if (!permissionViewModel.isPlanFeatureSubscribed("finance", feature)) {
+            onPaywallRequired(permissionViewModel.getPaywallConfigForModule("finance"))
+            return
+        }
+        // 2. Plan is subscribed: now check role permission
         if (!permissionViewModel.canUserAction("finance", feature, action)) {
-            // Show AccessRestrictedDialog only for VIEW permission denials
             if (action == PermissionAction.VIEW) {
                 onAccessRestricted("Finance - $feature")
             }
-            return
-        }
-        if (!permissionViewModel.isPlanFeatureSubscribed("finance", feature)) {
-            onPaywallRequired(permissionViewModel.getPaywallConfigForModule("finance"))
             return
         }
         onPurchaseFromFinanceChange(true)
@@ -2798,22 +2835,37 @@ private fun FinanceRouter(
                 onMenuClick = onOpenDrawer,
                 onBack = onGoBack,
                 onCreateOrder = {
-                    if (permissionViewModel.canUserAction("finance", "finOrders", PermissionAction.CREATE)) {
+                    // 1. Check plan subscription first
+                    if (!permissionViewModel.isPlanFeatureSubscribed("finance", "finOrders")) {
+                        onPaywallRequired(permissionViewModel.getPaywallConfigForModule("finance"))
+                    } else if (permissionViewModel.canUserAction("finance", "finOrders", PermissionAction.CREATE)) {
+                        // 2. Plan is valid and user has permission
                         onPendingOrderReviewDataChange(null)
                         onNavigate("create_order")
                     } else {
+                        // 3. Plan is valid, trigger access restricted flow
                         onSafeNavigate("finance_sales_orders", PermissionAction.CREATE)
                     }
                 },
                 onViewOrder = { orderId ->
-                    onOrderIdSelected(orderId)
-                    onOrderFromFinanceChange(true)
-                    onNavigate("order_overview")
+                    // 1. Check plan subscription first
+                    if (!permissionViewModel.isPlanFeatureSubscribed("finance", "finOrders")) {
+                        onPaywallRequired(permissionViewModel.getPaywallConfigForModule("finance"))
+                    } else {
+                        onOrderIdSelected(orderId)
+                        onOrderFromFinanceChange(true)
+                        onNavigate("order_overview")
+                    }
                 },
                 onEditOrder = { orderId ->
-                    if (permissionViewModel.canUserAction("finance", "finOrders", PermissionAction.EDIT)) {
+                    // 1. Check plan subscription first
+                    if (!permissionViewModel.isPlanFeatureSubscribed("finance", "finOrders")) {
+                        onPaywallRequired(permissionViewModel.getPaywallConfigForModule("finance"))
+                    } else if (permissionViewModel.canUserAction("finance", "finOrders", PermissionAction.EDIT)) {
+                        // 2. Plan is valid and user has permission
                         onEditOrderIdChange(orderId)
                     } else {
+                        // 3. Plan is valid, trigger access restricted flow
                         onSafeNavigate("finance_sales_orders", PermissionAction.EDIT)
                     }
                 },
@@ -4223,15 +4275,18 @@ private fun InventoryProcurementRouter(
                     order = po,
                     viewModel = inventoryViewModel,
                     onEdit = {
-                        val hasEditPerm = if (isPurchaseFromFinance) {
-                            permissionViewModel.canUserAction("finance", "finPurchaseOrders", PermissionAction.EDIT)
-                        } else {
-                            permissionViewModel.canUserAction("inventory", "procPurchaseOrders", PermissionAction.EDIT)
-                        }
-                        if (hasEditPerm) {
+                        val activeModule = if (isPurchaseFromFinance) "finance" else "inventory"
+                        val activeFeature = if (isPurchaseFromFinance) "finPurchaseOrders" else "procPurchaseOrders"
+
+                        // 1. Check plan subscription first
+                        if (!permissionViewModel.isPlanFeatureSubscribed(activeModule, activeFeature)) {
+                            onPaywallRequired(permissionViewModel.getPaywallConfigForModule(activeModule))
+                        } else if (permissionViewModel.canUserAction(activeModule, activeFeature, PermissionAction.EDIT)) {
+                            // 2. Plan is valid and user has permission
                             selectedPurchaseOrderForEdit = po
                             onNavigate("inventory_create_purchase_order_flow")
                         } else {
+                            // 3. Plan is valid, trigger access restricted flow
                             onSafeNavigate("inventory_create_purchase_order_flow", PermissionAction.EDIT)
                         }
                     },
@@ -4654,6 +4709,8 @@ private fun HrRouter(
     onPieceRateIdForEditSelected: (String?) -> Unit = {},
     selectedExitRequestId: String? = null,
     onExitRequestIdSelected: (String?) -> Unit = {},
+    selectedProductionTeamId: String? = null,
+    onProductionTeamIdSelected: (String?) -> Unit = {},
     selectedLeavePolicyIdForEdit: String? = null,
     onLeavePolicyIdForEditSelected: (String?) -> Unit = {},
     selectedLeavePolicyIdForView: String? = null,
@@ -4788,12 +4845,66 @@ private fun HrRouter(
             )
         }
 
-        // 3. Organization Structure
+        // 3. Organization Structure & Production Teams
         "hr_organization_structure" -> HrGuard("allEmployees", PermissionAction.VIEW) {
             OrganizationStructureScreen(
                 hrViewModel = hrViewModel,
                 onClose = onGoBack
             )
+        }
+
+        "hr_production_team" -> HrGuard("productionTeam", PermissionAction.VIEW) {
+            ProductionTeamsScreen(
+                hrViewModel = hrViewModel,
+                onClose = onGoBack,
+                onCreateTeam = {
+                    onProductionTeamIdSelected(null)
+                    onSafeNavigate("hr_create_production_team", PermissionAction.CREATE)
+                },
+                onViewTeam = { teamId ->
+                    onProductionTeamIdSelected(teamId)
+                    onSafeNavigate("hr_production_team_detail", PermissionAction.VIEW)
+                },
+                onEditTeam = { teamId ->
+                    onProductionTeamIdSelected(teamId)
+                    onSafeNavigate("hr_create_production_team", PermissionAction.EDIT)
+                }
+            )
+        }
+
+        "hr_create_production_team" -> HrGuard(
+            feature = "productionTeam",
+            action = if (selectedProductionTeamId != null) PermissionAction.EDIT else PermissionAction.CREATE
+        ) {
+            CreateProductionTeamScreen(
+                teamIdToEdit = selectedProductionTeamId,
+                hrViewModel = hrViewModel,
+                onClose = {
+                    onProductionTeamIdSelected(null)
+                    onGoBack()
+                },
+                onSavedSuccess = {
+                    onProductionTeamIdSelected(null)
+                    onGoBack()
+                }
+            )
+        }
+
+        "hr_production_team_detail" -> HrGuard("productionTeam", PermissionAction.VIEW) {
+            selectedProductionTeamId?.takeIf { it.isNotBlank() }?.let { validId ->
+                ProductionTeamDetailScreen(
+                    teamId = validId,
+                    hrViewModel = hrViewModel,
+                    onClose = {
+                        onProductionTeamIdSelected(null)
+                        onGoBack()
+                    },
+                    onEditTeam = { teamId ->
+                        onProductionTeamIdSelected(teamId)
+                        onSafeNavigate("hr_create_production_team", PermissionAction.EDIT)
+                    }
+                )
+            } ?: run { onGoBack() }
         }
 
         // 4. Attendance Management

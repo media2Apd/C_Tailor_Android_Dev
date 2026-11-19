@@ -73,6 +73,7 @@ import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.view.composable.AccordionSection
 import com.cuso.tailor.view.composable.AppButton
 import com.cuso.tailor.view.composable.AppCheckbox
+import com.cuso.tailor.view.composable.AppRadioButton
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextArea
@@ -120,8 +121,10 @@ fun CreateItemGroupScreen(
 
     LaunchedEffect(Unit) {
         settingsViewModel.fetchProductCategories()
+        inventoryViewModel.fetchTaxGroups()
     }
     val productCategories by settingsViewModel.productCategories.collectAsState()
+    val taxGroups by inventoryViewModel.taxGroups.collectAsState()
     val editDetail by inventoryViewModel.selectedItemGroupDetail.collectAsState()
 
     val isCreating by inventoryViewModel.isCreatingItemGroup.collectAsState()
@@ -134,18 +137,49 @@ fun CreateItemGroupScreen(
 
     val isEditMode = editDetail != null
 
-    // Form field states
+    // Display label -> backend enum value mapping matching React ItemGroupForm
+    val unitsList = remember {
+        listOf(
+            "Pieces (Pcs)" to "Pieces",
+            "Meters (m)" to "Meters",
+            "Centimeters (cm)" to "Centimeters",
+            "Inches (in)" to "Inches",
+            "Kilograms (kg)" to "Kilograms",
+            "Grams (g)" to "Grams",
+            "Liters (L)" to "Liters",
+            "Milliliters (ml)" to "Milliliters",
+            "Boxes" to "Boxes",
+            "Packs" to "Packs",
+            "Pairs" to "Pairs",
+            "Dozens" to "Dozens",
+            "Rolls" to "Rolls",
+            "Bundles" to "Bundles",
+            "Sets" to "Sets"
+        )
+    }
+
+    // Form field states aligned with React ItemGroupForm
     var itemGroupName by remember { mutableStateOf("") }
-    var unit by remember { mutableStateOf("Select Piece") }
+    var itemType by remember { mutableStateOf("goods") } // "goods" | "service"
+    var hsnCode by remember { mutableStateOf("") }
+    var sacCode by remember { mutableStateOf("") }
+    var unit by remember { mutableStateOf("Select Unit") }
     var unitExpanded by remember { mutableStateOf(false) }
+    var isFabric by remember { mutableStateOf(false) }
+    var fabricType by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var brand by remember { mutableStateOf("Select Brand") }
-    var brandExpanded by remember { mutableStateOf(false) }
+
+    var manufacturer by remember { mutableStateOf("") }
+    var brand by remember { mutableStateOf("") }
     var selectedCategoryName by remember { mutableStateOf("Select Category") }
     var selectedCategoryId by remember { mutableStateOf<String?>(null) }
     var categoryExpanded by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf(true) }
+    var status by remember { mutableStateOf(true) } // true -> "active", false -> "draft"
     var itemGroupImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
+
+    var taxPreference by remember { mutableStateOf("taxable") } // "taxable" | "non_taxable"
+    var selectedTaxGroupId by remember { mutableStateOf("") }
+    var taxGroupExpanded by remember { mutableStateOf(false) }
 
     val attributesList = remember { mutableStateListOf<AttributeEntry>() }
     val confirmedAttributes = remember { mutableStateListOf<AttributeEntry>() }
@@ -232,8 +266,11 @@ fun CreateItemGroupScreen(
     LaunchedEffect(editDetail) {
         editDetail?.let { detail ->
             itemGroupName = detail.name
-            unit = detail.unit?.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } ?: "Pieces"
-            brand = detail.brand ?: "Select Brand"
+            // Match backend enum value to display label in unitsList
+            unit = unitsList.find {
+                it.second.equals(detail.unit, ignoreCase = true)
+            }?.first ?: detail.unit?.takeIf { it.isNotBlank() } ?: "Select Unit"
+            brand = detail.brand.orEmpty()
             description = detail.longDescription ?: detail.shortDescription.orEmpty()
             status = detail.status.equals("active", ignoreCase = true)
             selectedCategoryId = detail.categoryId
@@ -325,8 +362,15 @@ fun CreateItemGroupScreen(
     }
 
     val onSubmit = {
+        val resolvedUnitEnum = unitsList.find { it.first == unit }?.second
+            ?: unit.takeIf { it != "Select Unit" }
+
         if (itemGroupName.isBlank()) {
-            validationError = "Please enter an Item Group Name"
+            validationError = "Item Group Name is required"
+        } else if (resolvedUnitEnum.isNullOrBlank()) {
+            validationError = "Unit is required"
+        } else if (selectedCategoryId.isNullOrBlank()) {
+            validationError = "Category is required"
         } else if (confirmedAttributes.isEmpty()) {
             validationError = "Please confirm your attributes before saving"
         } else {
@@ -341,8 +385,8 @@ fun CreateItemGroupScreen(
             val request = CreateItemGroupRequest(
                 name = itemGroupName.trim(),
                 categoryId = selectedCategoryId,
-                unit = if (unit == "Select Unit") "pcs" else unit.lowercase(),
-                brand = if (brand == "Select Brand") null else brand,
+                unit = resolvedUnitEnum,
+                brand = brand.trim().takeIf { it.isNotBlank() },
                 shortDescription = description.takeIf { it.isNotBlank() },
                 longDescription = description.takeIf { it.isNotBlank() },
                 variantAttributes = variantAttributes,
@@ -350,7 +394,7 @@ fun CreateItemGroupScreen(
                     costPrice = costPrice.toDoubleOrNull() ?: 0.0,
                     sellingPrice = sellingPrice.toDoubleOrNull() ?: 0.0
                 ),
-                status = if (status) "active" else "inactive"
+                status = if (status) "active" else "draft"
             )
 
             if (isEditMode && editDetail != null) {
@@ -414,33 +458,104 @@ fun CreateItemGroupScreen(
                     FormTextField(
                         value = itemGroupName,
                         onValueChange = { itemGroupName = it },
-                        placeholder = "Enter Item Group Name"
+                        placeholder = "e.g., Premium Cotton Twill"
                     )
 
                     Spacer(Modifier.height(tokens.extraPadding))
-                    FormLabel("Unit")
+                    FormLabel("Item Type", isRequired = true)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                            .padding(3.dp)
+                    ) {
+                        listOf("Goods" to "goods", "Service" to "service").forEach { (label, value) ->
+                            val isSelected = itemType == value
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(
+                                        if (isSelected) background_light_purple else Color.Transparent,
+                                        RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                                    )
+                                    .clickable { itemType = value }
+                                    .padding(vertical = 9.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) Primary else TextSecondary,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                    fontSize = tokens.bodySmall
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    if (itemType == "goods") {
+                        FormLabel("HSN Code")
+                        FormTextField(
+                            value = hsnCode,
+                            onValueChange = { hsnCode = it },
+                            placeholder = "e.g. 8471"
+                        )
+                    } else {
+                        FormLabel("SAC Code")
+                        FormTextField(
+                            value = sacCode,
+                            onValueChange = { sacCode = it },
+                            placeholder = "e.g. 9983"
+                        )
+                    }
+
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Unit", isRequired = true)
                     FormDropdown(
                         value = unit,
                         expanded = unitExpanded,
                         onExpandChange = { unitExpanded = it },
-                        options = listOf(
-                            "Pieces",
-                            "Meters",
-                            "Centimeters",
-                            "Inches",
-                            "Kilograms",
-                            "Grams",
-                            "Liters",
-                            "Milliliters",
-                            "Boxes",
-                            "Packs",
-                            "Pairs",
-                            "Dozens",
-                            "Rolls",
-                            "Bundles",
-                            "Sets"
-                        ),
+                        options = unitsList.map { it.first },
                         onOptionSelected = { unit = it }
+                    )
+
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Fabric")
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, BorderGray, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                            .padding(3.dp)
+                    ) {
+                        listOf("No" to false, "Yes" to true).forEach { (label, value) ->
+                            val isSelected = isFabric == value
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(
+                                        if (isSelected) background_light_purple else Color.Transparent,
+                                        RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                                    )
+                                    .clickable { isFabric = value }
+                                    .padding(vertical = 9.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) Primary else TextSecondary,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                    fontSize = tokens.bodySmall
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Fabric Type")
+                    FormTextField(
+                        value = fabricType,
+                        onValueChange = { fabricType = it },
+                        placeholder = "e.g. Cotton, Silk, Polyester"
                     )
 
                     Spacer(Modifier.height(tokens.extraPadding))
@@ -448,12 +563,11 @@ fun CreateItemGroupScreen(
                     FormTextArea(
                         value = description,
                         onValueChange = { description = it },
-                        placeholder = "Add detailed information about this group..."
+                        placeholder = "Add detailed information about this fabric or garment group..."
                     )
                 }
 
                 // Section 2: Classification
-                // ── 2. Classification ──
                 AccordionSection(
                     iconPainter = painterResource(R.drawable.box),
                     iconTint = Primary,
@@ -463,17 +577,7 @@ fun CreateItemGroupScreen(
                         expandedSection = if (expandedSection == "Classification") "" else "Classification"
                     }
                 ) {
-                    FormLabel("Brand")
-                    FormDropdown(
-                        value = brand,
-                        expanded = brandExpanded,
-                        onExpandChange = { brandExpanded = it },
-                        options = listOf("Rajasthani", "Brand A", "Brand B", "Brand C"),
-                        onOptionSelected = { brand = it }
-                    )
-
-                    Spacer(Modifier.height(tokens.extraPadding))
-                    FormLabel("Category")
+                    FormLabel("Category", isRequired = true)
                     FormDropdown(
                         value = selectedCategoryName,
                         expanded = categoryExpanded,
@@ -484,6 +588,22 @@ fun CreateItemGroupScreen(
                             val matched = productCategories.find { it.name == categoryName }
                             selectedCategoryId = matched?.id
                         }
+                    )
+
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Manufacturer")
+                    FormTextField(
+                        value = manufacturer,
+                        onValueChange = { manufacturer = it },
+                        placeholder = "e.g. ABC Textiles Pvt Ltd"
+                    )
+
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Brand")
+                    FormTextField(
+                        value = brand,
+                        onValueChange = { brand = it },
+                        placeholder = "e.g. Raymond"
                     )
 
                     Spacer(Modifier.height(tokens.extraPadding))
@@ -508,10 +628,13 @@ fun CreateItemGroupScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Status", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TextPrimary)
+                        Column {
+                            Text("Status", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TextPrimary)
+                            Text("Visibility state", fontSize = tokens.label, color = TextSecondary)
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = if (status) "Active" else "Inactive",
+                                text = if (status) "Active" else "Draft",
                                 fontSize = tokens.bodySmall,
                                 color = if (status) Primary else TextSecondary,
                                 fontWeight = FontWeight.Medium
@@ -609,6 +732,66 @@ fun CreateItemGroupScreen(
                         keyboardType = KeyboardType.Number
                     )
                     Text("Default selling price for all generated variants", fontSize = tokens.label, color = TextSecondary, modifier = Modifier.padding(top = 4.dp))
+
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Tax Preference")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { taxPreference = "taxable" }
+                        ) {
+                            AppRadioButton(
+                                selected = taxPreference == "taxable",
+                                onClick = { taxPreference = "taxable" }
+                            )
+                            Text("Taxable", fontSize = tokens.bodySmall, color = TextPrimary)
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable {
+                                taxPreference = "non_taxable"
+                                selectedTaxGroupId = ""
+                            }
+                        ) {
+                            AppRadioButton(
+                                selected = taxPreference == "non_taxable",
+                                onClick = {
+                                    taxPreference = "non_taxable"
+                                    selectedTaxGroupId = ""
+                                }
+                            )
+                            Text("Non-Taxable", fontSize = tokens.bodySmall, color = TextPrimary)
+                        }
+                    }
+
+                    // Show Tax Rate (GST) dropdown only when Taxable is selected
+                    if (taxPreference == "taxable") {
+                        Spacer(Modifier.height(tokens.extraPadding))
+                        FormLabel("Tax Rate (GST)")
+                        val taxGroupOptions = remember(taxGroups) {
+                            taxGroups.map { tg -> "${tg.name} — ${tg.totalRate}%" }
+                        }
+                        val selectedTaxGroupLabel = remember(selectedTaxGroupId, taxGroups) {
+                            taxGroups.find { it.id == selectedTaxGroupId }
+                                ?.let { "${it.name} — ${it.totalRate}%" }
+                                ?: "Select Tax Group"
+                        }
+                        FormDropdown(
+                            value = selectedTaxGroupLabel,
+                            expanded = taxGroupExpanded,
+                            onExpandChange = { taxGroupExpanded = it },
+                            options = taxGroupOptions.ifEmpty { listOf("No Tax Groups Available") },
+                            onOptionSelected = { chosenLabel ->
+                                val matched = taxGroups.find { "${it.name} — ${it.totalRate}%" == chosenLabel }
+                                selectedTaxGroupId = matched?.id.orEmpty()
+                            }
+                        )
+                    }
                 }
 
                 // Section 5: Variant Matrix

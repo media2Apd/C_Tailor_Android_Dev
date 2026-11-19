@@ -2065,7 +2065,7 @@ class FinanceViewModel @Inject constructor(
             _updateCustomerState.value = UpdateCustomerState.Loading
 
             val result = repo.request<GenericDeleteResponse> {
-                put("/api/sales/customers/update/$customerId", payload)
+                put("/api/sales/customers/update-one/$customerId", payload)
             }
 
             result.fold(

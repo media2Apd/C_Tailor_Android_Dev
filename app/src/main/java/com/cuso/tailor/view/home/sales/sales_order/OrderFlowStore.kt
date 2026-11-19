@@ -44,6 +44,9 @@ data class WorkMeta(
 data class OrderDraftSnapshot(
     val customerId: String,
     val customerCode: String,
+    val paymentTermId: String = "",
+    val paymentTermCode: String = "",
+    val paymentTermName: String = "",
     val customerName: String,
     val phone: String,
     val countryCode: String,

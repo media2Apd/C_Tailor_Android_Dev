@@ -416,16 +416,17 @@ fun CreateOrderScreen(
         )
     }
     // Payment & Billing states aligned with React PaymentBillingSection.jsx
-    var paymentType by rememberSaveable { mutableStateOf(savedDraft?.paymentType ?: "Advance") }
-    var paymentTermId by rememberSaveable { mutableStateOf("") }
-    var paymentTermName by rememberSaveable { mutableStateOf("") }
-    var paymentMode by rememberSaveable { mutableStateOf("Cash") }
+    var paymentType by rememberSaveable { mutableStateOf(savedDraft?.paymentType ?: "") }
+    var paymentTermId by rememberSaveable { mutableStateOf(savedDraft?.paymentTermId ?: "") }
+    var paymentTermCode by rememberSaveable { mutableStateOf(savedDraft?.paymentTermCode ?: "") }
+    var paymentTermName by rememberSaveable { mutableStateOf(savedDraft?.paymentTermName ?: "") }
+    var paymentMode by rememberSaveable { mutableStateOf("") }
     var advanceAmount by rememberSaveable {
         mutableStateOf(
             if ((initialData?.paidSoFar ?: 0.0) > 0.0) {
                 initialData!!.paidSoFar.toInt().toString()
             } else {
-                savedDraft?.advanceAmount ?: "0"
+                savedDraft?.advanceAmount ?: ""
             }
         )
     }
@@ -572,7 +573,7 @@ fun CreateOrderScreen(
 
         // Map Advance Amount Collected Now directly from advanceAmountPaid (matching React)
         val paid = data.advanceAmountPaid ?: 0.0
-        advanceAmount = if (paid > 0.0) paid.toInt().toString() else "0"
+        advanceAmount = if (paid > 0.0) paid.toInt().toString() else ""
 
         billingNotes = data.billingNotes.orEmpty()
 
@@ -947,8 +948,11 @@ fun CreateOrderScreen(
     val branchUiState by branchViewModel.uiState.collectAsStateWithLifecycle()
     val branches = (branchUiState as? BranchUiState.Success)?.branches ?: emptyList()
 
+    val paymentTermsList by salesViewModel.paymentTermsList.collectAsStateWithLifecycle()
+
     LaunchedEffect(Unit) {
         salesViewModel.fetchStaff()
+        salesViewModel.fetchPaymentTermsDropdown()
         branchViewModel.loadBranches()
         settingsViewModel.fetchWorkPricing(status = "Active")
         settingsViewModel.fetchGarments()
@@ -960,6 +964,26 @@ fun CreateOrderScreen(
         inventoryViewModel.fetchFabricList()
         inventoryViewModel.fetchAccessoryList()
         inventoryViewModel.fetchProductionTemplates()
+    }
+
+    // Auto-select default payment term on create or resolve missing code in edit mode
+    LaunchedEffect(paymentTermsList, paymentTermId) {
+        if (paymentTermsList.isEmpty()) return@LaunchedEffect
+
+        if (paymentTermId.isNotBlank() && paymentTermCode.isBlank()) {
+            val matched = paymentTermsList.find {
+                it.id == paymentTermId || it.name.equals(paymentTermName, ignoreCase = true)
+            }
+            if (matched != null) {
+                paymentTermCode = matched.code
+                if (paymentTermName.isBlank()) paymentTermName = matched.name
+            }
+        } else if (paymentTermCode.isBlank()) {
+            val defaultTerm = paymentTermsList.firstOrNull { it.isDefault } ?: paymentTermsList.first()
+            paymentTermId = defaultTerm.id
+            paymentTermCode = defaultTerm.code
+            paymentTermName = defaultTerm.name
+        }
     }
 
     val branchNames = remember(branches) {
@@ -3382,14 +3406,22 @@ fun CreateOrderScreen(
                     Spacer(Modifier.height(14.dp))
 
                     // 2. Payment Terms
+                    val paymentTermOptions = remember(paymentTermsList) {
+                        paymentTermsList.map { it.name }
+                    }
                     FormDropdown(
                         label = "Payment Terms",
                         value = paymentTermName.ifEmpty { "Select Payment Terms" },
                         expanded = paymentTermExpanded,
                         onExpandChange = { paymentTermExpanded = it },
-                        options = if (paymentTermName.isNotBlank()) listOf(paymentTermName) else listOf("Due on Receipt"),
-                        onOptionSelected = { selectedTerm ->
-                            paymentTermName = selectedTerm
+                        options = paymentTermOptions.ifEmpty { listOf("Loading payment terms...") },
+                        onOptionSelected = { selectedTermName ->
+                            val selectedTerm = paymentTermsList.find { it.name == selectedTermName }
+                            if (selectedTerm != null) {
+                                paymentTermId = selectedTerm.id
+                                paymentTermCode = selectedTerm.code
+                                paymentTermName = selectedTerm.name
+                            }
                         },
                         isRequired = true
                     )
@@ -3544,6 +3576,9 @@ fun CreateOrderScreen(
                                         .orEmpty()
                                 },
                                 paymentType = paymentType,
+                                paymentTermId = paymentTermId,
+                                paymentTermCode = paymentTermCode,
+                                paymentTermName = paymentTermName,
                                 advanceAmount = advanceAmount.trim(),
                                 items = itemsForDraft,
                                 pricing = pricing,

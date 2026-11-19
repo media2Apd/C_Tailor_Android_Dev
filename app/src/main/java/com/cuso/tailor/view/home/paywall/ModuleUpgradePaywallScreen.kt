@@ -227,7 +227,7 @@ private fun PaywallHeroCard(config: PaywallModuleConfig) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(241.dp)
+            .height(300.dp)
             .clip(cardShape)
             .background(
                 Brush.linearGradient(

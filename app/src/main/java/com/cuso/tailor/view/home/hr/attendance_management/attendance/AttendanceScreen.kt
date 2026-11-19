@@ -1,4 +1,4 @@
-@file:Suppress("unused","AssignedValueIsNeverRead")
+@file:Suppress("unused","AssignedValueIsNeverRead", "unusedVariable")
 
 package com.cuso.tailor.view.home.hr.attendance_management.attendance
 
@@ -46,6 +46,11 @@ fun AttendanceListScreen(
     var selectedRecordForApproval by remember { mutableStateOf<AttendanceRecord?>(null) }
     var isApproving by remember { mutableStateOf(false) }
 
+    // 1. Trigger initial API call when AttendanceListScreen enters composition
+    LaunchedEffect(Unit) {
+        viewModel.loadAttendance(reset = true)
+    }
+
     val shouldLoadMore = remember {
         derivedStateOf {
             val totalItems = listState.layoutInfo.totalItemsCount
@@ -54,6 +59,7 @@ fun AttendanceListScreen(
         }
     }
 
+    // 2. Trigger pagination when scrolling near the end
     LaunchedEffect(shouldLoadMore.value) {
         if (shouldLoadMore.value) {
             viewModel.loadNextPage()

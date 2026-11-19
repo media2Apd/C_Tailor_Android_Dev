@@ -29,6 +29,8 @@ data class DepartmentItem(
     val updatedAt: String,
     val totalEmployees: Int
 ) {
+    val id: String get() = _id
+
     // Computed property to get CreatedByDto from raw data
     val createdBy: CreatedByDto?
         get() = when (createdByRaw) {

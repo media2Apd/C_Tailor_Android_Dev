@@ -32,9 +32,16 @@ import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.SearchFilterBar
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.NorthEast
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.cuso.tailor.model.permission.PaywallModuleConfig
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.home.paywall.AccessRestrictedDialog
 import com.cuso.tailor.view.home.sales.settings.design.DesignSetupScreen
+import com.cuso.tailor.view.home.search.SearchablePageItem
+import com.cuso.tailor.view.home.search.extractSearchablePages
 import com.cuso.tailor.viewmodel.PermissionViewModel
 
 // Sub-Item Model supporting optional nested children
@@ -62,6 +69,7 @@ data class ModuleSettingItem(
 fun ModuleSettingsScreen(
     onClose: () -> Unit,
     onNavigateToModule: (String) -> Unit = {},
+    onPaywallRequired: (PaywallModuleConfig) -> Unit = { onNavigateToModule("module_upgrade_paywall") },
     onConfigureHome: () -> Unit = { onNavigateToModule("home") },
     onNavigateLeaveTypes: () -> Unit = { onNavigateToModule("hr_leave_types") },
     onNavigateLeavePolicies: () -> Unit = { onNavigateToModule("hr_leave_policies") },
@@ -97,7 +105,8 @@ fun ModuleSettingsScreen(
     val tokens = LocalAppTokens.current
     var searchQuery by remember { mutableStateOf("") }
     val permissionViewModel: PermissionViewModel = hiltViewModel()
-    val myPermissions by permissionViewModel.myPermissions.collectAsState()
+    val myPermissions by permissionViewModel.myPermissions.collectAsStateWithLifecycle()
+    val modulePermissions by permissionViewModel.modulePermissions.collectAsStateWithLifecycle()
     var restrictedPermissionLabel by remember { mutableStateOf<String?>(null) }
 
     fun checkAndNavigate(
@@ -107,12 +116,13 @@ fun ModuleSettingsScreen(
         action: () -> Unit
     ) {
         when {
-            !permissionViewModel.canViewFeature(module, feature) -> {
-                // view == false -> Show AccessRestrictedDialog & DO NOT navigate (no API hit)
-                restrictedPermissionLabel = permissionLabel
-            }
+            // 1. Highest priority: check plan subscription first and open Upgrade Paywall
             !permissionViewModel.isPlanFeatureSubscribed(module, feature) -> {
-                onNavigateToModule("module_upgrade_paywall")
+                onPaywallRequired(permissionViewModel.getPaywallConfigForModule(module))
+            }
+            // 2. Plan is subscribed: check user role view permission and show AccessRestrictedDialog
+            !permissionViewModel.canViewFeature(module, feature) -> {
+                restrictedPermissionLabel = permissionLabel
             }
             else -> {
                 action()
@@ -416,21 +426,66 @@ fun ModuleSettingsScreen(
         }
     }
 
+    // Recursively filter sub-items by search query so matching nested settings stay visible
+    fun filterSubItemsByQuery(items: List<ModuleSubItem>, query: String): List<ModuleSubItem> {
+        return items.mapNotNull { item ->
+            val titleMatches = item.title.contains(query, ignoreCase = true)
+            if (item.children.isNotEmpty()) {
+                val matchingChildren = if (titleMatches) item.children else filterSubItemsByQuery(item.children, query)
+                if (titleMatches || matchingChildren.isNotEmpty()) {
+                    item.copy(children = matchingChildren)
+                } else {
+                    null
+                }
+            } else {
+                if (titleMatches) item else null
+            }
+        }
+    }
+
     val filteredModules = remember(searchQuery, moduleList, myPermissions) {
+        val query = searchQuery.trim()
         moduleList
             .filter { module -> !permissionViewModel.isModuleHidden(module.id) }
-            .map { module ->
-                if (module.subItems.isEmpty()) module
-                else module.copy(subItems = filterVisibleSubItems(module.subItems))
-            }
-            .filter { module ->
-                if (searchQuery.isBlank()) true
-                else {
-                    module.title.contains(searchQuery, ignoreCase = true) ||
-                            module.description.contains(searchQuery, ignoreCase = true) ||
-                            module.tags.any { tag -> tag.contains(searchQuery, ignoreCase = true) }
+            .mapNotNull { module ->
+                val visibleSubItems = if (module.subItems.isEmpty()) {
+                    emptyList()
+                } else {
+                    filterVisibleSubItems(module.subItems)
+                }
+
+                if (query.isBlank()) {
+                    module.copy(subItems = visibleSubItems)
+                } else {
+                    val moduleMatches = module.title.contains(query, ignoreCase = true) ||
+                            module.description.contains(query, ignoreCase = true) ||
+                            module.tags.any { tag -> tag.contains(query, ignoreCase = true) }
+                    val matchingSubItems = filterSubItemsByQuery(visibleSubItems, query)
+
+                    when {
+                        moduleMatches -> module.copy(subItems = visibleSubItems)
+                        matchingSubItems.isNotEmpty() -> module.copy(subItems = matchingSubItems)
+                        else -> null
+                    }
                 }
             }
+    }
+
+    // Extract all app pages so searching here also surfaces any screen across the entire app
+    val allAppPages = remember(permissionViewModel, myPermissions, modulePermissions) {
+        extractSearchablePages(permissionViewModel)
+    }
+
+    val matchingAppPages = remember(searchQuery, allAppPages) {
+        val query = searchQuery.trim().lowercase()
+        if (query.isEmpty()) {
+            emptyList()
+        } else {
+            val queryWords = query.split(Regex("\\s+")).filter { it.isNotBlank() }
+            allAppPages.filter { page ->
+                queryWords.all { word -> page.searchTerms.contains(word) }
+            }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -445,7 +500,7 @@ fun ModuleSettingsScreen(
             SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = { searchQuery = it },
-                placeholder = "Search Module Settings...",
+                placeholder = "Search modules or any app page...",
                 accentColor = Primary,
                 borderColor = BorderGray,
                 textSecondaryColor = TextSecondary,
@@ -457,8 +512,41 @@ fun ModuleSettingsScreen(
                 contentPadding = PaddingValues(horizontal = tokens.screenPadding, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                if (searchQuery.isNotBlank() && filteredModules.isNotEmpty()) {
+                    item(key = "header_module_settings") {
+                        Text(
+                            text = "MODULE SETTINGS",
+                            fontSize = tokens.label,
+                            fontWeight = FontWeight.SemiBold,
+                            color = mutedText
+                        )
+                    }
+                }
+
                 items(filteredModules, key = { it.id }) { module ->
-                    ModuleSettingCard(module = module)
+                    ModuleSettingCard(
+                        module = module,
+                        forceExpand = searchQuery.isNotBlank() && module.subItems.isNotEmpty()
+                    )
+                }
+
+                if (matchingAppPages.isNotEmpty()) {
+                    item(key = "header_app_pages") {
+                        Text(
+                            text = "ALL APP PAGES (${matchingAppPages.size})",
+                            fontSize = tokens.label,
+                            fontWeight = FontWeight.SemiBold,
+                            color = mutedText,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+
+                    items(matchingAppPages, key = { "page_${it.id}" }) { page ->
+                        ModuleSearchPageRow(
+                            page = page,
+                            onClick = { onNavigateToModule(page.routeKey) }
+                        )
+                    }
                 }
             }
         }
@@ -476,9 +564,13 @@ fun ModuleSettingsScreen(
 
 
 @Composable
-fun ModuleSettingCard(module: ModuleSettingItem) {
+fun ModuleSettingCard(
+    module: ModuleSettingItem,
+    forceExpand: Boolean = false
+) {
     val tokens = LocalAppTokens.current
     var isExpanded by remember { mutableStateOf(false) }
+    val showExpanded = forceExpand || isExpanded
 
     val statusBg = if (module.isConfigured) greenBg else yellowBg
     val statusTextColor = if (module.isConfigured) darkGreenBg else yellowText
@@ -549,7 +641,7 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
 
                 if (module.subItems.isNotEmpty()) {
                     Icon(
-                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        imageVector = if (showExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
                         tint = headerGrey,
                         modifier = Modifier.size(tokens.iconSize)
@@ -567,7 +659,7 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
             )
 
             AnimatedVisibility(
-                visible = isExpanded && module.subItems.isNotEmpty(),
+                visible = showExpanded && module.subItems.isNotEmpty(),
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
@@ -581,7 +673,10 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
                             color = grey_border,
                             thickness = 1.dp
                         )
-                        SubItemRowRenderer(subItem = subItem)
+                        SubItemRowRenderer(
+                            subItem = subItem,
+                            forceExpand = forceExpand
+                        )
                     }
                 }
             }
@@ -590,10 +685,14 @@ fun ModuleSettingCard(module: ModuleSettingItem) {
 }
 
 @Composable
-private fun SubItemRowRenderer(subItem: ModuleSubItem) {
+private fun SubItemRowRenderer(
+    subItem: ModuleSubItem,
+    forceExpand: Boolean = false
+) {
     val tokens = LocalAppTokens.current
     val hasChildren = subItem.children.isNotEmpty()
     var isChildGroupExpanded by remember { mutableStateOf(false) }
+    val showChildExpanded = forceExpand || isChildGroupExpanded
 
     if (hasChildren) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -613,7 +712,7 @@ private fun SubItemRowRenderer(subItem: ModuleSubItem) {
                 )
 
                 Icon(
-                    imageVector = if (isChildGroupExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    imageVector = if (showChildExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
                     tint = Primary,
                     modifier = Modifier.size(tokens.iconSize)
@@ -621,7 +720,7 @@ private fun SubItemRowRenderer(subItem: ModuleSubItem) {
             }
 
             AnimatedVisibility(
-                visible = isChildGroupExpanded,
+                visible = showChildExpanded,
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
@@ -678,6 +777,74 @@ private fun SubItemRowRenderer(subItem: ModuleSubItem) {
                 contentDescription = null,
                 tint = iconMuted,
                 modifier = Modifier.size(tokens.iconSize)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModuleSearchPageRow(
+    page: SearchablePageItem,
+    onClick: () -> Unit
+) {
+    val tokens = LocalAppTokens.current
+
+    Card(
+        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.85f),
+        colors = CardDefaults.cardColors(containerColor = whiteBg),
+        border = BorderStroke(1.dp, sectionBorder),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = tokens.screenPadding, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(tokens.buttonHeight * 0.85f)
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.45f))
+                    .background(background_light_purple),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Layers,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(tokens.iconSize * 0.9f)
+                )
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = page.title,
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = title_color,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = page.breadcrumb,
+                    fontSize = tokens.caption,
+                    color = mutedText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.NorthEast,
+                contentDescription = "Open page",
+                tint = mutedText,
+                modifier = Modifier.size(tokens.iconSize * 0.85f)
             )
         }
     }

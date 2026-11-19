@@ -89,8 +89,19 @@ import com.cuso.tailor.model.hr.ToggleSalaryComponentStatusRequest
 import com.cuso.tailor.model.hr.TrainingProgramDto
 import com.cuso.tailor.model.hr.TrainingProgramListResponse
 import com.cuso.tailor.model.hr.TrainingProgramSingleResponse
+import com.cuso.tailor.model.hr.CreateUpdateProductionTeamRequest
+import com.cuso.tailor.model.hr.ProductionTeamAssignedWorkData
+import com.cuso.tailor.model.hr.ProductionTeamAssignedWorkResponse
+import com.cuso.tailor.model.hr.ProductionTeamDto
+import com.cuso.tailor.model.hr.ProductionTeamKpiSummary
+import com.cuso.tailor.model.hr.ProductionTeamListResponse
+import com.cuso.tailor.model.hr.ProductionTeamSingleResponse
 import com.cuso.tailor.model.hr.UpdateExpenseClaimResponse
 import com.cuso.tailor.model.hr.UpdateExpenseClaimStatusRequest
+import com.cuso.tailor.model.hr.UpdateProductionTeamStatusRequest
+import com.cuso.tailor.model.hr.activeMembers
+import com.cuso.tailor.model.hr.availabilityStatus
+import com.cuso.tailor.model.hr.displayStatus
 import com.cuso.tailor.model.hr.extractMemberName
 import com.cuso.tailor.model.hr.resolveAssetId
 import com.cuso.tailor.repository.ApiRepository
@@ -120,6 +131,7 @@ private const val EXPENSE_TYPE_BASE = "/api/hr/expense-type"
 private const val CREATE_ROLE_URL = "/api/roles/create"
 private const val EXIT_REQUEST_BASE = "/api/hr/exit-request"
 private const val EXIT_SETTLEMENT_BASE = "/api/hr/exit-settlement"
+private const val PRODUCTION_TEAM_BASE = "/api/hr/production-team"
 
 sealed interface AttendanceUiState {
     object Loading : AttendanceUiState
@@ -4227,6 +4239,343 @@ class HrViewModel @Inject constructor(
         object Loading : DeletePictureState()
         object Success : DeletePictureState()
         data class Error(val message: String) : DeletePictureState()
+    }
+
+    // =========================================================================
+    // PRODUCTION TEAMS (VIEW-ALL, VIEW-ONE, CREATE, UPDATE, STATUS, DELETE)
+    // =========================================================================
+
+    private val _allProductionTeams = MutableStateFlow<List<ProductionTeamDto>>(emptyList())
+    val allProductionTeams: StateFlow<List<ProductionTeamDto>> = _allProductionTeams.asStateFlow()
+
+    private val _productionTeamsPagingState =
+        MutableStateFlow(PagingUiState<ProductionTeamDto>())
+    val productionTeamsPagingState: StateFlow<PagingUiState<ProductionTeamDto>> =
+        _productionTeamsPagingState.asStateFlow()
+
+    private val _productionTeamKpi = MutableStateFlow(ProductionTeamKpiSummary())
+    val productionTeamKpi: StateFlow<ProductionTeamKpiSummary> = _productionTeamKpi.asStateFlow()
+
+    private val _productionTeamsError = MutableStateFlow<String?>(null)
+    val productionTeamsError: StateFlow<String?> = _productionTeamsError.asStateFlow()
+
+    private val _selectedProductionTeam = MutableStateFlow<ProductionTeamDto?>(null)
+    val selectedProductionTeam: StateFlow<ProductionTeamDto?> = _selectedProductionTeam.asStateFlow()
+
+    private val _isLoadingProductionTeamDetail = MutableStateFlow(false)
+    val isLoadingProductionTeamDetail: StateFlow<Boolean> = _isLoadingProductionTeamDetail.asStateFlow()
+
+    private val _isSubmittingProductionTeam = MutableStateFlow(false)
+    val isSubmittingProductionTeam: StateFlow<Boolean> = _isSubmittingProductionTeam.asStateFlow()
+
+    private val _productionTeamAssignedWork = MutableStateFlow<ProductionTeamAssignedWorkData?>(null)
+    val productionTeamAssignedWork: StateFlow<ProductionTeamAssignedWorkData?> =
+        _productionTeamAssignedWork.asStateFlow()
+
+    private var teamSearchQuery: String = ""
+    private var teamFilterSpecs: Set<String> = emptySet()
+    private var teamFilterLocations: Set<String> = emptySet()
+    private var teamFilterStatuses: Set<String> = emptySet()
+    private var teamFilterAvailabilities: Set<String> = emptySet()
+    private var teamCurrentPage: Int = 1
+    private val teamPageSize: Int = 10
+    private var teamSearchDebounceJob: Job? = null
+
+    fun fetchProductionTeams() {
+        viewModelScope.launch {
+            _productionTeamsError.value = null
+            _productionTeamsPagingState.value = PagingUiState(isInitialLoading = true)
+
+            val result = repo.request<ProductionTeamListResponse> {
+                get("$PRODUCTION_TEAM_BASE/view-all", repo.query("limit" to 500))
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val visibleTeams = res.data.filter { !it.isTemplate && !it.isDeleted }
+                    _allProductionTeams.value = visibleTeams
+                    recomputeProductionTeamKpis(visibleTeams)
+                    rebuildProductionTeamsPagingState(resetPage = true)
+                },
+                onFailure = { err ->
+                    _productionTeamsError.value = err.message ?: "Failed to load production teams"
+                    _productionTeamsPagingState.value = PagingUiState(isInitialLoading = false)
+                }
+            )
+        }
+    }
+
+    fun onProductionTeamSearchChanged(query: String) {
+        teamSearchQuery = query
+        teamSearchDebounceJob?.cancel()
+        teamSearchDebounceJob = viewModelScope.launch {
+            delay(250)
+            rebuildProductionTeamsPagingState(resetPage = true)
+        }
+    }
+
+    fun applyProductionTeamFilters(
+        specializations: Set<String>,
+        locations: Set<String>,
+        statuses: Set<String>,
+        availabilities: Set<String>
+    ) {
+        teamFilterSpecs = specializations
+        teamFilterLocations = locations
+        teamFilterStatuses = statuses
+        teamFilterAvailabilities = availabilities
+        rebuildProductionTeamsPagingState(resetPage = true)
+    }
+
+    fun clearProductionTeamFilters() {
+        teamFilterSpecs = emptySet()
+        teamFilterLocations = emptySet()
+        teamFilterStatuses = emptySet()
+        teamFilterAvailabilities = emptySet()
+        rebuildProductionTeamsPagingState(resetPage = true)
+    }
+
+    fun loadMoreProductionTeams() {
+        val current = _productionTeamsPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !current.canLoadMore) return
+        teamCurrentPage += 1
+        rebuildProductionTeamsPagingState(resetPage = false)
+    }
+
+    private fun recomputeProductionTeamKpis(teams: List<ProductionTeamDto>) {
+        val total = teams.size
+        val active = teams.count { it.displayStatus().equals("Active", ignoreCase = true) }
+        val membersCount = teams.sumOf { it.activeMembers().size }
+        val available = teams.count { it.availabilityStatus().equals("Available", ignoreCase = true) }
+        val facilities = teams.map { it.location.trim() }.filter { it.isNotBlank() }.toSet().size
+        val activePct = if (total > 0) String.format(java.util.Locale.US, "%.1f", (active * 100.0) / total) else "0.0"
+
+        _productionTeamKpi.value = ProductionTeamKpiSummary(
+            totalTeams = total,
+            activeTeams = active,
+            activePercentage = activePct,
+            totalMembers = membersCount,
+            availableTeams = available,
+            facilitiesCount = facilities
+        )
+    }
+
+    private fun getFilteredProductionTeams(): List<ProductionTeamDto> {
+        val q = teamSearchQuery.trim().lowercase()
+        return _allProductionTeams.value.filter { team ->
+            val matchesQuery = q.isBlank() ||
+                    team.name.lowercase().contains(q) ||
+                    team.teamCode.lowercase().contains(q) ||
+                    (team.teamLead?.name ?: "").lowercase().contains(q)
+
+            val matchesSpec = teamFilterSpecs.isEmpty() ||
+                    team.specializations.any { it.code in teamFilterSpecs }
+
+            val matchesLoc = teamFilterLocations.isEmpty() ||
+                    team.location.trim() in teamFilterLocations
+
+            val matchesStatus = teamFilterStatuses.isEmpty() ||
+                    team.displayStatus() in teamFilterStatuses
+
+            val matchesAvail = teamFilterAvailabilities.isEmpty() ||
+                    team.availabilityStatus() in teamFilterAvailabilities
+
+            matchesQuery && matchesSpec && matchesLoc && matchesStatus && matchesAvail
+        }
+    }
+
+    private fun rebuildProductionTeamsPagingState(resetPage: Boolean) {
+        if (resetPage) teamCurrentPage = 1
+        val filtered = getFilteredProductionTeams()
+        val paged = filtered.take(teamCurrentPage * teamPageSize)
+        _productionTeamsPagingState.value = PagingUiState(
+            items = paged,
+            isInitialLoading = false,
+            isLoadingMore = false,
+            canLoadMore = paged.size < filtered.size
+        )
+    }
+
+    fun fetchProductionTeamById(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            _isLoadingProductionTeamDetail.value = true
+            val result = repo.request<ProductionTeamSingleResponse> {
+                get("$PRODUCTION_TEAM_BASE/view-one/$id")
+            }
+            result.fold(
+                onSuccess = { res -> _selectedProductionTeam.value = res.data },
+                onFailure = {
+                    _selectedProductionTeam.value = _allProductionTeams.value.find { it.id == id }
+                }
+            )
+            _isLoadingProductionTeamDetail.value = false
+        }
+    }
+
+    fun fetchProductionTeamForDuplicate(
+        id: String,
+        onLoaded: (ProductionTeamDto) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val result = repo.request<ProductionTeamSingleResponse> {
+                get("$PRODUCTION_TEAM_BASE/view-one/$id")
+            }
+            result.fold(
+                onSuccess = { res ->
+                    res.data?.let(onLoaded) ?: onError("Unable to load selected team")
+                },
+                onFailure = { err ->
+                    onError(err.message ?: "Failed to load selected team")
+                }
+            )
+        }
+    }
+
+    fun fetchProductionTeamAssignedWork(id: String) {
+        if (id.isBlank()) return
+        viewModelScope.launch {
+            val result = repo.request<ProductionTeamAssignedWorkResponse> {
+                get("$PRODUCTION_TEAM_BASE/$id/assigned-work")
+            }
+            result.fold(
+                onSuccess = { res -> _productionTeamAssignedWork.value = res.data },
+                onFailure = { _productionTeamAssignedWork.value = null }
+            )
+        }
+    }
+
+    fun clearSelectedProductionTeam() {
+        _selectedProductionTeam.value = null
+        _productionTeamAssignedWork.value = null
+    }
+
+    fun createProductionTeam(
+        request: CreateUpdateProductionTeamRequest,
+        onSuccess: (ProductionTeamDto) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (_isSubmittingProductionTeam.value) return
+        launchBusy {
+            _isSubmittingProductionTeam.value = true
+            val result = repo.request<ProductionTeamSingleResponse> {
+                post("$PRODUCTION_TEAM_BASE/create", request)
+            }
+            _isSubmittingProductionTeam.value = false
+            result.fold(
+                onSuccess = { res ->
+                    val created = res.data
+                    if (res.success && created != null) {
+                        fetchProductionTeams()
+                        onSuccess(created)
+                    } else {
+                        onError(res.message ?: "Failed to create production team")
+                    }
+                },
+                onFailure = { err ->
+                    onError(err.message ?: "Failed to create production team")
+                }
+            )
+        }
+    }
+
+    fun updateProductionTeam(
+        id: String,
+        request: CreateUpdateProductionTeamRequest,
+        onSuccess: (ProductionTeamDto) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (id.isBlank() || _isSubmittingProductionTeam.value) return
+        launchBusy {
+            _isSubmittingProductionTeam.value = true
+            val result = repo.request<ProductionTeamSingleResponse> {
+                put("$PRODUCTION_TEAM_BASE/update/$id", request)
+            }
+            _isSubmittingProductionTeam.value = false
+            result.fold(
+                onSuccess = { res ->
+                    val updated = res.data
+                    if (res.success && updated != null) {
+                        _selectedProductionTeam.value = updated
+                        fetchProductionTeams()
+                        onSuccess(updated)
+                    } else {
+                        onError(res.message ?: "Failed to update production team")
+                    }
+                },
+                onFailure = { err ->
+                    onError(err.message ?: "Failed to update production team")
+                }
+            )
+        }
+    }
+
+    fun updateProductionTeamStatus(
+        id: String,
+        newStatus: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (id.isBlank()) return
+        launchBusy {
+            val payload = UpdateProductionTeamStatusRequest(operationalStatus = newStatus)
+            var result = repo.request<ProductionTeamSingleResponse> {
+                put("$PRODUCTION_TEAM_BASE/update/$id", payload)
+            }
+            if (result.isFailure) {
+                result = repo.request<ProductionTeamSingleResponse> {
+                    patch("$PRODUCTION_TEAM_BASE/update/$id", payload)
+                }
+            }
+            result.fold(
+                onSuccess = { res ->
+                    val updated = res.data
+                    if (res.success && updated != null) {
+                        _selectedProductionTeam.value = updated
+                        _allProductionTeams.value = _allProductionTeams.value.map {
+                            if (it.id == id) updated else it
+                        }
+                        recomputeProductionTeamKpis(_allProductionTeams.value)
+                        rebuildProductionTeamsPagingState(resetPage = false)
+                        onSuccess(res.message ?: "Production team status updated")
+                    } else {
+                        onError(res.message ?: "Failed to update status")
+                    }
+                },
+                onFailure = { err ->
+                    onError(err.message ?: "Failed to update status")
+                }
+            )
+        }
+    }
+
+    fun deleteProductionTeam(
+        id: String,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (id.isBlank()) return
+        launchBusy {
+            val result = repo.request<ProductionTeamSingleResponse> {
+                delete("$PRODUCTION_TEAM_BASE/delete/$id")
+            }
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _allProductionTeams.value = _allProductionTeams.value.filterNot { it.id == id }
+                        recomputeProductionTeamKpis(_allProductionTeams.value)
+                        rebuildProductionTeamsPagingState(resetPage = false)
+                        onSuccess(res.message ?: "Production team deleted successfully")
+                    } else {
+                        onError(res.message ?: "Failed to delete production team")
+                    }
+                },
+                onFailure = { err ->
+                    onError(err.message ?: "Failed to delete production team")
+                }
+            )
+        }
     }
 
     sealed class CreateMemberState {

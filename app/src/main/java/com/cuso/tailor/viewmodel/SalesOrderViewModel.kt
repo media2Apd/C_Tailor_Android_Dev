@@ -2,7 +2,6 @@ package com.cuso.tailor.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.cuso.tailor.model.sales.CreateOrderRequest
 import com.cuso.tailor.model.sales.OrderItem
 import com.cuso.tailor.model.sales.SoftDeleteOrderResponse
 import com.cuso.tailor.model.sales.toOrderItem
@@ -246,10 +245,13 @@ class SalesOrderViewModel @Inject constructor(
 
     fun createSalesOrder(
         fields: Map<String, String>,
-        imageParts: List<okhttp3.MultipartBody.Part> = emptyList(),
-        voiceNotePart: okhttp3.MultipartBody.Part? = null,
+        imageParts: List<MultipartBody.Part> = emptyList(),
+        voiceNotePart: MultipartBody.Part? = null,
         onSuccess: (OrderItem) -> Unit
     ) {
+        // Prevent duplicate order creation while already loading
+        if (_actionState.value is OrderActionState.Loading) return
+
         launchBusy {
             _actionState.value = OrderActionState.Loading
             val result = repository.createSalesOrder(fields, imageParts, voiceNotePart)
@@ -278,6 +280,9 @@ class SalesOrderViewModel @Inject constructor(
         imageParts: List<MultipartBody.Part> = emptyList(),
         voiceNotePart: MultipartBody.Part? = null
     ) {
+        // Prevent duplicate order update while already loading
+        if (_updateOrderState.value is UpdateOrderState.Loading) return
+
         launchBusy {
             _updateOrderState.value = UpdateOrderState.Loading
             repository.updateSalesOrder(orderId, fields, existingImages, imageParts, voiceNotePart)

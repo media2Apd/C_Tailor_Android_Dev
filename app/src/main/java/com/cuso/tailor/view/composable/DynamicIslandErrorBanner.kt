@@ -25,6 +25,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,13 +44,17 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.redText
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import com.cuso.tailor.R
 
 // ── Pill dimensions (from the design) ──
@@ -128,11 +134,13 @@ private fun DynamicIslandBase(
     val progress = remember { Animatable(1f) }
     var isPresent by remember { mutableStateOf(false) }
     var showText by remember { mutableStateOf(false) }
+    var isPaused by remember { mutableStateOf(false) }
 
     LaunchedEffect(message) {
         if (message != null) {
             isPresent = true
             showText = false
+            isPaused = false
             progress.snapTo(1f)
             dropY.snapTo(-1f)
 
@@ -145,11 +153,30 @@ private fun DynamicIslandBase(
             // Step 2: Expand and reveal text
             showText = true
 
-            // Stay visible for durationMillis while the loader line runs down to 0
-            progress.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(durationMillis = durationMillis.toInt(), easing = LinearEasing)
-            )
+            // Animate progress down to 0f; pause while held and resume from remaining progress
+            while (progress.value > 0f) {
+                if (isPaused) {
+                    // Keep the pill frozen until the user releases their finger
+                    snapshotFlow { isPaused }.first { !it }
+                } else {
+                    val remainingMillis = (durationMillis * progress.value).toInt().coerceAtLeast(1)
+                    coroutineScope {
+                        val animJob = launch {
+                            progress.animateTo(
+                                targetValue = 0f,
+                                animationSpec = tween(durationMillis = remainingMillis, easing = LinearEasing)
+                            )
+                        }
+                        val pauseWatcher = launch {
+                            snapshotFlow { isPaused }.first { it }
+                            // Stop the progress animation immediately on press
+                            animJob.cancel()
+                        }
+                        animJob.join()
+                        pauseWatcher.cancel()
+                    }
+                }
+            }
 
             // Step 3: Shrink and hide text
             showText = false
@@ -206,6 +233,22 @@ private fun DynamicIslandBase(
                         .clip(pillShape)
                         .background(colors.pillBg)
                         .border(1.dp, colors.pillBorder, pillShape)
+                        .pointerInput(message) {
+                            awaitEachGesture {
+                                // Pause immediately when finger touches down on the pill
+                                awaitFirstDown(requireUnconsumed = false)
+                                isPaused = true
+                                try {
+                                    // Stay paused while any pointer remains pressed
+                                    do {
+                                        val event = awaitPointerEvent()
+                                    } while (event.changes.any { it.pressed })
+                                } finally {
+                                    // Resume loading from the exact paused position on release
+                                    isPaused = false
+                                }
+                            }
+                        }
                 ) {
                     Row(
                         modifier = Modifier

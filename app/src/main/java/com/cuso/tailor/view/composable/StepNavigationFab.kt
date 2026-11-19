@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.tailor.ui.theme.Primary
+import com.cuso.tailor.ui.theme.disabled
 import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.whiteBg
 
@@ -178,7 +179,7 @@ fun TrailingFabButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = Primary,
             contentColor = whiteBg,
-            disabledContainerColor = Primary.copy(alpha = 0.4f),
+            disabledContainerColor = disabled,
             disabledContentColor = whiteBg.copy(alpha = 0.7f)
         ),
         elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.5.dp),

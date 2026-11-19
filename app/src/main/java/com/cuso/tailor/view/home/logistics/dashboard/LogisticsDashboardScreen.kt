@@ -112,20 +112,20 @@ fun LogisticsDashboardScreen(
             dashboardData?.let { data ->
                 LazyColumn(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
+                        .fillMaxSize(),
                     contentPadding = PaddingValues(vertical = tokens.extraPadding),
                     verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                 ) {
                     item{
                         Row(
                             Modifier.fillMaxWidth()
+                                .padding(horizontal = tokens.screenPadding)
                         ) {
                             Text(
                                 "Logistics Dashboard",
                                 fontSize = tokens.h1,
                                 color = title_color,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }

@@ -103,6 +103,10 @@ fun OrganizationSettingsScreen(
 
             HorizontalDivider(color = grey_border)
 
+            val query = searchQuery.trim()
+            fun matchesQuery(label: String): Boolean =
+                query.isBlank() || label.contains(query, ignoreCase = true)
+
             // Scrollable Menu List
             Column(
                 modifier = Modifier
@@ -112,11 +116,9 @@ fun OrganizationSettingsScreen(
                     .padding(top = 14.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Observe myPermissions so items recompose when permissions update
-                val hideTaxRates = remember(myPermissions) { permissionViewModel.isFeatureHidden("finance", "finTaxRatesRules") }
-                val hideGstSettings = remember(myPermissions) { permissionViewModel.isFeatureHidden("finance", "finTaxRegistration") }
-
-                if (!permissionViewModel.isFeatureHidden("home", "organizationProfile")) {
+                if (!permissionViewModel.isFeatureHidden("home", "organizationProfile") &&
+                    matchesQuery("Organization Profile")
+                ) {
                     SettingsNavCard(
                         title = "Organization Profile",
                         tokens = tokens,
@@ -124,34 +126,9 @@ fun OrganizationSettingsScreen(
                     )
                 }
 
-//                if (!permissionViewModel.isModuleHidden("home")) {
-//                    SettingsNavCard(
-//                        title = "Business Setup",
-//                        tokens = tokens,
-//                        onClick = { onNavigate("business_setup") }
-//                    )
-//                }
-//
-//                if (!hideTaxRates || !hideGstSettings) {
-//                    SettingsAccordionCard(
-//                        title = "Taxes & GST",
-//                        isExpanded = isTaxesExpanded,
-//                        tokens = tokens,
-//                        onHeaderClick = { isTaxesExpanded = !isTaxesExpanded }
-//                    ) {
-//                        if (!hideTaxRates) {
-//                            SettingsSubItemRow(title = "Tax Rates", tokens = tokens) { onNavigate("tax_rates") }
-//                        }
-//                        if (!hideTaxRates && !hideGstSettings) {
-//                            HorizontalDivider(color = BorderGray)
-//                        }
-//                        if (!hideGstSettings) {
-//                            SettingsSubItemRow(title = "GST Settings", tokens = tokens) { onNavigate("gst_settings") }
-//                        }
-//                    }
-//                }
-
-                if (!permissionViewModel.isFeatureHidden("home", "branches")) {
+                if (!permissionViewModel.isFeatureHidden("home", "branches") &&
+                    matchesQuery("Branch Management")
+                ) {
                     SettingsNavCard(
                         title = "Branch Management",
                         tokens = tokens,
@@ -159,7 +136,9 @@ fun OrganizationSettingsScreen(
                     )
                 }
 
-                if (!permissionViewModel.isFeatureHidden("home", "departments")) {
+                if (!permissionViewModel.isFeatureHidden("home", "departments") &&
+                    matchesQuery("Department & Teams")
+                ) {
                     SettingsNavCard(
                         title = "Department & Teams",
                         tokens = tokens,
@@ -167,15 +146,9 @@ fun OrganizationSettingsScreen(
                     )
                 }
 
-//                if (!permissionViewModel.isFeatureHidden("home", "approvalInbox")) {
-//                    SettingsNavCard(
-//                        title = "Approval Inbox",
-//                        tokens = tokens,
-//                        onClick = { onNavigate("department_teams") }
-//                    )
-//                }
-
-                if (!permissionViewModel.isFeatureHidden("home", "approvalRules")) {
+                if (!permissionViewModel.isFeatureHidden("home", "approvalRules") &&
+                    matchesQuery("Approval Rules")
+                ) {
                     SettingsNavCard(
                         title = "Approval Rules",
                         tokens = tokens,
@@ -183,7 +156,9 @@ fun OrganizationSettingsScreen(
                     )
                 }
 
-                if (!permissionViewModel.isFeatureHidden("home", "designations")) {
+                if (!permissionViewModel.isFeatureHidden("home", "designations") &&
+                    matchesQuery("Designation")
+                ) {
                     SettingsNavCard(
                         title = "Designation",
                         tokens = tokens,
@@ -191,23 +166,9 @@ fun OrganizationSettingsScreen(
                     )
                 }
 
-//                if (!permissionViewModel.isFeatureHidden("security", "roles")) {
-//                    SettingsNavCard(
-//                        title = "Role",
-//                        tokens = tokens,
-//                        onClick = { onNavigate("role") }
-//                    )
-//                }
-//
-//                if (!permissionViewModel.isFeatureHidden("finance", "finChartOfAccounts")) {
-//                    SettingsNavCard(
-//                        title = "Opening Balance",
-//                        tokens = tokens,
-//                        onClick = { onNavigate("opening_balance") }
-//                    )
-//                }
-
-                if (!permissionViewModel.isFeatureHidden("home", "warehouse")) {
+                if (!permissionViewModel.isFeatureHidden("home", "warehouse") &&
+                    matchesQuery("Warehouse")
+                ) {
                     SettingsNavCard(
                         title = "Warehouse",
                         tokens = tokens,
@@ -215,37 +176,31 @@ fun OrganizationSettingsScreen(
                     )
                 }
 
-                // Manage Subscription Accordion
-                SettingsAccordionCard(
-                    title = "Manage Subcription",
-                    isExpanded = isSubscriptionExpanded,
-                    tokens = tokens,
-                    onHeaderClick = { isSubscriptionExpanded = !isSubscriptionExpanded }
-                ) {
-                    val subscriptionItems = listOf(
-                        "Overview",
-                        "Current Plan"
-//                        "Usage & Limits",
-//                        "Compare Plans",
-//                        "Upgrade / Downgrade",
-//                        "Billing Cycle",
-//                        "Payment Methods",
-//                        "Billing Information",
-//                        "Invoices & Receipts",
-//                        "Add-ons",
-//                        "Usage Alerts",
-//                        "Renewal & Cancellation",
-//                        "Subscription History"
-                    )
+                val allSubscriptionItems = listOf("Overview", "Current Plan")
+                val headerMatches = matchesQuery("Manage Subcription") || matchesQuery("Manage Subscription")
+                val filteredSubscriptionItems = if (headerMatches) {
+                    allSubscriptionItems
+                } else {
+                    allSubscriptionItems.filter { matchesQuery(it) }
+                }
 
-                    subscriptionItems.forEachIndexed { index, item ->
-                        SettingsSubItemRow(
-                            title = item,
-                            tokens = tokens,
-                            onClick = { onNavigate(item.lowercase().replace(" ", "_")) }
-                        )
-                        if (index < subscriptionItems.lastIndex) {
-                            HorizontalDivider(color = BorderGray, thickness = 0.8.dp)
+                // Show Manage Subscription accordion when header or any child item matches search
+                if (headerMatches || filteredSubscriptionItems.isNotEmpty()) {
+                    SettingsAccordionCard(
+                        title = "Manage Subcription",
+                        isExpanded = isSubscriptionExpanded || (query.isNotBlank() && filteredSubscriptionItems.isNotEmpty()),
+                        tokens = tokens,
+                        onHeaderClick = { isSubscriptionExpanded = !isSubscriptionExpanded }
+                    ) {
+                        filteredSubscriptionItems.forEachIndexed { index, item ->
+                            SettingsSubItemRow(
+                                title = item,
+                                tokens = tokens,
+                                onClick = { onNavigate(item.lowercase().replace(" ", "_")) }
+                            )
+                            if (index < filteredSubscriptionItems.lastIndex) {
+                                HorizontalDivider(color = BorderGray, thickness = 0.8.dp)
+                            }
                         }
                     }
                 }

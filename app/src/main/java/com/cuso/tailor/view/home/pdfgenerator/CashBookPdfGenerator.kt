@@ -17,8 +17,6 @@ import android.print.PrintDocumentAdapter
 import android.print.PrintDocumentInfo
 import android.print.PrintManager
 import com.cuso.tailor.model.finance.CashDrawerShiftItemDto
-
-import com.cuso.tailor.utils.formatCurrency
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -195,22 +193,24 @@ class CashDrawerPdfGenerator(private val context: Context) {
         // =============================================================
         // Float, Collections & Withdrawals
         // =============================================================
-        drawRow("(+) Opening Float:", "${formatCurrency()}${formatCurrency(item.openingBalance)}", isValueBold = true)
-        drawRow("(+) Cash Collections:", "+${formatCurrency()}${formatCurrency(item.totalCashCollected)}", isValueBold = true)
-        drawRow("(-) Cash Withdrawals:", "-${formatCurrency()}${formatCurrency(item.totalCashWithdrawn)}", isValueBold = true)
+        drawRow("(+) Opening Float:", formatCurrency(item.openingBalance), isValueBold = true)
+        drawRow("(+) Cash Collections:", "+${formatCurrency(item.totalCashCollected)}", isValueBold = true)
+        drawRow("(-) Cash Withdrawals:", "-${formatCurrency(item.totalCashWithdrawn)}", isValueBold = true)
 
         drawDashedSeparator()
 
         // =============================================================
         // Totals & Discrepancy
         // =============================================================
-        drawRow("Expected in Drawer:", "${formatCurrency()}${formatCurrency(item.expectedClosingBalance)}", isLabelBold = true, isValueBold = true)
-        drawRow("Actual Physical Count:", "${formatCurrency()}${formatCurrency(item.actualClosingBalance)}", isLabelBold = false, isValueBold = true)
+        drawRow("Expected in Drawer:",
+            formatCurrency(item.expectedClosingBalance), isLabelBold = true, isValueBold = true)
+        drawRow("Actual Physical Count:",
+            formatCurrency(item.actualClosingBalance), isLabelBold = false, isValueBold = true)
 
         val diff = item.discrepancyAmount
         val diffFormatted = when {
-            diff >= 0 -> "+${formatCurrency()}${formatCurrency(diff)}"
-            else -> "-${formatCurrency()}${formatCurrency(kotlin.math.abs(diff))}"
+            diff >= 0 -> "+${formatCurrency(diff)}"
+            else -> "-${formatCurrency(kotlin.math.abs(diff))}"
         }
         val diffType = when {
             diff > 0 -> "(Overage)"

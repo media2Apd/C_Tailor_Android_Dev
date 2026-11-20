@@ -29,13 +29,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.hr.extractShift
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.viewmodel.HrViewModel
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.OffsetDateTime
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -81,24 +86,48 @@ data class AttendanceListItem(
 @RequiresApi(Build.VERSION_CODES.O)
 fun parseTimeToHourMinute(isoString: String?): String? {
     if (isoString.isNullOrBlank()) return null
+    val outFmt = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH)
+    val trimmed = isoString.trim()
     return try {
-        val instant = Instant.parse(isoString)
-        val zonedDateTime = instant.atZone(ZoneId.systemDefault())
-        DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH).format(zonedDateTime)
+        outFmt.format(Instant.parse(trimmed).atZone(ZoneId.systemDefault()))
     } catch (_: Exception) {
-        null
+        try {
+            outFmt.format(OffsetDateTime.parse(trimmed).atZoneSameInstant(ZoneId.systemDefault()))
+        } catch (_: Exception) {
+            try {
+                outFmt.format(LocalDateTime.parse(trimmed))
+            } catch (_: Exception) {
+                try {
+                    outFmt.format(LocalTime.parse(trimmed))
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
 fun parseTimeToAmPm(isoString: String?): String? {
     if (isoString.isNullOrBlank()) return null
+    val outFmt = DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH)
+    val trimmed = isoString.trim()
     return try {
-        val instant = Instant.parse(isoString)
-        val zonedDateTime = instant.atZone(ZoneId.systemDefault())
-        DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH).format(zonedDateTime).lowercase()
+        outFmt.format(Instant.parse(trimmed).atZone(ZoneId.systemDefault())).lowercase()
     } catch (_: Exception) {
-        null
+        try {
+            outFmt.format(OffsetDateTime.parse(trimmed).atZoneSameInstant(ZoneId.systemDefault())).lowercase()
+        } catch (_: Exception) {
+            try {
+                outFmt.format(LocalDateTime.parse(trimmed)).lowercase()
+            } catch (_: Exception) {
+                try {
+                    outFmt.format(LocalTime.parse(trimmed)).lowercase()
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }
     }
 }
 
@@ -115,10 +144,24 @@ fun formatMinutesToHours(minutes: Int): String {
 
 @RequiresApi(Build.VERSION_CODES.O)
 fun parseIsoToLocalDate(isoString: String): LocalDate? {
+    val trimmed = isoString.trim()
+    if (trimmed.isBlank()) return null
     return try {
-        Instant.parse(isoString).atZone(ZoneId.systemDefault()).toLocalDate()
+        Instant.parse(trimmed).atZone(ZoneId.systemDefault()).toLocalDate()
     } catch (_: Exception) {
-        null
+        try {
+            OffsetDateTime.parse(trimmed).atZoneSameInstant(ZoneId.systemDefault()).toLocalDate()
+        } catch (_: Exception) {
+            try {
+                LocalDateTime.parse(trimmed).toLocalDate()
+            } catch (_: Exception) {
+                try {
+                    LocalDate.parse(trimmed.take(10))
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }
     }
 }
 
@@ -163,7 +206,11 @@ fun AttendanceCalendarScreen(
     var monthDropdownOpen by remember { mutableStateOf(false) }
 
     var employeeDropdownOpen by remember { mutableStateOf(false) }
-    val members by hrViewModel.members.collectAsState()
+    var activeStatusFilters by remember {
+        mutableStateOf(setOf(DayStatus.PRESENT, DayStatus.ABSENT, DayStatus.LATE, DayStatus.LEAVE))
+    }
+    val members by hrViewModel.members.collectAsStateWithLifecycle()
+    val isLoadingMembers by hrViewModel.isLoadingMembers.collectAsStateWithLifecycle()
     var selectedEmployeeName by remember { mutableStateOf("") }
     var selectedEmployeeId by remember { mutableStateOf<String?>(null) }
 
@@ -172,10 +219,14 @@ fun AttendanceCalendarScreen(
     val monthFmt = remember { DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH) }
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
 
-    val apiAttendanceList by hrViewModel.monthlyAttendance.collectAsState()
+    val apiAttendanceList by hrViewModel.monthlyAttendance.collectAsStateWithLifecycle()
+    val isLoadingAttendance by hrViewModel.isLoadingMonthlyAttendance.collectAsStateWithLifecycle()
+    val attendanceError by hrViewModel.monthlyAttendanceError.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
-        hrViewModel.fetchMembers(limit = 100)
+        if (members.isEmpty()) {
+            hrViewModel.fetchMembers(limit = 100)
+        }
     }
 
     LaunchedEffect(members) {
@@ -197,22 +248,22 @@ fun AttendanceCalendarScreen(
         }
     }
 
-    // Map API attendance records by date
+    // Map API attendance records by date matching React classifyDay logic
     val records: Map<LocalDate, AttendanceRecord> = remember(apiAttendanceList) {
         apiAttendanceList.mapNotNull { item ->
             val localDate = parseIsoToLocalDate(item.date) ?: return@mapNotNull null
-            val status = when (item.status?.lowercase()) {
+            val normalizedStatus = item.status?.trim()?.lowercase()
+            val status = when (normalizedStatus) {
+                "on_leave", "half_day_leave", "leave" -> DayStatus.LEAVE
+                "absent" -> DayStatus.ABSENT
                 "present" -> if (item.isLate) DayStatus.LATE else DayStatus.PRESENT
                 "late" -> DayStatus.LATE
-                "absent" -> DayStatus.ABSENT
-                "leave" -> DayStatus.LEAVE
                 else -> DayStatus.NONE
             }
 
             val isAbsentOrLeave = status == DayStatus.ABSENT || status == DayStatus.LEAVE
-            val inPunch = item.punches.firstOrNull { it.type.equals("in", ignoreCase = true) }?.time
-            val outPunch = item.punches.lastOrNull { it.type.equals("out", ignoreCase = true) }?.time
-
+            val inPunch = item.punches.firstOrNull { it.type.equals("in", ignoreCase = true) }?.time ?: item.firstIn
+            val outPunch = item.punches.lastOrNull { it.type.equals("out", ignoreCase = true) }?.time ?: item.lastOut
             val checkIn = if (isAbsentOrLeave) null else parseTimeToHourMinute(inPunch)
             val checkOut = if (isAbsentOrLeave) null else parseTimeToHourMinute(outPunch)
 
@@ -239,13 +290,14 @@ fun AttendanceCalendarScreen(
             val dayOfWeekStr = date.dayOfWeek.name.take(3)
 
             if (item != null) {
-                val isAbsent = item.status.equals("absent", ignoreCase = true)
-                val isLeave = item.status.equals("leave", ignoreCase = true)
-                val isLate = item.isLate || item.status.equals("late", ignoreCase = true)
-                val isPresent = item.status.equals("present", ignoreCase = true)
+                val normalized = item.status?.trim()?.lowercase()
+                val isAbsent = normalized == "absent"
+                val isLeave = normalized == "on_leave" || normalized == "half_day_leave" || normalized == "leave"
+                val isLate = item.isLate || normalized == "late"
+                val isPresent = normalized == "present"
 
-                val inPunch = item.punches.firstOrNull { it.type.equals("in", ignoreCase = true) }?.time
-                val outPunch = item.punches.lastOrNull { it.type.equals("out", ignoreCase = true) }?.time
+                val inPunch = item.punches.firstOrNull { it.type.equals("in", ignoreCase = true) }?.time ?: item.firstIn
+                val outPunch = item.punches.lastOrNull { it.type.equals("out", ignoreCase = true) }?.time ?: item.lastOut
 
                 val inFormatted = parseTimeToAmPm(inPunch)
                 val outFormatted = parseTimeToAmPm(outPunch)
@@ -303,17 +355,24 @@ fun AttendanceCalendarScreen(
         }
     }
 
-    val calendarDays = remember(currentMonth, records) { buildMonthCells(currentMonth, records) }
+    val filteredRecords = remember(records, activeStatusFilters) {
+        records.filterValues { it.status in activeStatusFilters }
+    }
 
+    val calendarDays = remember(currentMonth, filteredRecords) {
+        buildMonthCells(currentMonth, filteredRecords)
+    }
+
+    // Match React summary calculation: late days also count toward present
     val monthRecords = remember(currentMonth, records) {
         records.filterKeys { YearMonth.from(it) == currentMonth }.values
     }
-    val present = monthRecords.count { it.status == DayStatus.PRESENT }
     val late = monthRecords.count { it.status == DayStatus.LATE }
+    val present = monthRecords.count { it.status == DayStatus.PRESENT || it.status == DayStatus.LATE }
     val absent = monthRecords.count { it.status == DayStatus.ABSENT }
     val leave = monthRecords.count { it.status == DayStatus.LEAVE }
-    val workingDays = calendarDays.count { it.isCurrentMonth && !it.isWeekend }
-    val presenceRate = if (workingDays == 0) 0f else ((present + late).toFloat() / workingDays).coerceIn(0f, 1f)
+    val workingDays = present + absent + leave
+    val presenceRate = if (workingDays == 0) 0f else (present.toFloat() / workingDays).coerceIn(0f, 1f)
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -451,7 +510,7 @@ fun AttendanceCalendarScreen(
                         expanded = monthDropdownOpen,
                         onExpandChange = { monthDropdownOpen = it },
                         options = remember {
-                            (-6L..6L).map { YearMonth.now().plusMonths(it).format(monthFmt) }
+                            (-30L..6L).map { YearMonth.now().plusMonths(it).format(monthFmt) }
                         },
                         onOptionSelected = { currentMonth = YearMonth.parse(it, monthFmt) }
                     )
@@ -476,6 +535,65 @@ fun AttendanceCalendarScreen(
                 }
             }
 
+            // API Loading Progress Indicator
+            if (isLoadingAttendance || isLoadingMembers) {
+                item {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.4f),
+                        color = Primary,
+                        trackColor = sectionBorder
+                    )
+                }
+            }
+
+            // API Error Banner with Retry
+            if (!attendanceError.isNullOrBlank()) {
+                item {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding * 0.4f),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.7f),
+                        border = BorderStroke(1.dp, redText.copy(alpha = 0.3f)),
+                        color = redBg
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = tokens.extraPadding, vertical = tokens.extraPadding * 0.6f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = attendanceError.orEmpty(),
+                                fontSize = tokens.caption,
+                                color = redText,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = "Retry",
+                                fontSize = tokens.caption,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Primary,
+                                modifier = Modifier
+                                    .padding(start = tokens.extraPadding)
+                                    .clickable {
+                                        selectedEmployeeId?.let { empId ->
+                                            hrViewModel.fetchMonthlyAttendance(
+                                                organizationMemberId = empId,
+                                                month = currentMonth.monthValue,
+                                                year = currentMonth.year
+                                            )
+                                        }
+                                    }
+                            )
+                        }
+                    }
+                }
+            }
+
             // View Section (List View vs Calendar Grid)
             if (selectedView == "List View") {
                 item {
@@ -485,7 +603,7 @@ fun AttendanceCalendarScreen(
                     )
                 }
             } else {
-                // Status Filter Legend Header
+                // Interactive Status Filter Chips matching React toggleStatusFilter
                 item {
                     Surface(
                         modifier = Modifier
@@ -508,15 +626,25 @@ fun AttendanceCalendarScreen(
                                 horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
                             ) {
                                 listOf(
-                                    Triple("Present", complete_button_bg, greenBg),
-                                    Triple("Absent", redText, redBg),
-                                    Triple("Late", orangeText, orangeBg),
-                                    Triple("Leave", BluePrimary, activity_purple_bg)
-                                ).forEach { (label, dotColor, _) ->
+                                    DayStatus.PRESENT,
+                                    DayStatus.ABSENT,
+                                    DayStatus.LATE,
+                                    DayStatus.LEAVE
+                                ).forEach { dayStatus ->
+                                    val isActive = dayStatus in activeStatusFilters
+                                    val dotColor = if (isActive) dayStatus.color else iconMuted
+                                    val label = dayStatus.label
                                     Surface(
                                         shape = RoundedCornerShape(tokens.cardCornerRadius * 1.5f),
                                         border = BorderStroke(1.dp, grey_border),
-                                        color = whiteBg
+                                        color = if (isActive) whiteBg else badgeGrey,
+                                        modifier = Modifier.clickable {
+                                            activeStatusFilters = if (isActive) {
+                                                activeStatusFilters - dayStatus
+                                            } else {
+                                                activeStatusFilters + dayStatus
+                                            }
+                                        }
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(
@@ -535,7 +663,7 @@ fun AttendanceCalendarScreen(
                                             Text(
                                                 text = label,
                                                 fontSize = tokens.label,
-                                                color = TextPrimary,
+                                                color = if (isActive) TextPrimary else iconMuted,
                                                 fontWeight = FontWeight.Medium
                                             )
                                         }
@@ -586,8 +714,11 @@ fun AttendanceCalendarScreen(
                                                 .height(72.dp)
                                                 .background(
                                                     when {
+                                                        !cell.isCurrentMonth -> badgeGrey
+                                                        cell.status == DayStatus.ABSENT -> redBg.copy(alpha = 0.55f)
+                                                        cell.status == DayStatus.LEAVE -> activity_purple_bg
                                                         cell.isHighlighted -> background_light_purple
-                                                        cell.isWeekend && cell.isCurrentMonth -> badgeGrey
+                                                        cell.isWeekend -> badgeGrey
                                                         else -> Color.Transparent
                                                     }
                                                 )
@@ -740,7 +871,7 @@ fun AttendanceCalendarScreen(
                         HorizontalDivider(color = sectionBorder, thickness = 1.dp)
                         Spacer(Modifier.height(tokens.extraPadding * 0.8f))
 
-                        val shiftInfo = apiAttendanceList.firstOrNull()?.shiftId
+                        val shiftInfo = apiAttendanceList.firstOrNull()?.extractShift()
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -814,41 +945,40 @@ fun AttendanceCalendarScreen(
                         Spacer(Modifier.height(tokens.extraPadding * 0.6f))
 
                         val summaryStats = listOf(
-                            Triple("Present", present.toString(), complete_button_bg),
-                            Triple("Absent", absent.toString(), redText),
-                            Triple("Leave", leave.toString(), BluePrimary),
-                            Triple("Late Count", late.toString(), orangeText)
+                            Triple("Present", present.toString(), complete_button_bg to greenBg),
+                            Triple("Absent", absent.toString(), redText to redBg),
+                            Triple("Leave", leave.toString(), BluePrimary to activity_purple_bg),
+                            Triple("Late Count", late.toString(), orangeText to orangeBg)
                         )
 
-                        summaryStats.forEach { (label, count, dotColor) ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = tokens.extraPadding * 0.2f),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(dotColor)
-                                    )
-                                    Spacer(Modifier.width(tokens.extraPadding * 0.6f))
+                        Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.5f)) {
+                            summaryStats.forEach { (label, count, colors) ->
+                                val (textColor, rowBg) = colors
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.6f))
+                                        .background(rowBg)
+                                        .padding(
+                                            horizontal = tokens.extraPadding * 0.9f,
+                                            vertical = tokens.extraPadding * 0.55f
+                                        ),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Text(
                                         text = label,
                                         fontSize = tokens.bodySmall,
-                                        fontWeight = FontWeight.Normal,
-                                        color = headerGrey
+                                        fontWeight = FontWeight.Medium,
+                                        color = textColor
+                                    )
+                                    Text(
+                                        text = count,
+                                        fontSize = tokens.bodySmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = textColor
                                     )
                                 }
-                                Text(
-                                    text = count,
-                                    fontSize = tokens.bodySmall,
-                                    fontWeight = FontWeight.Medium,
-                                    color = TextPrimary
-                                )
                             }
                         }
 

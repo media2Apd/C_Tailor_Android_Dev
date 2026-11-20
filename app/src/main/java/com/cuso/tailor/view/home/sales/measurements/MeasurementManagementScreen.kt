@@ -78,7 +78,7 @@ fun MeasurementsAvailableDialog(
 ) {
     val tokens = LocalAppTokens.current
 
-    // 🟢 STEP 3 LOG: Verify customerId inside Dialog
+    // STEP 3 LOG: Verify customerId inside Dialog
     LaunchedEffect(customerId) {
         android.util.Log.d("MEASUREMENT_DEBUG", "STEP 3: MeasurementsAvailableDialog LaunchedEffect triggered! customerId = '$customerId'")
         if (!customerId.isNullOrBlank()) {

@@ -40,6 +40,7 @@ private const val TAX_REGISTRATION_CHANGE_STATUS_URL = "/api/finance/settings/ta
 private const val TAX_RATES_VIEW_ALL_URL = "/api/finance/settings/tax-rates/view-all"
 private const val TAX_RATES_CREATE_URL = "/api/finance/settings/tax-rates/create"
 private const val TAX_RATES_UPDATE_URL = "/api/finance/settings/tax-rates/update-one"
+private const val TAX_RATES_REVISE_URL = "/api/finance/tax-rates/revise"
 private const val TAX_GROUPS_CREATE_URL = "/api/finance/settings/tax-groups/create"
 
 // =========================================================================
@@ -703,6 +704,56 @@ class SettingsViewModel @Inject constructor(
      * Endpoint: PUT /api/finance/settings/tax-rates/update-one/{id}
      * Payload: { name }
      */
+    /**
+     * Revise Tax Rate when rate percentage changes during edit.
+     * Endpoint: POST /api/finance/tax-rates/revise/{id}
+     */
+    fun reviseTaxRate(
+        id: String,
+        newRate: String,
+        effectiveFrom: String?,
+        onSuccess: (String) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (id.isBlank()) return
+
+        viewModelScope.launch {
+            _isSubmittingTaxRate.value = true
+
+            val body = mutableMapOf<String, Any>(
+                "newRate" to (newRate.toDoubleOrNull() ?: newRate)
+            )
+            if (!effectiveFrom.isNullOrBlank()) {
+                body["effectiveFrom"] = effectiveFrom
+            }
+
+            val result = apiRepository.request<TaxRateActionResponse> {
+                post("$TAX_RATES_REVISE_URL/$id", body)
+            }
+
+            _isSubmittingTaxRate.value = false
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchTaxRates(page = 1)
+                        val msg = res.message ?: "Tax Rate saved"
+                        showSuccess(msg)
+                        onSuccess(msg)
+                    } else {
+                        val err = res.message ?: "Operation failed"
+                        showError(err)
+                        onError(err)
+                    }
+                },
+                onFailure = { error ->
+                    val clean = extractErrorMessage(error.message)
+                    showError(clean)
+                    onError(clean)
+                }
+            )
+        }
+    }
+
     fun updateTaxRate(
         id: String,
         name: String,
@@ -1149,8 +1200,19 @@ class SettingsViewModel @Inject constructor(
             _isSubmittingLeaveType.value = true
             _leaveTypesError.value = null
 
+            // Omit _id and version fields to match the web payload
+            val payloadJson = com.google.gson.GsonBuilder()
+                .serializeNulls()
+                .create()
+                .toJsonTree(request)
+                .asJsonObject
+                .apply {
+                    remove("_id")
+                    remove("version")
+                }
+
             val result = apiRepository.request<LeaveTypeActionResponse> {
-                post(LEAVE_TYPES_CREATE_URL, request)
+                post(LEAVE_TYPES_CREATE_URL, payloadJson)
             }
 
             _isSubmittingLeaveType.value = false
@@ -1191,8 +1253,19 @@ class SettingsViewModel @Inject constructor(
             _isSubmittingLeaveType.value = true
             _leaveTypesError.value = null
 
+            // Omit _id and version fields to match the web payload
+            val payloadJson = com.google.gson.GsonBuilder()
+                .serializeNulls()
+                .create()
+                .toJsonTree(request)
+                .asJsonObject
+                .apply {
+                    remove("_id")
+                    remove("version")
+                }
+
             val result = apiRepository.request<LeaveTypeActionResponse> {
-                put("$LEAVE_TYPES_UPDATE_URL/$id", request)
+                put("$LEAVE_TYPES_UPDATE_URL/$id", payloadJson)
             }
 
             _isSubmittingLeaveType.value = false

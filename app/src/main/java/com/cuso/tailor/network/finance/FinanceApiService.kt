@@ -46,7 +46,9 @@ interface FinanceApiService {
     @GET("/api/finance/chart-of-accounts/view-all")
     suspend fun getChartOfAccounts(
         @Header("Authorization") token: String,
-        @Header("X-CSRF-Token") csrfToken: String
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Query("paginate") paginate: Boolean = false,
+        @Query("includeDeleted") includeDeleted: Boolean = false
     ): Response<ChartOfAccountsResponse>
 
     @GET("/api/finance/chart-of-accounts/dropdown")
@@ -161,5 +163,39 @@ interface FinanceApiService {
         @Part("notes") notes: RequestBody?,
         @Part("status") status: RequestBody?,
         @Part files: List<MultipartBody.Part> = emptyList()
+    ): Response<CreateExpenseResponse>
+
+    @POST("/api/finance/expenses/create")
+    suspend fun createExpenseVoucherJson(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Body request: ExpenseVoucherJsonRequest
+    ): Response<CreateExpenseResponse>
+
+    @PUT("/api/finance/expenses/update-one/{id}")
+    suspend fun updateExpenseVoucherJson(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @Body request: ExpenseVoucherJsonRequest
+    ): Response<CreateExpenseResponse>
+
+    @Multipart
+    @POST("/api/finance/expenses/create")
+    suspend fun createExpenseVoucherMultipart(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part attachments: List<MultipartBody.Part> = emptyList()
+    ): Response<CreateExpenseResponse>
+
+    @Multipart
+    @PUT("/api/finance/expenses/update-one/{id}")
+    suspend fun updateExpenseVoucherMultipart(
+        @Header("Authorization") token: String,
+        @Header("X-CSRF-Token") csrfToken: String,
+        @Path("id") id: String,
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part attachments: List<MultipartBody.Part> = emptyList()
     ): Response<CreateExpenseResponse>
 }

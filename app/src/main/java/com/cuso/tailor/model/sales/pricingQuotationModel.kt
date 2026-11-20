@@ -63,7 +63,7 @@ data class PricingQuotationSaveRequest(
     @SerializedName("bulkRules")           val bulkRules: List<BulkRuleDto>
 )
 
-// ⚠️ ASSUMED field names — fabricAdjustments/designAdjustments/additionalCharges empty-a
+//  ASSUMED field names — fabricAdjustments/designAdjustments/additionalCharges empty-a
 
 data class PriceAdjustmentDto(
     @SerializedName("name")  val name: String,

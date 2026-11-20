@@ -306,12 +306,11 @@ fun LegalLicenseDetailScreen(
         }
     }
     if (showRenewDialog) {
-        // Expiry Date-க்கு அடுத்த நாள் (Next Day) கணக்கிடப்படுகிறது
         val nextDayEffective = calculateNextDay(license.expiryDate)
 
         RenewLicenseDialog(
             endedDateText = formatDisplayDate(license.expiryDate),
-            initialEffectiveDate = nextDayEffective, // 👈 Expiry Date + 1 நாள் அனுப்பப்படுகிறது
+            initialEffectiveDate = nextDayEffective,
             isLoading = isRenewing,
             onDismiss = { showRenewDialog = false },
             onConfirm = { effectiveDate, expiryDate, notes ->
@@ -345,7 +344,7 @@ fun RenewLicenseDialog(
     onConfirm: (effectiveDate: String, expiryDate: String, notes: String) -> Unit
 ) {
     val tokens = LocalAppTokens.current
-    var effectiveDate by remember(initialEffectiveDate) { mutableStateOf(initialEffectiveDate) } // 👈 Expiry Date-க்கு அடுத்த நாள் prefill ஆகும்
+    var effectiveDate by remember(initialEffectiveDate) { mutableStateOf(initialEffectiveDate) }
     var expiryDate by remember { mutableStateOf("") }
     var renewalNotes by remember { mutableStateOf("") }
     val context = LocalContext.current

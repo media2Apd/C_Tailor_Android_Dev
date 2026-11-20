@@ -273,7 +273,7 @@ fun ReportSectionHeader(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** "🕐 Updated Today 10:45 AM" footer row used on every list item card. */
+/**  Updated Today 10:45 AM" footer row used on every list item card. */
 @Composable
 fun ReportUpdatedAtRow(text: String, modifier: Modifier = Modifier) {
     val tokens = LocalAppTokens.current

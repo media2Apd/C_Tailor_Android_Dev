@@ -14,18 +14,14 @@ import com.cuso.tailor.model.login_forgotPassword_resetPassword.AddOrgGarmentRes
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.OrgGarmentCategory
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.RemoveOrgGarmentResponse
 import com.cuso.tailor.model.sales.AddOpportunityActivityRequest
-import com.cuso.tailor.model.sales.AppointmentRequest
 import com.cuso.tailor.model.sales.AssignStageResponse
-import com.cuso.tailor.model.sales.BudgetRangeRequest
 import com.cuso.tailor.model.sales.CategoryItem
-import com.cuso.tailor.model.sales.ContactRequest
 import com.cuso.tailor.model.sales.ConvertLeadToOpportunityRequest
 import com.cuso.tailor.model.sales.ConvertLeadToOpportunityResponse
 import com.cuso.tailor.model.sales.ConvertToInvoiceData
 import com.cuso.tailor.model.sales.ConvertToInvoiceRequest
 import com.cuso.tailor.model.sales.ConvertToOrderData
 import com.cuso.tailor.model.sales.CreateCustomerRequest
-import com.cuso.tailor.model.sales.CreateLeadFormRequest
 import com.cuso.tailor.model.sales.CreateLeadFormResponse
 import com.cuso.tailor.model.sales.CreateOpportunityRequest
 import com.cuso.tailor.model.sales.CreateQuotationRequest
@@ -42,7 +38,6 @@ import com.cuso.tailor.model.sales.GarmentPricingListItemDto
 import com.cuso.tailor.model.sales.GarmentStageDoc
 import com.cuso.tailor.model.sales.LeadTableItem
 import com.cuso.tailor.model.sales.MeasurementsResponse
-import com.cuso.tailor.model.sales.NoteRequest
 import com.cuso.tailor.model.sales.OpportunityActivityDto
 import com.cuso.tailor.model.sales.OpportunityDto
 import com.cuso.tailor.model.sales.OpportunityListResponse
@@ -52,7 +47,6 @@ import com.cuso.tailor.model.sales.OrderManagementResponse
 import com.cuso.tailor.model.sales.OrderOverviewData
 import com.cuso.tailor.model.sales.OrderResponse
 import com.cuso.tailor.model.sales.OrderViewData
-import com.cuso.tailor.model.sales.PersonRequest
 import com.cuso.tailor.model.sales.PricingQuotationSaveRequest
 import com.cuso.tailor.model.sales.PricingQuotationSaveResponse
 import com.cuso.tailor.model.sales.QuotationItemDto
@@ -62,7 +56,6 @@ import com.cuso.tailor.model.sales.ReceivePaymentRequest
 import com.cuso.tailor.model.sales.StaffDto
 import com.cuso.tailor.model.sales.StageAssignRequest
 import com.cuso.tailor.model.sales.UpdateCustomerRequest
-import com.cuso.tailor.model.sales.UpdateLeadRequest
 import com.cuso.tailor.model.sales.UpdateLeadResponse
 import com.cuso.tailor.model.sales.UpdateStageRequest
 import com.cuso.tailor.model.sales.ViewOneLeadData
@@ -268,18 +261,22 @@ class SalesRepository @Inject constructor(
     }
 
     /**
-     * Creates a new lead and saves it to local Room database on success.
+     * Creates a new lead using multipart/form-data fields and optional file attachments.
      */
-    suspend fun createLead(request: CreateLeadFormRequest): Result<CreateLeadFormResponse> {
+    suspend fun createLead(
+        fields: Map<String, String>,
+        attachmentParts: List<MultipartBody.Part> = emptyList()
+    ): Result<CreateLeadFormResponse> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = salesLeadApi.createLead(accessToken, csrfToken, request)
+            val response = salesLeadApi.createLead(
+                token = accessToken,
+                csrfToken = csrfToken,
+                fields = fields.toTextParts(),
+                attachments = attachmentParts
+            )
             if (response.isSuccessful && response.body() != null) {
-                val body = response.body()!!
-                if (body.data != null) {
-                    leadDao.upsert(body.toEntity(request))
-                }
-                Result.success(body)
+                Result.success(response.body()!!)
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed to create lead"))
             }
@@ -289,66 +286,20 @@ class SalesRepository @Inject constructor(
     }
 
     /**
-     * Updates an existing lead by mapping create request fields.
+     * Updates an existing lead using multipart/form-data fields and optional file attachments.
      */
-    suspend fun updateLead(id: String, request: CreateLeadFormRequest): Response<UpdateLeadResponse> {
+    suspend fun updateLead(
+        id: String,
+        fields: Map<String, String>,
+        attachmentParts: List<MultipartBody.Part> = emptyList()
+    ): Response<UpdateLeadResponse> {
         val (accessToken, csrfToken) = getAuthHeaders()
-
-        // Extract garment IDs from garment specifications
-        val validGarments: List<String> = request.garmentSpecifications
-            .mapNotNull { it.garmentId.takeIf { id -> id.isNotBlank() } }
-
-        // Compute total quantity from specs or default to 1
-        val computedQuantity = request.garmentSpecifications.sumOf { it.quantity }.coerceAtLeast(1)
-
-        val notesList = mutableListOf<NoteRequest>()
-        request.internalNotes?.takeIf { it.isNotBlank() }?.let { notesList.add(NoteRequest(it, "internal")) }
-        request.customerNotes?.takeIf { it.isNotBlank() }?.let { notesList.add(NoteRequest(it, "customer")) }
-        request.fabricNotes?.takeIf { it.isNotBlank() }?.let { notesList.add(NoteRequest(it, "fabric")) }
-
-        val updateRequest = UpdateLeadRequest(
-            customerType = if (request.customerType.equals("Corporate", ignoreCase = true)) "Corporate" else "Individual",
-            enquiryType = request.enquiryType,
-            estimatedQuantity = computedQuantity,
-            budgetRange = BudgetRangeRequest(
-                min = request.budgetMin ?: 0,
-                max = request.budgetMax ?: 0
-            ),
-            enquiryDate = request.enquiryDate,
-            requiredDate = request.requiredDate,
-            status = request.status,
-            leadStatus = request.leadStatus,
-            source = request.leadSource,
-            person = PersonRequest(
-                name = request.fullName,
-                phone = request.mobileNumber,
-                email = request.email.orEmpty(),
-                gender = request.gender.orEmpty(),
-                dob = request.dateOfBirth.orEmpty()
-            ),
-            appointment = AppointmentRequest(
-                isRequired = request.isAppointmentRequired,
-                date = request.appointmentDate,
-                time = request.appointmentTime,
-                assignedStaff = request.assignedStaffId,
-                priority = request.priorityLevel,
-                followUpDate = request.followUpDate
-            ),
-            notes = notesList,
-            contact = ContactRequest(
-                address = listOfNotNull(request.address?.flatNo, request.address?.street).filter { it.isNotBlank() }.joinToString(", "),
-                area = request.address?.areaZone.orEmpty(),
-                city = request.address?.city.orEmpty(),
-                preferredContactMethod = request.preferredContactMethod.orEmpty()
-            ),
-            garmentCategory = validGarments
-        )
-
         return salesLeadApi.updateLead(
             accessToken = accessToken,
             csrfToken = csrfToken,
             id = id,
-            request = updateRequest
+            fields = fields.toTextParts(),
+            attachments = attachmentParts
         )
     }
 

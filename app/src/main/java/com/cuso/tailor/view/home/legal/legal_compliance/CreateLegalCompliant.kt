@@ -269,7 +269,6 @@ fun CreateLegalComplianceScreen(
 
         // 2. Jurisdiction
         addField("countryName", countryName)
-        addField("country", countryName)
         addField("region", region)
         addField("jurisdiction", jurisdiction)
         addField("legalEntity", legalEntity)

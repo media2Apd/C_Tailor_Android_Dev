@@ -1249,11 +1249,17 @@ class FinanceViewModel @Inject constructor(
     private val _isLoadingAccountDropdown = MutableStateFlow(false)
     val isLoadingAccountDropdown: StateFlow<Boolean> = _isLoadingAccountDropdown.asStateFlow()
 
-    fun fetchChartOfAccounts() {
+    fun fetchChartOfAccounts(
+        paginate: Boolean = false,
+        includeDeleted: Boolean = false
+    ) {
         launchBusy {
             _isLoadingChartOfAccounts.value = true
             _chartOfAccountsError.value = null
-            val result = financeRepository.getChartOfAccounts()
+            val result = financeRepository.getChartOfAccounts(
+                paginate = paginate,
+                includeDeleted = includeDeleted
+            )
             result.fold(
                 onSuccess = { _chartOfAccounts.value = it },
                 onFailure = { e ->
@@ -1492,6 +1498,41 @@ class FinanceViewModel @Inject constructor(
                 onFailure = { e ->
                     _createExpenseState.value = CreateExpenseState.Error(
                         extractErrorMessage(e, "Failed to create expense")
+                    )
+                }
+            )
+        }
+    }
+
+    fun submitExpenseVoucher(
+        expenseId: String? = null,
+        fields: Map<String, String>,
+        existingAttachments: List<ExpenseVoucherAttachmentDto> = emptyList(),
+        attachmentParts: List<okhttp3.MultipartBody.Part> = emptyList()
+    ) {
+        launchBusy {
+            _createExpenseState.value = CreateExpenseState.Loading
+            val result = financeRepository.submitExpenseVoucher(
+                expenseId = expenseId,
+                fields = fields,
+                existingAttachments = existingAttachments,
+                attachmentParts = attachmentParts
+            )
+            result.fold(
+                onSuccess = { response ->
+                    val defaultMsg = when {
+                        fields["status"] == "Posted" -> "Expense posted to ledger successfully."
+                        !expenseId.isNullOrBlank() -> "Expense voucher updated successfully."
+                        else -> "Expense saved as Draft."
+                    }
+                    _createExpenseState.value = CreateExpenseState.Success(
+                        response.message ?: defaultMsg
+                    )
+                    refreshExpenses()
+                },
+                onFailure = { e ->
+                    _createExpenseState.value = CreateExpenseState.Error(
+                        extractErrorMessage(e, "An error occurred while saving.")
                     )
                 }
             )

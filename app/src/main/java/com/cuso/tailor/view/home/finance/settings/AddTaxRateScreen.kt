@@ -2,10 +2,6 @@
 
 package com.cuso.tailor.view.home.finance.settings
 
-import android.app.DatePickerDialog
-import android.widget.DatePicker
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -13,7 +9,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -31,7 +26,6 @@ import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.viewmodel.SettingsViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 // ---------------------------------------------------------------------------
 // Data Model for Tax Rate Form Payload
@@ -58,19 +52,27 @@ fun AddTaxRateScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
     onClose: () -> Unit,
     onSaveSuccess: () -> Unit = onClose,
-    taxTypeOptions: List<String> = listOf("GST", "CGST", "SGST", "IGST", "CESS", "VAT", "Custom"),
+    taxTypeOptions: List<String> = listOf("GST", "VAT", "Sales Tax"),
     onSaveTaxRate: ((AddTaxRateFormState) -> Unit)? = null
 ) {
     val tokens = LocalAppTokens.current
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
     val isEditMode = taxRateToEdit != null
 
+    // Map UI labels to exact backend taxType enum values
+    val taxTypePayloadMap = remember {
+        linkedMapOf(
+            "GST" to "GST",
+            "VAT" to "VAT",
+            "Sales Tax" to "SalesTax"
+        )
+    }
+
     var taxName by remember { mutableStateOf("") }
     var ratePercent by remember { mutableStateOf("") }
-    var taxType by remember { mutableStateOf("") }
+    var taxType by remember { mutableStateOf("GST") }
     var taxTypeExpanded by remember { mutableStateOf(false) }
     var effectiveDate by remember { mutableStateOf("") }
 
@@ -80,30 +82,19 @@ fun AddTaxRateScreen(
     val isSubmittingTaxRate by viewModel.isSubmittingTaxRate.collectAsStateWithLifecycle()
     val effectiveLoading = isLoading || isSubmittingTaxRate
 
-    // Prefill form if editing an existing tax rate
+    // Prefill form when editing an existing tax rate
     LaunchedEffect(taxRateToEdit) {
         if (taxRateToEdit != null) {
             taxName = taxRateToEdit.name
             ratePercent = taxRateToEdit.rate.toString()
             taxType = taxRateToEdit.taxType ?: "GST"
-            effectiveDate = taxRateToEdit.effectiveFrom?.take(10) ?: ""
+            effectiveDate = formatIsoToDisplayDate(taxRateToEdit.effectiveFrom)
+        } else {
+            taxName = ""
+            ratePercent = ""
+            taxType = "GST"
+            effectiveDate = ""
         }
-    }
-
-    // Date Picker Dialog setup (formats to YYYY-MM-DD for backend compatibility)
-    val calendar = Calendar.getInstance()
-    val datePickerDialog = remember {
-        DatePickerDialog(
-            context,
-            { _: DatePicker, year: Int, month: Int, dayOfMonth: Int ->
-                val formattedMonth = (month + 1).toString().padStart(2, '0')
-                val formattedDay = dayOfMonth.toString().padStart(2, '0')
-                effectiveDate = "$year-$formattedMonth-$formattedDay"
-            },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        )
     }
 
     // Validation rule: name, rate, and taxType are mandatory
@@ -138,30 +129,30 @@ fun AddTaxRateScreen(
                     Spacer(Modifier.height(6.dp))
                     FormTextField(
                         value = taxName,
-                        onValueChange = { taxName = it },
-                        placeholder = "e.g. GST 18% or CGST 9%"
+                        onValueChange = {
+                            taxName = it
+                            errorMessage = null
+                        },
+                        placeholder = "e.g. GST 18% — Goods"
                     )
                 }
 
-                // 2. Rate (%) Field
+                // 2. Rate (%) Field (editable in Edit mode to trigger revise endpoint if changed)
                 Column {
                     FormLabel(text = "Rate (%)", isRequired = true)
                     Spacer(Modifier.height(6.dp))
                     FormTextField(
                         value = ratePercent,
-                        onValueChange = { ratePercent = it },
+                        onValueChange = { input ->
+                            ratePercent = input.filterIndexed { index, ch ->
+                                ch.isDigit() || (ch == '.' && input.indexOf('.') == index)
+                            }
+                            errorMessage = null
+                        },
                         placeholder = "e.g. 18",
-                        keyboardType = KeyboardType.Decimal,
-                        enabled = !isEditMode // Rate is locked when editing to preserve ledger consistency
+                        trailingText = "%",
+                        keyboardType = KeyboardType.Decimal
                     )
-                    if (isEditMode) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "Rate percentage cannot be altered after creation.",
-                            fontSize = tokens.caption,
-                            color = TextSecondary
-                        )
-                    }
                 }
 
                 // 3. Tax Type Dropdown
@@ -169,33 +160,37 @@ fun AddTaxRateScreen(
                     FormLabel(text = "Tax Type", isRequired = true)
                     Spacer(Modifier.height(6.dp))
                     FormDropdown(
-                        value = taxType.ifEmpty { "Select Tax Type" },
-                        expanded = taxTypeExpanded,
-                        onExpandChange = { taxTypeExpanded = it },
+                        value = taxTypePayloadMap.entries.firstOrNull { it.value == taxType }?.key ?: taxType,
+                        expanded = taxTypeExpanded && !isEditMode,
+                        onExpandChange = { if (!isEditMode) taxTypeExpanded = it },
                         options = taxTypeOptions,
-                        onOptionSelected = { taxType = it },
+                        onOptionSelected = { label ->
+                            taxType = taxTypePayloadMap[label] ?: label
+                            errorMessage = null
+                        },
                         enabled = !isEditMode
                     )
                 }
 
-                // 4. Effective Date Field with Calendar Picker
+                // 4. Effective Date Field
                 Column {
-                    FormLabel(text = "Effective From", isRequired = false)
+                    FormLabel(text = "Effective Date", isRequired = false)
                     Spacer(Modifier.height(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(
-                                enabled = !isEditMode,
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) { datePickerDialog.show() }
-                    ) {
-                        DatePickerField(
-                            value = effectiveDate,
-                            onDateSelected = { effectiveDate = it }
-                        )
-                    }
+                    DatePickerField(
+                        value = effectiveDate,
+                        onDateSelected = {
+                            effectiveDate = it
+                            errorMessage = null
+                        }
+                    )
+                }
+
+                errorMessage?.let { msg ->
+                    Text(
+                        text = msg,
+                        fontSize = tokens.caption,
+                        color = redText
+                    )
                 }
             }
         }
@@ -209,8 +204,7 @@ fun AddTaxRateScreen(
             showTrailingArrow = false,
             trailingAction = TrailingFabAction.Next(
                 label = when {
-                    effectiveLoading -> "Saving..."
-                    isEditMode -> "Update Tax Rate"
+                    effectiveLoading -> "Processing..."
                     else -> "Save Tax Rate"
                 },
                 enabled = isFormValid && !effectiveLoading,
@@ -224,32 +218,52 @@ fun AddTaxRateScreen(
                         errorMessage = "Tax type is required."
                         return@Next
                     }
-                    if (taxRateToEdit == null && (parsedRate == null || parsedRate < 0.0)) {
+                    if (parsedRate == null || parsedRate < 0.0) {
                         errorMessage = "Please enter a valid tax rate."
                         return@Next
                     }
 
+                    val formattedEffectiveFrom = formatDisplayDateToYyyyMmDd(effectiveDate)
                     val formState = AddTaxRateFormState(
                         name = taxName.trim(),
                         rate = ratePercent.trim(),
                         taxType = taxType,
-                        effectiveFrom = effectiveDate.ifBlank { null }
+                        effectiveFrom = formattedEffectiveFrom
                     )
 
                     if (taxRateToEdit != null) {
-                        viewModel.updateTaxRate(
-                            id = taxRateToEdit.id,
-                            name = formState.name,
-                            onSuccess = { msg ->
-                                successMessage = msg
-                                onSaveTaxRate?.invoke(formState)
-                                scope.launch {
-                                    delay(800)
-                                    onSaveSuccess()
-                                }
-                            },
-                            onError = { errorMessage = it }
-                        )
+                        val originalRate = taxRateToEdit.rate.toString().toDoubleOrNull()
+                        if (originalRate != null && originalRate != parsedRate) {
+                            // Hit revise endpoint when rate percentage changed
+                            viewModel.reviseTaxRate(
+                                id = taxRateToEdit.id,
+                                newRate = formState.rate,
+                                effectiveFrom = formState.effectiveFrom,
+                                onSuccess = { msg ->
+                                    successMessage = msg
+                                    onSaveTaxRate?.invoke(formState)
+                                    scope.launch {
+                                        delay(800)
+                                        onSaveSuccess()
+                                    }
+                                },
+                                onError = { errorMessage = it }
+                            )
+                        } else {
+                            viewModel.updateTaxRate(
+                                id = taxRateToEdit.id,
+                                name = formState.name,
+                                onSuccess = { msg ->
+                                    successMessage = msg
+                                    onSaveTaxRate?.invoke(formState)
+                                    scope.launch {
+                                        delay(800)
+                                        onSaveSuccess()
+                                    }
+                                },
+                                onError = { errorMessage = it }
+                            )
+                        }
                     } else {
                         viewModel.createTaxRate(
                             name = formState.name,
@@ -270,5 +284,26 @@ fun AddTaxRateScreen(
                 }
             )
         )
+    }
+}
+
+private fun formatIsoToDisplayDate(iso: String?): String {
+    if (iso.isNullOrBlank()) return ""
+    val datePart = iso.trim().take(10)
+    val parts = datePart.split("-")
+    return if (parts.size == 3 && parts[0].length == 4) {
+        "${parts[2]}-${parts[1]}-${parts[0]}"
+    } else {
+        datePart
+    }
+}
+
+private fun formatDisplayDateToYyyyMmDd(display: String): String? {
+    if (display.isBlank()) return null
+    val parts = display.trim().split("-")
+    return if (parts.size == 3 && parts[2].length == 4) {
+        "${parts[2]}-${parts[1]}-${parts[0]}"
+    } else {
+        display.trim()
     }
 }

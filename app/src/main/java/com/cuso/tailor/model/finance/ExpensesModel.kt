@@ -174,6 +174,107 @@ class ExpenseAccountRefDeserializer : JsonDeserializer<ExpenseAccountRef?> {
     }
 }
 
+data class ExpenseSupplierRef(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("supplierName") val supplierName: String = "",
+    @SerializedName("companyName") val companyName: String = ""
+)
+
+class ExpenseSupplierRefDeserializer : JsonDeserializer<ExpenseSupplierRef?> {
+    override fun deserialize(
+        json: JsonElement?,
+        typeOfT: Type?,
+        context: JsonDeserializationContext?
+    ): ExpenseSupplierRef? {
+        if (json == null || json.isJsonNull) return null
+        return if (json.isJsonPrimitive) {
+            ExpenseSupplierRef(id = json.asString)
+        } else if (json.isJsonObject) {
+            val obj = json.asJsonObject
+            ExpenseSupplierRef(
+                id = obj.get("_id")?.asString ?: obj.get("id")?.asString ?: "",
+                supplierName = obj.get("supplierName")?.asString ?: obj.get("name")?.asString ?: "",
+                companyName = obj.get("companyName")?.asString ?: ""
+            )
+        } else {
+            null
+        }
+    }
+}
+
+data class ExpenseBranchRef(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("name") val name: String = ""
+)
+
+class ExpenseBranchRefDeserializer : JsonDeserializer<ExpenseBranchRef?> {
+    override fun deserialize(
+        json: JsonElement?,
+        typeOfT: Type?,
+        context: JsonDeserializationContext?
+    ): ExpenseBranchRef? {
+        if (json == null || json.isJsonNull) return null
+        return if (json.isJsonPrimitive) {
+            ExpenseBranchRef(id = json.asString)
+        } else if (json.isJsonObject) {
+            val obj = json.asJsonObject
+            ExpenseBranchRef(
+                id = obj.get("_id")?.asString ?: obj.get("id")?.asString ?: "",
+                name = obj.get("name")?.asString ?: ""
+            )
+        } else {
+            null
+        }
+    }
+}
+
+data class ExpenseTaxGroupRef(
+    @SerializedName("_id") val id: String = "",
+    @SerializedName("groupName") val groupName: String = "",
+    @SerializedName("totalRate") val totalRate: Double = 0.0
+)
+
+class ExpenseTaxGroupRefDeserializer : JsonDeserializer<ExpenseTaxGroupRef?> {
+    override fun deserialize(
+        json: JsonElement?,
+        typeOfT: Type?,
+        context: JsonDeserializationContext?
+    ): ExpenseTaxGroupRef? {
+        if (json == null || json.isJsonNull) return null
+        return if (json.isJsonPrimitive) {
+            ExpenseTaxGroupRef(id = json.asString)
+        } else if (json.isJsonObject) {
+            val obj = json.asJsonObject
+            ExpenseTaxGroupRef(
+                id = obj.get("_id")?.asString ?: obj.get("id")?.asString ?: "",
+                groupName = obj.get("groupName")?.asString ?: obj.get("name")?.asString ?: "",
+                totalRate = obj.get("totalRate")?.asDouble ?: 0.0
+            )
+        } else {
+            null
+        }
+    }
+}
+
+data class ExpenseLineItem(
+    @SerializedName("_id") val _id: String = "",
+    @SerializedName("lineType") val lineType: String = "Service",
+
+    @JsonAdapter(ExpenseAccountRefDeserializer::class)
+    @SerializedName("expenseAccountId") val expenseAccountId: ExpenseAccountRef? = null,
+
+    @SerializedName("itemDescription") val itemDescription: String = "",
+    @SerializedName("quantity") val quantity: Double = 1.0,
+    @SerializedName("rate") val rate: Double = 0.0,
+    @SerializedName("lineTotal") val lineTotal: Double = 0.0,
+
+    @JsonAdapter(ExpenseTaxGroupRefDeserializer::class)
+    @SerializedName("taxGroupId") val taxGroupId: ExpenseTaxGroupRef? = null,
+
+    @SerializedName("taxExemptionReason") val taxExemptionReason: String? = null,
+    @SerializedName("taxAmount") val taxAmount: Double = 0.0
+)
+
 data class ExpenseFile(
     val url: String,
     val publicId: String,
@@ -182,28 +283,50 @@ data class ExpenseFile(
 )
 
 data class ExpenseItem(
-    val _id: String,
-    val organizationId: String? = null,
-    val branch: String? = null,
-    val expenseNumber: String = "",
-    val expenseDate: String = "",
+    @SerializedName("_id") val _id: String = "",
+    @SerializedName("organizationId") val organizationId: String? = null,
+
+    @JsonAdapter(ExpenseBranchRefDeserializer::class)
+    @SerializedName("branchId") val branchId: ExpenseBranchRef? = null,
+    @SerializedName("branch") val branch: String? = null,
+
+    @JsonAdapter(ExpenseSupplierRefDeserializer::class)
+    @SerializedName("supplierId") val supplierId: ExpenseSupplierRef? = null,
+
+    @SerializedName("expenseNumber") val expenseNumber: String = "",
+    @SerializedName("expenseDate") val expenseDate: String = "",
 
     @JsonAdapter(ExpenseAccountRefDeserializer::class)
-    val accountId: ExpenseAccountRef? = null,
-
-    val amount: Double = 0.0,
+    @SerializedName("accountId") val accountId: ExpenseAccountRef? = null,
 
     @JsonAdapter(ExpenseAccountRefDeserializer::class)
-    val paymentAccountId: ExpenseAccountRef? = null,
+    @SerializedName("paidFromAccountId") val paidFromAccountId: ExpenseAccountRef? = null,
 
-    val referenceNumber: String? = null,
-    val notes: String? = null,
-    val status: String = "Paid",
-    val files: List<ExpenseFile> = emptyList(),
-    val createdBy: String? = null,
-    val createdAt: String = "",
-    val updatedAt: String = "",
-    val __v: Int? = null
+    @JsonAdapter(ExpenseAccountRefDeserializer::class)
+    @SerializedName("paymentAccountId") val paymentAccountId: ExpenseAccountRef? = null,
+
+    @SerializedName("paymentMode") val paymentMode: String? = null,
+    @SerializedName("amount") val amount: Double = 0.0,
+    @SerializedName("subtotal") val subtotal: Double = 0.0,
+    @SerializedName("taxTotal") val taxTotal: Double = 0.0,
+    @SerializedName("grandTotal") val grandTotal: Double = 0.0,
+    @SerializedName("priceIncludesTax") val priceIncludesTax: Boolean = false,
+    @SerializedName("currency") val currency: String? = null,
+    @SerializedName("exchangeRate") val exchangeRate: Double = 1.0,
+
+    @SerializedName("referenceNumber") val referenceNumber: String? = null,
+    @SerializedName("notes") val notes: String? = null,
+    @SerializedName("status") val status: String = "Paid",
+
+    @SerializedName("lines") val lines: List<ExpenseLineItem> = emptyList(),
+    @SerializedName("files") val files: List<ExpenseFile> = emptyList(),
+
+    @JsonAdapter(CreatedByDeserializer::class)
+    @SerializedName("createdBy") val createdBy: CreatedByRef? = null,
+
+    @SerializedName("createdAt") val createdAt: String = "",
+    @SerializedName("updatedAt") val updatedAt: String = "",
+    @SerializedName("__v") val __v: Int? = null
 )
 
 data class ExpenseViewOneResponse(
@@ -306,3 +429,35 @@ data class AccountDropdownItem(
     val displayName: String
         get() = "$accountCode - $accountName"
 }
+
+data class ExpenseVoucherLineJsonRequest(
+    @SerializedName("lineType") val lineType: String = "Service",
+    @SerializedName("expenseAccountId") val expenseAccountId: String,
+    @SerializedName("itemDescription") val itemDescription: String,
+    @SerializedName("quantity") val quantity: Double = 1.0,
+    @SerializedName("rate") val rate: Double = 0.0,
+    @SerializedName("taxGroupId") val taxGroupId: String? = null,
+    @SerializedName("taxExemptionReason") val taxExemptionReason: String? = null
+)
+
+data class ExpenseVoucherAttachmentDto(
+    @SerializedName("url") val url: String,
+    @SerializedName("publicId") val publicId: String,
+    @SerializedName("name") val name: String = ""
+)
+
+data class ExpenseVoucherJsonRequest(
+    @SerializedName("expenseDate") val expenseDate: String,
+    @SerializedName("paidFromAccountId") val paidFromAccountId: String,
+    @SerializedName("paymentMode") val paymentMode: String,
+    @SerializedName("referenceNumber") val referenceNumber: String = "",
+    @SerializedName("branchId") val branchId: String? = null,
+    @SerializedName("supplierId") val supplierId: String? = null,
+    @SerializedName("currency") val currency: String = "INR",
+    @SerializedName("exchangeRate") val exchangeRate: Double = 1.0,
+    @SerializedName("priceIncludesTax") val priceIncludesTax: Boolean = false,
+    @SerializedName("notes") val notes: String = "",
+    @SerializedName("status") val status: String = "Draft",
+    @SerializedName("lines") val lines: List<ExpenseVoucherLineJsonRequest> = emptyList(),
+    @SerializedName("attachments") val attachments: List<ExpenseVoucherAttachmentDto> = emptyList()
+)

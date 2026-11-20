@@ -208,19 +208,19 @@ class MainActivity : ComponentActivity() {
                                             decorFitsSystemWindows = false
                                         )
                                     ) {
-                                        // Remove window dim and shadow
+                                        // Allow touches and focus to pass through to underlying screens and dialogs
                                         val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
                                         SideEffect {
                                             dialogWindow?.let { window ->
                                                 window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
                                                 window.setDimAmount(0f)
-                                                window.setFlags(
-                                                    WindowManager.LayoutParams.FLAG_SECURE,
-                                                    WindowManager.LayoutParams.FLAG_SECURE
+                                                window.addFlags(
+                                                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                                                            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                                                            WindowManager.LayoutParams.FLAG_SECURE
                                                 )
                                             }
                                         }
-
                                         Box(modifier = Modifier.fillMaxSize()) {
                                             DynamicIslandSuccess(
                                                 message = globalSuccessMessage,

@@ -224,7 +224,7 @@ private fun OrderFullyPaidCard() {
             .fillMaxWidth()
             .padding(horizontal = tokens.screenPadding),
         shape = RoundedCornerShape(12.dp),
-        color = activity_green_bg, // Theme-ல் உள்ள Light Green Bg
+        color = activity_green_bg,
         border = BorderStroke(1.dp, greentext.copy(alpha = 0.5f))
     ) {
         Column(

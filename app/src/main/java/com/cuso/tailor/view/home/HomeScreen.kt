@@ -841,6 +841,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "hr_attendance_management",
             "hr_attendance_biometric_management",
             "hr_monthly_attendance",
+            "hr_leave_dashboard",
+            "hr_leave_balance",
             "hr_leave_approval",
             "hr_apply_leave",
             "hr_payroll_salary_structure",
@@ -1358,7 +1360,7 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 "finance_credit_detail" -> selectedCreditNoteId = null
                 "inventory_package_detail" -> selectedPackageIdForDetail = null
                 "inventory_create_package" -> selectedPackageIdForEdit = null
-                "hr_new_document_upload" -> selectedDocumentId = null
+                "hr_new_document_upload", "hr_view_document_upload" -> selectedDocumentId = null
                 "inventory_picklist_detail", "inventory_create_picklist" -> selectedPicklistId = null
                 "hr_add_document_category" -> selectedDocumentCategoryId = null
                 "hr_assign_training_form" -> selectedTrainingAssignmentId = null
@@ -2120,11 +2122,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                     menu == "Finance" && (category == "Purchase" && subItem?.contains("credit", ignoreCase = true) == true || subItem?.contains("Supplier Credit", ignoreCase = true) == true) -> {
                         "finance_vendor_credits"
                     }
-                    // ✅ ADVERTISING OVERVIEW நேரடி ROUTING:
                     menu == "Marketing" && (category.equals("Advertising", ignoreCase = true) || subItem?.equals("Advertising", ignoreCase = true) == true) -> {
                         "marketing_advertising_overview"
                     }
-                    // Direct routing for Services Workflow / Production Stages
                     menu == "Services" && (category.contains("workflow", ignoreCase = true) || category.contains("stage", ignoreCase = true) || subItem?.contains("stage", ignoreCase = true) == true) -> {
                         "services_production_stages"
                     }
@@ -3034,6 +3034,8 @@ fun normalizeRoute(rawKey: String): String {
         "legal_employee_and_labour_legal", "legal_employee_labour_legal",
         "employee_&_labour", "legal_employee_&_labour" -> "legal_employee"
 
+        "hr_leave_dashboard" -> "hr_leave_dashboard"
+        "hr_leave_balance", "hr_leave_balances" -> "hr_leave_balance"
         "hr_document_categories" -> "hr_document_categories"
         "hr_employee_document_upload" -> "hr_employee_document_upload"
         "hr_new_document_upload" -> "hr_new_document_upload"

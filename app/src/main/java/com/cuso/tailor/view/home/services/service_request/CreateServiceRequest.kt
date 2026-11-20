@@ -1696,14 +1696,14 @@ fun ReviewServiceRequestScreen(
                     Text("Back to Edit", color = TextPrimary, fontSize = tokens.bodySmall)
                 }
 
-                // ✅ AFTER: Converts the saved draft to the API payload and calls serviceViewModel.createServiceRequest
+                //  AFTER: Converts the saved draft to the API payload and calls serviceViewModel.createServiceRequest
                 Button(
                     onClick = {
                         val parsedCharge = if (currentDraft.isChargeableService) {
                             currentDraft.ratePerPiece.toDoubleOrNull() ?: 0.0
                         } else 0.0
 
-                        // ✅ AFTER (Fixed):
+                        //  AFTER (Fixed):
                         val mappedAlterations = currentDraft.activeAlterationDeltas.map { d ->
                             val currentD = d.currentVal.toDoubleOrNull() ?: 0.0
                             val requiredD = d.requiredVal.toDoubleOrNull() ?: 0.0

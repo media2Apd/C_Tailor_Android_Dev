@@ -149,12 +149,12 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
     if (menu == "Finance") {
         val cleanSubItem = subItem.trim().lowercase()
 
-        // 👉 1. Purchase Return check (First priority)
+        //  1. Purchase Return check (First priority)
         if (cleanSubItem == "purchase return" || cleanSubItem == "purchase returns" || cleanSubItem == "return" || cleanSubItem == "returns") {
             return "finance_purchase_returns"
         }
 
-        // ✅ Supplier Credit / Vendor Credit under Purchase
+        //  Supplier Credit / Vendor Credit under Purchase
         if ((category?.equals("Purchase", ignoreCase = true) == true || category?.contains("Supplier", ignoreCase = true) == true) &&
             (cleanSubItem == "credit" || cleanSubItem == "credits" || cleanSubItem == "supplier credit" || cleanSubItem == "vendor credit")
         ) {
@@ -245,12 +245,13 @@ fun buildNavigationKey(menu: String, subItem: String, category: String? = null):
             "All Employees"             -> "hr_organization_structure"
             "Production Team"           -> "hr_production_team"
             "Daily Attendance"           -> "hr_daily_attendance"
-            "Leave Dashboard",
+            "Leave Dashboard"            -> "hr_leave_dashboard"
             "Apply for Leave"            -> "hr_apply_leave"
             "Manual Entry"               -> "hr_attendance_manual_entry"
             "Monthly Attendance"         -> "hr_monthly_attendance"
             "Shift Management"           -> "hr_attendance_shift_management"
-            "Leave Balance"              -> "hr_leave_balance"
+            "Leave Balance",
+            "Leave Balances"             -> "hr_leave_balance"
             "Leave Approval"             -> "hr_leave_approval"
             "Leave Policies", "Leave Policy" -> "hr_leave_policies"
             "Salary Components"          -> "hr_payroll_salary_components"
@@ -599,7 +600,7 @@ object SidebarConfig {
                     ),
                     "Leave Management" to listOf(
                         "Leave Dashboard",
-                        "Apply for Leave",
+//                        "Apply for Leave",
                         "Leave Balance",
                         "Leave Approval"
                     ),
@@ -874,7 +875,7 @@ private fun AppSidebarContent(
 
     fun handleSubItemClick(category: String, subItem: String) {
         selectedSubItem = "$category::$subItem"
-        // ✅ Passes parent category so "Supplier Credit" under Purchase navigates to vendor credits
+        //  Passes parent category so "Supplier Credit" under Purchase navigates to vendor credits
         onMenuItemClick(buildNavigationKey(selectedMenu, subItem, category))
         onClose()
     }

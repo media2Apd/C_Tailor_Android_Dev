@@ -19,6 +19,7 @@ import com.cuso.tailor.model.hr.SaveDocumentCategoryRequest
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.view.home.sales.lead.MiniSwitch
 import com.cuso.tailor.viewmodel.HrViewModel
 
 @Composable
@@ -311,13 +312,9 @@ fun AddDocumentCategoryScreen(
                                     color = mutedText
                                 )
                             }
-                            Switch(
+                            MiniSwitch(
                                 checked = autoExpiryAlerts,
-                                onCheckedChange = { autoExpiryAlerts = it },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = whiteBg,
-                                    checkedTrackColor = Primary
-                                )
+                                onCheckedChange = { autoExpiryAlerts = it }
                             )
                         }
                     }

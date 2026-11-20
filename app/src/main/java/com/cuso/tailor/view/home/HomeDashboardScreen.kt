@@ -275,18 +275,18 @@ fun HomeDashboardScreen(
                     )
                 }
 
-                // 11. Action required task cards
-                item {
-                    ActionRequiredSection(
-                        actions = actionTasks,
-                        onResolveClick = { route -> onNavigate(route) }
-                    )
-                }
-
-                // 12. Business health status cards
-                item {
-                    BusinessHealthSection(onViewModule = { onNavigate("module_settings") })
-                }
+//                // 11. Action required task cards
+//                item {
+//                    ActionRequiredSection(
+//                        actions = actionTasks,
+//                        onResolveClick = { route -> onNavigate(route) }
+//                    )
+//                }
+//
+//                // 12. Business health status cards
+//                item {
+//                    BusinessHealthSection(onViewModule = { onNavigate("module_settings") })
+//                }
 
                 item {
                     Spacer(Modifier.height(tokens.screenPadding * 2))

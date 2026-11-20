@@ -77,6 +77,8 @@ import com.cuso.tailor.view.home.hr.document_management.document_category.AddDoc
 import com.cuso.tailor.view.home.hr.document_management.document_category.DocumentCategoryListScreen
 import com.cuso.tailor.view.home.hr.document_management.employee_document.EmployeeDocumentListScreen
 import com.cuso.tailor.view.home.hr.document_management.employee_document.EmployeeDocumentUploadScreen
+import com.cuso.tailor.view.home.hr.leave_management.leave_balance.LeaveBalancesScreen
+import com.cuso.tailor.view.home.hr.leave_management.leave_dashboard.LeaveDashboardScreen
 import com.cuso.tailor.view.home.hr.leave_management.leave_approval.LeaveApprovalScreen
 import com.cuso.tailor.view.home.hr.leave_management.apply_leave.ApplyLeaveScreen
 import com.cuso.tailor.view.home.hr.payroll_management.salary_components.SalaryComponentFormScreen
@@ -1014,6 +1016,8 @@ fun HomeScreenRouter(
         "hr_payroll_salary_components",
         "hr_shift_list",
         "hr_create_shift","hr_payroll_salary_components_create",
+        "hr_leave_dashboard",
+        "hr_leave_balance",
         "hr_leave_approval",
         "hr_apply_leave",
         "hr_payroll_salary_templates",
@@ -1030,7 +1034,7 @@ fun HomeScreenRouter(
         "hr_exit_management", "hr_exit_request_form", "hr_exit_manager_approval",
         "hr_exit_clearance", "hr_exit_clearance_detail",
         "hr_exit_settlements", "hr_exit_settlement_detail",
-        "hr_new_document_upload", "hr_organization_structure",
+        "hr_new_document_upload", "hr_view_document_upload", "hr_organization_structure",
         "hr_production_team", "hr_create_production_team", "hr_production_team_detail",
         "hr_expense_claims","hr_expense_new_claim", "hr_expense_type", "hr_submit_expense_claim", "hr_expense_claim_detail","hr_expense_claim_detail_readonly",
         "hr_expense_finance_reimbursement","hr_edit_expense_claim","hr_add_expense_type","hr_expense_process_payment"   -> {
@@ -4958,7 +4962,10 @@ private fun HrRouter(
         }
 
         "hr_monthly_attendance" -> HrGuard("monthlyAttendance", PermissionAction.VIEW) {
-            AttendanceCalendarScreen(onClose = onGoBack)
+            AttendanceCalendarScreen(
+                onClose = onGoBack,
+                hrViewModel = hrViewModel
+            )
         }
 
         "hr_attendance_detail" -> HrGuard("dailyAttendance", PermissionAction.VIEW) {
@@ -4973,6 +4980,24 @@ private fun HrRouter(
         }
 
         // 5. Leave Management
+        "hr_leave_dashboard" -> HrGuard("leaveDashboard", PermissionAction.VIEW) {
+            LeaveDashboardScreen(
+                hrViewModel = hrViewModel,
+                onBack = onGoBack,
+                onApplyLeave = { onSafeNavigate("hr_apply_leave", PermissionAction.VIEW) },
+                onOpenApprovals = { onSafeNavigate("hr_leave_approval", PermissionAction.VIEW) },
+                onOpenLeaveBalances = { onSafeNavigate("hr_leave_balance", PermissionAction.VIEW) }
+            )
+        }
+
+        "hr_leave_balance" -> HrGuard("leaveBalance", PermissionAction.VIEW) {
+            LeaveBalancesScreen(
+                hrViewModel = hrViewModel,
+                onBack = onGoBack,
+                onApplyLeave = { onSafeNavigate("hr_apply_leave", PermissionAction.VIEW) }
+            )
+        }
+
         "hr_leave_approval" -> HrGuard("leaveApproval", PermissionAction.VIEW) {
             LeaveApprovalScreen(onClose = onGoBack, viewModel = hrViewModel)
         }
@@ -5124,8 +5149,27 @@ private fun HrRouter(
                     onDocumentIdSelected(null)
                     onSafeNavigate("hr_new_document_upload", PermissionAction.CREATE)
                 },
+                onViewDocument = { docId ->
+                    onDocumentIdSelected(docId)
+                    onSafeNavigate("hr_view_document_upload", PermissionAction.VIEW)
+                },
                 onEditDocument = { docId ->
                     onDocumentIdSelected(docId)
+                    onSafeNavigate("hr_new_document_upload", PermissionAction.EDIT)
+                }
+            )
+        }
+
+        "hr_view_document_upload" -> HrGuard("employeeDocuments", PermissionAction.VIEW) {
+            EmployeeDocumentUploadScreen(
+                documentId = selectedDocumentId,
+                isViewOnly = true,
+                viewModel = hrViewModel,
+                onClose = {
+                    onDocumentIdSelected(null)
+                    onGoBack()
+                },
+                onSwitchToEdit = {
                     onSafeNavigate("hr_new_document_upload", PermissionAction.EDIT)
                 }
             )
@@ -5137,6 +5181,7 @@ private fun HrRouter(
         ) {
             EmployeeDocumentUploadScreen(
                 documentId = selectedDocumentId,
+                isViewOnly = false,
                 viewModel = hrViewModel,
                 onClose = {
                     onDocumentIdSelected(null)
@@ -5168,7 +5213,6 @@ private fun HrRouter(
                 categoryId = selectedDocumentCategoryId,
                 viewModel = hrViewModel,
                 onClose = {
-                    onDocumentCategoryIdSelected(null)
                     onGoBack()
                 }
             )

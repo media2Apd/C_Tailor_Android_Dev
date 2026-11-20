@@ -481,7 +481,7 @@ class PermissionViewModel @Inject constructor(
             "hr_expense_finance_reimbursement", "hr_expense_process_payment" -> "hr" to "financeReimbursement"
             "hr_training_management", "hr_add_edit_program" -> "hr" to "trainingProgram"
             "hr_training_assignment_list", "hr_assign_training_form" -> "hr" to "assignmentManagement"
-            "hr_employee_document_upload", "hr_new_document_upload" -> "hr" to "employeeDocuments"
+            "hr_employee_document_upload", "hr_new_document_upload", "hr_view_document_upload" -> "hr" to "employeeDocuments"
             "hr_document_categories", "hr_add_document_category" -> "hr" to "documentCategories"
             "hr_exit_management", "hr_exit_request_form", "hr_exit_manager_approval" -> "hr" to "allRequests"
             "hr_exit_clearance", "hr_exit_clearance_detail" -> "hr" to "clearance"

@@ -154,8 +154,8 @@ fun OrderOverviewScreen(
                             orderData = orderData,
                             warehouseList = warehouseList,
                             context = context,
-                            showConvertToInvoice = showConvertToInvoice, // <-- Pass செய்கிறோம்
-                            onConvertToInvoice = { onConvertToInvoice(orderData) }, // <-- Pass செய்கிறோம்
+                            showConvertToInvoice = showConvertToInvoice,
+                            onConvertToInvoice = { onConvertToInvoice(orderData) },
                             onCancelOrder = { showCancelModal = true },
                             onPrintInvoice = { printReceipt(context, orderData) },
                             onEditOrder = {

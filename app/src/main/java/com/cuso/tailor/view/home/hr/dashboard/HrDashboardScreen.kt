@@ -805,7 +805,7 @@ private fun ShiftSubTabContent(
                 }
 
                 Text(
-                    text = "View Weekly Schedule ⌵",
+                    text = "View Weekly Schedule ",
                     fontSize = tokens.caption,
                     fontWeight = FontWeight.SemiBold,
                     color = Primary,
@@ -5761,7 +5761,7 @@ private fun OverviewSectionContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("WEEKLY ATTENDANCE", fontSize = tokens.label, fontWeight = FontWeight.Bold, color = headerGrey)
-                    Text("This Week ⌵", fontSize = tokens.caption, color = TextSecondary)
+                    Text("This Week ", fontSize = tokens.caption, color = TextSecondary)
                 }
 
                 Row(

@@ -24,7 +24,7 @@ data class CreateLeadFormRequest(
     @SerializedName("branchId") val branchId: String? = null,
     @SerializedName("leadSource") val leadSource: String,
     @SerializedName("enquiryDate") val enquiryDate: String,
-    @SerializedName("leadOwner") val leadOwner: String,
+    @SerializedName("leadOwner") val leadOwner: String? = null,
     @SerializedName("leadStatus") val leadStatus: String,
     @SerializedName("customerType") val customerType: String,
     @SerializedName("fullName") val fullName: String,
@@ -33,12 +33,14 @@ data class CreateLeadFormRequest(
     @SerializedName("gender") val gender: String? = null,
     @SerializedName("dateOfBirth") val dateOfBirth: String? = null,
     @SerializedName("preferredContactMethod") val preferredContactMethod: String? = null,
+    @SerializedName("preferredLanguage") val preferredLanguage: String? = "English",
     @SerializedName("enquiryType") val enquiryType: String,
     @SerializedName("requiredDate") val requiredDate: String,
     @SerializedName("address") val address: LeadAddressDto? = null,
     @SerializedName("garmentSpecifications") val garmentSpecifications: List<LeadGarmentSpecificationPayload> = emptyList(),
     @SerializedName("budgetMin") val budgetMin: Int? = null,
     @SerializedName("budgetMax") val budgetMax: Int? = null,
+    @SerializedName("currency") val currency: String? = null,
     @SerializedName("isFabricProvided") val isFabricProvided: Boolean = false,
     @SerializedName("fabricSource") val fabricSource: String? = null,
     @SerializedName("fabricNotes") val fabricNotes: String? = null,
@@ -48,6 +50,7 @@ data class CreateLeadFormRequest(
     @SerializedName("appointmentStatus") val appointmentStatus: String? = null,
     @SerializedName("assignedStaffId") val assignedStaffId: String? = null,
     @SerializedName("followUpDate") val followUpDate: String? = null,
+    @SerializedName("followUpTime") val followUpTime: String? = null,
     @SerializedName("priorityLevel") val priorityLevel: String? = null,
     @SerializedName("internalNotes") val internalNotes: String? = null,
     @SerializedName("customerNotes") val customerNotes: String? = null,
@@ -60,13 +63,13 @@ data class LeadAddressDto(
     @SerializedName("areaZone") val areaZone: String = "",
     @SerializedName("city") val city: String = "",
     @SerializedName("subdivisionName") val subdivisionName: String = "",
-//    @SerializedName("country") val country: String = "",
+    @SerializedName("countryName") val countryName: String = "India",
     @SerializedName("pincode") val pincode: String = ""
 )
 
 data class LeadGarmentSpecificationPayload(
     @SerializedName("garmentId") val garmentId: String,
-    @SerializedName("garmentCategoryId") val garmentCategoryId: String,
+    @SerializedName("garmentCategoryId") val garmentCategoryId: String? = null,
     @SerializedName("quantity") val quantity: Int
 )
 // Add these data classes (e.g. in the same file as CreateLeadFormResponse, or a new GarmentCategory.kt)

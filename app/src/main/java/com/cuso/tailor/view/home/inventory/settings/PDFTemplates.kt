@@ -11,7 +11,7 @@ import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -106,14 +106,16 @@ fun PdfTemplatesScreen(
     }
 
     val templates: List<PdfTemplate> = remember(remoteTemplates, currentType) {
-        remoteTemplates.map { dto ->
-            val theme = if (dto.templateKey.equals("standard", ignoreCase = true)) "standard" else "modern"
+        remoteTemplates.mapIndexed { index, dto ->
+            val rawKey = dto.templateKey
+            val theme = if (rawKey.equals("standard", ignoreCase = true)) "standard" else "modern"
+            val safeId = dto.id.ifBlank { "${currentType.apiValue}_${theme}_$index" }
             PdfTemplate(
-                id = dto.id,
+                id = safeId,
                 type = currentType,
-                name = dto.name,
+                name = dto.name.ifBlank { theme.replaceFirstChar { it.uppercase() } },
                 templateTheme = theme,
-                thumbnailRes = getThumbnailForTemplate(currentType, dto.templateKey),
+                thumbnailRes = getThumbnailForTemplate(currentType, rawKey),
                 updatedAgo = "Updated recently",
                 isBuiltInDefault = dto.isDefault,
                 rawDto = dto
@@ -203,7 +205,11 @@ fun PdfTemplatesScreen(
                         )
                     }
                 } else {
-                    items(templates, key = { it.id }) { template ->
+                    // Include list index in key to prevent duplicate or empty key crashes
+                    itemsIndexed(
+                        items = templates,
+                        key = { index, template -> "${template.id}_$index" }
+                    ) { _, template ->
                         TemplateCard(
                             name = template.name,
                             updatedAgo = template.updatedAgo,

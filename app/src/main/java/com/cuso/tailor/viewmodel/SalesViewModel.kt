@@ -19,7 +19,6 @@ import com.cuso.tailor.model.sales.CancelOrderRequest
 import com.cuso.tailor.model.sales.CancelOrderResponse
 import com.cuso.tailor.model.sales.CategoryItem
 import com.cuso.tailor.model.sales.ConvertToOrderData
-import com.cuso.tailor.model.sales.CreateLeadFormRequest
 import com.cuso.tailor.model.sales.CustomerAnalyticsData
 import com.cuso.tailor.model.sales.CustomerAnalyticsResponse
 import com.cuso.tailor.model.sales.CustomerSearchResponse
@@ -67,6 +66,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import okhttp3.MultipartBody
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -569,10 +569,13 @@ class SalesViewModel @Inject constructor(
     // Lead CRUD Operations
     // =============================================================
 
-    fun createLead(request: CreateLeadFormRequest) {
+    fun createLead(
+        fields: Map<String, String>,
+        attachmentParts: List<MultipartBody.Part> = emptyList()
+    ) {
         launchBusy {
             _leadState.value = SaleState.Loading
-            repository.createLead(request).fold(
+            repository.createLead(fields, attachmentParts).fold(
                 onSuccess = { response ->
                     _leadState.value = if (response.success && response.data != null)
                         SaleState.Success(response.data)
@@ -583,16 +586,22 @@ class SalesViewModel @Inject constructor(
         }
     }
 
-    fun updateLeadById(leadId: String, request: CreateLeadFormRequest) {
+    fun updateLeadById(
+        leadId: String,
+        fields: Map<String, String>,
+        attachmentParts: List<MultipartBody.Part> = emptyList()
+    ) {
         launchBusy {
             _updateState.value = SaleState.Loading
             try {
-                val response = repository.updateLead(leadId, request)
+                val response = repository.updateLead(leadId, fields, attachmentParts)
                 if (response.isSuccessful && response.body()?.success == true) {
                     _updateState.value = SaleState.Success(Unit)
                     fetchTableLeads()
                 } else {
-                    _updateState.value = SaleState.Error("Update failed [${response.code()}]")
+                    val errorMsg = response.errorBody()?.string()?.takeIf { it.isNotBlank() }
+                        ?: "Update failed [${response.code()}]"
+                    _updateState.value = SaleState.Error(errorMsg)
                 }
             } catch (e: Exception) {
                 _updateState.value = SaleState.Error("Exception: ${e.message}")

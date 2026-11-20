@@ -122,11 +122,30 @@ import okhttp3.MultipartBody
 import java.io.File
 import javax.inject.Inject
 import kotlin.collections.filter
-
+import com.cuso.tailor.model.hr.LeaveBalanceItemDto
+import com.cuso.tailor.model.hr.LeaveBalanceListResponse
+import com.cuso.tailor.model.hr.LeaveDashboardMetrics
+import com.cuso.tailor.model.hr.LeaveUtilizationUiItem
+import com.cuso.tailor.model.hr.MonthlyUsageTrendUiItem
+import com.cuso.tailor.model.hr.extractAllocatedDays
+import com.cuso.tailor.model.hr.extractEmployeeCode
+import com.cuso.tailor.model.hr.extractEmployeeName
+import com.cuso.tailor.model.hr.extractLeaveTypeId
+import com.cuso.tailor.model.hr.extractLeaveTypeName
+import com.cuso.tailor.model.hr.extractRemainingDays
+import com.cuso.tailor.model.hr.extractUsedDays
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 // Base path for all salary component endpoints
 private const val SALARY_BASE = "/api/hr/salary-component"
 // Add constant at top of HrViewModel.kt
 private const val EXPENSE_TYPE_BASE = "/api/hr/expense-type"
+private const val LEAVE_BALANCE_BASE = "/api/hr/leave-balance"
+private const val LEAVE_REQUEST_BASE = "/api/hr/leave-request"
+
 
 private const val CREATE_ROLE_URL = "/api/roles/create"
 private const val EXIT_REQUEST_BASE = "/api/hr/exit-request"
@@ -635,7 +654,315 @@ class HrViewModel @Inject constructor(
             _isLoadingActiveExpenseTypes.value = false
         }
     }
+    // ═══════════════════════════════════════════════════════════════════
+    // ── Leave Dashboard & Leave Balances ──
+    // ═══════════════════════════════════════════════════════════════════
 
+    private val _isLoadingLeaveDashboard = MutableStateFlow(false)
+    val isLoadingLeaveDashboard: StateFlow<Boolean> = _isLoadingLeaveDashboard.asStateFlow()
+
+    private val _leaveDashboardError = MutableStateFlow<String?>(null)
+    val leaveDashboardError: StateFlow<String?> = _leaveDashboardError.asStateFlow()
+
+    private val _leaveDashboardMetrics = MutableStateFlow(LeaveDashboardMetrics())
+    val leaveDashboardMetrics: StateFlow<LeaveDashboardMetrics> = _leaveDashboardMetrics.asStateFlow()
+
+    private val _leaveUtilizationList = MutableStateFlow<List<LeaveUtilizationUiItem>>(emptyList())
+    val leaveUtilizationList: StateFlow<List<LeaveUtilizationUiItem>> = _leaveUtilizationList.asStateFlow()
+
+    private val _monthlyLeaveTrends = MutableStateFlow<List<MonthlyUsageTrendUiItem>>(emptyList())
+    val monthlyLeaveTrends: StateFlow<List<MonthlyUsageTrendUiItem>> = _monthlyLeaveTrends.asStateFlow()
+
+    private val _allLeaveBalances = MutableStateFlow<List<LeaveBalanceItemDto>>(emptyList())
+    val allLeaveBalances: StateFlow<List<LeaveBalanceItemDto>> = _allLeaveBalances.asStateFlow()
+
+    private val _leaveBalancesPagingState = MutableStateFlow(PagingUiState<LeaveBalanceItemDto>())
+    val leaveBalancesPagingState: StateFlow<PagingUiState<LeaveBalanceItemDto>> =
+        _leaveBalancesPagingState.asStateFlow()
+
+    private val _leaveBalancesError = MutableStateFlow<String?>(null)
+    val leaveBalancesError: StateFlow<String?> = _leaveBalancesError.asStateFlow()
+
+    private var balanceCurrentPage = 1
+    private val balancePageSize = 100
+    private var balanceHasNextPage = false
+    private var balanceSearchQuery = ""
+    private var balanceSelectedLeaveTypeId = "all"
+    private var balanceSelectedBudgetStatus = "all" // "all", "in_budget", "exhausted"
+
+    /**
+     * Fetches Leave Requests, Leave Balances, and Leave Types in parallel for the Leave Dashboard.
+     */
+    fun fetchLeaveDashboardData() {
+        viewModelScope.launch {
+            _isLoadingLeaveDashboard.value = true
+            _leaveDashboardError.value = null
+
+            try {
+                coroutineScope {
+                    val requestsDeferred = async {
+                        repo.request<LeaveRequestsResponse> {
+                            get("$LEAVE_REQUEST_BASE/view-all", repo.query("page" to 1, "limit" to 100))
+                        }
+                    }
+                    val balancesDeferred = async {
+                        repo.request<LeaveBalanceListResponse> {
+                            get("$LEAVE_BALANCE_BASE/view-all", repo.query("page" to 1, "limit" to 100))
+                        }
+                    }
+                    val typesDeferred = async {
+                        hrRepository.getLeaveTypes()
+                    }
+
+                    val requestsResult = requestsDeferred.await()
+                    val balancesResult = balancesDeferred.await()
+                    val typesResult = typesDeferred.await()
+
+                    val leaves = requestsResult.getOrNull()?.data?.data.orEmpty()
+                    val balances = balancesResult.getOrNull()?.data.orEmpty()
+                    val types = typesResult.getOrDefault(emptyList())
+
+                    _leaveRequests.value = leaves
+                    _allLeaveBalances.value = balances
+                    _leaveTypes.value = types
+
+                    // Build leave type lookup map (id -> name)
+                    val typeNameMap = mutableMapOf<String, String>()
+                    types.forEach { t ->
+                        val id = t.id
+                        if (id.isNotBlank() && t.name.isNotBlank()) {
+                            typeNameMap[id] = t.name
+                        }
+                    }
+
+                    // 1. Compute KPI counts
+                    val approved = leaves.count { it.status.equals("Approved", ignoreCase = true) }
+                    val pending = leaves.count { it.status.equals("Pending", ignoreCase = true) }
+                    val rejected = leaves.count { it.status.equals("Rejected", ignoreCase = true) }
+
+                    _leaveDashboardMetrics.value = LeaveDashboardMetrics(
+                        totalLeaves = leaves.size,
+                        approvedCount = approved,
+                        pendingCount = pending,
+                        rejectedCount = rejected
+                    )
+
+                    // 2. Compute Leave Balance Overview grouped by leave type
+                    val grouped = linkedMapOf<String, Pair<Double, Double>>() // name -> (used, total)
+                    balances.forEach { balance ->
+                        val name = balance.extractLeaveTypeName(typeNameMap)
+                        val allocated = balance.extractAllocatedDays()
+                        val used = balance.extractUsedDays()
+                        val current = grouped[name] ?: (0.0 to 0.0)
+                        grouped[name] = (current.first + used) to (current.second + allocated)
+                    }
+
+                    _leaveUtilizationList.value = grouped.map { (name, totals) ->
+                        val usedInt = totals.first.toInt()
+                        val totalInt = totals.second.toInt()
+                        val remainingInt = (totalInt - usedInt).coerceAtLeast(0)
+                        val fraction = if (totalInt > 0) (usedInt.toFloat() / totalInt.toFloat()).coerceIn(0f, 1f) else 0f
+                        LeaveUtilizationUiItem(
+                            name = name,
+                            used = usedInt,
+                            total = totalInt,
+                            remaining = remainingInt,
+                            progress = fraction
+                        )
+                    }
+
+                    // 3. Compute 6-Month Usage Trend
+                    _monthlyLeaveTrends.value = buildSixMonthUsageTrends(leaves)
+
+                    if (requestsResult.isFailure && balancesResult.isFailure) {
+                        _leaveDashboardError.value = "Failed to load leave dashboard data"
+                    }
+                }
+            } catch (e: Exception) {
+                if (e !is CancellationException) {
+                    _leaveDashboardError.value = e.message ?: "Failed to load leave dashboard data"
+                }
+            } finally {
+                _isLoadingLeaveDashboard.value = false
+            }
+        }
+    }
+
+    /**
+     * Fetches paginated Leave Balances from GET /api/hr/leave-balance/view-all?limit=100
+     */
+    fun fetchLeaveBalances(limit: Int = balancePageSize) {
+        balanceCurrentPage = 1
+        viewModelScope.launch {
+            _leaveBalancesError.value = null
+            _leaveBalancesPagingState.value = PagingUiState(isInitialLoading = true)
+
+            // Ensure leave types are loaded so leaveTypeId references resolve to display names
+            if (_leaveTypes.value.isEmpty()) {
+                hrRepository.getLeaveTypes().onSuccess { _leaveTypes.value = it }
+            }
+
+            val result = repo.request<LeaveBalanceListResponse> {
+                get(
+                    "$LEAVE_BALANCE_BASE/view-all",
+                    repo.query("page" to balanceCurrentPage, "limit" to limit)
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    _allLeaveBalances.value = res.data
+                    balanceHasNextPage = res.pagination?.hasNextPage ?: (res.data.size >= limit)
+                    rebuildLeaveBalancesPagingState(isLoadingMore = false)
+                },
+                onFailure = { error ->
+                    _leaveBalancesError.value = error.message ?: "Failed to fetch leave balances"
+                    _leaveBalancesPagingState.value = PagingUiState(isInitialLoading = false)
+                }
+            )
+        }
+    }
+
+    /**
+     * Loads the next page of Leave Balances when scrolling to the bottom
+     */
+    fun loadMoreLeaveBalances(limit: Int = balancePageSize) {
+        val current = _leaveBalancesPagingState.value
+        if (current.isInitialLoading || current.isLoadingMore || !balanceHasNextPage) return
+
+        viewModelScope.launch {
+            _leaveBalancesPagingState.value = current.copy(isLoadingMore = true)
+            val nextPage = balanceCurrentPage + 1
+
+            val result = repo.request<LeaveBalanceListResponse> {
+                get(
+                    "$LEAVE_BALANCE_BASE/view-all",
+                    repo.query("page" to nextPage, "limit" to limit)
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    val merged = (_allLeaveBalances.value + res.data).distinctBy {
+                        it.resolvedId.ifBlank { "${it.extractEmployeeName()}_${it.extractLeaveTypeId()}" }
+                    }
+                    if (merged.size > _allLeaveBalances.value.size) {
+                        balanceCurrentPage = nextPage
+                    }
+                    _allLeaveBalances.value = merged
+                    balanceHasNextPage = res.pagination?.hasNextPage ?: (res.data.size >= limit)
+                    rebuildLeaveBalancesPagingState(isLoadingMore = false)
+                },
+                onFailure = {
+                    _leaveBalancesPagingState.value = current.copy(isLoadingMore = false)
+                }
+            )
+        }
+    }
+
+    fun onLeaveBalanceSearchChanged(query: String) {
+        balanceSearchQuery = query
+        rebuildLeaveBalancesPagingState(isLoadingMore = false)
+    }
+
+    fun applyLeaveBalanceFilters(leaveTypeId: String, budgetStatus: String) {
+        balanceSelectedLeaveTypeId = leaveTypeId
+        balanceSelectedBudgetStatus = budgetStatus
+        rebuildLeaveBalancesPagingState(isLoadingMore = false)
+    }
+
+    fun resetLeaveBalanceFilters() {
+        balanceSearchQuery = ""
+        balanceSelectedLeaveTypeId = "all"
+        balanceSelectedBudgetStatus = "all"
+        rebuildLeaveBalancesPagingState(isLoadingMore = false)
+    }
+
+    private fun rebuildLeaveBalancesPagingState(isLoadingMore: Boolean) {
+        val typeMap = _leaveTypes.value.associate { it.id to it.name }
+        val query = balanceSearchQuery.trim().lowercase()
+
+        val filtered = _allLeaveBalances.value.filter { item ->
+            val empName = item.extractEmployeeName().lowercase()
+            val empCode = item.extractEmployeeCode().lowercase()
+            val typeName = item.extractLeaveTypeName(typeMap).lowercase()
+            val typeId = item.extractLeaveTypeId()
+            val remaining = item.extractRemainingDays()
+
+            val matchesSearch = query.isBlank() ||
+                    empName.contains(query) ||
+                    empCode.contains(query) ||
+                    typeName.contains(query)
+
+            val matchesType = balanceSelectedLeaveTypeId == "all" ||
+                    typeId == balanceSelectedLeaveTypeId ||
+                    typeName.equals(balanceSelectedLeaveTypeId, ignoreCase = true)
+
+            val matchesBudget = when (balanceSelectedBudgetStatus) {
+                "in_budget" -> remaining > 0.0
+                "exhausted" -> remaining <= 0.0
+                else -> true
+            }
+
+            matchesSearch && matchesType && matchesBudget
+        }
+
+        _leaveBalancesPagingState.value = PagingUiState(
+            items = filtered,
+            isInitialLoading = false,
+            isLoadingMore = isLoadingMore,
+            canLoadMore = balanceHasNextPage
+        )
+    }
+
+    private fun buildSixMonthUsageTrends(leaves: List<LeaveRequestItemDto>): List<MonthlyUsageTrendUiItem> {
+        val calendar = Calendar.getInstance()
+        val monthLabelFormat = SimpleDateFormat("MMM", Locale.ENGLISH)
+        val isoParsers = listOf(
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ENGLISH),
+            SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH)
+        )
+
+        fun parseMonthYear(rawDate: String?): Pair<Int, Int>? {
+            if (rawDate.isNullOrBlank()) return null
+            for (parser in isoParsers) {
+                try {
+                    val parsed = parser.parse(rawDate) ?: continue
+                    val cal = Calendar.getInstance().apply { time = parsed }
+                    return cal.get(Calendar.MONTH) to cal.get(Calendar.YEAR)
+                } catch (_: Exception) {
+                }
+            }
+            return null
+        }
+
+        val rawBuckets = (5 downTo 0).map { offset ->
+            val cal = (calendar.clone() as Calendar).apply {
+                set(Calendar.DAY_OF_MONTH, 1)
+                add(Calendar.MONTH, -offset)
+            }
+            val targetMonth = cal.get(Calendar.MONTH)
+            val targetYear = cal.get(Calendar.YEAR)
+            val label = monthLabelFormat.format(cal.time)
+
+            val count = leaves.count { req ->
+                val dateTuple = parseMonthYear(req.createdAt ?: req.startDate)
+                dateTuple != null && dateTuple.first == targetMonth && dateTuple.second == targetYear
+            }
+            Triple(label, count, offset == 0)
+        }
+
+        val maxCount = rawBuckets.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1
+
+        return rawBuckets.map { (label, count, isCurrent) ->
+            MonthlyUsageTrendUiItem(
+                monthLabel = label,
+                count = count,
+                heightFraction = if (count == 0) 0f else (count.toFloat() / maxCount.toFloat()).coerceIn(0.12f, 1f),
+                isCurrentMonth = isCurrent
+            )
+        }
+    }
     // =========================================================================
     // EXPENSE CLAIMS (VIEW-ALL, VIEW-ONE, SUBMIT/DRAFT)
     // =========================================================================
@@ -3140,14 +3467,20 @@ class HrViewModel @Inject constructor(
 
     // 4. Fetch Single Employee Document by ID (View-One)
     fun fetchEmployeeDocumentById(id: String, onError: (String) -> Unit = {}) {
+        if (id.isBlank()) return
         viewModelScope.launch {
             _isLoadingDocumentDetail.value = true
+            _documentDetail.value = null
             val result = repo.request<EmployeeDocumentSingleResponse> {
                 get("$EMP_DOCUMENT_BASE/view-one/$id")
             }
             result.fold(
                 onSuccess = { res ->
-                    _documentDetail.value = res.data
+                    if (res.success && res.data != null) {
+                        _documentDetail.value = res.data
+                    } else {
+                        onError(res.message ?: "Failed to fetch document details")
+                    }
                 },
                 onFailure = { error ->
                     onError(error.message ?: "Failed to fetch document details")
@@ -4348,7 +4681,7 @@ class HrViewModel @Inject constructor(
         val membersCount = teams.sumOf { it.activeMembers().size }
         val available = teams.count { it.availabilityStatus().equals("Available", ignoreCase = true) }
         val facilities = teams.map { it.location.trim() }.filter { it.isNotBlank() }.toSet().size
-        val activePct = if (total > 0) String.format(java.util.Locale.US, "%.1f", (active * 100.0) / total) else "0.0"
+        val activePct = if (total > 0) String.format(Locale.US, "%.1f", (active * 100.0) / total) else "0.0"
 
         _productionTeamKpi.value = ProductionTeamKpiSummary(
             totalTeams = total,

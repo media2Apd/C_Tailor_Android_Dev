@@ -688,7 +688,7 @@ class SettingsRepository @Inject constructor(
             )
             val body = response.body()
             if (response.isSuccessful && body?.success == true) {
-                // ✅ Takes from body.data first!
+                //  Takes from body.data first!
                 val list = body.data ?: body.floors ?: emptyList()
                 Result.success(list)
             } else {
@@ -783,7 +783,7 @@ class SettingsRepository @Inject constructor(
             )
             val body = response.body()
             if (response.isSuccessful && body?.success == true) {
-                // ✅ Takes from body.data first!
+                //  Takes from body.data first!
                 val list = body.data ?: body.sections ?: emptyList()
                 Result.success(list)
             } else {
@@ -880,7 +880,7 @@ class SettingsRepository @Inject constructor(
             )
             val body = response.body()
             if (response.isSuccessful && body?.success == true) {
-                // ✅ Takes from body.data first!
+                //  Takes from body.data first!
                 val list = body.data ?: body.racks ?: emptyList()
                 Result.success(list)
             } else {
@@ -971,7 +971,7 @@ class SettingsRepository @Inject constructor(
             )
             val body = response.body()
             if (response.isSuccessful && body?.success == true) {
-                // ✅ Takes from body.data first!
+                //  Takes from body.data first!
                 val list = body.data ?: body.bins ?: emptyList()
                 Result.success(list)
             } else {

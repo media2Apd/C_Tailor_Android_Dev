@@ -241,7 +241,7 @@ fun ReimbursementItemCard(
     )
 }
 
-// 🟢 NEW STANDALONE SCREEN (Replaces Dialog)
+// NEW STANDALONE SCREEN (Replaces Dialog)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProcessPaymentScreen(

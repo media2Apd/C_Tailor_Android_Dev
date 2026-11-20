@@ -8,7 +8,7 @@ import com.google.gson.annotations.SerializedName
 import java.lang.reflect.Type
 
 // ──────────────────────────────────────────────────────────────
-// 📋 List Response
+//  List Response
 // ──────────────────────────────────────────────────────────────
 data class DesignationListResponse(
     val success: Boolean,
@@ -16,7 +16,7 @@ data class DesignationListResponse(
 )
 
 // ──────────────────────────────────────────────────────────────
-// ➕ Create
+//  Create
 // ──────────────────────────────────────────────────────────────
 data class DesignationCreateRequest(
     val name: String,
@@ -31,7 +31,7 @@ data class DesignationCreateResponse(
 )
 
 // ──────────────────────────────────────────────────────────────
-// ✏️ Update
+//  Update
 // ──────────────────────────────────────────────────────────────
 data class DesignationUpdateRequest(
     val name: String,
@@ -64,7 +64,7 @@ data class DesignationUpdateData(
 )
 
 // ──────────────────────────────────────────────────────────────
-// 🗑️ Delete
+//  Delete
 // ──────────────────────────────────────────────────────────────
 data class DesignationDeleteResponse(
     val success: Boolean,
@@ -74,7 +74,7 @@ data class DesignationDeleteResponse(
 
 
 // ──────────────────────────────────────────────────────────────
-// 👤 Person
+//  Person
 // ──────────────────────────────────────────────────────────────
 data class DesignationPerson(
     @SerializedName("_id") val id: String = "",
@@ -84,7 +84,7 @@ data class DesignationPerson(
 )
 
 // ──────────────────────────────────────────────────────────────
-// 🔧 Flexible Deserializer (handles both string and object)
+//  Flexible Deserializer (handles both string and object)
 // ──────────────────────────────────────────────────────────────
 class FlexibleDesignationPersonDeserializer : JsonDeserializer<DesignationPerson?> {
     override fun deserialize(

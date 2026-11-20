@@ -1,6 +1,8 @@
 package com.cuso.tailor.network.sales
 
 import com.cuso.tailor.model.sales.*
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -32,11 +34,13 @@ interface SalesLeadApiService {
         @Path("id") id: String
     ): Response<ViewOneLeadResponse>
 
+    @Multipart
     @POST("/api/sales/leads/create")
     suspend fun createLead(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,
-        @Body request: CreateLeadFormRequest
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part attachments: List<MultipartBody.Part> = emptyList()
     ): Response<CreateLeadFormResponse>
 
     @POST("/api/sales/leads/convert-to-order/{leadId}")
@@ -46,12 +50,14 @@ interface SalesLeadApiService {
         @Path("leadId") leadId: String
     ): Response<ConvertLeadToOrderResponse>
 
+    @Multipart
     @PUT("/api/sales/leads/update-one/{id}")
     suspend fun updateLead(
         @Header("Authorization") accessToken: String,
         @Header("X-CSRF-Token") csrfToken: String,
         @Path("id") id: String,
-        @Body request: UpdateLeadRequest
+        @PartMap fields: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part attachments: List<MultipartBody.Part> = emptyList()
     ): Response<UpdateLeadResponse>
 
     @DELETE("/api/sales/leads/delete-one/{id}")

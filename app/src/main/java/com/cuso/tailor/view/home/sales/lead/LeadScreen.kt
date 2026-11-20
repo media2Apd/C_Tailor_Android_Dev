@@ -11,6 +11,10 @@
 package com.cuso.tailor.view.home.sales.lead
 
 import android.annotation.SuppressLint
+import android.net.Uri
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -51,7 +55,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.model.sales.CreateLeadFormRequest
 import com.cuso.tailor.model.sales.GarmentCategoryDto
 import com.cuso.tailor.model.sales.LeadTableItem
 import com.cuso.tailor.model.sales.toLeadEntity
@@ -68,8 +71,15 @@ import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.SaleState
 import com.cuso.tailor.viewmodel.SalesViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
+import android.content.Context
+import android.provider.OpenableColumns
+import androidx.compose.ui.platform.LocalContext
+import com.google.gson.Gson
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import kotlin.collections.filter
 
 enum class LeadFormMode {
@@ -89,7 +99,7 @@ data class LeadGarmentItemRow(
 @Composable
 fun LeadFormTopBar(
     title: String,
-    badgeText: String,
+//    badgeText: String,
     badgeColor: Color = Primary,
     onClose: () -> Unit,
     isConverted: Boolean = false,
@@ -105,7 +115,27 @@ fun LeadFormTopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(title, fontSize = tokens.h1, fontWeight = FontWeight.Bold, color = title_color)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(title, fontSize = tokens.h1, fontWeight = FontWeight.Bold, color = title_color)
+//            if (badgeText.isNotBlank()) {
+//                Surface(
+//                    shape = RoundedCornerShape(tokens.cardCornerRadius),
+//                    color = badgeColor.copy(alpha = 0.12f)
+//                ) {
+//                    Text(
+//                        text = badgeText,
+//                        fontSize = tokens.caption,
+//                        fontWeight = FontWeight.SemiBold,
+//                        color = badgeColor,
+//                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+//                    )
+//                }
+//            }
+        }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
@@ -243,6 +273,7 @@ fun LeadFormScreen(
     branchViewModel: BranchViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
+    val context = LocalContext.current
 
     val isCreate = mode == LeadFormMode.CREATE
     val isView = mode == LeadFormMode.VIEW
@@ -406,13 +437,13 @@ fun LeadFormScreen(
         }
     }
 
-    var leadSource by remember { mutableStateOf(l?.source?.takeIf { it.isNotBlank() && it != "—" } ?: "") }
+    var leadSource by remember { mutableStateOf(l?.source?.takeIf { it.isNotBlank() && it != "—" } ?: "Walk-in") }
     var enquiryDate by remember { mutableStateOf(l?.let { formatLeadDate(it.enquiryDate) }?.takeIf { it.isNotBlank() && it != "—" } ?: todayFormatted) }
     var leadOwner by remember { mutableStateOf(l?.leadOwner ?: "") }
-    var pipelineStatus by remember { mutableStateOf(l?.status?.takeIf { it.isNotBlank() } ?: "") }
-    var lifecycleStatus by remember { mutableStateOf("") }
+    var pipelineStatus by remember { mutableStateOf(l?.status?.takeIf { it.isNotBlank() } ?: "New") }
+    var lifecycleStatus by remember { mutableStateOf("Active") }
 
-    var customerType by remember { mutableStateOf(l?.customerType?.replaceFirstChar { c -> c.uppercase() }?.takeIf { it.isNotBlank() } ?: "") }
+    var customerType by remember { mutableStateOf(l?.customerType?.replaceFirstChar { c -> c.uppercase() }?.takeIf { it.isNotBlank() } ?: "Individual") }
     var fullName by remember { mutableStateOf(l?.fullName ?: "") }
     var mobileNumber by remember { mutableStateOf(l?.phone ?: "") }
     var emailAddress by remember { mutableStateOf(l?.email ?: "") }
@@ -426,10 +457,10 @@ fun LeadFormScreen(
     var city by remember { mutableStateOf(l?.city ?: "") }
     var stateProvince by remember { mutableStateOf("") }
     var pincode by remember { mutableStateOf("") }
-    var country by remember { mutableStateOf("") }
-    var preferredContact by remember { mutableStateOf(l?.preferredContactMethod?.takeIf { it.isNotBlank() } ?: "") }
+    var country by remember { mutableStateOf("India") }
+    var preferredContact by remember { mutableStateOf(l?.preferredContactMethod?.takeIf { it.isNotBlank() } ?: "Whatsapp") }
 
-    var enquiryClassification by remember { mutableStateOf(l?.enquiryType?.takeIf { it.isNotBlank() } ?: "") }
+    var enquiryClassification by remember { mutableStateOf(l?.enquiryType?.takeIf { it.isNotBlank() } ?: "New_Order") }
     var requiredCompletionDate by remember { mutableStateOf(l?.let { formatLeadDate(it.requiredDate) }?.takeIf { it != "—" } ?: "") }
     var minBudget by remember { mutableStateOf(l?.budgetMin?.takeIf { it > 0 }?.toString() ?: "") }
     var maxBudget by remember { mutableStateOf(l?.budgetMax?.takeIf { it > 0 }?.toString() ?: "") }
@@ -439,19 +470,35 @@ fun LeadFormScreen(
     }
 
     var fabricProvided by remember { mutableStateOf(false) }
-    var fabricSource by remember { mutableStateOf("") }
+    var fabricSource by remember { mutableStateOf("Customer_Provided") }
     var fabricNotes by remember { mutableStateOf("") }
 
     var appointmentRequired by remember { mutableStateOf(l?.appointmentRequired ?: false) }
     var assignedStaff by remember { mutableStateOf(l?.assignedStaff ?: "") }
-    var priorityLevel by remember { mutableStateOf(l?.priority?.takeIf { it.isNotBlank() } ?: "") }
+    var priorityLevel by remember { mutableStateOf(l?.priority?.takeIf { it.isNotBlank() } ?: "Medium") }
     var nextFollowUpDate by remember { mutableStateOf(l?.let { formatLeadDate(it.followUpDate) }?.takeIf { it != "—" } ?: "") }
+    var nextFollowUpTime by remember { mutableStateOf("") }
     var appointmentDate by remember { mutableStateOf(l?.let { formatLeadDate(it.appointmentDate) }?.takeIf { it != "—" } ?: "") }
     var appointmentTime by remember { mutableStateOf(l?.appointmentTime?.takeIf { it != "—" } ?: "") }
-    var appointmentStatus by remember { mutableStateOf("") }
+    var appointmentStatus by remember { mutableStateOf("None") }
 
     var internalNotes by remember { mutableStateOf(l?.internalNotes ?: "") }
     var customerNotes by remember { mutableStateOf(l?.customerNotes ?: "") }
+    var attachments by remember { mutableStateOf<List<Uri>>(emptyList()) }
+
+    // Track user edits for the unsaved-changes confirmation dialog
+    var isUserInteracted by remember { mutableStateOf(false) }
+    var showDiscardConfirmDialog by remember { mutableStateOf(false) }
+
+    // File picker launcher for reference attachments (max 5 files)
+    val attachmentPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            isUserInteracted = true
+            attachments = (attachments + uris).distinct().take(5)
+        }
+    }
 
     var branchExpanded by remember { mutableStateOf(false) }
     var leadSourceExpanded by remember { mutableStateOf(false) }
@@ -467,6 +514,44 @@ fun LeadFormScreen(
     var appointmentStatusExpanded by remember { mutableStateOf(false) }
 
     var expandedSection by remember { mutableStateOf("") }
+
+    // Normalized snapshot for detecting unsaved changes (mirrors normalizeFormForComparison in LeadForm.jsx)
+    val currentFormSnapshot = remember(
+        selectedBranchId, leadSource, enquiryDate, leadOwner, pipelineStatus, lifecycleStatus,
+        customerType, fullName, mobileNumber, emailAddress, gender, dateOfBirth,
+        flatDoorNo, streetLandmark, areaZone, city, stateProvince, country, pincode,
+        preferredContact, enquiryClassification, requiredCompletionDate, garmentSpecs,
+        minBudget, maxBudget, fabricProvided, fabricSource, fabricNotes,
+        appointmentRequired, appointmentDate, appointmentTime, assignedStaff, appointmentStatus,
+        nextFollowUpDate, nextFollowUpTime, priorityLevel, internalNotes, customerNotes, attachments
+    ) {
+        listOf(
+            selectedBranchId, leadSource, enquiryDate, leadOwner, pipelineStatus, lifecycleStatus,
+            customerType, fullName.trim(), mobileNumber.replace(Regex("\\D"), "").let { if (it.length <= 3) "" else it },
+            emailAddress.trim(), gender, dateOfBirth, flatDoorNo.trim(), streetLandmark.trim(),
+            areaZone.trim(), city.trim(), stateProvince.trim(), country.trim(), pincode.trim(),
+            preferredContact, enquiryClassification, requiredCompletionDate,
+            garmentSpecs.joinToString("|") { "${it.templateId}:${it.categoryId}:${it.quantity.toIntOrNull() ?: 1}" },
+            minBudget.trim(), maxBudget.trim(), fabricProvided.toString(), fabricSource, fabricNotes.trim(),
+            appointmentRequired.toString(), appointmentDate, appointmentTime, assignedStaff, appointmentStatus,
+            nextFollowUpDate, nextFollowUpTime, priorityLevel, internalNotes.trim(), customerNotes.trim(),
+            attachments.joinToString(",")
+        ).joinToString("::")
+    }
+    var initialFormSnapshot by remember { mutableStateOf(currentFormSnapshot) }
+    val hasUnsavedChanges = isEditable && isUserInteracted && (currentFormSnapshot != initialFormSnapshot)
+
+    val handleAttemptBack: () -> Unit = {
+        if (hasUnsavedChanges) {
+            showDiscardConfirmDialog = true
+        } else {
+            onBack()
+        }
+    }
+
+    BackHandler(enabled = hasUnsavedChanges) {
+        showDiscardConfirmDialog = true
+    }
 
     var validationError by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
@@ -488,6 +573,46 @@ fun LeadFormScreen(
     }
     val isLeadConverted = matchingLeadItem?.isConverted == true ||
             l?.status?.contains("Convert", ignoreCase = true) == true
+
+    LaunchedEffect(l?.id) {
+        if (!isCreate && l != null) {
+            leadSource = l.source.takeIf { it.isNotBlank() && it != "—" } ?: "Walk-in"
+            enquiryDate = formatLeadDate(l.enquiryDate).takeIf { it.isNotBlank() && it != "—" } ?: todayFormatted
+            leadOwner = l.leadOwner
+            pipelineStatus = l.status.takeIf { it.isNotBlank() } ?: "New"
+            customerType = l.customerType.replaceFirstChar { c -> c.uppercase() }?.takeIf { it.isNotBlank() } ?: "Individual"
+            fullName = l.fullName
+            mobileNumber = l.phone
+            emailAddress = l.email
+            gender = l.gender
+            dateOfBirth = formatLeadDate(l.dob).takeIf { it != "—" } ?: ""
+            streetLandmark = l.address
+            areaZone = l.area
+            city = l.city
+            preferredContact = l.preferredContactMethod.takeIf { it.isNotBlank() } ?: "Whatsapp"
+            enquiryClassification = l.enquiryType?.takeIf { it.isNotBlank() } ?: "New_Order"
+            requiredCompletionDate = formatLeadDate(l.requiredDate).takeIf { it != "—" } ?: ""
+            minBudget = l.budgetMin.takeIf { it > 0 }?.toString() ?: ""
+            maxBudget = l.budgetMax.takeIf { it > 0 }?.toString() ?: ""
+            appointmentRequired = l.appointmentRequired
+            assignedStaff = l.assignedStaff ?: ""
+            priorityLevel = l.priority?.takeIf { it.isNotBlank() } ?: "Medium"
+            nextFollowUpDate = formatLeadDate(l.followUpDate).takeIf { it != "—" } ?: ""
+            appointmentDate = formatLeadDate(l.appointmentDate).takeIf { it != "—" } ?: ""
+            appointmentTime = l.appointmentTime?.takeIf { it != "—" } ?: ""
+            internalNotes = l.internalNotes
+            customerNotes = l.customerNotes
+            isUserInteracted = false
+        }
+    }
+
+    LaunchedEffect(isCreate, l?.id, branches) {
+        if (isCreate && branches.isNotEmpty() && !isUserInteracted) {
+            initialFormSnapshot = currentFormSnapshot
+        } else if (!isCreate && l != null && !isUserInteracted) {
+            initialFormSnapshot = currentFormSnapshot
+        }
+    }
 
     val selectedBranchLabel = branchIdMap.entries.firstOrNull { it.value == selectedBranchId }?.key ?: ""
 
@@ -597,11 +722,11 @@ fun LeadFormScreen(
             return if (dateStr.isNotBlank()) dateStr.toIsoDate().ifBlank { dateStr } else ""
         }
 
-        // Include every valid garment row (garmentCategoryId is optional in LeadForm.jsx)
+        // Include every valid garment row (garmentCategoryId is nullable when unselected, matching LeadForm.jsx)
         val garmentsPayload = garmentSpecs.map { row ->
             com.cuso.tailor.model.sales.LeadGarmentSpecificationPayload(
                 garmentId = row.templateId,
-                garmentCategoryId = row.categoryId,
+                garmentCategoryId = row.categoryId.takeIf { it.isNotBlank() },
                 quantity = row.quantity.toIntOrNull() ?: 1
             )
         }
@@ -612,6 +737,7 @@ fun LeadFormScreen(
             areaZone = areaZone.trim(),
             city = city.trim(),
             subdivisionName = stateProvince.trim(),
+            countryName = country.trim().ifBlank { "India" },
             pincode = pincode.trim()
         )
 
@@ -622,45 +748,67 @@ fun LeadFormScreen(
         }
 
         val resolvedCustomerType = customerType.ifBlank { "Individual" }
+        val gson = Gson()
 
-        val request = CreateLeadFormRequest(
-            branchId = resolvedBranchId,
-            leadSource = leadSource.ifBlank { "Direct" },
-            enquiryDate = safeIsoDate(enquiryDate),
-            leadOwner = leadOwner,
-            leadStatus = pipelineStatus.ifBlank { "New" },
-            customerType = resolvedCustomerType,
-            fullName = fullName.trim(),
-            mobileNumber = cleanPhone,
-            email = emailAddress.trim().takeIf { it.isNotBlank() },
-            gender = if (resolvedCustomerType.equals("Individual", ignoreCase = true)) gender.takeIf { it.isNotBlank() } else null,
-            dateOfBirth = if (resolvedCustomerType.equals("Individual", ignoreCase = true)) safeIsoDate(dateOfBirth).takeIf { it.isNotBlank() } else null,
-            preferredContactMethod = preferredContact.ifBlank { "Whatsapp" },
-            enquiryType = enquiryClassification.ifBlank { "New_Order" },
-            requiredDate = safeIsoDate(requiredCompletionDate),
-            address = addressPayload,
-            garmentSpecifications = garmentsPayload,
-            budgetMin = parsedMinBudget,
-            budgetMax = parsedMaxBudget,
-            isFabricProvided = fabricProvided,
-            fabricSource = if (fabricProvided) fabricSource.ifBlank { "Customer_Provided" } else null,
-            fabricNotes = if (fabricProvided) fabricNotes.trim().takeIf { it.isNotBlank() } else null,
-            isAppointmentRequired = appointmentRequired,
-            appointmentDate = if (appointmentRequired) safeIsoDate(appointmentDate) else null,
-            appointmentTime = if (appointmentRequired) appointmentTime.takeIf { it.isNotBlank() } else null,
-            appointmentStatus = resolvedAppointmentStatus,
-            assignedStaffId = assignedStaff.takeIf { it.isNotBlank() },
-            followUpDate = safeIsoDate(nextFollowUpDate).takeIf { it.isNotBlank() },
-            priorityLevel = priorityLevel.ifBlank { "Medium" },
-            internalNotes = internalNotes.trim().takeIf { it.isNotBlank() },
-            customerNotes = customerNotes.trim().takeIf { it.isNotBlank() },
-            status = lifecycleStatus.ifBlank { "Active" }
-        )
+        // Build multipart form fields matching the exact backend / React FormData keys
+        val fields = linkedMapOf<String, String>().apply {
+            put("branchId", resolvedBranchId)
+            put("leadSource", leadSource.ifBlank { "Direct" })
+            put("enquiryDate", safeIsoDate(enquiryDate))
+            if (leadOwner.isNotBlank()) put("leadOwner", leadOwner)
+            put("leadStatus", pipelineStatus.ifBlank { "New" })
+
+            put("customerType", resolvedCustomerType)
+            put("fullName", fullName.trim())
+            put("mobileNumber", cleanPhone)
+            if (emailAddress.trim().isNotBlank()) put("email", emailAddress.trim())
+            if (resolvedCustomerType.equals("Individual", ignoreCase = true)) {
+                if (gender.isNotBlank()) put("gender", gender)
+                safeIsoDate(dateOfBirth).takeIf { it.isNotBlank() }?.let { put("dateOfBirth", it) }
+            }
+
+            put("preferredContactMethod", preferredContact.ifBlank { "Whatsapp" })
+            put("preferredLanguage", "English")
+            put("enquiryType", enquiryClassification.ifBlank { "New_Order" })
+            safeIsoDate(requiredCompletionDate).takeIf { it.isNotBlank() }?.let { put("requiredDate", it) }
+
+            // Serialize address and garmentSpecifications as JSON strings inside multipart form-data
+            put("address", gson.toJson(addressPayload))
+            put("garmentSpecifications", gson.toJson(garmentsPayload))
+
+            put("budgetMin", parsedMinBudget.toString())
+            put("budgetMax", parsedMaxBudget.toString())
+            put("currency", "INR")
+
+            put("isFabricProvided", fabricProvided.toString())
+            if (fabricProvided) {
+                put("fabricSource", fabricSource.ifBlank { "Customer_Provided" })
+                put("fabricNotes", fabricNotes.trim())
+            }
+
+            put("isAppointmentRequired", appointmentRequired.toString())
+            if (appointmentRequired) {
+                safeIsoDate(appointmentDate).takeIf { it.isNotBlank() }?.let { put("appointmentDate", it) }
+                appointmentTime.takeIf { it.isNotBlank() }?.let { put("appointmentTime", it) }
+            }
+            put("appointmentStatus", resolvedAppointmentStatus)
+
+            if (assignedStaff.isNotBlank()) put("assignedStaffId", assignedStaff)
+            safeIsoDate(nextFollowUpDate).takeIf { it.isNotBlank() }?.let { put("followUpDate", it) }
+            if (nextFollowUpTime.isNotBlank()) put("followUpTime", nextFollowUpTime)
+
+            put("priorityLevel", priorityLevel.ifBlank { "Medium" })
+            put("internalNotes", internalNotes.trim())
+            put("customerNotes", customerNotes.trim())
+            put("status", lifecycleStatus.ifBlank { "Active" })
+        }
+
+        val attachmentParts = buildLeadAttachmentParts(context, attachments)
 
         if (isCreate) {
-            salesViewModel.createLead(request)
+            salesViewModel.createLead(fields, attachmentParts)
         } else if (isEdit && l != null) {
-            salesViewModel.updateLeadById(l.id, request)
+            salesViewModel.updateLeadById(l.id, fields, attachmentParts)
         }
     }
 
@@ -668,7 +816,8 @@ fun LeadFormScreen(
         if (!isCreate) return@LaunchedEffect
         when (val state = leadState) {
             is SaleState.Success<*> -> {
-//                salesViewModel.fetchSalesData()
+                isUserInteracted = false
+                initialFormSnapshot = currentFormSnapshot
                 onBack()
             }
             is SaleState.Error -> {
@@ -682,6 +831,8 @@ fun LeadFormScreen(
         if (!isEdit) return@LaunchedEffect
         when (val state = updateState) {
             is SaleState.Success<*> -> {
+                isUserInteracted = false
+                initialFormSnapshot = currentFormSnapshot
                 successMessage = "Lead updated successfully"
                 salesViewModel.fetchTableLeads()
                 delay(1000)
@@ -702,15 +853,52 @@ fun LeadFormScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             Column(modifier = Modifier.fillMaxSize()) {
+                val displayBadge = if (isLeadConverted) {
+                    "Converted"
+                } else {
+                    leadStatusMap.entries.firstOrNull { it.value == pipelineStatus }?.key ?: pipelineStatus
+                }
                 LeadFormTopBar(
                     title = if (isCreate) "Create Lead" else if (isEdit) "Edit Lead" else "View Lead",
-                    badgeText = if (isLeadConverted) "Converted" else pipelineStatus,
-                    onClose = onBack,
+//                    badgeText = displayBadge,
+                    onClose = handleAttemptBack,
                     isConverted = isLeadConverted,
                     isViewMode = isView, // Controls visibility so conversion options appear only in VIEW mode
                     onConvertToOpportunity = onConvertToOpportunity
                 )
                 HorizontalDivider(color = title_border)
+
+                // Show validation error or success message banner at the top
+                AnimatedVisibility(visible = validationError != null || successMessage != null) {
+                    val isSuccess = successMessage != null && validationError == null
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(if (isSuccess) greenBg else redBg)
+                            .padding(horizontal = tokens.screenPadding, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = validationError ?: successMessage.orEmpty(),
+                            fontSize = tokens.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isSuccess) darkGreenBg else redText,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Dismiss",
+                            tint = if (isSuccess) darkGreenBg else redText,
+                            modifier = Modifier
+                                .size(tokens.iconSize * 0.9f)
+                                .clickable {
+                                    validationError = null
+                                    successMessage = null
+                                }
+                        )
+                    }
+                }
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -724,6 +912,8 @@ fun LeadFormScreen(
                             }
                         }
                     }
+
+                    // Duplicate notice can be enabled here once LeadEntity exposes isDuplicate
 
                     // Section 1: Lead Information
                     item {
@@ -744,7 +934,12 @@ fun LeadFormScreen(
                                 expanded = branchExpanded && isEditable,
                                 onExpandChange = { if (isEditable) branchExpanded = it },
                                 options = branchOptions,
-                                onOptionSelected = { label -> selectedBranchId = branchIdMap[label] ?: "" },
+                                onOptionSelected = { label ->
+                                    isUserInteracted = true
+                                    if (errorField == "branchId") errorField = null
+                                    selectedBranchId = branchIdMap[label] ?: ""
+                                },
+                                isError = errorField == "branchId",
                                 enabled = isEditable
                             )
 
@@ -919,16 +1114,32 @@ fun LeadFormScreen(
                             FormTextField(value = city, onValueChange = { city = it }, placeholder = "e.g. Bengaluru", enabled = isEditable)
 
                             Spacer(Modifier.height(14.dp))
-                            FormLabel("State / Province")
-                            FormTextField(value = stateProvince, onValueChange = { stateProvince = it }, placeholder = "e.g. Karnataka", enabled = isEditable)
+                            CountryAndStatePicker(
+                                selectedCountry = country,
+                                selectedState = stateProvince,
+                                enabled = isEditable,
+                                onCountryChange = { selectedCountry ->
+                                    isUserInteracted = true
+                                    country = selectedCountry
+                                },
+                                onStateChange = { selectedState ->
+                                    isUserInteracted = true
+                                    stateProvince = selectedState
+                                }
+                            )
 
                             Spacer(Modifier.height(14.dp))
                             FormLabel("Pincode / Postal Code")
-                            FormTextField(value = pincode, onValueChange = { pincode = it }, placeholder = "e.g. 560038", keyboardType = KeyboardType.Number, enabled = isEditable)
-
-                            Spacer(Modifier.height(14.dp))
-                            FormLabel("Country")
-                            FormTextField(value = country, onValueChange = { country = it }, enabled = isEditable)
+                            FormTextField(
+                                value = pincode,
+                                onValueChange = {
+                                    isUserInteracted = true
+                                    pincode = it
+                                },
+                                placeholder = "e.g. 560038",
+                                keyboardType = KeyboardType.Number,
+                                enabled = isEditable
+                            )
 
                             Spacer(Modifier.height(14.dp))
                             FormDropdown(
@@ -1018,6 +1229,15 @@ fun LeadFormScreen(
                                 }
                             }
                             Spacer(Modifier.height(tokens.extraPadding * 0.6f))
+                            if (errorField == "garmentSpecifications" && validationError != null) {
+                                Text(
+                                    text = validationError.orEmpty(),
+                                    fontSize = tokens.caption,
+                                    color = redText,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(Modifier.height(6.dp))
+                            }
 
                             garmentSpecs.forEachIndexed { index, specRow ->
                                 var templateExpanded by remember { mutableStateOf(false) }
@@ -1126,15 +1346,20 @@ fun LeadFormScreen(
                             }
 
                             Spacer(Modifier.height(20.dp))
-                            Text("Customer Expected Budget Range (INR)", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Text("Customer Expected Budget Range (${formatCurrency()})", fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = TextPrimary)
                             Spacer(Modifier.height(8.dp))
 
                             FormLabel("MINIMUM BUDGET (${formatCurrency()})")
                             FormTextField(
                                 value = minBudget,
-                                onValueChange = { minBudget = it },
+                                onValueChange = {
+                                    isUserInteracted = true
+                                    if (errorField == "budgetMin") errorField = null
+                                    minBudget = it
+                                },
                                 placeholder = "e.g. 1500",
                                 keyboardType = KeyboardType.Number,
+                                isError = errorField == "budgetMin",
                                 enabled = isEditable
                             )
 
@@ -1142,9 +1367,14 @@ fun LeadFormScreen(
                             FormLabel("MAXIMUM BUDGET (${formatCurrency()})")
                             FormTextField(
                                 value = maxBudget,
-                                onValueChange = { maxBudget = it },
+                                onValueChange = {
+                                    isUserInteracted = true
+                                    if (errorField == "budgetMax") errorField = null
+                                    maxBudget = it
+                                },
                                 placeholder = "e.g. 50000",
                                 keyboardType = KeyboardType.Number,
+                                isError = errorField == "budgetMax",
                                 enabled = isEditable
                             )
                         }
@@ -1166,7 +1396,13 @@ fun LeadFormScreen(
                                     Spacer(Modifier.width(8.dp))
                                     MiniSwitch(
                                         checked = fabricProvided,
-                                        onCheckedChange = { if (isEditable) fabricProvided = it },
+                                        onCheckedChange = { checked ->
+                                            if (isEditable) {
+                                                isUserInteracted = true
+                                                fabricProvided = checked
+                                                if (checked) expandedSection = "fabric"
+                                            }
+                                        },
                                         enabled = isEditable
                                     )
                                 }
@@ -1213,7 +1449,13 @@ fun LeadFormScreen(
                                     Spacer(Modifier.width(8.dp))
                                     MiniSwitch(
                                         checked = appointmentRequired,
-                                        onCheckedChange = { if (isEditable) appointmentRequired = it },
+                                        onCheckedChange = { checked ->
+                                            if (isEditable) {
+                                                isUserInteracted = true
+                                                appointmentRequired = checked
+                                                if (checked) expandedSection = "appointment"
+                                            }
+                                        },
                                         enabled = isEditable
                                     )
                                 }
@@ -1247,7 +1489,25 @@ fun LeadFormScreen(
                             FormLabel("Next Follow-up Date")
                             DatePickerField(
                                 value = nextFollowUpDate,
-                                onDateSelected = { if (isEditable) nextFollowUpDate = it },
+                                onDateSelected = {
+                                    if (isEditable) {
+                                        isUserInteracted = true
+                                        nextFollowUpDate = it
+                                    }
+                                },
+                                enabled = isEditable
+                            )
+
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Next Follow-up Time")
+                            TimePickerField(
+                                value = nextFollowUpTime,
+                                onTimeSelected = {
+                                    if (isEditable) {
+                                        isUserInteracted = true
+                                        nextFollowUpTime = it
+                                    }
+                                },
                                 enabled = isEditable
                             )
 
@@ -1256,7 +1516,13 @@ fun LeadFormScreen(
                                 FormLabel("Appointment Date", isRequired = true)
                                 DatePickerField(
                                     value = appointmentDate,
-                                    onDateSelected = { if (isEditable) appointmentDate = it },
+                                    onDateSelected = {
+                                        if (isEditable) {
+                                            isUserInteracted = true
+                                            if (errorField == "appointmentDate") errorField = null
+                                            appointmentDate = it
+                                        }
+                                    },
                                     isError = errorField == "appointmentDate",
                                     enabled = isEditable
                                 )
@@ -1265,9 +1531,23 @@ fun LeadFormScreen(
                                 FormLabel("Appointment Time", isRequired = true)
                                 TimePickerField(
                                     value = appointmentTime,
-                                    onTimeSelected = { if (isEditable) appointmentTime = it },
+                                    onTimeSelected = {
+                                        if (isEditable) {
+                                            isUserInteracted = true
+                                            if (errorField == "appointmentTime") errorField = null
+                                            appointmentTime = it
+                                        }
+                                    },
                                     enabled = isEditable
                                 )
+                                if (errorField == "appointmentTime" && validationError != null) {
+                                    Text(
+                                        text = validationError.orEmpty(),
+                                        fontSize = tokens.label,
+                                        color = redText,
+                                        modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+                                    )
+                                }
 
                                 Spacer(Modifier.height(14.dp))
                                 FormDropdown(
@@ -1307,8 +1587,33 @@ fun LeadFormScreen(
                             FormLabel("Customer Facing Notes")
                             FormTextArea(
                                 value = customerNotes,
-                                onValueChange = { customerNotes = it },
+                                onValueChange = {
+                                    isUserInteracted = true
+                                    customerNotes = it
+                                },
                                 enabled = isEditable
+                            )
+
+                            // Reference Files / Sketches (reusing ImageUploadSection, max 5 files)
+                            Spacer(Modifier.height(14.dp))
+                            FormLabel("Reference Files / Sketches")
+                            ImageUploadSection<Uri>(
+                                selectedImages = attachments,
+                                onBrowseClick = {
+                                    if (isEditable && attachments.size < 5) {
+                                        attachmentPickerLauncher.launch("*/*")
+                                    }
+                                },
+                                onRemoveImage = { uri ->
+                                    if (isEditable) {
+                                        isUserInteracted = true
+                                        attachments = attachments.filterNot { it == uri }
+                                    }
+                                },
+                                maxFiles = 5,
+                                title = "Upload Reference Attachments",
+                                subtitle = "Add your reference files or sketches here (up to 5 files max)",
+                                supportedFormatsText = "Only support .jpg, .png, .pdf and .svg files"
                             )
                         }
                     }
@@ -1324,7 +1629,7 @@ fun LeadFormScreen(
                 showBack = true,
                 backLabel = if (isView) "Close" else "Cancel",
                 showBackArrow = false,
-                onBack = onBack,
+                onBack = handleAttemptBack,
                 trailingAction = if (isView) {
                     TrailingFabAction.Edit(
                         label = "Edit",
@@ -1341,6 +1646,44 @@ fun LeadFormScreen(
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
+    }
+
+    if (showDiscardConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirmDialog = false },
+            containerColor = whiteBg,
+            title = {
+                Text(
+                    text = "Unsaved Changes",
+                    fontSize = tokens.h2,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "You have unsaved changes. Are you sure you want to discard them and leave this page?",
+                    fontSize = tokens.bodyMedium,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardConfirmDialog = false
+                        isUserInteracted = false
+                        onBack()
+                    }
+                ) {
+                    Text("Discard", color = redText, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardConfirmDialog = false }) {
+                    Text("Stay", color = Primary, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        )
     }
 }
 
@@ -1888,5 +2231,29 @@ fun BudgetRangeLabels(
         Text("${formatCurrency()}${formatIndianNumber(min)}", fontSize = tokens.caption, color = headerGrey)
         Text("${formatCurrency()}${formatIndianNumber(currentValue)}", fontSize = tokens.caption, fontWeight = FontWeight.Bold, color = Primary)
         Text("${formatCurrency()}${formatIndianNumber(max)}", fontSize = tokens.caption, color = headerGrey)
+    }
+}
+
+private fun buildLeadAttachmentParts(
+    context: Context,
+    uris: List<Uri>
+): List<MultipartBody.Part> {
+    return uris.mapIndexedNotNull { index, uri ->
+        try {
+            val mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream"
+            var fileName = "attachment_$index"
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst() && nameIndex >= 0) {
+                    fileName = cursor.getString(nameIndex) ?: fileName
+                }
+            }
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: return@mapIndexedNotNull null
+            val requestBody = bytes.toRequestBody(mimeType.toMediaTypeOrNull())
+            MultipartBody.Part.createFormData("attachments", fileName, requestBody)
+        } catch (_: Exception) {
+            null
+        }
     }
 }

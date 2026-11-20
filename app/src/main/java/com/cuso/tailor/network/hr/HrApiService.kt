@@ -19,7 +19,6 @@ import com.cuso.tailor.model.hr.LeaveRequestsResponse
 import com.cuso.tailor.model.hr.LeaveTypeResponse
 import com.cuso.tailor.model.hr.MemberDetailResponse
 import com.cuso.tailor.model.hr.MemberListResponse
-import com.cuso.tailor.model.hr.MonthlyAttendanceResponse
 import com.cuso.tailor.model.hr.RoleListResponse
 import com.cuso.tailor.model.hr.SalaryComponentListResponse
 import com.cuso.tailor.model.hr.SalaryComponentRequest
@@ -36,6 +35,7 @@ import com.cuso.tailor.model.hr.UpdateShiftResponse
 import com.cuso.tailor.model.hr.UploadProfilePictureResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -100,7 +100,7 @@ interface HrApiService {
         @Header("X-CSRF-Token") csrfToken: String
     ): Response<RoleListResponse>
 
-    @GET("/api/shifts/view-all")
+    @GET("/api/hr/shift/view-all")
     suspend fun getShifts(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String
@@ -114,7 +114,7 @@ interface HrApiService {
         @Query("organizationMemberId") organizationMemberId: String,
         @Query("month") month: Int,
         @Query("year") year: Int
-    ): Response<MonthlyAttendanceResponse>
+    ): Response<ResponseBody>
 
     // Daily Attendance (With Pagination & Filters)
     @GET("/api/hr/attendance/view-all")

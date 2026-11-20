@@ -79,5 +79,5 @@ data class ActiveOrgGarmentData(
     val active: Int,
     val inactive: Int,
     val availableSlots: Int?,
-    val categories: List<OrgGarmentCategory>  // ← இதுதான் நமக்கு வேணும்
+    val categories: List<OrgGarmentCategory>
 )

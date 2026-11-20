@@ -296,7 +296,7 @@ fun LeaveApprovalScreen(
                     itemToApprove = null
                     viewModel.updateLeaveStatus(
                         id = targetId,
-                        status = "Approved", // 👈 Capitalized as required by API
+                        status = "Approved", //  Capitalized as required by API
                         approvalRemarks = null,
                         onSuccess = { msg ->
                             successFeedback = msg
@@ -320,8 +320,8 @@ fun LeaveApprovalScreen(
                     itemToReject = null
                     viewModel.updateLeaveStatus(
                         id = targetId,
-                        status = "Rejected", // 👈 Capitalized as required by API
-                        approvalRemarks = remarks, // 👈 approvalRemarks mapped from input note
+                        status = "Rejected", //  Capitalized as required by API
+                        approvalRemarks = remarks, //  approvalRemarks mapped from input note
                         onSuccess = { msg ->
                             successFeedback = msg
                         },

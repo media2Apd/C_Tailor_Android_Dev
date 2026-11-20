@@ -25,12 +25,12 @@ data class CreatedEmployeeDocumentData(
 )
 
 
-// ── Generic Single Document Response (Used by view-one & update) ──
-data class EmployeeDocumentSingleResponse(
-    val success: Boolean,
-    val message: String? = null,
-    val data: EmployeeDocumentDto? = null
-)
+//// ── Generic Single Document Response (Used by view-one & update) ──
+//data class EmployeeDocumentSingleResponse(
+//    val success: Boolean,
+//    val message: String? = null,
+//    val data: EmployeeDocumentDto? = null
+//)
 
 // ── Delete API Response (Handles raw unpopulated String IDs) ──
 data class DeleteEmployeeDocumentResponse(

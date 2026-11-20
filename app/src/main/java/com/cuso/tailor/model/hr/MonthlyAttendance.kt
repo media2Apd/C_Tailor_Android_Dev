@@ -1,4 +1,7 @@
 package com.cuso.tailor.model.hr
+
+import com.google.gson.Gson
+import com.google.gson.JsonElement
 //
 //data class MonthlyAttendanceResponse(
 //    val success: Boolean,
@@ -65,10 +68,10 @@ data class MonthlyAttendanceResponse(
 data class MonthlyAttendanceItem(
     val _id: String,
     val organizationId: String? = null,
-    val organizationMemberId: MemberReference? = null,
-    val date: String,                      // e.g. "2026-09-19T18:30:00.000Z"
-    val shiftId: ShiftReference? = null,
-    val punches: List<PunchItem> = emptyList(), // <--- INTHA LINE MATTUM ADD PANNUNGA!
+    val organizationMemberId: JsonElement? = null,
+    val date: String,
+    val shiftId: JsonElement? = null,
+    val punches: List<PunchItem> = emptyList(),
     val workMode: String? = null,
     val totalWorkingMinutes: Int = 0,
     val totalBreakMinutes: Int = 0,
@@ -103,6 +106,32 @@ data class ShiftReference(
     val startTime: String? = null,
     val endTime: String? = null
 )
+
+/**
+ * Safely extracts populated ShiftReference when shiftId is a JSON object, or returns null for string IDs
+ */
+fun MonthlyAttendanceItem.extractShift(): ShiftReference? {
+    val el = shiftId ?: return null
+    if (!el.isJsonObject) return null
+    return try {
+        Gson().fromJson(el, ShiftReference::class.java)
+    } catch (_: Exception) {
+        null
+    }
+}
+
+/**
+ * Safely extracts populated MemberReference when organizationMemberId is a JSON object, or returns null for string IDs
+ */
+fun MonthlyAttendanceItem.extractMemberRef(): MemberReference? {
+    val el = organizationMemberId ?: return null
+    if (!el.isJsonObject) return null
+    return try {
+        Gson().fromJson(el, MemberReference::class.java)
+    } catch (_: Exception) {
+        null
+    }
+}
 //
 //data class PunchItem(
 //    val type: String? = null,    // "in" or "out"

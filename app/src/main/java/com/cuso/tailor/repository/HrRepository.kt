@@ -13,6 +13,11 @@ import com.cuso.tailor.model.hr.LeaveTypeItemDto
 import com.cuso.tailor.model.hr.MemberDetail
 import com.cuso.tailor.model.hr.MemberListResponse
 import com.cuso.tailor.model.hr.MonthlyAttendanceItem
+import com.cuso.tailor.model.hr.MonthlyAttendanceResponse
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.google.gson.stream.JsonReader
+import java.io.StringReader
 import com.cuso.tailor.model.hr.RoleItem
 import com.cuso.tailor.model.hr.SalaryComponentItem
 import com.cuso.tailor.model.hr.SalaryComponentListData
@@ -119,7 +124,7 @@ class HrRepository @Inject constructor(
     }
 
     private fun buildMemberFormFields(request: CreateMemberRequest): Map<String, RequestBody> {
-        val gson = com.google.gson.Gson()
+        val gson = Gson()
         val textType = "text/plain".toMediaTypeOrNull()
 
         fun String.asTextBody(): RequestBody = this.toRequestBody(textType)
@@ -263,13 +268,13 @@ class HrRepository @Inject constructor(
         }
     }
 
-    //MONTHLY ATTENDANCE
+    // Monthly Attendance
     suspend fun getMonthlyAttendance(
         organizationMemberId: String,
         month: Int,
         year: Int
-    ): Result<List<MonthlyAttendanceItem>> {
-        return try {
+    ): Result<List<MonthlyAttendanceItem>> = withContext(Dispatchers.IO) {
+        try {
             val (accessToken, csrfToken) = getAuthHeaders()
             val response = hrApi.getMonthlyAttendance(
                 token = accessToken,
@@ -278,8 +283,30 @@ class HrRepository @Inject constructor(
                 month = month,
                 year = year
             )
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.success(response.body()!!.data)
+            if (response.isSuccessful) {
+                val rawBody = response.body()?.string()?.removePrefix("\uFEFF")?.trim().orEmpty()
+                if (rawBody.isBlank()) {
+                    return@withContext Result.success(emptyList())
+                }
+
+                val gson = Gson()
+                val reader = JsonReader(StringReader(rawBody)).apply {
+                    isLenient = true
+                }
+
+                // Read the primary JSON object/array without failing on trailing response bytes
+                if (rawBody.startsWith("[")) {
+                    val listType = object : TypeToken<List<MonthlyAttendanceItem>>() {}.type
+                    val items: List<MonthlyAttendanceItem> = gson.getAdapter(TypeToken.get(listType)).read(reader) as List<MonthlyAttendanceItem>
+                    Result.success(items)
+                } else {
+                    val parsed = gson.getAdapter(MonthlyAttendanceResponse::class.java).read(reader)
+                    if (parsed?.success == true) {
+                        Result.success(parsed.data)
+                    } else {
+                        Result.failure(Exception(parsed?.message ?: "Failed to fetch attendance"))
+                    }
+                }
             } else {
                 Result.failure(Exception(response.errorBody()?.string() ?: "Failed to fetch attendance"))
             }

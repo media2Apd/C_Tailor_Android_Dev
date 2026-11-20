@@ -452,7 +452,6 @@ package com.cuso.tailor.view.home.sales.sales_order
 //                                        PriceInputBox(
 //                                            value = discountText,
 //                                            onValueChange = { discountText = it },
-//                                            width = 90.dp // (தேவைக்கேற்ப 80.dp அல்லது 100.dp ஆக மாற்றிக்கொள்ளலாம்)
 //                                        )
 //                                    }
 //                                }
@@ -836,7 +835,6 @@ package com.cuso.tailor.view.home.sales.sales_order
 //    if (rawError.isNullOrBlank()) return "An unexpected error occurred"
 //    val trimmed = rawError.trim()
 //
-//    // Plain text-ஆக இருந்தால் JSON parse பண்ண தேவையில்லை
 //    if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
 //        return trimmed
 //    }

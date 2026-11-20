@@ -44,14 +44,18 @@ import java.util.TimeZone
 @Composable
 fun EmployeeDocumentUploadScreen(
     documentId: String? = null,
+    isViewOnly: Boolean = false,
     viewModel: HrViewModel = hiltViewModel(),
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onSwitchToEdit: (() -> Unit)? = null
 ) {
     val tokens = LocalAppTokens.current
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    val isEditMode = !documentId.isNullOrBlank()
+    val hasDocumentId = !documentId.isNullOrBlank()
+    val isEditMode = hasDocumentId && !isViewOnly
+    val isReadOnly = hasDocumentId && isViewOnly
 
     // Form inputs state
     var searchEmployeeText by remember { mutableStateOf("") }
@@ -90,12 +94,12 @@ fun EmployeeDocumentUploadScreen(
     val documentDetail by viewModel.documentDetail.collectAsState()
     val isLoadingDetail by viewModel.isLoadingDocumentDetail.collectAsState()
 
-    // Initial load: fetch dropdown data and fetch document details if in edit mode
+    // Initial load: fetch dropdown data and fetch document details for View or Edit mode
     LaunchedEffect(documentId) {
         viewModel.fetchDocumentCategories()
-        viewModel.fetchMembers(limit = 50)
+        viewModel.fetchMembers(limit = 100)
 
-        if (isEditMode) {
+        if (hasDocumentId) {
             viewModel.fetchEmployeeDocumentById(
                 id = documentId,
                 onError = { errorMessage ->
@@ -112,16 +116,20 @@ fun EmployeeDocumentUploadScreen(
         }
     }
 
-    // Prefill form values once document view-one response is available
-    LaunchedEffect(documentDetail) {
+    // Prefill form values once document view-one response or members list is available
+    LaunchedEffect(documentDetail, membersList) {
         documentDetail?.let { doc ->
-            // Employee data
+            // Employee data (resolve employeeCode and department from membersList if omitted in view-one)
             val member = doc.organizationMemberId
             if (member != null) {
+                val matchedMember = membersList.firstOrNull { it._id == member.id }
+                val resolvedName = member.fullName.ifBlank {
+                    "${matchedMember?.firstName.orEmpty()} ${matchedMember?.lastName.orEmpty()}".trim()
+                }
                 selectedMemberId = member.id
-                searchEmployeeText = member.fullName
-                employeeId = member.employeeCode
-                department = member.department.orEmpty()
+                searchEmployeeText = resolvedName
+                employeeId = member.employeeCode.ifBlank { matchedMember?.memberId.orEmpty() }
+                department = member.department.orEmpty().ifBlank { matchedMember?.departmentId?.name.orEmpty() }
             }
 
             // Category data
@@ -146,82 +154,96 @@ fun EmployeeDocumentUploadScreen(
         containerColor = Primary_background,
         topBar = {
             TitleBar(
-                title = if (isEditMode) "Edit Document" else "Upload",
+                title = when {
+                    isReadOnly -> "Document Details"
+                    isEditMode -> "Edit Document"
+                    else -> "Upload"
+                },
                 onClose = onClose
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = whiteBg,
-                shadowElevation = 4.dp
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = tokens.screenPadding, vertical = 12.dp)
+            if (!isReadOnly || onSwitchToEdit != null) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = whiteBg,
+                    shadowElevation = 4.dp
                 ) {
-                    Button(
-                        onClick = {
-                            val fileList = selectedFiles.mapNotNull { uri -> uriToFile(context, uri) }
-
-                            if (isEditMode) {
-                                viewModel.updateEmployeeDocument(
-                                    documentId = documentId,
-                                    memberId = selectedMemberId,
-                                    categoryId = selectedCategoryId,
-                                    title = titleText,
-                                    issueDate = issueDateText,
-                                    expiryDate = expiryDateText,
-                                    notes = notesText,
-                                    files = fileList,
-                                    onSuccess = {
-                                        DynamicIslandManager.showSuccess("Employee document updated successfully")
-                                        onClose()
-                                    },
-                                    onError = { errorMessage ->
-                                        DynamicIslandManager.showError(errorMessage)
-                                    }
-                                )
-                            } else {
-                                viewModel.uploadEmployeeDocument(
-                                    memberId = selectedMemberId,
-                                    categoryId = selectedCategoryId,
-                                    title = titleText,
-                                    issueDate = issueDateText,
-                                    expiryDate = expiryDateText,
-                                    notes = notesText,
-                                    files = fileList,
-                                    onSuccess = {
-                                        DynamicIslandManager.showSuccess("Employee document created successfully")
-                                        onClose()
-                                    },
-                                    onError = { errorMessage ->
-                                        DynamicIslandManager.showError(errorMessage)
-                                    }
-                                )
-                            }
-                        },
-                        enabled = !isSubmitting && !isLoadingDetail,
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(tokens.buttonHeight),
-                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Primary,
-                            disabledContainerColor = disabled
-                        )
+                            .padding(horizontal = tokens.screenPadding, vertical = 12.dp)
                     ) {
-                        if (isSubmitting) {
-                            CirculerProgressIndicatorSmall()
-                        } else {
-                            Text(
-                                text = if (isEditMode) "Finalize Update" else "Finalize Upload",
-                                color = whiteBg,
-                                fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.Medium
+                        Button(
+                            onClick = {
+                                if (isReadOnly) {
+                                    onSwitchToEdit?.invoke()
+                                } else {
+                                    val fileList = selectedFiles.mapNotNull { uri -> uriToFile(context, uri) }
+
+                                    if (isEditMode) {
+                                        viewModel.updateEmployeeDocument(
+                                            documentId = documentId,
+                                            memberId = selectedMemberId,
+                                            categoryId = selectedCategoryId,
+                                            title = titleText,
+                                            issueDate = issueDateText,
+                                            expiryDate = expiryDateText,
+                                            notes = notesText,
+                                            files = fileList,
+                                            onSuccess = {
+                                                DynamicIslandManager.showSuccess("Employee document updated successfully")
+                                                onClose()
+                                            },
+                                            onError = { errorMessage ->
+                                                DynamicIslandManager.showError(errorMessage)
+                                            }
+                                        )
+                                    } else {
+                                        viewModel.uploadEmployeeDocument(
+                                            memberId = selectedMemberId,
+                                            categoryId = selectedCategoryId,
+                                            title = titleText,
+                                            issueDate = issueDateText,
+                                            expiryDate = expiryDateText,
+                                            notes = notesText,
+                                            files = fileList,
+                                            onSuccess = {
+                                                DynamicIslandManager.showSuccess("Employee document created successfully")
+                                                onClose()
+                                            },
+                                            onError = { errorMessage ->
+                                                DynamicIslandManager.showError(errorMessage)
+                                            }
+                                        )
+                                    }
+                                }
+                            },
+                            enabled = !isSubmitting && !isLoadingDetail,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(tokens.buttonHeight),
+                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Primary,
+                                disabledContainerColor = disabled
                             )
+                        ) {
+                            if (isSubmitting) {
+                                CirculerProgressIndicatorSmall()
+                            } else {
+                                Text(
+                                    text = when {
+                                        isReadOnly -> "Edit Document"
+                                        isEditMode -> "Finalize Update"
+                                        else -> "Finalize Upload"
+                                    },
+                                    color = whiteBg,
+                                    fontSize = tokens.bodyMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 }
@@ -247,7 +269,11 @@ fun EmployeeDocumentUploadScreen(
                 Spacer(Modifier.height(12.dp))
 
                 Text(
-                    text = if (isEditMode) "Update Document" else "New Document Upload",
+                    text = when {
+                        isReadOnly -> "Employee Document"
+                        isEditMode -> "Update Document"
+                        else -> "New Document Upload"
+                    },
                     fontSize = tokens.bodyLarge,
                     fontWeight = FontWeight.Medium,
                     color = title_color,
@@ -281,6 +307,7 @@ fun EmployeeDocumentUploadScreen(
                             expanded = isEmployeeDropdownExpanded,
                             onExpandChange = { isEmployeeDropdownExpanded = it },
                             options = membersList.map { "${it.firstName.orEmpty()} ${it.lastName.orEmpty()}".trim() },
+                            enabled = !isReadOnly,
                             onOptionSelected = { selectedName ->
                                 val member = membersList.firstOrNull {
                                     "${it.firstName.orEmpty()} ${it.lastName.orEmpty()}".trim() == selectedName
@@ -341,6 +368,7 @@ fun EmployeeDocumentUploadScreen(
                             expanded = isCategoryDropdownExpanded,
                             onExpandChange = { isCategoryDropdownExpanded = it },
                             options = categories.map { it.categoryName },
+                            enabled = !isReadOnly,
                             onOptionSelected = { categoryName ->
                                 val matched = categories.firstOrNull { it.categoryName == categoryName }
                                 selectedCategoryId = matched?.id.orEmpty()
@@ -355,6 +383,7 @@ fun EmployeeDocumentUploadScreen(
                             value = titleText,
                             onValueChange = { titleText = it },
                             placeholder = "e.g. Passport Copy 2024",
+                            enabled = !isReadOnly,
                             containerColor = headerBg,
                             borderColor = sectionBorder
                         )
@@ -369,7 +398,8 @@ fun EmployeeDocumentUploadScreen(
                                 FormLabel(text = "Issue Date")
                                 DatePickerField(
                                     value = issueDateText,
-                                    onDateSelected = { issueDateText = it }
+                                    onDateSelected = { issueDateText = it },
+                                    enabled = !isReadOnly
                                 )
                             }
 
@@ -377,35 +407,38 @@ fun EmployeeDocumentUploadScreen(
                                 FormLabel(text = "Expiry Date")
                                 DatePickerField(
                                     value = expiryDateText,
-                                    onDateSelected = { expiryDateText = it }
+                                    onDateSelected = { expiryDateText = it },
+                                    enabled = !isReadOnly
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
+                if (!isReadOnly) {
+                    Spacer(Modifier.height(14.dp))
 
-                // ── Card 3: Image / Document Upload Dropzone ──
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = tokens.screenPadding)
-                ) {
-                    ImageUploadSection(
-                        selectedImages = selectedFiles,
-                        onBrowseClick = {
-                            filePickerLauncher.launch("*/*")
-                        },
-                        onRemoveImage = { fileToRemove ->
-                            selectedFiles = selectedFiles.filter { it != fileToRemove }
-                        },
-                        maxFiles = 5,
-                        title = if (isEditMode) "Replace / Add Documents" else "Upload Document",
-                        subtitle = "Click to upload or drag & drop",
-                        supportedFormatsText = "PDF, JPG, or PNG (Max 10MB)",
-                        browseText = "Browse files"
-                    )
+                    // ── Card 3: Image / Document Upload Dropzone ──
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = tokens.screenPadding)
+                    ) {
+                        ImageUploadSection(
+                            selectedImages = selectedFiles,
+                            onBrowseClick = {
+                                filePickerLauncher.launch("*/*")
+                            },
+                            onRemoveImage = { fileToRemove ->
+                                selectedFiles = selectedFiles.filter { it != fileToRemove }
+                            },
+                            maxFiles = 5,
+                            title = if (isEditMode) "Replace / Add Documents" else "Upload Document",
+                            subtitle = "Click to upload or drag & drop",
+                            supportedFormatsText = "PDF, JPG, or PNG (Max 10MB)",
+                            browseText = "Browse files"
+                        )
+                    }
                 }
 
                 // ── Card 3.1: Cloudinary Pre-existing Images (Shown below dropzone in Edit Mode) ──
@@ -485,18 +518,20 @@ fun EmployeeDocumentUploadScreen(
                                         )
                                     }
 
-                                    // Option to remove the existing file
-                                    IconButton(
-                                        onClick = {
-                                            existingCloudinaryFiles = existingCloudinaryFiles.filter { it != fileDto }
+                                    // Option to remove the existing file (hidden in read-only View mode)
+                                    if (!isReadOnly) {
+                                        IconButton(
+                                            onClick = {
+                                                existingCloudinaryFiles = existingCloudinaryFiles.filter { it != fileDto }
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Remove existing file",
+                                                tint = redText,
+                                                modifier = Modifier.size(20.dp)
+                                            )
                                         }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Remove existing file",
-                                            tint = redText,
-                                            modifier = Modifier.size(20.dp)
-                                        )
                                     }
                                 }
                             }
@@ -520,6 +555,7 @@ fun EmployeeDocumentUploadScreen(
                         FormTextArea(
                             value = notesText,
                             onValueChange = { notesText = it },
+                            enabled = !isReadOnly,
                             placeholder = "Add any specific comments or reference numb...",
                             minLines = 3,
                             maxLines = 5,

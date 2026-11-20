@@ -108,7 +108,7 @@ fun CreateLeadFormResponse.toEntity(request: CreateLeadFormRequest): LeadEntity 
         enquiryDate = request.enquiryDate,
         requiredDate = request.requiredDate,
         source = request.leadSource,
-        leadOwner = request.leadOwner,
+        leadOwner = request.leadOwner.orEmpty(),
         appointmentRequired = request.isAppointmentRequired,
         appointmentDate = request.appointmentDate.orEmpty(),
         appointmentTime = request.appointmentTime,

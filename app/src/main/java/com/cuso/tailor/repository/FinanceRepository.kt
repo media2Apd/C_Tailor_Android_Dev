@@ -21,7 +21,12 @@ import com.cuso.tailor.model.finance.UpdateJournalEntryRequest
 import com.cuso.tailor.model.finance.UpdateJournalEntryResponse
 import com.cuso.tailor.model.sales.CustomerListResponseV2
 import com.cuso.tailor.model.sales.GetFinanceCustomerViewOneResponse
+import com.cuso.tailor.model.finance.ExpenseVoucherAttachmentDto
+import com.cuso.tailor.model.finance.ExpenseVoucherJsonRequest
+import com.cuso.tailor.model.finance.ExpenseVoucherLineJsonRequest
 import com.cuso.tailor.network.finance.FinanceApiService
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -151,10 +156,18 @@ class FinanceRepository @Inject constructor(
     // 3. Chart of Accounts API Methods
     // ═══════════════════════════════════════════════════════════
 
-    suspend fun getChartOfAccounts(): Result<List<ChartOfAccountItem>> {
+    suspend fun getChartOfAccounts(
+        paginate: Boolean = false,
+        includeDeleted: Boolean = false
+    ): Result<List<ChartOfAccountItem>> {
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            val response = financeApi.getChartOfAccounts(accessToken, csrfToken)
+            val response = financeApi.getChartOfAccounts(
+                token = accessToken,
+                csrfToken = csrfToken,
+                paginate = paginate,
+                includeDeleted = includeDeleted
+            )
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!.data)
             } else {
@@ -342,6 +355,88 @@ class FinanceRepository @Inject constructor(
             } else {
                 Result.failure(
                     Exception(response.errorBody()?.string() ?: "Failed to create expense: ${response.code()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun submitExpenseVoucher(
+        expenseId: String? = null,
+        fields: Map<String, String>,
+        existingAttachments: List<ExpenseVoucherAttachmentDto> = emptyList(),
+        attachmentParts: List<MultipartBody.Part> = emptyList()
+    ): Result<CreateExpenseResponse> {
+        return try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val gson = Gson()
+
+            val response = if (attachmentParts.isNotEmpty()) {
+                val multipartFields = fields.toMutableMap().apply {
+                    put("attachments", gson.toJson(existingAttachments))
+                }.mapValues { (_, value) ->
+                    value.toRequestBody("text/plain".toMediaTypeOrNull())
+                }
+
+                if (!expenseId.isNullOrBlank()) {
+                    financeApi.updateExpenseVoucherMultipart(
+                        token = accessToken,
+                        csrfToken = csrfToken,
+                        id = expenseId,
+                        fields = multipartFields,
+                        attachments = attachmentParts
+                    )
+                } else {
+                    financeApi.createExpenseVoucherMultipart(
+                        token = accessToken,
+                        csrfToken = csrfToken,
+                        fields = multipartFields,
+                        attachments = attachmentParts
+                    )
+                }
+            } else {
+                val lineListType = object : TypeToken<List<ExpenseVoucherLineJsonRequest>>() {}.type
+                val parsedLines: List<ExpenseVoucherLineJsonRequest> =
+                    gson.fromJson(fields["lines"] ?: "[]", lineListType) ?: emptyList()
+
+                val jsonPayload = ExpenseVoucherJsonRequest(
+                    expenseDate = fields["expenseDate"].orEmpty(),
+                    paidFromAccountId = fields["paidFromAccountId"].orEmpty(),
+                    paymentMode = fields["paymentMode"].orEmpty(),
+                    referenceNumber = fields["referenceNumber"].orEmpty(),
+                    branchId = fields["branchId"]?.takeIf { it.isNotBlank() },
+                    supplierId = fields["supplierId"]?.takeIf { it.isNotBlank() },
+                    currency = fields["currency"]?.ifBlank { "INR" } ?: "INR",
+                    exchangeRate = fields["exchangeRate"]?.toDoubleOrNull() ?: 1.0,
+                    priceIncludesTax = fields["priceIncludesTax"]?.toBooleanStrictOrNull() ?: false,
+                    notes = fields["notes"].orEmpty(),
+                    status = fields["status"]?.ifBlank { "Draft" } ?: "Draft",
+                    lines = parsedLines,
+                    attachments = existingAttachments
+                )
+
+                if (!expenseId.isNullOrBlank()) {
+                    financeApi.updateExpenseVoucherJson(
+                        token = accessToken,
+                        csrfToken = csrfToken,
+                        id = expenseId,
+                        request = jsonPayload
+                    )
+                } else {
+                    financeApi.createExpenseVoucherJson(
+                        token = accessToken,
+                        csrfToken = csrfToken,
+                        request = jsonPayload
+                    )
+                }
+            }
+
+            if (response.isSuccessful && response.body()?.success != false) {
+                Result.success(response.body() ?: CreateExpenseResponse(success = true, message = "Saved"))
+            } else {
+                Result.failure(
+                    Exception(response.errorBody()?.string() ?: "Failed to save expense: ${response.code()}")
                 )
             }
         } catch (e: Exception) {

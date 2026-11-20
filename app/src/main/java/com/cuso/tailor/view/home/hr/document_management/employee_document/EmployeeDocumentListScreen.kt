@@ -25,6 +25,7 @@ fun EmployeeDocumentListScreen(
     viewModel: HrViewModel = hiltViewModel(),
     onClose: () -> Unit,
     onNavigateToUpload: () -> Unit = {},
+    onViewDocument: (String) -> Unit = {},
     onEditDocument: (String) -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -85,7 +86,7 @@ fun EmployeeDocumentListScreen(
             ) { doc ->
                 EmployeeDocumentDataCard(
                     document = doc,
-                    onViewClick = { /* Handle document view */ },
+                    onViewClick = { selectedDoc -> onViewDocument(selectedDoc.id) },
                     onEditClick = { selectedDoc -> onEditDocument(selectedDoc.id) },
                     onDeleteClick = { selectedDoc ->
                         // Trigger reusable DeleteModel dialog

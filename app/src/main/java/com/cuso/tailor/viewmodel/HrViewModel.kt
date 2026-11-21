@@ -1141,6 +1141,10 @@ class HrViewModel @Inject constructor(
                 onSuccess = { res ->
                     _isUpdatingClaimStatus.value = false
                     fetchExpenseClaimDetail(claimId)
+                    fetchExpenseClaims(
+                        status = activeExpenseClaimStatus,
+                        search = activeExpenseClaimSearch
+                    )
                     onSuccess(res.message ?: "Expense claim status updated successfully")
                 },
                 onFailure = { error ->

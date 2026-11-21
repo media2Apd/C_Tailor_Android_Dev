@@ -1,4 +1,4 @@
-@file:Suppress("UNUSED_VALUE", "SpellCheckingInspection")
+@file:Suppress("UNUSED_VALUE", "SpellCheckingInspection","unusedVariable")
 
 package com.cuso.tailor.view.home.hr.training_management.training_program
 
@@ -19,8 +19,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +45,7 @@ import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.utils.UiState
+import com.cuso.tailor.view.composable.AppRadioButton
 import com.cuso.tailor.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
@@ -224,13 +223,9 @@ fun AddEditProgramScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.clickable { deliveryMode = mode }
                             ) {
-                                RadioButton(
+                                AppRadioButton(
                                     selected = deliveryMode == mode,
-                                    onClick = { deliveryMode = mode },
-                                    colors = RadioButtonDefaults.colors(
-                                        selectedColor = Primary,
-                                        unselectedColor = mutedText
-                                    )
+                                    onClick = { deliveryMode = mode }
                                 )
                                 Text(
                                     text = mode,

@@ -1,14 +1,13 @@
-@file:Suppress("unused")
+@file:Suppress("UNUSED_PARAMETER", "unused", "unusedVariable", "AssignedValueIsNeverRead","VariableNeverRead")
 
 package com.cuso.tailor.repository
 
-import android.util.Log
+
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.EmailResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.EmailVerify
-import com.cuso.tailor.model.login_forgotPassword_resetPassword.GoogleLoginNewUser
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.GoogleLoginRequest
+import com.cuso.tailor.model.login_forgotPassword_resetPassword.GoogleLoginResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.GoogleLoginResult
-import com.cuso.tailor.model.login_forgotPassword_resetPassword.GoogleLoginSuccess
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.PasswordResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.PasswordVerify
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.RegisterVerifyOtp
@@ -96,12 +95,10 @@ class AuthRepository @Inject constructor(
             Result.success(body)
         } else {
             // Log the real server error to make debugging easier
-            Log.e("MY_ORG_API", "Failed: ${res.code()} ${res.errorBody()?.string()}")
             Result.failure(Exception(res.message()))
         }
     } catch (e: Exception) {
         // Covers JsonParseException, network errors, etc. Never crashes the caller.
-        Log.e("MY_ORG_API", "Exception: ${e.message}", e)
         Result.failure(e)
     }
 
@@ -121,8 +118,7 @@ class AuthRepository @Inject constructor(
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
-                val errorBody = response.errorBody()?.string()
-                Log.e("API_ERROR", "Error: $errorBody")
+                response.errorBody()?.string()
                 Result.failure(Exception("Server error: ${response.code()} - ${response.message()}"))
             }
         } catch (e: Exception) {
@@ -312,12 +308,13 @@ class AuthRepository @Inject constructor(
             val response = authApi.googleLogin(GoogleLoginRequest(idToken))
             if (response.isSuccessful && response.body() != null) {
                 val json = response.body()!!
-                if (json.has("requiresRegistration")) {
-                    val newUser = Gson().fromJson(json, GoogleLoginNewUser::class.java)
-                    GoogleLoginResult.NewUser(newUser)
+                val parsed = Gson().fromJson(json, GoogleLoginResponse::class.java)
+                if (parsed.requiresRegistration) {
+                    GoogleLoginResult.NewUser(parsed)
+                } else if (parsed.data != null) {
+                    GoogleLoginResult.ExistingUser(parsed)
                 } else {
-                    val existingUser = Gson().fromJson(json, GoogleLoginSuccess::class.java)
-                    GoogleLoginResult.ExistingUser(existingUser)
+                    GoogleLoginResult.Failure(parsed.message.ifBlank { "Google login failed" })
                 }
             } else {
                 val message = try {

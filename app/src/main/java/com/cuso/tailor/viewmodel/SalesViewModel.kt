@@ -1,6 +1,6 @@
 package com.cuso.tailor.viewmodel
 
-import android.util.Log
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.database.dao.SelectedGarmentDao
@@ -69,8 +69,6 @@ import kotlinx.coroutines.launch
 import okhttp3.MultipartBody
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
-
-private const val TAG = "SalesViewModel"
 
 // Finance payment terms dropdown endpoint
 private const val FINANCE_PAYMENT_TERMS_DROPDOWN_URL = "/api/finance/settings/payment-terms/dropdown"
@@ -283,16 +281,13 @@ class SalesViewModel @Inject constructor(
             val callStart = System.currentTimeMillis()
             val fullNumber = countryCode.replace("+", "").plus(mobile.trim())
 
-            Log.d(TAG, "Searching customer: $fullNumber")
 
             val result = repository.searchCustomerByMobile(fullNumber)
             result
                 .onSuccess {
-                    Log.d(TAG, "Customer search success: ${it.customer?.name}")
                     _customerSearchResult.value = it
                 }
                 .onFailure {
-                    Log.e(TAG, "Customer search failed: ${it.message}")
                     _customerSearchResult.value = null
                 }
 
@@ -362,9 +357,7 @@ class SalesViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoadingSources.value = true
             try {
-                Log.d(TAG, "Dropdown options initialized successfully")
             } catch (e: Exception) {
-                Log.e(TAG, "Error initializing dropdown options: ${e.message}")
             } finally {
                 _isLoadingSources.value = false
             }
@@ -535,9 +528,8 @@ class SalesViewModel @Inject constructor(
             try {
                 repository.fetchFullLeadDetails(leadId)
                     .onSuccess { _selectedLead.value = convertToLeadEntity(it) }
-                    .onFailure { Log.e(TAG, "Silent lead refresh failed: ${it.message}") }
+                    .onFailure {  }
             } catch (e: Exception) {
-                Log.e(TAG, "Silent lead refresh exception: ${e.message}")
             }
         }
     }
@@ -553,9 +545,6 @@ class SalesViewModel @Inject constructor(
                 onSuccess = { data ->
                     _convertOrderState.value = ConvertOrderState.Success(data)
                     fetchLeadDetails(leadId) { success ->
-                        if (!success) {
-                            Log.e(TAG, "Failed to refresh lead after conversion")
-                        }
                     }
                 },
                 onFailure = { e ->
@@ -660,7 +649,6 @@ class SalesViewModel @Inject constructor(
                 .onSuccess { _orgGarmentCategories.value = it }
                 .onFailure {
                     _orgGarmentError.value = it.message
-                    Log.e(TAG, "Error fetching common categories: ${it.message}")
                 }
             _isLoadingOrgGarments.value = false
         }
@@ -670,7 +658,7 @@ class SalesViewModel @Inject constructor(
         viewModelScope.launch {
             repository.fetchActiveOrgGarmentIds()
                 .onSuccess { _activeOrgCategoryIds.value = it }
-                .onFailure { Log.e(TAG, "fetchActiveOrgGarments error: ${it.message}") }
+                .onFailure {  }
         }
     }
 
@@ -723,7 +711,7 @@ class SalesViewModel @Inject constructor(
         viewModelScope.launch {
             repository.fetchGarmentCategories()
                 .onSuccess { _garmentCategories.value = it }
-                .onFailure { Log.e(TAG, "Error: ${it.message}") }
+                .onFailure { }
         }
     }
 
@@ -744,7 +732,6 @@ class SalesViewModel @Inject constructor(
                     onResult(categories)
                 }
                 .onFailure { error ->
-                    Log.e(TAG, "Error fetching garment categories for $garmentId: ${error.message}")
                     onResult(emptyList())
                 }
         }
@@ -766,7 +753,6 @@ class SalesViewModel @Inject constructor(
             try {
                 selectedGarmentDao.insertGarment(garment.copy(orderSessionId = currentGarmentSessionId))
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to save garment: ${e.message}")
             }
         }
     }
@@ -776,7 +762,6 @@ class SalesViewModel @Inject constructor(
             try {
                 selectedGarmentDao.deleteGarmentById(garmentId)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to delete garment: ${e.message}")
             }
         }
     }
@@ -786,7 +771,6 @@ class SalesViewModel @Inject constructor(
             try {
                 selectedGarmentDao.clearSession(currentGarmentSessionId)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to clear garments session: ${e.message}")
             }
         }
     }

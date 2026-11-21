@@ -2,7 +2,12 @@
 
 package com.cuso.tailor.model.inventory
 
+import com.google.gson.TypeAdapter
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonToken
+import com.google.gson.stream.JsonWriter
 
 // =============================================================================
 // COMMON REUSABLE MODELS
@@ -48,6 +53,14 @@ data class PurchaseOrderItem(
     @SerializedName("total") val total: Double = 0.0
 )
 
+data class PurchaseOrderLinePayload(
+    @SerializedName("itemId") val itemId: String,
+    @SerializedName("qty") val qty: Double,
+    @SerializedName("rate") val rate: Double,
+    @SerializedName("taxGroupId") val taxGroupId: String? = null,
+    @SerializedName("taxPercent") val taxPercent: Double = 0.0
+)
+
 data class PurchaseOrder(
     @SerializedName("_id") val id: String? = null,
     @SerializedName("organizationId") val organizationId: String? = null,
@@ -56,7 +69,7 @@ data class PurchaseOrder(
     @SerializedName("supplierId") val supplierId: Any? = null,
     @SerializedName("eta") val eta: String? = null,
     @SerializedName("currency") val currency: String = "INR",
-    @SerializedName("warehouseId") val warehouseId: Any? = null, // String or WarehouseRef
+    @SerializedName("warehouseId") val warehouseId: Any? = null,
     @SerializedName("poType") val poType: String = "Standard",
     @SerializedName("items") val items: List<PurchaseOrderItem> = emptyList(),
     @SerializedName("subtotal") val subtotal: Double = 0.0,
@@ -69,6 +82,13 @@ data class PurchaseOrder(
     @SerializedName("billStatus") val billStatus: String = "Not Billed",
     @SerializedName("paymentStatus") val paymentStatus: String = "Unpaid",
     @SerializedName("lifecycleStatus") val lifecycleStatus: String = "Open",
+    @SerializedName("shippingMethod") val shippingMethod: String? = null,
+    @SerializedName("transportName") val transportName: String? = null,
+    @SerializedName("vehicleNumber") val vehicleNumber: String? = null,
+    @SerializedName("trackingNumber") val trackingNumber: String? = null,
+    @SerializedName("freightTerms") val freightTerms: String? = null,
+    @SerializedName("internalNotes") val internalNotes: String? = null,
+    @SerializedName("remarks") val remarks: String? = null,
     @SerializedName("attachments") val attachments: List<AttachmentDoc> = emptyList(),
     @SerializedName("createdBy") val createdBy: String? = null,
     @SerializedName("updatedBy") val updatedBy: String? = null,
@@ -183,6 +203,81 @@ data class PurchaseOrderDetailResponse(
     @field:SerializedName("data") val data: PurchaseOrderDetailData? = null
 )
 
+// Custom adapter that safely reads attachments whether the backend returns strings or objects
+class POAttachmentsAdapter : TypeAdapter<List<String>>() {
+    override fun write(out: JsonWriter, value: List<String>?) {
+        if (value == null) {
+            out.nullValue()
+            return
+        }
+        out.beginArray()
+        value.forEach { out.value(it) }
+        out.endArray()
+    }
+
+    override fun read(reader: JsonReader): List<String>? {
+        return when (reader.peek()) {
+            JsonToken.NULL -> {
+                reader.nextNull()
+                null
+            }
+            JsonToken.BEGIN_ARRAY -> {
+                val result = mutableListOf<String>()
+                reader.beginArray()
+                while (reader.hasNext()) {
+                    when (reader.peek()) {
+                        JsonToken.STRING -> result.add(reader.nextString())
+                        JsonToken.BEGIN_OBJECT -> {
+                            extractUrlFromObject(reader)?.let { result.add(it) }
+                        }
+                        JsonToken.NULL -> reader.nextNull()
+                        else -> reader.skipValue()
+                    }
+                }
+                reader.endArray()
+                result
+            }
+            JsonToken.BEGIN_OBJECT -> {
+                val url = extractUrlFromObject(reader)
+                if (url != null) listOf(url) else emptyList()
+            }
+            JsonToken.STRING -> listOf(reader.nextString())
+            else -> {
+                reader.skipValue()
+                emptyList()
+            }
+        }
+    }
+
+    // Reads an attachment JSON object and returns fileUrl or url while consuming the entire object
+    private fun extractUrlFromObject(reader: JsonReader): String? {
+        var fileUrl: String? = null
+        var fallbackUrl: String? = null
+        reader.beginObject()
+        while (reader.hasNext()) {
+            when (reader.nextName()) {
+                "fileUrl" -> {
+                    if (reader.peek() == JsonToken.STRING) {
+                        fileUrl = reader.nextString()
+                    } else {
+                        reader.skipValue()
+                    }
+                }
+                "url" -> {
+                    if (reader.peek() == JsonToken.STRING) {
+                        fallbackUrl = reader.nextString()
+                    } else {
+                        reader.skipValue()
+                    }
+                }
+                else -> reader.skipValue()
+            }
+        }
+        reader.endObject()
+        return fileUrl ?: fallbackUrl
+    }
+}
+
 data class PurchaseOrderDetailData(
     @field:SerializedName("_id") val id: String? = null,
     @field:SerializedName("organizationId") val organizationId: String? = null,
@@ -213,7 +308,9 @@ data class PurchaseOrderDetailData(
     @field:SerializedName("trackingNumber") val trackingNumber: String? = null,
     @field:SerializedName("freightTerms") val freightTerms: String? = null,
     @field:SerializedName("internalNotes") val internalNotes: String? = null,
-    @field:SerializedName("attachments") val attachments: List<String>? = null,
+    @field:SerializedName("attachments")
+    @field:JsonAdapter(POAttachmentsAdapter::class)
+    val attachments: List<String>? = null,
     @field:SerializedName("remarks") val remarks: String? = null,
     @field:SerializedName("createdBy") val createdBy: String? = null,
     @field:SerializedName("isDeleted") val isDeleted: Boolean? = null,

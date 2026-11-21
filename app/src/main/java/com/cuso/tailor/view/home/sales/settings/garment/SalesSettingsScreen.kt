@@ -1,9 +1,9 @@
-@file:Suppress("UNUSED_PARAMETER", "unused", "unusedVariable", "AssignedValueIsNeverRead")
+@file:Suppress("UNUSED_PARAMETER", "unused", "unusedVariable", "AssignedValueIsNeverRead","VariableNeverRead")
 
 package com.cuso.tailor.view.home.sales.settings.garment
 
 import android.annotation.SuppressLint
-import android.util.Log
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -40,8 +40,6 @@ import com.cuso.tailor.model.settings.SegmentItem
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DeleteModel
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.ErrorMapper
 import com.cuso.tailor.view.composable.FabConfig
 import com.cuso.tailor.view.composable.FabScaffold
@@ -448,7 +446,6 @@ fun GarmentTypeContent(
                                                 val garmId = item.id
                                                 val title = "${selectedSegment?.name.orEmpty()} ${item.displayName ?: item.name}".trim()
 
-                                                Log.d("NAV_PARAM", "Clicked segmentId: $segId, garmentId: $garmId")
                                                 onConfigureGarmentClick(segId, garmId, title)
                                             },
                                             onCommonMeasurementsClick = {

@@ -12,7 +12,7 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
-import android.util.Log
+
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceError
@@ -64,16 +64,14 @@ class ProcurementBillPdfGenerator(private val context: Context) {
         webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         try {
             decorView.addView(webView, 0)
-        } catch (e: Exception) {
-            Log.e("ProcurementBillPdfGen", "attachToWindow failed", e)
+        } catch (_: Exception) {
         }
     }
 
     private fun detachFromWindow(webView: WebView) {
         try {
             (webView.parent as? ViewGroup)?.removeView(webView)
-        } catch (e: Exception) {
-            Log.e("ProcurementBillPdfGen", "detachFromWindow failed", e)
+        } catch (_: Exception) {
         }
     }
 
@@ -124,8 +122,7 @@ class ProcurementBillPdfGenerator(private val context: Context) {
                 try {
                     val result = renderWebViewToPdf(webView, fileName, saveToDownloads)
                     finish(result)
-                } catch (e: Exception) {
-                    Log.e("ProcurementBillPdfGen", "Render timeout fallback failed", e)
+                } catch (_: Exception) {
                     finish(null)
                 }
             }
@@ -138,8 +135,7 @@ class ProcurementBillPdfGenerator(private val context: Context) {
                     try {
                         val result = renderWebViewToPdf(webView, fileName, saveToDownloads)
                         finish(result)
-                    } catch (e: Exception) {
-                        Log.e("ProcurementBillPdfGen", "Render onPageFinished failed", e)
+                    } catch (_: Exception) {
                         finish(null)
                     }
                 }, 350)
@@ -236,8 +232,7 @@ class ProcurementBillPdfGenerator(private val context: Context) {
                 FileOutputStream(file).use { it.write(bytes) }
                 SavedPdf(uri = Uri.fromFile(file), displayName = fileName, file = file)
             }
-        } catch (e: Exception) {
-            Log.e("ProcurementBillPdfGen", "writeBytesToDownloads failed for '$fileName'", e)
+        } catch (_: Exception) {
             null
         }
     }

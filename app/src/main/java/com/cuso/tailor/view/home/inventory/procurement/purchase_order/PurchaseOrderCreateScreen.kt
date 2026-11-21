@@ -3,7 +3,6 @@
 package com.cuso.tailor.view.home.inventory.procurement.purchase_order
 
 import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -38,14 +37,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.model.inventory.CreateRequisitionRequest
 import com.cuso.tailor.model.inventory.ItemRefDetail
 import com.cuso.tailor.model.inventory.PurchaseOrder
-import com.cuso.tailor.model.inventory.PurchaseOrderItem
-import com.cuso.tailor.model.inventory.RequisitionItem
+import com.cuso.tailor.model.inventory.PurchaseOrderLinePayload
+import com.cuso.tailor.model.inventory.SupplierDropdownItem
 import com.cuso.tailor.ui.theme.BluePrimary
 import com.cuso.tailor.ui.theme.BorderGray
 import com.cuso.tailor.ui.theme.Primary
@@ -55,6 +54,7 @@ import com.cuso.tailor.ui.theme.TextSecondary
 import com.cuso.tailor.ui.theme.dividerColor
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.DatePickerField
 import com.cuso.tailor.view.composable.FormAccordionCard
@@ -68,9 +68,9 @@ import com.cuso.tailor.view.composable.ImageUploadSection
 import com.cuso.tailor.view.composable.LineItemFormEntry
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.TitleBar
-
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -90,24 +90,40 @@ fun POCreateScreen(
     val isLoadingPODetail by viewModel.isLoadingPODetail.collectAsStateWithLifecycle()
     val poDetailError by viewModel.poDetailError.collectAsStateWithLifecycle()
 
-    val isSubmittingRequisition by viewModel.isSubmittingRequisition.collectAsStateWithLifecycle()
     val isSubmittingPO by viewModel.isSubmittingPO.collectAsStateWithLifecycle()
-    val isBusy = isSubmittingRequisition || isSubmittingPO
+    val isBusy = isSubmittingPO
 
     val poSuccessMessage by viewModel.poSuccessMessage.collectAsStateWithLifecycle()
     val poErrorMessage by viewModel.purchaseOrdersError.collectAsStateWithLifecycle()
-    val requisitionSuccessMessage by viewModel.requisitionSuccessMessage.collectAsStateWithLifecycle()
-    val requisitionErrorMessage by viewModel.requisitionErrorMessage.collectAsStateWithLifecycle()
 
     val warehouseList by viewModel.warehouseDropdown.collectAsStateWithLifecycle()
-    val supplierList by viewModel.supplierDropdown.collectAsStateWithLifecycle()
+    val warehouseUiState by viewModel.warehouseUiState.collectAsStateWithLifecycle()
+    val supplierDropdown by viewModel.supplierDropdown.collectAsStateWithLifecycle()
+    val suppliersList by viewModel.suppliers.collectAsStateWithLifecycle()
     val inventoryItemsList by viewModel.inventoryItems.collectAsStateWithLifecycle()
+    val taxGroups by viewModel.taxGroups.collectAsStateWithLifecycle()
 
-    // Fetch dropdowns and PO View-One detail if in edit mode
+    // Merge supplier dropdown and view-all suppliers so suppliers are always available
+    val resolvedSuppliers = remember(supplierDropdown, suppliersList) {
+        val fromDropdown = supplierDropdown.filter { it.value.isNotBlank() && it.label.isNotBlank() }
+        val fromViewAll = suppliersList
+            .filter { it.id.isNotBlank() && it.name.isNotBlank() }
+            .map { SupplierDropdownItem(value = it.id, label = it.name) }
+        if (fromDropdown.isNotEmpty()) {
+            (fromDropdown + fromViewAll).distinctBy { it.value }
+        } else {
+            fromViewAll
+        }
+    }
+
+    // Fetch dropdowns and PO detail in edit mode
     LaunchedEffect(targetPoId) {
         viewModel.loadWarehouseDropdown()
+        viewModel.loadWarehouses()
         viewModel.fetchSupplierDropdown()
+        viewModel.fetchSuppliers(page = 1, limit = 50)
         viewModel.fetchInventoryItems(page = 1, limit = 100)
+        viewModel.fetchTaxGroups()
 
         if (!targetPoId.isNullOrBlank()) {
             viewModel.fetchPurchaseOrderDetail(targetPoId)
@@ -122,7 +138,7 @@ fun POCreateScreen(
 
     LaunchedEffect(poSuccessMessage) {
         poSuccessMessage?.let {
-            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            DynamicIslandManager.showSuccess(it)
             viewModel.clearPOAlerts()
             onDismiss()
         }
@@ -130,38 +146,26 @@ fun POCreateScreen(
 
     LaunchedEffect(poErrorMessage) {
         poErrorMessage?.let {
-            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            DynamicIslandManager.showError(it)
             viewModel.clearPOAlerts()
         }
     }
 
     LaunchedEffect(poDetailError) {
         poDetailError?.let {
-            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    LaunchedEffect(requisitionSuccessMessage) {
-        requisitionSuccessMessage?.let {
-            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-            viewModel.clearRequisitionAlerts()
-            onDismiss()
-        }
-    }
-
-    LaunchedEffect(requisitionErrorMessage) {
-        requisitionErrorMessage?.let {
-            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
-            viewModel.clearRequisitionAlerts()
+            DynamicIslandManager.showError(it)
         }
     }
 
     // Form fields state
+    val todayFormatted = remember {
+        SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()).format(Date())
+    }
     var selectedWarehouseId by remember { mutableStateOf("") }
     var warehouseName by remember { mutableStateOf("") }
     var warehouseExpanded by remember { mutableStateOf(false) }
 
-    var poDate by remember { mutableStateOf("") }
+    var poDate by remember { mutableStateOf(if (isEditMode) "" else todayFormatted) }
     var eta by remember { mutableStateOf("") }
     var poType by remember { mutableStateOf("Standard") }
     var poTypeExpanded by remember { mutableStateOf(false) }
@@ -174,12 +178,17 @@ fun POCreateScreen(
     var contactPerson by remember { mutableStateOf("") }
     var gstNumber by remember { mutableStateOf("") }
     var paymentTerms by remember { mutableStateOf("") }
-    var creditPeriod by remember { mutableStateOf("") }
 
     var shippingMethod by remember { mutableStateOf("") }
     var shippingAddress by remember { mutableStateOf("") }
     var trackingNo by remember { mutableStateOf("") }
+    var transportName by remember { mutableStateOf("") }
+    var vehicleNumber by remember { mutableStateOf("") }
+    var freightTerms by remember { mutableStateOf("") }
+
     var internalNotes by remember { mutableStateOf("") }
+    var discountText by remember { mutableStateOf("0") }
+    var shippingCostText by remember { mutableStateOf("0") }
 
     var selectedFiles by remember { mutableStateOf<List<Uri>>(emptyList()) }
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -198,44 +207,76 @@ fun POCreateScreen(
     val itemsList = remember { mutableStateListOf(LineItemFormEntry()) }
     var isPrefilled by remember { mutableStateOf(false) }
 
-    // Prefill from fetched PO View-One Detail
+    // Backfill supplier metadata whenever selectedSupplierId or suppliersList updates
+    LaunchedEffect(selectedSupplierId, suppliersList, resolvedSuppliers) {
+        if (selectedSupplierId.isBlank()) return@LaunchedEffect
+        if (supplierName.isBlank()) {
+            resolvedSuppliers.firstOrNull { it.value == selectedSupplierId }?.let {
+                supplierName = it.label
+            }
+        }
+        suppliersList.firstOrNull { it.id == selectedSupplierId }?.let { s ->
+            supplierCode = s.supplierCode
+            contactPerson = s.contact?.contactName.orEmpty()
+            gstNumber = s.tax?.gstNumber.orEmpty()
+            val termDays = s.payment?.paymentTerm ?: 0
+            paymentTerms = if (termDays > 0) "Net $termDays" else "Immediate"
+        }
+    }
+
+    // Backfill warehouse shipping address whenever selectedWarehouseId updates
+    LaunchedEffect(selectedWarehouseId, warehouseUiState.warehouses) {
+        if (selectedWarehouseId.isBlank()) return@LaunchedEffect
+        warehouseUiState.warehouses.firstOrNull { it.id == selectedWarehouseId }?.let { w ->
+            shippingAddress = listOf(
+                w.address.address,
+                w.address.city,
+                w.address.state,
+                w.address.country,
+                w.address.pincode
+            ).filter { it.isNotBlank() }.joinToString(", ")
+        }
+    }
+
+    // Prefill from fetched PO View-One detail
     LaunchedEffect(orderDetail) {
         val detail = orderDetail
         if (detail != null && !isPrefilled) {
             isPrefilled = true
 
-            // Warehouse
             selectedWarehouseId = detail.warehouse?.id.orEmpty()
             warehouseName = detail.warehouse?.name.orEmpty()
 
-            // PO General Info
             poDate = detail.poDate?.substringBefore("T").orEmpty()
             eta = detail.eta?.substringBefore("T").orEmpty()
             poType = detail.poType?.ifBlank { "Standard" } ?: "Standard"
             refPrLink = detail.requisitionId.orEmpty()
 
-            // Supplier Information
             selectedSupplierId = detail.supplier?.id.orEmpty()
             supplierName = detail.supplier?.name.orEmpty()
             supplierCode = detail.supplier?.supplierCode.orEmpty()
             contactPerson = detail.supplier?.contact?.contactName.orEmpty()
             gstNumber = detail.supplier?.tax?.gstNumber.orEmpty()
 
-            // Logistics
             shippingMethod = detail.shippingMethod.orEmpty()
+            transportName = detail.transportName.orEmpty()
+            vehicleNumber = detail.vehicleNumber.orEmpty()
+            trackingNo = detail.trackingNumber.orEmpty()
+            freightTerms = detail.freightTerms.orEmpty()
+
             val whAddr = detail.warehouse?.address
             shippingAddress = listOfNotNull(
                 whAddr?.address,
                 whAddr?.city,
                 whAddr?.state,
+                whAddr?.country,
                 whAddr?.pincode
             ).filter { it.isNotBlank() }.joinToString(", ")
-            trackingNo = detail.trackingNumber.orEmpty()
 
-            // Notes
             internalNotes = detail.internalNotes.orEmpty()
+            discountText = detail.discount?.takeIf { it > 0 }?.toString() ?: "0"
+            shippingCostText = detail.shippingCost?.takeIf { it > 0 }?.toString() ?: "0"
 
-            // Line Items
             val fetchedItems = detail.items
             if (!fetchedItems.isNullOrEmpty()) {
                 itemsList.clear()
@@ -260,7 +301,7 @@ fun POCreateScreen(
     }
 
     // Fallback prefill from existingPo if view-one response has not loaded
-    LaunchedEffect(existingPo, warehouseList, supplierList) {
+    LaunchedEffect(existingPo, warehouseList, resolvedSuppliers) {
         if (existingPo != null && orderDetail == null && !isPrefilled) {
             val whId = when (val wh = existingPo.warehouseId) {
                 is Map<*, *> -> wh["_id"]?.toString() ?: wh["id"]?.toString() ?: ""
@@ -276,12 +317,20 @@ fun POCreateScreen(
                 else -> ""
             }
             selectedSupplierId = supId
-            supplierName = supplierList.firstOrNull { it.value == supId }?.label ?: supId
+            supplierName = resolvedSuppliers.firstOrNull { it.value == supId }?.label ?: supId
 
             poType = existingPo.poType.ifBlank { "Standard" }
             poDate = existingPo.poDate?.substringBefore("T").orEmpty()
             eta = existingPo.eta?.substringBefore("T").orEmpty()
             refPrLink = existingPo.requisitionId.orEmpty()
+            shippingMethod = existingPo.shippingMethod.orEmpty()
+            transportName = existingPo.transportName.orEmpty()
+            vehicleNumber = existingPo.vehicleNumber.orEmpty()
+            trackingNo = existingPo.trackingNumber.orEmpty()
+            freightTerms = existingPo.freightTerms.orEmpty()
+            internalNotes = existingPo.internalNotes.orEmpty()
+            discountText = existingPo.discount.takeIf { it > 0 }?.toString() ?: "0"
+            shippingCostText = existingPo.shippingCost.takeIf { it > 0 }?.toString() ?: "0"
 
             if (existingPo.items.isNotEmpty()) {
                 itemsList.clear()
@@ -333,7 +382,102 @@ fun POCreateScreen(
         (q * r) * (t / 100.0)
     }
 
-    val calculatedGrandTotal = calculatedSubtotal + calculatedTax
+    val discountVal = discountText.toDoubleOrNull() ?: 0.0
+    val shippingCostVal = shippingCostText.toDoubleOrNull() ?: 0.0
+    val calculatedGrandTotal = (calculatedSubtotal + calculatedTax - discountVal + shippingCostVal).coerceAtLeast(0.0)
+
+    fun submitPurchaseOrder(targetOrderStatus: String) {
+        val invalidIndex = itemsList.indexOfFirst {
+            it.itemId.isBlank() || (it.qty.toDoubleOrNull() ?: 0.0) <= 0.0
+        }
+
+        val validationError = when {
+            selectedWarehouseId.isBlank() -> "Warehouse is required"
+            selectedSupplierId.isBlank() -> "Supplier is required"
+            poDate.isBlank() -> "PO Date is required"
+            itemsList.isEmpty() -> "At least one item is required"
+            invalidIndex != -1 -> {
+                if (itemsList[invalidIndex].itemId.isBlank()) {
+                    "Please select an item on row ${invalidIndex + 1}"
+                } else {
+                    "Quantity must be greater than 0 on row ${invalidIndex + 1}"
+                }
+            }
+            else -> null
+        }
+
+        if (validationError != null) {
+            DynamicIslandManager.showError(validationError)
+            return
+        }
+
+        val itemsPayload = itemsList.map { item ->
+            val qtyVal = item.qty.toDoubleOrNull() ?: 1.0
+            val rateVal = item.rate.toDoubleOrNull() ?: 0.0
+            val taxPercentVal = item.taxPercent.toDoubleOrNull() ?: 0.0
+            val matchedTaxGroupId = taxGroups.firstOrNull { it.totalRate == taxPercentVal }?.id
+
+            PurchaseOrderLinePayload(
+                itemId = item.itemId,
+                qty = qtyVal,
+                rate = rateVal,
+                taxGroupId = matchedTaxGroupId,
+                taxPercent = taxPercentVal
+            )
+        }
+
+        val formattedPoDate = formatDateToIso(poDate)
+        val formattedEta = formatDateToIso(eta).takeIf { it.isNotBlank() }
+
+        if (targetPoId != null) {
+            viewModel.updatePurchaseOrderMultipart(
+                context = context,
+                id = targetPoId,
+                warehouseId = selectedWarehouseId,
+                supplierId = selectedSupplierId,
+                poDate = formattedPoDate,
+                eta = formattedEta,
+                poType = poType,
+                currency = orderDetail?.currency ?: "INR",
+                orderStatus = targetOrderStatus,
+                shippingMethod = shippingMethod.trim(),
+                transportName = transportName.trim(),
+                vehicleNumber = vehicleNumber.trim(),
+                trackingNumber = trackingNo.trim(),
+                freightTerms = freightTerms.trim(),
+                internalNotes = internalNotes.trim(),
+                remarks = "",
+                discount = discountVal,
+                shippingCost = shippingCostVal,
+                items = itemsPayload,
+                requisitionId = refPrLink.trim().takeIf { it.isNotBlank() },
+                attachmentUris = selectedFiles
+            )
+        } else {
+            viewModel.createPurchaseOrderMultipart(
+                context = context,
+                warehouseId = selectedWarehouseId,
+                supplierId = selectedSupplierId,
+                poDate = formattedPoDate,
+                eta = formattedEta,
+                poType = poType,
+                currency = "INR",
+                orderStatus = targetOrderStatus,
+                shippingMethod = shippingMethod.trim(),
+                transportName = transportName.trim(),
+                vehicleNumber = vehicleNumber.trim(),
+                trackingNumber = trackingNo.trim(),
+                freightTerms = freightTerms.trim(),
+                internalNotes = internalNotes.trim(),
+                remarks = "",
+                discount = discountVal,
+                shippingCost = shippingCostVal,
+                items = itemsPayload,
+                requisitionId = refPrLink.trim().takeIf { it.isNotBlank() },
+                attachmentUris = selectedFiles
+            )
+        }
+    }
 
     Scaffold(
         containerColor = Primary_background,
@@ -376,24 +520,25 @@ fun POCreateScreen(
                 ) {
                     FormDropdown(
                         label = "Warehouse",
-                        value = warehouseName.ifBlank { "-" },
+                        value = warehouseName.ifBlank { "Select warehouse" },
                         expanded = warehouseExpanded,
                         onExpandChange = { warehouseExpanded = it },
-                        options = warehouseList.map { it.label },
+                        options = warehouseList.map { it.label }.ifEmpty { listOf("No warehouses available") },
                         onOptionSelected = { selectedLabel ->
                             val selected = warehouseList.firstOrNull { it.label == selectedLabel }
-                            warehouseName = selectedLabel
-                            selectedWarehouseId = selected?.value ?: ""
+                                ?: return@FormDropdown
+                            warehouseName = selected.label
+                            selectedWarehouseId = selected.value
                         },
                         isRequired = true
                     )
 
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(tokens.extraPadding))
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
                         Box(Modifier.weight(1f)) {
                             Column {
-                                FormLabel("PO Date")
+                                FormLabel("PO Date", isRequired = true)
                                 DatePickerField(
                                     value = poDate,
                                     onDateSelected = { poDate = it }
@@ -411,25 +556,27 @@ fun POCreateScreen(
                         }
                     }
 
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(tokens.extraPadding))
 
                     FormDropdown(
                         label = "PO Type",
                         value = poType,
                         expanded = poTypeExpanded,
                         onExpandChange = { poTypeExpanded = it },
-                        options = listOf("Standard", "Urgent", "Dropship"),
+                        options = listOf("Standard", "Urgent", "Critical"),
                         onOptionSelected = { poType = it }
                     )
 
-                    Spacer(Modifier.height(8.dp))
-
-                    FormLabel("Reference PR Link")
-                    FormTextField(
-                        value = refPrLink,
-                        onValueChange = { refPrLink = it },
-                        placeholder = "-"
-                    )
+                    if (refPrLink.isNotBlank()) {
+                        Spacer(Modifier.height(tokens.extraPadding))
+                        FormLabel("Linked Requisition")
+                        FormTextField(
+                            value = refPrLink,
+                            onValueChange = {},
+                            enabled = false,
+                            placeholder = "-"
+                        )
+                    }
                 }
 
                 // Section 2: Supplier Information
@@ -440,28 +587,29 @@ fun POCreateScreen(
                 ) {
                     FormDropdown(
                         label = "Supplier Name",
-                        value = supplierName.ifBlank { "-" },
+                        value = supplierName.ifBlank { "Select supplier" },
                         expanded = supplierDropdownExpanded,
                         onExpandChange = { supplierDropdownExpanded = it },
-                        options = supplierList.map { it.label },
+                        options = resolvedSuppliers.map { it.label }.ifEmpty { listOf("No suppliers available") },
                         onOptionSelected = { selectedLabel ->
-                            val selected = supplierList.firstOrNull { it.label == selectedLabel }
-                            supplierName = selectedLabel
-                            selectedSupplierId = selected?.value ?: ""
-                            supplierCode = selected?.value ?: ""
+                            val selected = resolvedSuppliers.firstOrNull { it.label == selectedLabel }
+                                ?: return@FormDropdown
+                            supplierName = selected.label
+                            selectedSupplierId = selected.value
                         },
                         isRequired = true
                     )
 
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(tokens.extraPadding))
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
                         Box(Modifier.weight(1f)) {
                             Column {
                                 FormLabel("Supplier Code")
                                 FormTextField(
                                     value = supplierCode,
-                                    onValueChange = { supplierCode = it },
+                                    onValueChange = {},
+                                    enabled = false,
                                     placeholder = "-"
                                 )
                             }
@@ -471,41 +619,35 @@ fun POCreateScreen(
                                 FormLabel("Contact Person")
                                 FormTextField(
                                     value = contactPerson,
-                                    onValueChange = { contactPerson = it },
+                                    onValueChange = {},
+                                    enabled = false,
                                     placeholder = "-"
                                 )
                             }
                         }
                     }
 
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(tokens.extraPadding))
 
-                    FormLabel("GST/VAT Number")
-                    FormTextField(
-                        value = gstNumber,
-                        onValueChange = { gstNumber = it },
-                        placeholder = "-"
-                    )
-
-                    Spacer(Modifier.height(8.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
                         Box(Modifier.weight(1f)) {
                             Column {
-                                FormLabel("Payment Terms")
+                                FormLabel("GST/VAT Number")
                                 FormTextField(
-                                    value = paymentTerms,
-                                    onValueChange = { paymentTerms = it },
+                                    value = gstNumber,
+                                    onValueChange = {},
+                                    enabled = false,
                                     placeholder = "-"
                                 )
                             }
                         }
                         Box(Modifier.weight(1f)) {
                             Column {
-                                FormLabel("Credit Period")
+                                FormLabel("Payment Terms")
                                 FormTextField(
-                                    value = creditPeriod,
-                                    onValueChange = { creditPeriod = it },
+                                    value = paymentTerms,
+                                    onValueChange = {},
+                                    enabled = false,
                                     placeholder = "-"
                                 )
                             }
@@ -513,7 +655,7 @@ fun POCreateScreen(
                     }
                 }
 
-                // Section 3: Reusable Dynamic Item Cards Section
+                // Section 3: Line Items
                 FormLineItemsSection(
                     itemsList = itemsList,
                     inventoryItemsList = inventoryItemsList,
@@ -530,21 +672,52 @@ fun POCreateScreen(
                     FormTextField(
                         value = shippingMethod,
                         onValueChange = { shippingMethod = it },
-                        placeholder = "e.g., Express Courier"
+                        placeholder = "e.g. Road, Courier, Air"
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(tokens.extraPadding))
                     FormLabel("Shipping Address")
                     FormTextField(
                         value = shippingAddress,
-                        onValueChange = { shippingAddress = it },
-                        placeholder = "Enter Full Address"
+                        onValueChange = {},
+                        enabled = false,
+                        placeholder = "Auto filled from warehouse"
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(tokens.extraPadding))
                     FormLabel("Tracking/Reference No.")
                     FormTextField(
                         value = trackingNo,
                         onValueChange = { trackingNo = it },
-                        placeholder = "-"
+                        placeholder = "Enter tracking number"
+                    )
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    Row(horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
+                        Box(Modifier.weight(1f)) {
+                            Column {
+                                FormLabel("Transport Company")
+                                FormTextField(
+                                    value = transportName,
+                                    onValueChange = { transportName = it },
+                                    placeholder = "Transport name"
+                                )
+                            }
+                        }
+                        Box(Modifier.weight(1f)) {
+                            Column {
+                                FormLabel("Vehicle Number")
+                                FormTextField(
+                                    value = vehicleNumber,
+                                    onValueChange = { vehicleNumber = it.uppercase() },
+                                    placeholder = "e.g. TN-01-AB-1234"
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(tokens.extraPadding))
+                    FormLabel("Freight Terms")
+                    FormTextField(
+                        value = freightTerms,
+                        onValueChange = { freightTerms = it },
+                        placeholder = "e.g. Paid, To Pay, Collect"
                     )
                 }
 
@@ -558,7 +731,7 @@ fun POCreateScreen(
                     FormTextArea(
                         value = internalNotes,
                         onValueChange = { internalNotes = it },
-                        placeholder = "Add notes for internal records..."
+                        placeholder = "Enter internal notes (visible only to admin)"
                     )
 
                     Spacer(Modifier.height(tokens.extraPadding * 1.2f))
@@ -589,11 +762,11 @@ fun POCreateScreen(
                         Text(
                             text = "Order Summary",
                             fontSize = tokens.bodyLarge,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             color = TextPrimary
                         )
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(tokens.extraPadding))
 
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                             Text("Subtotal", fontSize = tokens.bodySmall, color = TextSecondary)
@@ -605,7 +778,7 @@ fun POCreateScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(tokens.extraPadding * 0.6f))
 
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                             Text("Tax", fontSize = tokens.bodySmall, color = TextSecondary)
@@ -617,23 +790,50 @@ fun POCreateScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(tokens.extraPadding))
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
+                            Box(Modifier.weight(1f)) {
+                                Column {
+                                    FormLabel("Discount")
+                                    FormTextField(
+                                        value = discountText,
+                                        onValueChange = { discountText = sanitizeDecimalInput(it) },
+                                        keyboardType = KeyboardType.Decimal,
+                                        placeholder = "0"
+                                    )
+                                }
+                            }
+                            Box(Modifier.weight(1f)) {
+                                Column {
+                                    FormLabel("Shipping Cost")
+                                    FormTextField(
+                                        value = shippingCostText,
+                                        onValueChange = { shippingCostText = sanitizeDecimalInput(it) },
+                                        keyboardType = KeyboardType.Decimal,
+                                        placeholder = "0"
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(tokens.extraPadding))
                         HorizontalDivider(color = dividerColor)
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(tokens.extraPadding))
 
                         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                            Text("Grand Total", fontSize = tokens.bodyLarge, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Text("Grand Total", fontSize = tokens.bodyLarge, fontWeight = FontWeight.SemiBold, color = TextPrimary)
                             Text(
                                 text = String.format(Locale.US, "${formatCurrency()} %,.2f", calculatedGrandTotal),
                                 fontSize = tokens.bodyLarge,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Primary
                             )
                         }
                     }
                 }
 
-                // Bottom Actions: Update / Submit
+                // Bottom Actions: Cancel / Save Draft / Submit
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -645,95 +845,15 @@ fun POCreateScreen(
                         primaryText = if (isEditMode) "Update Purchase Order" else "Submit Purchase Order",
                         onCancel = onDismiss,
                         onSaveDraft = {
-                            val parsedRequisitionItems = itemsList.map { item ->
-                                val qtyVal = item.qty.toDoubleOrNull() ?: 1.0
-                                val rateVal = item.rate.toDoubleOrNull() ?: 0.0
-                                val taxVal = item.taxPercent.toDoubleOrNull() ?: 0.0
-                                val subtotalVal = qtyVal * rateVal
-                                val taxAmtVal = subtotalVal * (taxVal / 100.0)
-
-                                RequisitionItem(
-                                    itemId = item.itemId.ifBlank { null },
-                                    qty = qtyVal,
-                                    unit = item.unit.ifBlank { "pcs" },
-                                    type = item.type.ifBlank { "Goods" },
-                                    rate = rateVal,
-                                    taxPercent = taxVal,
-                                    subtotal = subtotalVal,
-                                    taxAmount = taxAmtVal,
-                                    total = subtotalVal + taxAmtVal,
-                                    status = "Pending"
-                                )
-                            }
-
-                            val reqPayload = CreateRequisitionRequest(
-                                supplierId = selectedSupplierId.ifBlank { "" },
-                                warehouseId = selectedWarehouseId.ifBlank { "" },
-                                department = "Production",
-                                priority = poType.ifBlank { "Medium" },
-                                requiredByDate = formatDateToIso(eta),
-                                justification = internalNotes,
-                                estimatedSubtotal = calculatedSubtotal,
-                                estimatedTax = calculatedTax,
-                                estimatedTotal = calculatedGrandTotal,
-                                items = parsedRequisitionItems,
-                                internalReference = trackingNo.trim().ifBlank { null }
-                            )
-
-                            viewModel.createRequisition(reqPayload)
+                            submitPurchaseOrder(targetOrderStatus = "Draft")
                         },
                         onPrimaryClick = {
-                            val parsedPoItems = itemsList.map { item ->
-                                val qtyVal = item.qty.toDoubleOrNull() ?: 1.0
-                                val rateVal = item.rate.toDoubleOrNull() ?: 0.0
-                                val taxVal = item.taxPercent.toDoubleOrNull() ?: 0.0
-                                val subtotalVal = qtyVal * rateVal
-                                val taxAmtVal = subtotalVal * (taxVal / 100.0)
-
-                                PurchaseOrderItem(
-                                    id = null,
-                                    itemId = item.itemId.ifBlank { "" },
-                                    qty = qtyVal,
-                                    receivedQty = 0.0,
-                                    billedQty = 0.0,
-                                    receiveStatus = "Not Received",
-                                    billStatus = "Not Billed",
-                                    rate = rateVal,
-                                    taxPercent = taxVal,
-                                    subtotal = subtotalVal,
-                                    taxAmount = taxAmtVal,
-                                    total = subtotalVal + taxAmtVal
-                                )
-                            }
-
-                            val poPayload = PurchaseOrder(
-                                id = targetPoId,
-                                poNumber = orderDetail?.poNumber ?: existingPo?.poNumber,
-                                requisitionId = refPrLink.trim().ifBlank { null },
-                                supplierId = selectedSupplierId.ifBlank { null },
-                                eta = formatDateToIso(eta),
-                                currency = orderDetail?.currency ?: "INR",
-                                warehouseId = selectedWarehouseId.ifBlank { null },
-                                poType = poType.ifBlank { "Standard" },
-                                items = parsedPoItems,
-                                subtotal = calculatedSubtotal,
-                                taxTotal = calculatedTax,
-                                discount = orderDetail?.discount ?: 0.0,
-                                shippingCost = orderDetail?.shippingCost ?: 0.0,
-                                grandTotal = calculatedGrandTotal,
-                                orderStatus = orderDetail?.orderStatus ?: existingPo?.orderStatus ?: "Draft",
-                                poDate = formatDateToIso(poDate)
-                            )
-
-                            if (targetPoId != null) {
-                                viewModel.updatePurchaseOrderDirect(targetPoId, poPayload) {
-                                    onDismiss()
-                                }
+                            val nextStatus = if (isEditMode) {
+                                orderDetail?.orderStatus ?: existingPo?.orderStatus ?: "Approved"
                             } else {
-                                viewModel.createPurchaseOrderDirect(poPayload) {
-                                    onDismiss()
-                                }
+                                "Approved"
                             }
+                            submitPurchaseOrder(targetOrderStatus = nextStatus)
                         },
                         isLoading = isBusy,
                         isCancelEnabled = !isBusy,
@@ -743,11 +863,27 @@ fun POCreateScreen(
                         borderColor = BorderGray
                     )
 
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(tokens.screenPadding))
                 }
             }
         }
     }
+}
+
+private fun sanitizeDecimalInput(input: String): String {
+    val builder = StringBuilder()
+    var hasDecimalPoint = false
+    for (ch in input) {
+        when {
+            ch.isDigit() -> builder.append(ch)
+            ch == '.' && !hasDecimalPoint -> {
+                if (builder.isEmpty()) builder.append('0')
+                builder.append('.')
+                hasDecimalPoint = true
+            }
+        }
+    }
+    return builder.toString()
 }
 
 private fun formatDateToIso(rawDate: String): String {

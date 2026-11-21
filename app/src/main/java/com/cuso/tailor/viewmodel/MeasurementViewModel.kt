@@ -1,6 +1,6 @@
 package com.cuso.tailor.viewmodel
 
-import android.util.Log
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.model.sales.CustomerMeasurementItem
@@ -179,30 +179,25 @@ class MeasurementsViewModel @Inject constructor(
      * Fetches dynamic measurements for a specific customer with comprehensive debug logging.
      */
     fun fetchAvailableGarments(customerId: String? = null) {
-        Log.d("MEASUREMENT_DEBUG", "STEP 4: MeasurementsViewModel.fetchAvailableGarments called with customerId: '$customerId'")
 
         if (customerId.isNullOrBlank()) {
-            Log.e("MEASUREMENT_DEBUG", "❌ STEP 4 FAILED: customerId is null or blank! Aborting API call.")
             return
         }
 
         viewModelScope.launch {
             _isLoadingAvailableGarments.update { true }
-            Log.d("MEASUREMENT_DEBUG", "STEP 5: Triggering repository.fetchCustomerMeasurements('$customerId')...")
 
             val result = repository.fetchCustomerMeasurements(customerId = customerId)
 
             result.fold(
                 onSuccess = { response ->
-                    Log.d("MEASUREMENT_DEBUG", "✅ STEP 6: API Success! Received ${response.data.size} items. Count = ${response.count}")
                     val presets = response.data.mapIndexed { index, record ->
                         record.toPreset(isSelected = index == 0)
                     }
                     _availableGarments.update { presets }
                     _isLoadingAvailableGarments.update { false }
                 },
-                onFailure = { error ->
-                    Log.e("MEASUREMENT_DEBUG", "❌ STEP 6 FAILED: API call failed -> ${error.message}", error)
+                onFailure = { _ ->
                     _isLoadingAvailableGarments.update { false }
                 }
             )

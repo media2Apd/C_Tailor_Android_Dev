@@ -650,10 +650,9 @@ private fun DestinationChoiceCard(
             modifier = Modifier.padding(tokens.extraPadding * 1.2f),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            RadioButton(
+            AppRadioButton(
                 selected = isSelected,
-                onClick = onClick,
-                colors = RadioButtonDefaults.colors(selectedColor = Primary)
+                onClick = onClick
             )
             Spacer(Modifier.width(tokens.extraPadding * 0.8f))
             Column {

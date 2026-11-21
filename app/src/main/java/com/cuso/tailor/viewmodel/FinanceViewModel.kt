@@ -2512,9 +2512,7 @@ class FinanceViewModel @Inject constructor(
      * POST /api/finance/credit-notes/send/{id}
      */
     fun sendCreditNote(creditNoteId: String, onSuccess: () -> Unit = {}) {
-        android.util.Log.d("CreditNoteAPI", "sendCreditNote called with ID: '$creditNoteId'")
         if (creditNoteId.isBlank()) {
-            android.util.Log.e("CreditNoteAPI", "Credit note ID is blank. Aborting request.")
             _errorMessage.value = "Credit Note ID is missing."
             return
         }
@@ -2533,7 +2531,6 @@ class FinanceViewModel @Inject constructor(
 
             result.fold(
                 onSuccess = { res ->
-                    android.util.Log.d("CreditNoteAPI", "Successfully sent credit note: ${res.message}")
                     // Refresh both the list and the current view-one screen
                     fetchCreditNotes()
                     fetchCreditNoteById(creditNoteId)
@@ -2542,7 +2539,6 @@ class FinanceViewModel @Inject constructor(
                 },
                 onFailure = { err ->
                     val errorMsg = extractErrorMessage(err, "Failed to send credit note")
-                    android.util.Log.e("CreditNoteAPI", "Failed to send credit note: $errorMsg", err)
                     _errorMessage.value = errorMsg
                     _isSubmitting.value = false
                 }

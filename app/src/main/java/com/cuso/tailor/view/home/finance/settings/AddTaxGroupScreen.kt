@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.AppCheckbox
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextField
 import com.cuso.tailor.view.composable.StepNavigationFab
@@ -239,13 +240,9 @@ private fun TaxRateSelectCard(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            Checkbox(
+            AppCheckbox(
                 checked = isSelected,
-                onCheckedChange = { onToggle() },
-                colors = CheckboxDefaults.colors(
-                    checkedColor = Primary,
-                    checkmarkColor = Color.White
-                )
+                onCheckedChange = { onToggle() }
             )
             Spacer(Modifier.width(8.dp))
             Text(

@@ -1,6 +1,8 @@
+@file:Suppress("UNUSED_PARAMETER", "unused", "unusedVariable", "AssignedValueIsNeverRead","VariableNeverRead")
+
 package com.cuso.tailor.view.home.inventory.procurement.location_management
 
-import android.util.Log
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,19 +50,11 @@ fun StockLocationDetailsScreen(
     val targetItemId = itemId ?: selectedLocationItem?.id
 
     LaunchedEffect(targetItemId) {
-        Log.d("STOCK_LOC_DETAIL", "--------------------------------------------------")
-        Log.d("STOCK_LOC_DETAIL", "StockLocationDetailsScreen LaunchedEffect triggered")
-        Log.d("STOCK_LOC_DETAIL", "Passed parameter itemId: '$itemId'")
-        Log.d("STOCK_LOC_DETAIL", "ViewModel selectedLocationItem.id: '${selectedLocationItem?.id}'")
-        Log.d("STOCK_LOC_DETAIL", "Resolved targetItemId: '$targetItemId'")
 
         if (targetItemId.isNullOrBlank()) {
-            Log.e("STOCK_LOC_DETAIL", "ERROR: targetItemId is NULL or BLANK. API call was NOT triggered.")
         } else {
-            Log.i("STOCK_LOC_DETAIL", "SUCCESS: Triggering fetchStockLocationViewOne with ID: $targetItemId")
             inventoryViewModel.fetchStockLocationViewOne(targetItemId)
         }
-        Log.d("STOCK_LOC_DETAIL", "--------------------------------------------------")
     }
 
     val overview = detailData?.overview

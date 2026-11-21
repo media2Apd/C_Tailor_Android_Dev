@@ -8,7 +8,6 @@ import com.cuso.tailor.database.dao.TokensDao
 import com.cuso.tailor.database.entities.LeadEntity
 import com.cuso.tailor.database.entities.SalesStatusEntity
 import com.cuso.tailor.database.entities.SalesSummaryEntity
-import com.cuso.tailor.database.entities.toEntity
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.AddGarmentRequest
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.AddOrgGarmentResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.OrgGarmentCategory
@@ -979,13 +978,11 @@ class SalesRepository @Inject constructor(
         limit: Int = 50
     ): Result<CustomerMeasurementResponse> {
         if (customerId.isBlank()) {
-            android.util.Log.e("MEASUREMENT_DEBUG", "❌ Repository: customerId is blank!")
             return Result.failure(Exception("Customer ID is required"))
         }
 
         return try {
             val (accessToken, csrfToken) = getAuthHeaders()
-            android.util.Log.d("MEASUREMENT_DEBUG", "Repository: Sending GET /api/sales/customers/measurements/view-all/$customerId")
 
             val response = salesMeasurementsApi.getAvailableMeasurement(
                 token = accessToken,
@@ -995,17 +992,14 @@ class SalesRepository @Inject constructor(
                 limit = limit
             )
 
-            android.util.Log.d("MEASUREMENT_DEBUG", "Repository: Response Code = ${response.code()}, isSuccessful = ${response.isSuccessful}")
 
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.success(response.body()!!)
             } else {
                 val errorMsg = response.errorBody()?.string() ?: "Failed to fetch customer measurements: ${response.code()}"
-                android.util.Log.e("MEASUREMENT_DEBUG", "Repository Error Body: $errorMsg")
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            android.util.Log.e("MEASUREMENT_DEBUG", "Repository Exception: ${e.message}", e)
             Result.failure(e)
         }
     }

@@ -648,10 +648,9 @@ fun CreateCustomerScreen(
 
                                 Spacer(Modifier.height(tokens.extraPadding))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Checkbox(
+                                    AppCheckbox(
                                         checked = shippingSameAsBilling,
-                                        onCheckedChange = { shippingSameAsBilling = it },
-                                        colors = CheckboxDefaults.colors(checkedColor = Primary)
+                                        onCheckedChange = { shippingSameAsBilling = it }
                                     )
                                     Text(
                                         text = "Shipping Address matches Billing Address",

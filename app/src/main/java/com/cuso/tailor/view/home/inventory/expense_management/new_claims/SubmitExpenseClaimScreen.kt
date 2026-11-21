@@ -31,6 +31,7 @@ import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.hr.attendance_management.employees.uriToFile
 import com.cuso.tailor.viewmodel.Authenticate
 import com.cuso.tailor.viewmodel.HrViewModel
+import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -41,6 +42,7 @@ import java.util.Locale
 fun SubmitExpenseClaimScreen(
     claimId: String? = null,
     hrViewModel: HrViewModel = hiltViewModel(),
+    inventoryViewModel: InventoryViewModel = hiltViewModel(),
     authViewModel: Authenticate = hiltViewModel(),
     onClose: () -> Unit = {},
     onSubmitSuccess: () -> Unit = {}
@@ -60,8 +62,15 @@ fun SubmitExpenseClaimScreen(
     val attachedFiles = remember { mutableStateListOf<Uri>() }
     var showDatePicker by remember { mutableStateOf(false) }
 
-    val activeTypes by hrViewModel.activeExpenseTypes.collectAsStateWithLifecycle()
-    val categoryOptions = remember(activeTypes) { activeTypes.map { it.name } }
+    val categoriesList by inventoryViewModel.categoriesList.collectAsStateWithLifecycle()
+    val isLoadingCategories by inventoryViewModel.isLoadingCategories.collectAsStateWithLifecycle()
+    val categoriesError by inventoryViewModel.categoriesError.collectAsStateWithLifecycle()
+
+    val categoryOptions = remember(categoriesList) {
+        categoriesList
+            .filter { !it.isDeleted && it.name.isNotBlank() }
+            .map { it.name }
+    }
 
     val claimDetail by hrViewModel.expenseClaimDetail.collectAsStateWithLifecycle()
     val isLoadingDetail by hrViewModel.isLoadingExpenseClaimDetail.collectAsStateWithLifecycle()
@@ -71,6 +80,21 @@ fun SubmitExpenseClaimScreen(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
         attachedFiles.addAll(uris)
+    }
+
+    LaunchedEffect(Unit) {
+        inventoryViewModel.fetchCategories(page = 1, pageSize = 100)
+        if (!claimId.isNullOrBlank()) {
+            hrViewModel.fetchExpenseClaimDetail(claimId)
+        } else {
+            hrViewModel.clearExpenseClaimDetail()
+        }
+    }
+
+    LaunchedEffect(categoriesList, selectedCategoryId) {
+        if (selectedCategoryName.isBlank() && selectedCategoryId.isNotBlank()) {
+            selectedCategoryName = categoriesList.firstOrNull { it.id == selectedCategoryId }?.name.orEmpty()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -179,13 +203,21 @@ fun SubmitExpenseClaimScreen(
 
                     FormLabel(text = "Category", isRequired = true)
                     FormDropdown(
-                        value = selectedCategoryName,
+                        value = when {
+                            selectedCategoryName.isNotBlank() -> selectedCategoryName
+                            isLoadingCategories -> "Loading categories..."
+                            else -> ""
+                        },
                         expanded = isCategoryDropdownExpanded,
                         onExpandChange = { isCategoryDropdownExpanded = it },
                         options = categoryOptions,
+                        enabled = !isLoadingCategories,
+                        isError = !categoriesError.isNullOrBlank(),
+                        errorMessage = categoriesError,
                         onOptionSelected = { chosenName ->
                             selectedCategoryName = chosenName
-                            selectedCategoryId = activeTypes.firstOrNull { it.name == chosenName }?.id.orEmpty()
+                            selectedCategoryId = categoriesList.firstOrNull { it.name == chosenName }?.id.orEmpty()
+                            isCategoryDropdownExpanded = false
                         }
                     )
 

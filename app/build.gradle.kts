@@ -39,9 +39,7 @@ android {
         versionName = "1.0.1"
     }
 
-
     buildTypes {
-
         debug {
             isDebuggable = true
             isMinifyEnabled = false
@@ -49,7 +47,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.7:5000/\""
+                "\"http://192.168.88.8:5000/\""
             )
         }
 

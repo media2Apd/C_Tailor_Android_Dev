@@ -3,7 +3,7 @@
 package com.cuso.tailor.utils
 
 import android.os.Build
-import android.util.Log
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -51,9 +51,7 @@ object CurrencyHelper {
                 currentSymbol = resolvedSymbol
                 _symbolFlow.value = resolvedSymbol
 
-                Log.d(TAG, "startObserving() initial code: '$code', symbol: '$resolvedSymbol'")
             } catch (e: Exception) {
-                Log.e(TAG, "Error fetching cached settings: ${e.message}", e)
             }
         }
 
@@ -67,7 +65,6 @@ object CurrencyHelper {
                 currentSymbol = resolvedSymbol
                 _symbolFlow.value = resolvedSymbol
 
-                Log.d(TAG, "startObserving() live update code: '$code', symbol: '$resolvedSymbol'")
             }
             .launchIn(scope)
     }
@@ -127,7 +124,6 @@ object CurrencyHelper {
             formatter.maximumFractionDigits = decimals
             formatter.format(value)
         } catch (e: Exception) {
-            Log.e(TAG, "format() failed for code '$code': ${e.message}")
             "${resolveSymbolForCode(code)}$value"
         }
     }
@@ -147,7 +143,6 @@ object CurrencyHelper {
                 JavaCurrency.getInstance(code).getSymbol(Locale.getDefault())
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Exception getting symbol for code '$code': ${e.message}")
             ""
         }
     }

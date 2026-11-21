@@ -302,7 +302,7 @@ private fun TwoFAPolicyForm(policy: TwoFAPolicy, onSave: (TwoFAPolicy) -> Unit) 
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Checkbox(checked = selected, onCheckedChange = { methods = if (selected) methods - id else methods + id })
+                    AppCheckbox(checked = selected, onCheckedChange = { methods = if (selected) methods - id else methods + id })
                     Column {
                         Text(label, fontSize = tokens.bodySmall, fontWeight = FontWeight.Bold, color = TextPrimary)
                         Text(desc, fontSize = tokens.caption, color = TextSecondary)

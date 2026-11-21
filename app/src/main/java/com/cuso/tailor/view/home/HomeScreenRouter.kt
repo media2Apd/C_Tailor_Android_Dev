@@ -3743,7 +3743,6 @@ private fun InventoryMainRouter(
             CreateItemScreen(
                 itemId = selectedInventoryItemId,
                 onDismiss = {
-                    onInventoryItemIdSelected(null)
                     onGoBack()
                 },
                 onItemCreated = {

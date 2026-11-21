@@ -40,12 +40,12 @@ import com.cuso.tailor.model.finance.ChartOfAccountItem
 import com.cuso.tailor.model.finance.indentLevel
 import com.cuso.tailor.ui.theme.BluePrimary
 import com.cuso.tailor.ui.theme.BorderGray
-import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.TextSecondary
 import com.cuso.tailor.ui.theme.greenBg
 import com.cuso.tailor.ui.theme.greentext
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.view.composable.AppCheckbox
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DeleteModel
@@ -552,17 +552,13 @@ fun AddAccountScreen(
                         if (!isSubAccount) selectedParent = null
                     }
                 ) {
-                    Checkbox(
+                    AppCheckbox(
                         checked = isSubAccount,
                         onCheckedChange = {
                             isSubAccount = it
                             if (!it) selectedParent = null
                         },
-                        enabled = subAccountEnabled,
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = Primary,
-                            checkmarkColor = whiteBg
-                        )
+                        enabled = subAccountEnabled
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(

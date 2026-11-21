@@ -18,7 +18,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.util.Base64
-import android.util.Log
+
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceError
@@ -116,7 +116,6 @@ class InvoicePdfGenerator(private val context: Context) {
         try {
             decorView.addView(webView, 0)
         } catch (e: Exception) {
-            Log.e("InvoicePdfGenerator", "attachToWindow failed", e)
         }
     }
 
@@ -124,7 +123,6 @@ class InvoicePdfGenerator(private val context: Context) {
         try {
             (webView.parent as? ViewGroup)?.removeView(webView)
         } catch (e: Exception) {
-            Log.e("InvoicePdfGenerator", "detachFromWindow failed", e)
         }
     }
 
@@ -168,7 +166,6 @@ class InvoicePdfGenerator(private val context: Context) {
                     val result = renderWebViewToPdf(webView, renderWidthPx, density, fileName, saveToDownloads)
                     finish(result)
                 } catch (e: Exception) {
-                    Log.e("InvoicePdfGenerator", "Render failed (timeout path)", e)
                     finish(null)
                 }
             }
@@ -182,7 +179,6 @@ class InvoicePdfGenerator(private val context: Context) {
                         val result = renderWebViewToPdf(webView, renderWidthPx, density, fileName, saveToDownloads)
                         finish(result)
                     } catch (e: Exception) {
-                        Log.e("InvoicePdfGenerator", "Render failed (onPageFinished path)", e)
                         finish(null)
                     }
                 }, 350)
@@ -216,7 +212,6 @@ class InvoicePdfGenerator(private val context: Context) {
         val contentHeightPx = (webView.contentHeight * density).toInt().coerceAtLeast(webView.measuredHeight)
 
         if (contentHeightPx <= 0) {
-            Log.e("InvoicePdfGenerator", "contentHeightPx <= 0 — aborting render")
             return null
         }
 
@@ -294,7 +289,6 @@ class InvoicePdfGenerator(private val context: Context) {
                 SavedPdf(uri = Uri.fromFile(file), displayName = fileName, file = file)
             }
         } catch (e: Exception) {
-            Log.e("InvoicePdfGenerator", "writeBytesToDownloads failed for '$fileName'", e)
             null
         }
     }
@@ -334,7 +328,6 @@ class InvoicePdfGenerator(private val context: Context) {
             val bytes = outputStream.toByteArray()
             "data:image/png;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
         } catch (e: Exception) {
-            Log.e("InvoicePdfGenerator", "drawableToBase64 failed", e)
             ""
         }
     }

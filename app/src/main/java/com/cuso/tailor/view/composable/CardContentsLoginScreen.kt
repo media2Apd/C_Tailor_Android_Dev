@@ -4,7 +4,7 @@ package com.cuso.tailor.view.composable
 
 import android.app.Activity
 import android.net.Uri
-import android.util.Log
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -418,19 +418,15 @@ fun CardContentsLoginScreen(
         }
 
         LaunchedEffect(accountState) {
-            Log.d("LOGIN_STATE", "accountState = $accountState")
             when (val state = accountState) {
                 is UiState.EmailVerified -> {
-                    Log.d("LOGIN_STATE", "EMAIL VERIFIED -> showing password")
                     submittedEmail = email
                     isSubmitted = true
                 }
                 is UiState.EmailNotFound -> {
-                    Log.d("LOGIN_STATE", "EMAIL NOT FOUND")
                     showEmailNotFound = true
                 }
                 is UiState.MustChangePassword -> {
-                    Log.d("LOGIN_STATE", "MUST CHANGE PASSWORD -> showing set new password form")
                     isTwoFactorStep = false
                     changePasswordChallengeToken = state.challengeToken
                     changePasswordSubtitle = state.message
@@ -457,7 +453,6 @@ fun CardContentsLoginScreen(
                     }
                 }
                 is UiState.TwoFactorRequired -> {
-                    Log.d("LOGIN_STATE", "2FA REQUIRED -> showing two-step verification")
                     isMustChangePasswordStep = false
                     twoFactorChallengeToken = state.challengeToken
                     twoFactorPrompt = if (state.method.equals("authenticator", ignoreCase = true)) {
@@ -570,7 +565,11 @@ fun CardContentsLoginScreen(
                 OrText()
                 Spacer(Modifier.height(tokens.screenPadding))
 
-                ContinueWithGoogle(activity, navController)
+                ContinueWithGoogle(
+                    activity = activity,
+                    navController = navController,
+                    permissionViewModel = permissionViewModel
+                )
 
                 Spacer(Modifier.height(tokens.screenPadding))
                 Box(

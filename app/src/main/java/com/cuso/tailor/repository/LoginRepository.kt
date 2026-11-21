@@ -183,6 +183,7 @@ class LoginRepository @Inject constructor(
             val user = loginData.user
             val org = user.organizationId
             val tokens = loginData.tokens
+            val orgId = org?._id.orEmpty()
 
             // 1. Save User
             db.userDao().insertUser(
@@ -192,98 +193,100 @@ class LoginRepository @Inject constructor(
                     firstName = user.firstName,
                     lastName = user.lastName,
                     email = user.email,
-                    profilePicture = user.profilePicture,
-                    role = user.role,
-                    memberId = user.memberId,
-                    organizationId = org.id,
-                    companySize = ""
+                    profilePicture = user.profilePicture.orEmpty(),
+                    role = user.role.orEmpty(),
+                    memberId = user.memberId.orEmpty(),
+                    organizationId = orgId,
+                    companySize = org?.settings?.companySize.orEmpty()
                 )
             )
 
-            // 2. Save Organization
-            db.organizationDao().insertOrganization(
-                OrganizationEntity(
-                    orgId = org.id,
-                    businessId = org.businessId,
-                    name = org.name,
-                    industry = org.industry,
-                    orgType = org.orgType,
-                    organizationPicture = org.organizationPicture,
-                    organizationPictureId = org.organizationPictureId,
-                    email = org.email,
-                    mobile = org.mobile,
-                    orgSetupComplete = org.orgSetupComplete,
-                    totalMembers = org.totalMembers,
-                    activeMembers = org.activeMembers,
-                    isTaxId = org.isTaxId,
-                    status = org.status,
-                    createdAt = org.createdAt,
-                    updatedAt = org.updatedAt,
-                    slug = org.slug,
-                    v = org.version,
-                    defaultBranch = org.defaultBranch,
-                    ownerId = org.ownerId,
-                    ownerMemberId = org.ownerMemberId,
-                    businessType = org.businessType,
-                    taxId = org.taxId,
-                    isInternalOrganization = org.isInternalOrganization
+            if (org != null) {
+                // 2. Save Organization
+                db.organizationDao().insertOrganization(
+                    OrganizationEntity(
+                        orgId = orgId,
+                        businessId = org.businessId.orEmpty(),
+                        name = org.name.orEmpty(),
+                        industry = org.industry.orEmpty(),
+                        orgType = org.orgType.orEmpty(),
+                        organizationPicture = org.organizationPicture.orEmpty(),
+                        organizationPictureId = org.organizationPictureId.orEmpty(),
+                        email = org.email.orEmpty(),
+                        mobile = org.mobile.orEmpty(),
+                        orgSetupComplete = org.orgSetupComplete,
+                        totalMembers = org.totalMembers,
+                        activeMembers = org.activeMembers,
+                        isTaxId = org.isTaxId,
+                        status = org.status.orEmpty(),
+                        createdAt = org.createdAt.orEmpty(),
+                        updatedAt = org.updatedAt.orEmpty(),
+                        slug = org.slug.orEmpty(),
+                        v = org.__v,
+                        defaultBranch = org.defaultBranch.orEmpty(),
+                        ownerId = org.ownerId.orEmpty(),
+                        ownerMemberId = org.ownerMemberId.orEmpty(),
+                        businessType = org.businessType.orEmpty(),
+                        taxId = org.taxId.orEmpty(),
+                        isInternalOrganization = org.isInternalOrganization
+                    )
                 )
-            )
 
-            // 3. Save Org Lists
-            db.organizationDao().insertDomains(
-                org.domains.map { OrgDomainEntity(orgId = org.id, domain = it) }
-            )
-            db.organizationDao().insertSegments(
-                org.segments.map { OrgSegmentEntity(orgId = org.id, segment = it) }
-            )
-            //   Google branches are List<String>
-            db.organizationDao().insertBranches(
-                org.branches.map { branchId ->
-                    OrgBranchEntity(orgId = org.id, branch = branchId)
-                }
-            )
-
-            // 4. Save Subscription
-            val sub = org.subscription
-            db.subscriptionDao().insertSubscription(
-                SubscriptionEntity(
-                    orgId = org.id,
-                    startDate = sub.startDate,
-                    endDate = sub.endDate,
-                    status = sub.status,
-                    memberLimit = sub.memberLimit
+                // 3. Save Org Lists
+                db.organizationDao().insertDomains(
+                    org.domains.map { OrgDomainEntity(orgId = orgId, domain = it) }
                 )
-            )
-            db.subscriptionDao().insertFeatures(
-                sub.featuresEnabled.map {
-                    FeatureEnabledEntity(orgId = org.id, feature = it)
-                }
-            )
-
-            // 5. Save Settings
-            val settings = org.settings
-            db.settingsDao().insertSettings(
-                SettingsEntity(
-                    orgId = org.id,
-                    country = settings.country,
-                    state = settings.state,
-                    portalName = settings.portalName,
-                    termsAccepted = settings.termsAccepted,
-                    marketingEmails = settings.marketingEmails,
-                    timezone = settings.timezone,
-                    currency = settings.currency,
-                    language = settings.language,
-                    address = settings.address,
-                    city = settings.city,
-                    pincode = settings.pincode
+                db.organizationDao().insertSegments(
+                    org.segments.map { OrgSegmentEntity(orgId = orgId, segment = it) }
                 )
-            )
-            db.settingsDao().insertWorkingDays(
-                settings.workingDays.map {
-                    WorkingDayEntity(orgId = org.id, day = it)
-                }
-            )
+                db.organizationDao().insertBranches(
+                    org.branches.map { branchId ->
+                        OrgBranchEntity(orgId = orgId, branch = branchId)
+                    }
+                )
+
+                // 4. Save Subscription
+                val sub = org.subscription
+                db.subscriptionDao().insertSubscription(
+                    SubscriptionEntity(
+                        orgId = orgId,
+                        startDate = sub?.startDate.orEmpty(),
+                        endDate = sub?.endDate.orEmpty(),
+                        status = sub?.status.orEmpty(),
+                        memberLimit = sub?.memberLimit ?: 0
+                    )
+                )
+                db.subscriptionDao().insertFeatures(
+                    sub?.featuresEnabled.orEmpty().map {
+                        FeatureEnabledEntity(orgId = orgId, feature = it)
+                    }
+                )
+
+                // 5. Save Settings
+                val settings = org.settings
+                db.settingsDao().insertSettings(
+                    SettingsEntity(
+                        orgId = orgId,
+                        country = (settings?.countryName ?: settings?.country).orEmpty(),
+                        state = (settings?.subdivisionName ?: settings?.state).orEmpty(),
+                        portalName = settings?.portalName.orEmpty(),
+                        termsAccepted = settings?.termsAccepted ?: false,
+                        marketingEmails = settings?.marketingEmails ?: false,
+                        companySize = settings?.companySize.orEmpty(),
+                        timezone = settings?.timezone.orEmpty(),
+                        currency = settings?.currency.orEmpty(),
+                        language = settings?.language.orEmpty(),
+                        address = settings?.address.orEmpty(),
+                        city = settings?.city.orEmpty(),
+                        pincode = settings?.pincode.orEmpty()
+                    )
+                )
+                db.settingsDao().insertWorkingDays(
+                    settings?.workingDays.orEmpty().map {
+                        WorkingDayEntity(orgId = orgId, day = it)
+                    }
+                )
+            }
 
             // 6. Save Tokens
             db.tokensDao().insertTokens(

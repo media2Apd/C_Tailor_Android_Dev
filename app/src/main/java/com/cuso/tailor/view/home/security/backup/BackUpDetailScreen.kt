@@ -27,6 +27,7 @@ import com.cuso.tailor.model.security.BackupItemDto
 import com.cuso.tailor.model.security.BackupTimelineStepDto
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.AppCheckbox
+import com.cuso.tailor.view.composable.AppRadioButton
 import com.cuso.tailor.view.composable.MiniSwitch
 import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.composable.TitleBar
@@ -941,10 +942,9 @@ private fun DestinationOptionItem(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            RadioButton(
+            AppRadioButton(
                 selected = isSelected,
-                onClick = onClick,
-                colors = RadioButtonDefaults.colors(selectedColor = Primary)
+                onClick = onClick
             )
             Spacer(Modifier.width(8.dp))
             Column {

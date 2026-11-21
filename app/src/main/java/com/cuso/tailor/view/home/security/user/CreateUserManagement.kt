@@ -859,12 +859,12 @@ fun CreateUserScreen(
                         Spacer(Modifier.height(4.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 2)) {
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { accountStatus = "active" }) {
-                                RadioButton(selected = accountStatus == "active", onClick = { accountStatus = "active" }, colors = RadioButtonDefaults.colors(selectedColor = Primary))
+                                AppRadioButton(selected = accountStatus == "active", onClick = { accountStatus = "active" })
                                 Spacer(Modifier.width(4.dp))
                                 Text("Active", fontSize = tokens.bodySmall, color = title_color)
                             }
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { accountStatus = "inactive" }) {
-                                RadioButton(selected = accountStatus == "inactive", onClick = { accountStatus = "inactive" }, colors = RadioButtonDefaults.colors(selectedColor = Primary))
+                                AppRadioButton(selected = accountStatus == "inactive", onClick = { accountStatus = "inactive" })
                                 Spacer(Modifier.width(4.dp))
                                 Text("Inactive", fontSize = tokens.bodySmall, color = title_color)
                             }

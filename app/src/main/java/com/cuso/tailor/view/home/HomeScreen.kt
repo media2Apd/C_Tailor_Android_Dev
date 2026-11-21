@@ -259,7 +259,6 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     }
 
 //    FirebaseMessaging.getInstance().token.addOnSuccessListener { fcmToken ->
-//        android.util.Log.d("FCM_TEST_TOKEN", fcmToken)
 //        // topbarEventViewModel.syncFcmTokenToServer(fcmToken) // Keep commented until backend adds the API
 //    }
 

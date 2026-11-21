@@ -56,6 +56,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -70,7 +71,6 @@ import com.cuso.tailor.model.inventory.ReceivePOItemRequest
 import com.cuso.tailor.model.inventory.ReceivePurchaseOrderRequest
 import com.cuso.tailor.ui.theme.BluePrimary
 import com.cuso.tailor.ui.theme.Primary
-import com.cuso.tailor.ui.theme.PrimaryBorder
 import com.cuso.tailor.ui.theme.Primary_background
 import com.cuso.tailor.ui.theme.TextPrimary
 import com.cuso.tailor.ui.theme.TextSecondary
@@ -79,20 +79,17 @@ import com.cuso.tailor.ui.theme.close_color
 import com.cuso.tailor.ui.theme.complete_button_bg
 import com.cuso.tailor.ui.theme.darkGreenBg
 import com.cuso.tailor.ui.theme.disabled
-import com.cuso.tailor.ui.theme.dividerColor
 import com.cuso.tailor.ui.theme.greenBg
 import com.cuso.tailor.ui.theme.greentext
 import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.iconMuted
 import com.cuso.tailor.ui.theme.light_blue
-import com.cuso.tailor.ui.theme.light_blue_border
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.primary_light
 import com.cuso.tailor.ui.theme.quickaccessBg
 import com.cuso.tailor.ui.theme.redBg
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.sectionBorder
-import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.ui.theme.yellowBg
 import com.cuso.tailor.ui.theme.yellowText
@@ -135,6 +132,7 @@ fun PODetailScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
 
+    // Resolve the purchase order ID from navigation argument or passed model
     val effectivePoId = poId?.takeIf { it.isNotBlank() } ?: order?.id.orEmpty()
 
     val orderDetail by viewModel.purchaseOrderDetail.collectAsStateWithLifecycle()
@@ -148,24 +146,28 @@ fun PODetailScreen(
     var showReceiveDialog by remember { mutableStateOf(false) }
     var showBillConvertDialog by remember { mutableStateOf(false) }
 
+    // Fetch purchase order details whenever the effective ID changes
     LaunchedEffect(effectivePoId) {
         if (effectivePoId.isNotBlank()) {
             viewModel.fetchPurchaseOrderDetail(effectivePoId)
         }
     }
 
+    // Clear cached detail state when leaving this screen
     DisposableEffect(Unit) {
         onDispose {
             viewModel.clearPurchaseOrderDetail()
         }
     }
 
+    // Display error toast if detail fetch fails
     LaunchedEffect(poDetailError) {
         poDetailError?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
         }
     }
 
+    // Display success toast for PO mutations
     LaunchedEffect(poSuccessMessage) {
         poSuccessMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
@@ -173,6 +175,7 @@ fun PODetailScreen(
         }
     }
 
+    // Display error toast for PO mutations
     LaunchedEffect(poError) {
         poError?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
@@ -188,7 +191,6 @@ fun PODetailScreen(
         ?: order?.orderStatus?.takeIf { it.isNotBlank() }
         ?: "-"
 
-    val lifecycleStatus = orderDetail?.lifecycleStatus?.takeIf { it.isNotBlank() } ?: "-"
     val poType = orderDetail?.poType?.takeIf { it.isNotBlank() } ?: "-"
     val currencyCode = orderDetail?.currency?.takeIf { it.isNotBlank() }
     val orderDate = orderDetail?.poDate?.substringBefore("T")?.takeIf { it.isNotBlank() } ?: "-"
@@ -199,13 +201,14 @@ fun PODetailScreen(
 
     val warehouse = orderDetail?.warehouse
     val supplier = orderDetail?.supplier
+    val isDetailReady = orderDetail != null
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Primary_background)
     ) {
-        // Pinned Header Bar
+        // Pinned header bar
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = whiteBg
@@ -221,6 +224,47 @@ fun PODetailScreen(
 
         if (isLoadingDetail && orderDetail == null) {
             ListSkeleton()
+        } else if (orderDetail == null && poDetailError != null) {
+            // Error state with retry action when API fetch or JSON parsing fails
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = tokens.screenPadding),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Failed to load purchase order details",
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = poDetailError ?: "Unknown error",
+                    fontSize = tokens.bodySmall,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        if (effectivePoId.isNotBlank()) {
+                            viewModel.fetchPurchaseOrderDetail(effectivePoId)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                ) {
+                    Text(
+                        text = "Retry",
+                        fontSize = tokens.bodySmall,
+                        color = whiteBg,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
         } else {
             Column(
                 modifier = Modifier
@@ -228,7 +272,8 @@ fun PODetailScreen(
                     .verticalScroll(rememberScrollState())
             ) {
                 Spacer(Modifier.height(10.dp))
-                // Section 1: Header & Primary Actions
+
+                // Section 1: Header and primary actions
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -268,7 +313,6 @@ fun PODetailScreen(
 
                     Spacer(modifier = Modifier.height(tokens.extraPadding))
                     HorizontalDivider(color = grey_border, thickness = 2.dp)
-
                     Spacer(modifier = Modifier.height(tokens.extraPadding))
 
                     Row(
@@ -277,6 +321,7 @@ fun PODetailScreen(
                     ) {
                         OutlinedButton(
                             onClick = onEdit,
+                            enabled = isDetailReady,
                             shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
                             border = BorderStroke(1.dp, sectionBorder),
                             contentPadding = PaddingValues(horizontal = 8.dp),
@@ -299,58 +344,60 @@ fun PODetailScreen(
                             )
                         }
 
-                        OutlinedButton(
-                            onClick = { showReceiveDialog = true },
-                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                            border = BorderStroke(1.dp, sectionBorder),
-                            contentPadding = PaddingValues(horizontal = 8.dp),
-                            modifier = Modifier
-                                .weight(1.15f)
-                                .height(tokens.fieldHeight)
-                        ) {
-                            Icon(
-                                painter = painterResource(id = iconConfig.receiveRes),
-                                contentDescription = null,
-                                tint = TextSecondary,
-                                modifier = Modifier.size(tokens.iconSize * 0.85f)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Receive",
-                                fontSize = tokens.bodySmall,
-                                color = TextPrimary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        Button(
-                            onClick = {
-                                val targetId = orderDetail?.id ?: effectivePoId
-                                if (targetId.isNotBlank()) {
-                                    viewModel.fetchPOForBillConvert(targetId)
-                                    showBillConvertDialog = true
-                                }
-                            },
-                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                            colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                            contentPadding = PaddingValues(horizontal = 8.dp),
-                            modifier = Modifier
-                                .weight(1.4f)
-                                .height(tokens.fieldHeight)
-                        ) {
-                            Text(
-                                text = "Convert to Bill",
-                                fontSize = tokens.bodySmall,
-                                color = whiteBg,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+//                        OutlinedButton(
+//                            onClick = { showReceiveDialog = true },
+//                            enabled = isDetailReady,
+//                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+//                            border = BorderStroke(1.dp, sectionBorder),
+//                            contentPadding = PaddingValues(horizontal = 8.dp),
+//                            modifier = Modifier
+//                                .weight(1.15f)
+//                                .height(tokens.fieldHeight)
+//                        ) {
+//                            Icon(
+//                                painter = painterResource(id = iconConfig.receiveRes),
+//                                contentDescription = null,
+//                                tint = TextSecondary,
+//                                modifier = Modifier.size(tokens.iconSize * 0.85f)
+//                            )
+//                            Spacer(modifier = Modifier.width(4.dp))
+//                            Text(
+//                                text = "Receive",
+//                                fontSize = tokens.bodySmall,
+//                                color = TextPrimary,
+//                                fontWeight = FontWeight.SemiBold
+//                            )
+//                        }
+//
+//                        Button(
+//                            onClick = {
+//                                val targetId = orderDetail?.id ?: effectivePoId
+//                                if (targetId.isNotBlank()) {
+//                                    viewModel.fetchPOForBillConvert(targetId)
+//                                    showBillConvertDialog = true
+//                                }
+//                            },
+//                            enabled = isDetailReady,
+//                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+//                            colors = ButtonDefaults.buttonColors(containerColor = Primary),
+//                            contentPadding = PaddingValues(horizontal = 8.dp),
+//                            modifier = Modifier
+//                                .weight(1.4f)
+//                                .height(tokens.fieldHeight)
+//                        ) {
+//                            Text(
+//                                text = "Convert to Bill",
+//                                fontSize = tokens.bodySmall,
+//                                color = whiteBg,
+//                                fontWeight = FontWeight.Bold
+//                            )
+//                        }
                     }
                 }
 
                 HorizontalDivider(color = grey_border, thickness = 2.dp)
 
-                // Section 2: Metric Cards Grid
+                // Section 2: Metric cards grid
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -404,7 +451,7 @@ fun PODetailScreen(
                 HorizontalDivider(color = grey_border, thickness = 2.dp)
                 Spacer(modifier = Modifier.height(tokens.extraPadding))
 
-                // Section 4: Vendor Details
+                // Section 3: Vendor details
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -423,7 +470,7 @@ fun PODetailScreen(
                 HorizontalDivider(color = grey_border, thickness = 2.dp)
                 Spacer(modifier = Modifier.height(tokens.extraPadding))
 
-                // Section 5: Delivery Address
+                // Section 4: Delivery address
                 val formattedWarehouseAddress = buildWarehouseAddress(warehouse)
                 Box(
                     modifier = Modifier
@@ -451,8 +498,7 @@ fun PODetailScreen(
                 HorizontalDivider(color = grey_border, thickness = 2.dp)
                 Spacer(modifier = Modifier.height(tokens.extraPadding))
 
-
-                // Section 7: Internal Notes & Remarks
+                // Section 5: Internal notes and remarks
                 if (!internalNoteText.isNullOrBlank() || !poRemarks.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(tokens.extraPadding))
                     Box(
@@ -471,12 +517,12 @@ fun PODetailScreen(
 
                 Spacer(modifier = Modifier.height(tokens.extraPadding))
 
-                // Section 8: Ordered Items List
+                // Section 6: Ordered items list
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.Transparent)
-                        .padding( vertical = tokens.extraPadding)
+                        .padding(vertical = tokens.extraPadding)
                 ) {
                     OrderedItemsSection(
                         items = orderDetail?.items,
@@ -488,7 +534,7 @@ fun PODetailScreen(
                 HorizontalDivider(color = grey_border, thickness = 2.dp)
                 Spacer(modifier = Modifier.height(tokens.extraPadding))
 
-                // Section 9: Cost Breakdown
+                // Section 7: Cost breakdown
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -510,8 +556,8 @@ fun PODetailScreen(
         }
     }
 
-    // Receive Dialog
-    if (showReceiveDialog) {
+    // Receive confirmation dialog
+    if (showReceiveDialog && orderDetail != null) {
         AlertDialog(
             onDismissRequest = { showReceiveDialog = false },
             title = {
@@ -571,7 +617,7 @@ fun PODetailScreen(
         )
     }
 
-    // Bill Convert Dialog
+    // Bill conversion summary dialog
     if (showBillConvertDialog && billConvertData != null) {
         AlertDialog(
             onDismissRequest = {
@@ -621,9 +667,7 @@ fun PODetailScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Design-Specific UI Sub-Components
-// ─────────────────────────────────────────────────────────────
+// Reusable UI sub-components
 
 @Composable
 fun POStatusBadge(status: String) {
@@ -648,7 +692,7 @@ fun POStatusBadge(status: String) {
         Text(
             text = cleanStatus,
             color = textCol,
-            fontSize = tokens.caption,
+            fontSize = tokens.caption
         )
     }
 }
@@ -729,33 +773,15 @@ fun VendorDetailsSection(
     val tokens = LocalAppTokens.current
 
     val vendorName = supplier?.name ?: "-"
-    val supplierCode = supplier?.supplierCode ?: "-"
     val complianceStatus = supplier?.complianceStatus ?: "-"
 
     val contact = supplier?.contact
-    val contactName = contact?.contactName ?: "-"
     val email = contact?.email ?: "-"
     val phone = contact?.phone ?: "-"
     val altPhone = contact?.alternatePhone ?: "-"
-    val website = contact?.website ?: "-"
 
     val address = supplier?.address?.billing ?: supplier?.address?.shipping
     val formattedAddress = buildSupplierAddress(address)
-
-    val tax = supplier?.tax
-    val gstin = tax?.gstNumber ?: "-"
-    val pan = tax?.pan ?: "-"
-    val gstType = tax?.gstType ?: "-"
-    val tdsApplicable = when (tax?.tdsApplicable) {
-        true -> "Yes"
-        false -> "No"
-        null -> "-"
-    }
-    val reverseCharge = when (tax?.reverseCharge) {
-        true -> "Yes"
-        false -> "No"
-        null -> "-"
-    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -906,7 +932,6 @@ fun DeliveryAddressSection(
                 )
             }
 
-
             Row(horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
                 Icon(
                     painter = painterResource(id = copyIconRes),
@@ -929,7 +954,6 @@ fun DeliveryAddressSection(
 
         Spacer(modifier = Modifier.height(tokens.extraPadding))
         HorizontalDivider(color = grey_border, thickness = 2.dp)
-
         Spacer(modifier = Modifier.height(tokens.extraPadding))
 
         Text(
@@ -1060,7 +1084,8 @@ fun OrderedItemsSection(
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
                 .padding(horizontal = tokens.screenPadding),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -1080,7 +1105,12 @@ fun OrderedItemsSection(
         Spacer(modifier = Modifier.height(tokens.extraPadding))
 
         if (itemsList.isEmpty()) {
-            Text(text = "No items recorded in this order", fontSize = tokens.bodySmall, color = mutedText)
+            Text(
+                text = "No items recorded in this order",
+                fontSize = tokens.bodySmall,
+                color = mutedText,
+                modifier = Modifier.padding(horizontal = tokens.screenPadding)
+            )
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)) {
                 itemsList.forEach { item ->
@@ -1130,7 +1160,7 @@ fun OrderItemCard(
                 .fillMaxWidth()
                 .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding)
         ) {
-            // Top Row: Thumbnail + Title/SKU + Status Badge
+            // Top row: thumbnail, title/SKU, and status badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1140,7 +1170,7 @@ fun OrderItemCard(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Soft Rounded Thumbnail Placeholder
+                    // Rounded thumbnail placeholder
                     Box(
                         modifier = Modifier
                             .size(tokens.fieldHeight + 6.dp)
@@ -1180,7 +1210,7 @@ fun OrderItemCard(
 
             Spacer(modifier = Modifier.height(tokens.extraPadding * 1.5f))
 
-            // Bottom Row: Qty / Rate / Amount
+            // Bottom row: quantity, rate, and amount
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround

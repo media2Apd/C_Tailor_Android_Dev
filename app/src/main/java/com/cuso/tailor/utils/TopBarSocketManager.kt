@@ -1,6 +1,7 @@
+@file:Suppress("UNUSED_PARAMETER", "unused", "unusedVariable", "AssignedValueIsNeverRead","VariableNeverRead")
+
 package com.cuso.tailor.utils
 
-import android.util.Log
 import com.cuso.tailor.model.topBarModels.NotificationItemDto
 import com.google.gson.Gson
 import io.socket.client.IO
@@ -68,11 +69,9 @@ class TopbarSocketManager @Inject constructor() {
                 )
             }
 
-            Log.d("TopbarSocket", "Connecting to: $socketRootUrl")
 
             socket = IO.socket(socketRootUrl, options).apply {
                 on(Socket.EVENT_CONNECT) {
-                    Log.d("TopbarSocket", "Socket CONNECTED! id=${id()}")
                     // Join org room if backend listens for join events
                     if (organizationId.isNotBlank()) {
                         emit("join", organizationId)
@@ -80,22 +79,18 @@ class TopbarSocketManager @Inject constructor() {
                 }
 
                 on(Socket.EVENT_CONNECT_ERROR) { args ->
-                    Log.e("TopbarSocket", "Socket CONNECT_ERROR: ${args.joinToString()}")
                 }
 
                 on(Socket.EVENT_DISCONNECT) { args ->
-                    Log.w("TopbarSocket", "Socket DISCONNECTED: ${args.joinToString()}")
                 }
 
                 val handleNotification: (Array<Any>) -> Unit = { args ->
                     val rawJson = args.firstOrNull()?.toString()
-                    Log.d("TopbarSocket", "Notification event received: $rawJson")
                     if (!rawJson.isNullOrBlank()) {
                         try {
                             val dto = gson.fromJson(rawJson, NotificationItemDto::class.java)
                             _incomingNotifications.tryEmit(dto)
                         } catch (e: Exception) {
-                            Log.e("TopbarSocket", "Parse error: ${e.message}")
                         }
                     }
                 }
@@ -112,7 +107,6 @@ class TopbarSocketManager @Inject constructor() {
                 connect()
             }
         } catch (e: Exception) {
-            Log.e("TopbarSocket", "Socket init failed: ${e.message}", e)
         }
     }
 

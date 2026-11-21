@@ -3821,10 +3821,9 @@ private fun AssignMethodSelectionSheet(
                         .padding(tokens.screenPadding),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    RadioButton(
+                    AppRadioButton(
                         selected = isIndividual,
-                        onClick = { selectedMethod = "Individual" },
-                        colors = RadioButtonDefaults.colors(selectedColor = Primary)
+                        onClick = { selectedMethod = "Individual" }
                     )
                     Spacer(Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -3860,10 +3859,9 @@ private fun AssignMethodSelectionSheet(
                         .padding(tokens.screenPadding),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    RadioButton(
+                    AppRadioButton(
                         selected = isTeam,
-                        onClick = { selectedMethod = "Team" },
-                        colors = RadioButtonDefaults.colors(selectedColor = Primary)
+                        onClick = { selectedMethod = "Team" }
                     )
                     Spacer(Modifier.width(8.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -4417,13 +4415,9 @@ private fun AssignStaffDialog(
                                     verticalAlignment = Alignment.Top
                                 ) {
                                     // Radio Button
-                                    RadioButton(
+                                    AppRadioButton(
                                         selected = isSelected,
-                                        onClick = { selectedSpecialistId = specialist.id },
-                                        colors = RadioButtonDefaults.colors(
-                                            selectedColor = Primary,
-                                            unselectedColor = mutedText
-                                        )
+                                        onClick = { selectedSpecialistId = specialist.id }
                                     )
 
                                     Spacer(Modifier.width(8.dp))

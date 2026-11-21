@@ -383,10 +383,9 @@ fun CreateLeavePolicyScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Checkbox(
+                        AppCheckbox(
                             checked = includeProbationers,
-                            onCheckedChange = { includeProbationers = it },
-                            colors = CheckboxDefaults.colors(checkedColor = Primary)
+                            onCheckedChange = { includeProbationers = it }
                         )
                         Text(
                             text = "Include Employees currently on Probation",
@@ -399,10 +398,9 @@ fun CreateLeavePolicyScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Checkbox(
+                        AppCheckbox(
                             checked = autoEvaluateProbation,
-                            onCheckedChange = { autoEvaluateProbation = it },
-                            colors = CheckboxDefaults.colors(checkedColor = Primary)
+                            onCheckedChange = { autoEvaluateProbation = it }
                         )
                         Text(
                             text = "Auto-evaluate & assign upon Probation Clearance",

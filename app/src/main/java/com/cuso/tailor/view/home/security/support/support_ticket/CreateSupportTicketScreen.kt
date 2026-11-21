@@ -208,7 +208,7 @@ fun CreateSupportTicketScreen(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 modifier = Modifier.clickable { contactPreference = method }
                             ) {
-                                RadioButton(selected = contactPreference == method, onClick = { contactPreference = method })
+                                AppRadioButton(selected = contactPreference == method, onClick = { contactPreference = method })
                                 Text(method, fontSize = tokens.bodySmall)
                             }
                         }

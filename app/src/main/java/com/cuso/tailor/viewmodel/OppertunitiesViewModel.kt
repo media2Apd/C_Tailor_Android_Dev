@@ -1,6 +1,6 @@
 package com.cuso.tailor.viewmodel
 
-import android.util.Log
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cuso.tailor.model.sales.*
@@ -200,7 +200,6 @@ class OpportunityViewModel @Inject constructor(
                     loadActivities(opportunityId)
                 }
                 .onFailure {
-                    Log.e(TAG, "Failed to log activity: ${it.message}")
                 }
         }
     }
@@ -215,7 +214,6 @@ class OpportunityViewModel @Inject constructor(
                     _activities.value = historyList
                 }
                 .onFailure {
-                    Log.e(TAG, "Failed to load activities: ${it.message}")
                 }
         }
     }
@@ -230,7 +228,6 @@ class OpportunityViewModel @Inject constructor(
                     _opportunityStages.value = response.data.sortedBy { it.displayOrder }
                 }
                 .onFailure {
-                    Log.e(TAG, "Failed to fetch stages: ${it.message}")
                 }
         }
     }

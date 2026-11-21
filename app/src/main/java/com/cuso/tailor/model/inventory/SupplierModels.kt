@@ -29,8 +29,8 @@ data class SupplierDropdownResponse(
 )
 
 data class SupplierDropdownItem(
-    @SerializedName("value") val value: String = "",
-    @SerializedName("label") val label: String = ""
+    @SerializedName(value = "value", alternate = ["_id", "id"]) val value: String = "",
+    @SerializedName(value = "label", alternate = ["name"]) val label: String = ""
 )
 
 data class SupplierLedgerResponse(

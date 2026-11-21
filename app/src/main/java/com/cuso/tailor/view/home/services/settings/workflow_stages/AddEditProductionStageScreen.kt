@@ -20,6 +20,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.settings.SaveProductionStageRequest
 import com.cuso.tailor.model.settings.ServicesProductionStageDto
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.AppCheckbox
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextArea
@@ -282,14 +283,9 @@ private fun CheckboxRow(
                 lineHeight = 16.sp
             )
         }
-        Checkbox(
+        AppCheckbox(
             checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = CheckboxDefaults.colors(
-                checkedColor = Primary,
-                checkmarkColor = whiteBg,
-                uncheckedColor = iconMuted
-            )
+            onCheckedChange = onCheckedChange
         )
     }
 }

@@ -8,7 +8,7 @@
 )
 package com.cuso.tailor.viewmodel
 
-import android.util.Log
+
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -28,10 +28,6 @@ import com.cuso.tailor.model.login_forgotPassword_resetPassword.LoginData
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Organization
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.OrganizationDetails
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.RegisterVerifyOtpResponse
-import com.cuso.tailor.model.login_forgotPassword_resetPassword.Settings
-import com.cuso.tailor.model.login_forgotPassword_resetPassword.Subscription
-import com.cuso.tailor.model.login_forgotPassword_resetPassword.Tokens
-import com.cuso.tailor.model.login_forgotPassword_resetPassword.User
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.ChangeTemporaryPasswordRequest
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.ChangeTemporaryPasswordResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.VerifyTwoFARequest
@@ -474,11 +470,8 @@ class Authenticate @Inject constructor(
                         loginRepository.saveOrganizationData(org)
                         loadOrganization()
                         loadSettings()
-                    } else {
-                        Log.w("MY_ORG_API", "Organization data was empty")
                     }
                 } catch (e: Exception) {
-                    Log.e("MY_ORG_API", "Saving organization failed: ${e.message}", e)
                 }
             }
 
@@ -497,7 +490,6 @@ class Authenticate @Inject constructor(
                     }
                 },
                 onFailure = { error ->
-                    Log.e("PERMISSIONS_API", "Failed me permissions: ${error.message}")
                 }
             )
 
@@ -514,7 +506,6 @@ class Authenticate @Inject constructor(
                     }
                 },
                 onFailure = { error ->
-                    Log.e("PERMISSIONS_API", "Failed module permissions: ${error.message}")
                 }
             )
         }
@@ -545,79 +536,16 @@ class Authenticate @Inject constructor(
             when (val result = repository.googleLogin(idToken)) {
                 is GoogleLoginResult.ExistingUser -> {
                     val googleData = result.response.data
-
-                    val loginData = LoginData(
-                        user = User(
-                            id = googleData.user.id,
-                            userId = googleData.user.userId,
-                            firstName = googleData.user.firstName,
-                            lastName = googleData.user.lastName,
-                            email = googleData.user.email,
-                            profilePicture = googleData.user.profilePicture ?: "",
-                            organizationId = Organization(
-                                _id = googleData.user.organizationId.id,
-                                businessId = googleData.user.organizationId.businessId,
-                                name = googleData.user.organizationId.name,
-                                industry = googleData.user.organizationId.industry,
-                                orgType = googleData.user.organizationId.orgType,
-                                organizationPicture = googleData.user.organizationId.organizationPicture,
-                                organizationPictureId = googleData.user.organizationId.organizationPictureId,
-                                domains = googleData.user.organizationId.domains,
-                                email = googleData.user.organizationId.email,
-                                mobile = googleData.user.organizationId.mobile,
-                                orgSetupComplete = googleData.user.organizationId.orgSetupComplete,
-                                totalMembers = googleData.user.organizationId.totalMembers,
-                                activeMembers = googleData.user.organizationId.activeMembers,
-                                segments = googleData.user.organizationId.segments,
-                                branches = googleData.user.organizationId.branches,
-                                isTaxId = googleData.user.organizationId.isTaxId,
-                                status = googleData.user.organizationId.status,
-                                isInternalOrganization = googleData.user.organizationId.isInternalOrganization,
-                                createdAt = googleData.user.organizationId.createdAt,
-                                updatedAt = googleData.user.organizationId.updatedAt,
-                                slug = googleData.user.organizationId.slug,
-                                __v = googleData.user.organizationId.version,
-                                defaultBranch = googleData.user.organizationId.defaultBranch,
-                                ownerId = googleData.user.organizationId.ownerId,
-                                ownerMemberId = googleData.user.organizationId.ownerMemberId,
-                                businessType = googleData.user.organizationId.businessType,
-                                taxId = googleData.user.organizationId.taxId,
-                                subscription = Subscription(
-                                    startDate = googleData.user.organizationId.subscription.startDate,
-                                    endDate = googleData.user.organizationId.subscription.endDate,
-                                    status = googleData.user.organizationId.subscription.status,
-                                    memberLimit = googleData.user.organizationId.subscription.memberLimit,
-                                    featuresEnabled = googleData.user.organizationId.subscription.featuresEnabled
-                                ),
-                                settings = Settings(
-                                    country = googleData.user.organizationId.settings.country,
-                                    state = googleData.user.organizationId.settings.state,
-                                    portalName = googleData.user.organizationId.settings.portalName,
-                                    termsAccepted = googleData.user.organizationId.settings.termsAccepted,
-                                    marketingEmails = googleData.user.organizationId.settings.marketingEmails,
-                                    workingDays = googleData.user.organizationId.settings.workingDays,
-                                    timezone = googleData.user.organizationId.settings.timezone,
-                                    currency = googleData.user.organizationId.settings.currency,
-                                    language = googleData.user.organizationId.settings.language,
-                                    address = googleData.user.organizationId.settings.address,
-                                    city = googleData.user.organizationId.settings.city,
-                                    pincode = googleData.user.organizationId.settings.pincode
-                                )
-                            ),
-                            role = googleData.user.role,
-                            memberId = googleData.user.memberId
-                        ),
-                        tokens = Tokens(
-                            accessToken = googleData.tokens.accessToken,
-                            refreshToken = googleData.tokens.refreshToken,
-                            csrfToken = googleData.tokens.csrfToken,
-                            sessionLoginToken = googleData.tokens.sessionLoginToken,
-                            orgToken = ""
+                    if (googleData == null) {
+                        _accountState.value = UiState.Error(
+                            result.response.message.ifBlank { "Google login data is missing" }
                         )
-                    )
+                        return@launchBusy
+                    }
 
-                    loginRepository.saveLoginData(loginData)
-                    _loginData.value = loginData
+                    loginRepository.saveGoogleLoginData(googleData)
+                    loadOrganization()
+                    loadSettings()
                     loadTokens()
 
                     _accountState.value = UiState.GoogleLoginExisting(
@@ -635,10 +563,10 @@ class Authenticate @Inject constructor(
                 is GoogleLoginResult.NewUser -> {
                     val profile = result.response.googleProfile
                     _accountState.value = UiState.GoogleLoginNew(
-                        email = profile.email,
-                        firstName = profile.firstName,
-                        lastName = profile.lastName,
-                        googleId = profile.googleId,
+                        email = profile?.email.orEmpty(),
+                        firstName = profile?.firstName.orEmpty(),
+                        lastName = profile?.lastName.orEmpty(),
+                        googleId = profile?.googleId.orEmpty(),
                         message = result.response.message
                     )
                 }
@@ -669,9 +597,7 @@ class Authenticate @Inject constructor(
 
     fun verifyOtp(email: String, otp: String) {
         launchBusy {
-            Log.d("OTP_API", "Calling API with $email $otp")
             val result = repository.verifyOtp(email, otp)
-            Log.d("OTP_API", "Response = $result")
             _otpVerifyResult.value = result
 
             if (result.isSuccess) {
@@ -800,10 +726,8 @@ class Authenticate @Inject constructor(
         val currentUser = user.value
         val currentMemberId = currentUser?.id
 
-        Log.d("PROFILE_PIC_DEBUG", "Target: $targetUserId | Current: $currentMemberId")
 
         if (targetUserId.isNullOrBlank() || currentMemberId.isNullOrBlank() || targetUserId != currentMemberId) {
-            Log.d("PROFILE_PIC_DEBUG", "Mismatch! Update cancelled.")
             return
         }
 

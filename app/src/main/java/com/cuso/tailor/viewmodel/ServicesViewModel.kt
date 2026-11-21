@@ -1637,10 +1637,8 @@ class ServicesViewModel @Inject constructor(
         onSuccess: (String) -> Unit = {},
         onError: (String) -> Unit = {}
     ) {
-        android.util.Log.d("UPDATE_COMPLAINT", "updateComplaintStatus called with ID: '$complaintId', Status: '$status'")
 
         if (complaintId.isBlank()) {
-            android.util.Log.e("UPDATE_COMPLAINT", "Error: complaintId is blank!")
             onError("Invalid complaint ticket ID")
             return
         }
@@ -1662,7 +1660,6 @@ class ServicesViewModel @Inject constructor(
             }
 
             val payload = UpdateComplaintStatusRequest(status = backendStatus)
-            android.util.Log.d("UPDATE_COMPLAINT", "Sending PUT to $COMPLAINT_UPDATE_URL/$complaintId with payload: $payload")
 
             val result = repo.request<UpdateComplaintStatusResponse> {
                 put("$COMPLAINT_UPDATE_URL/$complaintId", payload)
@@ -1671,7 +1668,6 @@ class ServicesViewModel @Inject constructor(
             result.fold(
                 onSuccess = { res ->
                     _isUpdatingComplaintStatus.value = false
-                    android.util.Log.d("UPDATE_COMPLAINT", "Update SUCCESS: ${res.message}, new status: ${res.data?.status}")
 
                     // Immediately update UI with returned response data or fetch
                     if (res.data != null) {
@@ -1684,7 +1680,6 @@ class ServicesViewModel @Inject constructor(
                 onFailure = { error ->
                     _isUpdatingComplaintStatus.value = false
                     val errorMsg = error.message ?: "Failed to update complaint status"
-                    android.util.Log.e("UPDATE_COMPLAINT", "Update FAILED: $errorMsg", error)
                     _updateComplaintStatusError.value = errorMsg
                     onError(errorMsg)
                 }
@@ -1846,7 +1841,6 @@ class ServicesViewModel @Inject constructor(
                 voucherCode = ""
             )
 
-            android.util.Log.d("RESOLVE_COMPLAINT", "Calling PATCH to $COMPLAINT_RESOLVE_URL/$complaintId with payload: $payload")
 
             val result = repo.request<ResolveComplaintResponse> {
                 patch("$COMPLAINT_RESOLVE_URL/$complaintId", payload)
@@ -1855,7 +1849,6 @@ class ServicesViewModel @Inject constructor(
             result.fold(
                 onSuccess = { res ->
                     _isResolvingComplaint.value = false
-                    android.util.Log.d("RESOLVE_COMPLAINT", "Success: ${res.message}, status=${res.data?.status}")
 
                     // Immediately update UI state with returned data or re-fetch
                     if (res.data != null) {
@@ -1868,7 +1861,6 @@ class ServicesViewModel @Inject constructor(
                 onFailure = { error ->
                     _isResolvingComplaint.value = false
                     val errorMsg = error.message ?: "Failed to resolve complaint"
-                    android.util.Log.e("RESOLVE_COMPLAINT", "Error: $errorMsg", error)
                     _resolveComplaintError.value = errorMsg
                     onError(errorMsg)
                 }

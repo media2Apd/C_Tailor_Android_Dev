@@ -34,6 +34,7 @@ import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.hr.attendance_management.employees.uriToFile
 import com.cuso.tailor.viewmodel.HrViewModel
+import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -42,14 +43,22 @@ import java.util.Locale
 fun EditExpenseClaimScreen(
     claimId: String,
     hrViewModel: HrViewModel = hiltViewModel(),
+    inventoryViewModel: InventoryViewModel = hiltViewModel(),
     onClose: () -> Unit = {},
     onSubmitSuccess: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
     val context = LocalContext.current
 
-    val activeCategories by hrViewModel.activeExpenseTypes.collectAsStateWithLifecycle()
-    val categoryNames = remember(activeCategories) { activeCategories.map { it.name } }
+    val categoriesList by inventoryViewModel.categoriesList.collectAsStateWithLifecycle()
+    val isLoadingCategories by inventoryViewModel.isLoadingCategories.collectAsStateWithLifecycle()
+    val categoriesError by inventoryViewModel.categoriesError.collectAsStateWithLifecycle()
+
+    val categoryNames = remember(categoriesList) {
+        categoriesList
+            .filter { !it.isDeleted && it.name.isNotBlank() }
+            .map { it.name }
+    }
 
     val claimDetail by hrViewModel.expenseClaimDetail.collectAsStateWithLifecycle()
     val isLoadingDetail by hrViewModel.isLoadingExpenseClaimDetail.collectAsStateWithLifecycle()
@@ -94,11 +103,17 @@ fun EditExpenseClaimScreen(
     }
 
     LaunchedEffect(claimId) {
-        if (activeCategories.isEmpty()) {
-            hrViewModel.fetchActiveExpenseTypes()
+        if (categoriesList.isEmpty()) {
+            inventoryViewModel.fetchCategories(page = 1, pageSize = 100)
         }
         if (claimId.isNotBlank()) {
             hrViewModel.fetchExpenseClaimDetail(claimId)
+        }
+    }
+
+    LaunchedEffect(categoriesList, selectedCategoryId) {
+        if (selectedCategoryName.isBlank() && selectedCategoryId.isNotBlank()) {
+            selectedCategoryName = categoriesList.firstOrNull { it.id == selectedCategoryId }?.name.orEmpty()
         }
     }
 
@@ -180,13 +195,21 @@ fun EditExpenseClaimScreen(
 
                         FormLabel(text = "Category")
                         FormDropdown(
-                            value = selectedCategoryName.ifBlank { "Select Category" },
+                            value = when {
+                                selectedCategoryName.isNotBlank() -> selectedCategoryName
+                                isLoadingCategories -> "Loading categories..."
+                                else -> "Select Category"
+                            },
                             expanded = isCategoryDropdownExpanded,
                             onExpandChange = { isCategoryDropdownExpanded = it },
                             options = categoryNames,
+                            enabled = !isLoadingCategories,
+                            isError = !categoriesError.isNullOrBlank(),
+                            errorMessage = categoriesError,
                             onOptionSelected = { chosenName ->
                                 selectedCategoryName = chosenName
-                                selectedCategoryId = activeCategories.firstOrNull { it.name == chosenName }?.id.orEmpty()
+                                selectedCategoryId = categoriesList.firstOrNull { it.name == chosenName }?.id.orEmpty()
+                                isCategoryDropdownExpanded = false
                             }
                         )
 

@@ -1,6 +1,6 @@
 package com.cuso.tailor.view.home.inventory.procurement.requisitions
 
-import android.util.Log
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -204,7 +204,6 @@ fun AllRequisitionsScreen(
                                     }
                                 },
                                 onClick = {
-                                    Log.d("REQ_LIST", "Card clicked -> ID: ${item.id}, PR: ${item.prNumber}")
                                     onRequisitionClick(item)
                                 },
                                 onEdit = { onEditRequisition(item) },

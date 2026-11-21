@@ -80,11 +80,8 @@ fun MeasurementsAvailableDialog(
 
     // STEP 3 LOG: Verify customerId inside Dialog
     LaunchedEffect(customerId) {
-        android.util.Log.d("MEASUREMENT_DEBUG", "STEP 3: MeasurementsAvailableDialog LaunchedEffect triggered! customerId = '$customerId'")
         if (!customerId.isNullOrBlank()) {
             viewModel.fetchAvailableGarments(customerId)
-        } else {
-            android.util.Log.e("MEASUREMENT_DEBUG", "❌ STEP 3 FAILED: customerId is NULL or BLANK! API call was not triggered.")
         }
     }
 

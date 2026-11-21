@@ -22,6 +22,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.view.composable.AppCheckbox
+import com.cuso.tailor.view.composable.AppRadioButton
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.ListSkeleton
 import com.cuso.tailor.view.composable.TitleBar
@@ -496,10 +497,9 @@ private fun RestoreTypeOptionCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.Top
         ) {
-            RadioButton(
+            AppRadioButton(
                 selected = isSelected,
                 onClick = onClick,
-                colors = RadioButtonDefaults.colors(selectedColor = Primary),
                 modifier = Modifier.size(20.dp)
             )
             Spacer(Modifier.width(10.dp))

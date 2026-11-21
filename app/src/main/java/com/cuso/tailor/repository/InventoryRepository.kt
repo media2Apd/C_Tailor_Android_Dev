@@ -576,7 +576,6 @@ class InventoryRepository @Inject constructor(
                 requestBody
             )
         } catch (e: Exception) {
-            android.util.Log.e("IMAGE_UPLOAD_ERR", "Failed to compress & prepare image: ${e.message}")
             null
         }
     }
@@ -1229,39 +1228,96 @@ class InventoryRepository @Inject constructor(
     // PURCHASE ORDER FULL LIFECYCLE
     // =========================================================================
 
-    suspend fun createPurchaseOrderDirect(request: PurchaseOrder): Result<PurchaseOrder> =
-        withContext(Dispatchers.IO) {
-            try {
-                val (accessToken, csrfToken) = getAuthHeaders()
-                val response = inventoryApi.createPurchaseOrderDirect(accessToken, csrfToken, request)
-                val body = response.body()
-
-                if (response.isSuccessful && body?.success == true && body.data != null) {
-                    Result.success(body.data)
-                } else {
-                    Result.failure(Exception(extractErrorMessage(response, "Failed to create purchase order")))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+//    suspend fun createPurchaseOrderDirect(request: PurchaseOrder): Result<PurchaseOrder> =
+//        withContext(Dispatchers.IO) {
+//            try {
+//                val (accessToken, csrfToken) = getAuthHeaders()
+//                val response = inventoryApi.createPurchaseOrderDirect(accessToken, csrfToken, request)
+//                val body = response.body()
+//
+//                if (response.isSuccessful && body?.success == true && body.data != null) {
+//                    Result.success(body.data)
+//                } else {
+//                    Result.failure(Exception(extractErrorMessage(response, "Failed to create purchase order")))
+//                }
+//            } catch (e: Exception) {
+//                Result.failure(e)
+//            }
+//        }
+//
+//    suspend fun updatePurchaseOrder(id: String, request: PurchaseOrder): Result<PurchaseOrder> =
+//        withContext(Dispatchers.IO) {
+//            try {
+//                val (accessToken, csrfToken) = getAuthHeaders()
+//                val response = inventoryApi.updatePurchaseOrder(accessToken, csrfToken, id, request)
+//                val body = response.body()
+//
+//                if (response.isSuccessful && body?.success == true && body.data != null) {
+//                    Result.success(body.data)
+//                } else {
+//                    Result.failure(Exception(extractErrorMessage(response, "Failed to update purchase order")))
+//                }
+//            } catch (e: Exception) {
+//                Result.failure(e)
+//            }
+//        }
+    suspend fun createPurchaseOrderMultipart(
+        context: Context,
+        params: Map<String, RequestBody>,
+        attachmentUris: List<Uri>
+    ): Result<PurchaseOrder> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val attachmentParts = attachmentUris.mapNotNull { uri ->
+                uriToMultipartPart(context, uri, "attachments")
             }
-        }
+            val response = inventoryApi.createPurchaseOrderMultipart(
+                token = accessToken,
+                csrfToken = csrfToken,
+                params = params,
+                attachments = attachmentParts.takeIf { it.isNotEmpty() }
+            )
+            val body = response.body()
 
-    suspend fun updatePurchaseOrder(id: String, request: PurchaseOrder): Result<PurchaseOrder> =
-        withContext(Dispatchers.IO) {
-            try {
-                val (accessToken, csrfToken) = getAuthHeaders()
-                val response = inventoryApi.updatePurchaseOrder(accessToken, csrfToken, id, request)
-                val body = response.body()
-
-                if (response.isSuccessful && body?.success == true && body.data != null) {
-                    Result.success(body.data)
-                } else {
-                    Result.failure(Exception(extractErrorMessage(response, "Failed to update purchase order")))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to create purchase order")))
             }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
+    }
+
+    suspend fun updatePurchaseOrderMultipart(
+        context: Context,
+        id: String,
+        params: Map<String, RequestBody>,
+        attachmentUris: List<Uri>
+    ): Result<PurchaseOrder> = withContext(Dispatchers.IO) {
+        try {
+            val (accessToken, csrfToken) = getAuthHeaders()
+            val attachmentParts = attachmentUris.mapNotNull { uri ->
+                uriToMultipartPart(context, uri, "attachments")
+            }
+            val response = inventoryApi.updatePurchaseOrderMultipart(
+                token = accessToken,
+                csrfToken = csrfToken,
+                id = id,
+                params = params,
+                attachments = attachmentParts.takeIf { it.isNotEmpty() }
+            )
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.success(body.data)
+            } else {
+                Result.failure(Exception(extractErrorMessage(response, "Failed to update purchase order")))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     suspend fun getAllPurchaseOrders(
         page: Int? = null,

@@ -17,7 +17,7 @@ import android.os.Looper
 import android.print.PrintAttributes
 import android.print.PrintManager
 import android.provider.MediaStore
-import android.util.Log
+
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceError
@@ -65,16 +65,14 @@ class FinancePaymentReceiptPdfGenerator(private val context: Context) {
         webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         try {
             decorView.addView(webView, 0)
-        } catch (e: Exception) {
-            Log.e("PaymentReceiptPdf", "attachToWindow failed", e)
+        } catch (_: Exception) {
         }
     }
 
     private fun detachFromWindow(webView: WebView) {
         try {
             (webView.parent as? ViewGroup)?.removeView(webView)
-        } catch (e: Exception) {
-            Log.e("PaymentReceiptPdf", "detachFromWindow failed", e)
+        } catch (_: Exception) {
         }
     }
 
@@ -266,8 +264,7 @@ class FinancePaymentReceiptPdfGenerator(private val context: Context) {
                 FileOutputStream(file).use { it.write(bytes) }
                 SavedPdf(uri = Uri.fromFile(file), displayName = fileName, file = file)
             }
-        } catch (e: Exception) {
-            Log.e("PaymentReceiptPdf", "writeBytesToDownloads failed for '$fileName'", e)
+        } catch (_: Exception) {
             null
         }
     }

@@ -159,7 +159,7 @@ fun TransferOrdersStockListScreen(
         viewModel.clearAdjustmentAlerts()
         viewModel.fetchStockAdjustments(reset = true, adjustmentType = "transfer")
         viewModel.loadWarehouseDropdown()
-        viewModel.fetchValidAdjustmentReasons()
+//        viewModel.fetchValidAdjustmentReasons()
         settingsViewModel.fetchBins(isRefresh = true)
     }
 

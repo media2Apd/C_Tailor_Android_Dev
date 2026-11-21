@@ -1333,7 +1333,7 @@ fun CreateLeaveTypeScreen(
                                 .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Checkbox(
+                            AppCheckbox(
                                 checked = checked,
                                 onCheckedChange = { isChecked ->
                                     if (isChecked && !selectedEmploymentTypes.contains(id)) {
@@ -1341,8 +1341,7 @@ fun CreateLeaveTypeScreen(
                                     } else if (!isChecked) {
                                         selectedEmploymentTypes.remove(id)
                                     }
-                                },
-                                colors = CheckboxDefaults.colors(checkedColor = Primary)
+                                }
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(text = label, fontSize = tokens.bodySmall, color = TextPrimary)
@@ -1530,10 +1529,9 @@ private fun ScopeSelectOption(title: String, isSelected: Boolean, onClick: () ->
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(
+        AppRadioButton(
             selected = isSelected,
-            onClick = onClick,
-            colors = RadioButtonDefaults.colors(selectedColor = Primary)
+            onClick = onClick
         )
         Spacer(Modifier.width(8.dp))
         Text(

@@ -257,7 +257,6 @@ private fun PrimaryMetricCardsSection(
 
     // LOG CURRENT SYMBOL AND VALUES
     val currentSymbol = formatCurrency()
-    android.util.Log.d("MarketingDashboard", ">>> PrimaryMetricCardsSection: currentSymbol = '$currentSymbol'")
 
     val revenueVal = row1?.marketingRevenue?.value?.takeIf { it.isNotBlank() && it != "--" }?.let { "${formatCurrency()}$it" } ?: "${formatCurrency()}0.0L"
     val spendVal = row1?.marketingSpend?.value?.takeIf { it.isNotBlank() && it != "--" }?.let { "${formatCurrency()}$it" } ?: "${formatCurrency()}0.0L"

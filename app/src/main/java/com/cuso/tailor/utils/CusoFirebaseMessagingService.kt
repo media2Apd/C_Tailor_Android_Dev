@@ -6,7 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.util.Log
+
 import androidx.core.app.NotificationCompat
 import com.cuso.tailor.MainActivity
 import com.cuso.tailor.R
@@ -24,7 +24,6 @@ class CusoFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d("FCM_TOKEN", "Refreshed FCM token: $token")
         // Save locally so HomeScreen / ViewModel can sync it to backend if user is logged in
         getSharedPreferences("fcm_prefs", MODE_PRIVATE)
             .edit {
@@ -57,7 +56,7 @@ class CusoFirebaseMessagingService : FirebaseMessagingService() {
         message: String,
         notificationId: Int
     ) {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
         // Create NotificationChannel for Android 8.0+ (API 26+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

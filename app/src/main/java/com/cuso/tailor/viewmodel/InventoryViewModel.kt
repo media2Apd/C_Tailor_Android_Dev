@@ -1080,6 +1080,7 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
+    // Fetch single purchase order detail by ID
     fun fetchPurchaseOrderDetail(poId: String) {
         if (poId.isBlank()) return
         viewModelScope.launch {
@@ -1090,6 +1091,7 @@ class InventoryViewModel @Inject constructor(
                     _purchaseOrderDetail.value = detail
                 }
                 .onFailure { error ->
+                    android.util.Log.e("InventoryViewModel", "Failed to fetch PO detail for $poId", error)
                     _poDetailError.value = extractErrorMessage(error.message)
                 }
             _isLoadingPODetail.value = false
@@ -1279,6 +1281,7 @@ class InventoryViewModel @Inject constructor(
         fetchSupplierDropdown()
 //        fetchValidAdjustmentReasons()
         fetchProductionTemplates()
+        fetchStockSummaryList()
     }
 
     // =========================================================================
@@ -1862,6 +1865,7 @@ class InventoryViewModel @Inject constructor(
                 _adjustmentSuccessMessage.value = "Stock increased successfully (+${data.quantity} ${data.unit ?: ""})"
                 fetchInventoryItems()
                 fetchStockAdjustments(reset = true)
+                fetchStockSummaryList()
                 onSuccess(data)
             }.onFailure { error ->
                 _adjustmentErrorMessage.value = extractErrorMessage(error.message)
@@ -1882,6 +1886,7 @@ class InventoryViewModel @Inject constructor(
                 _adjustmentSuccessMessage.value = "Stock decreased successfully (-${data.quantity} ${data.unit ?: ""})"
                 fetchInventoryItems()
                 fetchStockAdjustments(reset = true)
+                fetchStockSummaryList()
                 onSuccess(data)
             }.onFailure { error ->
                 _adjustmentErrorMessage.value = extractErrorMessage(error.message)
@@ -1902,6 +1907,7 @@ class InventoryViewModel @Inject constructor(
                 _adjustmentSuccessMessage.value = "Stock transferred successfully (${data.adjustmentCode})"
                 fetchInventoryItems()
                 fetchStockAdjustments(reset = true)
+                fetchStockSummaryList()
                 onSuccess(data)
             }.onFailure { error ->
                 _adjustmentErrorMessage.value = extractErrorMessage(error.message)
@@ -3090,37 +3096,176 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
-    fun createPurchaseOrderDirect(request: PurchaseOrder, onSuccess: (PurchaseOrder) -> Unit = {}) {
+    private fun buildPurchaseOrderMultipartParams(
+        warehouseId: String,
+        supplierId: String,
+        poDate: String,
+        eta: String?,
+        poType: String,
+        currency: String,
+        orderStatus: String,
+        shippingMethod: String,
+        transportName: String,
+        vehicleNumber: String,
+        trackingNumber: String,
+        freightTerms: String,
+        internalNotes: String,
+        remarks: String,
+        discount: Double,
+        shippingCost: Double,
+        items: List<PurchaseOrderLinePayload>,
+        requisitionId: String?
+    ): MutableMap<String, RequestBody> {
+        val textMedia = "text/plain".toMediaTypeOrNull()
+        val params = mutableMapOf<String, RequestBody>(
+            "warehouseId" to warehouseId.toRequestBody(textMedia),
+            "supplierId" to supplierId.toRequestBody(textMedia),
+            "poDate" to poDate.toRequestBody(textMedia),
+            "eta" to (eta ?: "").toRequestBody(textMedia),
+            "poType" to poType.ifBlank { "Standard" }.toRequestBody(textMedia),
+            "currency" to currency.ifBlank { "INR" }.toRequestBody(textMedia),
+            "orderStatus" to orderStatus.toRequestBody(textMedia),
+            "shippingMethod" to shippingMethod.toRequestBody(textMedia),
+            "transportName" to transportName.toRequestBody(textMedia),
+            "vehicleNumber" to vehicleNumber.toRequestBody(textMedia),
+            "trackingNumber" to trackingNumber.toRequestBody(textMedia),
+            "freightTerms" to freightTerms.toRequestBody(textMedia),
+            "internalNotes" to internalNotes.toRequestBody(textMedia),
+            "remarks" to remarks.toRequestBody(textMedia),
+            "discount" to discount.toString().toRequestBody(textMedia),
+            "shippingCost" to shippingCost.toString().toRequestBody(textMedia),
+            "items" to gson.toJson(items).toRequestBody(textMedia)
+        )
+
+        requisitionId?.takeIf { it.isNotBlank() }?.let {
+            params["requisitionId"] = it.toRequestBody(textMedia)
+        }
+
+        return params
+    }
+
+    fun createPurchaseOrderMultipart(
+        context: Context,
+        warehouseId: String,
+        supplierId: String,
+        poDate: String,
+        eta: String?,
+        poType: String,
+        currency: String = "INR",
+        orderStatus: String,
+        shippingMethod: String,
+        transportName: String,
+        vehicleNumber: String,
+        trackingNumber: String,
+        freightTerms: String,
+        internalNotes: String,
+        remarks: String = "",
+        discount: Double,
+        shippingCost: Double,
+        items: List<PurchaseOrderLinePayload>,
+        requisitionId: String? = null,
+        attachmentUris: List<Uri> = emptyList(),
+        onSuccess: (PurchaseOrder) -> Unit = {}
+    ) {
         viewModelScope.launch {
             _isSubmittingPO.value = true
             _purchaseOrdersError.value = null
             _poSuccessMessage.value = null
 
-            inventoryRepository.createPurchaseOrderDirect(request)
+            val params = buildPurchaseOrderMultipartParams(
+                warehouseId = warehouseId,
+                supplierId = supplierId,
+                poDate = poDate,
+                eta = eta,
+                poType = poType,
+                currency = currency,
+                orderStatus = orderStatus,
+                shippingMethod = shippingMethod,
+                transportName = transportName,
+                vehicleNumber = vehicleNumber,
+                trackingNumber = trackingNumber,
+                freightTerms = freightTerms,
+                internalNotes = internalNotes,
+                remarks = remarks,
+                discount = discount,
+                shippingCost = shippingCost,
+                items = items,
+                requisitionId = requisitionId
+            )
+
+            inventoryRepository.createPurchaseOrderMultipart(context, params, attachmentUris)
                 .onSuccess { data ->
                     _poSuccessMessage.value = "Purchase Order created (${data.poNumber})"
                     fetchAllPurchaseOrders()
                     onSuccess(data)
                 }
-                .onFailure { error -> _purchaseOrdersError.value = extractErrorMessage(error.message) }
+                .onFailure { error ->
+                    _purchaseOrdersError.value = extractErrorMessage(error.message)
+                }
 
             _isSubmittingPO.value = false
         }
     }
 
-    fun updatePurchaseOrderDirect(id: String, request: PurchaseOrder, onSuccess: (PurchaseOrder) -> Unit = {}) {
+    fun updatePurchaseOrderMultipart(
+        context: Context,
+        id: String,
+        warehouseId: String,
+        supplierId: String,
+        poDate: String,
+        eta: String?,
+        poType: String,
+        currency: String = "INR",
+        orderStatus: String,
+        shippingMethod: String,
+        transportName: String,
+        vehicleNumber: String,
+        trackingNumber: String,
+        freightTerms: String,
+        internalNotes: String,
+        remarks: String = "",
+        discount: Double,
+        shippingCost: Double,
+        items: List<PurchaseOrderLinePayload>,
+        requisitionId: String? = null,
+        attachmentUris: List<Uri> = emptyList(),
+        onSuccess: (PurchaseOrder) -> Unit = {}
+    ) {
         viewModelScope.launch {
             _isSubmittingPO.value = true
             _purchaseOrdersError.value = null
             _poSuccessMessage.value = null
 
-            inventoryRepository.updatePurchaseOrder(id, request)
+            val params = buildPurchaseOrderMultipartParams(
+                warehouseId = warehouseId,
+                supplierId = supplierId,
+                poDate = poDate,
+                eta = eta,
+                poType = poType,
+                currency = currency,
+                orderStatus = orderStatus,
+                shippingMethod = shippingMethod,
+                transportName = transportName,
+                vehicleNumber = vehicleNumber,
+                trackingNumber = trackingNumber,
+                freightTerms = freightTerms,
+                internalNotes = internalNotes,
+                remarks = remarks,
+                discount = discount,
+                shippingCost = shippingCost,
+                items = items,
+                requisitionId = requisitionId
+            )
+
+            inventoryRepository.updatePurchaseOrderMultipart(context, id, params, attachmentUris)
                 .onSuccess { data ->
                     _poSuccessMessage.value = "Purchase Order updated successfully"
                     fetchAllPurchaseOrders()
                     onSuccess(data)
                 }
-                .onFailure { error -> _purchaseOrdersError.value = extractErrorMessage(error.message) }
+                .onFailure { error ->
+                    _purchaseOrdersError.value = extractErrorMessage(error.message)
+                }
 
             _isSubmittingPO.value = false
         }
@@ -3946,8 +4091,8 @@ class InventoryViewModel @Inject constructor(
         }
     }
 
+    // Extract readable error message from server JSON or exception text
     private fun extractErrorMessage(raw: String?): String {
-        android.util.Log.e("API_ERROR", raw ?: "null")
         if (raw.isNullOrBlank()) return "An unexpected error occurred"
         val trimmed = raw.trim()
         if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
@@ -3963,6 +4108,11 @@ class InventoryViewModel @Inject constructor(
                     }
                 }
             } catch (_: Exception) { }
+        }
+        if (trimmed.contains("IllegalStateException", ignoreCase = true) ||
+            trimmed.contains("JsonSyntaxException", ignoreCase = true)
+        ) {
+            return "Unable to parse server response. Please check the API response format."
         }
         return trimmed
     }

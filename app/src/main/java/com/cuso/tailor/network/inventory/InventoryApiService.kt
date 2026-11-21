@@ -49,7 +49,6 @@ import com.cuso.tailor.model.inventory.LowStockResponse
 import com.cuso.tailor.model.inventory.POBillConvertResponse
 import com.cuso.tailor.model.inventory.PaymentTermsResponse
 import com.cuso.tailor.model.inventory.ProcurementBillListResponse
-import com.cuso.tailor.model.inventory.PurchaseOrder
 import com.cuso.tailor.model.inventory.PurchaseOrderDetailResponse
 import com.cuso.tailor.model.inventory.PurchaseOrderListResponse
 import com.cuso.tailor.model.inventory.PurchaseOrderSingleResponse
@@ -618,19 +617,23 @@ interface InventoryApiService {
     // PURCHASE ORDERS MANAGEMENT
     // -------------------------------------------------------------------------
 
+    @Multipart
     @POST("/api/inventory/purchase-order/create")
-    suspend fun createPurchaseOrderDirect(
+    suspend fun createPurchaseOrderMultipart(
         @Header("Authorization") token: String,
         @Header("x-csrf-token") csrfToken: String,
-        @Body request: PurchaseOrder
+        @PartMap params: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part attachments: List<MultipartBody.Part>?
     ): Response<PurchaseOrderSingleResponse>
 
+    @Multipart
     @PUT("/api/inventory/purchase-order/update-one/{id}")
-    suspend fun updatePurchaseOrder(
+    suspend fun updatePurchaseOrderMultipart(
         @Header("Authorization") token: String,
         @Header("x-csrf-token") csrfToken: String,
         @Path("id") id: String,
-        @Body request: PurchaseOrder
+        @PartMap params: Map<String, @JvmSuppressWildcards RequestBody>,
+        @Part attachments: List<MultipartBody.Part>?
     ): Response<PurchaseOrderSingleResponse>
 
     @GET("/api/inventory/purchase-order/view-all")

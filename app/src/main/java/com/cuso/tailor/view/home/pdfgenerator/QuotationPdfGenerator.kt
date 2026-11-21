@@ -26,7 +26,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.util.Base64
-import android.util.Log
+
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceError
@@ -107,7 +107,6 @@ class QuotationPdfGenerator(private val context: Context) {
         try {
             decorView.addView(webView, 0) // index only — preserves existing LayoutParams
         } catch (e: Exception) {
-            Log.e("QuotationPdfGenerator", "attachToWindow failed", e)
         }
     }
 
@@ -115,7 +114,6 @@ class QuotationPdfGenerator(private val context: Context) {
         try {
             (webView.parent as? ViewGroup)?.removeView(webView)
         } catch (e: Exception) {
-            Log.e("QuotationPdfGenerator", "detachFromWindow failed", e)
         }
     }
 
@@ -174,7 +172,6 @@ class QuotationPdfGenerator(private val context: Context) {
                 val result = renderWebViewToPdf(webView, renderWidthPx, density, fileName, saveToDownloads)
                 finish(result)
             } catch (e: Exception) {
-                Log.e("QuotationPdfGenerator", "Render failed", e)
                 finish(null)
             }
         }
@@ -200,7 +197,6 @@ class QuotationPdfGenerator(private val context: Context) {
                 val allLoaded = result == "true"
                 if (allLoaded || attempt >= 20) {   // ~2s max wait (20 x 100ms)
                     if (!allLoaded) {
-                        Log.d("QuotationPdfGenerator", "Image wait timed out after $attempt attempts — rendering anyway")
                     }
                     doRender()
                 } else {
@@ -213,7 +209,6 @@ class QuotationPdfGenerator(private val context: Context) {
         // Force-resolve after 8s so the UI never hangs forever.
         mainHandler.postDelayed({
             if (!finished) {
-                Log.d("QuotationPdfGenerator", "onPageFinished never fired — using 8s timeout fallback")
                 doRender()
             }
         }, 8000)
@@ -254,14 +249,9 @@ class QuotationPdfGenerator(private val context: Context) {
         val contentHeightPx = (webView.contentHeight * density).toInt().coerceAtLeast(webView.measuredHeight)
 
         if (contentHeightPx <= 0) {
-            Log.e(
-                "QuotationPdfGenerator",
-                "contentHeightPx=$contentHeightPx (contentHeight=${webView.contentHeight}, measuredHeight=${webView.measuredHeight}) — aborting, WebView likely not attached/laid out"
-            )
             return null
         }
 
-        Log.d("QuotationPdfGenerator", "Rendering PDF: widthPx=$renderWidthPx heightPx=$contentHeightPx")
         webView.layout(0, 0, renderWidthPx, contentHeightPx)
 
         val fullBitmap = createBitmap(renderWidthPx, contentHeightPx)
@@ -336,7 +326,6 @@ class QuotationPdfGenerator(private val context: Context) {
                 SavedPdf(uri = Uri.fromFile(file), displayName = fileName, file = file)
             }
         } catch (e: Exception) {
-            Log.e("QuotationPdfGenerator", "writeBytesToDownloads failed for '$fileName'", e)
             null
         }
     }
@@ -400,7 +389,6 @@ class QuotationPdfGenerator(private val context: Context) {
             val bytes = outputStream.toByteArray()
             "data:image/png;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
         } catch (e: Exception) {
-            Log.e("QuotationPdfGenerator", "drawableToBase64 failed for resId=$resId", e)
             ""
         }
     }

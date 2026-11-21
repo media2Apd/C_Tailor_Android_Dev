@@ -10,10 +10,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,8 +28,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.hr.ExpenseClaimDto
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.view.composable.CirculerProgressIndicatorSmall
 import com.cuso.tailor.view.composable.DataCard
+import com.cuso.tailor.view.composable.DatePickerField
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextArea
 import com.cuso.tailor.view.composable.FormTextField
@@ -52,10 +55,20 @@ fun FinanceReimbursementScreen(
     val tokens = LocalAppTokens.current
 
     val claimsPagingState by viewModel.expenseClaimsPagingState.collectAsStateWithLifecycle()
+    val claimsError by viewModel.expenseClaimsError.collectAsStateWithLifecycle()
     var searchQuery by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
-        viewModel.fetchReimbursementClaims()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.fetchReimbursementClaims()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     val filteredClaims = remember(claimsPagingState.items, searchQuery) {
@@ -104,14 +117,17 @@ fun FinanceReimbursementScreen(
 
             if (!displayPagingState.isInitialLoading && displayPagingState.items.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(tokens.screenPadding),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Display API error message if request failed, otherwise show empty state
                     Text(
-                        text = "No claims to reimburse",
+                        text = claimsError?.takeIf { it.isNotBlank() } ?: "No claims to reimburse",
                         fontSize = tokens.bodyMedium,
                         fontWeight = FontWeight.Medium,
-                        color = mutedText,
+                        color = if (!claimsError.isNullOrBlank()) redText else mutedText,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -142,12 +158,36 @@ fun ReimbursementItemCard(
     val currencyFormatter = remember { NumberFormat.getCurrencyInstance(Locale("en", "IN")) }
 
     val managerStep = claim.workflow.find { it.stage.contains("Manager", ignoreCase = true) }
-    val financeStep = claim.workflow.find { it.stage.contains("Finance", ignoreCase = true) || it.stage.contains("Payment", ignoreCase = true) }
 
-    val managerStatus = managerStep?.status ?: ""
-    val financeStatus = financeStep?.status ?: claim.status ?: ""
+    // Read manager status from workflow and finance status directly from data.data.status
+    val rawManagerStatus = managerStep?.status.orEmpty()
+    val managerStatusText = rawManagerStatus.replace("_", " ").ifBlank { "—" }
 
-    val isPayEligible = claim.status.equals("Approved", ignoreCase = true) || financeStatus.contains("Pending", ignoreCase = true)
+    val rawFinanceStatus = claim.status.orEmpty()
+    val financeStatusText = rawFinanceStatus.replace("_", " ").ifBlank { "—" }
+
+    val isAlreadySettled = rawFinanceStatus.equals("Paid", ignoreCase = true) ||
+            rawFinanceStatus.equals("Rejected", ignoreCase = true)
+    val isPayEligible = !isAlreadySettled && (
+            rawFinanceStatus.equals("Approved", ignoreCase = true) ||
+                    rawFinanceStatus.equals("Payment_Pending", ignoreCase = true)
+            )
+
+    // Resolve badge colors dynamically from API status values
+    val isManagerApproved = rawManagerStatus.equals("Approved", ignoreCase = true) ||
+            rawManagerStatus.equals("Completed", ignoreCase = true)
+    val isManagerRejected = rawManagerStatus.equals("Rejected", ignoreCase = true)
+
+    val isFinanceCompleted = rawFinanceStatus.equals("Paid", ignoreCase = true) ||
+            rawFinanceStatus.equals("Completed", ignoreCase = true) ||
+            rawFinanceStatus.equals("Approved", ignoreCase = true)
+    val isFinanceRejected = rawFinanceStatus.equals("Rejected", ignoreCase = true)
+
+    val claimNumberText = claim.claimNumber.orEmpty().ifBlank { "—" }
+    val employeeDisplayName = claim.employee?.fullName.orEmpty().ifBlank { "—" }
+    val categoryDisplayText = claim.category?.name?.takeIf { it.isNotBlank() }
+        ?.let { "Category: $it" }
+        ?: "Category: —"
 
     DataCard(
         item = claim,
@@ -160,7 +200,7 @@ fun ReimbursementItemCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = claim.claimNumber.orEmpty().ifBlank { "CLM-${claim.id.takeLast(3).uppercase()}" },
+                    text = claimNumberText,
                     fontSize = tokens.caption,
                     color = headerGrey
                 )
@@ -172,10 +212,10 @@ fun ReimbursementItemCard(
                 )
             }
         },
-        title = claim.employee?.fullName ?: "Employee Name",
+        title = employeeDisplayName,
         titleFontWeight = FontWeight.Medium,
         titleColor = TextPrimary,
-        subtitle = "Category: ${claim.category?.name ?: "Software"}",
+        subtitle = categoryDisplayText,
         content = {
             Column(modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
                 Row(
@@ -186,9 +226,17 @@ fun ReimbursementItemCard(
                         Text("Manager Status", fontSize = 10.sp, color = headerGrey)
                         Spacer(Modifier.height(2.dp))
                         StatusBadge(
-                            text = managerStatus,
-                            bgColor = greenBg,
-                            textColor = greentext,
+                            text = managerStatusText,
+                            bgColor = when {
+                                isManagerApproved -> greenBg
+                                isManagerRejected -> redBg
+                                else -> activity_purple_bg
+                            },
+                            textColor = when {
+                                isManagerApproved -> greentext
+                                isManagerRejected -> redText
+                                else -> blueText
+                            },
                             showDot = false,
                             cornerRadius = 4.dp
                         )
@@ -197,12 +245,18 @@ fun ReimbursementItemCard(
                     Column(horizontalAlignment = Alignment.End) {
                         Text("Finance Status", fontSize = 10.sp, color = headerGrey)
                         Spacer(Modifier.height(2.dp))
-                        val isPaid = financeStatus.equals("Paid", ignoreCase = true) || financeStatus.equals("Completed", ignoreCase = true)
-                        val isRejected = financeStatus.equals("Rejected", ignoreCase = true)
                         StatusBadge(
-                            text = if (isPaid) "Approved" else if (isRejected) "Rejected" else "Pending",
-                            bgColor = if (isPaid) greenBg else if (isRejected) redBg else activity_purple_bg,
-                            textColor = if (isPaid) greentext else if (isRejected) redText else blueText,
+                            text = financeStatusText,
+                            bgColor = when {
+                                isFinanceCompleted -> greenBg
+                                isFinanceRejected -> redBg
+                                else -> activity_purple_bg
+                            },
+                            textColor = when {
+                                isFinanceCompleted -> greentext
+                                isFinanceRejected -> redText
+                                else -> blueText
+                            },
                             showDot = false,
                             cornerRadius = 4.dp
                         )
@@ -241,8 +295,7 @@ fun ReimbursementItemCard(
     )
 }
 
-// NEW STANDALONE SCREEN (Replaces Dialog)
-@OptIn(ExperimentalMaterial3Api::class)
+// Standalone screen for processing expense claim payment
 @Composable
 fun ProcessPaymentScreen(
     claim: ExpenseClaimDto,
@@ -254,37 +307,12 @@ fun ProcessPaymentScreen(
     val scrollState = rememberScrollState()
 
     var selectedMode by remember { mutableStateOf("Bank") }
-    var refNo by remember { mutableStateOf("TXN-${System.currentTimeMillis().toString().takeLast(8)}") }
-    var paymentDate by remember { mutableStateOf(SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date())) }
+    var refNo by remember { mutableStateOf("") }
+    var paymentDate by remember { mutableStateOf(SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()).format(Date())) }
     var notes by remember { mutableStateOf("") }
-    var showDatePicker by remember { mutableStateOf(false) }
     var isSubmitting by remember { mutableStateOf(false) }
 
     val currencyFormatter = remember { NumberFormat.getCurrencyInstance(Locale("en", "IN")) }
-
-    if (showDatePicker) {
-        val datePickerState = rememberDatePickerState()
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let {
-                        paymentDate = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(it))
-                    }
-                    showDatePicker = false
-                }) {
-                    Text("OK", color = Primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel", color = TextSecondary)
-                }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
-    }
 
     Scaffold(
         containerColor = whiteBg,
@@ -325,19 +353,14 @@ fun ProcessPaymentScreen(
                             if (!isSubmitting) {
                                 isSubmitting = true
 
-                                // Mode format map (e.g., Bank -> Bank_Transfer)
+                                // Map selected UI payment mode to API enum value
                                 val apiMode = when (selectedMode) {
                                     "Bank" -> "Bank_Transfer"
                                     else -> selectedMode
                                 }
 
-                                // UI Date (MMM dd, yyyy) to API Date (yyyy-MM-dd)
-                                val formattedApiDate = try {
-                                    val parsed = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).parse(paymentDate)
-                                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(parsed ?: Date())
-                                } catch (_: Exception) {
-                                    SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                                }
+                                // Convert selected UI date to API format (yyyy-MM-dd)
+                                val formattedApiDate = formatPaymentDateToApi(paymentDate)
 
                                 val paymentPayload = com.cuso.tailor.model.hr.ExpenseClaimPaymentDetails(
                                     mode = apiMode,
@@ -350,12 +373,15 @@ fun ProcessPaymentScreen(
                                     claimId = claim.id,
                                     status = "Paid",
                                     payment = paymentPayload,
-                                    onSuccess = {
+                                    onSuccess = { successMsg ->
                                         isSubmitting = false
+                                        DynamicIslandManager.showSuccess(successMsg)
+                                        viewModel.fetchReimbursementClaims()
                                         onPaymentSuccess()
                                     },
-                                    onError = {
+                                    onError = { errorMsg ->
                                         isSubmitting = false
+                                        DynamicIslandManager.showError(errorMsg)
                                     }
                                 )
                             }
@@ -423,7 +449,7 @@ fun ProcessPaymentScreen(
                         Text("Payee", fontSize = tokens.label, color = headerGrey)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = claim.employee?.fullName ?: "Employee",
+                            text = claim.employee?.fullName.orEmpty().ifBlank { "—" },
                             fontSize = tokens.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             color = TextPrimary
@@ -479,22 +505,12 @@ fun ProcessPaymentScreen(
             // Payment Date
             Column {
                 FormLabel("Payment Date")
-                Box(modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true }) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(tokens.fieldHeight)
-                            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                            .border(1.dp, grey_border, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
-                            .background(whiteBg)
-                            .padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(paymentDate, fontSize = tokens.bodySmall, color = TextPrimary)
-                        Icon(Icons.Outlined.CalendarToday, null, tint = headerGrey, modifier = Modifier.size(16.dp))
+                DatePickerField(
+                    value = paymentDate,
+                    onDateSelected = { selectedDate ->
+                        paymentDate = selectedDate
                     }
-                }
+                )
             }
 
             // Notes
@@ -510,4 +526,17 @@ fun ProcessPaymentScreen(
             }
         }
     }
+}
+private fun formatPaymentDateToApi(rawDate: String): String {
+    val inputFormats = listOf("dd-MM-yyyy", "yyyy-MM-dd", "dd/MM/yyyy", "MMM dd, yyyy")
+    val apiFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    for (pattern in inputFormats) {
+        try {
+            val parser = SimpleDateFormat(pattern, Locale.getDefault()).apply { isLenient = false }
+            val parsed = parser.parse(rawDate.trim())
+            if (parsed != null) return apiFormat.format(parsed)
+        } catch (_: Exception) {
+        }
+    }
+    return apiFormat.format(Date())
 }

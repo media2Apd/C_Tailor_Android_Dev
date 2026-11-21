@@ -18,7 +18,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.util.Base64
-import android.util.Log
+
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceError
@@ -101,16 +101,14 @@ class PaymentReceiptPdfGenerator(private val context: Context) {
         webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         try {
             decorView.addView(webView, 0)
-        } catch (e: Exception) {
-            Log.e("PaymentReceiptPdf", "Failed to attach WebView to window", e)
+        } catch (_: Exception) {
         }
     }
 
     private fun detachFromWindow(webView: WebView) {
         try {
             (webView.parent as? ViewGroup)?.removeView(webView)
-        } catch (e: Exception) {
-            Log.e("PaymentReceiptPdf", "Failed to detach WebView from window", e)
+        } catch (_: Exception) {
         }
     }
 
@@ -153,8 +151,7 @@ class PaymentReceiptPdfGenerator(private val context: Context) {
                 try {
                     val result = renderWebViewToPdf(webView, renderWidthPx, density, fileName)
                     finish(result)
-                } catch (e: Exception) {
-                    Log.e("PaymentReceiptPdf", "Render failed on timeout fallback", e)
+                } catch (_: Exception) {
                     finish(null)
                 }
             }
@@ -167,8 +164,7 @@ class PaymentReceiptPdfGenerator(private val context: Context) {
                     try {
                         val result = renderWebViewToPdf(webView, renderWidthPx, density, fileName)
                         finish(result)
-                    } catch (e: Exception) {
-                        Log.e("PaymentReceiptPdf", "Render failed onPageFinished", e)
+                    } catch (_: Exception) {
                         finish(null)
                     }
                 }, 300)
@@ -197,7 +193,6 @@ class PaymentReceiptPdfGenerator(private val context: Context) {
         val contentHeightPx = (webView.contentHeight * density).toInt().coerceAtLeast(webView.measuredHeight)
 
         if (contentHeightPx <= 0) {
-            Log.e("PaymentReceiptPdf", "Render aborted: content height is zero")
             return null
         }
 
@@ -267,8 +262,7 @@ class PaymentReceiptPdfGenerator(private val context: Context) {
                 FileOutputStream(file).use { it.write(bytes) }
                 SavedPdf(uri = Uri.fromFile(file), displayName = fileName, file = file)
             }
-        } catch (e: Exception) {
-            Log.e("PaymentReceiptPdf", "Failed to write PDF to Downloads directory", e)
+        } catch (_: Exception) {
             null
         }
     }

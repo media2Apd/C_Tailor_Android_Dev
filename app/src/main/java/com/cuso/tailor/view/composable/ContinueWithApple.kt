@@ -1,7 +1,7 @@
 package com.cuso.tailor.view.composable
 
 import android.app.Activity
-import android.util.Log
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -48,7 +48,6 @@ fun ContinueWithApple(activity: Activity, navController: NavController) {
             OutlinedButton(
                 onClick = {
                     errorMessage = null
-                    Log.d("APPLE", "Button clicked, launching Apple sign in")
 
                 },
                 modifier = Modifier

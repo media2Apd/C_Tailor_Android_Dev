@@ -1,10 +1,10 @@
-@file:Suppress("unused", "AssignedValueIsNeverRead")
+@file:Suppress("UNUSED_PARAMETER", "unused", "unusedVariable", "AssignedValueIsNeverRead","VariableNeverRead")
 
 package com.cuso.tailor.view.composable
 
 import android.app.Activity
 import android.net.Uri
-import android.util.Log
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -228,7 +228,6 @@ fun LoginOtpSelection(
                     }
                 }
             }.onFailure { error ->
-                Log.e("OTP_API", "Login OTP verification failed", error)
                 errorMessage = error.message ?: "Invalid OTP. Please try again."
             }
         }

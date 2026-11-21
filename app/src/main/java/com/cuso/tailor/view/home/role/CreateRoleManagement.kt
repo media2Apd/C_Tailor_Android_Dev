@@ -34,6 +34,7 @@ import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.AppCheckbox
+import com.cuso.tailor.view.composable.AppRadioButton
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextField
@@ -762,10 +763,9 @@ fun CreateRoleScreen(
                                         interactionSource = remember { MutableInteractionSource() }
                                     ) { isActiveStatus = true }
                                 ) {
-                                    RadioButton(
+                                    AppRadioButton(
                                         selected = isActiveStatus,
-                                        onClick = { isActiveStatus = true },
-                                        colors = RadioButtonDefaults.colors(selectedColor = Primary)
+                                        onClick = { isActiveStatus = true }
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     Text("Active", fontSize = tokens.bodySmall, color = title_color)
@@ -778,10 +778,9 @@ fun CreateRoleScreen(
                                         interactionSource = remember { MutableInteractionSource() }
                                     ) { isActiveStatus = false }
                                 ) {
-                                    RadioButton(
+                                    AppRadioButton(
                                         selected = !isActiveStatus,
-                                        onClick = { isActiveStatus = false },
-                                        colors = RadioButtonDefaults.colors(selectedColor = Primary)
+                                        onClick = { isActiveStatus = false }
                                     )
                                     Spacer(Modifier.width(4.dp))
                                     Text("Inactive", fontSize = tokens.bodySmall, color = title_color)
@@ -862,10 +861,9 @@ fun CreateRoleScreen(
                                         )
                                     }
 
-                                    RadioButton(
+                                    AppRadioButton(
                                         selected = isSelected,
-                                        onClick = { selectedScope = opt.id },
-                                        colors = RadioButtonDefaults.colors(selectedColor = Primary)
+                                        onClick = { selectedScope = opt.id }
                                     )
                                 }
                             }

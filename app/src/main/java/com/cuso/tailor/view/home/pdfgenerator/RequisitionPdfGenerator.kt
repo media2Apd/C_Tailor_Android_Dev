@@ -17,7 +17,7 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
-import android.util.Log
+
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceError
@@ -91,7 +91,6 @@ class RequisitionPdfExporter(private val context: Context) {
         try {
             decorView.addView(webView, 0)
         } catch (e: Exception) {
-            Log.e("RequisitionPdfExporter", "Failed to attach WebView to window", e)
         }
     }
 
@@ -99,7 +98,6 @@ class RequisitionPdfExporter(private val context: Context) {
         try {
             (webView.parent as? ViewGroup)?.removeView(webView)
         } catch (e: Exception) {
-            Log.e("RequisitionPdfExporter", "Failed to detach WebView from window", e)
         }
     }
 
@@ -141,7 +139,6 @@ class RequisitionPdfExporter(private val context: Context) {
                     val result = renderWebViewToPdf(webView, renderWidthPx, density, fileName, saveToDownloads)
                     finish(result)
                 } catch (e: Exception) {
-                    Log.e("RequisitionPdfExporter", "Render timeout fallback failed", e)
                     finish(null)
                 }
             }
@@ -155,7 +152,6 @@ class RequisitionPdfExporter(private val context: Context) {
                         val result = renderWebViewToPdf(webView, renderWidthPx, density, fileName, saveToDownloads)
                         finish(result)
                     } catch (e: Exception) {
-                        Log.e("RequisitionPdfExporter", "Render onPageFinished failed", e)
                         finish(null)
                     }
                 }, 350)
@@ -264,7 +260,6 @@ class RequisitionPdfExporter(private val context: Context) {
                 SavedPdf(uri = Uri.fromFile(file), displayName = fileName, file = file)
             }
         } catch (e: Exception) {
-            Log.e("RequisitionPdfExporter", "Failed to write PDF bytes to Downloads", e)
             null
         }
     }

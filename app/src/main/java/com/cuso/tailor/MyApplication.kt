@@ -5,7 +5,7 @@ package com.cuso.tailor
 import android.app.Application
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -25,7 +25,6 @@ class MyApplication : Application() {
         // Global Uncaught Exception Handler
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            Log.e("GlobalCrashHandler", "Prevented crash on thread: ${thread.name}", throwable)
 
             // Trigger Dynamic Island message directly from MyApplication
             Handler(Looper.getMainLooper()).post {

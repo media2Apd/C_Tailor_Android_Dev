@@ -17,7 +17,7 @@ import android.os.Looper
 import android.print.PrintAttributes
 import android.print.PrintManager
 import android.provider.MediaStore
-import android.util.Log
+
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceError
@@ -64,16 +64,14 @@ class CreditNotePdfGenerator(private val context: Context) {
         webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         try {
             decorView.addView(webView, 0)
-        } catch (e: Exception) {
-            Log.e("CreditNotePdfGen", "attachToWindow failed", e)
+        } catch (_: Exception) {
         }
     }
 
     private fun detachFromWindow(webView: WebView) {
         try {
             (webView.parent as? ViewGroup)?.removeView(webView)
-        } catch (e: Exception) {
-            Log.e("CreditNotePdfGen", "detachFromWindow failed", e)
+        } catch (_: Exception) {
         }
     }
 

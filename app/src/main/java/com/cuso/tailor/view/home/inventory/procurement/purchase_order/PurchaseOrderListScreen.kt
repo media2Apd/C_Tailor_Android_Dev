@@ -2,7 +2,7 @@
 
 package com.cuso.tailor.view.home.inventory.procurement.purchase_order
 
-import android.util.Log
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -223,7 +223,6 @@ fun POListScreen(
                             PurchaseOrderCard(
                                 order = order,
                                 onViewDetails = {
-                                    Log.d(TAG, "PurchaseOrder clicked -> id: '${order.id}', poNumber: '${order.poNumber}'")
                                     onNavigateToDetail(order)
                                 }
                             )

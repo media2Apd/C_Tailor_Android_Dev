@@ -157,9 +157,7 @@ fun AllOrdersStockListScreen(
     LaunchedEffect(Unit) {
         viewModel.clearAdjustmentAlerts()
         viewModel.clearStockSummaryAlerts()
-        viewModel.fetchStockSummaryList()
-        viewModel.loadWarehouseDropdown()
-        viewModel.fetchValidAdjustmentReasons()
+//        viewModel.fetchValidAdjustmentReasons()
         settingsViewModel.fetchBins(isRefresh = true)
     }
 
@@ -266,6 +264,12 @@ fun AllOrdersStockListScreen(
             }
         )
 
+        val closeSheetAndRefresh: () -> Unit = {
+            viewModel.clearAdjustmentAlerts()
+            sheetState = SheetValue.Hidden
+            selectedStockItem = null
+        }
+
         SmoothBottomSheet(
             state = sheetState,
             onStateChange = { sheetState = it },
@@ -278,7 +282,11 @@ fun AllOrdersStockListScreen(
             scrollableContent = true,
             collapsedCornerRadius = tokens.cardCornerRadius,
             sheetBackgroundColor = whiteBg,
-            onDismissRequest = { viewModel.clearAdjustmentAlerts(); sheetState = SheetValue.Hidden }
+            onDismissRequest = {
+                viewModel.clearAdjustmentAlerts()
+                sheetState = SheetValue.Hidden
+                selectedStockItem = null
+            }
         ) {
             selectedStockItem?.let { item ->
                 AdjustStockModalContent(
@@ -289,10 +297,26 @@ fun AllOrdersStockListScreen(
                     isSubmitting = isSubmittingAdjustment,
                     tokens = tokens,
                     settingsViewModel = settingsViewModel,
-                    onDismiss = { viewModel.clearAdjustmentAlerts(); sheetState = SheetValue.Hidden },
-                    onIncreaseStock = { req -> viewModel.submitIncreaseStock(req) },
-                    onDecreaseStock = { req -> viewModel.submitDecreaseStock(req) },
-                    onTransferStock = { req -> viewModel.submitStockTransfer(req) }
+                    onDismiss = {
+                        viewModel.clearAdjustmentAlerts()
+                        sheetState = SheetValue.Hidden
+                        selectedStockItem = null
+                    },
+                    onIncreaseStock = { req ->
+                        viewModel.submitIncreaseStock(req) {
+                            closeSheetAndRefresh()
+                        }
+                    },
+                    onDecreaseStock = { req ->
+                        viewModel.submitDecreaseStock(req) {
+                            closeSheetAndRefresh()
+                        }
+                    },
+                    onTransferStock = { req ->
+                        viewModel.submitStockTransfer(req) {
+                            closeSheetAndRefresh()
+                        }
+                    }
                 )
             }
         }

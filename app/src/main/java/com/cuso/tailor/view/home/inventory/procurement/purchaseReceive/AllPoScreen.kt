@@ -96,10 +96,6 @@ fun AllOrdersScreen(
                 label = "Create Order",
                 icon = Icons.Default.Add,
                 requiredAction = PermissionAction.CREATE,
-                alignment = Alignment.BottomEnd,
-                endPadding = tokens.screenPadding,
-                bottomPadding = tokens.screenPadding,
-                draggable = false,
                 onClick = onCreateOrderClick
             )
         ) {

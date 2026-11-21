@@ -346,10 +346,9 @@ fun CreateFeedScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Checkbox(
+                                AppCheckbox(
                                     checked = allowMultipleAnswers,
-                                    onCheckedChange = { allowMultipleAnswers = it },
-                                    colors = CheckboxDefaults.colors(checkedColor = Primary)
+                                    onCheckedChange = { allowMultipleAnswers = it }
                                 )
                                 Text("Allow multiple selections", fontSize = tokens.caption, color = TextPrimary)
                             }

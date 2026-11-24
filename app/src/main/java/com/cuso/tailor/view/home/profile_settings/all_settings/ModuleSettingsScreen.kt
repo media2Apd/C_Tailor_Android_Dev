@@ -12,7 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -525,7 +525,7 @@ fun ModuleSettingsScreen(
                     }
                 }
 
-                items(filteredModules, key = { it.id }) { module ->
+                itemsIndexed(filteredModules, key = { index, module -> module.id.ifBlank { "module" } + "_$index" }) { _, module ->
                     ModuleSettingCard(
                         module = module,
                         forceExpand = searchQuery.isNotBlank() && module.subItems.isNotEmpty()
@@ -543,7 +543,7 @@ fun ModuleSettingsScreen(
                         )
                     }
 
-                    items(matchingAppPages, key = { "page_${it.id}" }) { page ->
+                    itemsIndexed(matchingAppPages, key = { index, page -> "page_${page.id.ifBlank { "page" }}_$index" }) { _, page ->
                         ModuleSearchPageRow(
                             page = page,
                             onClick = { onNavigateToModule(page.routeKey) }

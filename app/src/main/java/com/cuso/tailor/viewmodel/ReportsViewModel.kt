@@ -116,6 +116,15 @@ private const val SERVICE_FEEDBACK_NPS_URL = "/api/services/reports/customer-fee
 private const val SERVICE_COMPLAINTS_URL = "/api/services/reports/complaints-escalation"
 private const val SERVICE_PERFORMANCE_SLA_URL = "/api/services/reports/service-performance-sla"
 
+// --- Legal Report Endpoints ---
+private const val LEGAL_CONTRACTS_EXPIRY_URL = "/api/legal/reports/contracts-expiry"
+private const val LEGAL_COMPLIANCE_LICENSE_URL = "/api/legal/reports/compliance-license"
+private const val LEGAL_CASES_DISPUTES_URL = "/api/legal/reports/cases-disputes"
+
+// --- Marketing Report Endpoints ---
+private const val MARKETING_CAMPAIGN_PERF_URL = "/api/marketing/reports/campaign-performance"
+private const val MARKETING_CHANNEL_PERF_URL = "/api/marketing/reports/channel-performance"
+
 private const val DEFAULT_INVENTORY_PAGE_LIMIT = 10
 
 private const val DEFAULT_PAGE_LIMIT = 10
@@ -2923,7 +2932,10 @@ class ReportViewModel @Inject constructor(
                     item.category.lowercase().contains(cleanQuery)
 
             val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(item.statusBadge, ignoreCase = true) }
-            val matchesType = types.isEmpty() || types.any { it.equals(item.isFabric.toString(), ignoreCase = true) }
+            val matchesType = types.isEmpty() || types.any { type ->
+                (type.equals("Fabric", ignoreCase = true) && item.isFabric) ||
+                        (type.equals("Standard Item", ignoreCase = true) && !item.isFabric)
+            }
 
             matchesQuery && matchesStatus && matchesType
         }
@@ -3598,4 +3610,331 @@ class ReportViewModel @Inject constructor(
         _serviceSlaTypeFilter.value = emptySet()
     }
 
+    // =========================================================================
+    // 13. LEGAL REPORTS (3 ENDPOINTS)
+    // =========================================================================
+
+    // --- 13.1 Contracts & Expiry Audit ---
+    private val _contractsExpirySummary = MutableStateFlow<ContractsExpirySummaryDto?>(null)
+    val contractsExpirySummary: StateFlow<ContractsExpirySummaryDto?> = _contractsExpirySummary.asStateFlow()
+
+    private val _contractsExpiryPaging = MutableStateFlow(PagingUiState<ContractExpiryItemDto>())
+    val contractsExpiryPaging: StateFlow<PagingUiState<ContractExpiryItemDto>> = _contractsExpiryPaging.asStateFlow()
+
+    private val _contractsExpirySearch = MutableStateFlow("")
+    val contractsExpirySearch: StateFlow<String> = _contractsExpirySearch.asStateFlow()
+
+    private val _contractsExpiryRiskFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _contractsExpiryStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredContractsExpiryList: StateFlow<List<ContractExpiryItemDto>> = combine(
+        _contractsExpiryPaging,
+        _contractsExpirySearch,
+        _contractsExpiryRiskFilter,
+        _contractsExpiryStatusFilter
+    ) { paging, query, risks, statuses ->
+        val q = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = q.isEmpty() ||
+                    item.contractName.lowercase().contains(q) ||
+                    item.contractNumber.lowercase().contains(q) ||
+                    item.counterparty.lowercase().contains(q) ||
+                    item.contractType.lowercase().contains(q) ||
+                    item.legalOwner.lowercase().contains(q)
+
+            val matchesRisk = risks.isEmpty() || risks.any { it.equals(item.riskLevel, ignoreCase = true) }
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(item.renewalStatus, ignoreCase = true) }
+
+            matchesQuery && matchesRisk && matchesStatus
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadContractsExpiryReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeSalesPagedFetch<ContractsExpiryReportResponse, ContractExpiryItemDto>(
+            reportKey = "legal_contracts_expiry",
+            url = LEGAL_CONTRACTS_EXPIRY_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _contractsExpiryPaging,
+            itemId = { it.id.ifBlank { it.contractNumber } },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _contractsExpirySummary.value = s } }
+        )
+    }
+
+    fun onContractsExpirySearchChange(query: String) {
+        _contractsExpirySearch.value = query
+    }
+
+    fun applyContractsExpiryFilters(risks: Set<String>, statuses: Set<String>) {
+        _contractsExpiryRiskFilter.value = risks
+        _contractsExpiryStatusFilter.value = statuses
+    }
+
+    fun clearContractsExpiryFilters() {
+        _contractsExpirySearch.value = ""
+        _contractsExpiryRiskFilter.value = emptySet()
+        _contractsExpiryStatusFilter.value = emptySet()
+    }
+
+    // --- 13.2 Compliance & License Audit ---
+    private val _complianceLicenseSummary = MutableStateFlow<ComplianceLicenseSummaryDto?>(null)
+    val complianceLicenseSummary: StateFlow<ComplianceLicenseSummaryDto?> = _complianceLicenseSummary.asStateFlow()
+
+    private val _complianceLicensePaging = MutableStateFlow(PagingUiState<ComplianceLicenseItemDto>())
+    val complianceLicensePaging: StateFlow<PagingUiState<ComplianceLicenseItemDto>> = _complianceLicensePaging.asStateFlow()
+
+    private val _complianceLicenseSearch = MutableStateFlow("")
+    val complianceLicenseSearch: StateFlow<String> = _complianceLicenseSearch.asStateFlow()
+
+    private val _complianceLicenseStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _complianceLicenseRiskFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredComplianceLicenseList: StateFlow<List<ComplianceLicenseItemDto>> = combine(
+        _complianceLicensePaging,
+        _complianceLicenseSearch,
+        _complianceLicenseStatusFilter,
+        _complianceLicenseRiskFilter
+    ) { paging, query, statuses, risks ->
+        val q = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = q.isEmpty() ||
+                    item.licenseName.lowercase().contains(q) ||
+                    item.licenseCode.lowercase().contains(q) ||
+                    item.licenseNumber.lowercase().contains(q) ||
+                    item.licenseType.lowercase().contains(q) ||
+                    item.issuingAuthority.lowercase().contains(q) ||
+                    item.licenseOwner.lowercase().contains(q)
+
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(item.status, ignoreCase = true) }
+            val matchesRisk = risks.isEmpty() || risks.any { it.equals(item.riskLevel, ignoreCase = true) }
+
+            matchesQuery && matchesStatus && matchesRisk
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadComplianceLicenseReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeSalesPagedFetch<ComplianceLicenseReportResponse, ComplianceLicenseItemDto>(
+            reportKey = "legal_compliance_license",
+            url = LEGAL_COMPLIANCE_LICENSE_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _complianceLicensePaging,
+            itemId = { it.id.ifBlank { it.licenseCode } },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _complianceLicenseSummary.value = s } }
+        )
+    }
+
+    fun onComplianceLicenseSearchChange(query: String) {
+        _complianceLicenseSearch.value = query
+    }
+
+    fun applyComplianceLicenseFilters(statuses: Set<String>, risks: Set<String>) {
+        _complianceLicenseStatusFilter.value = statuses
+        _complianceLicenseRiskFilter.value = risks
+    }
+
+    fun clearComplianceLicenseFilters() {
+        _complianceLicenseSearch.value = ""
+        _complianceLicenseStatusFilter.value = emptySet()
+        _complianceLicenseRiskFilter.value = emptySet()
+    }
+
+    // --- 13.3 Legal Cases & Disputes ---
+    private val _legalCasesSummary = MutableStateFlow<LegalCasesDisputesSummaryDto?>(null)
+    val legalCasesSummary: StateFlow<LegalCasesDisputesSummaryDto?> = _legalCasesSummary.asStateFlow()
+
+    private val _legalCasesPaging = MutableStateFlow(PagingUiState<LegalCaseDisputeItemDto>())
+    val legalCasesPaging: StateFlow<PagingUiState<LegalCaseDisputeItemDto>> = _legalCasesPaging.asStateFlow()
+
+    private val _legalCasesSearch = MutableStateFlow("")
+    val legalCasesSearch: StateFlow<String> = _legalCasesSearch.asStateFlow()
+
+    private val _legalCasesRiskFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _legalCasesStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredLegalCasesList: StateFlow<List<LegalCaseDisputeItemDto>> = combine(
+        _legalCasesPaging,
+        _legalCasesSearch,
+        _legalCasesRiskFilter,
+        _legalCasesStatusFilter
+    ) { paging, query, risks, statuses ->
+        val q = query.trim().lowercase()
+        paging.items.filter { item ->
+            val resolvedTitle = item.title.ifBlank { item.subject }.lowercase()
+            val resolvedCode = item.disputeCode.ifBlank { item.caseCode.ifBlank { item.noticeCode } }.lowercase()
+            val matchesQuery = q.isEmpty() ||
+                    resolvedTitle.contains(q) ||
+                    resolvedCode.contains(q) ||
+                    item.partyInvolved.lowercase().contains(q) ||
+                    item.jurisdiction.lowercase().contains(q) ||
+                    item.legalCounsel.lowercase().contains(q)
+
+            val matchesRisk = risks.isEmpty() || risks.any { it.equals(item.riskLevel, ignoreCase = true) }
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(item.status, ignoreCase = true) }
+
+            matchesQuery && matchesRisk && matchesStatus
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadLegalCasesDisputesReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeSalesPagedFetch<LegalCasesDisputesReportResponse, LegalCaseDisputeItemDto>(
+            reportKey = "legal_cases_disputes",
+            url = LEGAL_CASES_DISPUTES_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _legalCasesPaging,
+            itemId = { it.id.ifBlank { it.disputeCode.ifBlank { it.caseCode } } },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _legalCasesSummary.value = s } }
+        )
+    }
+
+    fun onLegalCasesSearchChange(query: String) {
+        _legalCasesSearch.value = query
+    }
+
+    fun applyLegalCasesFilters(risks: Set<String>, statuses: Set<String>) {
+        _legalCasesRiskFilter.value = risks
+        _legalCasesStatusFilter.value = statuses
+    }
+
+    fun clearLegalCasesFilters() {
+        _legalCasesSearch.value = ""
+        _legalCasesRiskFilter.value = emptySet()
+        _legalCasesStatusFilter.value = emptySet()
+    }
+
+    // =========================================================================
+    // 14. MARKETING REPORTS (2 ENDPOINTS)
+    // =========================================================================
+
+    // --- 14.1 Campaign Performance & ROI ---
+    private val _campaignPerfSummary = MutableStateFlow<CampaignPerformanceSummaryDto?>(null)
+    val campaignPerfSummary: StateFlow<CampaignPerformanceSummaryDto?> = _campaignPerfSummary.asStateFlow()
+
+    private val _campaignPerfPaging = MutableStateFlow(PagingUiState<CampaignPerformanceItemDto>())
+    val campaignPerfPaging: StateFlow<PagingUiState<CampaignPerformanceItemDto>> = _campaignPerfPaging.asStateFlow()
+
+    private val _campaignPerfSearch = MutableStateFlow("")
+    val campaignPerfSearch: StateFlow<String> = _campaignPerfSearch.asStateFlow()
+
+    private val _campaignPerfStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _campaignPerfPlatformFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredCampaignPerfList: StateFlow<List<CampaignPerformanceItemDto>> = combine(
+        _campaignPerfPaging,
+        _campaignPerfSearch,
+        _campaignPerfStatusFilter,
+        _campaignPerfPlatformFilter
+    ) { paging, query, statuses, platforms ->
+        val q = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = q.isEmpty() ||
+                    item.campaignName.lowercase().contains(q) ||
+                    item.campaignCode.lowercase().contains(q) ||
+                    item.platform.lowercase().contains(q) ||
+                    item.channel.lowercase().contains(q)
+
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(item.status, ignoreCase = true) }
+            val matchesPlatform = platforms.isEmpty() || platforms.any { it.equals(item.platform, ignoreCase = true) }
+
+            matchesQuery && matchesStatus && matchesPlatform
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadCampaignPerformanceReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeSalesPagedFetch<CampaignPerformanceReportResponse, CampaignPerformanceItemDto>(
+            reportKey = "mkt_campaign_perf",
+            url = MARKETING_CAMPAIGN_PERF_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _campaignPerfPaging,
+            itemId = { it.id.ifBlank { it.campaignCode } },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _campaignPerfSummary.value = s } }
+        )
+    }
+
+    fun onCampaignPerfSearchChange(query: String) {
+        _campaignPerfSearch.value = query
+    }
+
+    fun applyCampaignPerfFilters(statuses: Set<String>, platforms: Set<String>) {
+        _campaignPerfStatusFilter.value = statuses
+        _campaignPerfPlatformFilter.value = platforms
+    }
+
+    fun clearCampaignPerfFilters() {
+        _campaignPerfSearch.value = ""
+        _campaignPerfStatusFilter.value = emptySet()
+        _campaignPerfPlatformFilter.value = emptySet()
+    }
+
+    // --- 14.2 Marketing Channel Performance ---
+    private val _channelPerfSummary = MutableStateFlow<ChannelPerformanceSummaryDto?>(null)
+    val channelPerfSummary: StateFlow<ChannelPerformanceSummaryDto?> = _channelPerfSummary.asStateFlow()
+
+    private val _channelPerfPaging = MutableStateFlow(PagingUiState<ChannelPerformanceItemDto>())
+    val channelPerfPaging: StateFlow<PagingUiState<ChannelPerformanceItemDto>> = _channelPerfPaging.asStateFlow()
+
+    private val _channelPerfSearch = MutableStateFlow("")
+    val channelPerfSearch: StateFlow<String> = _channelPerfSearch.asStateFlow()
+
+    private val _channelPerfStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredChannelPerfList: StateFlow<List<ChannelPerformanceItemDto>> = combine(
+        _channelPerfPaging,
+        _channelPerfSearch,
+        _channelPerfStatusFilter
+    ) { paging, query, statuses ->
+        val q = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = q.isEmpty() ||
+                    item.channelName.lowercase().contains(q) ||
+                    item.channelCode.lowercase().contains(q) ||
+                    item.channelType.lowercase().contains(q)
+
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(item.status, ignoreCase = true) }
+
+            matchesQuery && matchesStatus
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadChannelPerformanceReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeSalesPagedFetch<ChannelPerformanceReportResponse, ChannelPerformanceItemDto>(
+            reportKey = "mkt_channel_perf",
+            url = MARKETING_CHANNEL_PERF_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _channelPerfPaging,
+            itemId = { it.id.ifBlank { it.channelCode.ifBlank { it.channelName } } },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _channelPerfSummary.value = s } }
+        )
+    }
+
+    fun onChannelPerfSearchChange(query: String) {
+        _channelPerfSearch.value = query
+    }
+
+    fun applyChannelPerfFilters(statuses: Set<String>) {
+        _channelPerfStatusFilter.value = statuses
+    }
+
+    fun clearChannelPerfFilters() {
+        _channelPerfSearch.value = ""
+        _channelPerfStatusFilter.value = emptySet()
+    }
 }

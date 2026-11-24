@@ -5,9 +5,6 @@ package com.cuso.tailor.repository
 
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.EmailResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.EmailVerify
-import com.cuso.tailor.model.login_forgotPassword_resetPassword.GoogleLoginRequest
-import com.cuso.tailor.model.login_forgotPassword_resetPassword.GoogleLoginResponse
-import com.cuso.tailor.model.login_forgotPassword_resetPassword.GoogleLoginResult
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.PasswordResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.PasswordVerify
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.RegisterVerifyOtp
@@ -303,27 +300,27 @@ class AuthRepository @Inject constructor(
     // Google Login (AuthApiService)
     // ---------------------------------------------------------
 
-    suspend fun googleLogin(idToken: String): GoogleLoginResult {
-        return try {
-            val response = authApi.googleLogin(GoogleLoginRequest(idToken))
-            if (response.isSuccessful && response.body() != null) {
-                val json = response.body()!!
-                val parsed = Gson().fromJson(json, GoogleLoginResponse::class.java)
-                if (parsed.requiresRegistration) {
-                    GoogleLoginResult.NewUser(parsed)
-                } else if (parsed.data != null) {
-                    GoogleLoginResult.ExistingUser(parsed)
-                } else {
-                    GoogleLoginResult.Failure(parsed.message.ifBlank { "Google login failed" })
-                }
-            } else {
-                val message = try {
-                    JSONObject(response.errorBody()?.string() ?: "").getString("message")
-                } catch (_: Exception) { "Something went wrong" }
-                GoogleLoginResult.Failure(message)
-            }
-        } catch (e: Exception) {
-            GoogleLoginResult.Failure("Network error: ${e.message}")
-        }
-    }
+//    suspend fun googleLogin(idToken: String): GoogleLoginResult {
+//        return try {
+//            val response = authApi.googleLogin(GoogleLoginRequest(idToken))
+//            if (response.isSuccessful && response.body() != null) {
+//                val json = response.body()!!
+//                val parsed = Gson().fromJson(json, GoogleLoginResponse::class.java)
+//                if (parsed.requiresRegistration) {
+//                    GoogleLoginResult.NewUser(parsed)
+//                } else if (parsed.data != null) {
+//                    GoogleLoginResult.ExistingUser(parsed)
+//                } else {
+//                    GoogleLoginResult.Failure(parsed.message.ifBlank { "Google login failed" })
+//                }
+//            } else {
+//                val message = try {
+//                    JSONObject(response.errorBody()?.string() ?: "").getString("message")
+//                } catch (_: Exception) { "Something went wrong" }
+//                GoogleLoginResult.Failure(message)
+//            }
+//        } catch (e: Exception) {
+//            GoogleLoginResult.Failure("Network error: ${e.message}")
+//        }
+//    }
 }

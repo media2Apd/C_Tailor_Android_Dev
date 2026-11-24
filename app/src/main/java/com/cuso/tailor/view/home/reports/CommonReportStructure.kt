@@ -17,12 +17,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
+import com.cuso.tailor.view.home.paywall.LocalScreenPermissions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -34,6 +36,8 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -42,6 +46,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
@@ -57,6 +62,8 @@ import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
 import com.cuso.tailor.utils.PagingUiState
+import com.cuso.tailor.utils.exportAnyDataToCsvDownloads
+import com.cuso.tailor.utils.shareAnyDataAsCsv
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FilterDrawer
 import com.cuso.tailor.view.composable.FilterSection
@@ -324,6 +331,63 @@ fun ReportCardFooterCaption(
     }
 }
 
+/**
+ * Reusable action bar for reports that automatically shows Share, Export, and Print
+ * buttons based on LocalScreenPermissions.
+ */
+@Composable
+fun ReportActionButtonsRow(
+    modifier: Modifier = Modifier,
+    onShareClick: () -> Unit,
+    onExportClick: () -> Unit,
+    onPrintClick: (() -> Unit)? = null,
+) {
+    val tokens = LocalAppTokens.current
+    val permissions = LocalScreenPermissions.current
+    val showShare = permissions.canShare
+    val showExport = permissions.canExport
+    val showPrint = permissions.canPrint && onPrintClick != null
+
+    if (showShare || showExport || showPrint) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .background(whiteBg)
+                .padding(
+                    start = tokens.screenPadding,
+                    end = tokens.screenPadding,
+                    bottom = tokens.extraPadding
+                ),
+            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+        ) {
+            if (showShare) {
+                ReportActionPillButton(
+                    label = "Share",
+                    icon = Icons.Default.Share,
+                    onClick = onShareClick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            if (showExport) {
+                ReportActionPillButton(
+                    label = "Export",
+                    icon = Icons.Default.Download,
+                    onClick = onExportClick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            if (showPrint) {
+                ReportActionPillButton(
+                    label = "Print",
+                    icon = Icons.Default.Print,
+                    onClick = onPrintClick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun <T> ReportInfinitelyPaginatedScaffold(
     title: String,
@@ -341,30 +405,33 @@ fun <T> ReportInfinitelyPaginatedScaffold(
     onApplyFilters: (List<FilterSection>) -> Unit,
     onClearAllFilters: () -> Unit,
     onLoadMore: () -> Unit,
-    onShareClick: () -> Unit,
-    onExportClick: () -> Unit,
+    onShareClick: (() -> Unit)? = null,
+    onExportClick: (() -> Unit)? = null,
+    onPrintClick: (() -> Unit)? = null,
+    autoExportCsv: Boolean = true,
     onClose: () -> Unit,
     emptyMessage: String = "No records found.",
     itemContent: @Composable (T) -> Unit
 ) {
     val tokens = LocalAppTokens.current
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val filterDrawerState = rememberFilterDrawerState()
     var blurRadius by remember { mutableStateOf(tokens.extraPadding * 0f) }
 
-    val shouldTriggerLoadMore by remember(
-        pagingState.items.size,
-        pagingState.canLoadMore,
-        pagingState.isLoadingMore,
-        pagingState.isInitialLoading
-    ) {
+    val latestPagingState by rememberUpdatedState(pagingState)
+    val latestOnLoadMore by rememberUpdatedState(onLoadMore)
+
+    val shouldTriggerLoadMore by remember(listState) {
         derivedStateOf {
             val layoutInfo = listState.layoutInfo
             val totalItems = layoutInfo.totalItemsCount
             val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            pagingState.canLoadMore &&
-                    !pagingState.isLoadingMore &&
-                    !pagingState.isInitialLoading &&
+            latestPagingState.canLoadMore &&
+                    !latestPagingState.isLoadingMore &&
+                    !latestPagingState.isInitialLoading &&
+                    latestPagingState.items.isNotEmpty() &&
                     totalItems > 0 &&
                     lastVisible >= totalItems - 3
         }
@@ -374,7 +441,7 @@ fun <T> ReportInfinitelyPaginatedScaffold(
         snapshotFlow { shouldTriggerLoadMore }
             .distinctUntilChanged()
             .collect { trigger ->
-                if (trigger) onLoadMore()
+                if (trigger) latestOnLoadMore()
             }
     }
 
@@ -394,30 +461,34 @@ fun <T> ReportInfinitelyPaginatedScaffold(
                 onClose = onClose
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(whiteBg)
-                    .padding(
-                        start = tokens.screenPadding,
-                        end = tokens.screenPadding,
-                        bottom = tokens.extraPadding
-                    ),
-                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-            ) {
-                ReportActionPillButton(
-                    label = "Share",
-                    icon = Icons.Default.Share,
-                    onClick = onShareClick,
-                    modifier = Modifier.weight(1f)
-                )
-                ReportActionPillButton(
-                    label = "Export",
-                    icon = Icons.Default.Download,
-                    onClick = onExportClick,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            // Render only the action buttons allowed by LocalScreenPermissions
+            ReportActionButtonsRow(
+                onShareClick = {
+                    if (onShareClick != null && !autoExportCsv) {
+                        onShareClick()
+                    } else {
+                        shareAnyDataAsCsv(
+                            context = context,
+                            coroutineScope = coroutineScope,
+                            fileNamePrefix = title,
+                            items = filteredItems
+                        )
+                    }
+                },
+                onExportClick = {
+                    if (onExportClick != null && !autoExportCsv) {
+                        onExportClick()
+                    } else {
+                        exportAnyDataToCsvDownloads(
+                            context = context,
+                            coroutineScope = coroutineScope,
+                            fileNamePrefix = title,
+                            items = filteredItems
+                        )
+                    }
+                },
+                onPrintClick = onPrintClick
+            )
 
             HorizontalDivider(color = dividerColor)
 
@@ -481,10 +552,14 @@ fun <T> ReportInfinitelyPaginatedScaffold(
                     }
 
                     else -> {
-                        items(
+                        itemsIndexed(
                             items = filteredItems,
-                            key = { itemKey(it) }
-                        ) { record ->
+                            key = { index, record ->
+                                val rawKey = try { itemKey(record) } catch (_: Exception) { "" }
+                                val cleanKey = rawKey.trim().ifBlank { "item" }
+                                "${cleanKey}_$index"
+                            }
+                        ) { _, record ->
                             itemContent(record)
                         }
 

@@ -362,8 +362,28 @@ class PermissionViewModel @Inject constructor(
     fun canPrint(routeOrFeature: String): Boolean =
         canActionForRoute(routeOrFeature, PermissionAction.PRINT)
 
+    fun canShare(routeOrFeature: String): Boolean =
+        canActionForRoute(routeOrFeature, PermissionAction.SHARE)
+
     fun canApprove(routeOrFeature: String): Boolean =
         canActionForRoute(routeOrFeature, PermissionAction.APPROVE)
+
+    /**
+     * Checks if at least one report feature key in a category is subscribed in the plan.
+     */
+    fun isAnyReportFeatureSubscribed(features: List<String>): Boolean {
+        return features.any { feature -> isPlanFeatureSubscribed("reports", feature) }
+    }
+
+    /**
+     * Checks if the user can view at least one report inside a report category.
+     */
+    fun canViewAnyReportFeature(features: List<String>): Boolean {
+        return features.any { feature ->
+            isPlanFeatureSubscribed("reports", feature) &&
+                    canUserAction("reports", feature, PermissionAction.VIEW)
+        }
+    }
 
     fun hasRouteAccess(route: String): Boolean = canViewRoute(route)
 
@@ -557,6 +577,7 @@ class PermissionViewModel @Inject constructor(
             "security_users", "security_create_user" -> "security" to "users"
 
             // ── 12. REPORTS MODULE ──
+            // Sales Reports
             "reports_sales", "reports_sales_order_master" -> "reports" to "orderMasterRegister"
             "reports_sales_lead_master" -> "reports" to "leadMasterRegister"
             "reports_sales_lead_source" -> "reports" to "leadSourcePerformance"
@@ -577,21 +598,59 @@ class PermissionViewModel @Inject constructor(
             "reports_sales_quote_master" -> "reports" to "quoteMasterRegister"
             "reports_sales_quote_discount" -> "reports" to "quoteDiscountLeakage"
             "reports_sales_quote_expiring" -> "reports" to "quoteExpiringAudit"
-            "reports_marketing" -> "reports" to "mktCampaignPerformance"
-            "reports_finance" -> "reports" to "revenueExpenseSummary"
-            "reports_inventory" -> "reports" to "invStockSummary"
-            "reports_logistics" -> "reports" to "logDeliveryPerformance"
-            "reports_services" -> "reports" to "servicePerformanceSla"
+
+            // Marketing Reports
+            "reports_marketing", "reports_mkt_campaign_perf" -> "reports" to "mktCampaignPerformance"
+            "reports_mkt_channel_perf" -> "reports" to "mktChannelPerformance"
+
+            // Finance Reports
+            "reports_finance", "reports_fin_revenue_expense" -> "reports" to "revenueExpenseSummary"
+            "reports_fin_receivables_aging" -> "reports" to "receivablesAging"
+            "reports_fin_payables_aging" -> "reports" to "payablesAging"
+            "reports_fin_gst_summary" -> "reports" to "gstSummary"
+            "reports_fin_payment_collection" -> "reports" to "paymentCollections"
+            "reports_fin_advance_payment" -> "reports" to "advancePayments"
+            "reports_fin_payment_mode" -> "reports" to "paymentModes"
+            "reports_fin_balance_pending" -> "reports" to "balancePending"
+            "reports_fin_overdue_payment" -> "reports" to "overduePayments"
+
+            // Inventory Reports
+            "reports_inventory", "reports_inv_stock_summary" -> "reports" to "invStockSummary"
+            "reports_inv_low_stock" -> "reports" to "invLowStockReorder"
+            "reports_inv_stock_movement" -> "reports" to "invStockMovement"
+            "reports_inv_material_consumption" -> "reports" to "invMaterialConsumption"
+            "reports_inv_valuation" -> "reports" to "invValuation"
+
+            // Logistics Reports
+            "reports_logistics", "reports_log_delivery_perf" -> "reports" to "logDeliveryPerformance"
+            "reports_log_shipment_tracking" -> "reports" to "logShipmentTracking"
+            "reports_log_returns_rto" -> "reports" to "logReturnsRto"
+            "reports_log_cod_recon" -> "reports" to "logCodReconciliation"
+
+            // Service Reports
+            "reports_svc_feedback_nps" -> "reports" to "customerFeedbackSummary"
+            "reports_svc_complaints" -> "reports" to "complaintsEscalation"
+            "reports_services", "reports_svc_sla" -> "reports" to "servicePerformanceSla"
+
+            // HR Reports
             "reports_human_resource", "reports_hr_attendance_register" -> "reports" to "hrAttendanceRegister"
             "reports_hr_payroll_run_audit" -> "reports" to "hrPayrollRuns"
             "reports_hr_piece_rate_wage" -> "reports" to "hrPieceRates"
             "reports_hr_reimbursement_claims" -> "reports" to "hrReimbursements"
+
+            // IT Reports
             "reports_it", "reports_it_assets" -> "reports" to "itAssetRegister"
             "reports_it_service_desk" -> "reports" to "itServiceDesk"
+
+            // Security Reports
             "reports_security", "reports_sec_incidents_alerts" -> "reports" to "secIncidentsAlerts"
             "reports_sec_access_activity" -> "reports" to "secAccessActivity"
             "reports_sec_api_integrations" -> "reports" to "secApiIntegrations"
-            "reports_legal" -> "reports" to "legalContractsExpiry"
+
+            // Legal Reports
+            "reports_legal", "reports_legal_contracts_expiry" -> "reports" to "legalContractsExpiry"
+            "reports_legal_compliance_license" -> "reports" to "legalComplianceLicense"
+            "reports_legal_cases_disputes" -> "reports" to "legalCasesDisputes"
 
             else -> null
         }

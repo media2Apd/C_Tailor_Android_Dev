@@ -330,44 +330,48 @@ fun StockSummaryReportScreen(
     // Initial load
     LaunchedEffect(Unit) { viewModel.loadStockSummaryReport() }
 
+    val activeFilterCount = remember(sections) { sections.activeCount() }
+
     // Top metric cards
-    val metrics = listOf(
-        ReportMetricSpec(
-            label = "TOTAL ACTIVE SKUS",
-            value = "${summary?.totalSkus ?: 0}",
-            subtitle = "${summary?.totalOnHandUnits?.fmtQty() ?: "0"} total units in stock",
-            icon = Icons.Default.GridView,
-            iconTint = purpleText,
-            iconBgColor = purpleBg
-        ),
-        ReportMetricSpec(
-            label = "STOCK VALUATION",
-            value = viewModel.formatCurrency(summary?.totalStockValuation ?: 0.0),
-            subtitle = "On-hand asset value",
-            icon = Icons.Default.CurrencyRupee,
-            valueColor = greentext,
-            iconTint = greentext,
-            iconBgColor = greenBg
-        ),
-        ReportMetricSpec(
-            label = "LOW STOCK ITEMS",
-            value = "${summary?.lowStockCount ?: 0}",
-            subtitle = "Below reorder point",
-            icon = Icons.Default.Warning,
-            valueColor = orangeText,
-            iconTint = yellowText,
-            iconBgColor = yellowBg
-        ),
-        ReportMetricSpec(
-            label = "OUT OF STOCK",
-            value = "${summary?.outOfStockCount ?: 0}",
-            subtitle = "Depleted inventory",
-            icon = Icons.Default.Block,
-            valueColor = redText,
-            iconTint = redText,
-            iconBgColor = redBg
+    val metrics = remember(summary) {
+        listOf(
+            ReportMetricSpec(
+                label = "TOTAL ACTIVE SKUS",
+                value = "${summary?.totalSkus ?: 0}",
+                subtitle = "${summary?.totalOnHandUnits?.fmtQty() ?: "0"} total units in stock",
+                icon = Icons.Default.GridView,
+                iconTint = purpleText,
+                iconBgColor = purpleBg
+            ),
+            ReportMetricSpec(
+                label = "STOCK VALUATION",
+                value = viewModel.formatCurrency(summary?.totalStockValuation ?: 0.0),
+                subtitle = "On-hand asset value",
+                icon = Icons.Default.CurrencyRupee,
+                valueColor = greentext,
+                iconTint = greentext,
+                iconBgColor = greenBg
+            ),
+            ReportMetricSpec(
+                label = "LOW STOCK ITEMS",
+                value = "${summary?.lowStockCount ?: 0}",
+                subtitle = "Below reorder point",
+                icon = Icons.Default.Warning,
+                valueColor = orangeText,
+                iconTint = yellowText,
+                iconBgColor = yellowBg
+            ),
+            ReportMetricSpec(
+                label = "OUT OF STOCK",
+                value = "${summary?.outOfStockCount ?: 0}",
+                subtitle = "Depleted inventory",
+                icon = Icons.Default.Block,
+                valueColor = redText,
+                iconTint = redText,
+                iconBgColor = redBg
+            )
         )
-    )
+    }
 
     ReportInfinitelyPaginatedScaffold(
         title = "Stock Summary Report",
@@ -380,7 +384,7 @@ fun StockSummaryReportScreen(
         filteredItems = items,
         itemKey = { it.id },
         filterSections = sections,
-        activeFilterCount = sections.activeCount(),
+        activeFilterCount = activeFilterCount,
         onApplyFilters = { applied ->
             sections = applied
             viewModel.applyStockSummaryFilters(
@@ -452,46 +456,50 @@ fun LowStockReorderReportScreen(
 
     LaunchedEffect(Unit) { viewModel.loadLowStockReorderReport() }
 
-    val metrics = listOf(
-        ReportMetricSpec(
-            label = "LOW STOCK SKUS",
-            value = "${summary?.totalLowStockItems ?: 0}",
-            subtitle = "${summary?.totalShortageUnits?.fmtQty() ?: "0"} units deficit",
-            icon = Icons.Default.Warning,
-            valueColor = orangeText,
-            iconTint = yellowText,
-            iconBgColor = yellowBg
-        ),
-        ReportMetricSpec(
-            label = "COMPLETELY OUT OF STOCK",
-            value = "${summary?.outOfStockItems ?: 0}",
-            subtitle = "Urgent replenishment",
-            icon = Icons.Default.Block,
-            valueColor = redText,
-            subtitleColor = redText,
-            iconTint = redText,
-            iconBgColor = redBg
-        ),
-        ReportMetricSpec(
-            label = "AUTOMATED RULES ACTIVE",
-            value = "${summary?.autoRulesCoveredCount ?: 0}",
-            subtitle = "${summary?.pendingApprovalCount ?: 0} pending PO approvals",
-            icon = Icons.Default.Bolt,
-            valueColor = Primary,
-            subtitleColor = Primary,
-            iconTint = Primary,
-            iconBgColor = primary_light
-        ),
-        ReportMetricSpec(
-            label = "EST. REORDER COST",
-            value = viewModel.formatCurrency(summary?.totalEstimatedCost ?: 0.0),
-            subtitle = "Procurement budget needed",
-            icon = Icons.Default.CurrencyRupee,
-            valueColor = greentext,
-            iconTint = greentext,
-            iconBgColor = greenBg
+    val activeFilterCount = remember(sections) { sections.activeCount() }
+
+    val metrics = remember(summary) {
+        listOf(
+            ReportMetricSpec(
+                label = "LOW STOCK SKUS",
+                value = "${summary?.totalLowStockItems ?: 0}",
+                subtitle = "${summary?.totalShortageUnits?.fmtQty() ?: "0"} units deficit",
+                icon = Icons.Default.Warning,
+                valueColor = orangeText,
+                iconTint = yellowText,
+                iconBgColor = yellowBg
+            ),
+            ReportMetricSpec(
+                label = "COMPLETELY OUT OF STOCK",
+                value = "${summary?.outOfStockItems ?: 0}",
+                subtitle = "Urgent replenishment",
+                icon = Icons.Default.Block,
+                valueColor = redText,
+                subtitleColor = redText,
+                iconTint = redText,
+                iconBgColor = redBg
+            ),
+            ReportMetricSpec(
+                label = "AUTOMATED RULES ACTIVE",
+                value = "${summary?.autoRulesCoveredCount ?: 0}",
+                subtitle = "${summary?.pendingApprovalCount ?: 0} pending PO approvals",
+                icon = Icons.Default.Bolt,
+                valueColor = Primary,
+                subtitleColor = Primary,
+                iconTint = Primary,
+                iconBgColor = primary_light
+            ),
+            ReportMetricSpec(
+                label = "EST. REORDER COST",
+                value = viewModel.formatCurrency(summary?.totalEstimatedCost ?: 0.0),
+                subtitle = "Procurement budget needed",
+                icon = Icons.Default.CurrencyRupee,
+                valueColor = greentext,
+                iconTint = greentext,
+                iconBgColor = greenBg
+            )
         )
-    )
+    }
 
     ReportInfinitelyPaginatedScaffold(
         title = "Low Stock & Reorder Report",
@@ -504,7 +512,7 @@ fun LowStockReorderReportScreen(
         filteredItems = items,
         itemKey = { it.id },
         filterSections = sections,
-        activeFilterCount = sections.activeCount(),
+        activeFilterCount = activeFilterCount,
         onApplyFilters = { applied ->
             sections = applied
             viewModel.applyLowStockFilters(applied.selectedOf("Status"))
@@ -585,44 +593,48 @@ fun StockMovementReportScreen(
 
     LaunchedEffect(Unit) { viewModel.loadStockMovementReport() }
 
-    val metrics = listOf(
-        ReportMetricSpec(
-            label = "TOTAL MOVEMENTS",
-            value = "${summary?.totalMovementsCount ?: 0}",
-            subtitle = "Ledger transitions",
-            icon = Icons.Default.SwapHoriz,
-            iconTint = purpleText,
-            iconBgColor = purpleBg
-        ),
-        ReportMetricSpec(
-            label = "TOTAL INWARD QTY",
-            value = (summary?.totalInwardQty ?: 0.0).fmtSigned(),
-            subtitle = "Received into inventory",
-            icon = Icons.Default.SouthWest,
-            valueColor = greentext,
-            iconTint = greentext,
-            iconBgColor = greenBg
-        ),
-        ReportMetricSpec(
-            label = "TOTAL OUTWARD QTY",
-            // Outward total may already be negative; force a minus sign for display
-            value = "-${kotlin.math.abs(summary?.totalOutwardQty ?: 0.0).fmtQty()}",
-            subtitle = "Sold & consumed",
-            icon = Icons.Default.NorthEast,
-            valueColor = redText,
-            iconTint = redText,
-            iconBgColor = redBg
-        ),
-        ReportMetricSpec(
-            label = "MANUAL ADJUSTMENTS",
-            value = "${summary?.adjustmentsCount ?: 0}",
-            subtitle = "Physical corrections",
-            icon = Icons.Default.Tune,
-            valueColor = orangeText,
-            iconTint = orangeText,
-            iconBgColor = orangeBg
+    val activeFilterCount = remember(sections) { sections.activeCount() }
+
+    val metrics = remember(summary) {
+        listOf(
+            ReportMetricSpec(
+                label = "TOTAL MOVEMENTS",
+                value = "${summary?.totalMovementsCount ?: 0}",
+                subtitle = "Ledger transitions",
+                icon = Icons.Default.SwapHoriz,
+                iconTint = purpleText,
+                iconBgColor = purpleBg
+            ),
+            ReportMetricSpec(
+                label = "TOTAL INWARD QTY",
+                value = (summary?.totalInwardQty ?: 0.0).fmtSigned(),
+                subtitle = "Received into inventory",
+                icon = Icons.Default.SouthWest,
+                valueColor = greentext,
+                iconTint = greentext,
+                iconBgColor = greenBg
+            ),
+            ReportMetricSpec(
+                label = "TOTAL OUTWARD QTY",
+                // Outward total may already be negative; force a minus sign for display
+                value = "-${kotlin.math.abs(summary?.totalOutwardQty ?: 0.0).fmtQty()}",
+                subtitle = "Sold & consumed",
+                icon = Icons.Default.NorthEast,
+                valueColor = redText,
+                iconTint = redText,
+                iconBgColor = redBg
+            ),
+            ReportMetricSpec(
+                label = "MANUAL ADJUSTMENTS",
+                value = "${summary?.adjustmentsCount ?: 0}",
+                subtitle = "Physical corrections",
+                icon = Icons.Default.Tune,
+                valueColor = orangeText,
+                iconTint = orangeText,
+                iconBgColor = orangeBg
+            )
         )
-    )
+    }
 
     ReportInfinitelyPaginatedScaffold(
         title = "Stock Movement Report",
@@ -635,7 +647,7 @@ fun StockMovementReportScreen(
         filteredItems = items,
         itemKey = { it.id },
         filterSections = sections,
-        activeFilterCount = sections.activeCount(),
+        activeFilterCount = activeFilterCount,
         onApplyFilters = { applied ->
             sections = applied
             viewModel.applyStockMovementFilters(
@@ -714,43 +726,47 @@ fun MaterialConsumptionReportScreen(
 
     LaunchedEffect(Unit) { viewModel.loadMaterialConsumptionReport() }
 
-    val metrics = listOf(
-        ReportMetricSpec(
-            label = "CONSUMPTION EVENTS",
-            value = "${summary?.totalConsumptionEvents ?: 0}",
-            subtitle = "Job card & overhead cuts",
-            icon = Icons.Default.MonitorHeart,
-            iconTint = Primary,
-            iconBgColor = primary_light
-        ),
-        ReportMetricSpec(
-            label = "TOTAL CONSUMED UNITS",
-            value = (summary?.totalUnitsConsumed ?: 0.0).fmtQty(),
-            subtitle = "Meters & components drawn",
-            icon = Icons.Default.ContentCut,
-            valueColor = purpleText,
-            iconTint = purpleText,
-            iconBgColor = purpleBg
-        ),
-        ReportMetricSpec(
-            label = "CONSUMED VALUATION",
-            value = viewModel.formatCurrency(summary?.totalConsumptionValuation ?: 0.0),
-            subtitle = "Material cost absorbed",
-            icon = Icons.Default.AttachMoney,
-            valueColor = greentext,
-            iconTint = greentext,
-            iconBgColor = greenBg
-        ),
-        ReportMetricSpec(
-            label = "FABRIC DRAW EVENTS",
-            value = "${summary?.fabricEventsCount ?: 0}",
-            subtitle = "Bespoke fabric issues",
-            icon = Icons.Default.Description,
-            valueColor = orangeText,
-            iconTint = orangeText,
-            iconBgColor = orangeBg
+    val activeFilterCount = remember(sections) { sections.activeCount() }
+
+    val metrics = remember(summary) {
+        listOf(
+            ReportMetricSpec(
+                label = "CONSUMPTION EVENTS",
+                value = "${summary?.totalConsumptionEvents ?: 0}",
+                subtitle = "Job card & overhead cuts",
+                icon = Icons.Default.MonitorHeart,
+                iconTint = Primary,
+                iconBgColor = primary_light
+            ),
+            ReportMetricSpec(
+                label = "TOTAL CONSUMED UNITS",
+                value = (summary?.totalUnitsConsumed ?: 0.0).fmtQty(),
+                subtitle = "Meters & components drawn",
+                icon = Icons.Default.ContentCut,
+                valueColor = purpleText,
+                iconTint = purpleText,
+                iconBgColor = purpleBg
+            ),
+            ReportMetricSpec(
+                label = "CONSUMED VALUATION",
+                value = viewModel.formatCurrency(summary?.totalConsumptionValuation ?: 0.0),
+                subtitle = "Material cost absorbed",
+                icon = Icons.Default.AttachMoney,
+                valueColor = greentext,
+                iconTint = greentext,
+                iconBgColor = greenBg
+            ),
+            ReportMetricSpec(
+                label = "FABRIC DRAW EVENTS",
+                value = "${summary?.fabricEventsCount ?: 0}",
+                subtitle = "Bespoke fabric issues",
+                icon = Icons.Default.Description,
+                valueColor = orangeText,
+                iconTint = orangeText,
+                iconBgColor = orangeBg
+            )
         )
-    )
+    }
 
     ReportInfinitelyPaginatedScaffold(
         title = "Material Consumption Report",
@@ -763,7 +779,7 @@ fun MaterialConsumptionReportScreen(
         filteredItems = items,
         itemKey = { it.id },
         filterSections = sections,
-        activeFilterCount = sections.activeCount(),
+        activeFilterCount = activeFilterCount,
         onApplyFilters = { applied ->
             sections = applied
             viewModel.applyMaterialConsumptionFilters(applied.selectedOf("Usage Stream"))
@@ -848,43 +864,47 @@ fun InventoryValuationReportScreen(
 
     LaunchedEffect(Unit) { viewModel.loadInventoryValuationReport() }
 
-    val metrics = listOf(
-        ReportMetricSpec(
-            label = "ASSET COST VALUE",
-            value = viewModel.formatCurrency(summary?.totalAssetCostValue ?: 0.0),
-            subtitle = "Total cost investment",
-            icon = Icons.Default.Link,
-            valueColor = Primary,
-            iconTint = Primary,
-            iconBgColor = primary_light
-        ),
-        ReportMetricSpec(
-            label = "EXPECTED RETAIL REVENUE",
-            value = viewModel.formatCurrency(summary?.totalRetailValue ?: 0.0),
-            subtitle = "Total realizable sales",
-            icon = Icons.Default.AttachMoney,
-            valueColor = greentext,
-            iconTint = greentext,
-            iconBgColor = greenBg
-        ),
-        ReportMetricSpec(
-            label = "POTENTIAL GROSS PROFIT",
-            value = viewModel.formatCurrency(summary?.totalPotentialProfit ?: 0.0),
-            subtitle = "Forecasted profit gain",
-            icon = Icons.AutoMirrored.Filled.TrendingUp,
-            valueColor = purpleText,
-            iconTint = purpleText,
-            iconBgColor = purpleBg
-        ),
-        ReportMetricSpec(
-            label = "OVERALL GROSS MARGIN",
-            value = summary?.overallMargin ?: "0%",
-            subtitle = "Across all stock units",
-            icon = Icons.Default.Schedule,
-            iconTint = orangeText,
-            iconBgColor = orangeBg
+    val activeFilterCount = remember(sections) { sections.activeCount() }
+
+    val metrics = remember(summary) {
+        listOf(
+            ReportMetricSpec(
+                label = "ASSET COST VALUE",
+                value = viewModel.formatCurrency(summary?.totalAssetCostValue ?: 0.0),
+                subtitle = "Total cost investment",
+                icon = Icons.Default.Link,
+                valueColor = Primary,
+                iconTint = Primary,
+                iconBgColor = primary_light
+            ),
+            ReportMetricSpec(
+                label = "EXPECTED RETAIL REVENUE",
+                value = viewModel.formatCurrency(summary?.totalRetailValue ?: 0.0),
+                subtitle = "Total realizable sales",
+                icon = Icons.Default.AttachMoney,
+                valueColor = greentext,
+                iconTint = greentext,
+                iconBgColor = greenBg
+            ),
+            ReportMetricSpec(
+                label = "POTENTIAL GROSS PROFIT",
+                value = viewModel.formatCurrency(summary?.totalPotentialProfit ?: 0.0),
+                subtitle = "Forecasted profit gain",
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
+                valueColor = purpleText,
+                iconTint = purpleText,
+                iconBgColor = purpleBg
+            ),
+            ReportMetricSpec(
+                label = "OVERALL GROSS MARGIN",
+                value = summary?.overallMargin ?: "0%",
+                subtitle = "Across all stock units",
+                icon = Icons.Default.Schedule,
+                iconTint = orangeText,
+                iconBgColor = orangeBg
+            )
         )
-    )
+    }
 
     ReportInfinitelyPaginatedScaffold(
         title = "Inventory Valuation Report",
@@ -897,7 +917,7 @@ fun InventoryValuationReportScreen(
         filteredItems = items,
         itemKey = { it.id },
         filterSections = sections,
-        activeFilterCount = sections.activeCount(),
+        activeFilterCount = activeFilterCount,
         onApplyFilters = { applied ->
             sections = applied
             viewModel.applyInventoryValuationFilters(applied.selectedOf("Margin"))

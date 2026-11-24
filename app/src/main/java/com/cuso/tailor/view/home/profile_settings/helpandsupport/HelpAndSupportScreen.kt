@@ -278,7 +278,7 @@ fun HelpCenterScreen(
                             .padding(tokens.screenPadding)
                     ) {
                         Text(
-                            text = "Hello there",
+                            text = "Hello there \uD83D\uDC4B",
                             fontSize = tokens.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
                             color = title_color

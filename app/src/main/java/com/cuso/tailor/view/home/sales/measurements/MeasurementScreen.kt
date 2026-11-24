@@ -74,8 +74,6 @@ import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardField
 import com.cuso.tailor.view.composable.DataCardImage
 import com.cuso.tailor.view.composable.DeleteModel
-import com.cuso.tailor.view.composable.DynamicIslandError
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.view.composable.FabScaffold
 import com.cuso.tailor.view.composable.FilterDrawer
 import com.cuso.tailor.view.composable.FilterOption

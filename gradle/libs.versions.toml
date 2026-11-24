@@ -1,5 +1,6 @@
 [versions]
 accompanistPermissions = "0.37.3"
+appUpdate = "2.1.0"
 browser = "1.10.0"
 colorpickerCompose = "1.3.0"
 core = "3.5.4"
@@ -63,6 +64,8 @@ litertApi = "2.3.0"
 androidx-browser = { module = "androidx.browser:browser", version.ref = "browser" }
 androidx-credentials-core = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
 androidx-credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
+app-update = { module = "com.google.android.play:app-update", version.ref = "appUpdate" }
+app-update-ktx = { module = "com.google.android.play:app-update-ktx", version.ref = "appUpdate" }
 facebook-core = { module = "com.facebook.android:facebook-core", version.ref = "facebookCore" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }

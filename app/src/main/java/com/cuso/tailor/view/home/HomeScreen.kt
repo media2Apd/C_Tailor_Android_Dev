@@ -72,6 +72,7 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.cuso.tailor.R
+import com.cuso.tailor.view.home.reports.permissions.ReportPermissions
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.adaptive_screen.getAdaptiveTokens
 import com.cuso.tailor.database.entities.SalesStatusEntity
@@ -1084,7 +1085,16 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             // ── Services report sub-screens ──
             "reports_svc_feedback_nps",
             "reports_svc_complaints",
-            "reports_svc_sla"
+            "reports_svc_sla",
+
+            // ── Legal report sub-screens ──
+            "reports_legal_contracts_expiry",
+            "reports_legal_compliance_license",
+            "reports_legal_cases_disputes",
+
+            // ── Marketing report sub-screens ──
+            "reports_mkt_campaign_perf",
+            "reports_mkt_channel_perf",
         )
     }
     // Module prefixes that automatically allow navigation without manual registration
@@ -1097,7 +1107,22 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         val navKey = normalizeRoute(route)
         val mapping = permissionViewModel.getRouteFeatureMapping(navKey)
 
-        if (mapping != null) {
+        val reportCategoryKeys = ReportPermissions.getCategoryKeysForRoute(navKey)
+        if (reportCategoryKeys != null) {
+            // 1. Check if at least one report in this category is included in the active plan
+            if (!permissionViewModel.isAnyReportFeatureSubscribed(reportCategoryKeys)) {
+                paywallModuleConfig = permissionViewModel.getPaywallConfigForModule("reports")
+                navigateTo("module_upgrade_paywall")
+                return
+            }
+
+            // 2. Check if the user has VIEW permission for at least one report in this category
+            if (!permissionViewModel.canViewAnyReportFeature(reportCategoryKeys)) {
+                restrictedFeatureName = "Reports - ${navKey.removePrefix("reports_").replace("_", " ")}"
+                showAccessRestrictedDialog = true
+                return
+            }
+        } else if (mapping != null) {
             val (module, feature) = mapping
             val requiredAction = overrideAction ?: permissionViewModel.getRouteAction(navKey)
 

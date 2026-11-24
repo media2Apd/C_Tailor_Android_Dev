@@ -76,13 +76,10 @@ fun ContinueWithGoogle(
     val googleLoginState by loginViewModel.googleLoginState.collectAsState()
     val isLoading by loginViewModel.isLoading.collectAsState()
 
-    val rawWebClientId = stringResource(R.string.default_web_client_id)
-    val webClientId = rawWebClientId.ifBlank {
-        "8487938738-kp60s0ug5gu3dqd9k72nvk83nddj59ee.apps.googleusercontent.com"
-    }
+    val webClientId = stringResource(R.string.google_web_client_id).trim()
 
     LaunchedEffect(webClientId) {
-        Log.d(TAG, "Resolved default_web_client_id = $webClientId")
+        Log.d(TAG, "Resolved google_web_client_id = $webClientId")
     }
 
     val launcher = rememberLauncherForActivityResult(
@@ -109,7 +106,7 @@ fun ContinueWithGoogle(
                 Log.d(TAG, "Calling loginViewModel.googleLogin(idToken)...")
                 loginViewModel.googleLogin(idToken)
             } else {
-                Log.e(TAG, "idToken is null/blank! Check SHA-1 fingerprint and Web Client ID in Firebase.")
+                Log.e(TAG, "idToken is null/blank! Check SHA-1 fingerprint and Web Client ID in Google Cloud Console.")
                 DynamicIslandManager.showError("Google idToken is null. Check SHA-1 and Web Client ID.")
             }
         } catch (e: ApiException) {
@@ -118,11 +115,12 @@ fun ContinueWithGoogle(
                 10 -> {
                     Log.e(
                         TAG,
-                        "DEVELOPER_ERROR (10): Package name 'com.cuso.tailor' and debug/release SHA-1 fingerprint must be registered in Firebase Console -> Project Settings -> Android App."
+                        "DEVELOPER_ERROR (10): Package name 'com.cuso.tailor' and debug/release SHA-1 must be added in Google Cloud Console Android OAuth Client."
                     )
-                    "Google sign in failed (Code 10: Developer Error). Add SHA-1 to Firebase Console."
+                    "Google sign in failed (Code 10: Developer Error). Check SHA-1 & Android OAuth Client in Google Cloud."
                 }
-                12500 -> "Google sign in failed (Code 12500). Check Google Play Services."
+                12500 -> "Google sign in failed (Code 12500). Check OAuth Consent Screen & Play Services."
+                12501 -> "Google sign in cancelled by user."
                 4 -> "Google sign in required user interaction (Code 4)."
                 else -> "Google sign in failed: code ${e.statusCode}"
             }
@@ -146,7 +144,7 @@ fun ContinueWithGoogle(
         when (googleLoginState) {
             is GoogleLoginUiState.ExistingOrg -> {
                 Log.d(TAG, "Navigating to home (ExistingOrg)")
-                permissionViewModel.fetchPermissions()
+                permissionViewModel.fetchPermissions(forceRefresh = true)
                 loginViewModel.resetGoogleLoginState()
                 navController.navigate("home") {
                     popUpTo("login") { inclusive = true }
@@ -166,6 +164,10 @@ fun ContinueWithGoogle(
             OutlinedButton(
                 onClick = {
                     if (!isLoading) {
+                        if (webClientId.isBlank()) {
+                            DynamicIslandManager.showError("Google Web Client ID is missing")
+                            return@OutlinedButton
+                        }
                         Log.d(TAG, "Continue with Google clicked -> signing out old session first")
                         loginViewModel.resetGoogleLoginState()
                         googleSignInClient.signOut().addOnCompleteListener { signOutTask ->

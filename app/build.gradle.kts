@@ -47,7 +47,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.21:5000/\""
+                "\"http://192.168.88.12:5000/\""
             )
         }
 
@@ -224,5 +224,8 @@ dependencies {
 
     //FCM
     implementation(libs.firebase.messaging)
+
+    implementation(libs.app.update)
+    implementation(libs.app.update.ktx)
 
 }

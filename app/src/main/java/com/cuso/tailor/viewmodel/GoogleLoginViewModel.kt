@@ -59,43 +59,50 @@ class LoginViewModel @Inject constructor(
             _errorMessage.value = null
             _googleLoginState.value = GoogleLoginUiState.Loading
 
-            val payload = GoogleLoginRequest(idToken = idToken)
-            val result = repo.request<GoogleLoginResponse> {
-                post(GOOGLE_LOGIN_URL, payload)
-            }
+            try {
+                val payload = GoogleLoginRequest(idToken = idToken)
+                val result = repo.request<GoogleLoginResponse> {
+                    post(GOOGLE_LOGIN_URL, payload)
+                }
 
-            result.fold(
-                onSuccess = { res ->
-                    if (res.success && res.data != null) {
-                        loginRepository.saveGoogleLoginData(res.data)
-                        _loginData.value = res.data
+                result.fold(
+                    onSuccess = { res ->
+                        if (res.success && res.data != null) {
+                            loginRepository.saveGoogleLoginData(res.data)
+                            _loginData.value = res.data
 
-                        DynamicIslandManager.showSuccess(res.message.ifBlank { "Login successful" })
+                            DynamicIslandManager.showSuccess(res.message.ifBlank { "Login successful" })
 
-                        val isOrgComplete = res.data.user.organizationId != null &&
-                                res.data.user.organizationId.orgSetupComplete
+                            val isOrgComplete = res.data.user.organizationId != null &&
+                                    res.data.user.organizationId.orgSetupComplete
 
-                        _googleLoginState.value = if (isOrgComplete) {
-                            GoogleLoginUiState.ExistingOrg(res.data)
+                            _googleLoginState.value = if (isOrgComplete) {
+                                GoogleLoginUiState.ExistingOrg(res.data)
+                            } else {
+                                GoogleLoginUiState.NewOrg(res.data)
+                            }
                         } else {
-                            GoogleLoginUiState.NewOrg(res.data)
+                            val msg = res.message.ifBlank { "Google login failed" }
+                            _errorMessage.value = msg
+                            _googleLoginState.value = GoogleLoginUiState.Error(msg)
+                            DynamicIslandManager.showError(msg)
                         }
-                    } else {
-                        val msg = res.message.ifBlank { "Google login failed" }
+                    },
+                    onFailure = { err ->
+                        val msg = err.message ?: "Network error during Google login"
                         _errorMessage.value = msg
                         _googleLoginState.value = GoogleLoginUiState.Error(msg)
                         DynamicIslandManager.showError(msg)
                     }
-                },
-                onFailure = { err ->
-                    val msg = err.message ?: "Network error during Google login"
-                    _errorMessage.value = msg
-                    _googleLoginState.value = GoogleLoginUiState.Error(msg)
-                    DynamicIslandManager.showError(msg)
-                }
-            )
-
-            _isLoading.value = false
+                )
+            } catch (e: Exception) {
+                val msg = e.message ?: "Unexpected error during Google login"
+                _errorMessage.value = msg
+                _googleLoginState.value = GoogleLoginUiState.Error(msg)
+                DynamicIslandManager.showError(msg)
+            } finally {
+                _isLoading.value = false
+            }
         }
     }
 

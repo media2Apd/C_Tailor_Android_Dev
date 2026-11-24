@@ -23,7 +23,6 @@ import com.cuso.tailor.database.entities.SettingsEntity
 import com.cuso.tailor.database.entities.TokensEntity
 import com.cuso.tailor.database.entities.UserEntity
 import com.cuso.tailor.database.entities.UserPermissionEntity
-import com.cuso.tailor.model.login_forgotPassword_resetPassword.GoogleLoginResult
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.LoginData
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.Organization
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.OrganizationDetails
@@ -530,52 +529,52 @@ class Authenticate @Inject constructor(
     // Google Login
     // -------------------------------------------------------------------------
 
-    fun googleLogin(idToken: String) {
-        launchBusy {
-            _accountState.value = UiState.Loading
-            when (val result = repository.googleLogin(idToken)) {
-                is GoogleLoginResult.ExistingUser -> {
-                    val googleData = result.response.data
-                    if (googleData == null) {
-                        _accountState.value = UiState.Error(
-                            result.response.message.ifBlank { "Google login data is missing" }
-                        )
-                        return@launchBusy
-                    }
-
-                    loginRepository.saveGoogleLoginData(googleData)
-                    loadOrganization()
-                    loadSettings()
-                    loadTokens()
-
-                    _accountState.value = UiState.GoogleLoginExisting(
-                        firstName = googleData.user.firstName,
-                        lastName = googleData.user.lastName,
-                        message = result.response.message
-                    )
-
-                    FirebaseCrashlytics.getInstance().apply {
-                        setUserId(googleData.user.userId)
-                        setCustomKey("user_email", googleData.user.email)
-                        setCustomKey("user_name", "${googleData.user.firstName} ${googleData.user.lastName}")
-                    }
-                }
-                is GoogleLoginResult.NewUser -> {
-                    val profile = result.response.googleProfile
-                    _accountState.value = UiState.GoogleLoginNew(
-                        email = profile?.email.orEmpty(),
-                        firstName = profile?.firstName.orEmpty(),
-                        lastName = profile?.lastName.orEmpty(),
-                        googleId = profile?.googleId.orEmpty(),
-                        message = result.response.message
-                    )
-                }
-                is GoogleLoginResult.Failure -> {
-                    _accountState.value = UiState.Error(result.message)
-                }
-            }
-        }
-    }
+//    fun googleLogin(idToken: String) {
+//        launchBusy {
+//            _accountState.value = UiState.Loading
+//            when (val result = repository.googleLogin(idToken)) {
+//                is GoogleLoginResult.ExistingUser -> {
+//                    val googleData = result.response.data
+//                    if (googleData == null) {
+//                        _accountState.value = UiState.Error(
+//                            result.response.message.ifBlank { "Google login data is missing" }
+//                        )
+//                        return@launchBusy
+//                    }
+//
+//                    loginRepository.saveGoogleLoginData(googleData)
+//                    loadOrganization()
+//                    loadSettings()
+//                    loadTokens()
+//
+//                    _accountState.value = UiState.GoogleLoginExisting(
+//                        firstName = googleData.user.firstName,
+//                        lastName = googleData.user.lastName,
+//                        message = result.response.message
+//                    )
+//
+//                    FirebaseCrashlytics.getInstance().apply {
+//                        setUserId(googleData.user.userId)
+//                        setCustomKey("user_email", googleData.user.email)
+//                        setCustomKey("user_name", "${googleData.user.firstName} ${googleData.user.lastName}")
+//                    }
+//                }
+//                is GoogleLoginResult.NewUser -> {
+//                    val profile = result.response.googleProfile
+//                    _accountState.value = UiState.GoogleLoginNew(
+//                        email = profile?.email.orEmpty(),
+//                        firstName = profile?.firstName.orEmpty(),
+//                        lastName = profile?.lastName.orEmpty(),
+//                        googleId = profile?.googleId.orEmpty(),
+//                        message = result.response.message
+//                    )
+//                }
+//                is GoogleLoginResult.Failure -> {
+//                    _accountState.value = UiState.Error(result.message)
+//                }
+//            }
+//        }
+//    }
 
     // -------------------------------------------------------------------------
     // OTP Functions

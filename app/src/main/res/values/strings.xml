@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">Cuso Tailor</string>
-
+    <string name="google_web_client_id">1039128556805-hn5rhb31r0r8ket3l6ak46va5lgd6jct.apps.googleusercontent.com</string>
 <!--    META ADS -->
 <!--    <string name="facebook_app_id">YOUR_META_APP_ID</string>-->
 </resources>

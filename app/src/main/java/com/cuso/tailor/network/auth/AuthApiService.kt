@@ -2,7 +2,6 @@ package com.cuso.tailor.network.auth
 
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.EmailResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.EmailVerify
-import com.cuso.tailor.model.login_forgotPassword_resetPassword.GoogleLoginRequest
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.PasswordResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.PasswordVerify
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.RegisterVerifyOtp
@@ -21,7 +20,6 @@ import com.cuso.tailor.model.login_forgotPassword_resetPassword.otpVerifyRequest
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.otpVerifyResponse
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.resetNewPasswordRequest
 import com.cuso.tailor.model.login_forgotPassword_resetPassword.resetNewPasswordResponse
-import com.google.gson.JsonObject
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.Header
@@ -55,8 +53,8 @@ interface AuthApiService {
     @POST("/api/forgot-password/reset-password")
     suspend fun resetNewPassword(@Body request: resetNewPasswordRequest): Response<resetNewPasswordResponse>
 
-    @POST("/api/auth/google/login")
-    suspend fun googleLogin(@Body request: GoogleLoginRequest): Response<JsonObject>
+//    @POST("/api/auth/google/login")
+//    suspend fun googleLogin(@Body request: GoogleLoginRequest): Response<JsonObject>
 
     @POST("/api/auth/complete-registration")
     suspend fun organizationSetUp(

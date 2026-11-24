@@ -3,14 +3,14 @@
 package com.cuso.tailor.view.home.reports.marketing
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Adjust
-import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import com.cuso.tailor.R
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.view.composable.FilterOption
+import com.cuso.tailor.viewmodel.MarketingViewModel
 import com.cuso.tailor.view.composable.FilterSection
 import com.cuso.tailor.view.composable.FilterSectionType
 import com.cuso.tailor.view.home.reports.ReportCategory
@@ -21,7 +21,8 @@ import com.cuso.tailor.view.home.reports.ReportsScreenTemplate
 fun MarketingReportsScreen(
     onClose: () -> Unit,
     onBreadCrumbClick: () -> Unit = {},
-    onReportClick: (ReportItem) -> Unit = {}
+    onReportClick: (ReportItem) -> Unit = {},
+    viewModel: MarketingViewModel = hiltViewModel()
 ) {
     // Categories and reports matching the marketing screenshots
     val categories = remember {
@@ -91,7 +92,28 @@ fun MarketingReportsScreen(
         filterSections = filterSections,
         initialSelectedDateRange = "Last 30 Days",
         onClose = onClose,
-        onReportClick = onReportClick,
+        onReportClick = { report ->
+            // Trigger the corresponding marketing report API when a report card is clicked
+            when (report.id) {
+                "mkt_campaign_roi" -> {
+                    viewModel.fetchCampaignPerformanceReport(
+                        page = 1,
+                        limit = 10,
+                        onSuccess = { onReportClick(report) },
+                        onError = { message -> DynamicIslandManager.showError(message) }
+                    )
+                }
+                "mkt_channel_perf" -> {
+                    viewModel.fetchChannelPerformanceReport(
+                        page = 1,
+                        limit = 10,
+                        onSuccess = { onReportClick(report) },
+                        onError = { message -> DynamicIslandManager.showError(message) }
+                    )
+                }
+                else -> onReportClick(report)
+            }
+        },
         onExportExcel = { report -> /* Handle Excel export */ },
         onExportPdf = { report -> /* Handle PDF export */ }
     )

@@ -1,6 +1,7 @@
 package com.cuso.tailor.view.organization
 
 import android.content.Intent
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -24,15 +25,21 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,9 +63,31 @@ fun OrganizationNotFoundScreen(navController: NavController) {
     val context = LocalContext.current
 
     var isNavigating by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(Unit) {
-        isNavigating = false
+    val customTabsIntent = remember {
+        CustomTabsIntent.Builder()
+            .setShowTitle(true)
+            .build()
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isNavigating = false
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    LaunchedEffect(isNavigating) {
+        if (isNavigating) {
+            delay(3000)
+            isNavigating = false
+        }
     }
 
 
@@ -164,48 +193,67 @@ fun OrganizationNotFoundScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(32.dp))
 
             // Open Web Dashboard button
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(40.dp)
                     .clip(RoundedCornerShape(5.dp))
-                    .background(Primary)
+                    .background(if (isNavigating) Primary.copy(alpha = 0.8f) else Primary)
                     .clickable(enabled = !isNavigating) {
                         isNavigating = true
+                        val uri = "https://tailor.cuso.in/sign-up".toUri()
                         try {
-                            val intent = Intent(Intent.ACTION_VIEW,
-                                "https://tailor.cuso.in/sign-up".toUri())
-                            context.startActivity(intent)
+                            customTabsIntent.launchUrl(context, uri)
                         } catch (_: Exception) {
-                            isNavigating = false
+                            try {
+                                val fallbackIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(fallbackIntent)
+                            } catch (_: Exception) {
+                                isNavigating = false
+                            }
                         }
                     }
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Language,
-                    contentDescription = null,
-                    tint = whiteBg,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = "Open Web Dashboard",
-                    color = whiteBg,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.weight(1f))
-
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                    contentDescription = null,
-                    tint = whiteBg,
-                    modifier = Modifier.size(20.dp)
-                )
+                if (isNavigating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = whiteBg,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Opening...",
+                        color = whiteBg,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.Language,
+                        contentDescription = null,
+                        tint = whiteBg,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "Open Web Dashboard",
+                        color = whiteBg,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                        contentDescription = null,
+                        tint = whiteBg,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))

@@ -15,6 +15,8 @@ import com.cuso.tailor.model.it.RazorpayIntegrationData
 import com.cuso.tailor.model.it.RazorpayIntegrationResponse
 import com.cuso.tailor.model.it.UnifiedIntegrationItem
 import com.cuso.tailor.model.marketing.*
+import com.cuso.tailor.model.report.CampaignPerformanceReportResponse
+import com.cuso.tailor.model.report.ChannelPerformanceReportResponse
 import com.cuso.tailor.repository.ApiRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +42,8 @@ private const val MARKETING_WEB_ANALYTICS_TRAFFIC_URL = "/api/marketing/web-anal
 private const val MARKETING_CUSTOMERS_OVERVIEW_URL = "/api/marketing/customers/overview"
 private const val MARKETING_CAMPAIGNS_URL = "/api/marketing/campaigns"
 private const val MARKETING_CALENDAR_VIEW_URL = "/api/marketing/calendar/view"
+private const val MARKETING_REPORT_CAMPAIGN_PERFORMANCE_URL = "/api/marketing/reports/campaign-performance"
+private const val MARKETING_REPORT_CHANNEL_PERFORMANCE_URL = "/api/marketing/reports/channel-performance"
 
 private const val CAMPAIGNS_DASHBOARD_URL = "/api/marketing/campaigns"
 
@@ -1361,6 +1365,112 @@ class MarketingViewModel @Inject constructor(
                 onSuccess = { res -> if (res.success) _razorpayIntegration.value = res.data },
                 onFailure = { /* Fail silently */ }
             )
+        }
+    }
+
+    // =========================================================================
+    // 8. MARKETING REPORTS STATES & API CALLS
+    // =========================================================================
+
+    private val _campaignPerformanceReport = MutableStateFlow<CampaignPerformanceReportResponse?>(null)
+    val campaignPerformanceReport: StateFlow<CampaignPerformanceReportResponse?> = _campaignPerformanceReport.asStateFlow()
+
+    private val _isLoadingCampaignReport = MutableStateFlow(false)
+    val isLoadingCampaignReport: StateFlow<Boolean> = _isLoadingCampaignReport.asStateFlow()
+
+    private val _campaignReportError = MutableStateFlow<String?>(null)
+    val campaignReportError: StateFlow<String?> = _campaignReportError.asStateFlow()
+
+    private val _channelPerformanceReport = MutableStateFlow<ChannelPerformanceReportResponse?>(null)
+    val channelPerformanceReport: StateFlow<ChannelPerformanceReportResponse?> = _channelPerformanceReport.asStateFlow()
+
+    private val _isLoadingChannelReport = MutableStateFlow(false)
+    val isLoadingChannelReport: StateFlow<Boolean> = _isLoadingChannelReport.asStateFlow()
+
+    private val _channelReportError = MutableStateFlow<String?>(null)
+    val channelReportError: StateFlow<String?> = _channelReportError.asStateFlow()
+
+    /**
+     * Fetches Campaign Performance and ROI Report.
+     * Endpoint: GET /api/marketing/reports/campaign-performance?page=1&limit=10
+     */
+    fun fetchCampaignPerformanceReport(
+        page: Int = 1,
+        limit: Int = 10,
+        onSuccess: (CampaignPerformanceReportResponse) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isLoadingCampaignReport.value = true
+            _campaignReportError.value = null
+
+            val result = repo.request<CampaignPerformanceReportResponse> {
+                get(
+                    MARKETING_REPORT_CAMPAIGN_PERFORMANCE_URL,
+                    repo.query("page" to page, "limit" to limit)
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _campaignPerformanceReport.value = res
+                        onSuccess(res)
+                    } else {
+                        val msg = res.message ?: "Failed to fetch campaign performance report"
+                        _campaignReportError.value = msg
+                        onError(msg)
+                    }
+                },
+                onFailure = { err ->
+                    val msg = err.message ?: "Network error fetching campaign performance report"
+                    _campaignReportError.value = msg
+                    onError(msg)
+                }
+            )
+            _isLoadingCampaignReport.value = false
+        }
+    }
+
+    /**
+     * Fetches Marketing Channel Performance Report.
+     * Endpoint: GET /api/marketing/reports/channel-performance?page=1&limit=10
+     */
+    fun fetchChannelPerformanceReport(
+        page: Int = 1,
+        limit: Int = 10,
+        onSuccess: (ChannelPerformanceReportResponse) -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isLoadingChannelReport.value = true
+            _channelReportError.value = null
+
+            val result = repo.request<ChannelPerformanceReportResponse> {
+                get(
+                    MARKETING_REPORT_CHANNEL_PERFORMANCE_URL,
+                    repo.query("page" to page, "limit" to limit)
+                )
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        _channelPerformanceReport.value = res
+                        onSuccess(res)
+                    } else {
+                        val msg = res.message ?: "Failed to fetch channel performance report"
+                        _channelReportError.value = msg
+                        onError(msg)
+                    }
+                },
+                onFailure = { err ->
+                    val msg = err.message ?: "Network error fetching channel performance report"
+                    _channelReportError.value = msg
+                    onError(msg)
+                }
+            )
+            _isLoadingChannelReport.value = false
         }
     }
 }

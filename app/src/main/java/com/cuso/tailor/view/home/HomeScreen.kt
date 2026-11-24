@@ -64,8 +64,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -87,8 +85,16 @@ import com.cuso.tailor.model.login_forgotPassword_resetPassword.User
 import com.cuso.tailor.model.sales.CategoryItem
 import com.cuso.tailor.model.sales.CustomerItem
 import com.cuso.tailor.model.sales.StaffDto
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.zIndex
 import com.cuso.tailor.ui.theme.Primary
 import com.cuso.tailor.ui.theme.Primary_background
+import com.cuso.tailor.ui.theme.headerGrey
+import com.cuso.tailor.ui.theme.primary_light
 import com.cuso.tailor.ui.theme.light_blue_border
 import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.redText
@@ -151,22 +157,16 @@ import androidx.core.net.toUri
 import com.cuso.tailor.BuildConfig
 import com.cuso.tailor.ui.theme.TextPrimary
 import com.cuso.tailor.ui.theme.TextSecondary
-import com.cuso.tailor.ui.theme.activity_purple_bg
-import com.cuso.tailor.ui.theme.greenBg
-import com.cuso.tailor.ui.theme.greentext
-import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.purpleBg
 import com.cuso.tailor.ui.theme.purpleText
 import com.cuso.tailor.ui.theme.redBg
 import com.cuso.tailor.utils.CusoFirebaseMessagingService
 import com.cuso.tailor.view.composable.DataCardProgressBar
-import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.view.home.search.GlobalSearchScreen
 import com.cuso.tailor.view.home.topBarEvents.BusinessAgendaScreen
 import com.cuso.tailor.view.home.topBarEvents.NotificationsScreen
 import com.cuso.tailor.viewmodel.ReportViewModel
 import com.cuso.tailor.viewmodel.TopbarEventViewModel
-import com.google.firebase.messaging.FirebaseMessaging
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -551,6 +551,8 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "home",
             "settings",
             "profile-settings",
+            // Profile Help Center route
+            "profile_help_center",
             "global_search",
             "notifications",
             "business_agenda",
@@ -1053,10 +1055,38 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             "reports_it_service_desk",
             "reports_it",
             "reports_security",
-            "reports_legal"
+            "reports_legal",
+
+            // ── Finance report sub-screens ──
+            "reports_fin_revenue_expense",
+            "reports_fin_receivables_aging",
+            "reports_fin_payables_aging",
+            "reports_fin_gst_summary",
+            "reports_fin_payment_collection",
+            "reports_fin_advance_payment",
+            "reports_fin_payment_mode",
+            "reports_fin_balance_pending",
+            "reports_fin_overdue_payment",
+
+            // ── Inventory report sub-screens ──
+            "reports_inv_stock_summary",
+            "reports_inv_low_stock",
+            "reports_inv_stock_movement",
+            "reports_inv_material_consumption",
+            "reports_inv_valuation",
+
+            // ── Logistics report sub-screens ──
+            "reports_log_delivery_perf",
+            "reports_log_shipment_tracking",
+            "reports_log_returns_rto",
+            "reports_log_cod_recon",
+
+            // ── Services report sub-screens ──
+            "reports_svc_feedback_nps",
+            "reports_svc_complaints",
+            "reports_svc_sla"
         )
     }
-
     // Module prefixes that automatically allow navigation without manual registration
     val autoAllowedPrefixes = remember {
         listOf("security_", "marketing_", "it_", "legal_", "hr_", "sales_", "finance_", "inventory_", "logistics_", "services_", "reports_", "home_")
@@ -1206,10 +1236,10 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
                 organizationId = userEntity?.organizationId.orEmpty()
             )
 
-            // Fetch Firebase device token and register it with backend for background/offline push notifications
-            FirebaseMessaging.getInstance().token.addOnSuccessListener { fcmToken ->
-                topbarEventViewModel.syncFcmTokenToServer(fcmToken)
-            }
+//            // Fetch Firebase device token and register it with backend for background/offline push notifications
+//            FirebaseMessaging.getInstance().token.addOnSuccessListener { fcmToken ->
+//                topbarEventViewModel.syncFcmTokenToServer(fcmToken)
+//            }
         }
     }
 
@@ -1418,23 +1448,23 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
         onDismiss = { showExitDialog = false }
     )
 
-    // Free Trial status popover dialog
-    val activeTrial = trialInfo
-    if (showTrialDialog && activeTrial != null && activeTrial.isTrial) {
-        TrialStatusDialog(
-            trial = activeTrial,
-            onDismiss = { showTrialDialog = false },
-            onComparePlans = {
-                showTrialDialog = false
-                val targetPortal = portalName.ifBlank { "" }
-                val pricingUrl = "http://tailor.cuso.in/$targetPortal/home/settings/pricing"
-                val browserIntent = Intent(Intent.ACTION_VIEW, pricingUrl.toUri()).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(browserIntent)
-            }
-        )
-    }
+//    // Free Trial status popover dialog
+//    val activeTrial = trialInfo
+//    if (showTrialDialog && activeTrial != null && activeTrial.isTrial) {
+//        TrialStatusDialog(
+//            trial = activeTrial,
+//            onDismiss = { showTrialDialog = false },
+//            onComparePlans = {
+//                showTrialDialog = false
+//                val targetPortal = portalName.ifBlank { "" }
+//                val pricingUrl = "http://tailor.cuso.in/$targetPortal/home/settings/pricing"
+//                val browserIntent = Intent(Intent.ACTION_VIEW, pricingUrl.toUri()).apply {
+//                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+//                }
+//                context.startActivity(browserIntent)
+//            }
+//        )
+//    }
     // ═════════════════════════════════════════════════════════════════════════
     // ── TOTAL WORKSPACE LOCK ENFORCEMENT ──
     // ═════════════════════════════════════════════════════════════════════════
@@ -1467,7 +1497,9 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
     Box(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalAppTokens provides tokens) {
             Scaffold(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blurScrim(if (showTrialDialog) 20.dp else 0.dp),
                 containerColor = Primary_background,
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 topBar = {
@@ -2173,6 +2205,26 @@ fun HomeScreen(navController: NavHostController, widthSizeClass: WindowWidthSize
             },
             onBlurScrimChange = { radius, _ -> quickAccessBlur = radius }
         )
+        // Free Trial popover overlay rendered above blurred Scaffold without Dialog's black window dim
+        val activeTrial = trialInfo
+        if (showTrialDialog && activeTrial != null && activeTrial.isTrial) {
+            CompositionLocalProvider(LocalAppTokens provides tokens) {
+                TrialStatusDialog(
+                    trial = activeTrial,
+                    onDismiss = { showTrialDialog = false },
+                    onComparePlans = {
+                        showTrialDialog = false
+                        val targetPortal = portalName.ifBlank { "" }
+                        val pricingUrl = "http://tailor.cuso.in/$targetPortal/home/settings/pricing"
+                        val browserIntent = Intent(Intent.ACTION_VIEW, pricingUrl.toUri()).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(browserIntent)
+                    }
+                )
+            }
+        }
+
         if (showAccessRestrictedDialog) {
             AccessRestrictedDialog(
                 requiredPermission = restrictedFeatureName,
@@ -3230,177 +3282,197 @@ fun TrialStatusDialog(
 ) {
     val tokens = LocalAppTokens.current
     val progressFraction = (trial.progressPercentage / 100f).coerceIn(0f, 1f)
+    val statusText = trial.status.ifBlank { "Active" }
+        .lowercase()
+        .replaceFirstChar { it.uppercase() }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+    // Intercept hardware back press while popover is visible
+    BackHandler(onBack = onDismiss)
+
+    // Light frosted scrim over the blurred Scaffold (no heavy black Dialog dim)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .zIndex(60f)
+            .background(headerGrey.copy(alpha = 0.22f))
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onDismiss() }
+            .statusBarsPadding()
+            .padding(
+                top = tokens.buttonHeight * 1.15f,
+                start = tokens.screenPadding,
+                end = tokens.screenPadding
+            ),
+        contentAlignment = Alignment.TopCenter
     ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = tokens.screenPadding),
-            shape = RoundedCornerShape(tokens.cardCornerRadius),
-            color = whiteBg,
-            shadowElevation = tokens.extraPadding
-        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(tokens.cardPadding)
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { /* Prevent clicks inside card from dismissing */ },
+                horizontalAlignment = Alignment.End
             ) {
-                // Header Row: Title + Reusable Active StatusBadge + Close Button
-                Row(
+                // Upward triangle pointer aligned under the trial badge
+                Canvas(
+                    modifier = Modifier
+                        .padding(end = tokens.imageDp * 1.15f)
+                        .size(width = tokens.extraPadding * 1.4f, height = tokens.extraPadding * 0.8f)
+                ) {
+                    val path = Path().apply {
+                        moveTo(size.width / 2f, 0f)
+                        lineTo(size.width, size.height)
+                        lineTo(0f, size.height)
+                        close()
+                    }
+                    drawPath(path = path, color = whiteBg)
+                }
+
+                Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    shape = RoundedCornerShape(tokens.cardCornerRadius),
+                    color = whiteBg,
+                    shadowElevation = tokens.extraPadding
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(tokens.cardPadding)
                     ) {
-                        Text(
-                            text = "Your free trial",
-                            fontSize = tokens.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
+                        // Top Row: FREE TRIAL label, Active pill badge with dot, and Close button
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
+                            ) {
+                                Text(
+                                    text = "FREE TRIAL",
+                                    fontSize = tokens.caption,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextSecondary,
+                                    letterSpacing = tokens.caption * 0.06f
+                                )
+
+                                // Status pill with leading dot
+                                Row(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(primary_light)
+                                        .padding(
+                                            horizontal = tokens.extraPadding * 0.8f,
+                                            vertical = tokens.extraPadding * 0.25f
+                                        ),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.4f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(tokens.extraPadding * 0.5f)
+                                            .clip(CircleShape)
+                                            .background(Primary)
+                                    )
+                                    Text(
+                                        text = statusText,
+                                        fontSize = tokens.label,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Primary,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+
+                            IconButton(
+                                onClick = onDismiss,
+                                modifier = Modifier.size(tokens.iconSize * 1.3f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Close",
+                                    tint = mutedText,
+                                    modifier = Modifier.size(tokens.iconSize)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(tokens.extraPadding * 0.8f))
+
+                        // Main Row: Days remaining headline on left, Trial ends date on right
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = if (trial.daysRemaining == 1) {
+                                    "1 day remaining"
+                                } else {
+                                    "${trial.daysRemaining} days remaining"
+                                },
+                                fontSize = tokens.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary
+                            )
+
+                            if (trial.trialEndsFormatted.isNotBlank()) {
+                                Text(
+                                    text = buildAnnotatedString {
+                                        withStyle(SpanStyle(color = TextSecondary, fontWeight = FontWeight.Normal)) {
+                                            append("Trial ends ")
+                                        }
+                                        withStyle(SpanStyle(color = TextPrimary, fontWeight = FontWeight.SemiBold)) {
+                                            append(trial.trialEndsFormatted)
+                                        }
+                                    },
+                                    fontSize = tokens.caption,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(tokens.extraPadding))
+
+                        // Trial progress bar
+                        DataCardProgressBar(
+                            progress = progressFraction,
+                            progressColor = Primary,
+                            trackColor = primary_light,
+                            height = tokens.extraPadding * 0.45f
                         )
-                        // Render trial status dynamically from API response
-                        StatusBadge(
-                            text = trial.status.ifBlank { "-" }.uppercase(),
-                            bgColor = greenBg,
-                            textColor = greentext,
-                            cornerRadius = tokens.cardCornerRadius * 0.4f,
-                            showDot = false
-                        )
+
+                        Spacer(modifier = Modifier.height(tokens.screenPadding))
+
+                        // Primary CTA Button: View Plans ->
+                        Button(
+                            onClick = onComparePlans,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(tokens.buttonHeight),
+                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.65f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Primary,
+                                contentColor = whiteBg
+                            )
+                        ) {
+                            Text(
+                                text = "View Plans",
+                                fontSize = tokens.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.width(tokens.extraPadding * 0.6f))
+                            Icon(
+                                imageVector = Icons.Default.ArrowForward,
+                                contentDescription = null,
+                                modifier = Modifier.size(tokens.iconSize * 0.9f)
+                            )
                     }
-
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(tokens.iconSize * 1.5f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = mutedText,
-                            modifier = Modifier.size(tokens.iconSize)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(tokens.extraPadding))
-
-                // Days Remaining Headline from API
-                Text(
-                    text = if (trial.daysRemaining == 1) "1 day remaining" else "${trial.daysRemaining} days remaining",
-                    fontSize = tokens.h2,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
-                )
-                Spacer(modifier = Modifier.height(tokens.extraPadding * 0.25f))
-                Text(
-                    text = "Explore CUSO Tailor at your own pace.",
-                    fontSize = tokens.bodySmall,
-                    color = TextSecondary
-                )
-
-                Spacer(modifier = Modifier.height(tokens.screenPadding * 0.85f))
-
-                // Trial Progress Section (reusing DataCardProgressBar)
-                Text(
-                    text = trial.progressText,
-                    fontSize = tokens.caption,
-                    fontWeight = FontWeight.Medium,
-                    color = mutedText
-                )
-                Spacer(modifier = Modifier.height(tokens.extraPadding * 0.6f))
-                DataCardProgressBar(
-                    progress = progressFraction,
-                    progressColor = Primary,
-                    trackColor = light_grey
-                )
-
-                Spacer(modifier = Modifier.height(tokens.screenPadding * 0.85f))
-
-                // Trial Ends Card
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.75f))
-                        .background(activity_purple_bg)
-                        .border(
-                            width = 1.dp,
-                            color = light_blue_border,
-                            shape = RoundedCornerShape(tokens.cardCornerRadius * 0.75f)
-                        )
-                        .padding(
-                            horizontal = tokens.extraPadding * 1.2f,
-                            vertical = tokens.extraPadding * 1.1f
-                        ),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CalendarToday,
-                            contentDescription = null,
-                            tint = Primary,
-                            modifier = Modifier.size(tokens.iconSize * 0.85f)
-                        )
-                        Text(
-                            text = "Trial ends",
-                            fontSize = tokens.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = TextSecondary
-                        )
-                    }
-
-                    Text(
-                        text = trial.trialEndsFormatted,
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(tokens.screenPadding * 0.85f))
-
-                // Description
-                Text(
-                    text = "Need more features or users? Find the plan that fits your business.",
-                    fontSize = tokens.bodySmall,
-                    color = TextSecondary
-                )
-
-                Spacer(modifier = Modifier.height(tokens.screenPadding))
-
-                // Compare Plans CTA Button
-                Button(
-                    onClick = onComparePlans,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(tokens.buttonHeight),
-                    shape = RoundedCornerShape(tokens.cardCornerRadius * 0.75f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Primary,
-                        contentColor = whiteBg
-                    )
-                ) {
-                    Text(
-                        text = "Compare Plans",
-                        fontSize = tokens.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.width(tokens.extraPadding * 0.6f))
-                    Icon(
-                        imageVector = Icons.Default.ArrowForward,
-                        contentDescription = null,
-                        modifier = Modifier.size(tokens.iconSize * 0.85f)
-                    )
                 }
             }
         }

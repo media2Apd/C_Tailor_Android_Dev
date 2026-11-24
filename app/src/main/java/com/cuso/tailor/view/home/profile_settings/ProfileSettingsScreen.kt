@@ -5,7 +5,6 @@ package com.cuso.tailor.view.home.profile_settings
 import android.annotation.SuppressLint
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -76,7 +75,7 @@ fun ProfileSettingsScreen(
 
     val firstName = userEntity?.firstName.orEmpty()
     val lastName = userEntity?.lastName.orEmpty()
-    val fullName = "$firstName $lastName".trim().ifBlank { "User" }
+    val fullName = "$firstName $lastName".trim().ifBlank { "" }
     val email = userEntity?.email.orEmpty()
     val role = userEntity?.role.orEmpty()
     val profilePicture = userEntity?.profilePicture
@@ -195,38 +194,38 @@ fun ProfileSettingsScreen(
                     Spacer(Modifier.width(16.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(fullName, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827))
+                        Text(fullName, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF111827), lineHeight = 18.sp)
                         Spacer(Modifier.height(2.dp))
-                        Text(role, fontSize = 13.sp, color = Color(0xFF6B7280))
+                        Text(role, fontSize = 13.sp, color = Color(0xFF6B7280), lineHeight = 18.sp)
                         Spacer(Modifier.height(2.dp))
-                        Text(email, fontSize = 13.sp, color = Color(0xFF6B7280))
+                        Text(email, fontSize = 13.sp, color = Color(0xFF6B7280), lineHeight = 18.sp)
 
-                        Spacer(Modifier.height(14.dp))
-
-                        Row(
-                            modifier = Modifier
-                                .border(1.dp, grey_border, RoundedCornerShape(20.dp))
-                                .clip(RoundedCornerShape(20.dp))
-                                .clickable { onGoToProfile() }
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                painter =painterResource(R.drawable.ic_person),
-                                contentDescription = null,
-                                tint = Color(0xFF374151),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text("Go to Profile", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
-                            Spacer(Modifier.width(4.dp))
-                            Icon(
-                                Icons.Default.ChevronRight,
-                                contentDescription = null,
-                                tint = Color(0xFF9CA3AF),
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
+//                        Spacer(Modifier.height(14.dp))
+//
+//                        Row(
+//                            modifier = Modifier
+//                                .border(1.dp, grey_border, RoundedCornerShape(20.dp))
+//                                .clip(RoundedCornerShape(20.dp))
+//                                .clickable { onGoToProfile() }
+//                                .padding(horizontal = 16.dp, vertical = 8.dp),
+//                            verticalAlignment = Alignment.CenterVertically
+//                        ) {
+//                            Icon(
+//                                painter =painterResource(R.drawable.ic_person),
+//                                contentDescription = null,
+//                                tint = Color(0xFF374151),
+//                                modifier = Modifier.size(16.dp)
+//                            )
+//                            Spacer(Modifier.width(6.dp))
+//                            Text("Go to Profile", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
+//                            Spacer(Modifier.width(4.dp))
+//                            Icon(
+//                                Icons.Default.ChevronRight,
+//                                contentDescription = null,
+//                                tint = Color(0xFF9CA3AF),
+//                                modifier = Modifier.size(14.dp)
+//                            )
+//                        }
                     }
                 }
             }

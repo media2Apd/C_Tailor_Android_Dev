@@ -13,6 +13,7 @@
 package com.cuso.tailor.view.composable
 
 import android.app.Activity
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -42,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -60,6 +62,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 
+private const val TAG = "GoogleSignInDebug"
+
 @Suppress("DEPRECATION")
 @Composable
 fun ContinueWithGoogle(
@@ -72,10 +76,22 @@ fun ContinueWithGoogle(
     val googleLoginState by loginViewModel.googleLoginState.collectAsState()
     val isLoading by loginViewModel.isLoading.collectAsState()
 
+    val rawWebClientId = stringResource(R.string.default_web_client_id)
+    val webClientId = rawWebClientId.ifBlank {
+        "8487938738-kp60s0ug5gu3dqd9k72nvk83nddj59ee.apps.googleusercontent.com"
+    }
+
+    LaunchedEffect(webClientId) {
+        Log.d(TAG, "Resolved default_web_client_id = $webClientId")
+    }
+
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
+        Log.d(TAG, "ActivityResult received: resultCode=${result.resultCode}, hasData=${result.data != null}")
+
         if (result.data == null) {
+            Log.e(TAG, "Google sign in cancelled or returned null Intent data")
             DynamicIslandManager.showError("Google sign in cancelled or returned no data")
             return@rememberLauncherForActivityResult
         }
@@ -84,21 +100,39 @@ fun ContinueWithGoogle(
         try {
             val account = task.getResult(ApiException::class.java)
             val idToken = account?.idToken
+            Log.d(
+                TAG,
+                "Google account retrieved: email=${account?.email}, hasIdToken=${!idToken.isNullOrBlank()}, tokenLength=${idToken?.length ?: 0}"
+            )
 
             if (!idToken.isNullOrBlank()) {
+                Log.d(TAG, "Calling loginViewModel.googleLogin(idToken)...")
                 loginViewModel.googleLogin(idToken)
             } else {
+                Log.e(TAG, "idToken is null/blank! Check SHA-1 fingerprint and Web Client ID in Firebase.")
                 DynamicIslandManager.showError("Google idToken is null. Check SHA-1 and Web Client ID.")
             }
         } catch (e: ApiException) {
-            DynamicIslandManager.showError("Google sign in failed: code ${e.statusCode}")
+            Log.e(TAG, "Google sign in ApiException: statusCode=${e.statusCode}, message=${e.message}", e)
+            val detailedMsg = when (e.statusCode) {
+                10 -> {
+                    Log.e(
+                        TAG,
+                        "DEVELOPER_ERROR (10): Package name 'com.cuso.tailor' and debug/release SHA-1 fingerprint must be registered in Firebase Console -> Project Settings -> Android App."
+                    )
+                    "Google sign in failed (Code 10: Developer Error). Add SHA-1 to Firebase Console."
+                }
+                12500 -> "Google sign in failed (Code 12500). Check Google Play Services."
+                4 -> "Google sign in required user interaction (Code 4)."
+                else -> "Google sign in failed: code ${e.statusCode}"
+            }
+            DynamicIslandManager.showError(detailedMsg)
         }
     }
 
-    // Replace with your real OAuth 2.0 Web Client ID (type 3) from Google Cloud Console / google-services.json
-    val gso = remember {
+    val gso = remember(webClientId) {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken("123238978245-kdc6n2qacc51o0nn7cj1vgjn1h9muh11.apps.googleusercontent.coma")
+            .requestIdToken(webClientId)
             .requestEmail()
             .build()
     }
@@ -108,8 +142,10 @@ fun ContinueWithGoogle(
     }
 
     LaunchedEffect(googleLoginState) {
+        Log.d(TAG, "googleLoginState changed -> $googleLoginState")
         when (googleLoginState) {
             is GoogleLoginUiState.ExistingOrg -> {
+                Log.d(TAG, "Navigating to home (ExistingOrg)")
                 permissionViewModel.fetchPermissions()
                 loginViewModel.resetGoogleLoginState()
                 navController.navigate("home") {
@@ -117,6 +153,7 @@ fun ContinueWithGoogle(
                 }
             }
             is GoogleLoginUiState.NewOrg -> {
+                Log.d(TAG, "Navigating to org (NewOrg)")
                 loginViewModel.resetGoogleLoginState()
                 navController.navigate("org")
             }
@@ -129,9 +166,16 @@ fun ContinueWithGoogle(
             OutlinedButton(
                 onClick = {
                     if (!isLoading) {
+                        Log.d(TAG, "Continue with Google clicked -> signing out old session first")
                         loginViewModel.resetGoogleLoginState()
-                        googleSignInClient.signOut().addOnCompleteListener {
-                            launcher.launch(googleSignInClient.signInIntent)
+                        googleSignInClient.signOut().addOnCompleteListener { signOutTask ->
+                            Log.d(TAG, "signOut complete (success=${signOutTask.isSuccessful}) -> launching Google picker")
+                            try {
+                                launcher.launch(googleSignInClient.signInIntent)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to launch Google Sign In Intent", e)
+                                DynamicIslandManager.showError("Unable to open Google Sign In: ${e.localizedMessage}")
+                            }
                         }
                     }
                 },

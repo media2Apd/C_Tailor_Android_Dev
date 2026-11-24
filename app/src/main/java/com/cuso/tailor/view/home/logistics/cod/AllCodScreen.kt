@@ -181,9 +181,7 @@ private fun AllCodCard(
 
     val actions = remember(item) {
         listOf(
-            MenuAction(label = "View Details", onClick = onClick),
-            MenuAction(label = "Track Order", onClick = {}),
-            MenuAction(label = "Download Slip", onClick = {})
+            MenuAction(label = "View Details", onClick = onClick)
         )
     }
 

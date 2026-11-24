@@ -4,6 +4,15 @@ package com.cuso.tailor.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cuso.tailor.model.finance.PayablesAgingItemDto
+import com.cuso.tailor.model.finance.PayablesAgingResponse
+import com.cuso.tailor.model.finance.PayablesAgingSummaryDto
+import com.cuso.tailor.model.finance.ReceivablesAgingItemDto
+import com.cuso.tailor.model.finance.ReceivablesAgingResponse
+import com.cuso.tailor.model.finance.ReceivablesAgingSummaryDto
+import com.cuso.tailor.model.finance.RevenueExpenseItemDto
+import com.cuso.tailor.model.finance.RevenueExpenseSummaryDto
+import com.cuso.tailor.model.finance.RevenueExpenseSummaryResponse
 import com.cuso.tailor.model.report.*
 import com.cuso.tailor.repository.ApiRepository
 import com.cuso.tailor.utils.DynamicIslandManager
@@ -24,6 +33,10 @@ import java.util.Locale
 import java.util.TimeZone
 import javax.inject.Inject
 import kotlin.math.roundToInt
+import com.cuso.tailor.model.finance.*
+import com.cuso.tailor.model.inventory.*
+import com.cuso.tailor.model.logistics.*
+import com.cuso.tailor.model.service.*
 
 // --- HR Report Endpoints ---
 private const val ATTENDANCE_ANALYTICS_URL = "/api/hr/attendance/dashboard/analytics"
@@ -73,6 +86,37 @@ private const val SALES_BRANCH_WISE_URL = "/api/sales/reports/branch-wise-sales"
 private const val SALES_QUOTE_MASTER_URL = "/api/sales/reports/quotations/master-register"
 private const val SALES_QUOTE_DISCOUNT_URL = "/api/sales/reports/quotations/discount-leakage"
 private const val SALES_QUOTE_EXPIRING_URL = "/api/sales/reports/quotations/expiring-audit"
+
+// --- Finance Report Endpoints ---
+private const val FINANCE_REVENUE_EXPENSE_URL = "/api/finance/reports/revenue-expense-summary"
+private const val FINANCE_RECEIVABLES_AGING_URL = "/api/finance/reports/receivables-aging"
+private const val FINANCE_PAYABLES_AGING_URL = "/api/finance/reports/payables-aging"
+private const val FINANCE_GST_SUMMARY_URL = "/api/finance/reports/gst-summary"
+private const val FINANCE_PAYMENT_COLLECTIONS_URL = "/api/finance/reports/payment-collections"
+private const val FINANCE_ADVANCE_PAYMENTS_URL = "/api/finance/reports/advance-payments"
+private const val FINANCE_PAYMENT_MODES_URL = "/api/finance/reports/payment-modes"
+private const val FINANCE_BALANCE_PENDING_URL = "/api/finance/reports/balance-pending"
+private const val FINANCE_OVERDUE_PAYMENTS_URL = "/api/finance/reports/overdue-payments"
+
+// --- Inventory Report Endpoints ---
+private const val INVENTORY_STOCK_SUMMARY_URL = "/api/inventory/reports/stock-summary"
+private const val INVENTORY_LOW_STOCK_REORDER_URL = "/api/inventory/reports/low-stock-reorder"
+private const val INVENTORY_STOCK_MOVEMENT_URL = "/api/inventory/reports/stock-movement"
+private const val INVENTORY_MATERIAL_CONSUMPTION_URL = "/api/inventory/reports/material-consumption"
+private const val INVENTORY_VALUATION_URL = "/api/inventory/reports/inventory-valuation"
+
+// --- Logistics Report Endpoints ---
+private const val LOGISTICS_DELIVERY_PERF_URL = "/api/logistics/reports/delivery-performance"
+private const val LOGISTICS_SHIPMENT_TRACKING_URL = "/api/logistics/reports/shipment-tracking"
+private const val LOGISTICS_RETURNS_RTO_URL = "/api/logistics/reports/returns-rto"
+private const val LOGISTICS_COD_RECONCILIATION_URL = "/api/logistics/reports/cod-reconciliation"
+
+// --- Service Report Endpoints ---
+private const val SERVICE_FEEDBACK_NPS_URL = "/api/services/reports/customer-feedback-summary"
+private const val SERVICE_COMPLAINTS_URL = "/api/services/reports/complaints-escalation"
+private const val SERVICE_PERFORMANCE_SLA_URL = "/api/services/reports/service-performance-sla"
+
+private const val DEFAULT_INVENTORY_PAGE_LIMIT = 10
 
 private const val DEFAULT_PAGE_LIMIT = 10
 
@@ -2091,4 +2135,1467 @@ class ReportViewModel @Inject constructor(
         val hours = (minutes / 60.0 * 10.0).roundToInt() / 10.0
         return "$hours hrs"
     }
+
+    private val financePageMap = mutableMapOf<String, Int>()
+
+    // =========================================================================
+    // GENERIC FINANCE REPORT FETCH HELPERS
+    // =========================================================================
+
+    private suspend inline fun <reified Resp, Item> executeFinancePagedFetch(
+        reportKey: String,
+        url: String,
+        isLoadMore: Boolean,
+        pagingFlow: MutableStateFlow<PagingUiState<Item>>,
+        extraQuery: List<Pair<String, Any>> = emptyList(),
+        crossinline itemId: (Item) -> String,
+        crossinline extractSuccess: (Resp) -> Boolean,
+        crossinline extractMessage: (Resp) -> String?,
+        crossinline extractData: (Resp) -> List<Item>,
+        crossinline extractPagination: (Resp) -> ReportPaginationDto?,
+        crossinline onSummaryUpdate: (Resp) -> Unit
+    ) {
+        val currentState = pagingFlow.value
+        val nextPage = if (isLoadMore) {
+            if (currentState.isLoadingMore || !currentState.canLoadMore) return
+            pagingFlow.value = currentState.copy(isLoadingMore = true)
+            (financePageMap[reportKey] ?: 1) + 1
+        } else {
+            pagingFlow.value = currentState.copy(isInitialLoading = true)
+            1
+        }
+        financePageMap[reportKey] = nextPage
+
+        val queryParams = mutableListOf<Pair<String, Any>>(
+            "page" to nextPage,
+            "limit" to DEFAULT_PAGE_LIMIT
+        )
+        queryParams.addAll(extraQuery)
+
+        val res = repo.request<Resp> {
+            get(url, repo.query(*queryParams.toTypedArray()))
+        }
+
+        res.fold(
+            onSuccess = { response ->
+                if (extractSuccess(response)) {
+                    onSummaryUpdate(response)
+                    val incoming = extractData(response)
+                    val existing = if (isLoadMore) pagingFlow.value.items else emptyList()
+                    val existingIds = existing.map(itemId).toSet()
+                    val uniqueNew = incoming.filter { itemId(it) !in existingIds }
+                    val updated = existing + uniqueNew
+                    val pagination = extractPagination(response)
+                    val canLoadMore = pagination?.let {
+                        nextPage < it.totalPages
+                    } ?: (incoming.size >= DEFAULT_PAGE_LIMIT && uniqueNew.isNotEmpty())
+
+                    pagingFlow.value = pagingFlow.value.copy(
+                        items = updated,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
+                } else {
+                    if (isLoadMore) financePageMap[reportKey] = (nextPage - 1).coerceAtLeast(1)
+                    pagingFlow.value = pagingFlow.value.copy(
+                        isInitialLoading = false,
+                        isLoadingMore = false
+                    )
+                    DynamicIslandManager.showError(extractMessage(response) ?: "Failed to load finance report")
+                }
+            },
+            onFailure = { err ->
+                if (isLoadMore) financePageMap[reportKey] = (nextPage - 1).coerceAtLeast(1)
+                pagingFlow.value = pagingFlow.value.copy(
+                    isInitialLoading = false,
+                    isLoadingMore = false
+                )
+                DynamicIslandManager.showError(err.message ?: "Network error loading finance report")
+            }
+        )
+    }
+
+    // =========================================================================
+    // 1. REVENUE & EXPENSE SUMMARY REPORT (FINANCIAL OVERVIEW & P&L)
+    // =========================================================================
+
+    private val _revenueExpenseSummary = MutableStateFlow<RevenueExpenseSummaryDto?>(null)
+    val revenueExpenseSummary: StateFlow<RevenueExpenseSummaryDto?> = _revenueExpenseSummary.asStateFlow()
+
+    private val _revenueExpensePagingState = MutableStateFlow(PagingUiState<RevenueExpenseItemDto>())
+    val revenueExpensePagingState: StateFlow<PagingUiState<RevenueExpenseItemDto>> = _revenueExpensePagingState.asStateFlow()
+
+    private val _revenueExpenseSearchQuery = MutableStateFlow("")
+    val revenueExpenseSearchQuery: StateFlow<String> = _revenueExpenseSearchQuery.asStateFlow()
+
+    private val _revenueExpenseTypeFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _revenueExpenseCategoryFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredRevenueExpenseList: StateFlow<List<RevenueExpenseItemDto>> = combine(
+        _revenueExpensePagingState,
+        _revenueExpenseSearchQuery,
+        _revenueExpenseTypeFilter,
+        _revenueExpenseCategoryFilter
+    ) { paging, query, types, categories ->
+        val cleanQuery = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.accountName.lowercase().contains(cleanQuery) ||
+                    item.accountCode.lowercase().contains(cleanQuery) ||
+                    item.accountType.lowercase().contains(cleanQuery) ||
+                    item.category.lowercase().contains(cleanQuery)
+
+            val matchesType = types.isEmpty() || types.any { it.equals(item.accountType, ignoreCase = true) }
+            val matchesCategory = categories.isEmpty() || categories.any { it.equals(item.category, ignoreCase = true) }
+
+            matchesQuery && matchesType && matchesCategory
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadRevenueExpenseReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeFinancePagedFetch<RevenueExpenseSummaryResponse, RevenueExpenseItemDto>(
+            reportKey = "revenue_expense",
+            url = FINANCE_REVENUE_EXPENSE_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _revenueExpensePagingState,
+            itemId = { it.accountId },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _revenueExpenseSummary.value = s } }
+        )
+    }
+
+    fun onRevenueExpenseSearchQueryChange(query: String) {
+        _revenueExpenseSearchQuery.value = query
+    }
+
+    fun applyRevenueExpenseFilters(types: Set<String>, categories: Set<String>) {
+        _revenueExpenseTypeFilter.value = types
+        _revenueExpenseCategoryFilter.value = categories
+    }
+
+    fun clearRevenueExpenseFilters() {
+        _revenueExpenseSearchQuery.value = ""
+        _revenueExpenseTypeFilter.value = emptySet()
+        _revenueExpenseCategoryFilter.value = emptySet()
+    }
+
+    // =========================================================================
+    // 2. RECEIVABLES AGING REPORT (AR AGING)
+    // =========================================================================
+
+    private val _receivablesAgingSummary = MutableStateFlow<ReceivablesAgingSummaryDto?>(null)
+    val receivablesAgingSummary: StateFlow<ReceivablesAgingSummaryDto?> = _receivablesAgingSummary.asStateFlow()
+
+    private val _receivablesAgingPagingState = MutableStateFlow(PagingUiState<ReceivablesAgingItemDto>())
+    val receivablesAgingPagingState: StateFlow<PagingUiState<ReceivablesAgingItemDto>> = _receivablesAgingPagingState.asStateFlow()
+
+    private val _receivablesAgingSearchQuery = MutableStateFlow("")
+    val receivablesAgingSearchQuery: StateFlow<String> = _receivablesAgingSearchQuery.asStateFlow()
+
+    private val _receivablesAgingStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredReceivablesAgingList: StateFlow<List<ReceivablesAgingItemDto>> = combine(
+        _receivablesAgingPagingState,
+        _receivablesAgingSearchQuery,
+        _receivablesAgingStatusFilter
+    ) { paging, query, statuses ->
+        val cleanQuery = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.customerName.lowercase().contains(cleanQuery) ||
+                    item.customerCode.lowercase().contains(cleanQuery) ||
+                    item.mobileNumber.lowercase().contains(cleanQuery)
+
+            val effectiveStatus = item.agingStatus.ifBlank { item.status }
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(effectiveStatus, ignoreCase = true) }
+
+            matchesQuery && matchesStatus
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadReceivablesAgingReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeFinancePagedFetch<ReceivablesAgingResponse, ReceivablesAgingItemDto>(
+            reportKey = "receivables_aging",
+            url = FINANCE_RECEIVABLES_AGING_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _receivablesAgingPagingState,
+            itemId = { it.customerId.ifBlank { it.customerCode } },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _receivablesAgingSummary.value = s } }
+        )
+    }
+
+    fun onReceivablesAgingSearchQueryChange(query: String) {
+        _receivablesAgingSearchQuery.value = query
+    }
+
+    fun applyReceivablesAgingFilters(statuses: Set<String>) {
+        _receivablesAgingStatusFilter.value = statuses
+    }
+
+    fun clearReceivablesAgingFilters() {
+        _receivablesAgingSearchQuery.value = ""
+        _receivablesAgingStatusFilter.value = emptySet()
+    }
+
+    // =========================================================================
+    // 3. PAYABLES AGING REPORT (AP AGING)
+    // =========================================================================
+
+    private val _payablesAgingSummary = MutableStateFlow<PayablesAgingSummaryDto?>(null)
+    val payablesAgingSummary: StateFlow<PayablesAgingSummaryDto?> = _payablesAgingSummary.asStateFlow()
+
+    private val _payablesAgingPagingState = MutableStateFlow(PagingUiState<PayablesAgingItemDto>())
+    val payablesAgingPagingState: StateFlow<PagingUiState<PayablesAgingItemDto>> = _payablesAgingPagingState.asStateFlow()
+
+    private val _payablesAgingSearchQuery = MutableStateFlow("")
+    val payablesAgingSearchQuery: StateFlow<String> = _payablesAgingSearchQuery.asStateFlow()
+
+    private val _payablesAgingStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredPayablesAgingList: StateFlow<List<PayablesAgingItemDto>> = combine(
+        _payablesAgingPagingState,
+        _payablesAgingSearchQuery,
+        _payablesAgingStatusFilter
+    ) { paging, query, statuses ->
+        val cleanQuery = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.supplierName.lowercase().contains(cleanQuery) ||
+                    item.supplierCode.lowercase().contains(cleanQuery) ||
+                    item.mobileNumber.lowercase().contains(cleanQuery)
+
+            val effectiveStatus = item.agingStatus.ifBlank { item.status }
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(effectiveStatus, ignoreCase = true) }
+
+            matchesQuery && matchesStatus
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadPayablesAgingReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeFinancePagedFetch<PayablesAgingResponse, PayablesAgingItemDto>(
+            reportKey = "payables_aging",
+            url = FINANCE_PAYABLES_AGING_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _payablesAgingPagingState,
+            itemId = { it.supplierId.ifBlank { it.supplierCode } },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _payablesAgingSummary.value = s } }
+        )
+    }
+
+    fun onPayablesAgingSearchQueryChange(query: String) {
+        _payablesAgingSearchQuery.value = query
+    }
+
+    fun applyPayablesAgingFilters(statuses: Set<String>) {
+        _payablesAgingStatusFilter.value = statuses
+    }
+
+    fun clearPayablesAgingFilters() {
+        _payablesAgingSearchQuery.value = ""
+        _payablesAgingStatusFilter.value = emptySet()
+    }
+
+    // =========================================================================
+    // 4. GST / TAX SUMMARY REPORT
+    // =========================================================================
+
+    private val _gstSummaryData = MutableStateFlow<GstSummaryDataDto?>(null)
+    val gstSummaryData: StateFlow<GstSummaryDataDto?> = _gstSummaryData.asStateFlow()
+
+    private val _isLoadingGstSummary = MutableStateFlow(false)
+    val isLoadingGstSummary: StateFlow<Boolean> = _isLoadingGstSummary.asStateFlow()
+
+    private val _gstRateSearchQuery = MutableStateFlow("")
+    val gstRateSearchQuery: StateFlow<String> = _gstRateSearchQuery.asStateFlow()
+
+    private val _gstTaxTypeFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredGstRateBreakdownList: StateFlow<List<GstRateBreakdownItemDto>> = combine(
+        _gstSummaryData,
+        _gstRateSearchQuery,
+        _gstTaxTypeFilter
+    ) { summaryData, query, taxTypes ->
+        val cleanQuery = query.trim().lowercase()
+        summaryData?.rateBreakdown.orEmpty().filter { item ->
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.taxName.lowercase().contains(cleanQuery) ||
+                    item.taxType.lowercase().contains(cleanQuery) ||
+                    item.rate.toString().contains(cleanQuery)
+
+            val matchesType = taxTypes.isEmpty() || taxTypes.any { it.equals(item.taxType, ignoreCase = true) }
+
+            matchesQuery && matchesType
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadGstSummaryReport() {
+        viewModelScope.launch {
+            _isLoadingGstSummary.value = true
+            val res = repo.request<GstSummaryResponse> {
+                get(FINANCE_GST_SUMMARY_URL)
+            }
+            res.fold(
+                onSuccess = { response ->
+                    if (response.success && response.data != null) {
+                        _gstSummaryData.value = response.data
+                    } else {
+                        DynamicIslandManager.showError(response.message ?: "Failed to load GST summary report")
+                    }
+                },
+                onFailure = { err ->
+                    DynamicIslandManager.showError(err.message ?: "Network error loading GST summary report")
+                }
+            )
+            _isLoadingGstSummary.value = false
+        }
+    }
+
+    fun onGstRateSearchQueryChange(query: String) {
+        _gstRateSearchQuery.value = query
+    }
+
+    fun applyGstTaxTypeFilters(taxTypes: Set<String>) {
+        _gstTaxTypeFilter.value = taxTypes
+    }
+
+    fun clearGstFilters() {
+        _gstRateSearchQuery.value = ""
+        _gstTaxTypeFilter.value = emptySet()
+    }
+
+    // =========================================================================
+    // 5. PAYMENT COLLECTION REPORT
+    // =========================================================================
+
+    private val _paymentCollectionSummary = MutableStateFlow<PaymentCollectionSummaryDto?>(null)
+    val paymentCollectionSummary: StateFlow<PaymentCollectionSummaryDto?> = _paymentCollectionSummary.asStateFlow()
+
+    private val _paymentCollectionPagingState = MutableStateFlow(PagingUiState<PaymentCollectionItemDto>())
+    val paymentCollectionPagingState: StateFlow<PagingUiState<PaymentCollectionItemDto>> = _paymentCollectionPagingState.asStateFlow()
+
+    private val _paymentCollectionSearchQuery = MutableStateFlow("")
+    val paymentCollectionSearchQuery: StateFlow<String> = _paymentCollectionSearchQuery.asStateFlow()
+
+    private val _paymentCollectionModeFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _paymentCollectionStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredPaymentCollectionList: StateFlow<List<PaymentCollectionItemDto>> = combine(
+        _paymentCollectionPagingState,
+        _paymentCollectionSearchQuery,
+        _paymentCollectionModeFilter,
+        _paymentCollectionStatusFilter
+    ) { paging, query, modes, statuses ->
+        val cleanQuery = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.paymentNumber.lowercase().contains(cleanQuery) ||
+                    item.customer.customerName.lowercase().contains(cleanQuery) ||
+                    item.customer.customerCode.lowercase().contains(cleanQuery) ||
+                    item.customer.mobileNumber.contains(cleanQuery) ||
+                    item.paymentMode.lowercase().contains(cleanQuery) ||
+                    item.referenceNumber.lowercase().contains(cleanQuery)
+
+            val matchesMode = modes.isEmpty() || modes.any { it.equals(item.paymentMode, ignoreCase = true) }
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(item.status, ignoreCase = true) }
+
+            matchesQuery && matchesMode && matchesStatus
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadPaymentCollectionReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeFinancePagedFetch<PaymentCollectionReportResponse, PaymentCollectionItemDto>(
+            reportKey = "payment_collections",
+            url = FINANCE_PAYMENT_COLLECTIONS_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _paymentCollectionPagingState,
+            itemId = { it.paymentId },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _paymentCollectionSummary.value = s } }
+        )
+    }
+
+    fun onPaymentCollectionSearchQueryChange(query: String) {
+        _paymentCollectionSearchQuery.value = query
+    }
+
+    fun applyPaymentCollectionFilters(modes: Set<String>, statuses: Set<String>) {
+        _paymentCollectionModeFilter.value = modes
+        _paymentCollectionStatusFilter.value = statuses
+    }
+
+    fun clearPaymentCollectionFilters() {
+        _paymentCollectionSearchQuery.value = ""
+        _paymentCollectionModeFilter.value = emptySet()
+        _paymentCollectionStatusFilter.value = emptySet()
+    }
+
+    // =========================================================================
+    // 6. ADVANCE PAYMENT REPORT
+    // =========================================================================
+
+    private val _advancePaymentSummary = MutableStateFlow<AdvancePaymentSummaryDto?>(null)
+    val advancePaymentSummary: StateFlow<AdvancePaymentSummaryDto?> = _advancePaymentSummary.asStateFlow()
+
+    private val _advancePaymentPagingState = MutableStateFlow(PagingUiState<AdvancePaymentItemDto>())
+    val advancePaymentPagingState: StateFlow<PagingUiState<AdvancePaymentItemDto>> = _advancePaymentPagingState.asStateFlow()
+
+    private val _advancePaymentSearchQuery = MutableStateFlow("")
+    val advancePaymentSearchQuery: StateFlow<String> = _advancePaymentSearchQuery.asStateFlow()
+
+    private val _advancePaymentModeFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _advanceUnallocatedOnlyFilter = MutableStateFlow(false)
+
+    val filteredAdvancePaymentList: StateFlow<List<AdvancePaymentItemDto>> = combine(
+        _advancePaymentPagingState,
+        _advancePaymentSearchQuery,
+        _advancePaymentModeFilter,
+        _advanceUnallocatedOnlyFilter
+    ) { paging, query, modes, unallocatedOnly ->
+        val cleanQuery = query.trim().lowercase()
+        paging.items.filter { item ->
+            val orderCode = item.linkedOrder?.orderCode.orEmpty().lowercase()
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.paymentNumber.lowercase().contains(cleanQuery) ||
+                    item.customer.customerName.lowercase().contains(cleanQuery) ||
+                    item.customer.customerCode.lowercase().contains(cleanQuery) ||
+                    item.customer.mobileNumber.contains(cleanQuery) ||
+                    orderCode.contains(cleanQuery)
+
+            val matchesMode = modes.isEmpty() || modes.any { it.equals(item.paymentMode, ignoreCase = true) }
+            val matchesUnallocated = !unallocatedOnly || item.unallocatedAmount > 0.0
+
+            matchesQuery && matchesMode && matchesUnallocated
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadAdvancePaymentReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeFinancePagedFetch<AdvancePaymentReportResponse, AdvancePaymentItemDto>(
+            reportKey = "advance_payments",
+            url = FINANCE_ADVANCE_PAYMENTS_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _advancePaymentPagingState,
+            itemId = { it.paymentId },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _advancePaymentSummary.value = s } }
+        )
+    }
+
+    fun onAdvancePaymentSearchQueryChange(query: String) {
+        _advancePaymentSearchQuery.value = query
+    }
+
+    fun applyAdvancePaymentFilters(modes: Set<String>, unallocatedOnly: Boolean) {
+        _advancePaymentModeFilter.value = modes
+        _advanceUnallocatedOnlyFilter.value = unallocatedOnly
+    }
+
+    fun clearAdvancePaymentFilters() {
+        _advancePaymentSearchQuery.value = ""
+        _advancePaymentModeFilter.value = emptySet()
+        _advanceUnallocatedOnlyFilter.value = false
+    }
+
+    // =========================================================================
+    // 7. PAYMENT MODE BREAKDOWN REPORT
+    // =========================================================================
+
+    private val _paymentModeSummary = MutableStateFlow<PaymentModeSummaryDto?>(null)
+    val paymentModeSummary: StateFlow<PaymentModeSummaryDto?> = _paymentModeSummary.asStateFlow()
+
+    private val _paymentModePagingState = MutableStateFlow(PagingUiState<PaymentModeItemDto>())
+    val paymentModePagingState: StateFlow<PagingUiState<PaymentModeItemDto>> = _paymentModePagingState.asStateFlow()
+
+    private val _paymentModeSearchQuery = MutableStateFlow("")
+    val paymentModeSearchQuery: StateFlow<String> = _paymentModeSearchQuery.asStateFlow()
+
+    private val _paymentModeTypeFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredPaymentModeList: StateFlow<List<PaymentModeItemDto>> = combine(
+        _paymentModePagingState,
+        _paymentModeSearchQuery,
+        _paymentModeTypeFilter
+    ) { paging, query, modes ->
+        val cleanQuery = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.paymentNumber.lowercase().contains(cleanQuery) ||
+                    item.customer.customerName.lowercase().contains(cleanQuery) ||
+                    item.customer.customerCode.lowercase().contains(cleanQuery) ||
+                    item.paymentMode.lowercase().contains(cleanQuery) ||
+                    item.depositedTo.lowercase().contains(cleanQuery)
+
+            val matchesMode = modes.isEmpty() || modes.any { it.equals(item.paymentMode, ignoreCase = true) }
+
+            matchesQuery && matchesMode
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadPaymentModeReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeFinancePagedFetch<PaymentModeReportResponse, PaymentModeItemDto>(
+            reportKey = "payment_modes",
+            url = FINANCE_PAYMENT_MODES_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _paymentModePagingState,
+            itemId = { it.paymentId },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _paymentModeSummary.value = s } }
+        )
+    }
+
+    fun onPaymentModeSearchQueryChange(query: String) {
+        _paymentModeSearchQuery.value = query
+    }
+
+    fun applyPaymentModeFilters(modes: Set<String>) {
+        _paymentModeTypeFilter.value = modes
+    }
+
+    fun clearPaymentModeFilters() {
+        _paymentModeSearchQuery.value = ""
+        _paymentModeTypeFilter.value = emptySet()
+    }
+
+    // =========================================================================
+    // 8. BALANCE PENDING REPORT
+    // =========================================================================
+
+    private val _balancePendingSummary = MutableStateFlow<BalancePendingSummaryDto?>(null)
+    val balancePendingSummary: StateFlow<BalancePendingSummaryDto?> = _balancePendingSummary.asStateFlow()
+
+    private val _balancePendingPagingState = MutableStateFlow(PagingUiState<BalancePendingItemDto>())
+    val balancePendingPagingState: StateFlow<PagingUiState<BalancePendingItemDto>> = _balancePendingPagingState.asStateFlow()
+
+    private val _balancePendingSearchQuery = MutableStateFlow("")
+    val balancePendingSearchQuery: StateFlow<String> = _balancePendingSearchQuery.asStateFlow()
+
+    private val _balancePendingStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _balancePendingOverdueOnlyFilter = MutableStateFlow(false)
+
+    val filteredBalancePendingList: StateFlow<List<BalancePendingItemDto>> = combine(
+        _balancePendingPagingState,
+        _balancePendingSearchQuery,
+        _balancePendingStatusFilter,
+        _balancePendingOverdueOnlyFilter
+    ) { paging, query, statuses, overdueOnly ->
+        val cleanQuery = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.invoiceNumber.lowercase().contains(cleanQuery) ||
+                    item.customer.customerName.lowercase().contains(cleanQuery) ||
+                    item.customer.customerCode.lowercase().contains(cleanQuery) ||
+                    item.customer.mobileNumber.contains(cleanQuery)
+
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(item.status, ignoreCase = true) }
+            val matchesOverdue = !overdueOnly || item.daysOverdue > 0
+
+            matchesQuery && matchesStatus && matchesOverdue
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadBalancePendingReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeFinancePagedFetch<BalancePendingReportResponse, BalancePendingItemDto>(
+            reportKey = "balance_pending",
+            url = FINANCE_BALANCE_PENDING_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _balancePendingPagingState,
+            itemId = { it.invoiceId.ifBlank { it.invoiceNumber } },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _balancePendingSummary.value = s } }
+        )
+    }
+
+    fun onBalancePendingSearchQueryChange(query: String) {
+        _balancePendingSearchQuery.value = query
+    }
+
+    fun applyBalancePendingFilters(statuses: Set<String>, overdueOnly: Boolean) {
+        _balancePendingStatusFilter.value = statuses
+        _balancePendingOverdueOnlyFilter.value = overdueOnly
+    }
+
+    fun clearBalancePendingFilters() {
+        _balancePendingSearchQuery.value = ""
+        _balancePendingStatusFilter.value = emptySet()
+        _balancePendingOverdueOnlyFilter.value = false
+    }
+
+    // =========================================================================
+    // 9. OVERDUE PAYMENT REPORT
+    // =========================================================================
+
+    private val _overduePaymentSummary = MutableStateFlow<OverduePaymentSummaryDto?>(null)
+    val overduePaymentSummary: StateFlow<OverduePaymentSummaryDto?> = _overduePaymentSummary.asStateFlow()
+
+    private val _overduePaymentPagingState = MutableStateFlow(PagingUiState<OverduePaymentItemDto>())
+    val overduePaymentPagingState: StateFlow<PagingUiState<OverduePaymentItemDto>> = _overduePaymentPagingState.asStateFlow()
+
+    private val _overduePaymentSearchQuery = MutableStateFlow("")
+    val overduePaymentSearchQuery: StateFlow<String> = _overduePaymentSearchQuery.asStateFlow()
+
+    private val _overduePaymentPartyTypeFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredOverduePaymentList: StateFlow<List<OverduePaymentItemDto>> = combine(
+        _overduePaymentPagingState,
+        _overduePaymentSearchQuery,
+        _overduePaymentPartyTypeFilter
+    ) { paging, query, partyTypes ->
+        val cleanQuery = query.trim().lowercase()
+        paging.items.filter { item ->
+            val resolvedName = item.partyName.ifBlank {
+                item.customer?.customerName ?: item.supplier?.supplierName.orEmpty()
+            }.lowercase()
+            val resolvedPhone = item.mobileNumber.ifBlank {
+                item.customer?.mobileNumber ?: item.supplier?.mobileNumber.orEmpty()
+            }
+
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.documentNumber.lowercase().contains(cleanQuery) ||
+                    resolvedName.contains(cleanQuery) ||
+                    item.partyCode.lowercase().contains(cleanQuery) ||
+                    resolvedPhone.contains(cleanQuery)
+
+            val matchesPartyType = partyTypes.isEmpty() || partyTypes.any { it.equals(item.partyType, ignoreCase = true) }
+
+            matchesQuery && matchesPartyType
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadOverduePaymentReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeFinancePagedFetch<OverduePaymentReportResponse, OverduePaymentItemDto>(
+            reportKey = "overdue_payments",
+            url = FINANCE_OVERDUE_PAYMENTS_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _overduePaymentPagingState,
+            itemId = { it.id.ifBlank { it.documentId.ifBlank { it.documentNumber } } },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _overduePaymentSummary.value = s } }
+        )
+    }
+
+    fun onOverduePaymentSearchQueryChange(query: String) {
+        _overduePaymentSearchQuery.value = query
+    }
+
+    fun applyOverduePaymentFilters(partyTypes: Set<String>) {
+        _overduePaymentPartyTypeFilter.value = partyTypes
+    }
+
+    fun clearOverduePaymentFilters() {
+        _overduePaymentSearchQuery.value = ""
+        _overduePaymentPartyTypeFilter.value = emptySet()
+    }
+
+    private val inventoryPageMap = mutableMapOf<String, Int>()
+
+    // =========================================================================
+    // GENERIC INVENTORY REPORT PAGED FETCH HELPER
+    // =========================================================================
+
+    private suspend inline fun <reified Resp, Item> executeInventoryPagedFetch(
+        reportKey: String,
+        url: String,
+        isLoadMore: Boolean,
+        pagingFlow: MutableStateFlow<PagingUiState<Item>>,
+        extraQuery: List<Pair<String, Any>> = emptyList(),
+        crossinline itemId: (Item) -> String,
+        crossinline extractSuccess: (Resp) -> Boolean,
+        crossinline extractMessage: (Resp) -> String?,
+        crossinline extractData: (Resp) -> List<Item>,
+        crossinline extractPagination: (Resp) -> ReportPaginationDto?,
+        crossinline onSummaryUpdate: (Resp) -> Unit
+    ) {
+        val currentState = pagingFlow.value
+        val nextPage = if (isLoadMore) {
+            if (currentState.isLoadingMore || !currentState.canLoadMore) return
+            pagingFlow.value = currentState.copy(isLoadingMore = true)
+            (inventoryPageMap[reportKey] ?: 1) + 1
+        } else {
+            pagingFlow.value = currentState.copy(isInitialLoading = true)
+            1
+        }
+        inventoryPageMap[reportKey] = nextPage
+
+        val queryParams = mutableListOf<Pair<String, Any>>(
+            "page" to nextPage,
+            "limit" to DEFAULT_INVENTORY_PAGE_LIMIT
+        )
+        queryParams.addAll(extraQuery)
+
+        val res = repo.request<Resp> {
+            get(url, repo.query(*queryParams.toTypedArray()))
+        }
+
+        res.fold(
+            onSuccess = { response ->
+                if (extractSuccess(response)) {
+                    onSummaryUpdate(response)
+                    val incoming = extractData(response)
+                    val existing = if (isLoadMore) pagingFlow.value.items else emptyList()
+                    val existingIds = existing.map(itemId).toSet()
+                    val uniqueNew = incoming.filter { itemId(it) !in existingIds }
+                    val updated = existing + uniqueNew
+                    val pagination = extractPagination(response)
+                    val canLoadMore = pagination?.let {
+                        nextPage < it.totalPages
+                    } ?: (incoming.size >= DEFAULT_INVENTORY_PAGE_LIMIT && uniqueNew.isNotEmpty())
+
+                    pagingFlow.value = pagingFlow.value.copy(
+                        items = updated,
+                        isInitialLoading = false,
+                        isLoadingMore = false,
+                        canLoadMore = canLoadMore
+                    )
+                } else {
+                    if (isLoadMore) inventoryPageMap[reportKey] = (nextPage - 1).coerceAtLeast(1)
+                    pagingFlow.value = pagingFlow.value.copy(
+                        isInitialLoading = false,
+                        isLoadingMore = false
+                    )
+                    DynamicIslandManager.showError(extractMessage(response) ?: "Failed to load inventory report")
+                }
+            },
+            onFailure = { err ->
+                if (isLoadMore) inventoryPageMap[reportKey] = (nextPage - 1).coerceAtLeast(1)
+                pagingFlow.value = pagingFlow.value.copy(
+                    isInitialLoading = false,
+                    isLoadingMore = false
+                )
+                DynamicIslandManager.showError(err.message ?: "Network error loading inventory report")
+            }
+        )
+    }
+
+    // =========================================================================
+    // 1. STOCK SUMMARY REPORT
+    // =========================================================================
+
+    private val _stockSummary = MutableStateFlow<StockSummaryDto?>(null)
+    val stockSummary: StateFlow<StockSummaryDto?> = _stockSummary.asStateFlow()
+
+    private val _stockSummaryPagingState = MutableStateFlow(PagingUiState<StockSummaryItemDtoReport>())
+    val stockSummaryPagingState: StateFlow<PagingUiState<StockSummaryItemDtoReport>> = _stockSummaryPagingState.asStateFlow()
+
+    private val _stockSummarySearchQuery = MutableStateFlow("")
+    val stockSummarySearchQuery: StateFlow<String> = _stockSummarySearchQuery.asStateFlow()
+
+    private val _stockSummaryStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _stockSummaryTypeFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredStockSummaryList: StateFlow<List<StockSummaryItemDtoReport>> = combine(
+        _stockSummaryPagingState,
+        _stockSummarySearchQuery,
+        _stockSummaryStatusFilter,
+        _stockSummaryTypeFilter
+    ) { paging, query, statuses, types ->
+        val cleanQuery = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.name.lowercase().contains(cleanQuery) ||
+                    item.sku.lowercase().contains(cleanQuery) ||
+                    item.barcode.lowercase().contains(cleanQuery) ||
+                    item.category.lowercase().contains(cleanQuery)
+
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(item.statusBadge, ignoreCase = true) }
+            val matchesType = types.isEmpty() || types.any { it.equals(item.isFabric.toString(), ignoreCase = true) }
+
+            matchesQuery && matchesStatus && matchesType
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadStockSummaryReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeInventoryPagedFetch<StockSummaryReportResponse, StockSummaryItemDtoReport>(
+            reportKey = "stock_summary",
+            url = INVENTORY_STOCK_SUMMARY_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _stockSummaryPagingState,
+            itemId = { it.id },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _stockSummary.value = s } }
+        )
+    }
+
+    fun onStockSummarySearchQueryChange(query: String) {
+        _stockSummarySearchQuery.value = query
+    }
+
+    fun applyStockSummaryFilters(statuses: Set<String>, types: Set<String>) {
+        _stockSummaryStatusFilter.value = statuses
+        _stockSummaryTypeFilter.value = types
+    }
+
+    fun clearStockSummaryFilters() {
+        _stockSummarySearchQuery.value = ""
+        _stockSummaryStatusFilter.value = emptySet()
+        _stockSummaryTypeFilter.value = emptySet()
+    }
+
+    // =========================================================================
+    // 2. LOW STOCK & REORDER ACTION REPORT
+    // =========================================================================
+
+    private val _lowStockSummary = MutableStateFlow<LowStockReorderSummaryDto?>(null)
+    val lowStockSummary: StateFlow<LowStockReorderSummaryDto?> = _lowStockSummary.asStateFlow()
+
+    private val _lowStockPagingState = MutableStateFlow(PagingUiState<LowStockReorderItemDto>())
+    val lowStockPagingState: StateFlow<PagingUiState<LowStockReorderItemDto>> = _lowStockPagingState.asStateFlow()
+
+    private val _lowStockSearchQuery = MutableStateFlow("")
+    val lowStockSearchQuery: StateFlow<String> = _lowStockSearchQuery.asStateFlow()
+
+    private val _lowStockStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredLowStockList: StateFlow<List<LowStockReorderItemDto>> = combine(
+        _lowStockPagingState,
+        _lowStockSearchQuery,
+        _lowStockStatusFilter
+    ) { paging, query, statuses ->
+        val cleanQuery = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.name.lowercase().contains(cleanQuery) ||
+                    item.sku.lowercase().contains(cleanQuery) ||
+                    item.preferredSupplier.lowercase().contains(cleanQuery)
+
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(item.statusBadge, ignoreCase = true) }
+
+            matchesQuery && matchesStatus
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadLowStockReorderReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeInventoryPagedFetch<LowStockReorderReportResponse, LowStockReorderItemDto>(
+            reportKey = "low_stock_reorder",
+            url = INVENTORY_LOW_STOCK_REORDER_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _lowStockPagingState,
+            itemId = { it.id },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _lowStockSummary.value = s } }
+        )
+    }
+
+    fun onLowStockSearchQueryChange(query: String) {
+        _lowStockSearchQuery.value = query
+    }
+
+    fun applyLowStockFilters(statuses: Set<String>) {
+        _lowStockStatusFilter.value = statuses
+    }
+
+    fun clearLowStockFilters() {
+        _lowStockSearchQuery.value = ""
+        _lowStockStatusFilter.value = emptySet()
+    }
+
+    // =========================================================================
+    // 3. STOCK MOVEMENT REPORT
+    // =========================================================================
+
+    private val _stockMovementSummary = MutableStateFlow<StockMovementSummaryDto?>(null)
+    val stockMovementSummary: StateFlow<StockMovementSummaryDto?> = _stockMovementSummary.asStateFlow()
+
+    private val _stockMovementPagingState = MutableStateFlow(PagingUiState<StockMovementItemDto>())
+    val stockMovementPagingState: StateFlow<PagingUiState<StockMovementItemDto>> = _stockMovementPagingState.asStateFlow()
+
+    private val _stockMovementSearchQuery = MutableStateFlow("")
+    val stockMovementSearchQuery: StateFlow<String> = _stockMovementSearchQuery.asStateFlow()
+
+    private val _stockMovementTypeFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _stockMovementDirectionFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredStockMovementList: StateFlow<List<StockMovementItemDto>> = combine(
+        _stockMovementPagingState,
+        _stockMovementSearchQuery,
+        _stockMovementTypeFilter,
+        _stockMovementDirectionFilter
+    ) { paging, query, movementTypes, directions ->
+        val cleanQuery = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.itemName.lowercase().contains(cleanQuery) ||
+                    item.sku.lowercase().contains(cleanQuery) ||
+                    item.warehouse.lowercase().contains(cleanQuery) ||
+                    item.bin.lowercase().contains(cleanQuery) ||
+                    item.handledBy.lowercase().contains(cleanQuery) ||
+                    item.reason.lowercase().contains(cleanQuery)
+
+            val matchesType = movementTypes.isEmpty() || movementTypes.any { it.equals(item.movementType, ignoreCase = true) }
+            val matchesDirection = directions.isEmpty() ||
+                    (directions.contains("inward") && item.isPositive) ||
+                    (directions.contains("outward") && !item.isPositive)
+
+            matchesQuery && matchesType && matchesDirection
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadStockMovementReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeInventoryPagedFetch<StockMovementReportResponse, StockMovementItemDto>(
+            reportKey = "stock_movement",
+            url = INVENTORY_STOCK_MOVEMENT_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _stockMovementPagingState,
+            itemId = { it.id },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _stockMovementSummary.value = s } }
+        )
+    }
+
+    fun onStockMovementSearchQueryChange(query: String) {
+        _stockMovementSearchQuery.value = query
+    }
+
+    fun applyStockMovementFilters(movementTypes: Set<String>, directions: Set<String>) {
+        _stockMovementTypeFilter.value = movementTypes
+        _stockMovementDirectionFilter.value = directions
+    }
+
+    fun clearStockMovementFilters() {
+        _stockMovementSearchQuery.value = ""
+        _stockMovementTypeFilter.value = emptySet()
+        _stockMovementDirectionFilter.value = emptySet()
+    }
+
+    // =========================================================================
+    // 4. MATERIAL CONSUMPTION REPORT
+    // =========================================================================
+
+    private val _materialConsumptionSummary = MutableStateFlow<MaterialConsumptionSummaryDto?>(null)
+    val materialConsumptionSummary: StateFlow<MaterialConsumptionSummaryDto?> = _materialConsumptionSummary.asStateFlow()
+
+    private val _materialConsumptionPagingState = MutableStateFlow(PagingUiState<MaterialConsumptionItemDto>())
+    val materialConsumptionPagingState: StateFlow<PagingUiState<MaterialConsumptionItemDto>> = _materialConsumptionPagingState.asStateFlow()
+
+    private val _materialConsumptionSearchQuery = MutableStateFlow("")
+    val materialConsumptionSearchQuery: StateFlow<String> = _materialConsumptionSearchQuery.asStateFlow()
+
+    private val _materialConsumptionStreamFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredMaterialConsumptionList: StateFlow<List<MaterialConsumptionItemDto>> = combine(
+        _materialConsumptionPagingState,
+        _materialConsumptionSearchQuery,
+        _materialConsumptionStreamFilter
+    ) { paging, query, streams ->
+        val cleanQuery = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.itemName.lowercase().contains(cleanQuery) ||
+                    item.sku.lowercase().contains(cleanQuery) ||
+                    item.warehouse.lowercase().contains(cleanQuery) ||
+                    item.handledBy.lowercase().contains(cleanQuery) ||
+                    item.materialClassification.lowercase().contains(cleanQuery)
+
+            val matchesStream = streams.isEmpty() || streams.any { it.equals(item.usageStream, ignoreCase = true) }
+
+            matchesQuery && matchesStream
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadMaterialConsumptionReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeInventoryPagedFetch<MaterialConsumptionReportResponse, MaterialConsumptionItemDto>(
+            reportKey = "material_consumption",
+            url = INVENTORY_MATERIAL_CONSUMPTION_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _materialConsumptionPagingState,
+            itemId = { it.id },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _materialConsumptionSummary.value = s } }
+        )
+    }
+
+    fun onMaterialConsumptionSearchQueryChange(query: String) {
+        _materialConsumptionSearchQuery.value = query
+    }
+
+    fun applyMaterialConsumptionFilters(streams: Set<String>) {
+        _materialConsumptionStreamFilter.value = streams
+    }
+
+    fun clearMaterialConsumptionFilters() {
+        _materialConsumptionSearchQuery.value = ""
+        _materialConsumptionStreamFilter.value = emptySet()
+    }
+
+    // =========================================================================
+    // 5. INVENTORY VALUATION REPORT
+    // =========================================================================
+
+    private val _inventoryValuationSummary = MutableStateFlow<InventoryValuationSummaryDto?>(null)
+    val inventoryValuationSummary: StateFlow<InventoryValuationSummaryDto?> = _inventoryValuationSummary.asStateFlow()
+
+    private val _inventoryValuationPagingState = MutableStateFlow(PagingUiState<InventoryValuationItemDto>())
+    val inventoryValuationPagingState: StateFlow<PagingUiState<InventoryValuationItemDto>> = _inventoryValuationPagingState.asStateFlow()
+
+    private val _inventoryValuationSearchQuery = MutableStateFlow("")
+    val inventoryValuationSearchQuery: StateFlow<String> = _inventoryValuationSearchQuery.asStateFlow()
+
+    private val _inventoryValuationMarginFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredInventoryValuationList: StateFlow<List<InventoryValuationItemDto>> = combine(
+        _inventoryValuationPagingState,
+        _inventoryValuationSearchQuery,
+        _inventoryValuationMarginFilter
+    ) { paging, query, marginFilters ->
+        val cleanQuery = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = cleanQuery.isEmpty() ||
+                    item.name.lowercase().contains(cleanQuery) ||
+                    item.sku.lowercase().contains(cleanQuery) ||
+                    item.category.lowercase().contains(cleanQuery)
+
+            val matchesMargin = marginFilters.isEmpty() ||
+                    (marginFilters.contains("positive") && item.potentialProfit > 0.0) ||
+                    (marginFilters.contains("negative") && item.potentialProfit < 0.0) ||
+                    (marginFilters.contains("breakeven") && item.potentialProfit == 0.0)
+
+            matchesQuery && matchesMargin
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadInventoryValuationReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeInventoryPagedFetch<InventoryValuationReportResponse, InventoryValuationItemDto>(
+            reportKey = "inventory_valuation",
+            url = INVENTORY_VALUATION_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _inventoryValuationPagingState,
+            itemId = { it.id },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _inventoryValuationSummary.value = s } }
+        )
+    }
+
+    fun onInventoryValuationSearchQueryChange(query: String) {
+        _inventoryValuationSearchQuery.value = query
+    }
+
+    fun applyInventoryValuationFilters(marginFilters: Set<String>) {
+        _inventoryValuationMarginFilter.value = marginFilters
+    }
+
+    fun clearInventoryValuationFilters() {
+        _inventoryValuationSearchQuery.value = ""
+        _inventoryValuationMarginFilter.value = emptySet()
+    }
+
+    // =========================================================================
+    // 11. LOGISTICS REPORTS (4 ENDPOINTS)
+    // =========================================================================
+
+    // --- 11.1 Delivery Performance Report ---
+    private val _deliveryPerfSummary = MutableStateFlow<DeliveryPerformanceSummaryDto?>(null)
+    val deliveryPerfSummary: StateFlow<DeliveryPerformanceSummaryDto?> = _deliveryPerfSummary.asStateFlow()
+
+    private val _deliveryPerfPaging = MutableStateFlow(PagingUiState<DeliveryPerformanceItemDto>())
+    val deliveryPerfPaging: StateFlow<PagingUiState<DeliveryPerformanceItemDto>> = _deliveryPerfPaging.asStateFlow()
+
+    private val _deliveryPerfSearch = MutableStateFlow("")
+    val deliveryPerfSearch: StateFlow<String> = _deliveryPerfSearch.asStateFlow()
+
+    private val _deliveryPerfStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _deliveryPerfPriorityFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredDeliveryPerfList: StateFlow<List<DeliveryPerformanceItemDto>> = combine(
+        _deliveryPerfPaging,
+        _deliveryPerfSearch,
+        _deliveryPerfStatusFilter,
+        _deliveryPerfPriorityFilter
+    ) { paging, query, statuses, priorities ->
+        val q = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = q.isEmpty() ||
+                    item.deliveryNumber.lowercase().contains(q) ||
+                    item.orderCode.lowercase().contains(q) ||
+                    item.customerName.lowercase().contains(q) ||
+                    item.assignedTo.lowercase().contains(q) ||
+                    item.courierPartner.lowercase().contains(q)
+
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(item.statusBadge, ignoreCase = true) }
+            val matchesPriority = priorities.isEmpty() || priorities.any { it.equals(item.priority, ignoreCase = true) }
+
+            matchesQuery && matchesStatus && matchesPriority
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadDeliveryPerformanceReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeSalesPagedFetch<DeliveryPerformanceReportResponse, DeliveryPerformanceItemDto>(
+            reportKey = "logistics_delivery_perf",
+            url = LOGISTICS_DELIVERY_PERF_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _deliveryPerfPaging,
+            itemId = { it.id },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _deliveryPerfSummary.value = s } }
+        )
+    }
+
+    fun onDeliveryPerfSearchChange(query: String) {
+        _deliveryPerfSearch.value = query
+    }
+
+    fun applyDeliveryPerfFilters(statuses: Set<String>, priorities: Set<String>) {
+        _deliveryPerfStatusFilter.value = statuses
+        _deliveryPerfPriorityFilter.value = priorities
+    }
+
+    fun clearDeliveryPerfFilters() {
+        _deliveryPerfSearch.value = ""
+        _deliveryPerfStatusFilter.value = emptySet()
+        _deliveryPerfPriorityFilter.value = emptySet()
+    }
+
+    // --- 11.2 Shipment & Tracking Report ---
+    private val _shipmentTrackingSummary = MutableStateFlow<ShipmentTrackingSummaryDto?>(null)
+    val shipmentTrackingSummary: StateFlow<ShipmentTrackingSummaryDto?> = _shipmentTrackingSummary.asStateFlow()
+
+    private val _shipmentTrackingPaging = MutableStateFlow(PagingUiState<ShipmentTrackingItemDto>())
+    val shipmentTrackingPaging: StateFlow<PagingUiState<ShipmentTrackingItemDto>> = _shipmentTrackingPaging.asStateFlow()
+
+    private val _shipmentTrackingSearch = MutableStateFlow("")
+    val shipmentTrackingSearch: StateFlow<String> = _shipmentTrackingSearch.asStateFlow()
+
+    private val _shipmentTrackingStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredShipmentTrackingList: StateFlow<List<ShipmentTrackingItemDto>> = combine(
+        _shipmentTrackingPaging,
+        _shipmentTrackingSearch,
+        _shipmentTrackingStatusFilter
+    ) { paging, query, statuses ->
+        val q = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = q.isEmpty() ||
+                    item.shipmentNumber.lowercase().contains(q) ||
+                    item.trackingId.lowercase().contains(q) ||
+                    item.orderCode.lowercase().contains(q) ||
+                    item.recipientName.lowercase().contains(q) ||
+                    item.courierPartner.lowercase().contains(q) ||
+                    item.destination.lowercase().contains(q)
+
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(item.statusBadge, ignoreCase = true) }
+
+            matchesQuery && matchesStatus
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadShipmentTrackingReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeSalesPagedFetch<ShipmentTrackingReportResponse, ShipmentTrackingItemDto>(
+            reportKey = "logistics_shipment_tracking",
+            url = LOGISTICS_SHIPMENT_TRACKING_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _shipmentTrackingPaging,
+            itemId = { it.id },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _shipmentTrackingSummary.value = s } }
+        )
+    }
+
+    fun onShipmentTrackingSearchChange(query: String) {
+        _shipmentTrackingSearch.value = query
+    }
+
+    fun applyShipmentTrackingFilters(statuses: Set<String>) {
+        _shipmentTrackingStatusFilter.value = statuses
+    }
+
+    fun clearShipmentTrackingFilters() {
+        _shipmentTrackingSearch.value = ""
+        _shipmentTrackingStatusFilter.value = emptySet()
+    }
+
+    // --- 11.3 Returns / RTO Report ---
+    private val _returnsRtoSummary = MutableStateFlow<ReturnsRtoSummaryDto?>(null)
+    val returnsRtoSummary: StateFlow<ReturnsRtoSummaryDto?> = _returnsRtoSummary.asStateFlow()
+
+    private val _returnsRtoPaging = MutableStateFlow(PagingUiState<ReturnsRtoItemDto>())
+    val returnsRtoPaging: StateFlow<PagingUiState<ReturnsRtoItemDto>> = _returnsRtoPaging.asStateFlow()
+
+    private val _returnsRtoSearch = MutableStateFlow("")
+    val returnsRtoSearch: StateFlow<String> = _returnsRtoSearch.asStateFlow()
+
+    private val _returnsRtoCategoryFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _returnsRtoStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredReturnsRtoList: StateFlow<List<ReturnsRtoItemDto>> = combine(
+        _returnsRtoPaging,
+        _returnsRtoSearch,
+        _returnsRtoCategoryFilter,
+        _returnsRtoStatusFilter
+    ) { paging, query, categories, statuses ->
+        val q = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = q.isEmpty() ||
+                    item.returnNumber.lowercase().contains(q) ||
+                    item.orderCode.lowercase().contains(q) ||
+                    item.customerName.lowercase().contains(q) ||
+                    item.garmentName.lowercase().contains(q) ||
+                    item.reason.lowercase().contains(q)
+
+            val matchesCategory = categories.isEmpty() || categories.any { it.equals(item.category, ignoreCase = true) }
+            val matchesStatus = statuses.isEmpty() || statuses.any { it.equals(item.statusBadge, ignoreCase = true) }
+
+            matchesQuery && matchesCategory && matchesStatus
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadReturnsRtoReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeSalesPagedFetch<ReturnsRtoReportResponse, ReturnsRtoItemDto>(
+            reportKey = "logistics_returns_rto",
+            url = LOGISTICS_RETURNS_RTO_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _returnsRtoPaging,
+            itemId = { it.id },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _returnsRtoSummary.value = s } }
+        )
+    }
+
+    fun onReturnsRtoSearchChange(query: String) {
+        _returnsRtoSearch.value = query
+    }
+
+    fun applyReturnsRtoFilters(categories: Set<String>, statuses: Set<String>) {
+        _returnsRtoCategoryFilter.value = categories
+        _returnsRtoStatusFilter.value = statuses
+    }
+
+    fun clearReturnsRtoFilters() {
+        _returnsRtoSearch.value = ""
+        _returnsRtoCategoryFilter.value = emptySet()
+        _returnsRtoStatusFilter.value = emptySet()
+    }
+
+    // --- 11.4 COD Reconciliation Report ---
+    private val _codReconSummary = MutableStateFlow<CodReconciliationSummaryDto?>(null)
+    val codReconSummary: StateFlow<CodReconciliationSummaryDto?> = _codReconSummary.asStateFlow()
+
+    private val _codReconPaging = MutableStateFlow(PagingUiState<CodReconciliationItemDto>())
+    val codReconPaging: StateFlow<PagingUiState<CodReconciliationItemDto>> = _codReconPaging.asStateFlow()
+
+    private val _codReconSearch = MutableStateFlow("")
+    val codReconSearch: StateFlow<String> = _codReconSearch.asStateFlow()
+
+    private val _codReconSettlementFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredCodReconList: StateFlow<List<CodReconciliationItemDto>> = combine(
+        _codReconPaging,
+        _codReconSearch,
+        _codReconSettlementFilter
+    ) { paging, query, settlementFilters ->
+        val q = query.trim().lowercase()
+        paging.items.filter { item ->
+            val matchesQuery = q.isEmpty() ||
+                    item.shipmentId.lowercase().contains(q) ||
+                    item.trackingId.lowercase().contains(q) ||
+                    item.orderCode.lowercase().contains(q) ||
+                    item.recipientName.lowercase().contains(q) ||
+                    item.courierPartner.lowercase().contains(q) ||
+                    item.destinationCity.lowercase().contains(q)
+
+            val matchesSettlement = settlementFilters.isEmpty() ||
+                    (settlementFilters.contains("settled") && item.isSettled) ||
+                    (settlementFilters.contains("pending") && !item.isSettled)
+
+            matchesQuery && matchesSettlement
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadCodReconciliationReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeSalesPagedFetch<CodReconciliationReportResponse, CodReconciliationItemDto>(
+            reportKey = "logistics_cod_recon",
+            url = LOGISTICS_COD_RECONCILIATION_URL,
+            isLoadMore = isLoadMore,
+            pagingFlow = _codReconPaging,
+            itemId = { it.id },
+            extractSuccess = { it.success },
+            extractMessage = { it.message },
+            extractData = { it.data },
+            extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _codReconSummary.value = s } }
+        )
+    }
+
+    fun onCodReconSearchChange(query: String) {
+        _codReconSearch.value = query
+    }
+
+    fun applyCodReconFilters(settlementFilters: Set<String>) {
+        _codReconSettlementFilter.value = settlementFilters
+    }
+
+    fun clearCodReconFilters() {
+        _codReconSearch.value = ""
+        _codReconSettlementFilter.value = emptySet()
+    }
+
+    // =========================================================================
+    // 12. SERVICE REPORTS (3 ENDPOINTS)
+    // =========================================================================
+
+    // --- 12.1 Customer Feedback & NPS ---
+    private val _feedbackNpsSummary = MutableStateFlow<CustomerFeedbackSummaryDto?>(null)
+    val feedbackNpsSummary: StateFlow<CustomerFeedbackSummaryDto?> = _feedbackNpsSummary.asStateFlow()
+    private val _feedbackNpsPaging = MutableStateFlow(PagingUiState<CustomerFeedbackReportItemDto>())
+    val feedbackNpsPaging: StateFlow<PagingUiState<CustomerFeedbackReportItemDto>> = _feedbackNpsPaging.asStateFlow()
+    private val _feedbackNpsSearch = MutableStateFlow("")
+    val feedbackNpsSearch: StateFlow<String> = _feedbackNpsSearch.asStateFlow()
+    private val _feedbackNpsCategoryFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredFeedbackNpsList: StateFlow<List<CustomerFeedbackReportItemDto>> = combine(
+        _feedbackNpsPaging, _feedbackNpsSearch, _feedbackNpsCategoryFilter
+    ) { paging, query, categories ->
+        val q = query.trim().lowercase()
+        paging.items.filter { item ->
+            (q.isEmpty() || item.reviewCode.lowercase().contains(q) || item.orderCode.lowercase().contains(q) ||
+                    item.customerName.lowercase().contains(q) || item.customerPhone.contains(q)) &&
+                    (categories.isEmpty() || categories.any { it.equals(item.npsCategory, true) })
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadFeedbackNpsReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeSalesPagedFetch<CustomerFeedbackSummaryResponse, CustomerFeedbackReportItemDto>(
+            "svc_feedback_nps", SERVICE_FEEDBACK_NPS_URL, isLoadMore, _feedbackNpsPaging,
+            itemId = { it.id }, extractSuccess = { it.success }, extractMessage = { it.message },
+            extractData = { it.data }, extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _feedbackNpsSummary.value = s } }
+        )
+    }
+    fun onFeedbackNpsSearchChange(q: String) { _feedbackNpsSearch.value = q }
+    fun applyFeedbackNpsFilters(categories: Set<String>) { _feedbackNpsCategoryFilter.value = categories }
+    fun clearFeedbackNpsFilters() { _feedbackNpsSearch.value = ""; _feedbackNpsCategoryFilter.value = emptySet() }
+
+    // --- 12.2 Complaints & Escalation ---
+    private val _complaintsSummary = MutableStateFlow<ComplaintsEscalationSummaryDto?>(null)
+    val complaintsSummary: StateFlow<ComplaintsEscalationSummaryDto?> = _complaintsSummary.asStateFlow()
+    private val _complaintsPaging = MutableStateFlow(PagingUiState<ComplaintEscalationItemDto>())
+    val complaintsPaging: StateFlow<PagingUiState<ComplaintEscalationItemDto>> = _complaintsPaging.asStateFlow()
+    private val _complaintsSearch = MutableStateFlow("")
+    val complaintsSearch: StateFlow<String> = _complaintsSearch.asStateFlow()
+    private val _complaintsSeverityFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _complaintsStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _complaintsBreachedOnly = MutableStateFlow(false)
+
+    val filteredComplaintsList: StateFlow<List<ComplaintEscalationItemDto>> = combine(
+        _complaintsPaging, _complaintsSearch, _complaintsSeverityFilter, _complaintsStatusFilter, _complaintsBreachedOnly
+    ) { paging, query, severities, statuses, breachedOnly ->
+        val q = query.trim().lowercase()
+        paging.items.filter { item ->
+            (q.isEmpty() || item.complaintCode.lowercase().contains(q) || item.orderCode.lowercase().contains(q) ||
+                    item.customerName.lowercase().contains(q) || item.assignedTo.lowercase().contains(q)) &&
+                    (severities.isEmpty() || severities.any { it.equals(item.severity, true) }) &&
+                    (statuses.isEmpty() || statuses.any { it.equals(item.status, true) }) &&
+                    (!breachedOnly || item.isSlaBreached)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadComplaintsReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeSalesPagedFetch<ComplaintsEscalationResponse, ComplaintEscalationItemDto>(
+            "svc_complaints", SERVICE_COMPLAINTS_URL, isLoadMore, _complaintsPaging,
+            itemId = { it.id }, extractSuccess = { it.success }, extractMessage = { it.message },
+            extractData = { it.data }, extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _complaintsSummary.value = s } }
+        )
+    }
+    fun onComplaintsSearchChange(q: String) { _complaintsSearch.value = q }
+    fun applyComplaintsFilters(severities: Set<String>, statuses: Set<String>, breachedOnly: Boolean) {
+        _complaintsSeverityFilter.value = severities
+        _complaintsStatusFilter.value = statuses
+        _complaintsBreachedOnly.value = breachedOnly
+    }
+    fun clearComplaintsFilters() {
+        _complaintsSearch.value = ""
+        _complaintsSeverityFilter.value = emptySet()
+        _complaintsStatusFilter.value = emptySet()
+        _complaintsBreachedOnly.value = false
+    }
+
+    // --- 12.3 Service Performance & SLA ---
+    private val _serviceSlaSummary = MutableStateFlow<ServicePerformanceSlaSummaryDto?>(null)
+    val serviceSlaSummary: StateFlow<ServicePerformanceSlaSummaryDto?> = _serviceSlaSummary.asStateFlow()
+    private val _serviceSlaPaging = MutableStateFlow(PagingUiState<ServicePerformanceSlaItemDto>())
+    val serviceSlaPaging: StateFlow<PagingUiState<ServicePerformanceSlaItemDto>> = _serviceSlaPaging.asStateFlow()
+    private val _serviceSlaSearch = MutableStateFlow("")
+    val serviceSlaSearch: StateFlow<String> = _serviceSlaSearch.asStateFlow()
+    private val _serviceSlaStatusFilter = MutableStateFlow<Set<String>>(emptySet())
+    private val _serviceSlaTypeFilter = MutableStateFlow<Set<String>>(emptySet())
+
+    val filteredServiceSlaList: StateFlow<List<ServicePerformanceSlaItemDto>> = combine(
+        _serviceSlaPaging, _serviceSlaSearch, _serviceSlaStatusFilter, _serviceSlaTypeFilter
+    ) { paging, query, slaStatuses, orderTypes ->
+        val q = query.trim().lowercase()
+        paging.items.filter { item ->
+            (q.isEmpty() || item.orderCode.lowercase().contains(q) || item.customerName.lowercase().contains(q) ||
+                    item.customerPhone.contains(q)) &&
+                    (slaStatuses.isEmpty() || slaStatuses.any { it.equals(item.slaStatus, true) }) &&
+                    (orderTypes.isEmpty() || orderTypes.any { it.equals(item.orderType, true) })
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun loadServiceSlaReport(isLoadMore: Boolean = false) = viewModelScope.launch {
+        executeSalesPagedFetch<ServicePerformanceSlaResponse, ServicePerformanceSlaItemDto>(
+            "svc_sla", SERVICE_PERFORMANCE_SLA_URL, isLoadMore, _serviceSlaPaging,
+            itemId = { it.orderId }, extractSuccess = { it.success }, extractMessage = { it.message },
+            extractData = { it.data }, extractPagination = { it.pagination },
+            onSummaryUpdate = { it.summary?.let { s -> _serviceSlaSummary.value = s } }
+        )
+    }
+    fun onServiceSlaSearchChange(q: String) { _serviceSlaSearch.value = q }
+    fun applyServiceSlaFilters(slaStatuses: Set<String>, orderTypes: Set<String>) {
+        _serviceSlaStatusFilter.value = slaStatuses
+        _serviceSlaTypeFilter.value = orderTypes
+    }
+    fun clearServiceSlaFilters() {
+        _serviceSlaSearch.value = ""
+        _serviceSlaStatusFilter.value = emptySet()
+        _serviceSlaTypeFilter.value = emptySet()
+    }
+
 }

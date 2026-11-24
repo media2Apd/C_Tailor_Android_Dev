@@ -2,16 +2,19 @@
 
 package com.cuso.tailor.view.home.logistics.courier_partners
 
-import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,8 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
@@ -50,8 +51,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.logistics.CourierActivityTimelineDto
 import com.cuso.tailor.model.logistics.CourierPartnerDetailData
 import com.cuso.tailor.ui.theme.BorderGray
 import com.cuso.tailor.ui.theme.PanelBg
@@ -76,6 +76,7 @@ import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.LogisticsViewModel
 
@@ -87,7 +88,6 @@ fun CourierPartnerOverviewScreen(
     onEditCourierClick: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    val context = LocalContext.current
 
     val detail by viewModel.selectedCourierPartnerDetail.collectAsState()
     val isLoading by viewModel.isLoadingCourierPartnerDetail.collectAsState()
@@ -96,12 +96,14 @@ fun CourierPartnerOverviewScreen(
 
     var showToggleConfirmDialog by remember { mutableStateOf(false) }
 
+    // Fetch courier partner details from the API
     LaunchedEffect(courierId) {
         viewModel.fetchCourierPartnerDetail(courierId)
     }
 
     Scaffold(
         containerColor = Primary_background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TitleBar(
                 title = "Courier Partner Overview",
@@ -150,11 +152,11 @@ fun CourierPartnerOverviewScreen(
                         .padding(paddingValues),
                     contentPadding = PaddingValues(
                         horizontal = tokens.screenPadding,
-                        vertical = 12.dp
+                        vertical = tokens.extraPadding
                     ),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                 ) {
-                    // Top Overview Card (Name, Status, Edit, Enable/Disable)
+                    // Top Overview Card
                     item {
                         CourierTopHeaderCard(
                             data = data,
@@ -176,26 +178,40 @@ fun CourierPartnerOverviewScreen(
 
                     // Serviceability Card
                     item {
-                        ServiceabilityCard(data = data)
+                        ServiceabilityCard(
+                            data = data,
+                            onModifyZonesClick = onEditCourierClick
+                        )
+                    }
+
+                    // Notes Card (shown only when notes exist in the API response)
+                    if (data.notes.isNotBlank()) {
+                        item {
+                            NotesCard(notes = data.notes)
+                        }
                     }
 
                     // Activity Timeline Card
                     item {
                         ActivityTimelineCard(
                             data = data,
-                            formatDateHelper = { iso -> viewModel.formatDateTimeToHuman(iso) }
+                            formatDateTimeHelper = { iso ->
+                                val datePart = viewModel.formatCourierDate(iso)
+                                val timePart = viewModel.formatDateTimeToHuman(iso)
+                                if (datePart == "--") "--" else "$datePart, $timePart"
+                            }
                         )
                     }
 
                     item {
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(tokens.screenPadding))
                     }
                 }
             }
         }
     }
 
-    // Modal Confirmation Dialog: Enable / Disable Courier matching React code
+    // Confirmation dialog for enabling or disabling the courier partner
     if (showToggleConfirmDialog && detail != null) {
         val courier = detail!!
         EnableDisableCourierDialog(
@@ -205,7 +221,7 @@ fun CourierPartnerOverviewScreen(
             onDismiss = { showToggleConfirmDialog = false },
             onConfirm = { nextStatus ->
                 viewModel.toggleCourierPartnerStatus(courierId, nextStatus) { message ->
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                    DynamicIslandManager.showSuccess(message)
                     showToggleConfirmDialog = false
                 }
             }
@@ -227,7 +243,7 @@ private fun CardSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(tokens.cardCornerRadius),
         color = whiteBg,
-        border = androidx.compose.foundation.BorderStroke(1.dp, sectionBorder)
+        border = BorderStroke(1.dp, sectionBorder)
     ) {
         Column(
             modifier = Modifier
@@ -240,7 +256,7 @@ private fun CardSurface(
 }
 
 /**
- * Top Header Card with Courier Name, Status Badge, and Action Buttons.
+ * Top Header Card displaying Courier Name, Status Badge, Created Date, and Action Buttons.
  */
 @Composable
 private fun CourierTopHeaderCard(
@@ -253,8 +269,7 @@ private fun CourierTopHeaderCard(
     val isActive = data.status.equals("Active", ignoreCase = true)
 
     val formattedCreatedDate = remember(data.createdAt) {
-        if (!data.createdAt.isNullOrBlank()) formatDateHelper(data.createdAt)
-        else "12 Jan 2024"
+        if (!data.createdAt.isNullOrBlank()) formatDateHelper(data.createdAt) else "--"
     }
 
     CardSurface {
@@ -264,21 +279,26 @@ private fun CourierTopHeaderCard(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = data.courierName,
+                text = data.courierName.ifBlank { "--" },
                 fontSize = tokens.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                color = title_color
+                color = title_color,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+
+            Spacer(modifier = Modifier.width(tokens.extraPadding * 0.8f))
 
             // Status Badge Pill
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius))
                     .background(if (isActive) greenBg else redBg)
-                    .padding(horizontal = 10.dp, vertical = 2.dp)
+                    .padding(horizontal = tokens.extraPadding, vertical = tokens.extraPadding * 0.2f)
             ) {
                 Text(
-                    text = if (isActive) "Active" else "Inactive",
+                    text = data.status.ifBlank { "--" },
                     fontSize = tokens.label,
                     fontWeight = FontWeight.Medium,
                     color = if (isActive) greentext else redText
@@ -286,12 +306,12 @@ private fun CourierTopHeaderCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(tokens.extraPadding * 0.6f))
 
         // Created Date Row
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
         ) {
             Icon(
                 imageVector = Icons.Default.CalendarMonth,
@@ -307,25 +327,25 @@ private fun CourierTopHeaderCard(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(tokens.screenPadding))
 
-        // Action Buttons Row: Edit Courier & Enable / Disable
+        // Action Buttons Row
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedButton(
                 onClick = onEditClick,
-                shape = RoundedCornerShape(8.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderGray),
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                border = BorderStroke(1.dp, BorderGray),
                 modifier = Modifier
                     .weight(1f)
                     .height(tokens.buttonHeight * 0.95f)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
@@ -345,80 +365,42 @@ private fun CourierTopHeaderCard(
             Button(
                 onClick = onToggleStatusClick,
                 colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
                 modifier = Modifier
                     .weight(1f)
                     .height(tokens.buttonHeight * 0.95f)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "Enable/Disable",
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = whiteBg
-                    )
-                }
+                Text(
+                    text = if (isActive) "Disable" else "Enable",
+                    fontSize = tokens.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = whiteBg
+                )
             }
         }
     }
 }
 
 /**
- * Reliability Score Card.
+ * Reliability Score Card backed by API data.
  */
 @Composable
 private fun ReliabilityScoreCard(data: CourierPartnerDetailData) {
     val tokens = LocalAppTokens.current
 
     CardSurface {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "Reliability Score",
-                fontSize = tokens.caption,
-                fontWeight = FontWeight.Normal,
-                color = headerGrey
-            )
+        Text(
+            text = "Reliability Score",
+            fontSize = tokens.caption,
+            fontWeight = FontWeight.Normal,
+            color = headerGrey
+        )
 
-            // Trend Pill
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(greenBg)
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                        contentDescription = null,
-                        tint = greentext,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Text(
-                        text = "+2.4%",
-                        fontSize = tokens.label,
-                        fontWeight = FontWeight.Medium,
-                        color = greentext
-                    )
-                }
-            }
-        }
+        Spacer(modifier = Modifier.height(tokens.extraPadding))
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Score Display
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
         ) {
             Text(
                 text = "${data.reliabilityScore}%",
@@ -430,23 +412,14 @@ private fun ReliabilityScoreCard(data: CourierPartnerDetailData) {
                 imageVector = Icons.Default.NorthEast,
                 contentDescription = null,
                 tint = Primary,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(tokens.iconSize * 0.9f)
             )
         }
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = "Top tier delivery accuracy maintained over the last 30 days.",
-            fontSize = tokens.caption,
-            fontWeight = FontWeight.Normal,
-            color = mutedText
-        )
     }
 }
 
 /**
- * Basic Information Card with Status and Service Types.
+ * Basic Information Card displaying partner metadata and API service types.
  */
 @Composable
 private fun BasicInformationCard(data: CourierPartnerDetailData) {
@@ -473,47 +446,26 @@ private fun BasicInformationCard(data: CourierPartnerDetailData) {
             )
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(tokens.extraPadding * 1.2f))
 
         // Courier Name and Current Status
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
         ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(PanelBg)
-                    .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
-            ) {
-                Column {
-                    Text(
-                        text = "Courier Name",
-                        fontSize = tokens.caption,
-                        fontWeight = FontWeight.Normal,
-                        color = headerGrey
-                    )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        text = data.courierName,
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = title_color,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+            InfoTile(
+                label = "Courier Name",
+                value = data.courierName.ifBlank { "--" },
+                modifier = Modifier.weight(1f)
+            )
 
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                     .background(PanelBg)
-                    .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .border(1.dp, sectionBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+                    .padding(horizontal = tokens.extraPadding, vertical = tokens.extraPadding)
             ) {
                 Column {
                     Text(
@@ -522,19 +474,19 @@ private fun BasicInformationCard(data: CourierPartnerDetailData) {
                         fontWeight = FontWeight.Normal,
                         color = headerGrey
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(tokens.extraPadding * 0.3f))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.4f)
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
                             tint = if (data.status.equals("Active", ignoreCase = true)) greentext else redText,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(tokens.iconSize * 0.8f)
                         )
                         Text(
-                            text = if (data.status.equals("Active", ignoreCase = true)) "Operational" else "Inactive",
+                            text = data.status.ifBlank { "--" },
                             fontSize = tokens.bodySmall,
                             fontWeight = FontWeight.Medium,
                             color = title_color
@@ -544,7 +496,35 @@ private fun BasicInformationCard(data: CourierPartnerDetailData) {
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Integration Type and Shiprocket Courier ID from API
+        if (!data.integrationType.isNullOrBlank() || data.shiprocketCourierId != null) {
+            Spacer(modifier = Modifier.height(tokens.extraPadding))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+            ) {
+                InfoTile(
+                    label = "Integration Type",
+                    value = data.integrationType?.ifBlank { "--" } ?: "--",
+                    modifier = Modifier.weight(1f)
+                )
+                if (data.shiprocketCourierId != null) {
+                    InfoTile(
+                        label = "Shiprocket ID",
+                        value = data.shiprocketCourierId.toString(),
+                        modifier = Modifier.weight(1f)
+                    )
+                } else if (data.transportMode.isNotBlank()) {
+                    InfoTile(
+                        label = "Transport Mode",
+                        value = data.transportMode,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(tokens.screenPadding))
 
         Text(
             text = "Service Types",
@@ -553,83 +533,121 @@ private fun BasicInformationCard(data: CourierPartnerDetailData) {
             color = headerGrey
         )
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(tokens.extraPadding))
 
-        ServiceTypeCard(
-            title = if (data.serviceTypes.isNotEmpty()) data.serviceTypes[0] + " Delivery" else "Express Delivery",
-            subtitle = "24–48 Hour Turnaround",
-            icon = Icons.Default.ElectricBolt
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        ServiceTypeCard(
-            title = if (data.serviceTypes.size > 1) data.serviceTypes[1] + " Delivery" else "Standard Delivery",
-            subtitle = "3–5 Business Days",
-            icon = Icons.Default.AccessTime
-        )
+        if (data.serviceTypes.isEmpty()) {
+            Text(
+                text = "No service types configured",
+                fontSize = tokens.caption,
+                color = mutedText
+            )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f)) {
+                data.serviceTypes.forEach { service ->
+                    ServiceTypeCard(title = service)
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun ServiceTypeCard(
-    title: String,
-    subtitle: String,
-    icon: ImageVector
+private fun InfoTile(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
 ) {
+    val tokens = LocalAppTokens.current
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+            .background(PanelBg)
+            .border(1.dp, sectionBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+            .padding(horizontal = tokens.extraPadding, vertical = tokens.extraPadding)
+    ) {
+        Column {
+            Text(
+                text = label,
+                fontSize = tokens.caption,
+                fontWeight = FontWeight.Normal,
+                color = headerGrey
+            )
+            Spacer(modifier = Modifier.height(tokens.extraPadding * 0.3f))
+            Text(
+                text = value,
+                fontSize = tokens.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = title_color,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun ServiceTypeCard(title: String) {
     val tokens = LocalAppTokens.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
             .background(PanelBg)
-            .border(1.dp, sectionBorder, RoundedCornerShape(10.dp))
-            .padding(12.dp)
+            .border(1.dp, sectionBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
+            .padding(tokens.extraPadding * 1.2f)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
         ) {
             Box(
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(tokens.iconSize * 1.8f)
+                    .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                     .background(light_blue),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = icon,
+                    imageVector = Icons.Default.ElectricBolt,
                     contentDescription = null,
                     tint = Primary,
                     modifier = Modifier.size(tokens.iconSize)
                 )
             }
 
-            Column {
-                Text(
-                    text = title,
-                    fontSize = tokens.bodySmall,
-                    fontWeight = FontWeight.Medium,
-                    color = title_color
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    fontSize = tokens.caption,
-                    fontWeight = FontWeight.Normal,
-                    color = headerGrey
-                )
-            }
+            Text(
+                text = title,
+                fontSize = tokens.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = title_color
+            )
         }
     }
 }
 
 /**
- * Serviceability Card.
+ * Serviceability Card backed completely by data.serviceability from the API.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ServiceabilityCard(data: CourierPartnerDetailData) {
+private fun ServiceabilityCard(
+    data: CourierPartnerDetailData,
+    onModifyZonesClick: () -> Unit
+) {
     val tokens = LocalAppTokens.current
+    val serviceability = data.serviceability
+    val coverageType = serviceability?.coverageType?.uppercase().orEmpty()
+    val coveredCountries = serviceability?.coveredCountries.orEmpty()
+    val coveredPostalCodes = serviceability?.coveredPostalCodes.orEmpty()
+    val primaryHubs = serviceability?.primaryHubs.orEmpty()
+
+    val (coverageTitle, coverageDesc) = when (coverageType) {
+        "GLOBAL" -> "Global Coverage" to "Delivers worldwide to the listed countries."
+        "DOMESTIC" -> "All India Coverage" to "Delivers across all serviceable locations in India."
+        "REGIONAL" -> "Regional Coverage" to "Delivers to the listed countries."
+        "SELECTED_POSTAL_CODES" -> "Selected Pincodes" to "Delivers only to the listed postal codes."
+        else -> (serviceability?.coverageType?.ifBlank { "--" } ?: "--") to ""
+    }
 
     CardSurface {
         Row(
@@ -646,14 +664,14 @@ private fun ServiceabilityCard(data: CourierPartnerDetailData) {
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.clickable { /* Modify zones action */ }
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.4f),
+                modifier = Modifier.clickable { onModifyZonesClick() }
             ) {
                 Icon(
                     imageVector = Icons.Default.Edit,
                     contentDescription = null,
                     tint = Primary,
-                    modifier = Modifier.size(13.dp)
+                    modifier = Modifier.size(tokens.iconSize * 0.75f)
                 )
                 Text(
                     text = "Modify Zones",
@@ -664,24 +682,24 @@ private fun ServiceabilityCard(data: CourierPartnerDetailData) {
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(tokens.extraPadding * 1.2f))
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
+                .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
                 .background(PanelBg)
-                .border(1.dp, sectionBorder, RoundedCornerShape(10.dp))
-                .padding(12.dp)
+                .border(1.dp, sectionBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.65f))
+                .padding(tokens.extraPadding * 1.2f)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .size(tokens.iconSize * 1.8f)
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
                         .background(light_blue),
                     contentAlignment = Alignment.Center
                 ) {
@@ -695,23 +713,65 @@ private fun ServiceabilityCard(data: CourierPartnerDetailData) {
 
                 Column {
                     Text(
-                        text = "All India Coverage",
+                        text = coverageTitle,
                         fontSize = tokens.bodySmall,
                         fontWeight = FontWeight.Medium,
                         color = title_color
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Service available across all major states and Union Territories.",
-                        fontSize = tokens.caption,
-                        fontWeight = FontWeight.Normal,
-                        color = headerGrey
-                    )
+                    if (coverageDesc.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(tokens.extraPadding * 0.2f))
+                        Text(
+                            text = coverageDesc,
+                            fontSize = tokens.caption,
+                            fontWeight = FontWeight.Normal,
+                            color = headerGrey
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        // Covered Countries from API
+        if (coveredCountries.isNotEmpty() && coverageType != "SELECTED_POSTAL_CODES") {
+            Spacer(modifier = Modifier.height(tokens.screenPadding))
+            Text(
+                text = "Covered Countries",
+                fontSize = tokens.caption,
+                fontWeight = FontWeight.Normal,
+                color = headerGrey
+            )
+            Spacer(modifier = Modifier.height(tokens.extraPadding * 0.8f))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f),
+                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
+            ) {
+                coveredCountries.forEach { country ->
+                    HubChip(label = country)
+                }
+            }
+        }
+
+        // Covered Postal Codes from API
+        if (coveredPostalCodes.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(tokens.screenPadding))
+            Text(
+                text = "Covered Postal Codes",
+                fontSize = tokens.caption,
+                fontWeight = FontWeight.Normal,
+                color = headerGrey
+            )
+            Spacer(modifier = Modifier.height(tokens.extraPadding * 0.8f))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f),
+                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
+            ) {
+                coveredPostalCodes.forEach { postalCode ->
+                    HubChip(label = postalCode)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(tokens.screenPadding))
 
         Text(
             text = "Primary Hubs",
@@ -720,40 +780,23 @@ private fun ServiceabilityCard(data: CourierPartnerDetailData) {
             color = headerGrey
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(tokens.extraPadding * 0.8f))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            HubChip(label = "110001 (Delhi)")
-            HubChip(label = "400001 (Mumbai)")
-        }
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            HubChip(label = "560001 (Bengaluru)")
-            HubChip(label = "600001 (Chennai)")
-        }
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(light_blue)
-                .padding(horizontal = 10.dp, vertical = 4.dp)
-        ) {
+        if (primaryHubs.isEmpty()) {
             Text(
-                text = "+ 42 more",
+                text = "No primary hubs configured",
                 fontSize = tokens.caption,
-                fontWeight = FontWeight.Medium,
-                color = Primary
+                color = mutedText
             )
+        } else {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.8f),
+                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
+            ) {
+                primaryHubs.forEach { hub ->
+                    HubChip(label = hub)
+                }
+            }
         }
     }
 }
@@ -763,10 +806,10 @@ private fun HubChip(label: String) {
     val tokens = LocalAppTokens.current
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
             .background(PanelBg)
-            .border(1.dp, sectionBorder, RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .border(1.dp, sectionBorder, RoundedCornerShape(tokens.cardCornerRadius * 0.5f))
+            .padding(horizontal = tokens.extraPadding, vertical = tokens.extraPadding * 0.5f)
     ) {
         Text(
             text = label,
@@ -778,23 +821,64 @@ private fun HubChip(label: String) {
 }
 
 /**
- * Activity Timeline Card.
+ * Notes Card displaying internal remarks from API.
+ */
+@Composable
+private fun NotesCard(notes: String) {
+    val tokens = LocalAppTokens.current
+    CardSurface {
+        Text(
+            text = "Notes",
+            fontSize = tokens.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = Primary
+        )
+        Spacer(modifier = Modifier.height(tokens.extraPadding * 0.8f))
+        Text(
+            text = notes,
+            fontSize = tokens.bodySmall,
+            fontWeight = FontWeight.Normal,
+            color = title_color
+        )
+    }
+}
+
+/**
+ * Activity Timeline Card driven by API activityTimeline or createdAt/updatedAt timestamps.
  */
 @Composable
 private fun ActivityTimelineCard(
     data: CourierPartnerDetailData,
-    formatDateHelper: (String) -> String
+    formatDateTimeHelper: (String) -> String
 ) {
     val tokens = LocalAppTokens.current
 
-    val lastUpdatedDate = remember(data.updatedAt) {
-        if (!data.updatedAt.isNullOrBlank()) formatDateHelper(data.updatedAt)
-        else "22 May 2024, 14:30 PM"
-    }
-
-    val createdDate = remember(data.createdAt) {
-        if (!data.createdAt.isNullOrBlank()) formatDateHelper(data.createdAt)
-        else "12 Jan 2024, 09:15 AM"
+    // Build timeline entries strictly from API fields
+    val timelineEntries = remember(data) {
+        if (data.activityTimeline.isNotEmpty()) {
+            data.activityTimeline
+        } else {
+            buildList {
+                if (!data.updatedAt.isNullOrBlank()) {
+                    add(
+                        CourierActivityTimelineDto(
+                            title = "Last Updated",
+                            description = "",
+                            timestamp = data.updatedAt
+                        )
+                    )
+                }
+                if (!data.createdAt.isNullOrBlank()) {
+                    add(
+                        CourierActivityTimelineDto(
+                            title = "Created",
+                            description = "",
+                            timestamp = data.createdAt
+                        )
+                    )
+                }
+            }
+        }
     }
 
     CardSurface {
@@ -805,92 +889,78 @@ private fun ActivityTimelineCard(
             color = Primary
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(tokens.screenPadding))
 
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.width(16.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(Primary)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(2.dp)
-                            .height(52.dp)
-                            .background(sectionBorder)
-                    )
-                }
+        if (timelineEntries.isEmpty()) {
+            Text(
+                text = "No activity recorded",
+                fontSize = tokens.caption,
+                color = mutedText
+            )
+        } else {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                timelineEntries.forEachIndexed { index, entry ->
+                    val isFirst = index == 0
+                    val isLast = index == timelineEntries.lastIndex
+                    val formattedTime = if (entry.timestamp.isNotBlank()) {
+                        formatDateTimeHelper(entry.timestamp)
+                    } else {
+                        "--"
+                    }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Last Updated",
-                        fontSize = tokens.caption,
-                        fontWeight = FontWeight.Normal,
-                        color = headerGrey
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = lastUpdatedDate,
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = title_color
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Profile parameters modified by Admin",
-                        fontSize = tokens.caption,
-                        fontWeight = FontWeight.Normal,
-                        color = mutedText
-                    )
-                }
-            }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.width(tokens.iconSize * 0.9f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(tokens.iconSize * 0.65f)
+                                    .clip(CircleShape)
+                                    .background(if (isFirst) Primary else headerGrey)
+                            )
+                            if (!isLast) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(2.dp)
+                                        .height(tokens.buttonHeight * 1.1f)
+                                        .background(sectionBorder)
+                                )
+                            }
+                        }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.width(16.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(headerGrey)
-                    )
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Created Date",
-                        fontSize = tokens.caption,
-                        fontWeight = FontWeight.Normal,
-                        color = headerGrey
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = createdDate,
-                        fontSize = tokens.bodySmall,
-                        fontWeight = FontWeight.Medium,
-                        color = title_color
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Onboarded into Logistics Management",
-                        fontSize = tokens.caption,
-                        fontWeight = FontWeight.Normal,
-                        color = mutedText
-                    )
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(bottom = if (isLast) 0.dp else tokens.extraPadding)
+                        ) {
+                            Text(
+                                text = entry.title.ifBlank { "--" },
+                                fontSize = tokens.caption,
+                                fontWeight = FontWeight.Normal,
+                                color = headerGrey
+                            )
+                            Spacer(modifier = Modifier.height(tokens.extraPadding * 0.2f))
+                            Text(
+                                text = formattedTime,
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = title_color
+                            )
+                            if (entry.description.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(tokens.extraPadding * 0.2f))
+                                Text(
+                                    text = entry.description,
+                                    fontSize = tokens.caption,
+                                    fontWeight = FontWeight.Normal,
+                                    color = mutedText
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -898,7 +968,7 @@ private fun ActivityTimelineCard(
 }
 
 // =============================================================================
-// MODAL DIALOG: ENABLE / DISABLE COURIER (Matching React modal exactly)
+// MODAL DIALOG: ENABLE / DISABLE COURIER
 // =============================================================================
 
 @Composable
@@ -921,19 +991,18 @@ private fun EnableDisableCourierDialog(
                 .fillMaxWidth(if (tokens.isTablet) 0.55f else 0.88f),
             shape = RoundedCornerShape(tokens.cardCornerRadius),
             color = whiteBg,
-            border = androidx.compose.foundation.BorderStroke(1.dp, sectionBorder)
+            border = BorderStroke(1.dp, sectionBorder)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
+                    .padding(tokens.cardPadding),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Top Icon matching React's FileUser in bg-indigo-50
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(14.dp))
+                        .size(tokens.imageDp * 0.9f)
+                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.9f))
                         .background(light_blue),
                     contentAlignment = Alignment.Center
                 ) {
@@ -941,13 +1010,12 @@ private fun EnableDisableCourierDialog(
                         imageVector = Icons.Default.Person,
                         contentDescription = null,
                         tint = Primary,
-                        modifier = Modifier.size(26.dp)
+                        modifier = Modifier.size(tokens.iconSize * 1.4f)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(tokens.screenPadding))
 
-                // Title
                 Text(
                     text = "Enable/Disable Courier",
                     fontSize = tokens.bodyMedium,
@@ -955,9 +1023,8 @@ private fun EnableDisableCourierDialog(
                     color = title_color
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(tokens.extraPadding * 0.8f))
 
-                // Description matching React text: "Are you sure you want to change the status of {name} to {nextStatus}?"
                 Text(
                     text = "Are you sure you want to change the status of $courierName to $nextStatus?",
                     fontSize = tokens.bodySmall,
@@ -966,12 +1033,11 @@ private fun EnableDisableCourierDialog(
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(tokens.cardPadding))
 
-                // Action Buttons: Cancel and Confirm
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Button(
@@ -980,7 +1046,7 @@ private fun EnableDisableCourierDialog(
                             containerColor = light_grey,
                             contentColor = title_color
                         ),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
                         modifier = Modifier
                             .weight(1f)
                             .height(tokens.buttonHeight)
@@ -1000,7 +1066,7 @@ private fun EnableDisableCourierDialog(
                             containerColor = Primary,
                             disabledContainerColor = disabled
                         ),
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
                         modifier = Modifier
                             .weight(1f)
                             .height(tokens.buttonHeight)
@@ -1009,7 +1075,7 @@ private fun EnableDisableCourierDialog(
                             CircularProgressIndicator(
                                 color = whiteBg,
                                 strokeWidth = 2.dp,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(tokens.iconSize)
                             )
                         } else {
                             Text(
@@ -1022,9 +1088,8 @@ private fun EnableDisableCourierDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(tokens.screenPadding))
 
-                // System Audit Subtitle
                 Text(
                     text = "Action will be logged in system audit",
                     fontSize = tokens.caption,

@@ -99,11 +99,12 @@ fun MeasurementsAvailableDialog(
     ) {
         FabScaffold(
             modifier = Modifier.fillMaxSize(),
-            fab = FabConfig(
-                label = "Add New",
-                icon = Icons.Default.Add,
-                onClick = onAddNew
-            )
+//            fab = FabConfig(
+//                label = "Add New",
+//                icon = Icons.Default.Add,
+//                onClick = onAddNew
+//            )
+            fab =null
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 TitleBar(
@@ -287,11 +288,11 @@ fun MeasurementManagementScreen(
             ) {
                 Spacer(Modifier.height(tokens.extraPadding))
 
-                AppUnderlineTabRow(
-                    tabs = tabs,
-                    selectedIndex = selectedTab,
-                    onTabSelected = { selectedTab = it }
-                )
+//                AppUnderlineTabRow(
+//                    tabs = tabs,
+//                    selectedIndex = selectedTab,
+//                    onTabSelected = { selectedTab = it }
+//                )
 
                 Row(
                     modifier = Modifier

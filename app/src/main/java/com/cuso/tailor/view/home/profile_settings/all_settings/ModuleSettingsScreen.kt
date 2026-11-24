@@ -18,25 +18,26 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.R
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
+import com.cuso.tailor.model.permission.PaywallModuleConfig
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.SearchFilterBar
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.NorthEast
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.cuso.tailor.model.permission.PaywallModuleConfig
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.home.paywall.AccessRestrictedDialog
 import com.cuso.tailor.view.home.sales.settings.design.DesignSetupScreen
@@ -129,6 +130,7 @@ fun ModuleSettingsScreen(
             }
         }
     }
+
     // State to toggle the full Design Setup screen overlay
     var isDesignSetupOpen by remember { mutableStateOf(false) }
 
@@ -562,24 +564,44 @@ fun ModuleSettingsScreen(
     }
 }
 
-
 @Composable
 fun ModuleSettingCard(
     module: ModuleSettingItem,
     forceExpand: Boolean = false
 ) {
     val tokens = LocalAppTokens.current
+    // Enable only modules that have dropdown sub-items
+    val isEnabled = module.subItems.isNotEmpty()
     var isExpanded by remember { mutableStateOf(false) }
-    val showExpanded = forceExpand || isExpanded
+    val showExpanded = isEnabled && (forceExpand || isExpanded)
 
-    val statusBg = if (module.isConfigured) greenBg else yellowBg
-    val statusTextColor = if (module.isConfigured) darkGreenBg else yellowText
+    val statusBg = when {
+        !isEnabled -> whiteBg
+        module.isConfigured -> greenBg
+        else -> yellowBg
+    }
+    val statusTextColor = when {
+        !isEnabled -> TextSecondary
+        module.isConfigured -> darkGreenBg
+        else -> yellowText
+    }
+    val statusLabel = when {
+        !isEnabled -> "Disabled"
+        module.isConfigured -> "Configured"
+        else -> "Setup Required"
+    }
 
     Card(
         shape = RoundedCornerShape(tokens.cardCornerRadius),
-        colors = CardDefaults.cardColors(containerColor = whiteBg),
-        border = BorderStroke(1.dp, sectionBorder),
-        modifier = Modifier.fillMaxWidth()
+        colors = CardDefaults.cardColors(
+            containerColor = if (isEnabled) whiteBg else light_grey
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (isEnabled) 1f else 0.55f)
     ) {
         Column(
             modifier = Modifier
@@ -589,12 +611,8 @@ fun ModuleSettingCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
-                        if (module.subItems.isNotEmpty()) {
-                            isExpanded = !isExpanded
-                        } else {
-                            module.onConfigure()
-                        }
+                    .clickable(enabled = isEnabled) {
+                        isExpanded = !isExpanded
                     },
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -626,20 +644,19 @@ fun ModuleSettingCard(
                 Box(
                     modifier = Modifier
                         .background(statusBg, RoundedCornerShape(20.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                        .padding(horizontal = 8.dp, vertical = 0.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (module.isConfigured) "CONFIGURED" else "SETUP REQUIRED",
+                        text = statusLabel,
                         color = statusTextColor,
                         fontSize = tokens.label,
                         fontWeight = FontWeight.Medium
                     )
                 }
 
-                Spacer(Modifier.width(6.dp))
-
-                if (module.subItems.isNotEmpty()) {
+                if (isEnabled) {
+                    Spacer(Modifier.width(6.dp))
                     Icon(
                         imageVector = if (showExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,

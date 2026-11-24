@@ -145,6 +145,8 @@ import com.cuso.tailor.view.home.logistics.delivery_management.delivery.Delivery
 import com.cuso.tailor.view.home.logistics.order_tracking.TrackingOverviewScreen
 import com.cuso.tailor.view.home.opening_balance.OpeningBalancesScreen
 import com.cuso.tailor.view.home.profile_settings.ProfileSettingsScreen
+// Aliased to avoid name clash with the security module HelpCenterScreen
+import com.cuso.tailor.view.home.profile_settings.helpandsupport.HelpCenterScreen as ProfileHelpCenterScreen
 import com.cuso.tailor.view.home.profile_settings.all_settings.ModuleSettingsScreen
 import com.cuso.tailor.view.home.profile_settings.all_settings.OrganizationSettingsScreen
 import com.cuso.tailor.view.home.profile_settings.all_settings.SettingsOverviewScreen
@@ -394,7 +396,14 @@ import com.cuso.tailor.view.home.reports.it.reports.ItServiceDeskReportScreen
 import com.cuso.tailor.view.home.reports.security.reports.AccessActivityReportScreen
 import com.cuso.tailor.view.home.reports.security.reports.ApiIntegrationSecurityReportScreen
 import com.cuso.tailor.view.home.reports.security.reports.SecurityIncidentsReportScreen
-
+import com.cuso.tailor.view.home.reports.finance.reports.*
+import com.cuso.tailor.view.home.reports.inventory.report.InventoryValuationReportScreen
+import com.cuso.tailor.view.home.reports.inventory.report.LowStockReorderReportScreen
+import com.cuso.tailor.view.home.reports.inventory.report.MaterialConsumptionReportScreen
+import com.cuso.tailor.view.home.reports.inventory.report.StockMovementReportScreen
+import com.cuso.tailor.view.home.reports.inventory.report.StockSummaryReportScreen
+import com.cuso.tailor.view.home.reports.logistics.reports.*
+import com.cuso.tailor.view.home.reports.service.reports.*
 private const val TEMP_PAYMENT_TERM_ID = "6ab206c595aeff058133df3d"
 
 data class HomeScreenViewModels(
@@ -721,7 +730,7 @@ fun HomeScreenRouter(
             "home_department_teams", "home_approval_rules", "home_create_approval_rule", "home_designation", "home_role_management", "home_create_role",
             "home_opening_balance", "home_warehouse_management", "profile-settings",
             "settings_overview", "manage_subscription", "module_settings",
-            "organization_settings", "home_business_setup" -> {
+            "organization_settings", "home_business_setup", "profile_help_center" -> {
                 HomeAndSettingsRouter(
                     screen = screen,
                     permissionViewModel = viewModels.permissionViewModel,
@@ -1218,7 +1227,19 @@ fun HomeScreenRouter(
             "reports_sec_incidents_alerts", "reports_sec_access_activity",
             "reports_sec_api_integrations",
             "reports_it_assets", "reports_it_service_desk",
-            "reports_it", "reports_security", "reports_legal" -> {
+            "reports_it", "reports_security", "reports_legal",
+                // Finance
+            "reports_fin_revenue_expense", "reports_fin_receivables_aging", "reports_fin_payables_aging",
+            "reports_fin_gst_summary", "reports_fin_payment_collection", "reports_fin_advance_payment",
+            "reports_fin_payment_mode", "reports_fin_balance_pending", "reports_fin_overdue_payment",
+                // Inventory
+            "reports_inv_stock_summary", "reports_inv_low_stock", "reports_inv_stock_movement",
+            "reports_inv_material_consumption", "reports_inv_valuation",
+                // Logistics
+            "reports_log_delivery_perf", "reports_log_shipment_tracking",
+            "reports_log_returns_rto", "reports_log_cod_recon",
+                // Services
+            "reports_svc_feedback_nps", "reports_svc_complaints", "reports_svc_sla" -> {
                 ReportsRouter(
                     screen = screen,
                     permissionViewModel = viewModels.permissionViewModel,
@@ -1480,7 +1501,8 @@ private fun HomeAndSettingsRouter(
             onReports = { onSafeNavigate("reports_sales") },
             onDepartment = { onSafeNavigate("home_department_teams") },
             onDesignation = { onSafeNavigate("home_designation") },
-            onHelpSupport = { onSafeNavigate("home_warehouse_management") },
+            // Open the profile Help Center screen
+            onHelpSupport = { onSafeNavigate("profile_help_center") },
             onLogout = {
                 settingsViewModel.logout {
                     authViewModel.logout {
@@ -1567,6 +1589,11 @@ private fun HomeAndSettingsRouter(
         "home_business_setup" -> BusinessSetupScreen(
             onClose = onGoBack,
             onSaveAndContinue = { onGoBack() }
+        )
+
+        // Help Center opened from Profile Settings
+        "profile_help_center" -> ProfileHelpCenterScreen(
+            onClose = onGoBack
         )
     }
 }
@@ -7559,20 +7586,106 @@ private fun ReportsRouter(
         }
 
         "reports_finance" -> ReportsGuard("revenueExpenseSummary", PermissionAction.VIEW) {
-            FinanceReportsScreen(onClose = onGoBack, onBreadCrumbClick = { onOpenModulesPanel("Reports") })
+            FinanceReportsScreen(
+                onClose = onGoBack,
+                onBreadCrumbClick = { onOpenModulesPanel("Reports") },
+                onReportClick = { reportItem ->
+                    val id = reportItem.id.lowercase()
+                    val title = reportItem.title.lowercase()
+                    when {
+                        id.contains("revenue") || title.contains("revenue") || title.contains("p&l") -> onSafeNavigate("reports_fin_revenue_expense", PermissionAction.VIEW)
+                        id.contains("receivable") || title.contains("receivable") -> onSafeNavigate("reports_fin_receivables_aging", PermissionAction.VIEW)
+                        id.contains("payable") || title.contains("payable") -> onSafeNavigate("reports_fin_payables_aging", PermissionAction.VIEW)
+                        id.contains("gst") || title.contains("gst") || title.contains("tax") -> onSafeNavigate("reports_fin_gst_summary", PermissionAction.VIEW)
+                        id.contains("advance") || title.contains("advance") -> onSafeNavigate("reports_fin_advance_payment", PermissionAction.VIEW)
+                        id.contains("payment_mode") || id.contains("paymentmode") || title.contains("payment mode") -> onSafeNavigate("reports_fin_payment_mode", PermissionAction.VIEW)
+                        id.contains("collection") || title.contains("collection") -> onSafeNavigate("reports_fin_payment_collection", PermissionAction.VIEW)
+                        id.contains("balance") || title.contains("balance pending") -> onSafeNavigate("reports_fin_balance_pending", PermissionAction.VIEW)
+                        id.contains("overdue") || title.contains("overdue") -> onSafeNavigate("reports_fin_overdue_payment", PermissionAction.VIEW)
+                        else -> onShowComingSoon("Coming Soon, Stay tuned!")
+                    }
+                }
+            )
         }
+
+        "reports_fin_revenue_expense" -> ReportsGuard("revenueExpenseSummary", PermissionAction.VIEW) { RevenueExpenseSummaryReportScreen(onClose = onGoBack) }
+        "reports_fin_receivables_aging" -> ReportsGuard("revenueExpenseSummary", PermissionAction.VIEW) { ReceivablesAgingReportScreen(onClose = onGoBack) }
+        "reports_fin_payables_aging" -> ReportsGuard("revenueExpenseSummary", PermissionAction.VIEW) { PayablesAgingReportScreen(onClose = onGoBack) }
+        "reports_fin_gst_summary" -> ReportsGuard("revenueExpenseSummary", PermissionAction.VIEW) { GstSummaryReportScreen(onClose = onGoBack) }
+        "reports_fin_payment_collection" -> ReportsGuard("revenueExpenseSummary", PermissionAction.VIEW) { PaymentCollectionReportScreen(onClose = onGoBack) }
+        "reports_fin_advance_payment" -> ReportsGuard("revenueExpenseSummary", PermissionAction.VIEW) { AdvancePaymentReportScreen(onClose = onGoBack) }
+        "reports_fin_payment_mode" -> ReportsGuard("revenueExpenseSummary", PermissionAction.VIEW) { PaymentModeReportScreen(onClose = onGoBack) }
+        "reports_fin_balance_pending" -> ReportsGuard("revenueExpenseSummary", PermissionAction.VIEW) { BalancePendingReportScreen(onClose = onGoBack) }
+        "reports_fin_overdue_payment" -> ReportsGuard("revenueExpenseSummary", PermissionAction.VIEW) { OverduePaymentReportScreen(onClose = onGoBack) }
 
         "reports_inventory" -> ReportsGuard("invStockSummary", PermissionAction.VIEW) {
-            InventoryReportsScreen(onClose = onGoBack, onBreadCrumbClick = { onOpenModulesPanel("Reports") })
+            InventoryReportsScreen(
+                onClose = onGoBack,
+                onBreadCrumbClick = { onOpenModulesPanel("Reports") },
+                onReportClick = { reportItem ->
+                    val id = reportItem.id.lowercase()
+                    val title = reportItem.title.lowercase()
+                    when {
+                        id.contains("stock_summary") || title.contains("stock summary") -> onSafeNavigate("reports_inv_stock_summary", PermissionAction.VIEW)
+                        id.contains("low_stock") || title.contains("low stock") || title.contains("reorder") -> onSafeNavigate("reports_inv_low_stock", PermissionAction.VIEW)
+                        id.contains("movement") || title.contains("movement") -> onSafeNavigate("reports_inv_stock_movement", PermissionAction.VIEW)
+                        id.contains("consumption") || title.contains("consumption") -> onSafeNavigate("reports_inv_material_consumption", PermissionAction.VIEW)
+                        id.contains("valuation") || title.contains("valuation") -> onSafeNavigate("reports_inv_valuation", PermissionAction.VIEW)
+                        else -> onShowComingSoon("Coming Soon, Stay tuned!")
+                    }
+                }
+            )
         }
+
+        "reports_inv_stock_summary" -> ReportsGuard("invStockSummary", PermissionAction.VIEW) { StockSummaryReportScreen(onClose = onGoBack) }
+        "reports_inv_low_stock" -> ReportsGuard("invStockSummary", PermissionAction.VIEW) { LowStockReorderReportScreen(onClose = onGoBack) }
+        "reports_inv_stock_movement" -> ReportsGuard("invStockSummary", PermissionAction.VIEW) { StockMovementReportScreen(onClose = onGoBack) }
+        "reports_inv_material_consumption" -> ReportsGuard("invStockSummary", PermissionAction.VIEW) { MaterialConsumptionReportScreen(onClose = onGoBack) }
+        "reports_inv_valuation" -> ReportsGuard("invStockSummary", PermissionAction.VIEW) { InventoryValuationReportScreen(onClose = onGoBack) }
 
         "reports_logistics" -> ReportsGuard("logDeliveryPerformance", PermissionAction.VIEW) {
-            LogisticsReportsScreen(onClose = onGoBack, onBreadCrumbClick = { onOpenModulesPanel("Reports") })
+            LogisticsReportsScreen(
+                onClose = onGoBack,
+                onBreadCrumbClick = { onOpenModulesPanel("Reports") },
+                onReportClick = { reportItem ->
+                    val id = reportItem.id.lowercase()
+                    val title = reportItem.title.lowercase()
+                    when {
+                        id.contains("delivery") || title.contains("delivery") -> onSafeNavigate("reports_log_delivery_perf", PermissionAction.VIEW)
+                        id.contains("shipment") || title.contains("shipment") || title.contains("tracking") -> onSafeNavigate("reports_log_shipment_tracking", PermissionAction.VIEW)
+                        id.contains("return") || id.contains("rto") || title.contains("return") || title.contains("rto") -> onSafeNavigate("reports_log_returns_rto", PermissionAction.VIEW)
+                        id.contains("cod") || title.contains("cod") -> onSafeNavigate("reports_log_cod_recon", PermissionAction.VIEW)
+                        else -> onShowComingSoon("Coming Soon, Stay tuned!")
+                    }
+                }
+            )
         }
 
+        "reports_log_delivery_perf" -> ReportsGuard("logDeliveryPerformance", PermissionAction.VIEW) { DeliveryPerformanceReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_log_shipment_tracking" -> ReportsGuard("logDeliveryPerformance", PermissionAction.VIEW) { ShipmentTrackingReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_log_returns_rto" -> ReportsGuard("logDeliveryPerformance", PermissionAction.VIEW) { ReturnsRtoReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_log_cod_recon" -> ReportsGuard("logDeliveryPerformance", PermissionAction.VIEW) { CodReconciliationReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+
         "reports_services" -> ReportsGuard("servicePerformanceSla", PermissionAction.VIEW) {
-            ServiceReportsScreen(onClose = onGoBack, onBreadCrumbClick = { onOpenModulesPanel("Reports") })
+            ServiceReportsScreen(
+                onClose = onGoBack,
+                onBreadCrumbClick = { onOpenModulesPanel("Reports") },
+                onReportClick = { reportItem ->
+                    val id = reportItem.id.lowercase()
+                    val title = reportItem.title.lowercase()
+                    when {
+                        id.contains("feedback") || id.contains("nps") || title.contains("feedback") || title.contains("nps") -> onSafeNavigate("reports_svc_feedback_nps", PermissionAction.VIEW)
+                        id.contains("complaint") || title.contains("complaint") || title.contains("escalation") -> onSafeNavigate("reports_svc_complaints", PermissionAction.VIEW)
+                        id.contains("sla") || id.contains("performance") || title.contains("sla") || title.contains("performance") -> onSafeNavigate("reports_svc_sla", PermissionAction.VIEW)
+                        else -> onShowComingSoon("Coming Soon, Stay tuned!")
+                    }
+                }
+            )
         }
+
+        "reports_svc_feedback_nps" -> ReportsGuard("servicePerformanceSla", PermissionAction.VIEW) { CustomerFeedbackNpsReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_svc_complaints" -> ReportsGuard("servicePerformanceSla", PermissionAction.VIEW) { ComplaintsEscalationReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
+        "reports_svc_sla" -> ReportsGuard("servicePerformanceSla", PermissionAction.VIEW) { ServicePerformanceSlaReportScreen(onClose = onGoBack, viewModel = hrReportViewModel) }
 
         "reports_human_resource" -> ReportsGuard("hrAttendanceRegister", PermissionAction.VIEW) {
             HrPayrollReportsScreen(

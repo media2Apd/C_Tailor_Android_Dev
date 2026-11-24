@@ -15,7 +15,7 @@
     <application
         android:name="com.cuso.tailor.MyApplication"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:largeHeap="true"
         android:hardwareAccelerated="true"
         android:usesCleartextTraffic="true"

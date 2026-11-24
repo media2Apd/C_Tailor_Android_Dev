@@ -176,8 +176,8 @@ fun OrganizationSettingsScreen(
                     )
                 }
 
-                val allSubscriptionItems = listOf("Overview", "Current Plan")
-                val headerMatches = matchesQuery("Manage Subcription") || matchesQuery("Manage Subscription")
+                val allSubscriptionItems = listOf("Current Plan")
+                val headerMatches = matchesQuery("Manage Subscription") || matchesQuery("Manage Subscription")
                 val filteredSubscriptionItems = if (headerMatches) {
                     allSubscriptionItems
                 } else {
@@ -187,7 +187,7 @@ fun OrganizationSettingsScreen(
                 // Show Manage Subscription accordion when header or any child item matches search
                 if (headerMatches || filteredSubscriptionItems.isNotEmpty()) {
                     SettingsAccordionCard(
-                        title = "Manage Subcription",
+                        title = "Manage Subscription",
                         isExpanded = isSubscriptionExpanded || (query.isNotBlank() && filteredSubscriptionItems.isNotEmpty()),
                         tokens = tokens,
                         onHeaderClick = { isSubscriptionExpanded = !isSubscriptionExpanded }

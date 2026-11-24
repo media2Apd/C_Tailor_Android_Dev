@@ -59,6 +59,7 @@ import com.cuso.tailor.model.logistics.ShipmentItemDto
 import com.cuso.tailor.model.logistics.ShipmentListItemDto
 import com.cuso.tailor.model.logistics.ShipmentListResponse
 import com.cuso.tailor.model.logistics.SimpleLogisticsActionResponse
+import com.cuso.tailor.model.logistics.SyncShiprocketCouriersResponse
 import com.cuso.tailor.model.logistics.TimelineTimestampsDto
 import com.cuso.tailor.model.logistics.ToggleCourierStatusRequest
 import com.cuso.tailor.model.logistics.TrackingEventItemDto
@@ -129,6 +130,7 @@ private const val COURIER_PARTNER_TOGGLE_STATUS_URL = "/api/logistics/courier-pa
 
 private const val COURIER_PARTNER_CREATE_URL = "/api/logistics/courier-partner/create"
 private const val COURIER_PARTNER_UPDATE_URL = "/api/logistics/courier-partner/update"
+private const val COURIER_PARTNER_SYNC_SHIPROCKET_URL = "/api/logistics/courier-partner/sync-shiprocket"
 private const val LOGISTICS_TRACKING_EVENTS_URL = "/api/logistics/tracking/list"
 
 // Add to your top-level API constants
@@ -1650,6 +1652,41 @@ class LogisticsViewModel @Inject constructor(
 
     private val _courierSubmitError = MutableStateFlow<String?>(null)
     val courierSubmitError: StateFlow<String?> = _courierSubmitError.asStateFlow()
+
+    private val _isSyncingCouriers = MutableStateFlow(false)
+    val isSyncingCouriers: StateFlow<Boolean> = _isSyncingCouriers.asStateFlow()
+
+    /**
+     * Syncs courier partners from Shiprocket.
+     * Endpoint: POST /api/logistics/courier-partner/sync-shiprocket
+     */
+    fun syncShiprocketCouriers(
+        onSuccess: (message: String) -> Unit = {},
+        onError: (message: String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSyncingCouriers.value = true
+
+            val result = repo.request<SyncShiprocketCouriersResponse> {
+                post(COURIER_PARTNER_SYNC_SHIPROCKET_URL, emptyMap<String, String>())
+            }
+
+            result.fold(
+                onSuccess = { res ->
+                    if (res.success) {
+                        fetchCourierPartners()
+                        onSuccess(res.message ?: "Courier partners synced successfully")
+                    } else {
+                        onError(res.message ?: "Failed to sync courier partners")
+                    }
+                },
+                onFailure = { err ->
+                    onError(err.message ?: "Failed to sync courier partners")
+                }
+            )
+            _isSyncingCouriers.value = false
+        }
+    }
 
     /**
      * Creates a new courier partner.

@@ -241,7 +241,7 @@ fun EmployeeOnboardingScreen(
     var secondaryReportingTo by remember { mutableStateOf("") }
     var secondaryReportingToExpanded by remember { mutableStateOf(false) }
     var workingDistrict by remember { mutableStateOf("") }
-    var employmentType by remember { mutableStateOf("full-time") }
+    var employmentType by remember { mutableStateOf("") }
 
     // 9. Access & Permissions
     var customRoleId by remember { mutableStateOf("") }
@@ -273,6 +273,7 @@ fun EmployeeOnboardingScreen(
     val roleDetails by hrViewModel.roleDetails.collectAsState()
     val memberDetail by hrViewModel.memberDetail.collectAsState()
     val createMemberState by hrViewModel.createMemberState.collectAsState()
+    var isSubmitting by remember { mutableStateOf(false) }
 
     // Sync roleScope whenever roleDetails updates
     LaunchedEffect(roleDetails) {
@@ -453,7 +454,7 @@ fun EmployeeOnboardingScreen(
         reportingTo = m.reportingTo.orEmpty()
         secondaryReportingTo = m.secondaryReportingTo.orEmpty()
         workingDistrict = m.workingDistrict.orEmpty()
-        employmentType = m.employmentType?.lowercase() ?: "full-time"
+        employmentType = m.employmentType?.lowercase() ?: ""
 
         val roleId = m.customRoleId?._id ?: m.role.orEmpty()
         customRoleId = roleId
@@ -475,8 +476,8 @@ fun EmployeeOnboardingScreen(
                 hrViewModel.fetchMembers()
                 delay(500)
                 hrViewModel.resetCreateMemberState()
+                isSubmitting = false
 
-                // Go back call
                 if (isEditMode) {
                     onUpdateEmployee()
                 } else {
@@ -484,6 +485,7 @@ fun EmployeeOnboardingScreen(
                 }
             }
             is HrViewModel.CreateMemberState.Error -> {
+                isSubmitting = false
                 DynamicIslandManager.showError(state.message)
                 hrViewModel.resetCreateMemberState()
             }
@@ -562,9 +564,11 @@ fun EmployeeOnboardingScreen(
         return true
     }
 
-    // Submit handler matching React cleanObject and payload
+    // Submit handler with duplicate-click guard
     fun handleSubmit() {
+        if (isSubmitting) return
         if (!validate()) return
+        isSubmitting = true
 
         val submitBranchId = if (roleScope.equals("regional", ignoreCase = true)) null else branchId.ifBlank { null }
 
@@ -720,7 +724,7 @@ fun EmployeeOnboardingScreen(
         topBar = {
             TitleBar(
                 title = if (isEditMode) "Edit Employee" else "Employee Onboarding",
-                onClose = onDismiss
+                onClose = { if (!isSubmitting) onDismiss() }
             )
         },
         bottomBar = {
@@ -732,14 +736,18 @@ fun EmployeeOnboardingScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = tokens.screenPadding, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(horizontal = tokens.screenPadding, vertical = tokens.extraPadding),
+                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
                 ) {
                     OutlinedButton(
                         onClick = onDismiss,
+                        enabled = !isSubmitting,
                         shape = RoundedCornerShape(tokens.cardCornerRadius),
                         border = BorderStroke(1.dp, sectionBorder),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = TextSecondary,
+                            disabledContentColor = mutedText
+                        ),
                         modifier = Modifier
                             .weight(1f)
                             .height(tokens.buttonHeight)
@@ -749,18 +757,39 @@ fun EmployeeOnboardingScreen(
 
                     Button(
                         onClick = { handleSubmit() },
+                        enabled = !isSubmitting,
                         shape = RoundedCornerShape(tokens.cardCornerRadius),
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Primary,
+                            contentColor = whiteBg,
+                            disabledContainerColor = disabled,
+                            disabledContentColor = whiteBg
+                        ),
                         modifier = Modifier
                             .weight(1f)
                             .height(tokens.buttonHeight)
                     ) {
-                        Text(
-                            text = if (isEditMode) "Save Changes" else "Save Employee",
-                            fontSize = tokens.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = whiteBg
-                        )
+                        if (isSubmitting) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding * 0.6f)
+                            ) {
+                                CirculerProgressIndicatorSmall()
+                                Text(
+                                    text = if (isEditMode) "Saving..." else "Creating...",
+                                    fontSize = tokens.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = whiteBg
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = if (isEditMode) "Save Changes" else "Save Employee",
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = whiteBg
+                            )
+                        }
                     }
                 }
             }

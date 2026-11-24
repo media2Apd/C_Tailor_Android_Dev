@@ -66,7 +66,10 @@ data class CreateUpdateCourierPartnerRequest(
     @SerializedName("serviceability")
     val serviceability: ServiceabilityRequestDto
 )
-
+data class SyncShiprocketCouriersResponse(
+    val success: Boolean = false,
+    val message: String? = null
+)
 data class ServiceabilityRequestDto(
     @SerializedName("coverageType")
     val coverageType: String, // "DOMESTIC" for All India or "SELECTED_POSTAL_CODES"

@@ -47,7 +47,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.8:5000/\""
+                "\"http://192.168.88.21:5000/\""
             )
         }
 
@@ -218,6 +218,9 @@ dependencies {
     implementation("io.socket:socket.io-client:2.1.0") {
         exclude(group = "org.json", module = "json") // Android already includes org.json
     }
+
+    //chrome tab
+    implementation(libs.androidx.browser)
 
     //FCM
     implementation(libs.firebase.messaging)

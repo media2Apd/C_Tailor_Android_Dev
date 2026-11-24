@@ -506,16 +506,16 @@ private fun DocumentFileVersionsTab(versions: List<DocumentVersionDto>) {
                 color = TextPrimary
             )
 
-            Button(
-                onClick = {},
-                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
-                modifier = Modifier.height(34.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = whiteBg, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(text = "Upload Version", fontSize = tokens.bodySmall, color = whiteBg)
-            }
+//            Button(
+//                onClick = {},
+//                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+//                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
+//                modifier = Modifier.height(34.dp)
+//            ) {
+//                Icon(Icons.Default.Add, contentDescription = null, tint = whiteBg, modifier = Modifier.size(16.dp))
+//                Spacer(Modifier.width(4.dp))
+//                Text(text = "Upload Version", fontSize = tokens.bodySmall, color = whiteBg)
+//            }
         }
 
         if (versions.isEmpty()) {

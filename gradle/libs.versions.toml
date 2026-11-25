@@ -12,6 +12,8 @@ googleid = "1.2.1"
 junitVersion = "1.3.0"
 print = "1.1.0"
 runner = "1.7.0"
+sqlcipherAndroid = "4.20.0"
+sqliteKtx = "2.7.1"
 transition = "1.7.2"
 ucrop = "2.2.11-native"
 uiVersion = "1.12.1"
@@ -64,6 +66,7 @@ litertApi = "2.3.0"
 androidx-browser = { module = "androidx.browser:browser", version.ref = "browser" }
 androidx-credentials-core = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
 androidx-credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
+androidx-sqlite-ktx = { module = "androidx.sqlite:sqlite-ktx", version.ref = "sqliteKtx" }
 app-update = { module = "com.google.android.play:app-update", version.ref = "appUpdate" }
 app-update-ktx = { module = "com.google.android.play:app-update-ktx", version.ref = "appUpdate" }
 facebook-core = { module = "com.facebook.android:facebook-core", version.ref = "facebookCore" }
@@ -75,6 +78,7 @@ core = { module = "com.google.zxing:core", version.ref = "core" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 firebase-perf = { module = "com.google.firebase:firebase-perf" }
+sqlcipher-android = { module = "net.zetetic:sqlcipher-android", version.ref = "sqlcipherAndroid" }
 ucrop = { module = "com.github.yalantis:ucrop", version.ref = "ucrop" }
 vico-compose = { group = "com.patrykandpatrick.vico", name = "compose", version.ref = "vico" }
 vico-compose-m3 = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }

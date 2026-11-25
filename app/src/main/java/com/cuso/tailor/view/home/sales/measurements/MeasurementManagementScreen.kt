@@ -49,6 +49,7 @@ import com.cuso.tailor.model.settings.MeasurementFieldItem
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.sales.lead.MiniSwitch
+import com.cuso.tailor.viewmodel.MeasurementDetailState
 import com.cuso.tailor.viewmodel.MeasurementsViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
 
@@ -115,9 +116,9 @@ fun MeasurementsAvailableDialog(
                     query = searchQuery,
                     onQueryChange = { searchQuery = it },
                     placeholder = "Search Garments...",
+                    isSearchBarAlone = true,
                     borderColor = sectionBorder,
-                    textSecondaryColor = close_color,
-                    onFilterClick = {}
+                    textSecondaryColor = close_color
                 )
 
                 Column(
@@ -251,235 +252,301 @@ private fun GarmentPresetCard(
 
 @Composable
 fun MeasurementManagementScreen(
-    customerName: String = "Hameed Rahman",
-    phone: String = "+1 (555) 123-4567",
-    lastOrderDate: String = "Dec 20, 2025",
+    measurementId: String,
+    viewModel: MeasurementsViewModel = hiltViewModel(),
     onAddField: () -> Unit = {},
     onClose: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Measurement 1", "Measurement 2", "Measurement 3")
+    val detailState by viewModel.measurementDetailState.collectAsStateWithLifecycle()
 
-    val columnMeasurements = listOf(
-        MeasurementEntry("Collar", "40 cm"),
-        MeasurementEntry("Chest", "40 cm"),
-        MeasurementEntry("Waist", "40 cm"),
-        MeasurementEntry("Shoulder", "40 cm"),
-        MeasurementEntry("Shirt Length", "40 cm")
-    )
+    LaunchedEffect(measurementId) {
+        viewModel.fetchMeasurementDetail(measurementId)
+    }
 
-    var fitType by remember { mutableStateOf("Slim") }
+    DisposableEffect(Unit) {
+        onDispose { viewModel.clearMeasurementDetail() }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color.Transparent
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            val loadedDetail = (detailState as? MeasurementDetailState.Success)?.detail
+            val headerTitle = loadedDetail?.garmentId?.displayName?.takeIf { it.isNotBlank() }
+                ?: loadedDetail?.garmentId?.name?.takeIf { it.isNotBlank() }
+                ?: "-"
+
             TitleBar(
-                title = "Measurement management",
-                onClose = onClose
+                title = headerTitle,
+                subtitle = loadedDetail?.garmentCategoryId?.displayName?.takeIf { it.isNotBlank() }
+                    ?: loadedDetail?.garmentCategoryId?.name?.takeIf { it.isNotBlank() }
+                    ?: "-",
+                onClose = {
+                    viewModel.clearMeasurementDetail()
+                    onClose()
+                }
             )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Spacer(Modifier.height(tokens.extraPadding))
-
-//                AppUnderlineTabRow(
-//                    tabs = tabs,
-//                    selectedIndex = selectedTab,
-//                    onTabSelected = { selectedTab = it }
-//                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(tokens.screenPadding),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(tokens.fieldHeight)
-                                .clip(CircleShape)
-                                .background(light_grey),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = close_color,
-                                modifier = Modifier.size(tokens.iconSize * 1.2f)
-                            )
-                        }
-
-                        Spacer(Modifier.width(12.dp))
-
-                        Column {
-                            Text(
-                                text = customerName,
-                                fontSize = tokens.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = title_color
-                            )
-                            Text(
-                                text = phone,
-                                fontSize = tokens.caption,
-                                color = headerGrey
-                            )
-                            Text(
-                                text = "Last Order: $lastOrderDate",
-                                fontSize = tokens.label,
-                                color = close_color
-                            )
-                        }
-                    }
-
-                    Button(
-                        onClick = onAddField,
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                        modifier = Modifier.height(tokens.buttonHeight * 0.85f)
-                    ) {
-                        Text(
-                            text = "Add field",
-                            fontSize = tokens.caption,
-                            fontWeight = FontWeight.Medium,
-                            color = whiteBg
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Icon(Icons.Default.Add, null, tint = whiteBg, modifier = Modifier.size(14.dp))
-                    }
+            when (val state = detailState) {
+                is MeasurementDetailState.Idle,
+                is MeasurementDetailState.Loading -> {
+                    Spacer(Modifier.height(tokens.screenPadding))
+                    SafeSkeletonList(count = 5)
                 }
 
-                HorizontalDivider(color = sectionBorder)
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(tokens.screenPadding),
-                    horizontalArrangement = Arrangement.spacedBy(tokens.screenPadding)
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        columnMeasurements.forEach { item ->
-                            MeasurementValueRow(label = item.label, value = item.value)
-                        }
-                    }
-
+                is MeasurementDetailState.Error -> {
                     Box(
                         modifier = Modifier
-                            .width(1.dp)
-                            .height(200.dp)
-                            .background(sectionBorder)
-                    )
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        columnMeasurements.forEach { item ->
-                            MeasurementValueRow(label = item.label, value = item.value)
+                            .fillMaxSize()
+                            .padding(tokens.screenPadding),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                        ) {
+                            Text(
+                                text = state.message,
+                                fontSize = tokens.bodyMedium,
+                                color = redText
+                            )
+                            Button(
+                                onClick = { viewModel.fetchMeasurementDetail(measurementId) },
+                                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
+                            ) {
+                                Text(
+                                    text = "Retry",
+                                    fontSize = tokens.bodySmall,
+                                    color = whiteBg
+                                )
+                            }
                         }
                     }
                 }
 
-                HorizontalDivider(color = sectionBorder)
+                is MeasurementDetailState.Success -> {
+                    val detail = state.detail
+                    val apiCustomerName = detail.customerId?.fullName?.takeIf { it.isNotBlank() } ?: "-"
+                    val apiCustomerCode = detail.customerId?.customerCode?.takeIf { it.isNotBlank() } ?: "-"
+                    val apiPhone = detail.customerId?.mobileNumber?.takeIf { it.isNotBlank() } ?: "-"
+                    val apiMeasuredDate = viewModel.formatMeasuredDate(detail.measuredAt ?: detail.createdAt)
+                    val apiGarmentName = detail.garmentId?.displayName?.takeIf { it.isNotBlank() }
+                        ?: detail.garmentId?.name?.takeIf { it.isNotBlank() }
+                        ?: "-"
+                    val apiGarmentCode = detail.garmentId?.code?.takeIf { it.isNotBlank() } ?: "-"
+                    val apiCategoryName = detail.garmentCategoryId?.displayName?.takeIf { it.isNotBlank() }
+                        ?: detail.garmentCategoryId?.name?.takeIf { it.isNotBlank() }
+                        ?: "-"
+                    val apiSegmentName = detail.segmentId?.displayName?.takeIf { it.isNotBlank() }
+                        ?: detail.segmentId?.name?.takeIf { it.isNotBlank() }
+                        ?: "-"
+                    val apiStatus = detail.status?.takeIf { it.isNotBlank() } ?: "-"
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(tokens.screenPadding),
-                    verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
-                ) {
-                    Text(
-                        text = "Fit & Preferences",
-                        fontSize = tokens.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = title_color
-                    )
+                    val measurementEntries = remember(detail.measurements) {
+                        detail.measurements.orEmpty().map { record ->
+                            val label = record.fieldName?.takeIf { it.isNotBlank() }
+                                ?: record.fieldId?.displayName?.takeIf { it.isNotBlank() }
+                                ?: record.fieldId?.name?.takeIf { it.isNotBlank() }
+                                ?: "-"
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            val valueText = record.entries
+                                .orEmpty()
+                                .mapNotNull { entry ->
+                                    val rawVal = entry.value?.takeIf { it.isNotBlank() }
+                                    val unit = entry.subLabel?.takeIf { it.isNotBlank() }
+                                        ?: record.fieldId?.unit?.takeIf { it.isNotBlank() }
+                                        ?: ""
+                                    when {
+                                        rawVal != null && unit.isNotBlank() -> "$rawVal $unit"
+                                        rawVal != null -> rawVal
+                                        else -> null
+                                    }
+                                }
+                                .joinToString(", ")
+                                .ifBlank { "-" }
+
+                            MeasurementEntry(label = label, value = valueText)
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
                     ) {
-                        Text(
-                            text = "Fit Type",
-                            fontSize = tokens.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = title_color
-                        )
+                        Spacer(Modifier.height(tokens.extraPadding))
 
                         Row(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.4f))
-                                .background(light_grey)
-                                .padding(2.dp)
+                                .fillMaxWidth()
+                                .padding(tokens.screenPadding),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            listOf("Slim", "Regular", "Loose").forEach { option ->
-                                val isSelected = option == fitType
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(tokens.cardCornerRadius * 0.35f))
-                                        .background(if (isSelected) whiteBg else Color.Transparent)
-                                        .clickable { fitType = option }
-                                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                                        .size(tokens.fieldHeight)
+                                        .clip(CircleShape)
+                                        .background(light_grey),
                                     contentAlignment = Alignment.Center
                                 ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = close_color,
+                                        modifier = Modifier.size(tokens.iconSize * 1.2f)
+                                    )
+                                }
+
+                                Spacer(Modifier.width(tokens.extraPadding))
+
+                                Column {
                                     Text(
-                                        text = option,
+                                        text = apiCustomerName,
+                                        fontSize = tokens.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = title_color
+                                    )
+                                    Text(
+                                        text = apiPhone,
                                         fontSize = tokens.caption,
-                                        fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                                        color = if (isSelected) title_color else headerGrey
+                                        color = headerGrey
+                                    )
+                                    Text(
+                                        text = "$apiCustomerCode • $apiMeasuredDate",
+                                        fontSize = tokens.label,
+                                        color = close_color
+                                    )
+                                }
+                            }
+
+                            StatusBadge(
+                                text = apiStatus,
+                                bgColor = if (apiStatus.equals("Active", ignoreCase = true)) greenBg else light_grey,
+                                textColor = if (apiStatus.equals("Active", ignoreCase = true)) greentext else TextSecondary
+                            )
+                        }
+
+                        HorizontalDivider(color = sectionBorder)
+
+                        if (measurementEntries.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(tokens.screenPadding),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "-",
+                                    fontSize = tokens.bodyMedium,
+                                    color = close_color
+                                )
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        horizontal = tokens.screenPadding,
+                                        vertical = tokens.extraPadding * 0.5f
+                                    )
+                            ) {
+                                measurementEntries.forEachIndexed { index, item ->
+                                    MeasurementValueRow(
+                                        label = item.label,
+                                        value = item.value,
+                                        showDivider = index != measurementEntries.lastIndex
                                     )
                                 }
                             }
                         }
-                    }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Tailor Notes:", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
-                        Text("Prefers loose sleeves", fontSize = tokens.bodySmall, color = TextPrimary)
-                    }
+                        HorizontalDivider(color = sectionBorder)
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Customer Preferences:", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = title_color)
-                        Text("No bold patterns", fontSize = tokens.bodySmall, color = TextPrimary)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(tokens.screenPadding),
+                            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                        ) {
+                            MeasurementMetaRow(label = "Garment", value = "$apiGarmentName ($apiGarmentCode)")
+                            MeasurementMetaRow(label = "Category", value = apiCategoryName)
+                            MeasurementMetaRow(label = "Segment", value = apiSegmentName)
+                            MeasurementMetaRow(label = "Measured At", value = apiMeasuredDate)
+                        }
+
+                        Spacer(Modifier.height(tokens.buttonHeight))
                     }
                 }
-
-                Spacer(Modifier.height(40.dp))
             }
         }
     }
 }
 
 @Composable
-private fun MeasurementValueRow(label: String, value: String) {
+private fun MeasurementMetaRow(label: String, value: String) {
+    val tokens = LocalAppTokens.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            fontSize = tokens.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = title_color
+        )
+        Text(
+            text = value,
+            fontSize = tokens.bodySmall,
+            color = TextPrimary
+        )
+    }
+}
+
+@Composable
+private fun MeasurementValueRow(
+    label: String,
+    value: String,
+    showDivider: Boolean = true
+) {
     val tokens = LocalAppTokens.current
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 10.dp),
+                .padding(vertical = tokens.extraPadding),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = label, fontSize = tokens.bodySmall, color = title_color)
-            Text(text = value, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
+            Text(
+                text = label,
+                fontSize = tokens.bodySmall,
+                color = title_color,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = tokens.extraPadding)
+            )
+            Text(
+                text = value,
+                fontSize = tokens.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = TextPrimary,
+                maxLines = 1,
+                softWrap = false
+            )
         }
-        HorizontalDivider(color = grey_border)
+        if (showDivider) {
+            HorizontalDivider(color = grey_border)
+        }
     }
 }
 
@@ -550,16 +617,8 @@ fun MeasurementFieldsConfigScreen(
     val designs by viewModel.designs.collectAsStateWithLifecycle()
     val isLoadingDesigns by viewModel.isLoadingDesigns.collectAsStateWithLifecycle()
     val groupedDesigns = remember(designs) {
-        if (designs.isEmpty()) {
-            listOf(
-                "Neck Design" to listOf("Mandarin", "Spread", "Club", "Point", "Button Down", "Band"),
-                "Sleeve Design" to listOf("Full Sleeve", "Half Sleeve", "Roll-up Sleeve"),
-                "Cuff Style" to listOf("Rounded 2-Button", "French Cuff", "Single Button")
-            )
-        } else {
-            designs.groupBy { it.designType.ifBlank { "General Design" } }
-                .map { (type, items) -> type to items.map { it.name } }
-        }
+        designs.groupBy { it.designType.ifBlank { "-" } }
+            .map { (type, items) -> type to items.map { it.name.ifBlank { "-" } } }
     }
 
     val garmentOptions = remember(garments) {
@@ -686,7 +745,9 @@ fun MeasurementFieldsConfigScreen(
 
                     Spacer(Modifier.height(tokens.screenPadding))
 
-                    val currentGarmentName = selectedGarment?.displayName ?: selectedGarment?.name ?: "Shirt"
+                    val currentGarmentName = selectedGarment?.displayName?.takeIf { it.isNotBlank() }
+                        ?: selectedGarment?.name?.takeIf { it.isNotBlank() }
+                        ?: "-"
                     Text(
                         text = "Measurement Fields – $currentGarmentName",
                         fontSize = tokens.bodyMedium,
@@ -1026,20 +1087,25 @@ fun RenderMeasurementScreens(
     onNavigate: (String) -> Unit,
     onGoBack: () -> Unit
 ) {
+    var selectedMeasurementRecordId by remember(selectedMeasurementItem?.id) {
+        mutableStateOf(selectedMeasurementItem?.id.orEmpty())
+    }
+
     when (screen) {
         "measurements_available_view" -> {
             MeasurementsAvailableDialog(
                 customerId = selectedMeasurementItem?.customerId,
-                onGarmentSelected = { onNavigate("measurement_management_view") },
+                onGarmentSelected = { preset ->
+                    selectedMeasurementRecordId = preset.id
+                    onNavigate("measurement_management_view")
+                },
                 onAddNew = { onNavigate("measurement_management_view") },
                 onClose = onGoBack
             )
         }
         "measurement_management_view" -> {
             MeasurementManagementScreen(
-                customerName = selectedMeasurementItem?.customerName ?: "Hameed Rahman",
-                phone = selectedMeasurementItem?.contact ?: "+1 (555) 123-4567",
-                lastOrderDate = selectedMeasurementItem?.measuredDate ?: "Dec 20, 2025",
+                measurementId = selectedMeasurementRecordId,
                 onAddField = { onNavigate("measurement_fields_config") },
                 onClose = onGoBack
             )

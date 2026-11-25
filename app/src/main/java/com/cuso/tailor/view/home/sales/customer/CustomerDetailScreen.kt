@@ -459,13 +459,30 @@ private fun PersonalInformationStep(
                 enabled = isEditMode
             )
             Spacer(Modifier.height(12.dp))
-            FormLabel("Preferred Contact")
+            val contactMethodOptions = remember {
+                listOf(
+                    "Whatsapp" to "WhatsApp",
+                    "Call" to "Phone Call",
+                    "Email" to "Email",
+                    "SMS" to "SMS"
+                )
+            }
+            val selectedContactLabel = contactMethodOptions
+                .firstOrNull { it.first.equals(formState.contactMethod, ignoreCase = true) }
+                ?.second ?: formState.contactMethod
+
+            FormLabel("Preferred Contact Method")
             FormDropdown(
-                value = formState.contactMethod.ifEmpty { "-" },
+                value = selectedContactLabel.ifEmpty { "Select an option" },
                 expanded = contactExpanded && isEditMode,
                 onExpandChange = { if (isEditMode) contactExpanded = it },
-                options = listOf("Whatsapp", "Call", "Email", "SMS"),
-                onOptionSelected = viewModel::onContactMethodChange,
+                options = contactMethodOptions.map { it.second },
+                onOptionSelected = { selectedLabel ->
+                    val selectedId = contactMethodOptions
+                        .firstOrNull { it.second == selectedLabel }
+                        ?.first ?: selectedLabel
+                    viewModel.onContactMethodChange(selectedId)
+                },
                 enabled = isEditMode
             )
         }

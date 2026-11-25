@@ -3,6 +3,7 @@ package com.cuso.tailor.di
 import android.content.Context
 import androidx.room.Room
 import com.cuso.tailor.database.AppDatabase
+import com.cuso.tailor.database.DatabaseKeyManager
 import com.cuso.tailor.database.dao.LeadDao
 import com.cuso.tailor.database.dao.OrganizationDao
 import com.cuso.tailor.database.dao.PermissionDao
@@ -19,6 +20,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
+import java.io.File
 import javax.inject.Singleton
 
 @Module
@@ -28,15 +31,44 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
+        System.loadLibrary("sqlcipher")
+
+        val dbName = "cusotailor_db"
+
+        // Existing unencrypted DB irundha crash aagama irukka clean pannum
+        val dbFile = context.getDatabasePath(dbName)
+        if (dbFile.exists() && isUnencryptedSqlite(dbFile)) {
+            dbFile.delete()
+            File("${dbFile.path}-wal").delete()
+            File("${dbFile.path}-shm").delete()
+            File("${dbFile.path}-journal").delete()
+        }
+
+        val passphrase = DatabaseKeyManager.getPassphrase(context)
+        val factory = SupportOpenHelperFactory(passphrase)
+
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            "cusotailor_db"
+            dbName
         )
-            //  TEMPORARY for dev. Replace with real Migration(2, 3)
+            .openHelperFactory(factory)
+            // TEMPORARY for dev. Replace with real Migration(2, 3)
             // before shipping to anyone with existing data.
             .fallbackToDestructiveMigration(false)
             .build()
+    }
+
+    private fun isUnencryptedSqlite(file: File): Boolean {
+        return try {
+            file.inputStream().use { input ->
+                val header = ByteArray(15)
+                if (input.read(header) < 15) return false
+                String(header, Charsets.US_ASCII) == "SQLite format 3"
+            }
+        } catch (_: Exception) {
+            false
+        }
     }
 
     @Provides

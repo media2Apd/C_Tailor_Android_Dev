@@ -68,3 +68,10 @@
 # ============================================================
 -dontwarn com.itextpdf.bouncycastle.BouncyCastleFactory
 -dontwarn com.itextpdf.bouncycastlefips.BouncyCastleFipsFactory
+
+# ============================================================
+# Roomdb
+# ============================================================
+
+-keep class net.zetetic.** { *; }
+-keep class net.sqlcipher.** { *; }

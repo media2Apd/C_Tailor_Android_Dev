@@ -13,11 +13,43 @@ data class GarmentCategoryResponse(
 data class GarmentCategoryDto(
     @SerializedName("_id") val id: String,
     @SerializedName("categoryName") val categoryName: String?,
-    @SerializedName("name") val name: String?
+    @SerializedName("name") val name: String?,
+    @SerializedName("displayName") val displayNameRaw: String? = null,
+    @SerializedName("garmentId") val garmentIdObj: GarmentCategoryGarmentRef? = null,
+    @SerializedName("measurementFields") val measurementFields: List<GarmentCategoryMeasurementFieldDto>? = null
 ) {
     val displayName: String
-        get() = categoryName?.ifBlank { null } ?: name ?: ""
+        get() = displayNameRaw?.ifBlank { null }
+            ?: categoryName?.ifBlank { null }
+            ?: name
+            ?: ""
 }
+
+data class GarmentCategoryGarmentRef(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("displayName") val displayName: String? = null,
+    @SerializedName("code") val code: String? = null,
+    @SerializedName("measurementFields") val measurementFields: List<GarmentCategoryMeasurementFieldDto>? = null
+)
+
+data class GarmentCategoryMeasurementFieldDto(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("fieldId") val fieldId: GarmentCategoryFieldDefDto? = null,
+    @SerializedName("isRequired") val isRequired: Boolean = false,
+    @SerializedName("displayOrder") val displayOrder: Int = 0
+)
+
+data class GarmentCategoryFieldDefDto(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("displayName") val displayName: String? = null,
+    @SerializedName("groupName") val groupName: String? = null,
+    @SerializedName("inputType") val inputType: String? = null,
+    @SerializedName("unit") val unit: String? = null,
+    @SerializedName("minValue") val minValue: Double? = null,
+    @SerializedName("maxValue") val maxValue: Double? = null
+)
 // In CreateLeadFormRequest.kt - Add occasion field
 
 data class CreateLeadFormRequest(

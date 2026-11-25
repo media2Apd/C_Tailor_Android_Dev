@@ -1858,6 +1858,9 @@ private fun SalesRouter(
     var isGarmentActive by remember { mutableStateOf(false) }
     var selectedSegmentForEdit by remember { mutableStateOf<SegmentItem?>(null) }
     var measurementIndex by remember { mutableIntStateOf(0) }
+    var selectedMeasurementRecordId by remember(selectedMeasurementItem?.id) {
+        mutableStateOf(selectedMeasurementItem?.id.orEmpty())
+    }
 
     // order_preview-ku thevai
     val context = LocalContext.current
@@ -2165,6 +2168,7 @@ private fun SalesRouter(
                 key(garment.id) {
                     MeasurementEntryScreen(
                         garmentType = cfg.garmentType,
+                        garmentId = cfg.garmentId,
                         garmentCategory = cfg.garmentCategory.takeIf { it != "Select Category" }.orEmpty(),
                         garmentCategoryId = cfg.garmentCategoryId,
                         orderItemId = garment.id,
@@ -2193,7 +2197,8 @@ private fun SalesRouter(
         "measurements_available_view" -> SalesGuard("measurements", PermissionAction.VIEW) {
             MeasurementsAvailableDialog(
                 customerId = selectedMeasurementItem?.customerId,
-                onGarmentSelected = {
+                onGarmentSelected = { preset ->
+                    selectedMeasurementRecordId = preset.id
                     onSafeNavigate("measurement_management_view", PermissionAction.VIEW)
                 },
                 onAddNew = {
@@ -2205,9 +2210,7 @@ private fun SalesRouter(
 
         "measurement_management_view" -> SalesGuard("measurements", PermissionAction.VIEW) {
             MeasurementManagementScreen(
-                customerName = selectedMeasurementItem?.customerName ?: "Hameed Rahman",
-                phone = selectedMeasurementItem?.contact ?: "+1 (555) 123-4567",
-                lastOrderDate = selectedMeasurementItem?.measuredDate ?: "Dec 20, 2025",
+                measurementId = selectedMeasurementRecordId,
                 onAddField = { onSafeNavigate("measurement_fields_config", PermissionAction.EDIT) },
                 onClose = onGoBack
             )

@@ -76,6 +76,17 @@ import com.cuso.tailor.database.AppDatabase
 import com.cuso.tailor.utils.CurrencyHelper
 import com.cuso.tailor.view.composable.DeveloperModeBlockScreen
 import com.cuso.tailor.utils.LocalCurrencySymbol
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.result.contract.ActivityResultContracts
+import com.cuso.tailor.view.composable.ForceUpdateBlockScreen
+import com.google.android.play.core.appupdate.AppUpdateManager
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateOptions
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.UpdateAvailability
+import androidx.core.net.toUri
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -92,6 +103,77 @@ class MainActivity : ComponentActivity() {
     // Developer mode state
     private var isDeveloperModeOn by mutableStateOf(false)
 
+    private lateinit var appUpdateManager: AppUpdateManager
+
+    // User update cancel panna block screen kaatta
+    private var isForceUpdateBlocked by mutableStateOf(true)
+
+    private val updateResultLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode != RESULT_OK) {
+            isForceUpdateBlocked = true
+        } else {
+            isForceUpdateBlocked = false
+        }
+    }
+
+    private fun checkForForceUpdate(fallbackToPlayStore: Boolean = false) {
+        appUpdateManager.appUpdateInfo
+            .addOnSuccessListener { appUpdateInfo ->
+                val isUpdateAvailable =
+                    appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
+                val isImmediateAllowed =
+                    appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
+
+                if (isUpdateAvailable && isImmediateAllowed) {
+                    isForceUpdateBlocked = false
+                    appUpdateManager.startUpdateFlowForResult(
+                        appUpdateInfo,
+                        updateResultLauncher,
+                        AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build()
+                    )
+                } else if (fallbackToPlayStore) {
+                    openPlayStoreForUpdate()
+                }
+            }
+            .addOnFailureListener {
+                if (fallbackToPlayStore) {
+                    openPlayStoreForUpdate()
+                }
+            }
+    }
+
+    private fun resumeImmediateUpdateIfInProgress() {
+        appUpdateManager.appUpdateInfo.addOnSuccessListener { appUpdateInfo ->
+            if (appUpdateInfo.updateAvailability() ==
+                UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS
+            ) {
+                appUpdateManager.startUpdateFlowForResult(
+                    appUpdateInfo,
+                    updateResultLauncher,
+                    AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build()
+                )
+            }
+        }
+    }
+
+    private fun openPlayStoreForUpdate() {
+        val packageName = packageName
+        try {
+            startActivity(
+                Intent(Intent.ACTION_VIEW, "market://details?id=$packageName".toUri())
+            )
+        } catch (e: Exception) {
+            startActivity(
+                Intent(
+                    Intent.ACTION_VIEW,
+                    "https://play.google.com/store/apps/details?id=$packageName".toUri()
+                )
+            )
+        }
+    }
+
     private fun checkDeveloperMode(): Boolean =
         Settings.Global.getInt(
             contentResolver,
@@ -103,6 +185,12 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         isDeveloperModeOn = checkDeveloperMode()
+        if (!isDeveloperModeOn && ::appUpdateManager.isInitialized) {
+            resumeImmediateUpdateIfInProgress()
+            if (isForceUpdateBlocked) {
+                checkForForceUpdate()
+            }
+        }
     }
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -121,12 +209,17 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
 
+        appUpdateManager = AppUpdateManagerFactory.create(this)
+
 // setContent ku munnadiye check pannanum
         isDeveloperModeOn = checkDeveloperMode()
+        if (!isDeveloperModeOn) {
+            checkForForceUpdate()
+        }
 
-// Developer mode ON na splash la stuck aaga koodathu
+// Developer mode ON or Force Update block na splash la stuck aaga koodathu
         splashScreen.setKeepOnScreenCondition {
-            isLoggedInState == null && !isDeveloperModeOn
+            isLoggedInState == null && !isDeveloperModeOn && !isForceUpdateBlocked
         }
 
         // Immediately invoke setContent to prevent Window Timeout ANR
@@ -135,6 +228,15 @@ class MainActivity : ComponentActivity() {
                 // Developer mode ON: block screen mattum, API edhuvum hit aagadhu
                 CusoTailorTheme {
                     DeveloperModeBlockScreen()
+                }
+            } else if (isForceUpdateBlocked) {
+                // Force Update cancel panna block screen mattum kaattum
+                CusoTailorTheme {
+                    ForceUpdateBlockScreen(
+                        onUpdateClick = {
+                            checkForForceUpdate(fallbackToPlayStore = true)
+                        }
+                    )
                 }
             } else {
                 // Developer mode OFF: unga existing flow appadiye

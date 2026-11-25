@@ -660,40 +660,10 @@ data class CustomerMeasurementRecord(
     @SerializedName("updatedAt") val updatedAt: String? = null
 )
 
-data class MeasurementSegmentRef(
-    @SerializedName("_id") val id: String = "",
-    @SerializedName("name") val name: String = "",
-    @SerializedName("displayName") val displayName: String? = null
-)
-
-data class MeasurementCategoryRef(
-    @SerializedName("_id") val id: String = "",
-    @SerializedName("name") val name: String = "",
-    @SerializedName("displayName") val displayName: String? = null,
-    @SerializedName("image") val image: String? = null
-)
-
-data class MeasurementCustomerRef(
-    @SerializedName("_id") val id: String = "",
-    @SerializedName("customerCode") val customerCode: String? = null,
-    @SerializedName("fullName") val fullName: String? = null,
-    @SerializedName("mobileNumber") val mobileNumber: String? = null,
-    @SerializedName("profilePicture") val profilePicture: ProfilePictureRef? = null
-)
-
 data class ProfilePictureRef(
     @SerializedName("url") val url: String? = null,
     @SerializedName("publicId") val publicId: String? = null
 )
-
-data class MeasurementGarmentRef(
-    @SerializedName("_id") val id: String = "",
-    @SerializedName("name") val name: String = "",
-    @SerializedName("displayName") val displayName: String? = null,
-    @SerializedName("code") val code: String? = null,
-    @SerializedName("imageUrl") val imageUrl: String? = null
-)
-
 
 data class CustomerOrdersResponse(
     val success: Boolean = false,
@@ -733,9 +703,6 @@ data class CustomerOrderLineItem(
     val unitPrice: Double? = 0.0,
     val lineTotal: Double? = 0.0
 )
-
-
-
 
 // Pagination info returned with every list response
 @Serializable
@@ -850,4 +817,74 @@ data class CustomerDropdownItem(
     @SerializedName("email") val email: String?,
     @SerializedName("customerType") val customerType: String?,
     @SerializedName("customerLevel") val customerLevel: String?
+)
+
+data class MeasurementDetailResponse(
+    @SerializedName("success") val success: Boolean = false,
+    @SerializedName("data") val data: MeasurementDetailData? = null
+)
+
+data class MeasurementDetailData(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("organizationId") val organizationId: String? = null,
+    @SerializedName("garmentId") val garmentId: MeasurementGarmentRef? = null,
+    @SerializedName("customerId") val customerId: MeasurementCustomerRef? = null,
+    @SerializedName("garmentCategoryId") val garmentCategoryId: MeasurementCategoryRef? = null,
+    @SerializedName("segmentId") val segmentId: MeasurementSegmentRef? = null,
+    @SerializedName("createdAt") val createdAt: String? = null,
+    @SerializedName("measuredAt") val measuredAt: String? = null,
+    @SerializedName("measurements") val measurements: List<MeasurementFieldRecord>? = null,
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("updatedAt") val updatedAt: String? = null
+)
+
+data class MeasurementGarmentRef(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("displayName") val displayName: String? = null,
+    @SerializedName("code") val code: String? = null,
+    @SerializedName("imageUrl") val imageUrl: String? = null
+)
+
+data class MeasurementCustomerRef(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("customerCode") val customerCode: String? = null,
+    @SerializedName("fullName") val fullName: String? = null,
+    @SerializedName("mobileNumber") val mobileNumber: String? = null
+)
+
+data class MeasurementCategoryRef(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("displayName") val displayName: String? = null,
+    @SerializedName("image") val image: String? = null
+)
+
+data class MeasurementSegmentRef(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("displayName") val displayName: String? = null
+)
+
+data class MeasurementFieldRecord(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("fieldId") val fieldId: MeasurementFieldDefinition? = null,
+    @SerializedName("fieldName") val fieldName: String? = null,
+    @SerializedName("entries") val entries: List<MeasurementFieldEntry>? = null,
+    @SerializedName("fitAllowance") val fitAllowance: Double? = null
+)
+
+data class MeasurementFieldDefinition(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("displayName") val displayName: String? = null,
+    @SerializedName("inputType") val inputType: String? = null,
+    @SerializedName("unit") val unit: String? = null,
+    @SerializedName("options") val options: List<String>? = null
+)
+
+data class MeasurementFieldEntry(
+    @SerializedName("_id") val id: String? = null,
+    @SerializedName("subLabel") val subLabel: String? = null,
+    @SerializedName("value") val value: String? = null
 )

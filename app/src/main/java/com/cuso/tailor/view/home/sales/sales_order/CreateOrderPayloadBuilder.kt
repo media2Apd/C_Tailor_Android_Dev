@@ -1,3 +1,4 @@
+@file:Suppress("unused","unusedVariable")
 package com.cuso.tailor.view.home.sales.sales_order
 
 import com.google.gson.Gson
@@ -49,7 +50,7 @@ private fun parseDateOrNull(text: String): Date? {
             val format = SimpleDateFormat(pattern, Locale.ENGLISH)
             format.isLenient = false
             return format.parse(text.trim())
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // try next pattern
         }
     }
@@ -80,11 +81,26 @@ private fun measurementsJson(snapshot: MeasurementSnapshot?): JsonArray {
 }
 
 private fun addressJson(raw: String): JsonObject {
-    return try {
+    val parsed = try {
         val element = JsonParser.parseString(raw)
         if (element.isJsonObject) element.asJsonObject else JsonObject()
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         JsonObject()
+    }
+
+    fun str(key: String): String =
+        parsed.get(key)?.takeIf { !it.isJsonNull }?.asString ?: ""
+
+    return JsonObject().apply {
+        addProperty("flatNo", str("flatNo"))
+        addProperty("street", str("street"))
+        addProperty("areaZone", str("areaZone"))
+        addProperty("city", str("city"))
+        addProperty("subdivisionCode", str("subdivisionCode"))
+        addProperty("subdivisionName", str("subdivisionName"))
+        addProperty("countryCode", str("countryCode"))
+        addProperty("countryName", str("countryName"))
+        addProperty("pincode", str("pincode"))
     }
 }
 
@@ -105,7 +121,14 @@ fun buildCreateOrderFields(
     paymentMode: String,
     advanceAmountPaid: Double,
     isFullPayment: Boolean,
-    orderNotes: String
+    orderNotes: String,
+    originType: String = "Direct",
+    orderSource: String = "Direct",
+    priority: String = "Medium",
+    deliveryMethod: String = "Store_Pickup",
+    deliveryCharge: Double = 0.0,
+    billingNotes: String = "",
+    status: String = "Pending_Approval"
 ): CreateOrderBuildResult {
     val errors = mutableListOf<String>()
     val gson: Gson = GsonBuilder().disableHtmlEscaping().create()
@@ -143,7 +166,6 @@ fun buildCreateOrderFields(
                 need(stitchingTaxGroupId, "Item #$number tax group")
 
                 val snapshot = measurements[entry.id] ?: measurements[cfg.garmentCategoryId]
-                if (snapshot == null) errors += "Item #$number measurement is missing"
 
                 val isStoreFabric = cfg.fabricSource.equals("Store Provided", ignoreCase = true)
 
@@ -295,9 +317,8 @@ fun buildCreateOrderFields(
     val customerSnapshot = JsonObject().apply {
         addProperty("customerCode", draft.customerCode)
         addProperty("name", draft.customerName)
-        addProperty("phone", fullPhone)
         addProperty("email", draft.email)
-        addProperty("customerType", draft.customerType)
+        addProperty("phone", phoneDigits)
         add("billingAddress", billingAddress)
         add("shippingAddress", billingAddress.deepCopy())
     }
@@ -327,20 +348,21 @@ fun buildCreateOrderFields(
     fields["salespersonId"] = salespersonId
     fields["orderDate"] = toIsoDate(orderDate)
     fields["dueDate"] = toIsoDate(dueDate)
+    fields["originType"] = originType
     fields["orderType"] = toApiEnum(draft.orderType.ifBlank { "New Stitching" })
-    fields["priority"] = "Medium"
+    fields["orderSource"] = orderSource
+    fields["priority"] = priority
     fields["orderNotes"] = orderNotes
     fields["paymentMode"] = paymentMode
     fields["paymentType"] = paymentTypeValue
     fields["advanceAmountRequired"] = numberText(advanceRequired)
     fields["advanceAmountPaid"] = numberText(advanceAmountPaid)
-    fields["deliveryMethod"] = "Store_Pickup"
-    fields["deliveryCharge"] = "0"
-    fields["totalDiscount"] = numberText(draft.pricing.discount)
-    fields["billingNotes"] = ""
-    fields["financeClearanceRequired"] = "true"
+    fields["deliveryMethod"] = deliveryMethod
+    fields["deliveryCharge"] = numberText(deliveryCharge)
+    fields["orderDiscount"] = numberText(draft.pricing.discount)
+    fields["billingNotes"] = billingNotes
     fields["currency"] = "INR"
-    fields["status"] = "Pending_Approval"
+    fields["status"] = status
     fields["customerSnapshot"] = gson.toJson(customerSnapshot)
     fields["items"] = gson.toJson(itemsArray)
     fields["subtotal"] = numberText(draft.pricing.subtotal)

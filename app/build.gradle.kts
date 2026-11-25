@@ -47,7 +47,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.12:5000/\""
+                "\"http://192.168.88.14:5000/\""
             )
         }
 
@@ -64,7 +64,8 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"https://tailorapi.cusotechnologies.com/\""
+                "\"https://cuso-tailor-demo.onrender.com/\""
+//                "\"http://192.168.88.14:5000/\""
             )
         }
     }
@@ -225,7 +226,12 @@ dependencies {
     //FCM
     implementation(libs.firebase.messaging)
 
+    //Force Update push
     implementation(libs.app.update)
     implementation(libs.app.update.ktx)
+
+    //Room DB Enc
+    implementation(libs.sqlcipher.android)
+    implementation(libs.androidx.sqlite.ktx)
 
 }

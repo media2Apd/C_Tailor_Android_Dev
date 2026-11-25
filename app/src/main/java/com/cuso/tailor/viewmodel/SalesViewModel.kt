@@ -715,6 +715,12 @@ class SalesViewModel @Inject constructor(
         }
     }
 
+    private val _garmentCategoriesByGarment = MutableStateFlow<List<GarmentCategoryDto>>(emptyList())
+    val garmentCategoriesByGarment: StateFlow<List<GarmentCategoryDto>> = _garmentCategoriesByGarment.asStateFlow()
+
+    private val _isLoadingGarmentCategoriesByGarment = MutableStateFlow(false)
+    val isLoadingGarmentCategoriesByGarment: StateFlow<Boolean> = _isLoadingGarmentCategoriesByGarment.asStateFlow()
+
     /**
      * Fetches garment categories filtered by a specific garment template ID.
      */
@@ -723,15 +729,22 @@ class SalesViewModel @Inject constructor(
         onResult: (List<GarmentCategoryDto>) -> Unit = {}
     ) {
         if (garmentId.isBlank()) {
+            _garmentCategoriesByGarment.value = emptyList()
+            _isLoadingGarmentCategoriesByGarment.value = false
             onResult(emptyList())
             return
         }
         viewModelScope.launch {
+            _isLoadingGarmentCategoriesByGarment.value = true
             settingsRepository.getGarmentCategoriesByGarmentId(garmentId)
                 .onSuccess { categories ->
+                    _garmentCategoriesByGarment.value = categories
+                    _isLoadingGarmentCategoriesByGarment.value = false
                     onResult(categories)
                 }
-                .onFailure { error ->
+                .onFailure {
+                    _garmentCategoriesByGarment.value = emptyList()
+                    _isLoadingGarmentCategoriesByGarment.value = false
                     onResult(emptyList())
                 }
         }

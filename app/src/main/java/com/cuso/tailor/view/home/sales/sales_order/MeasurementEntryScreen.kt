@@ -46,6 +46,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.sales.OrderOverviewItem
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.*
+import com.cuso.tailor.viewmodel.SalesViewModel
 import com.cuso.tailor.viewmodel.SettingsViewModel
 import com.google.gson.Gson
 import com.google.gson.JsonParser
@@ -82,6 +83,7 @@ private fun OrderOverviewItem.toInitialMeasurements(): Map<String, Float> {
 @Composable
 fun MeasurementEntryScreen(
     garmentType: String = "Shirt",
+    garmentId: String = "",
     garmentCategory: String = "",
     garmentCategoryId: String = "",
     orderItemId: String = "",
@@ -91,7 +93,8 @@ fun MeasurementEntryScreen(
     onClose: () -> Unit = {},
     onDiscard: () -> Unit = {},
     onSaveMeasurement: (Map<String, Float>) -> Unit = {},
-    settingsViewModel: SettingsViewModel = hiltViewModel()
+    settingsViewModel: SettingsViewModel = hiltViewModel(),
+    salesViewModel: SalesViewModel = hiltViewModel()
 ) {
     val tokens = LocalAppTokens.current
     val scrollState = rememberScrollState()
@@ -106,80 +109,113 @@ fun MeasurementEntryScreen(
 
     var showDiscardDialog by remember { mutableStateOf(false) }
 
-    // ── API State Collection from SettingsViewModel ──
+    // ── API State Collection from SalesViewModel (garment-categories/view-all?garmentId=...) ──
+    val categoriesByGarment by salesViewModel.garmentCategoriesByGarment.collectAsStateWithLifecycle()
+    val isLoadingCategories by salesViewModel.isLoadingGarmentCategoriesByGarment.collectAsStateWithLifecycle()
     val selectedStyleDetail by settingsViewModel.selectedStyleDetail.collectAsStateWithLifecycle()
     val isLoadingStyleDetail by settingsViewModel.isLoadingStyleDetail.collectAsStateWithLifecycle()
 
-    // ── Fetch Garment Category View-One API using the Category ID ──
-    LaunchedEffect(garmentCategoryId) {
-        if (garmentCategoryId.isNotBlank()) {
+    // Fetch /api/sales/settings/garment-categories/view-all?garmentId={garmentId}&paginate=false&status=Active
+    LaunchedEffect(garmentId, garmentCategoryId) {
+        if (garmentId.isNotBlank()) {
+            salesViewModel.fetchGarmentCategoriesByGarmentId(garmentId)
+        } else if (garmentCategoryId.isNotBlank()) {
             settingsViewModel.fetchGarmentCategoryById(garmentCategoryId)
         }
     }
 
-    // ── Extract measurementFields directly from View-One API response ──
-    val activeMeasurementFields: List<CategoryMeasurementFieldData> = remember(selectedStyleDetail) {
-        if (selectedStyleDetail == null) return@remember emptyList()
-        try {
-            val jsonString = Gson().toJson(selectedStyleDetail)
-            val jsonObject = JsonParser.parseString(jsonString).asJsonObject
+    val matchedCategory = remember(categoriesByGarment, garmentCategoryId) {
+        categoriesByGarment.firstOrNull { it.id == garmentCategoryId }
+            ?: categoriesByGarment.firstOrNull()
+    }
 
-            val array = if (jsonObject.has("data") && jsonObject.get("data").isJsonObject) {
-                jsonObject.getAsJsonObject("data").getAsJsonArray("measurementFields")
-            } else if (jsonObject.has("measurementFields") && jsonObject.get("measurementFields").isJsonArray) {
-                jsonObject.getAsJsonArray("measurementFields")
-            } else {
-                null
-            }
+    // ── Extract measurementFields from view-all response (category fields or garmentId.measurementFields) ──
+    val activeMeasurementFields: List<CategoryMeasurementFieldData> = remember(matchedCategory, selectedStyleDetail, garmentId) {
+        if (garmentId.isNotBlank() && matchedCategory != null) {
+            val rawFields = matchedCategory.measurementFields?.takeIf { it.isNotEmpty() }
+                ?: matchedCategory.garmentIdObj?.measurementFields.orEmpty()
 
-            val list = mutableListOf<CategoryMeasurementFieldData>()
-            array?.forEach { element ->
-                if (element.isJsonObject) {
-                    val itemObj = element.asJsonObject
-                    val isRequired = itemObj.get("isRequired")?.asBoolean ?: false
-                    val order = itemObj.get("displayOrder")?.asInt ?: 0
+            rawFields.mapNotNull { item ->
+                val field = item.fieldId ?: return@mapNotNull null
+                val id = field.id?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val name = field.name?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                CategoryMeasurementFieldData(
+                    id = id,
+                    name = name,
+                    displayName = field.displayName?.takeIf { it.isNotBlank() } ?: name,
+                    groupName = field.groupName?.trim()?.takeIf { it.isNotBlank() } ?: "General",
+                    unit = field.unit?.takeIf { it.isNotBlank() } ?: "inch",
+                    inputType = field.inputType ?: "Number",
+                    isRequired = item.isRequired,
+                    displayOrder = item.displayOrder
+                )
+            }.sortedBy { it.displayOrder }
+        } else if (selectedStyleDetail != null) {
+            try {
+                val jsonString = Gson().toJson(selectedStyleDetail)
+                val jsonObject = JsonParser.parseString(jsonString).asJsonObject
 
-                    val fieldObj = if (itemObj.has("fieldId") && itemObj.get("fieldId").isJsonObject) {
-                        itemObj.getAsJsonObject("fieldId")
-                    } else null
+                val array = if (jsonObject.has("data") && jsonObject.get("data").isJsonObject) {
+                    jsonObject.getAsJsonObject("data").getAsJsonArray("measurementFields")
+                } else if (jsonObject.has("measurementFields") && jsonObject.get("measurementFields").isJsonArray) {
+                    jsonObject.getAsJsonArray("measurementFields")
+                } else {
+                    null
+                }
 
-                    if (fieldObj != null) {
-                        val id = fieldObj.get("_id")?.asString ?: fieldObj.get("id")?.asString ?: ""
-                        val name = fieldObj.get("name")?.asString ?: ""
-                        val displayName = fieldObj.get("displayName")?.asString?.takeIf { it.isNotBlank() } ?: name
-                        val groupName = fieldObj.get("groupName")?.asString?.trim()?.takeIf { it.isNotBlank() } ?: "General"
-                        val unit = fieldObj.get("unit")?.asString?.takeIf { it.isNotBlank() } ?: "inch"
-                        val inputType = fieldObj.get("inputType")?.asString ?: "Number"
+                val list = mutableListOf<CategoryMeasurementFieldData>()
+                array?.forEach { element ->
+                    if (element.isJsonObject) {
+                        val itemObj = element.asJsonObject
+                        val isRequired = itemObj.get("isRequired")?.asBoolean ?: false
+                        val order = itemObj.get("displayOrder")?.asInt ?: 0
 
-                        if (id.isNotBlank() && name.isNotBlank()) {
-                            list.add(
-                                CategoryMeasurementFieldData(
-                                    id = id,
-                                    name = name,
-                                    displayName = displayName,
-                                    groupName = groupName,
-                                    unit = unit,
-                                    inputType = inputType,
-                                    isRequired = isRequired,
-                                    displayOrder = order
+                        val fieldObj = if (itemObj.has("fieldId") && itemObj.get("fieldId").isJsonObject) {
+                            itemObj.getAsJsonObject("fieldId")
+                        } else null
+
+                        if (fieldObj != null) {
+                            val id = fieldObj.get("_id")?.asString ?: fieldObj.get("id")?.asString ?: ""
+                            val name = fieldObj.get("name")?.asString ?: ""
+                            val displayName = fieldObj.get("displayName")?.asString?.takeIf { it.isNotBlank() } ?: name
+                            val groupName = fieldObj.get("groupName")?.asString?.trim()?.takeIf { it.isNotBlank() } ?: "General"
+                            val unit = fieldObj.get("unit")?.asString?.takeIf { it.isNotBlank() } ?: "inch"
+                            val inputType = fieldObj.get("inputType")?.asString ?: "Number"
+
+                            if (id.isNotBlank() && name.isNotBlank()) {
+                                list.add(
+                                    CategoryMeasurementFieldData(
+                                        id = id,
+                                        name = name,
+                                        displayName = displayName,
+                                        groupName = groupName,
+                                        unit = unit,
+                                        inputType = inputType,
+                                        isRequired = isRequired,
+                                        displayOrder = order
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                 }
+                list.sortedBy { it.displayOrder }
+            } catch (_: Exception) {
+                emptyList()
             }
-            list.sortedBy { it.displayOrder }
-        } catch (e: Exception) {
+        } else {
             emptyList()
         }
     }
 
+    val isLoadingFields = isLoadingCategories || isLoadingStyleDetail
+
     // ── Category Display Name resolved from API response or passed argument ──
-    val displayCategoryName = remember(garmentCategory, selectedStyleDetail) {
-        if (garmentCategory.isNotBlank()) {
-            garmentCategory
-        } else {
-            selectedStyleDetail?.displayName ?: selectedStyleDetail?.name ?: ""
+    val displayCategoryName = remember(garmentCategory, matchedCategory, selectedStyleDetail) {
+        when {
+            garmentCategory.isNotBlank() -> garmentCategory
+            matchedCategory != null -> matchedCategory.displayName
+            else -> selectedStyleDetail?.displayName ?: selectedStyleDetail?.name ?: ""
         }
     }
 
@@ -434,7 +470,7 @@ fun MeasurementEntryScreen(
                     expanded = specificationsExpanded,
                     onHeaderClick = { specificationsExpanded = !specificationsExpanded }
                 ) {
-                    if (isLoadingStyleDetail) {
+                    if (isLoadingFields) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()

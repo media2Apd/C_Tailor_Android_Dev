@@ -77,7 +77,6 @@ import com.cuso.tailor.utils.CurrencyHelper
 import com.cuso.tailor.view.composable.DeveloperModeBlockScreen
 import com.cuso.tailor.utils.LocalCurrencySymbol
 import android.content.Intent
-import android.net.Uri
 import androidx.activity.result.contract.ActivityResultContracts
 import com.cuso.tailor.view.composable.ForceUpdateBlockScreen
 import com.google.android.play.core.appupdate.AppUpdateManager
@@ -106,7 +105,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var appUpdateManager: AppUpdateManager
 
     // User update cancel panna block screen kaatta
-    private var isForceUpdateBlocked by mutableStateOf(true)
+    private var isForceUpdateBlocked by mutableStateOf(false)
 
     private val updateResultLauncher = registerForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()

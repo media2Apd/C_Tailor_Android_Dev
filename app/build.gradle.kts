@@ -47,7 +47,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.14:5000/\""
+                "\"http://192.168.88.26:5000/\""
             )
         }
 
@@ -64,8 +64,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"https://cuso-tailor-demo.onrender.com/\""
-//                "\"http://192.168.88.14:5000/\""
+                "\"https://tailorapi.cusotechnologies.com/\""
             )
         }
     }

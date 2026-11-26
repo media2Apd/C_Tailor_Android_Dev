@@ -1352,7 +1352,7 @@ fun AddExpenseScreen(
                     shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
                 ) {
                     Text(
-                        text = if (isSaving) "Saving..." else "Save as Draft",
+                        text = if (isSaving) "Saving..." else "Save ",
                         fontSize = tokens.bodySmall,
                         color = Primary
                     )
@@ -1365,7 +1365,7 @@ fun AddExpenseScreen(
                     shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f)
                 ) {
                     Text(
-                        text = if (isSaving) "Posting..." else "Post to Ledger",
+                        text = if (isSaving) "Posting..." else "Post ",
                         fontSize = tokens.bodySmall,
                         color = whiteBg,
                         fontWeight = FontWeight.Medium

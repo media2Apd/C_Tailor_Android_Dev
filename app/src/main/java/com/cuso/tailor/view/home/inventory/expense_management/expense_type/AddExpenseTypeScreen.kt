@@ -25,6 +25,7 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.hr.ExpenseTypeDto
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.view.composable.MiniSwitch
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.HrViewModel
 
@@ -174,21 +175,6 @@ fun AddExpenseTypeScreen(
                 .padding(tokens.screenPadding),
             verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
         ) {
-            Column {
-                Text(
-                    text = "Add Expense Type",
-                    fontSize = tokens.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = TextPrimary
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Configure a new category for Reimbursement",
-                    fontSize = tokens.caption,
-                    color = TextSecondary
-                )
-            }
-
             // Top Card: Name and Description
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -366,16 +352,9 @@ fun AddExpenseTypeScreen(
                             )
                         }
 
-                        Switch(
+                        MiniSwitch(
                             checked = isActive,
-                            onCheckedChange = { isActive = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = whiteBg,
-                                checkedTrackColor = Primary,
-                                uncheckedThumbColor = whiteBg,
-                                uncheckedTrackColor = BorderGray,
-                                uncheckedBorderColor = BorderGray
-                            )
+                            onCheckedChange = { isActive = it }
                         )
                     }
                 }

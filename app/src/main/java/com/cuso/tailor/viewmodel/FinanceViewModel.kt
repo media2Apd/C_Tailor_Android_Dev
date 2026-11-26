@@ -1783,7 +1783,7 @@ class FinanceViewModel @Inject constructor(
 
             // Endpoint calling with GenericApi / ApiRepository
             val result = repo.request<SupplierOverviewApiResponse> {
-                get("/api/inventory/supplier/$supplierId/overview")
+                get("api/finance/supplier/overview/$supplierId")
             }
 
             result.fold(

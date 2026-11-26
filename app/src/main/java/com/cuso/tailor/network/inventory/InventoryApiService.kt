@@ -529,7 +529,7 @@ interface InventoryApiService {
         @Path("id") id: String
     ): Response<SupplierActionResponse>
 
-    @GET("/api/finance/supplier/{id}/ledger")
+    @GET("/api/finance/supplier/ledger/{id}")
     suspend fun getSupplierLedger(
         @Header("Authorization") token: String,
         @Header("X-CSRF-Token") csrfToken: String,

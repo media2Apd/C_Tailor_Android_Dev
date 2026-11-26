@@ -58,13 +58,13 @@ fun TitleBar(
                 overflow = TextOverflow.Ellipsis
             )
 
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    fontSize = tokens.bodySmall,
-                    color = title_color
-                )
-            }
+//            if (subtitle != null) {
+//                Text(
+//                    text = subtitle,
+//                    fontSize = tokens.bodySmall,
+//                    color = title_color
+//                )
+//            }
         }
 
         // Right: Custom slot content + Close button

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:width="288dp"
+    android:height="288dp"
+    android:viewportWidth="768"
+    android:viewportHeight="768"
+    tools:ignore="VectorRaster">
+
+    <!-- Center 512x512 logo inside the 768x768 Android 12 splash safe zone -->
+    <group
+        android:translateX="128"
+        android:translateY="128">
+
+        <!-- Blue top diamond -->
+        <group
+            android:name="blue_diamond"
+            android:translateX="256"
+            android:translateY="130">
+            <path
+                android:fillColor="#2974C2"
+                android:pathData="M -22.63,-103.37 A 32,32 0 0,1 22.63,-103.37 L 126,0 L 0,126 L -126,0 Z" />
+        </group>
+
+        <!-- Yellow left diamond -->
+        <group
+            android:rotation="270"
+            android:translateX="130"
+            android:translateY="256">
+            <path
+                android:fillColor="#F3B32E"
+                android:pathData="M -22.63,-103.37 A 32,32 0 0,1 22.63,-103.37 L 126,0 L 0,126 L -126,0 Z" />
+        </group>
+
+        <!-- Red right diamond -->
+        <group
+            android:rotation="90"
+            android:translateX="382"
+            android:translateY="256">
+            <path
+                android:fillColor="#E13E3D"
+                android:pathData="M -22.63,-103.37 A 32,32 0 0,1 22.63,-103.37 L 126,0 L 0,126 L -126,0 Z" />
+        </group>
+
+        <!-- Green bottom diamond -->
+        <group
+            android:rotation="180"
+            android:translateX="256"
+            android:translateY="382">
+            <path
+                android:fillColor="#278142"
+                android:pathData="M -22.63,-103.37 A 32,32 0 0,1 22.63,-103.37 L 126,0 L 0,126 L -126,0 Z" />
+        </group>
+
+        <!-- Scissors -->
+        <group
+            android:translateX="257"
+            android:translateY="276">
+
+            <!-- Blade B (mirrored) -->
+            <group
+                android:name="blade_b"
+                android:rotation="44"
+                android:scaleX="-1">
+                <path
+                    android:fillColor="#EEF2F7"
+                    android:fillType="evenOdd"
+                    android:pathData="M 0,-190 C 12,-130 20,-70 18,-22 C 17,-6 12,8 10,26 C 9,48 12,64 24,80 C 40,90 46,110 46,132 C 46,160 26,182 0,182 C -26,182 -46,160 -46,132 C -46,110 -40,90 -24,80 C -12,64 -12,48 -12,26 C -14,8 -22,-6 -26,-30 C -28,-70 -16,-130 0,-190 Z M -28,132 A 28,33 0 1,0 28,132 A 28,33 0 1,0 -28,132 Z"
+                    android:strokeWidth="2.2"
+                    android:strokeColor="#1B2230"
+                    android:strokeLineJoin="round" />
+            </group>
+
+            <!-- Blade A -->
+            <group
+                android:name="blade_a"
+                android:rotation="-44">
+                <path
+                    android:fillColor="#EEF2F7"
+                    android:fillType="evenOdd"
+                    android:pathData="M 0,-190 C 12,-130 20,-70 18,-22 C 17,-6 12,8 10,26 C 9,48 12,64 24,80 C 40,90 46,110 46,132 C 46,160 26,182 0,182 C -26,182 -46,160 -46,132 C -46,110 -40,90 -24,80 C -12,64 -12,48 -12,26 C -14,8 -22,-6 -26,-30 C -28,-70 -16,-130 0,-190 Z M -28,132 A 28,33 0 1,0 28,132 A 28,33 0 1,0 -28,132 Z"
+                    android:strokeWidth="2.2"
+                    android:strokeColor="#1B2230"
+                    android:strokeLineJoin="round" />
+            </group>
+
+            <!-- Center screw -->
+            <path
+                android:fillColor="#DCE1E9"
+                android:pathData="M -10,0 A 10,10 0 1,0 10,0 A 10,10 0 1,0 -10,0 Z"
+                android:strokeWidth="2"
+                android:strokeColor="#1B2230" />
+            <path
+                android:fillColor="#68738A"
+                android:pathData="M -3.4,0 A 3.4,3.4 0 1,0 3.4,0 A 3.4,3.4 0 1,0 -3.4,0 Z" />
+        </group>
+    </group>
+</vector>

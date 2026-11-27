@@ -33,6 +33,7 @@ import com.cuso.tailor.model.hr.OrgMemberDto
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
+import com.cuso.tailor.view.composable.PageLoader
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.viewmodel.HrViewModel
 
@@ -77,14 +78,12 @@ fun OrganizationStructureScreen(
         }
     ) { paddingValues ->
         if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Primary)
-            }
+            PageLoader(
+                modifier = Modifier.padding(paddingValues),
+                label = "Loading Organization Structure",
+                messages = listOf("Fetching members", "Checking Teams", "Almost done"),
+                fullScreen = true
+            )
         } else {
             LazyColumn(
                 modifier = Modifier

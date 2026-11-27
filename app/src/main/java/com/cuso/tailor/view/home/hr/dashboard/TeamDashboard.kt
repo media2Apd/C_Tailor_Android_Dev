@@ -30,9 +30,22 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.PageLoader
 
 @Composable
-fun TeamOperationsDashboardScreen() {
+fun TeamOperationsDashboardScreen(
+    isLoading: Boolean = false
+) {
+    if (isLoading) {
+        // Show full-screen PageLoader while team operations data loads
+        PageLoader(
+            label = "Loading team operations",
+            messages = listOf("Fetching team status", "Syncing attendance", "Almost done"),
+            fullScreen = true
+        )
+        return
+    }
+
     val tokens = LocalAppTokens.current
     var selectedTopTab by remember { mutableStateOf(1) } // 0: My Space, 1: Team, 2: Org
     var searchQuery by remember { mutableStateOf("") }

@@ -85,6 +85,7 @@ import com.cuso.tailor.view.composable.FilterOption
 import com.cuso.tailor.view.composable.FilterSection
 import com.cuso.tailor.view.composable.FilterSectionType
 import com.cuso.tailor.view.composable.FormDropdown
+import com.cuso.tailor.view.composable.PageLoader
 import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.SheetValue
@@ -191,6 +192,7 @@ fun AllOrdersStockListScreen(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = { TitleBar(title = "Stock Adjustments", onClose = onClose) }
         ) { padding ->
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -205,46 +207,55 @@ fun AllOrdersStockListScreen(
                     onFilterClick = { filterDrawerState.open() },
                     height = tokens.fieldHeight * 1.1f
                 )
+            if (displayPagingState.isInitialLoading) {
+                // Show full-screen PageLoader while stock adjustments are loading
+                PageLoader(
+                    modifier = Modifier.padding(padding),
+                    label = "Loading ",
+                    messages = listOf("Fetching stock levels", "Loading warehouses", "Almost done"),
+                    fullScreen = true
+                )
+                } else {
+                    HorizontalDivider(color = grey_border)
 
-                HorizontalDivider(color = grey_border)
-
-                when {
-                    stockSummaryError != null && displayPagingState.items.isEmpty() && !displayPagingState.isInitialLoading -> {
-                        AppErrorState(
-                            title = "Failed to load stock adjustments",
-                            message = stockSummaryError?.let { ErrorMapper.map(it) } ?: "Something went wrong.",
-                            onRetry = { viewModel.fetchStockSummaryList() }
-                        )
-                    }
-
-                    !displayPagingState.isInitialLoading && displayPagingState.items.isEmpty() -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = "No stock items found", fontSize = tokens.bodyMedium, color = mutedText)
-                        }
-                    }
-
-                    else -> {
-                        PaginatedDataList(
-                            state = displayPagingState,
-                            onLoadMore = { viewModel.loadMoreStockSummaryList(search = searchQuery.trim().ifBlank { null }) },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .weight(1f)
-                        ) { item ->
-                            StockAdjustmentCardItem(
-                                stockItem = item,
-                                tokens = tokens,
-                                onAdjustClick = {
-                                    selectedStockItem = item
-                                    activeAdjustmentType = AdjustmentType.TransferStock
-                                    sheetState = SheetValue.Expanded
-                                }
+                    when {
+                        stockSummaryError != null && displayPagingState.items.isEmpty() -> {
+                            AppErrorState(
+                                title = "Failed to load stock adjustments",
+                                message = stockSummaryError?.let { ErrorMapper.map(it) } ?: "Something went wrong.",
+                                onRetry = { viewModel.fetchStockSummaryList() }
                             )
+                        }
+
+                        displayPagingState.items.isEmpty() -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "No stock items found", fontSize = tokens.bodyMedium, color = mutedText)
+                            }
+                        }
+
+                        else -> {
+                            PaginatedDataList(
+                                state = displayPagingState,
+                                onLoadMore = { viewModel.loadMoreStockSummaryList(search = searchQuery.trim().ifBlank { null }) },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f)
+                            ) { item ->
+                                StockAdjustmentCardItem(
+                                    stockItem = item,
+                                    tokens = tokens,
+                                    onAdjustClick = {
+                                        selectedStockItem = item
+                                        activeAdjustmentType = AdjustmentType.TransferStock
+                                        sheetState = SheetValue.Expanded
+                                    }
+                                )
+                            }
                         }
                     }
                 }

@@ -85,6 +85,7 @@ import com.cuso.tailor.view.composable.FilterDrawer
 import com.cuso.tailor.view.composable.FilterOption
 import com.cuso.tailor.view.composable.FilterSection
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PageLoader
 import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.StatusBadge
@@ -183,7 +184,16 @@ fun ProductionTeamsScreen(
                 }
             )
 
-            SearchFilterBar(
+            if (pagingState.isInitialLoading) {
+                // Show full-screen PageLoader while production teams data loads
+                PageLoader(
+                    modifier = Modifier.weight(1f),
+                    label = "Loading production teams",
+                    messages = listOf("Fetching teams", "Checking availability", "Almost done"),
+                    fullScreen = true
+                )
+            } else {
+                SearchFilterBar(
                 query = searchQuery,
                 onQueryChange = {
                     searchQuery = it
@@ -257,8 +267,7 @@ fun ProductionTeamsScreen(
             }
 
             val isErrorState = errorMessage != null &&
-                    pagingState.items.isEmpty() &&
-                    !pagingState.isInitialLoading
+                    pagingState.items.isEmpty()
 
             FabScaffold(
                 modifier = Modifier.fillMaxSize(),
@@ -267,7 +276,7 @@ fun ProductionTeamsScreen(
                     icon = Icons.Default.Add,
                     onClick = onCreateTeam
                 ),
-                fabVisible = !pagingState.isInitialLoading && !isErrorState
+                fabVisible = !isErrorState
             ) {
                 when {
                     isErrorState -> {
@@ -278,7 +287,7 @@ fun ProductionTeamsScreen(
                         )
                     }
 
-                    !pagingState.isInitialLoading && pagingState.items.isEmpty() -> {
+                    pagingState.items.isEmpty() -> {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -411,6 +420,7 @@ fun ProductionTeamsScreen(
                         }
                     }
                 }
+            }
             }
         }
 

@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.service.*
 import com.cuso.tailor.ui.theme.*
+import com.cuso.tailor.view.composable.PageLoader
 import com.cuso.tailor.view.composable.StatusBadge
 import com.cuso.tailor.viewmodel.ServicesViewModel
 
@@ -57,13 +58,13 @@ fun ServicesDashboardScreen(
     val recentFeedbacks by viewModel.recentFeedbacks.collectAsStateWithLifecycle()
     val isLoading by viewModel.isDashboardLoading.collectAsStateWithLifecycle()
 
-    if (isLoading && analytics == null) {
-        Box(
-            modifier = Modifier.fillMaxSize().background(Primary_background),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator(color = BluePrimary)
-        }
+    if (isLoading) {
+        // Show full-screen PageLoader while service dashboard data loads
+        PageLoader(
+            label = "Loading services",
+            messages = listOf("Fetching service orders", "Syncing workshop status", "Almost done"),
+            fullScreen = true
+        )
         return
     }
 

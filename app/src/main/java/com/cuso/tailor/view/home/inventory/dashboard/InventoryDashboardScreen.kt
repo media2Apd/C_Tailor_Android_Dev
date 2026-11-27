@@ -38,11 +38,10 @@ import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.inventory.*
 import com.cuso.tailor.ui.theme.*
 import com.cuso.tailor.utils.formatCurrency
-import com.cuso.tailor.view.composable.ListSkeleton
-
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.util.Locale
 import androidx.core.graphics.toColorInt
+import com.cuso.tailor.view.composable.PageLoader
 
 @Composable
 fun InventoryDashboardScreen(
@@ -71,8 +70,14 @@ fun InventoryDashboardScreen(
         contentWindowInsets = WindowInsets(0,0,0,0),
         containerColor = Primary_background
     ) { padding ->
-        if (isLoading && summary == null) {
-            ListSkeleton()
+        if (isLoading || isLoadingStockTrends || summary == null) {
+            // Show full-screen PageLoader while any inventory API data is loading
+            PageLoader(
+                modifier = Modifier.padding(padding),
+                label = "Loading inventory",
+                messages = listOf("Fetching stock summary", "Checking warehouses", "Almost done"),
+                fullScreen = true
+            )
         } else {
             LazyColumn(
                 modifier = modifier
@@ -209,7 +214,7 @@ fun InventoryDashboardScreen(
                     InventoryValueStockCard(
                         trendsData = stockTrends,
                         selectedPeriod = selectedTrendPeriod,
-                        isLoading = isLoadingStockTrends, // <-- 2. Pass loading state
+                        isLoading = false,
                         onPeriodSelected = { newPeriod ->
                             selectedTrendPeriod = newPeriod
                             viewModel.fetchStockTrends(period = newPeriod)
@@ -475,21 +480,7 @@ fun InventoryValueStockCard(
 
             Spacer(Modifier.height(18.dp))
 
-            // Show loader while API response is loading
-            if (isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(190.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        color = Primary,
-                        strokeWidth = 2.5.dp,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-            } else if (points.isEmpty()) {
+           if (points.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()

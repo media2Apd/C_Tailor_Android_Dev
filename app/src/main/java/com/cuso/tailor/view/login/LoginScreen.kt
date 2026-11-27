@@ -17,19 +17,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.Alignment
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.view.composable.AuthScreenScaffold
 import com.cuso.tailor.view.composable.CardContentsLoginScreen
-import com.cuso.tailor.view.composable.DynamicIslandSuccess
 import com.cuso.tailor.viewmodel.Authenticate
 import com.cuso.tailor.viewmodel.UiState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.unit.dp
 import com.cuso.tailor.view.composable.ExitAppDialog
 
 @Suppress("UNUSED_PARAMETER", "VariableNeverRead")

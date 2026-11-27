@@ -33,6 +33,7 @@ import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextArea
 import com.cuso.tailor.view.composable.MenuAction
+import com.cuso.tailor.view.composable.PageLoader
 import com.cuso.tailor.view.composable.PaginatedDataList
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
@@ -101,54 +102,72 @@ fun DeliveryListScreen(
                 )
             }
         ) { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .background(Color.Transparent)
-            ) {
-                SearchFilterBar(
-                    query = searchQuery,
-                    onQueryChange = { viewModel.onDeliverySearchQueryChange(it) },
-                    placeholder = "Search SO number, customer...",
-                    showFilterIcon = true,
-                    filterCount = activeFilterCount,
-                    onFilterClick = { filterDrawerState.open() },
-                    accentColor = Primary,
-                    borderColor = BorderGray,
-                    textSecondaryColor = mutedText,
-                    height = tokens.fieldHeight
+            if (deliveriesPagingState.isInitialLoading) {
+                // Show full-screen PageLoader while deliveries are loading
+                PageLoader(
+                    modifier = Modifier.padding(paddingValues),
+                    label = "Loading deliveries",
+                    messages = listOf("Fetching deliveries", "Checking dispatch status", "Almost done"),
+                    fullScreen = true
                 )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .background(Color.Transparent)
+                ) {
+                    SearchFilterBar(
+                        query = searchQuery,
+                        onQueryChange = { viewModel.onDeliverySearchQueryChange(it) },
+                        placeholder = "Search SO number, customer...",
+                        showFilterIcon = true,
+                        filterCount = activeFilterCount,
+                        onFilterClick = { filterDrawerState.open() },
+                        accentColor = Primary,
+                        borderColor = BorderGray,
+                        textSecondaryColor = mutedText,
+                        height = tokens.fieldHeight
+                    )
 
-                if (!deliveriesPagingState.isInitialLoading && deliveriesPagingState.items.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No deliveries found",
-                            fontSize = tokens.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = headerGrey
-                        )
-                    }
-                } else {
-                    PaginatedDataList(
-                        state = deliveriesPagingState,
-                        onLoadMore = { viewModel.loadMoreDeliveries() },
-                        modifier = Modifier.fillMaxSize()
-                    ) { deliveryItem ->
-                        DeliveryDataCardItem(
-                            item = deliveryItem,
-                            formattedDate = viewModel.formatDeliveryDate(deliveryItem.deliveryDate),
-                            onAssignClick = {
-                                selectedDelivery = deliveryItem
-                                showAssignDialog = true
-                            },
-                            onViewDetailClick = { validId ->
-                                onViewDeliveryDetail(validId)
+                    when {
+                        deliveriesPagingState.items.isEmpty() -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (searchQuery.isNotBlank() || activeFilterCount > 0) {
+                                        "No matching deliveries found"
+                                    } else {
+                                        "No deliveries found"
+                                    },
+                                    fontSize = tokens.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = headerGrey
+                                )
                             }
-                        )
+                        }
+
+                        else -> {
+                            PaginatedDataList(
+                                state = deliveriesPagingState,
+                                onLoadMore = { viewModel.loadMoreDeliveries() },
+                                modifier = Modifier.fillMaxSize()
+                            ) { deliveryItem ->
+                                DeliveryDataCardItem(
+                                    item = deliveryItem,
+                                    formattedDate = viewModel.formatDeliveryDate(deliveryItem.deliveryDate),
+                                    onAssignClick = {
+                                        selectedDelivery = deliveryItem
+                                        showAssignDialog = true
+                                    },
+                                    onViewDetailClick = { validId ->
+                                        onViewDeliveryDetail(validId)
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }

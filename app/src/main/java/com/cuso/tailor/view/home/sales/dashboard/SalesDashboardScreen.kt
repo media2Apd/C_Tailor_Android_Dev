@@ -4,11 +4,6 @@ package com.cuso.tailor.view.home.sales.dashboard
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -69,7 +64,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -98,6 +92,7 @@ import com.cuso.tailor.ui.theme.mutedText
 import com.cuso.tailor.ui.theme.whiteBg
 
 import com.cuso.tailor.utils.formatCurrency
+import com.cuso.tailor.view.composable.PageLoader
 import com.cuso.tailor.view.composable.SalesDashboardSkeleton
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.viewmodel.SalesViewModel
@@ -327,8 +322,9 @@ fun SalesDashboardScreen(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
-        if (globalLoading && kpiMetrics == null) {
-            SalesDashboardSkeleton() // <-- Exact Sales Skeleton on initial load
+        if (globalLoading) {
+            // Show full-screen PageLoader during initial load and period changes
+            SalesDashboardSkeleton()
         } else {
             Column(
                 modifier = Modifier
@@ -411,45 +407,41 @@ private fun KpiCard(item: KpiUi, isLoading: Boolean, modifier: Modifier = Modifi
     val trendColor = if (item.trendUp) Emerald else Red
 
     DashboardCard(modifier = modifier.fillMaxHeight(), contentPadding = 14.dp) {
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxWidth().height(96.dp).shimmerSkeleton())
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconBox(icon = item.icon, bg = item.accent.bg, tint = item.accent.tint)
-                Sparkline(points = item.spark, color = item.accent.spark)
-            }
-            Spacer(Modifier.height(14.dp))
-            Text(text = item.title, fontSize = tokens.bodySmall, color = headerGrey, maxLines = 1)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = item.value,
-                fontSize = tokens.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = TextPrimary,
-                maxLines = 1
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconBox(icon = item.icon, bg = item.accent.bg, tint = item.accent.tint)
+            Sparkline(points = item.spark, color = item.accent.spark)
+        }
+        Spacer(Modifier.height(14.dp))
+        Text(text = item.title, fontSize = tokens.bodySmall, color = headerGrey, maxLines = 1)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = item.value,
+            fontSize = tokens.bodyLarge,
+            fontWeight = FontWeight.Medium,
+            color = TextPrimary,
+            maxLines = 1
+        )
+        Spacer(Modifier.height(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = if (item.trendUp) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                contentDescription = null,
+                tint = trendColor,
+                modifier = Modifier.size(12.dp)
             )
-            Spacer(Modifier.height(6.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = if (item.trendUp) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                    contentDescription = null,
-                    tint = trendColor,
-                    modifier = Modifier.size(12.dp)
-                )
-                Spacer(Modifier.width(2.dp))
-                Text(
-                    text = item.trend.trimStart('+', '-'),
-                    fontSize = tokens.caption,
-                    fontWeight = FontWeight.Medium,
-                    color = trendColor
-                )
-                Spacer(Modifier.width(5.dp))
-                Text(text = "vs last mo", fontSize = tokens.caption, color = iconMuted, maxLines = 1)
-            }
+            Spacer(Modifier.width(2.dp))
+            Text(
+                text = item.trend.trimStart('+', '-'),
+                fontSize = tokens.caption,
+                fontWeight = FontWeight.Medium,
+                color = trendColor
+            )
+            Spacer(Modifier.width(5.dp))
+            Text(text = "vs last mo", fontSize = tokens.caption, color = iconMuted, maxLines = 1)
         }
     }
 }
@@ -520,56 +512,52 @@ private fun RevenueOrdersTrendCard(
         }
         Spacer(Modifier.height(16.dp))
 
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxWidth().height(190.dp).shimmerSkeleton())
-        } else {
-            Row(modifier = Modifier.fillMaxWidth().height(190.dp)) {
-                Column(
-                    modifier = Modifier.width(40.dp).fillMaxHeight(),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    axisLabels.forEach { Text(text = it, fontSize = tokens.label, color = iconMuted) }
+        Row(modifier = Modifier.fillMaxWidth().height(190.dp)) {
+            Column(
+                modifier = Modifier.width(40.dp).fillMaxHeight(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                axisLabels.forEach { Text(text = it, fontSize = tokens.label, color = iconMuted) }
+            }
+            Canvas(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                val w = size.width
+                val h = size.height
+                for (i in 0..4) {
+                    val y = h * i / 4f
+                    drawLine(grey_border, Offset(0f, y), Offset(w, y), 1.dp.toPx())
                 }
-                Canvas(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                    val w = size.width
-                    val h = size.height
-                    for (i in 0..4) {
-                        val y = h * i / 4f
-                        drawLine(grey_border, Offset(0f, y), Offset(w, y), 1.dp.toPx())
-                    }
-                    val n = points.size
-                    if (n == 0) return@Canvas
-                    val slot = w / n
-                    fun toOffsets(values: List<Float>) = values.mapIndexed { i, v ->
-                        Offset(slot * (i + 0.5f), h * (1f - v))
-                    }
-                    val ordersOffsets = toOffsets(ordersNorm)
-                    val revenueOffsets = toOffsets(revenueNorm)
-                    if (n > 1) {
-                        drawPath(smoothPath(ordersOffsets), Emerald, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
-                        drawPath(smoothPath(revenueOffsets), Indigo, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
-                    }
-                    if (activeIdx in 0 until n) {
-                        drawCircle(Color.White, 6.dp.toPx(), ordersOffsets[activeIdx])
-                        drawCircle(Emerald, 4.dp.toPx(), ordersOffsets[activeIdx])
-                        drawCircle(Color.White, 6.dp.toPx(), revenueOffsets[activeIdx])
-                        drawCircle(Indigo, 4.dp.toPx(), revenueOffsets[activeIdx])
-                    }
+                val n = points.size
+                if (n == 0) return@Canvas
+                val slot = w / n
+                fun toOffsets(values: List<Float>) = values.mapIndexed { i, v ->
+                    Offset(slot * (i + 0.5f), h * (1f - v))
+                }
+                val ordersOffsets = toOffsets(ordersNorm)
+                val revenueOffsets = toOffsets(revenueNorm)
+                if (n > 1) {
+                    drawPath(smoothPath(ordersOffsets), Emerald, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
+                    drawPath(smoothPath(revenueOffsets), Indigo, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
+                }
+                if (activeIdx in 0 until n) {
+                    drawCircle(Color.White, 6.dp.toPx(), ordersOffsets[activeIdx])
+                    drawCircle(Emerald, 4.dp.toPx(), ordersOffsets[activeIdx])
+                    drawCircle(Color.White, 6.dp.toPx(), revenueOffsets[activeIdx])
+                    drawCircle(Indigo, 4.dp.toPx(), revenueOffsets[activeIdx])
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth().padding(start = 40.dp)) {
-                points.forEachIndexed { i, p ->
-                    val text = if (i == 0 || i == activeIdx) "${p.label} '$yy" else p.label
-                    Text(
-                        text = text,
-                        fontSize = tokens.label,
-                        color = headerGrey,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth().padding(start = 40.dp)) {
+            points.forEachIndexed { i, p ->
+                val text = if (i == 0 || i == activeIdx) "${p.label} '$yy" else p.label
+                Text(
+                    text = text,
+                    fontSize = tokens.label,
+                    color = headerGrey,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -588,11 +576,7 @@ private fun PipelineHealthCard(rows: List<HealthUi>, isLoading: Boolean) {
             trailing = { Text(text = "STATUS", fontSize = tokens.label, color = iconMuted, letterSpacing = 0.6.sp) }
         )
         SectionDivider()
-        if (isLoading) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                repeat(5) { Box(modifier = Modifier.fillMaxWidth().height(34.dp).shimmerSkeleton()) }
-            }
-        } else if (rows.isEmpty()) {
+        if (rows.isEmpty()) {
             EmptyText("No pipeline data available")
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -659,15 +643,13 @@ private fun OrderStatusMixCard(
         }
         SectionDivider()
         if (isLoading) {
-            // Ring skeleton with two placeholder bars in the center
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                DonutSkeleton()
-            }
-            Spacer(Modifier.height(20.dp))
-            // Legend placeholders keep the card height stable while loading
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                repeat(5) { LegendSkeletonRow() }
-            }
+            // Show PageLoader inside the card when month or year filter changes
+            PageLoader(
+                label = "Loading order status",
+                messages = listOf("Fetching status mix", "Updating chart", "Almost done"),
+                size = 96.dp,
+                fullScreen = false
+            )
         } else {
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 DonutChart(segments = slices.map { DonutSegment(it.amount, it.color) }) {
@@ -792,11 +774,7 @@ private fun RevenueByCategoryCard(rows: List<CategoryUi>, isLoading: Boolean) {
             }
         )
         SectionDivider()
-        if (isLoading) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                repeat(5) { Box(modifier = Modifier.fillMaxWidth().height(28.dp).shimmerSkeleton()) }
-            }
-        } else if (rows.isEmpty()) {
+        if (rows.isEmpty()) {
             EmptyText("No revenue data available")
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -944,12 +922,6 @@ private fun TableCard(
             SectionDivider()
         }
         when {
-            isLoading -> Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                repeat(4) { Box(modifier = Modifier.fillMaxWidth().height(28.dp).shimmerSkeleton()) }
-            }
             rows.isEmpty() -> Box(modifier = Modifier.padding(16.dp)) { EmptyText("No records found") }
             else -> DashboardTable(columns = columns, rows = rows)
         }
@@ -1566,75 +1538,4 @@ private fun <T> PickerPill(
 private fun defaultYearOptions(): List<Int> {
     val current = Calendar.getInstance().get(Calendar.YEAR)
     return (current - 3..current + 1).toList()
-}
-
-// Shared animated shimmer brush used by every skeleton
-@Composable
-private fun rememberShimmerBrush(): Brush {
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val translate by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1100, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmer"
-    )
-    return Brush.linearGradient(
-        colors = listOf(Color(0xFFF1F5F9), Color(0xFFE2E8F0), Color(0xFFF1F5F9)),
-        start = Offset(translate - 400f, translate - 400f),
-        end = Offset(translate, translate)
-    )
-}
-
-@Composable
-private fun Modifier.shimmerSkeleton(): Modifier =
-    this.clip(RoundedCornerShape(8.dp)).background(rememberShimmerBrush())
-
-// Donut skeleton: pale ring with two stacked placeholder bars in the center
-@Composable
-private fun DonutSkeleton(
-    diameter: Dp = 150.dp,
-    strokeWidth: Dp = 22.dp
-) {
-    val brush = rememberShimmerBrush()
-
-    Box(modifier = Modifier.size(diameter), contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokePx = strokeWidth.toPx()
-            drawArc(
-                brush = brush,
-                startAngle = 0f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = Offset(strokePx / 2f, strokePx / 2f),
-                size = Size(size.width - strokePx, size.height - strokePx),
-                style = Stroke(strokePx)
-            )
-        }
-        // Placeholders for the total value and its label
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Box(modifier = Modifier.width(56.dp).height(12.dp).background(brush, RoundedCornerShape(4.dp)))
-            Box(modifier = Modifier.width(44.dp).height(10.dp).background(brush, RoundedCornerShape(4.dp)))
-        }
-    }
-}
-
-// One legend row placeholder: dot, label bar, value bar and percent bar
-@Composable
-private fun LegendSkeletonRow() {
-    val brush = rememberShimmerBrush()
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(10.dp).background(brush, CircleShape))
-        Spacer(Modifier.width(12.dp))
-        Box(modifier = Modifier.width(90.dp).height(12.dp).background(brush, RoundedCornerShape(4.dp)))
-        Spacer(Modifier.weight(1f))
-        Box(modifier = Modifier.width(30.dp).height(12.dp).background(brush, RoundedCornerShape(4.dp)))
-        Spacer(Modifier.width(12.dp))
-        Box(modifier = Modifier.width(40.dp).height(12.dp).background(brush, RoundedCornerShape(4.dp)))
-    }
 }

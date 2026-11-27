@@ -21,7 +21,7 @@ data class NotificationItemDto(
     val _id: String = "",
     val organizationId: String = "",
     val memberId: String = "",
-    val actorId: String = "",
+    val actorId: String? = null,
     val title: String = "",
     val message: String = "",
     val type: String = "",

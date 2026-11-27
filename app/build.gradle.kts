@@ -37,6 +37,8 @@ android {
         //VERSION
         versionCode = 2
         versionName = "1.0.1"
+
+        buildConfigField("long", "CLOUD_PROJECT_NUMBER", "123456789012L")
     }
 
 
@@ -49,7 +51,7 @@ android {
             buildConfigField(
                 "String",
                 "BASE_URL",
-                "\"http://192.168.88.26:5000/\""
+                "\"http://192.168.88.5:5000/\""
             )
         }
 
@@ -199,8 +201,6 @@ dependencies {
     implementation(libs.firebase.analytics)
 
     //PERFORMANCE
-    // Add the dependency for the Performance Monitoring library
-    // When using the BoM, you don't specify versions in Firebase library dependencies
     implementation(libs.firebase.perf)
 
     //UCrop for ProfileImageCrop
@@ -218,7 +218,7 @@ dependencies {
 
     //SOCKET
     implementation("io.socket:socket.io-client:2.1.0") {
-        exclude(group = "org.json", module = "json") // Android already includes org.json
+        exclude(group = "org.json", module = "json")
     }
 
     //chrome tab
@@ -231,7 +231,10 @@ dependencies {
     implementation(libs.app.update)
     implementation(libs.app.update.ktx)
 
-    //Room DB Enc
+    //Google Play Integrity
+    implementation(libs.play.integrity)
+
+    //Room DB Encryption
     implementation(libs.sqlcipher.android)
     implementation(libs.androidx.sqlite.ktx)
 

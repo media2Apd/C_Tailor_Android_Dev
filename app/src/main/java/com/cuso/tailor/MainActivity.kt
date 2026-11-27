@@ -78,6 +78,7 @@ import com.cuso.tailor.view.composable.DeveloperModeBlockScreen
 import com.cuso.tailor.utils.LocalCurrencySymbol
 import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.graphics.Color
 import com.cuso.tailor.view.composable.ForceUpdateBlockScreen
 import com.google.android.play.core.appupdate.AppUpdateManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
@@ -85,7 +86,7 @@ import com.google.android.play.core.appupdate.AppUpdateOptions
 import com.google.android.play.core.install.model.AppUpdateType
 import com.google.android.play.core.install.model.UpdateAvailability
 import androidx.core.net.toUri
-
+import com.cuso.tailor.view.composable.TailorSplashScreen
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
@@ -180,7 +181,6 @@ class MainActivity : ComponentActivity() {
             0
         ) != 0
 
-    // User settings poi developer mode off panni thirumbi vandha, recheck aagum
     override fun onResume() {
         super.onResume()
         isDeveloperModeOn = checkDeveloperMode()
@@ -197,9 +197,6 @@ class MainActivity : ComponentActivity() {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
 
-        // Start observing Room DB settings table for currency symbol updates
-        CurrencyHelper.startObserving(appDatabase.settingsDao(), lifecycleScope)
-
         // Block screenshots, screen recording, recent-apps thumbnail
         window.setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
@@ -208,21 +205,25 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
 
-        appUpdateManager = AppUpdateManagerFactory.create(this)
-
-// setContent ku munnadiye check pannanum
+        // Check developer mode before rendering UI
         isDeveloperModeOn = checkDeveloperMode()
-        if (!isDeveloperModeOn) {
-            checkForForceUpdate()
+
+        // Exit static OS splash immediately without fade-out delay
+        splashScreen.setKeepOnScreenCondition { false }
+        splashScreen.setOnExitAnimationListener { splashView ->
+            splashView.remove()
         }
 
-// Developer mode ON or Force Update block na splash la stuck aaga koodathu
-        splashScreen.setKeepOnScreenCondition {
-            isLoggedInState == null && !isDeveloperModeOn && !isForceUpdateBlocked
-        }
-
-        // Immediately invoke setContent to prevent Window Timeout ANR
+        // Invoke setContent immediately so the animated splash renders on the very first frame
         setContent {
+            // Initialize observers and update check after first composition
+            LaunchedEffect(Unit) {
+                CurrencyHelper.startObserving(appDatabase.settingsDao(), lifecycleScope)
+                appUpdateManager = AppUpdateManagerFactory.create(this@MainActivity)
+                if (!isDeveloperModeOn) {
+                    checkForForceUpdate()
+                }
+            }
             if (isDeveloperModeOn) {
                 // Developer mode ON: block screen mattum, API edhuvum hit aagadhu
                 CusoTailorTheme {
@@ -239,6 +240,8 @@ class MainActivity : ComponentActivity() {
                 }
             } else {
                 // Developer mode OFF: unga existing flow appadiye
+// Hold splash screen until minimum loader animation duration and session check complete
+                var splashFinished by remember { mutableStateOf(false) }
 
                 // Check login state on background thread without blocking main thread
                 LaunchedEffect(Unit) {
@@ -247,8 +250,21 @@ class MainActivity : ComponentActivity() {
                     }
                     isLoggedInState = loggedIn
                 }
-            // Render UI once authentication check is complete
-            isLoggedInState?.let { isLoggedIn ->
+
+                // Render animated PageLoader splash screen
+                if (!splashFinished || isLoggedInState == null) {
+                    CusoTailorTheme {
+                        TailorSplashScreen(
+                            isReady = isLoggedInState != null,
+                            onSplashFinished = { splashFinished = true },
+                            minDisplayMs = 2400L,
+                            label = "Cuso Tailor",
+                            backgroundColor = Color.White
+                        )
+                    }
+                } else {
+                    // Render UI once authentication check and splash animation are complete
+                    isLoggedInState?.let { isLoggedIn ->
                 val windowSizeClass = calculateWindowSizeClass(this@MainActivity)
                 val tokens = getAdaptiveTokens(windowSizeClass.widthSizeClass)
                 val isAppBusy by AppLoadingManager.busyState.collectAsState()
@@ -331,13 +347,14 @@ class MainActivity : ComponentActivity() {
                                             DynamicIslandError(
                                                 message = globalErrorMessage,
                                                 onDismiss = { globalErrorMessage = null }
-                                                )
-                                            }
+                                            )
                                         }
                                     }
                                 }
                             }
                         }
+                    }
+                }
                     }
                 }
             }

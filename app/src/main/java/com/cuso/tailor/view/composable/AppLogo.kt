@@ -21,7 +21,7 @@ fun AppLogo() {
     val tokens = LocalAppTokens.current
 
     // Adaptive size: 50dp for mobile, 70dp for tablets
-    val logoSize = if (tokens.isTablet) 70.dp else 50.dp
+    val logoSize = if (tokens.isTablet) 100.dp else 80.dp
 
     Column {
         Image(

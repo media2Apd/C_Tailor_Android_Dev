@@ -124,7 +124,7 @@ fun OpportunitiesListScreen(
                             onFilterClick = { filterDrawerState.open() }
                         )
 
-                        OpportunityMetricsGrid()
+
 
                         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                             when (val state = uiState) {
@@ -168,6 +168,9 @@ fun OpportunitiesListScreen(
                                         LazyColumn(
                                             contentPadding = PaddingValues(top = tokens.extraPadding * 0.5f, bottom = 90.dp)
                                         ) {
+                                            item{
+                                                OpportunityMetricsGrid()
+                                            }
                                             items(filteredOpportunities, key = { it.id }) { item ->
                                                 val cardActions = listOf(
                                                     MenuAction("View", Icons.Default.Visibility) { onViewOpportunity(item) },

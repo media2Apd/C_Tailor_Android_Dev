@@ -35,6 +35,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import com.cuso.tailor.view.composable.MenuAction
 import com.cuso.tailor.view.composable.PaginatedDataList
+import com.cuso.tailor.view.composable.PlanLimitDialog
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.TitleBar
 import com.cuso.tailor.view.composable.rememberFilterDrawerState
@@ -42,6 +43,7 @@ import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.DepartmentViewModel
 import com.cuso.tailor.viewmodel.DesignationViewModel
 import com.cuso.tailor.viewmodel.HrViewModel
+import com.cuso.tailor.viewmodel.PermissionViewModel
 import kotlinx.coroutines.delay
 
 private val AccentColor = Color(0xFF4F39F6)
@@ -60,16 +62,24 @@ fun AllEmployeesScreen(
     onView: (MemberItem) -> Unit = {},
     onEdit: (MemberItem) -> Unit = {},
     onDelete: (MemberItem) -> Unit = {},
+    onUpgradePlan: () -> Unit = {},
     hrViewModel: HrViewModel = hiltViewModel(),
     branchViewModel: BranchViewModel = hiltViewModel(),
     departmentViewModel: DepartmentViewModel = hiltViewModel(),
     designationViewModel: DesignationViewModel = hiltViewModel(),
+    permissionViewModel: PermissionViewModel = hiltViewModel(),
     onBreadCrumbClick: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
 
     val membersPagingState by hrViewModel.membersPagingState.collectAsStateWithLifecycle()
     val error by hrViewModel.membersError.collectAsStateWithLifecycle()
+    val planLimitsState by permissionViewModel.planLimits.collectAsStateWithLifecycle()
+    var showEmployeeLimitDialog by remember { mutableStateOf(false) }
+
+    val employeeLimitResult = remember(planLimitsState, membersPagingState.items.size) {
+        permissionViewModel.getPlanLimitStatus("employee", fallbackUsedCount = membersPagingState.items.size)
+    }
 
     var searchQuery by remember { mutableStateOf("") }
 
@@ -105,6 +115,7 @@ fun AllEmployeesScreen(
         branchViewModel.loadBranches()
         departmentViewModel.loadDepartments()
         designationViewModel.loadDesignations()
+        permissionViewModel.fetchPlanLimitsAndModules()
     }
 
     // Debounced search and filter triggers
@@ -119,7 +130,13 @@ fun AllEmployeesScreen(
             fab = FabConfig(
                 label = "Employee",
                 icon = Icons.Default.Add,
-                onClick = onAddEmployee
+                onClick = {
+                    if (employeeLimitResult.isExceeded) {
+                        showEmployeeLimitDialog = true
+                    } else {
+                        onAddEmployee()
+                    }
+                }
             )
         ) {
             FilterDrawer(
@@ -243,6 +260,21 @@ fun AllEmployeesScreen(
                     }
                 }
             }
+        }
+
+        if (showEmployeeLimitDialog) {
+            PlanLimitDialog(
+                title = "Employee limit reached",
+                message = "This organization has reached the maximum number of employees allowed under your current plan.",
+                resourceLabel = "Employees",
+                usedCount = employeeLimitResult.used,
+                maxLimit = employeeLimitResult.limit,
+                onDismiss = { showEmployeeLimitDialog = false },
+                onUpgradePlan = {
+                    showEmployeeLimitDialog = false
+                    onUpgradePlan()
+                }
+            )
         }
     }
 }

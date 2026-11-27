@@ -719,7 +719,7 @@ fun JournalEntryFormScreen(
             title = "Feature restricted",
             message = "You're on the ${currentPlanName.replaceFirstChar { it.uppercase() }} plan and can't upload documents or receipts. Upgrade your plan to unlock this feature.",
             onDismiss = { showPlanLimitDialog = false },
-            onUpgrade = { showPlanLimitDialog = false }
+            onUpgradePlan = { showPlanLimitDialog = false }
         )
     }
 }

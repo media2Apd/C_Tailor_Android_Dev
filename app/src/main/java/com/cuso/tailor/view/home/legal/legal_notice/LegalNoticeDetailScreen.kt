@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -664,15 +663,15 @@ private fun NoticeDocumentsTab(
                 Text("Notices & Case Documents", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = title_color)
                 Text("${allDocs.size} uploaded legal files", fontSize = tokens.caption, color = mutedText)
             }
-            Button(
-                onClick = onOpenUpload,
-                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                shape = RoundedCornerShape(tokens.cardCornerRadius)
-            ) {
-                Icon(imageVector = Icons.Default.Upload, contentDescription = null, tint = whiteBg, modifier = Modifier.size(tokens.iconSize * 0.8f))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Upload", fontSize = tokens.caption, color = whiteBg)
-            }
+//            Button(
+//                onClick = onOpenUpload,
+//                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+//                shape = RoundedCornerShape(tokens.cardCornerRadius)
+//            ) {
+//                Icon(imageVector = Icons.Default.Upload, contentDescription = null, tint = whiteBg, modifier = Modifier.size(tokens.iconSize * 0.8f))
+//                Spacer(modifier = Modifier.width(4.dp))
+//                Text("Upload", fontSize = tokens.caption, color = whiteBg)
+//            }
         }
 
         DetailCard {

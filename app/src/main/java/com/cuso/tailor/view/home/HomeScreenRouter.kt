@@ -3875,7 +3875,6 @@ private fun InventoryMainRouter(
         ) {
             CreateItemGroupScreen(
                 onDismiss = {
-                    onItemGroupIdSelected(null)
                     onGoBack()
                 },
                 onSaveSuccess = {
@@ -3929,7 +3928,6 @@ private fun InventoryMainRouter(
             AddBulkItemScreen(
                 editItemId = selectedBulkItemId,
                 onClose = {
-                    onBulkItemIdSelected(null)
                     onGoBack()
                 },
                 onSaved = {

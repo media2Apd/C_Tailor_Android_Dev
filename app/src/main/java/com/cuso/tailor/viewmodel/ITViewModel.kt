@@ -79,7 +79,7 @@ private const val ALL_USERS_URL = "/api/users/view-all"
 
 // --- IT Service Desk Endpoints ---
 private const val IT_TICKET_DASHBOARD_URL = "/api/it/tickets/dashboard"
-private const val IT_TICKETS_URL = "/api/it/tickets"
+private const val IT_TICKETS_URL = "/api/it/tickets/create"
 
 
 @HiltViewModel
@@ -1338,7 +1338,7 @@ class ItViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoadingTickets.value = true
             val result = repo.request<TicketDetailResponse> {
-                post(IT_TICKETS_URL, request)
+                post("$IT_TICKETS_URL/create", request)
             }
             result.fold(
                 onSuccess = { res ->

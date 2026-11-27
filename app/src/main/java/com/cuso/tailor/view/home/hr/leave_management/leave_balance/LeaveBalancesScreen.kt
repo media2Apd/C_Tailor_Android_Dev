@@ -21,8 +21,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
@@ -58,6 +56,7 @@ import com.cuso.tailor.ui.theme.redBg
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.view.composable.ActionDropdownMenu
+import com.cuso.tailor.view.composable.AppCheckbox
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardStat
 import com.cuso.tailor.view.composable.DataCardStatsRow
@@ -202,18 +201,14 @@ fun LeaveBalancesScreen(
                     },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Checkbox(
+                AppCheckbox(
                     checked = allSelected,
                     onCheckedChange = { checked ->
                         selectedIds.clear()
                         if (checked) {
                             selectedIds.addAll(pagingState.items.map { it.resolvedId })
                         }
-                    },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = Primary,
-                        uncheckedColor = mutedText
-                    )
+                    }
                 )
                 Text(
                     text = "Select all employees",
@@ -380,13 +375,9 @@ private fun LeaveBalanceDataCard(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Checkbox(
+                    AppCheckbox(
                         checked = isChecked,
-                        onCheckedChange = onCheckedChange,
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = Primary,
-                            uncheckedColor = mutedText
-                        )
+                        onCheckedChange = onCheckedChange
                     )
                     Text(
                         text = item.extractEmployeeName(),

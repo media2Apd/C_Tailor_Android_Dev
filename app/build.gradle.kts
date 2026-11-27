@@ -39,7 +39,9 @@ android {
         versionName = "1.0.1"
     }
 
+
     buildTypes {
+
         debug {
             isDebuggable = true
             isMinifyEnabled = false

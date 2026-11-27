@@ -945,7 +945,6 @@ private fun Step2ConfigureQuotationScope(
     totalValue: Double
 ) {
     val tokens = LocalAppTokens.current
-    var showAddItemMenu by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -1026,60 +1025,34 @@ private fun Step2ConfigureQuotationScope(
             Spacer(Modifier.height(14.dp))
         }
 
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(tokens.buttonHeight)
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, Primary.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                    .clickable { showAddItemMenu = true },
-                color = whiteBg
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
+        AddItemMenuButton(
+            options = listOf(
+                AddItemOption(
+                    title = "Add Garment",
+                    subtitle = "Pick a garment type",
+                    icon = Icons.Default.Checkroom,
+                    tint = Primary
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = Primary, modifier = Modifier.size(tokens.iconSize))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Add New Item", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Primary)
-                    Spacer(Modifier.width(4.dp))
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Primary, modifier = Modifier.size(tokens.iconSize))
+                    onItemsChange(items + QuotationScopeItem(itemType = QuotationItemType.GARMENT))
+                },
+                AddItemOption(
+                    title = "Add Fabric",
+                    subtitle = "Choose the material",
+                    icon = Icons.Default.Texture,
+                    tint = Color(0xFF0D9488)
+                ) {
+                    onItemsChange(items + QuotationScopeItem(itemType = QuotationItemType.FABRIC, unit = "Meters", hsnCode = "0984"))
+                },
+                AddItemOption(
+                    title = "Add Item",
+                    subtitle = "Add a retail item",
+                    icon = Icons.Default.ShoppingBag,
+                    tint = darkGreenBg
+                ) {
+                    onItemsChange(items + QuotationScopeItem(itemType = QuotationItemType.RETAIL_ITEM, unit = "Pieces", hsnCode = "1234"))
                 }
-            }
-
-            DropdownMenu(
-                expanded = showAddItemMenu,
-                onDismissRequest = { showAddItemMenu = false },
-                modifier = Modifier.background(whiteBg)
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Add Garment") },
-                    leadingIcon = { Icon(Icons.Default.Checkroom, contentDescription = null, tint = Primary) },
-                    onClick = {
-                        showAddItemMenu = false
-                        onItemsChange(items + QuotationScopeItem(itemType = QuotationItemType.GARMENT))
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Add Fabric") },
-                    leadingIcon = { Icon(Icons.Default.Texture, contentDescription = null, tint = Color(0xFF0D9488)) },
-                    onClick = {
-                        showAddItemMenu = false
-                        onItemsChange(items + QuotationScopeItem(itemType = QuotationItemType.FABRIC, unit = "Meters", hsnCode = "0984"))
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Add Item") },
-                    leadingIcon = { Icon(Icons.Default.ShoppingBag, contentDescription = null, tint = darkGreenBg) },
-                    onClick = {
-                        showAddItemMenu = false
-                        onItemsChange(items + QuotationScopeItem(itemType = QuotationItemType.RETAIL_ITEM, unit = "Pieces", hsnCode = "1234"))
-                    }
-                )
-            }
-        }
+            )
+        )
 
         Spacer(Modifier.height(20.dp))
 

@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,7 +26,6 @@ import com.cuso.tailor.utils.PagingUiState
 import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
-import com.cuso.tailor.view.home.paywall.PermissionAction
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import java.util.Locale
 
@@ -95,16 +93,17 @@ fun AllBillListScreen(
     ) {
         FabScaffold(
             modifier = Modifier.fillMaxSize(),
-            fab = FabConfig(
-                label = "Create Order",
-                icon = Icons.Default.Add,
-                requiredAction = PermissionAction.CREATE,
-                alignment = Alignment.BottomEnd,
-                endPadding = tokens.screenPadding,
-                bottomPadding = tokens.screenPadding,
-                draggable = false,
-                onClick = onCreateOrder
-            )
+//            fab = FabConfig(
+//                label = "Create Order",
+//                icon = Icons.Default.Add,
+//                requiredAction = PermissionAction.CREATE,
+//                alignment = Alignment.BottomEnd,
+//                endPadding = tokens.screenPadding,
+//                bottomPadding = tokens.screenPadding,
+//                draggable = false,
+//                onClick = onCreateOrder
+//            ),
+            fab = null
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Column(

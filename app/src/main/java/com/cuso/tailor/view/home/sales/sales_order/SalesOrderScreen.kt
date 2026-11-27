@@ -35,6 +35,7 @@ import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.formatIndianNumber
 import com.cuso.tailor.viewmodel.OrderActionState
 import com.cuso.tailor.viewmodel.OrderUiState
+import com.cuso.tailor.viewmodel.PermissionViewModel
 import com.cuso.tailor.viewmodel.SalesOrderViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -82,14 +83,22 @@ fun SalesOrderScreen(
     onCreateOrder: () -> Unit = {},
     onViewOrder: (String) -> Unit = {},
     onEditOrder: (String) -> Unit = {},
+    onUpgradePlan: () -> Unit = {},
     onBreadCrumbClick: () -> Unit = {}
 ) {
     val tokens = LocalAppTokens.current
     val viewModel: SalesOrderViewModel = hiltViewModel()
+    val permissionViewModel: PermissionViewModel = hiltViewModel()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
     val actionState by viewModel.actionState.collectAsStateWithLifecycle()
     val isLoadingMore by viewModel.isLoadingMore.collectAsStateWithLifecycle()
     val canLoadMore by viewModel.canLoadMore.collectAsStateWithLifecycle()
+    val planLimitsState by permissionViewModel.planLimits.collectAsStateWithLifecycle()
+    var showOrderLimitDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        permissionViewModel.fetchPlanLimitsAndModules()
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
@@ -144,7 +153,11 @@ fun SalesOrderScreen(
                 viewModel.resetActionState()
             }
             is OrderActionState.Error -> {
-                errorMessage = ErrorMapper.map(s.message)
+                if (s.message.contains("limit", true) || s.message.contains("exceed", true)) {
+                    showOrderLimitDialog = true
+                } else {
+                    errorMessage = ErrorMapper.map(s.message)
+                }
                 viewModel.resetActionState()
             }
             else -> Unit
@@ -161,6 +174,9 @@ fun SalesOrderScreen(
 
     val isLoading = orderState is OrderUiState.Loading
     val orders = (orderState as? OrderUiState.Success)?.orders ?: emptyList()
+    val orderLimitResult = remember(planLimitsState, orders.size) {
+        permissionViewModel.getPlanLimitStatus("order", fallbackUsedCount = orders.size)
+    }
 
     val filteredOrders by remember(orders, searchQuery, filterSections) {
         derivedStateOf {
@@ -200,7 +216,13 @@ fun SalesOrderScreen(
         fab = FabConfig(
             label = "Create Order",
             icon = Icons.Default.Add,
-            onClick = { onCreateOrder() },
+            onClick = {
+                if (orderLimitResult.isExceeded) {
+                    showOrderLimitDialog = true
+                } else {
+                    onCreateOrder()
+                }
+            },
             bottomPadding = 50.dp
         ),
         snackbarHostState = snackbarHostState,
@@ -347,6 +369,22 @@ fun SalesOrderScreen(
                         }
                     )
                 }
+            }
+
+            // ── PLAN LIMIT EXCEEDED DIALOG ──
+            if (showOrderLimitDialog) {
+                PlanLimitDialog(
+                    title = "Order limit reached",
+                    message = "This branch has reached the maximum number of orders allowed under your current plan.",
+                    resourceLabel = "Orders",
+                    usedCount = orderLimitResult.used,
+                    maxLimit = orderLimitResult.limit,
+                    onDismiss = { showOrderLimitDialog = false },
+                    onUpgradePlan = {
+                        showOrderLimitDialog = false
+                        onUpgradePlan()
+                    }
+                )
             }
 
             // ── DELETE CONFIRMATION DIALOG (DeleteModel) ──

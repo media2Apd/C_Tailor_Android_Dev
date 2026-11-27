@@ -51,8 +51,6 @@ import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextField
 import com.cuso.tailor.view.composable.MenuAction
-import com.cuso.tailor.view.composable.PlanLimitDialog
-import com.cuso.tailor.view.composable.PlanLimits
 import com.cuso.tailor.view.composable.SearchFilterBar
 import com.cuso.tailor.view.composable.SheetValue
 import com.cuso.tailor.view.composable.StepNavigationFab
@@ -64,8 +62,6 @@ import com.cuso.tailor.viewmodel.DepartmentUiState
 import com.cuso.tailor.viewmodel.DepartmentUpdateUiState
 import com.cuso.tailor.viewmodel.DepartmentViewModel
 import com.cuso.tailor.viewmodel.DesignationCreateState
-import com.cuso.tailor.viewmodel.ProfileUiState
-import com.cuso.tailor.viewmodel.ProfileViewModel
 import com.cuso.tailor.viewmodel.SalesViewModel
 import com.cuso.tailor.view.composable.PaginatedDataList
 
@@ -85,13 +81,11 @@ fun DepartmentSettingsScreen(
 
     val departmentViewModel: DepartmentViewModel = hiltViewModel()
     val salesViewModel: SalesViewModel = hiltViewModel()
-    val profileViewModel: ProfileViewModel = hiltViewModel()
     val branchViewModel: BranchViewModel = hiltViewModel()
 
     var addSheetState by remember { mutableStateOf(SheetValue.Hidden) }
     var editingDepartment by remember { mutableStateOf<DepartmentItem?>(null) }
     var editSheetState by remember { mutableStateOf(SheetValue.Hidden) }
-    var showPlanLimitDialog by remember { mutableStateOf(false) }
 
     var addSheetBlur by remember { mutableStateOf(0.dp) }
     var addSheetScrim by remember { mutableFloatStateOf(0f) }
@@ -108,7 +102,6 @@ fun DepartmentSettingsScreen(
     val branchUiState by branchViewModel.uiState.collectAsStateWithLifecycle()
     val createState by departmentViewModel.createState.collectAsStateWithLifecycle()
     val updateState by departmentViewModel.updateState.collectAsStateWithLifecycle()
-    val profileUiState by profileViewModel.uiState.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -120,41 +113,19 @@ fun DepartmentSettingsScreen(
         departmentViewModel.loadDepartments()
         salesViewModel.fetchStaff()
         branchViewModel.loadBranches()
-        profileViewModel.loadOrganization("")
     }
-
-    val planLimits = (profileUiState as? ProfileUiState.Success)?.data?.organization?.let { org ->
-        org.plan?.let { plan ->
-            PlanLimits(
-                branchLimit = plan.branchLimit,
-                departmentLimit = plan.departmentLimit,
-                employeeLimit = plan.employeeLimit,
-                orderLimit = plan.orderLimit,
-                categoryLimit = plan.categoryLimit
-            )
-        }
-    }
-
-    val allDepartments = (uiState as? DepartmentUiState.Success)?.departments ?: emptyList()
-    val currentDepartments = allDepartments.size
-    val isDepartmentLimitReached = planLimits != null && currentDepartments >= planLimits.departmentLimit
 
     LaunchedEffect(createState) {
         when (val state = createState) {
             is DesignationCreateState.Success -> {
                 currentScreenMode = DepartmentScreenMode.LIST
                 departmentViewModel.resetCreateState()
-                departmentViewModel.loadDepartments()
+                departmentViewModel.refresh()
                 successMessage = "Department created successfully"
             }
             is DesignationCreateState.Error -> {
                 departmentViewModel.resetCreateState()
-                val isLimitError = state.message.contains("limit", true) || state.message.contains("exceed", true) || state.message.contains("maximum", true)
-                if (isLimitError && isDepartmentLimitReached) {
-                    showPlanLimitDialog = true
-                } else {
-                    errorMessage = state.message
-                }
+                errorMessage = state.message
             }
             else -> Unit
         }
@@ -166,7 +137,7 @@ fun DepartmentSettingsScreen(
                 currentScreenMode = DepartmentScreenMode.LIST
                 editingDepartment = null
                 departmentViewModel.resetUpdateState()
-                departmentViewModel.loadDepartments()
+                departmentViewModel.refresh()
                 successMessage = "Department updated successfully"
             }
             is DepartmentUpdateUiState.Error -> {
@@ -202,12 +173,8 @@ fun DepartmentSettingsScreen(
                                     label = "Add Department",
                                     icon = Icons.Default.Add,
                                     onClick = {
-                                        if (planLimits != null && isDepartmentLimitReached) {
-                                            showPlanLimitDialog = true
-                                        } else {
-                                            editingDepartment = null
-                                            currentScreenMode = DepartmentScreenMode.FORM
-                                        }
+                                        editingDepartment = null
+                                        currentScreenMode = DepartmentScreenMode.FORM
                                     }
                                 ),
                                 fabVisible = !isAnySheetOpen,
@@ -450,37 +417,26 @@ fun DepartmentSettingsScreen(
                                     departmentViewModel.resetUpdateState()
                                 },
                                 onSubmit = { name, description, departmentHead, branchId, status ->
+                                    val statusValue = if (status) "Active" else "Inactive"
                                     if (editingDepartment != null) {
                                         departmentViewModel.updateDepartment(
                                             id = editingDepartment!!._id,
                                             name = name,
                                             description = description,
                                             departmentHead = departmentHead,
-                                            status = status
+                                            status = statusValue
                                         )
                                     } else {
-                                        if (isDepartmentLimitReached) {
-                                            showPlanLimitDialog = true
-                                            return@AddDepartmentPage
-                                        }
                                         departmentViewModel.createDepartment(
                                             name = name,
                                             description = description,
-                                            departmentHead = departmentHead
+                                            departmentHead = departmentHead,
+                                            status = "Active"
                                         )
                                     }
                                 }
                             )
                         }
-                    }
-
-                    if (showPlanLimitDialog) {
-                        PlanLimitDialog(
-                            title = "Plan Limit Reached",
-                            message = "Department limit exceeded ($currentDepartments/${planLimits?.departmentLimit ?: 0}). Upgrade your plan to add more departments.",
-                            onDismiss = { showPlanLimitDialog = false },
-                            onUpgrade = { }
-                        )
                     }
                 }
             }
@@ -563,14 +519,15 @@ fun AddDepartmentPage(
                     )
                 }
 
-//                Column {
-//                    FormLabel("Description")
-//                    FormTextField(
-//                        value = description,
-//                        onValueChange = { description = it },
-//                        placeholder = "Enter description"
-//                    )
-//                }
+               // Department description input
+                Column {
+                    FormLabel("Description")
+                    FormTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        placeholder = "Enter description"
+                    )
+                }
 
                 // 2. Department Head Dropdown
                 Column {
@@ -663,11 +620,18 @@ fun AddDepartmentPage(
 // Helper Functions
 // ─────────────────────────────────────────────────────────────
 
-private fun headNameFor(department: DepartmentItem, staffList: List<StaffDto>): String =
-    department.departmentHeadId
+private fun headNameFor(department: DepartmentItem, staffList: List<StaffDto>): String {
+    val embeddedName = department.departmentHead?.let {
+        "${it.firstName} ${it.lastName}".trim()
+    }
+    if (!embeddedName.isNullOrBlank()) return embeddedName
+
+    return department.departmentHeadId
         ?.let { headId -> staffList.firstOrNull { it.id == headId } }
-        ?.let { "${it.firstName} ${it.lastName}" }
+        ?.let { "${it.firstName} ${it.lastName}".trim() }
+        ?.takeIf { it.isNotBlank() }
         ?: "-"
+}
 
 // ─────────────────────────────────────────────────────────────
 // Data Class

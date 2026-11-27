@@ -161,13 +161,19 @@ class DepartmentViewModel @Inject constructor(
     }
 
     // ── Create Department ──
-    fun createDepartment(name: String, description: String, departmentHead: String) {
+    fun createDepartment(
+        name: String,
+        description: String,
+        departmentHead: String,
+        status: String = "Active"
+    ) {
         launchBusy {
             _createState.value = DesignationCreateState.Loading
             val request = DepartmentCreateRequest(
-                name = name,
-                description = description,
-                departmentHead = departmentHead
+                name = name.trim(),
+                description = description.trim(),
+                departmentHeadId = departmentHead.ifBlank { null },
+                status = status
             )
             salesRepository.createDepartment(request).fold(
                 onSuccess = { response ->
@@ -203,13 +209,19 @@ class DepartmentViewModel @Inject constructor(
     }
 
     // ── Update Department ──
-    fun updateDepartment(id: String, name: String, description: String?, departmentHead: String?, status: Boolean?) {
+    fun updateDepartment(
+        id: String,
+        name: String,
+        description: String?,
+        departmentHead: String?,
+        status: String?
+    ) {
         launchBusy {
             _updateState.value = DepartmentUpdateUiState.Loading
             val request = DepartmentUpdateRequest(
-                name = name,
-                description = description,
-                departmentHead = departmentHead,
+                name = name.trim(),
+                description = description?.trim(),
+                departmentHeadId = departmentHead?.ifBlank { null },
                 status = status
             )
             salesRepository.updateDepartment(id, request).fold(

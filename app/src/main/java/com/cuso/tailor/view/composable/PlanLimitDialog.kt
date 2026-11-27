@@ -1,160 +1,157 @@
 package com.cuso.tailor.view.composable
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
-import com.cuso.tailor.ui.theme.Primary
-import com.cuso.tailor.ui.theme.blackTitle
-import com.cuso.tailor.ui.theme.redText
-import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.ui.theme.*
 
-// ─────────────────────────────────────────────────────────────
-// PlanLimits — single shared data class for ALL modules
-// (Branch, Department, Employee, Order, Category ...)
-// ─────────────────────────────────────────────────────────────
-data class PlanLimits(
-    val branchLimit: Int,
-    val departmentLimit: Int,
-    val employeeLimit: Int,
-    val orderLimit: Int,
-    val categoryLimit: Int
-)
-
-// ─────────────────────────────────────────────────────────────
-// PlanLimitDialog — single shared dialog for ALL modules.
-// Just pass the title/message you want, works for any screen.
-// Width is adaptive: full-bleed (minus padding) on phones,
-// capped at a comfortable max width on tablets/expanded screens
-// so it doesn't stretch edge-to-edge like a phone sheet.
-// ─────────────────────────────────────────────────────────────
 @Composable
 fun PlanLimitDialog(
-    title: String = "Plan Limit Reached",
+    title: String,
     message: String,
+    resourceLabel: String = "",
+    usedCount: Int = 0,
+    maxLimit: Int = 0,
     onDismiss: () -> Unit,
-    onUpgrade: () -> Unit
+    onUpgradePlan: () -> Unit = {}
 ) {
-    var isVisible by remember { mutableStateOf(false) }
     val tokens = LocalAppTokens.current
+    val safeLimit = maxLimit.coerceAtLeast(1)
+    val progress = (usedCount.toFloat() / safeLimit.toFloat()).coerceIn(0f, 1f)
 
-    LaunchedEffect(Unit) {
-        isVisible = true
-    }
-
-    // Industry-standard alert/limit dialog widths:
-    // phones -> fill available width (with side padding)
-    // tablets/desktop-web -> cap around 420-480dp, centered
-    val dialogMaxWidth = if (tokens.isTablet) 200.dp else Dp.Unspecified
-
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(blackTitle.copy(alpha = 0.3f))
-                .clickable { onDismiss() },
-            contentAlignment = Alignment.TopCenter
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(tokens.cardCornerRadius * 1.4f),
+            color = whiteBg
         ) {
-            AnimatedVisibility(
-                visible = isVisible,
-                enter = slideInVertically(
-                    initialOffsetY = { -it },
-                    animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
-                ) + fadeIn(animationSpec = tween(durationMillis = 300)),
-                exit = slideOutVertically(
-                    targetOffsetY = { -it },
-                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(durationMillis = 200))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = tokens.cardPadding, vertical = tokens.screenPadding),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth(if (tokens.isTablet) 0.45f else 1f)
-                        .let { m ->
-                            if (dialogMaxWidth != Dp.Unspecified) m.widthIn(max = dialogMaxWidth) else m
-                        }
-                        .padding(horizontal = 16.dp, vertical = 40.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable { /* prevent click through */ },
-                    colors = CardDefaults.cardColors(containerColor = whiteBg),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                // Top-right close icon
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .size(28.dp)
                     ) {
-                        Text(
-                            text = title,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = redText,
-                            textAlign = TextAlign.Center
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = close_color,
+                            modifier = Modifier.size(tokens.iconSize)
                         )
+                    }
+                }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                // Dialog title
+                Text(
+                    text = title,
+                    fontSize = tokens.h2,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary,
+                    textAlign = TextAlign.Center
+                )
 
-                        Text(
-                            text = message,
-                            fontSize = 14.sp,
-                            color = Color(0xFF6B7280),
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        )
+                Spacer(Modifier.height(8.dp))
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                // Subtitle explanation
+                Text(
+                    text = message,
+                    fontSize = tokens.bodySmall,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center
+                )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                Spacer(Modifier.height(18.dp))
+
+                // Usage progress box (only shown if resourceLabel is provided)
+                if (resourceLabel.isNotBlank()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(tokens.cardCornerRadius * 0.8f),
+                        color = Primary_background,
+                        border = BorderStroke(1.dp, sectionBorder)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp)
                         ) {
-                            OutlinedButton(
-                                onClick = onDismiss,
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = whiteBg,
-                                    contentColor = Color(0xFF374151)
-                                ),
-                                modifier = Modifier.weight(0.4f)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Close", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF374151))
+                                Text(
+                                    text = resourceLabel,
+                                    fontSize = tokens.bodySmall,
+                                    color = TextSecondary
+                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "$usedCount",
+                                        fontSize = tokens.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = redText
+                                    )
+                                    Text(
+                                        text = " / $maxLimit",
+                                        fontSize = tokens.bodySmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = TextPrimary
+                                    )
+                                }
                             }
 
-                            Button(
-                                onClick = onUpgrade,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Primary,
-                                    contentColor = whiteBg
-                                ),
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.weight(0.6f)
-                            ) {
-                                Text("Upgrade Plan", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = whiteBg)
-                            }
+                            Spacer(Modifier.height(10.dp))
+
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(999.dp)),
+                                color = redText,
+                                trackColor = redBg
+                            )
                         }
                     }
+
+                    Spacer(Modifier.height(18.dp))
+                }
+
+                // Upgrade Plan pill button
+                Button(
+                    onClick = onUpgradePlan,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(tokens.buttonHeight),
+                    shape = RoundedCornerShape(999.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                ) {
+                    Text(
+                        text = "Upgrade Plan",
+                        fontSize = tokens.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = whiteBg
+                    )
                 }
             }
         }

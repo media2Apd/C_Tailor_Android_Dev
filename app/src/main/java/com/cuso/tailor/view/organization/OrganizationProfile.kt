@@ -65,6 +65,7 @@ import com.cuso.tailor.ui.theme.grey_border
 import com.cuso.tailor.ui.theme.light_grey
 import com.cuso.tailor.ui.theme.redText
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.view.composable.AppCheckbox
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
@@ -549,16 +550,9 @@ fun TermsScreen(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Checkbox(
+            AppCheckbox(
                 checked = isChecked,
-                onCheckedChange = onCheckedChange,
-                colors = CheckboxDefaults.colors(
-                    checkedColor = Color.Blue,
-                    uncheckedColor = Color.Gray,
-                    checkmarkColor = whiteBg,
-                    disabledCheckedColor = Color.LightGray,
-                    disabledUncheckedColor = Color.LightGray
-                )
+                onCheckedChange = onCheckedChange
             )
 
             Text(

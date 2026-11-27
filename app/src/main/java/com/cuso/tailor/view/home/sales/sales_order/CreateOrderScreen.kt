@@ -107,6 +107,9 @@ data class DynamicFabricItem(
     var selection: String = "",
     var quantity: String = "",
     var unit: String = "",
+    var unitPrice: Double = 0.0,
+    var gstRate: Double = 5.0,
+    var discountAmount: Double = 0.0,
     var warehouseId: String = "",
     var warehouseName: String = "",
     var binId: String = "",
@@ -124,6 +127,9 @@ data class DynamicAccessoryItem(
     var selection: String = "",
     var quantity: String = "",
     var unit: String = "",
+    var unitPrice: Double = 0.0,
+    var gstRate: Double = 5.0,
+    var discountAmount: Double = 0.0,
     var warehouseId: String = "",
     var warehouseName: String = "",
     var binId: String = "",
@@ -175,6 +181,11 @@ data class ConfiguredOrderItem(
 
     var stitchingPrice: Double = 0.0,
     var stitchingGstRate: Double = 5.0,
+    var fabricItemId: String = "",
+    var fabricWarehouseId: String = "",
+    var fabricWarehouseName: String = "",
+    var fabricBinId: String = "",
+    var fabricBinName: String = "",
     var fabricRate: Double = 0.0,
     var fabricMeters: Double = 2.5,
     var fabricGstRate: Double = 5.0,
@@ -231,9 +242,14 @@ private fun validateRequiredOrderFields(
                 if (cfg.fabricSource.isBlank() || cfg.fabricSource == "-") {
                     return "Please select Fabric Source for Item #$itemNum"
                 }
-                // Match React validatePageOne: only Store Provided fabric requires selecting a store fabric
-                if (cfg.fabricSource.equals("Store Provided", ignoreCase = true) && cfg.fabricSelection.isBlank()) {
-                    return "Please select store fabric for Item #$itemNum"
+                // Match React validatePageOne: Store Provided fabric requires fabric, warehouse, and bin
+                if (cfg.fabricSource.equals("Store Provided", ignoreCase = true)) {
+                    if (cfg.fabricSelection.isBlank()) {
+                        return "Please select store fabric for Item #$itemNum"
+                    }
+                    if (cfg.fabricItemId.isNotBlank() && (cfg.fabricWarehouseId.isBlank() || cfg.fabricBinId.isBlank())) {
+                        return "Please choose warehouse and bin for store fabric on Item #$itemNum"
+                    }
                 }
                 if (cfg.productionTemplateId.isBlank()) {
                     return "Please select Production Workflow Template for Item #$itemNum"
@@ -2408,77 +2424,34 @@ fun CreateOrderScreen(
                     }
 
                     // ADD NEW ITEM BUTTON & POPUP MENU
-                    var showAddItemMenu by remember { mutableStateOf(false) }
-
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(tokens.buttonHeight)
-                                .border(
-                                    BorderStroke(1.5.dp, Primary.copy(alpha = 0.5f)),
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .clickable { showAddItemMenu = true },
-                            shape = RoundedCornerShape(12.dp),
-                            color = light_blue
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                    AddItemMenuButton(
+                        options = listOf(
+                            AddItemOption(
+                                title = "Add Garment",
+                                subtitle = "Pick a garment type",
+                                icon = Icons.Default.Checkroom,
+                                tint = Primary
                             ) {
-                                Icon(Icons.Default.Add, null, tint = Primary, modifier = Modifier.size(tokens.iconSize))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Add New Item", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = Primary)
-                                Spacer(Modifier.width(6.dp))
-                                Icon(Icons.Default.KeyboardArrowDown, null, tint = Primary, modifier = Modifier.size(tokens.iconSize))
+                                dynamicOrderItems = dynamicOrderItems + DynamicGarmentItem(isItemExpanded = true)
+                            },
+                            AddItemOption(
+                                title = "Add Fabric",
+                                subtitle = "Choose the material",
+                                icon = Icons.Default.Texture,
+                                tint = LocalTealBadgeColor
+                            ) {
+                                dynamicOrderItems = dynamicOrderItems + DynamicFabricItem(isItemExpanded = true)
+                            },
+                            AddItemOption(
+                                title = "Add Stitching",
+                                subtitle = "Add stitching details",
+                                icon = Icons.Default.ContentCut,
+                                tint = darkGreenBg
+                            ) {
+                                dynamicOrderItems = dynamicOrderItems + DynamicAccessoryItem(isItemExpanded = true)
                             }
-                        }
-
-                        DropdownMenu(
-                            expanded = showAddItemMenu,
-                            onDismissRequest = { showAddItemMenu = false },
-                            modifier = Modifier
-                                .background(whiteBg)
-                                .border(BorderStroke(1.dp, BorderGray), RoundedCornerShape(14.dp)),
-                            shape = RoundedCornerShape(14.dp),
-                            shadowElevation = 8.dp
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Add Garment", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TextPrimary) },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Checkroom, null, tint = Primary, modifier = Modifier.size(tokens.iconSize))
-                                },
-                                onClick = {
-                                    showAddItemMenu = false
-                                    dynamicOrderItems = dynamicOrderItems + DynamicGarmentItem(isItemExpanded = true)
-                                }
-                            )
-
-                            DropdownMenuItem(
-                                text = { Text("Add Fabric", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TextPrimary) },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Texture, null, tint = LocalTealBadgeColor, modifier = Modifier.size(tokens.iconSize))
-                                },
-                                onClick = {
-                                    showAddItemMenu = false
-                                    dynamicOrderItems = dynamicOrderItems + DynamicFabricItem(isItemExpanded = true)
-                                }
-                            )
-
-                            DropdownMenuItem(
-                                text = { Text("Add Stitching", fontSize = tokens.bodyMedium, fontWeight = FontWeight.Medium, color = TextPrimary) },
-                                leadingIcon = {
-                                    Icon(Icons.Default.ContentCut, null, tint = darkGreenBg, modifier = Modifier.size(tokens.iconSize))
-                                },
-                                onClick = {
-                                    showAddItemMenu = false
-                                    dynamicOrderItems = dynamicOrderItems + DynamicAccessoryItem(isItemExpanded = true)
-                                }
-                            )
-                        }
-                    }
+                        )
+                    )
                 }
 
                 // 4. PRICING & CHARGES

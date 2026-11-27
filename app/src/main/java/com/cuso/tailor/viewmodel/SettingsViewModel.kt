@@ -863,6 +863,7 @@ class SettingsViewModel @Inject constructor(
 
     init {
         fetchStages()
+        fetchApprovalRules(page = 1)
     }
 
     /**
@@ -3582,13 +3583,15 @@ class SettingsViewModel @Inject constructor(
 
     private var activeApprovalRulesSearch: String? = null
     private var approvalRulesSearchJob: Job? = null
+    private var approvalRulesFetchJob: Job? = null
 
     /**
      * Fetch Approval Rules with pagination and search
      * Endpoint: /api/approval/rules/view-all?page={page}&limit={limit}&isPaginated=true
      */
     fun fetchApprovalRules(page: Int = 1, limit: Int = 10, search: String? = null) {
-        viewModelScope.launch {
+        approvalRulesFetchJob?.cancel()
+        approvalRulesFetchJob = viewModelScope.launch {
             _isLoadingApprovalRules.value = true
             _approvalRulesError.value = null
             _currentApprovalRulesPage.value = page
@@ -3613,7 +3616,9 @@ class SettingsViewModel @Inject constructor(
                     _canLoadMoreApprovalRules.value = page < totalPages && res.data.isNotEmpty()
                 },
                 onFailure = { error ->
-                    _approvalRulesError.value = error.message ?: "Failed to fetch approval rules"
+                    if (error !is CancellationException) {
+                        _approvalRulesError.value = error.message ?: "Failed to fetch approval rules"
+                    }
                 }
             )
             _isLoadingApprovalRules.value = false

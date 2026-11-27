@@ -743,24 +743,24 @@ private fun ComplianceDocumentsTab(detail: LegalComplianceDetailDto, context: Co
                 color = TextPrimary
             )
 
-            Button(
-                onClick = {
-                    Toast.makeText(context, "Upload Document Clicked", Toast.LENGTH_SHORT).show()
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
-                modifier = Modifier.height(34.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = null,
-                    tint = whiteBg,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(text = "Upload", fontSize = tokens.bodySmall, color = whiteBg)
-            }
+//            Button(
+//                onClick = {
+//                    Toast.makeText(context, "Upload Document Clicked", Toast.LENGTH_SHORT).show()
+//                },
+//                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+//                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.4f),
+//                modifier = Modifier.height(34.dp),
+//                contentPadding = PaddingValues(horizontal = 12.dp)
+//            ) {
+//                Icon(
+//                    imageVector = Icons.Default.Add,
+//                    contentDescription = null,
+//                    tint = whiteBg,
+//                    modifier = Modifier.size(16.dp)
+//                )
+//                Spacer(Modifier.width(4.dp))
+//                Text(text = "Upload", fontSize = tokens.bodySmall, color = whiteBg)
+//            }
         }
 
         if (docs.isEmpty()) {

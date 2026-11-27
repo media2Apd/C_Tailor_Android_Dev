@@ -117,10 +117,10 @@ fun ContinueWithGoogle(
                         TAG,
                         "DEVELOPER_ERROR (10): Package name 'com.cuso.tailor' and debug/release SHA-1 must be added in Google Cloud Console Android OAuth Client."
                     )
-                    "Google sign in failed (Code 10: Developer Error). Check SHA-1 & Android OAuth Client in Google Cloud."
+                    "Something Wrong Please try again Later (Code 10)"
                 }
-                12500 -> "Google sign in failed (Code 12500). Check OAuth Consent Screen & Play Services."
-                12501 -> "Google sign in cancelled by user."
+                12500 -> "Something Wrong Please try again Later (Code 12500)"
+                12501 -> "Google sign in cancelled by user (Code 12501)"
                 4 -> "Google sign in required user interaction (Code 4)."
                 else -> "Google sign in failed: code ${e.statusCode}"
             }

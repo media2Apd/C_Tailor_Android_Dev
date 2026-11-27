@@ -842,4 +842,62 @@ class PermissionViewModel @Inject constructor(
                 word.replaceFirstChar { ch -> ch.uppercaseChar() }
             }
     }
+
+    /**
+     * Checks limit vs usage from /api/plans/limits for "branch", "employee", or "order".
+     * Replace the PlanLimitsData field mappings below to match your PlanLimitsData DTO properties.
+     */
+    fun getPlanLimitStatus(
+        resourceType: String,
+        fallbackUsedCount: Int = 0
+    ): PlanLimitCheckResult {
+        val limitsData = _planLimits.value ?: return PlanLimitCheckResult(
+            used = fallbackUsedCount,
+            limit = 0,
+            isExceeded = false
+        )
+
+        // Map PlanLimitsData using Gson so it safely adapts to your exact DTO keys
+        val json = gson.toJsonTree(limitsData).asJsonObject
+        val limitsObj = json.getAsJsonObject("limits") ?: json
+        val usageObj = json.getAsJsonObject("usage")
+
+        val (limitKeyAliases, usageKeyAliases) = when (resourceType.lowercase()) {
+            "branch" -> listOf("branchLimit", "branches", "maxBranches") to listOf("branches", "branchCount", "usedBranches")
+            "employee" -> listOf("employeeLimit", "employees", "maxEmployees") to listOf("employees", "employeeCount", "usedEmployees")
+            "order" -> listOf("orderLimit", "orders", "maxOrders") to listOf("orders", "orderCount", "usedOrders")
+            else -> emptyList<String>() to emptyList()
+        }
+
+        fun extractInt(obj: com.google.gson.JsonObject?, keys: List<String>): Int? {
+            if (obj == null) return null
+            for (k in keys) {
+                val el = obj.get(k) ?: continue
+                if (el.isJsonPrimitive && el.asJsonPrimitive.isNumber) return el.asInt
+                if (el.isJsonObject) {
+                    val nested = el.asJsonObject
+                    nested.get("limit")?.takeIf { it.isJsonPrimitive }?.let { return it.asInt }
+                    nested.get("max")?.takeIf { it.isJsonPrimitive }?.let { return it.asInt }
+                    nested.get("used")?.takeIf { it.isJsonPrimitive }?.let { return it.asInt }
+                    nested.get("current")?.takeIf { it.isJsonPrimitive }?.let { return it.asInt }
+                }
+            }
+            return null
+        }
+
+        val maxLimit = extractInt(limitsObj, limitKeyAliases) ?: 0
+        val apiUsed = extractInt(usageObj, usageKeyAliases)
+            ?: json.getAsJsonObject(resourceType.lowercase())?.get("used")?.takeIf { it.isJsonPrimitive }?.asInt
+        val used = apiUsed ?: fallbackUsedCount
+
+        // Limit <= 0 or -1 typically means unlimited in plan setups
+        val isExceeded = maxLimit > 0 && used >= maxLimit
+        return PlanLimitCheckResult(used = used, limit = maxLimit, isExceeded = isExceeded)
+    }
 }
+
+data class PlanLimitCheckResult(
+    val used: Int,
+    val limit: Int,
+    val isExceeded: Boolean
+)

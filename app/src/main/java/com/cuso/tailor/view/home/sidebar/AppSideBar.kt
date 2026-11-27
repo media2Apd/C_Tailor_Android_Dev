@@ -661,8 +661,8 @@ object SidebarConfig {
                     "Employee & Labour Legal",
                     "Vendor & Supplier Legal",
                     "Legal Notices & Dispute",
-                    "Audit & Legal Calendar",
-                    "Approvals"
+                    "Audit & Legal Calendar"
+//                    "Approvals"
                 )
             ),
             MenuItem(

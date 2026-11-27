@@ -38,7 +38,6 @@ import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Sell
-import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.Button
@@ -208,17 +207,17 @@ fun InventoryViewOne(
                                 )
                             }
 
-                            IconButton(
-                                onClick = { onShare(item) },
-                                modifier = Modifier.size(tokens.iconSize + 14.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Share,
-                                    contentDescription = "Share",
-                                    tint = mutedText,
-                                    modifier = Modifier.size(tokens.iconSize)
-                                )
-                            }
+//                            IconButton(
+//                                onClick = { onShare(item) },
+//                                modifier = Modifier.size(tokens.iconSize + 14.dp)
+//                            ) {
+//                                Icon(
+//                                    imageVector = Icons.Outlined.Share,
+//                                    contentDescription = "Share",
+//                                    tint = mutedText,
+//                                    modifier = Modifier.size(tokens.iconSize)
+//                                )
+//                            }
                         }
 
                         Spacer(Modifier.height(4.dp))

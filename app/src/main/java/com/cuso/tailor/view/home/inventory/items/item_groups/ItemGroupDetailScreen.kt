@@ -25,10 +25,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.ShoppingCart
@@ -171,23 +169,23 @@ fun ItemGroupDetailScreen(
                                 modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Edit,
+                                    painter =painterResource(R.drawable.ic_pencil),
                                     contentDescription = "Edit",
                                     tint = headerGrey,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
-                            IconButton(
-                                onClick = onExportPdf,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Outlined.InsertDriveFile,
-                                    contentDescription = "Export PDF",
-                                    tint = headerGrey,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+//                            IconButton(
+//                                onClick = onExportPdf,
+//                                modifier = Modifier.size(36.dp)
+//                            ) {
+//                                Icon(
+//                                    imageVector = Icons.AutoMirrored.Outlined.InsertDriveFile,
+//                                    contentDescription = "Export PDF",
+//                                    tint = headerGrey,
+//                                    modifier = Modifier.size(18.dp)
+//                                )
+//                            }
                         }
                     }
                 }

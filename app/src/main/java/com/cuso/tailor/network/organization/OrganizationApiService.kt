@@ -50,14 +50,14 @@ interface OrganizationApiService {
         @Header("X-CSRF-Token") csrfToken: String
     ): BranchListResponse
 
-    @POST("/api/branches/create")
+    @POST("/api/home/branches/create")
     suspend fun createBranch(
         @Header("Authorization") authorization: String,
         @Header("X-CSRF-TOKEN") csrfToken: String,
         @Body request: CreateBranchRequest
     ): CreateBranchResponse
 
-    @PUT("/api/branches/update-one/{id}")
+    @PUT("/api/home/branches/update-one/{id}")
     suspend fun updateBranch(
         @Header("Authorization") accessToken: String,
         @Header("X-CSRF-Token") csrfToken: String,
@@ -71,14 +71,14 @@ interface OrganizationApiService {
         @Header("X-CSRF-Token") csrfToken: String
     ): DepartmentResponse
 
-    @POST("/api/departments/create")
+    @POST("/api/home/departments/create")
     suspend fun createDepartment(
         @Header("Authorization") authorization: String,
         @Header("X-CSRF-TOKEN") csrfToken: String,
         @Body request: DepartmentCreateRequest
     ): DepartmentCreateResponse
 
-    @PUT("/api/departments/update-one/{id}")
+    @PUT("/api/home/departments/update-one/{id}")
     suspend fun updateDepartment(
         @Header("Authorization") authorization: String,
         @Header("X-CSRF-TOKEN") csrfToken: String,

@@ -40,6 +40,55 @@ import com.cuso.tailor.view.composable.*
 import com.cuso.tailor.view.home.sales.lead.MiniSwitch
 import com.cuso.tailor.viewmodel.InventoryViewModel
 import com.cuso.tailor.viewmodel.PriceListActionState
+import java.util.Locale
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.round
+
+// Calculate adjusted price before rounding (mirrors AddPricingAllItems.jsx)
+private fun calculateAdjustedPrice(
+    basePrice: Double,
+    adjustmentTypeApi: String,
+    value: Double
+): Double {
+    val price = when (adjustmentTypeApi) {
+        "MARKUP_PERCENT" -> basePrice + (basePrice * value) / 100.0
+        "MARKUP_AMOUNT" -> basePrice + value
+        "DISCOUNT_PERCENT" -> basePrice - (basePrice * value) / 100.0
+        "DISCOUNT_AMOUNT" -> basePrice - value
+        "FIXED_PRICE" -> value
+        else -> basePrice
+    }
+    return price.coerceAtLeast(0.0)
+}
+
+// Apply round-off rule (mirrors applyRoundOff in AddPricingAllItems.jsx)
+private fun applyPriceRoundOff(
+    price: Double,
+    enabled: Boolean,
+    method: String,
+    factorValue: Double
+): Double {
+    if (!enabled) return round(price * 100.0) / 100.0
+    val factor = if (factorValue > 0.0) factorValue else 1.0
+
+    val rounded = when (method) {
+        "UP" -> ceil(price / factor) * factor
+        "DOWN" -> floor(price / factor) * factor
+        "NEAREST", "NEAREST_WHOLE" -> round(price / factor) * factor
+        "PSYCHOLOGICAL" -> {
+            val decimalTarget = if (factor < 1.0) factor else 0.99
+            val floorVal = floor(price)
+            if (price <= floorVal + decimalTarget) {
+                (floorVal - 1.0).coerceAtLeast(0.0) + decimalTarget
+            } else {
+                floorVal + decimalTarget
+            }
+        }
+        else -> price
+    }
+    return round(rounded * 100.0) / 100.0
+}
 
 // Line item UI state for SKU rows
 data class EditableSkuLineItem(
@@ -59,14 +108,15 @@ data class EditableSkuLineItem(
         get() {
             val v = adjustmentValue.toDoubleOrNull() ?: 0.0
             val base = if (basedOn == "COST_PRICE") baseCost else sellingPrice
-            return when (adjustmentType) {
+            val result = when (adjustmentType) {
                 "MARKUP %" -> base + (base * (v / 100.0))
                 "MARKUP ${formatCurrency()}" -> base + v
                 "DISCOUNT %" -> base - (base * (v / 100.0))
-                "DISCOUNT ${formatCurrency()}" -> (base - v).coerceAtLeast(0.0)
+                "DISCOUNT ${formatCurrency()}" -> base - v
                 "FIXED PRICE" -> v
                 else -> base
             }
+            return result.coerceAtLeast(0.0)
         }
 }
 
@@ -100,15 +150,25 @@ fun NewPriceListScreen(
     // Universal pricing rule states for ALL_ITEMS
     var allItemsAdjustmentType by remember { mutableStateOf("MARKUP %") }
     var allItemsAdjustmentValue by remember { mutableStateOf("15") }
+    var status by remember { mutableStateOf("ACTIVE") }
 
-    // Dropdown choices matching your screenshots
+    // Sample item selection for Live Price Preview
+    var sampleItemId by remember { mutableStateOf("") }
+    var statusExpanded by remember { mutableStateOf(true) }
+    var previewExpanded by remember { mutableStateOf(true) }
+
+    // Unsaved changes tracking and modal state
+    var initialSnapshot by remember { mutableStateOf<String?>(null) }
+    var showUnsavedDialog by remember { mutableStateOf(false) }
+
+    // Dropdown choices
     val roundOffOptions = remember {
         listOf("Select an option", "0.99 (Psychological)", "Nearest Whole", "Round Up", "Round Down")
     }
     var selectedRoundOff by remember { mutableStateOf("0.99 (Psychological)") }
 
     val basedOnOptions = remember {
-        listOf("Select an option", "Selling Price", "Cost Price")
+        listOf("Selling Price", "Cost Price")
     }
     var selectedBasedOn by remember { mutableStateOf("Selling Price") }
 
@@ -118,6 +178,32 @@ fun NewPriceListScreen(
     var schemeExpanded by remember { mutableStateOf(true) }
     var ruleExpanded by remember { mutableStateOf(true) }
     var currencyExpanded by remember { mutableStateOf(true) }
+
+    fun currentFormSnapshot(): String {
+        return listOf(
+            name,
+            transactionType,
+            description,
+            priceListType,
+            pricingScheme,
+            allItemsAdjustmentType,
+            allItemsAdjustmentValue,
+            selectedBasedOn,
+            currency,
+            selectedRoundOff,
+            automaticConversion.toString(),
+            status
+        ).joinToString("|")
+    }
+
+    val onAttemptClose: () -> Unit = {
+        val hasChanges = initialSnapshot != null && initialSnapshot != currentFormSnapshot()
+        if (hasChanges) {
+            showUnsavedDialog = true
+        } else {
+            onClose()
+        }
+    }
 
     // Bulk update dialog state
     var showBulkUpdateDialog by remember { mutableStateOf(false) }
@@ -165,12 +251,13 @@ fun NewPriceListScreen(
             currency = detail.currency
             automaticConversion = detail.automaticConversion
 
-            // Prefill Round-off
-            selectedRoundOff = when (detail.roundOff?.method) {
-                "PSYCHOLOGICAL" -> "0.99 (Psychological)"
-                "UP" -> "Round Up"
-                "DOWN" -> "Round Down"
-                "NEAREST_WHOLE" -> "Nearest Whole"
+            // Prefill Round-off (supports both NEAREST and NEAREST_WHOLE)
+            selectedRoundOff = when {
+                detail.roundOff?.enabled == false -> "Select an option"
+                detail.roundOff?.method == "PSYCHOLOGICAL" -> "0.99 (Psychological)"
+                detail.roundOff?.method == "UP" -> "Round Up"
+                detail.roundOff?.method == "DOWN" -> "Round Down"
+                detail.roundOff?.method == "NEAREST" || detail.roundOff?.method == "NEAREST_WHOLE" -> "Nearest Whole"
                 else -> "0.99 (Psychological)"
             }
 
@@ -199,6 +286,9 @@ fun NewPriceListScreen(
                 }
                 selectedBasedOn = if (it.basedOn == "COST_PRICE") "Cost Price" else "Selling Price"
             }
+
+            // Capture baseline snapshot after edit data loads
+            initialSnapshot = currentFormSnapshot()
 
             // Prefill individual items from view-one API
             skuItems.clear()
@@ -232,8 +322,18 @@ fun NewPriceListScreen(
         }
     }
 
-    // 3. Fallback: If Create Mode, populate the 1st inventory item into the SKU list
+    // Capture baseline snapshot for create mode
+    LaunchedEffect(isEditMode) {
+        if (!isEditMode && initialSnapshot == null) {
+            initialSnapshot = currentFormSnapshot()
+        }
+    }
+
+    // 3. Fallback: Populate default sample item for preview and 1st SKU in create mode
     LaunchedEffect(inventoryItems) {
+        if (inventoryItems.isNotEmpty() && sampleItemId.isBlank()) {
+            sampleItemId = inventoryItems.first()._id
+        }
         if (!isEditMode && inventoryItems.isNotEmpty() && skuItems.isEmpty()) {
             val firstItem = inventoryItems.first()
             skuItems.add(
@@ -257,128 +357,151 @@ fun NewPriceListScreen(
 
     // ── Build Payloads matching Network API Structure ──
     val onSavePriceList: () -> Unit = {
-        if (name.isBlank()) {
-            Toast.makeText(context, "Please enter Price List name", Toast.LENGTH_SHORT).show()
-        } else {
-            val methodVal = when (selectedRoundOff) {
-                "0.99 (Psychological)" -> "PSYCHOLOGICAL"
-                "Round Up" -> "UP"
-                "Round Down" -> "DOWN"
-                else -> "NEAREST_WHOLE"
+        val parsedRuleValue = allItemsAdjustmentValue.toDoubleOrNull()
+        when {
+            name.isBlank() -> {
+                Toast.makeText(context, "Please enter Price List name", Toast.LENGTH_SHORT).show()
             }
-            val roundOffVal = if (methodVal == "PSYCHOLOGICAL") 0.99 else 1.0
-            val roundOffObj = RoundOffDto(enabled = true, method = methodVal, value = roundOffVal)
 
-            val universalApiAdjType = when (allItemsAdjustmentType) {
-                "MARKUP %" -> "MARKUP_PERCENT"
-                "MARKUP ${formatCurrency()}" -> "MARKUP_AMOUNT"
-                "DISCOUNT %" -> "DISCOUNT_PERCENT"
-                "DISCOUNT ${formatCurrency()}" -> "DISCOUNT_AMOUNT"
-                "FIXED PRICE" -> "FIXED_PRICE"
-                else -> "MARKUP_PERCENT"
+            isAllItems && (allItemsAdjustmentValue.isBlank() || parsedRuleValue == null || parsedRuleValue < 0.0) -> {
+                Toast.makeText(context, "Please enter a valid adjustment value", Toast.LENGTH_SHORT)
+                    .show()
             }
-            val universalBasedOn = if (selectedBasedOn == "Cost Price") "COST_PRICE" else "SELLING_PRICE"
-            val universalValue = allItemsAdjustmentValue.toDoubleOrNull() ?: 0.0
 
-            // 1. Build Pricing Rule Object for ALL_ITEMS
-            val pricingRuleObj = if (isAllItems) {
-                PricingRuleDto(
-                    adjustmentType = universalApiAdjType,
-                    value = universalValue,
-                    basedOn = universalBasedOn
+            !isAllItems && skuItems.none { it.isSelected } -> {
+                Toast.makeText(context, "Please select at least one item", Toast.LENGTH_SHORT)
+                    .show()
+            }
+
+            else -> {
+                val isRoundOffEnabled = selectedRoundOff != "Select an option"
+                val methodVal = when (selectedRoundOff) {
+                    "0.99 (Psychological)" -> "PSYCHOLOGICAL"
+                    "Round Up" -> "UP"
+                    "Round Down" -> "DOWN"
+                    else -> "NEAREST"
+                }
+                val roundOffVal = if (methodVal == "PSYCHOLOGICAL") 0.99 else 1.0
+                val roundOffObj = RoundOffDto(
+                    enabled = isRoundOffEnabled,
+                    method = methodVal,
+                    value = roundOffVal
                 )
-            } else {
-                null
-            }
 
-            if (isEditMode) {
-                // 2. In ALL_ITEMS, items array must be empty; for INDIVIDUAL_ITEMS, map selected SKUs
-                val itemsPayload: List<Any> = if (isAllItems) {
-                    emptyList()
+                val universalApiAdjType = when (allItemsAdjustmentType) {
+                    "MARKUP %" -> "MARKUP_PERCENT"
+                    "MARKUP ${formatCurrency()}" -> "MARKUP_AMOUNT"
+                    "DISCOUNT %" -> "DISCOUNT_PERCENT"
+                    "DISCOUNT ${formatCurrency()}" -> "DISCOUNT_AMOUNT"
+                    "FIXED PRICE" -> "FIXED_PRICE"
+                    else -> "MARKUP_PERCENT"
+                }
+                val universalBasedOn =
+                    if (selectedBasedOn == "Cost Price") "COST_PRICE" else "SELLING_PRICE"
+                val universalValue = allItemsAdjustmentValue.toDoubleOrNull() ?: 0.0
+
+                // 1. Build Pricing Rule Object for ALL_ITEMS
+                val pricingRuleObj = if (isAllItems) {
+                    PricingRuleDto(
+                        adjustmentType = universalApiAdjType,
+                        value = universalValue,
+                        basedOn = universalBasedOn
+                    )
                 } else {
-                    skuItems.filter { it.isSelected }.map { sku ->
-                        val apiAdjType = when (sku.adjustmentType) {
-                            "MARKUP %" -> "MARKUP_PERCENT"
-                            "MARKUP ${formatCurrency()}" -> "MARKUP_AMOUNT"
-                            "DISCOUNT %" -> "DISCOUNT_PERCENT"
-                            "DISCOUNT ${formatCurrency()}" -> "DISCOUNT_AMOUNT"
-                            "FIXED PRICE" -> "FIXED_PRICE"
-                            else -> "MARKUP_PERCENT"
-                        }
+                    null
+                }
 
-                        mapOf(
-                            "adjustmentType" to apiAdjType,
-                            "basedOn" to sku.basedOn,
-                            "value" to (sku.adjustmentValue.toDoubleOrNull() ?: 0.0),
-                            "itemId" to mapOf(
-                                "_id" to sku.id,
-                                "id" to sku.id,
-                                "name" to sku.name,
-                                "sku" to sku.sku,
-                                "unit" to sku.unit,
-                                "costPrice" to sku.baseCost,
-                                "sellingPrice" to sku.sellingPrice,
-                                "marginPercent" to sku.marginPercent,
-                                "currentStockValue" to 0
+                if (isEditMode) {
+                    // 2. In ALL_ITEMS, items array must be empty; for INDIVIDUAL_ITEMS, map selected SKUs
+                    val itemsPayload: List<Any> = if (isAllItems) {
+                        emptyList()
+                    } else {
+                        skuItems.filter { it.isSelected }.map { sku ->
+                            val apiAdjType = when (sku.adjustmentType) {
+                                "MARKUP %" -> "MARKUP_PERCENT"
+                                "MARKUP ${formatCurrency()}" -> "MARKUP_AMOUNT"
+                                "DISCOUNT %" -> "DISCOUNT_PERCENT"
+                                "DISCOUNT ${formatCurrency()}" -> "DISCOUNT_AMOUNT"
+                                "FIXED PRICE" -> "FIXED_PRICE"
+                                else -> "MARKUP_PERCENT"
+                            }
+
+                            mapOf(
+                                "adjustmentType" to apiAdjType,
+                                "basedOn" to sku.basedOn,
+                                "value" to (sku.adjustmentValue.toDoubleOrNull() ?: 0.0),
+                                "itemId" to mapOf(
+                                    "_id" to sku.id,
+                                    "id" to sku.id,
+                                    "name" to sku.name,
+                                    "sku" to sku.sku,
+                                    "unit" to sku.unit,
+                                    "costPrice" to sku.baseCost,
+                                    "sellingPrice" to sku.sellingPrice,
+                                    "marginPercent" to sku.marginPercent,
+                                    "currentStockValue" to 0
+                                )
                             )
-                        )
-                    }
-                }
-
-                val updatePayload = PriceListRequestPayload(
-                    name = name.trim(),
-                    transactionType = transactionType,
-                    description = description.trim(),
-                    priceListType = priceListType,
-                    pricingScheme = pricingScheme,
-                    currency = currency,
-                    automaticConversion = automaticConversion,
-                    status = "ACTIVE",
-                    roundOff = roundOffObj,
-                    items = itemsPayload,
-                    pricingRule = pricingRuleObj
-                )
-
-                inventoryViewModel.updatePriceList(editPriceListId, updatePayload)
-            } else {
-                // 3. Create Mode Payload
-                val itemsPayload: List<Any> = if (isAllItems) {
-                    emptyList() // No items array for ALL_ITEMS
-                } else {
-                    skuItems.filter { it.isSelected }.map { sku ->
-                        val apiAdjType = when (sku.adjustmentType) {
-                            "MARKUP %" -> "MARKUP_PERCENT"
-                            "MARKUP ${formatCurrency()}" -> "MARKUP_AMOUNT"
-                            "DISCOUNT %" -> "DISCOUNT_PERCENT"
-                            "DISCOUNT ${formatCurrency()}" -> "DISCOUNT_AMOUNT"
-                            "FIXED PRICE" -> "FIXED_PRICE"
-                            else -> "MARKUP_PERCENT"
                         }
-
-                        CreatePriceListItemPayload(
-                            itemId = sku.id,
-                            adjustmentType = apiAdjType,
-                            basedOn = sku.basedOn,
-                            value = sku.adjustmentValue.toDoubleOrNull() ?: 0.0
-                        )
                     }
+
+                    val updatePayload = PriceListRequestPayload(
+                        name = name.trim(),
+                        transactionType = transactionType,
+                        description = description.trim(),
+                        priceListType = priceListType,
+                        pricingScheme = pricingScheme,
+                        currency = currency,
+                        automaticConversion = automaticConversion,
+                        status = status,
+                        roundOff = roundOffObj,
+                        items = itemsPayload,
+                        pricingRule = pricingRuleObj
+                    )
+
+                    initialSnapshot = currentFormSnapshot()
+                    inventoryViewModel.updatePriceList(editPriceListId, updatePayload)
+                } else {
+                    // 3. Create Mode Payload
+                    val itemsPayload: List<Any> = if (isAllItems) {
+                        emptyList() // No items array for ALL_ITEMS
+                    } else {
+                        skuItems.filter { it.isSelected }.map { sku ->
+                            val apiAdjType = when (sku.adjustmentType) {
+                                "MARKUP %" -> "MARKUP_PERCENT"
+                                "MARKUP ${formatCurrency()}" -> "MARKUP_AMOUNT"
+                                "DISCOUNT %" -> "DISCOUNT_PERCENT"
+                                "DISCOUNT ${formatCurrency()}" -> "DISCOUNT_AMOUNT"
+                                "FIXED PRICE" -> "FIXED_PRICE"
+                                else -> "MARKUP_PERCENT"
+                            }
+
+                            CreatePriceListItemPayload(
+                                itemId = sku.id,
+                                adjustmentType = apiAdjType,
+                                basedOn = sku.basedOn,
+                                value = sku.adjustmentValue.toDoubleOrNull() ?: 0.0
+                            )
+                        }
+                    }
+
+                    val createPayload = PriceListRequestPayload(
+                        name = name.trim(),
+                        transactionType = transactionType,
+                        description = description.trim(),
+                        priceListType = priceListType,
+                        pricingScheme = pricingScheme,
+                        currency = currency,
+                        automaticConversion = automaticConversion,
+                        status = status,
+                        roundOff = roundOffObj,
+                        items = itemsPayload,
+                        pricingRule = pricingRuleObj
+                    )
+
+                    initialSnapshot = currentFormSnapshot()
+                    inventoryViewModel.createPriceList(createPayload)
                 }
-
-                val createPayload = PriceListRequestPayload(
-                    name = name.trim(),
-                    transactionType = transactionType,
-                    description = description.trim(),
-                    priceListType = priceListType,
-                    pricingScheme = pricingScheme,
-                    currency = currency,
-                    automaticConversion = automaticConversion,
-                    status = "ACTIVE",
-                    roundOff = roundOffObj,
-                    items = itemsPayload,
-                    pricingRule = pricingRuleObj // ✅ Passes pricingRule object
-                )
-
-                inventoryViewModel.createPriceList(createPayload)
             }
         }
     }
@@ -400,7 +523,7 @@ fun NewPriceListScreen(
                     Column(modifier = Modifier.fillMaxWidth()) {
                         TitleBar(
                             title = if (isEditMode) "Edit Price List" else "New Price List",
-                            onClose = onClose
+                            onClose = onAttemptClose
                         )
                         HorizontalDivider(color = title_border)
                     }
@@ -655,7 +778,13 @@ fun NewPriceListScreen(
                                         value = allItemsAdjustmentType,
                                         expanded = adjExpanded,
                                         onExpandChange = { adjExpanded = it },
-                                        options = listOf("MARKUP %", "MARKUP ${formatCurrency()}", "DISCOUNT %", "DISCOUNT ${formatCurrency()}"),
+                                        options = listOf(
+                                            "MARKUP %",
+                                            "MARKUP ${formatCurrency()}",
+                                            "DISCOUNT %",
+                                            "DISCOUNT ${formatCurrency()}",
+                                            "FIXED PRICE"
+                                        ),
                                         onOptionSelected = { allItemsAdjustmentType = it }
                                     )
 
@@ -675,11 +804,12 @@ fun NewPriceListScreen(
                                             )
                                         }
                                         Column(modifier = Modifier.weight(1f)) {
+                                            val isFixedPrice = allItemsAdjustmentType == "FIXED PRICE"
                                             FormDropdown(
                                                 label = "Based On",
-                                                value = selectedBasedOn,
+                                                value = if (isFixedPrice) "Fixed Price" else selectedBasedOn,
                                                 expanded = basisExpanded,
-                                                onExpandChange = { basisExpanded = it },
+                                                onExpandChange = { if (!isFixedPrice) basisExpanded = it },
                                                 options = basedOnOptions,
                                                 onOptionSelected = { selectedBasedOn = it }
                                             )
@@ -745,6 +875,207 @@ fun NewPriceListScreen(
                                         checked = automaticConversion,
                                         onCheckedChange = { automaticConversion = it }
                                     )
+                                }
+                            }
+                        }
+                    }
+
+                    // SECTION 6: STATUS (mirrors AddPricingAllItems.jsx)
+                    item {
+                        var statusDropdownExpanded by remember { mutableStateOf(false) }
+                        AccordionSection(
+                            icon = Icons.Default.CheckCircle,
+                            title = "5. Status",
+                            expanded = statusExpanded,
+                            onHeaderClick = { statusExpanded = !statusExpanded }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(whiteBg)
+                                    .padding(vertical = tokens.extraPadding)
+                            ) {
+                                FormDropdown(
+                                    label = "Status",
+                                    value = if (status == "ACTIVE") "Active" else "Inactive",
+                                    expanded = statusDropdownExpanded,
+                                    onExpandChange = { statusDropdownExpanded = it },
+                                    options = listOf("Active", "Inactive"),
+                                    onOptionSelected = { chosen ->
+                                        status = if (chosen == "Active") "ACTIVE" else "INACTIVE"
+                                    }
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    text = "Inactive price lists aren't applied to active orders.",
+                                    fontSize = tokens.caption,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
+                    }
+
+                    // SECTION 7: LIVE PRICE PREVIEW (Only for All Items, mirrors AddPricingAllItems.jsx)
+                    if (isAllItems) {
+                        item {
+                            var sampleDropdownExpanded by remember { mutableStateOf(false) }
+
+                            val selectedSampleItem = inventoryItems.find { it._id == sampleItemId }
+                                ?: inventoryItems.firstOrNull()
+
+                            val sampleItemOptions = remember(inventoryItems) {
+                                inventoryItems.map { item ->
+                                    "${item.name} (${formatCurrency()}${String.format(Locale.US, "%.2f", item.sellingPrice)})"
+                                }
+                            }
+                            val sampleItemMap = remember(inventoryItems) {
+                                inventoryItems.associateBy { item ->
+                                    "${item.name} (${formatCurrency()}${String.format(Locale.US, "%.2f", item.sellingPrice)})"
+                                }
+                            }
+
+                            val currentSampleDisplay = selectedSampleItem?.let {
+                                "${it.name} (${formatCurrency()}${String.format(Locale.US, "%.2f", it.sellingPrice)})"
+                            } ?: "Select sample item"
+
+                            val apiAdjType = when (allItemsAdjustmentType) {
+                                "MARKUP %" -> "MARKUP_PERCENT"
+                                "MARKUP ${formatCurrency()}" -> "MARKUP_AMOUNT"
+                                "DISCOUNT %" -> "DISCOUNT_PERCENT"
+                                "DISCOUNT ${formatCurrency()}" -> "DISCOUNT_AMOUNT"
+                                "FIXED PRICE" -> "FIXED_PRICE"
+                                else -> "MARKUP_PERCENT"
+                            }
+                            val ruleValue = allItemsAdjustmentValue.toDoubleOrNull() ?: 0.0
+                            val basePrice = if (selectedSampleItem != null) {
+                                if (selectedBasedOn == "Cost Price") selectedSampleItem.costPrice else selectedSampleItem.sellingPrice
+                            } else 100.0
+                            val costPrice = selectedSampleItem?.costPrice ?: 89.5
+
+                            val isRoundOffEnabled = selectedRoundOff != "Select an option"
+                            val roundMethod = when (selectedRoundOff) {
+                                "0.99 (Psychological)" -> "PSYCHOLOGICAL"
+                                "Round Up" -> "UP"
+                                "Round Down" -> "DOWN"
+                                else -> "NEAREST"
+                            }
+                            val roundFactor = if (roundMethod == "PSYCHOLOGICAL") 0.99 else 1.0
+
+                            val adjustedPrice = calculateAdjustedPrice(basePrice, apiAdjType, ruleValue)
+                            val finalPrice = applyPriceRoundOff(adjustedPrice, isRoundOffEnabled, roundMethod, roundFactor)
+
+                            val marginPercent = if (finalPrice > 0.0) {
+                                val basis = if (costPrice > 0.0) costPrice else basePrice
+                                round(((finalPrice - basis) / finalPrice) * 100.0).toInt()
+                            } else 0
+                            val isBelowCost = finalPrice < costPrice
+
+                            val adjustmentBadgeText = when {
+                                apiAdjType.contains("PERCENT") -> {
+                                    val sign = if (apiAdjType.startsWith("DISCOUNT")) "-" else "+"
+                                    "$sign${allItemsAdjustmentValue.ifBlank { "0" }}%"
+                                }
+                                apiAdjType == "FIXED_PRICE" -> "Fixed"
+                                else -> {
+                                    val sign = if (apiAdjType.startsWith("DISCOUNT")) "-" else "+"
+                                    "$sign${formatCurrency()}${allItemsAdjustmentValue.ifBlank { "0" }}"
+                                }
+                            }
+
+                            val roundingBadgeText = when {
+                                !isRoundOffEnabled -> "None"
+                                roundMethod == "PSYCHOLOGICAL" -> ".99"
+                                else -> "1"
+                            }
+
+                            AccordionSection(
+                                icon = Icons.Default.Visibility,
+                                title = "6. Price Preview",
+                                expanded = previewExpanded,
+                                onHeaderClick = { previewExpanded = !previewExpanded }
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(whiteBg)
+                                        .padding(vertical = tokens.extraPadding),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    FormDropdown(
+                                        label = "Sample Item",
+                                        value = currentSampleDisplay,
+                                        expanded = sampleDropdownExpanded,
+                                        onExpandChange = { sampleDropdownExpanded = it },
+                                        options = sampleItemOptions.ifEmpty { listOf("No items available") },
+                                        onOptionSelected = { label ->
+                                            sampleItemMap[label]?.let { sampleItemId = it._id }
+                                        }
+                                    )
+
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Base Price", fontSize = tokens.bodySmall, color = TextSecondary)
+                                        Text("${formatCurrency()}${String.format(Locale.US, "%.2f", basePrice)}", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
+                                    }
+
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Adjustment", fontSize = tokens.bodySmall, color = TextSecondary)
+                                        Text(adjustmentBadgeText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = Primary)
+                                    }
+
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Rounding", fontSize = tokens.bodySmall, color = TextSecondary)
+                                        Text(roundingBadgeText, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
+                                    }
+
+                                    HorizontalDivider(color = sectionBorder)
+
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                        Text("FINAL COMPUTED PRICE", fontSize = tokens.caption, fontWeight = FontWeight.SemiBold, color = TextSecondary)
+                                        Text(
+                                            text = "${formatCurrency()}${String.format(Locale.US, "%.2f", finalPrice)}",
+                                            fontSize = tokens.bodyLarge,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Primary
+                                        )
+                                    }
+
+                                    val marginBg = when {
+                                        isBelowCost -> redBg
+                                        marginPercent >= 15 -> greenBg
+                                        else -> light_grey
+                                    }
+                                    val marginColor = when {
+                                        isBelowCost -> redText
+                                        marginPercent >= 15 -> greentext
+                                        else -> yellowText
+                                    }
+                                    val marginLabel = when {
+                                        isBelowCost -> "Below Cost Alert"
+                                        marginPercent >= 15 -> "Healthy Margin Range"
+                                        else -> "Low Margin Range"
+                                    }
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(marginBg)
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("Margin: $marginPercent%", fontSize = tokens.bodySmall, fontWeight = FontWeight.SemiBold, color = marginColor)
+                                        Text(marginLabel, fontSize = tokens.caption, fontWeight = FontWeight.Medium, color = marginColor)
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = { Toast.makeText(context, "Preview refreshed", Toast.LENGTH_SHORT).show() },
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, sectionBorder),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text("Recalculate Preview", fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium, color = TextPrimary)
+                                    }
                                 }
                             }
                         }
@@ -910,10 +1241,34 @@ fun NewPriceListScreen(
                 }
             }
 
+            if (showUnsavedDialog) {
+                AlertDialog(
+                    onDismissRequest = { showUnsavedDialog = false },
+                    title = { Text("Unsaved Changes", fontWeight = FontWeight.Bold) },
+                    text = { Text("You have unsaved changes. Are you sure you want to leave this page? Your changes will be lost.") },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showUnsavedDialog = false
+                                onClose()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = redText)
+                        ) {
+                            Text("Leave", color = whiteBg)
+                        }
+                    },
+                    dismissButton = {
+                        OutlinedButton(onClick = { showUnsavedDialog = false }) {
+                            Text("Stay")
+                        }
+                    }
+                )
+            }
+
             StepNavigationFab(
                 showBack = true,
                 backLabel = "Cancel",
-                onBack = onClose,
+                onBack = onAttemptClose,
                 showBackArrow = false,
                 trailingAction = TrailingFabAction.Update(
                     label = if (isEditMode) "Save Changes" else "Save Pricelist",
@@ -924,7 +1279,7 @@ fun NewPriceListScreen(
             )
         }
     }
-}
+    }
 
 // ─────────────────────────────────────────────────────────────
 // SKU CARD COMPONENT WITH DROPDOWN OPTIONS

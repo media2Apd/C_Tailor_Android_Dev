@@ -87,7 +87,7 @@ fun BulkListScreen(
                         item.sku.contains(searchQuery, ignoreCase = true)
 
                 val matchesAssembly = selectedAssembly.isEmpty() ||
-                        selectedAssembly.any { item.assemblyType?.contains(it, ignoreCase = true) == true }
+                        selectedAssembly.any { item.assemblyType.contains(it, ignoreCase = true) }
 
                 val matchesStatus = selectedStatuses.isEmpty() ||
                         selectedStatuses.any { item.status.contains(it, ignoreCase = true) }
@@ -246,14 +246,9 @@ fun BulkListItemCard(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Checkbox(
+                    AppCheckbox(
                         checked = isChecked,
-                        onCheckedChange = { isChecked = it },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = Primary,
-                            uncheckedColor = dividerColor,
-                            checkmarkColor = whiteBg
-                        )
+                        onCheckedChange = { isChecked = it }
                     )
                     Spacer(Modifier.width(tokens.extraPadding * 0.8f))
                     Column {

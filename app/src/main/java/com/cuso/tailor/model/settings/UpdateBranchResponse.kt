@@ -2,9 +2,16 @@
 package com.cuso.tailor.model.settings
 
 data class UpdateBranchAddress(
-    val street: String,
-    val city: String,
-    val postalCode: String
+    val flatNo: String? = null,
+    val street: String? = null,
+    val areaZone: String? = null,
+    val city: String? = null,
+    val subdivisionName: String? = null,
+    val pincode: String? = null,
+    val countryName: String? = null,
+    val state: String? = null,
+    val postalCode: String? = null,
+    val country: String? = null,
 )
 
 data class UpdateBranchRequest(
@@ -13,10 +20,10 @@ data class UpdateBranchRequest(
     val contactEmail: String,
     val contactMobile: String,
     val status: String,
-    val branchHead: String?=null
+    val branchHead: String? = null,
 )
 
 data class UpdateBranchResponse(
     val success: Boolean,
-    val data: BranchItem
+    val data: BranchItem,
 )

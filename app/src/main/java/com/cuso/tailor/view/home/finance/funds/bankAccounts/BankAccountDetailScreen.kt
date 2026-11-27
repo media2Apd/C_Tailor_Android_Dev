@@ -23,8 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import android.widget.Toast
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.cuso.tailor.adaptive_screen.LocalAppTokens
@@ -44,14 +47,34 @@ fun BankAccountDetailScreen(
     onBack: () -> Unit
 ) {
     val tokens = LocalAppTokens.current
+    val context = LocalContext.current
     val account by viewModel.selectedBankAccount.collectAsState()
     val isLoading by viewModel.isLoadingBankAccounts.collectAsState()
 
     var selectedTab by remember { mutableStateOf("Overview") }
+    var isSyncTriggered by remember { mutableStateOf(false) }
     val tabs = listOf("Overview", "Transactions", "Reconciliation")
+
+    // Hit view-one API and trigger full skeleton reload
+    fun reloadBankAccount() {
+        isSyncTriggered = true
+        viewModel.fetchBankAccountById(accountId)
+    }
 
     LaunchedEffect(accountId) {
         viewModel.fetchBankAccountById(accountId)
+    }
+
+    // Show confirmation toast once view-one reload finishes
+    LaunchedEffect(isLoading) {
+        if (!isLoading && isSyncTriggered) {
+            isSyncTriggered = false
+            Toast.makeText(
+                context,
+                "Bank account synced successfully!",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     Scaffold(
@@ -109,9 +132,11 @@ fun BankAccountDetailScreen(
                     }
                 }
 
-                // =============================================================
-                // Card 1: Main Current Balance
-                // =============================================================
+                when (selectedTab) {
+                    "Overview" -> {
+                        // =============================================================
+                        // Card 1: Main Current Balance
+                        // =============================================================
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(tokens.cardCornerRadius),
@@ -273,7 +298,8 @@ fun BankAccountDetailScreen(
                         DetailRow("Last Synced:", "Today")
 
                         OutlinedButton(
-                            onClick = { /* Trigger manual sync */ },
+                            onClick = { reloadBankAccount() },
+                            enabled = true,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(tokens.buttonHeight),
@@ -287,7 +313,12 @@ fun BankAccountDetailScreen(
                                 modifier = Modifier.size(tokens.iconSize)
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text("Sync Now", color = TitleColor, fontSize = tokens.bodySmall, fontWeight = FontWeight.Medium)
+                            Text(
+                                text = if (isSyncTriggered) "Syncing..." else "Sync Now",
+                                color = TitleColor,
+                                fontSize = tokens.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
                 }
@@ -312,11 +343,47 @@ fun BankAccountDetailScreen(
                             color = TitleColor
                         )
 
-                        ToolItem(title = "Statement Reconciliation", icon = Icons.AutoMirrored.Outlined.ReceiptLong)
+                        ToolItem(
+                            title = "Statement Reconciliation",
+                            icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                            onClick = { selectedTab = "Reconciliation" }
+                        )
                         HorizontalDivider(color = dividerColor)
-                        ToolItem(title = "Recurring Payments", icon = Icons.Outlined.DateRange)
+                        ToolItem(
+                            title = "Recurring Payments",
+                            icon = Icons.Outlined.DateRange,
+                            onClick = { selectedTab = "Transactions" }
+                        )
                         HorizontalDivider(color = dividerColor)
-                        ToolItem(title = "Access Permissions", icon = Icons.Outlined.Security)
+                        ToolItem(
+                            title = "Access Permissions",
+                            icon = Icons.Outlined.Security,
+                            onClick = { }
+                        )
+                    }
+                }
+                    }
+
+                    // =============================================================
+                    // Tab 2: Transactions
+                    // =============================================================
+                    "Transactions" -> {
+                        BankTransactionsTab(
+                            accountName = item.accountDisplayName,
+                            onRefresh = { reloadBankAccount() }
+                        )
+                    }
+
+                    // =============================================================
+                    // Tab 3: Reconciliation
+                    // =============================================================
+                    "Reconciliation" -> {
+                        BankReconciliationTab(
+                            accountName = item.accountDisplayName,
+                            clearedBalance = item.chartOfAccountId?.openingBalance ?: 0.0,
+                            isSyncing = isSyncTriggered,
+                            onRunReconciliation = { reloadBankAccount() }
+                        )
                     }
                 }
             }
@@ -377,12 +444,16 @@ private fun MetricBox(
 }
 
 @Composable
-private fun ToolItem(title: String, icon: ImageVector) {
+private fun ToolItem(
+    title: String,
+    icon: ImageVector,
+    onClick: () -> Unit = {}
+) {
     val tokens = LocalAppTokens.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { }
+            .clickable { onClick() }
             .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -429,5 +500,160 @@ private fun DetailRow(label: String, value: String?) {
             fontWeight = FontWeight.Medium,
             color = TitleColor
         )
+    }
+}
+
+// =============================================================
+// Transactions Tab (matches existing BankAccountDetailScreen card style)
+// =============================================================
+@Composable
+private fun BankTransactionsTab(
+    accountName: String,
+    onRefresh: () -> Unit
+) {
+    val tokens = LocalAppTokens.current
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(tokens.cardCornerRadius),
+        colors = CardDefaults.cardColors(containerColor = whiteBg),
+        border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(PrimaryBorder))
+    ) {
+        Column(
+            modifier = Modifier.padding(tokens.cardPadding * 0.75f),
+            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Live Bank Transactions",
+                    fontSize = tokens.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = TitleColor
+                )
+                Text(
+                    text = "Refresh",
+                    fontSize = tokens.caption,
+                    fontWeight = FontWeight.Medium,
+                    color = Primary,
+                    modifier = Modifier.clickable { onRefresh() }
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.History,
+                    contentDescription = null,
+                    tint = mutedText,
+                    modifier = Modifier.size(tokens.iconSize * 1.3f)
+                )
+                Text(
+                    text = "No recent activity recorded",
+                    fontSize = tokens.bodySmall,
+                    fontWeight = FontWeight.Medium,
+                    color = TitleColor
+                )
+                Text(
+                    text = "Transactions posted to $accountName will appear here dynamically.",
+                    fontSize = tokens.caption,
+                    color = mutedText,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+// =============================================================
+// Reconciliation Tab (hits viewModel.fetchBankAccountById on click)
+// =============================================================
+@Composable
+private fun BankReconciliationTab(
+    accountName: String,
+    clearedBalance: Double,
+    isSyncing: Boolean,
+    onRunReconciliation: () -> Unit
+) {
+    val tokens = LocalAppTokens.current
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(tokens.cardCornerRadius),
+        colors = CardDefaults.cardColors(containerColor = whiteBg),
+        border = CardDefaults.outlinedCardBorder().copy(brush = SolidColor(PrimaryBorder))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(tokens.cardPadding * 0.75f),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(primary_light, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(tokens.iconSize * 1.1f)
+                )
+            }
+
+            Text(
+                text = "Statement Reconciliation",
+                fontSize = tokens.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = TitleColor
+            )
+
+            Text(
+                text = "Live double-entry reconciliation between bank feeds and General Ledger for $accountName.",
+                fontSize = tokens.caption,
+                color = mutedText,
+                textAlign = TextAlign.Center
+            )
+
+            DetailRow(
+                label = "CLEARED BALANCE",
+                value = "${formatCurrency()}${String.format(Locale.US, "%,.2f", clearedBalance)}"
+            )
+
+            OutlinedButton(
+                onClick = onRunReconciliation,
+                enabled = !isSyncing,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(tokens.buttonHeight),
+                shape = RoundedCornerShape(tokens.cardCornerRadius * 0.5f),
+                border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(BorderGray))
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Sync,
+                    contentDescription = null,
+                    tint = TitleColor,
+                    modifier = Modifier.size(tokens.iconSize)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = if (isSyncing) "Syncing..." else "Run Reconciliation",
+                    color = TitleColor,
+                    fontSize = tokens.bodySmall,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
     }
 }

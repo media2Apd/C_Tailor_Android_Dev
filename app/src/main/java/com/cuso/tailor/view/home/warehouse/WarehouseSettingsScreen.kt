@@ -41,8 +41,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Warehouse
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -80,6 +78,7 @@ import com.cuso.tailor.ui.theme.sectionBorder
 import com.cuso.tailor.ui.theme.title_border
 import com.cuso.tailor.ui.theme.title_color
 import com.cuso.tailor.ui.theme.whiteBg
+import com.cuso.tailor.view.composable.AppCheckbox
 import com.cuso.tailor.view.composable.DataCard
 import com.cuso.tailor.view.composable.DataCardImage
 import com.cuso.tailor.view.composable.DeleteModel
@@ -602,23 +601,21 @@ private fun WarehouseFormSheetContent(
                 horizontalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
+                    AppCheckbox(
                         checked = formState.status.equals("active", ignoreCase = true),
                         onCheckedChange = { checked ->
                             onFormChange { state -> state.copy(status = if (checked) "active" else "inactive") }
-                        },
-                        colors = CheckboxDefaults.colors(checkedColor = Primary)
+                        }
                     )
                     Text("Active", fontSize = tokens.bodySmall, color = TextPrimary)
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
+                    AppCheckbox(
                         checked = formState.isDefault,
                         onCheckedChange = { checked ->
                             onFormChange { state -> state.copy(isDefault = checked) }
-                        },
-                        colors = CheckboxDefaults.colors(checkedColor = Primary)
+                        }
                     )
                     Text("Default Warehouse", fontSize = tokens.bodySmall, color = TextPrimary)
                 }

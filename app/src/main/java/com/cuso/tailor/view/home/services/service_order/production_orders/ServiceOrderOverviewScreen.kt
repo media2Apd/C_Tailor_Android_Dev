@@ -2794,7 +2794,7 @@ private fun AssignGarmentProductionScreen(
                 Column(modifier = Modifier.padding(tokens.screenPadding)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.Top
                     ) {
                         Box(
                             modifier = Modifier
@@ -2815,28 +2815,39 @@ private fun AssignGarmentProductionScreen(
                         Spacer(Modifier.width(12.dp))
 
                         Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                // Weight prevents long garment names from squeezing the orderCode badge vertically
                                 Text(
                                     text = garment.type,
                                     fontSize = tokens.bodyMedium,
                                     fontWeight = FontWeight.Medium,
-                                    color = TextPrimary
+                                    color = TextPrimary,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
 
-                                Spacer(Modifier.width(8.dp))
-
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(Primary_background)
-                                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = garment.orderCode,
-                                        fontSize = tokens.label,
-                                        color = TextSecondary,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                if (garment.orderCode.isNotBlank() && garment.orderCode != "—") {
+                                    Spacer(Modifier.width(8.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(Primary_background)
+                                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = garment.orderCode,
+                                            fontSize = tokens.label,
+                                            color = TextSecondary,
+                                            fontWeight = FontWeight.Medium,
+                                            softWrap = false,
+                                            maxLines = 1
+                                        )
+                                    }
                                 }
                             }
 
@@ -2938,74 +2949,100 @@ private fun AssignGarmentProductionScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = tokens.extraPadding, horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.Top
                         ) {
                             Column(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 4.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
                                     text = "TARGET DELIVERY",
                                     fontSize = tokens.label,
                                     color = mutedText,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     text = garment.deadline,
                                     fontSize = tokens.bodySmall,
                                     fontWeight = FontWeight.Medium,
-                                    color = TextPrimary
+                                    color = TextPrimary,
+                                    textAlign = TextAlign.Center
                                 )
                             }
 
                             VerticalDivider(
-                                modifier = Modifier.height(30.dp),
+                                modifier = Modifier
+                                    .height(36.dp)
+                                    .align(Alignment.CenterVertically),
                                 color = sectionBorder,
                                 thickness = 1.dp
                             )
 
                             Column(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 4.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
                                     text = "EST. WORK EFFORT",
                                     fontSize = tokens.label,
                                     color = mutedText,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     text = "15.0 Man-Hrs",
                                     fontSize = tokens.bodySmall,
                                     fontWeight = FontWeight.Medium,
-                                    color = TextPrimary
+                                    color = TextPrimary,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
 
                             VerticalDivider(
-                                modifier = Modifier.height(30.dp),
+                                modifier = Modifier
+                                    .height(36.dp)
+                                    .align(Alignment.CenterVertically),
                                 color = sectionBorder,
                                 thickness = 1.dp
                             )
 
                             Column(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 4.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
                                     text = "BATCH ROUTE",
                                     fontSize = tokens.label,
                                     color = mutedText,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     text = "BLOUSE-LUX",
                                     fontSize = tokens.bodySmall,
                                     fontWeight = FontWeight.Medium,
-                                    color = Primary
+                                    color = Primary,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -3574,17 +3611,12 @@ private fun TrialReworkRoutingDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 // Checkbox
-                                Checkbox(
+                                AppCheckbox(
                                     checked = isSelected,
                                     onCheckedChange = { checked ->
                                         if (checked) selectedStageIds.add(stage.id)
                                         else selectedStageIds.remove(stage.id)
-                                    },
-                                    colors = CheckboxDefaults.colors(
-                                        checkedColor = redText,
-                                        checkmarkColor = whiteBg,
-                                        uncheckedColor = BorderGray
-                                    )
+                                    }
                                 )
 
                                 Spacer(Modifier.width(8.dp))

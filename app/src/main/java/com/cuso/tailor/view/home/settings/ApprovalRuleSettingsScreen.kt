@@ -49,10 +49,14 @@ import androidx.compose.material.icons.automirrored.filled.Rule
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.cuso.tailor.model.settings.ApprovalConditionDto
 import com.cuso.tailor.model.settings.CreateApprovalRuleRequest
 import com.cuso.tailor.model.settings.CreateApproverLevelDto
 import com.cuso.tailor.utils.DynamicIslandManager
+import com.cuso.tailor.view.composable.AppCheckbox
 import com.cuso.tailor.view.composable.FormDropdown
 import com.cuso.tailor.view.composable.FormLabel
 import com.cuso.tailor.view.composable.FormTextField
@@ -80,9 +84,21 @@ fun ApprovalRulesScreen(
 
     val listState = rememberLazyListState()
 
-    // Load initial data
-    LaunchedEffect(Unit) {
-        viewModel.fetchApprovalRules(page = 1)
+    // Refresh approval rules list every time the screen opens or resumes
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.fetchApprovalRules(
+                    page = 1,
+                    search = searchQuery.takeIf { it.isNotBlank() }
+                )
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     // Trigger pagination when reaching end of list
@@ -608,10 +624,9 @@ fun CreateEditApprovalRuleScreen(
                             .fillMaxWidth()
                             .clickable { applyCondition = !applyCondition }
                     ) {
-                        Checkbox(
+                        AppCheckbox(
                             checked = applyCondition,
-                            onCheckedChange = { applyCondition = it },
-                            colors = CheckboxDefaults.colors(checkedColor = Primary)
+                            onCheckedChange = { applyCondition = it }
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(

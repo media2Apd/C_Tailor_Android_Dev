@@ -89,8 +89,14 @@ data class BranchOrganization(
 )
 
 data class BranchListAddress(
+    val flatNo: String? = null,
     val street: String? = null,
+    val areaZone: String? = null,
     val city: String? = null,
+    val subdivisionName: String? = null,
+    val pincode: String? = null,
+    val countryName: String? = null,
+    // Fallback fields for legacy backend payloads
     val state: String? = null,
     val postalCode: String? = null,
     val country: String? = null

@@ -9,6 +9,7 @@
     "unusedvariable",
     "VariableNeverRead"
 )
+
 package com.cuso.tailor.view.home.branch
 
 import androidx.compose.foundation.background
@@ -37,6 +38,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.cuso.tailor.R
+import com.cuso.tailor.adaptive_screen.LocalAppTokens
 import com.cuso.tailor.model.sales.StaffDto
 import com.cuso.tailor.model.settings.BranchItem
 import com.cuso.tailor.model.settings.CreateBranchAddress
@@ -47,7 +49,7 @@ import com.cuso.tailor.ui.theme.BluePrimary
 import com.cuso.tailor.ui.theme.close_color
 import com.cuso.tailor.ui.theme.headerGrey
 import com.cuso.tailor.ui.theme.title_border
-
+import com.cuso.tailor.utils.DynamicIslandManager
 import com.cuso.tailor.utils.formatCurrency
 import com.cuso.tailor.view.composable.AppErrorState
 import com.cuso.tailor.view.composable.DataCard
@@ -66,8 +68,7 @@ import com.cuso.tailor.view.composable.TrailingFabAction
 import com.cuso.tailor.viewmodel.BranchUiState
 import com.cuso.tailor.viewmodel.BranchViewModel
 import com.cuso.tailor.viewmodel.CreateBranchUiState
-import com.cuso.tailor.viewmodel.ProfileUiState
-import com.cuso.tailor.viewmodel.ProfileViewModel
+import com.cuso.tailor.viewmodel.PermissionViewModel
 import com.cuso.tailor.viewmodel.SalesViewModel
 import com.cuso.tailor.viewmodel.UpdateBranchUiState
 
@@ -79,84 +80,80 @@ enum class BranchScreenMode {
 fun BranchSettingsScreen(
     navController: NavController,
     onMenuClick: () -> Unit = {},
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onUpgradePlan: () -> Unit = {}
 ) {
+    val tokens = LocalAppTokens.current
     val branchViewModel: BranchViewModel = hiltViewModel()
     val salesViewModel: SalesViewModel = hiltViewModel()
-    val profileViewModel: ProfileViewModel = hiltViewModel()
+    val permissionViewModel: PermissionViewModel = hiltViewModel()
 
     val uiState by branchViewModel.uiState.collectAsStateWithLifecycle()
     val branchesPagingState by branchViewModel.branchesPagingState.collectAsStateWithLifecycle()
     val updateState by branchViewModel.updateState.collectAsStateWithLifecycle()
     val createState by branchViewModel.createState.collectAsStateWithLifecycle()
     val staffList by salesViewModel.staffList.collectAsStateWithLifecycle()
-    val profileUiState by profileViewModel.uiState.collectAsStateWithLifecycle()
+    val planLimitsState by permissionViewModel.planLimits.collectAsStateWithLifecycle()
 
     var currentScreenMode by remember { mutableStateOf(BranchScreenMode.LIST) }
     var editingBranch by remember { mutableStateOf<BranchItem?>(null) }
     var showPlanLimitDialog by remember { mutableStateOf(false) }
 
     var searchQuery by remember { mutableStateOf("") }
-
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var successMessage by remember { mutableStateOf<String?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-
+    // Fetch branches, staff list, and plan limits on screen entry
     LaunchedEffect(Unit) {
         branchViewModel.loadBranches()
         salesViewModel.fetchStaff()
-        profileViewModel.loadOrganization("")
-    }
-
-    val planLimits = (profileUiState as? ProfileUiState.Success)?.data?.organization?.let { org ->
-        org.plan?.let { plan ->
-            PlanLimits(
-                branchLimit = plan.branchLimit,
-                departmentLimit = plan.departmentLimit,
-                employeeLimit = plan.employeeLimit,
-                orderLimit = plan.orderLimit,
-                categoryLimit = plan.categoryLimit
-            )
-        }
+        permissionViewModel.fetchPlanLimitsAndModules()
     }
 
     val allBranches = (uiState as? BranchUiState.Success)?.branches ?: emptyList()
-    val currentBranchesCount = allBranches.size
-    val isBranchLimitReached = planLimits?.let { currentBranchesCount >= it.branchLimit } ?: false
+    val branchLimitResult = remember(planLimitsState, allBranches.size) {
+        permissionViewModel.getPlanLimitStatus("branch", fallbackUsedCount = allBranches.size)
+    }
+    val isBranchLimitReached = branchLimitResult.isExceeded
 
+    // Handle branch creation state transitions
     LaunchedEffect(createState) {
         when (val state = createState) {
             is CreateBranchUiState.Success -> {
                 currentScreenMode = BranchScreenMode.LIST
                 branchViewModel.resetCreateState()
-                branchViewModel.loadBranches()
-                successMessage = state.message?.takeIf { it.isNotBlank() } ?: "Branch created successfully"
+                branchViewModel.refresh()
+                permissionViewModel.fetchPlanLimitsAndModules()
+                DynamicIslandManager.showSuccess(
+                    state.message?.takeIf { it.isNotBlank() } ?: "Branch created successfully"
+                )
             }
             is CreateBranchUiState.Error -> {
                 branchViewModel.resetCreateState()
                 if (state.message.contains("limit", true) || state.message.contains("exceed", true)) {
                     showPlanLimitDialog = true
                 } else {
-                    errorMessage = state.message
+                    DynamicIslandManager.showError(state.message)
                 }
             }
             else -> Unit
         }
     }
 
+    // Handle branch update state transitions
     LaunchedEffect(updateState) {
         when (val state = updateState) {
             is UpdateBranchUiState.Success -> {
                 currentScreenMode = BranchScreenMode.LIST
                 editingBranch = null
-                branchViewModel.loadBranches()
+                branchViewModel.refresh()
                 branchViewModel.resetUpdateState()
-                successMessage = state.message?.takeIf { it.isNotBlank() } ?: "Branch updated successfully"
+                DynamicIslandManager.showSuccess(
+                    state.message?.takeIf { it.isNotBlank() } ?: "Branch updated successfully"
+                )
             }
             is UpdateBranchUiState.Error -> {
                 branchViewModel.resetUpdateState()
-                errorMessage = state.message
+                DynamicIslandManager.showError(state.message)
             }
             else -> Unit
         }
@@ -189,7 +186,7 @@ fun BranchSettingsScreen(
                             .fillMaxSize()
                             .background(Color.Transparent)
                     ) {
-                        TitleBar(title ="Branch Management", onClose = onBack)
+                        TitleBar(title = "Branch Management", onClose = onBack)
 
                         Column(modifier = Modifier.fillMaxWidth()) {
                             SearchFilterBar(
@@ -204,7 +201,11 @@ fun BranchSettingsScreen(
                         }
                         HorizontalDivider(color = title_border)
 
-                        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) {
                             if (uiState is BranchUiState.Error) {
                                 AppErrorState(
                                     title = "Failed to load branches",
@@ -229,7 +230,7 @@ fun BranchSettingsScreen(
                                         Text(
                                             if (searchQuery.isNotBlank()) "No matching branches found" else "No branches found",
                                             color = Color.Gray,
-                                            fontSize = 15.sp
+                                            fontSize = tokens.bodyMedium
                                         )
                                     }
                                 }
@@ -336,7 +337,12 @@ fun BranchSettingsScreen(
                                                     )
                                                     Text(
                                                         text = buildAnnotatedString {
-                                                            withStyle(SpanStyle(color = headerGrey, fontWeight = FontWeight.Normal)) {
+                                                            withStyle(
+                                                                SpanStyle(
+                                                                    color = headerGrey,
+                                                                    fontWeight = FontWeight.Normal
+                                                                )
+                                                            ) {
                                                                 append("Manager: ")
                                                             }
                                                             withStyle(
@@ -372,21 +378,26 @@ fun BranchSettingsScreen(
                         branchViewModel.resetCreateState()
                         branchViewModel.resetUpdateState()
                     },
-                    onSubmit = { branchName, street, city, postalCode, contactEmail, contactMobile, selectedStaff, isMainBranch ->
+                    onSubmit = { branchName, flatNo, street, areaZone, city, subdivisionName, pincode, countryName, contactEmail, contactMobile, selectedStaff ->
+                        val optionalBranchHead = selectedStaff.ifBlank { null }
                         if (editingBranch != null) {
                             branchViewModel.updateBranch(
                                 branchId = editingBranch!!.id,
                                 request = UpdateBranchRequest(
                                     name = branchName,
                                     address = UpdateBranchAddress(
+                                        flatNo = flatNo,
                                         street = street,
+                                        areaZone = areaZone,
                                         city = city,
-                                        postalCode = postalCode
+                                        subdivisionName = subdivisionName,
+                                        pincode = pincode,
+                                        countryName = countryName
                                     ),
                                     contactEmail = contactEmail,
                                     contactMobile = contactMobile,
-                                    status = editingBranch!!.status,
-                                    branchHead = selectedStaff
+                                    status = editingBranch!!.status.ifBlank { "Active" },
+                                    branchHead = optionalBranchHead
                                 )
                             )
                         } else {
@@ -397,11 +408,19 @@ fun BranchSettingsScreen(
                             branchViewModel.createBranch(
                                 CreateBranchRequest(
                                     name = branchName,
-                                    address = CreateBranchAddress(street = street, city = city, postalCode = postalCode),
-                                    branchHead = selectedStaff,
+                                    address = CreateBranchAddress(
+                                        flatNo = flatNo,
+                                        street = street,
+                                        areaZone = areaZone,
+                                        city = city,
+                                        subdivisionName = subdivisionName,
+                                        pincode = pincode,
+                                        countryName = countryName
+                                    ),
+                                    branchHead = optionalBranchHead,
                                     contactEmail = contactEmail,
                                     contactMobile = contactMobile,
-                                    isMainBranch = isMainBranch
+                                    isMainBranch = false
                                 )
                             )
                         }
@@ -412,10 +431,16 @@ fun BranchSettingsScreen(
 
         if (showPlanLimitDialog) {
             PlanLimitDialog(
-                title = "Plan Limit Reached",
-                message = "Branch limit exceeded ($currentBranchesCount/${planLimits?.branchLimit ?: 0}). Upgrade your plan to add more branches.",
+                title = "Branch limit reached",
+                message = "This organization has reached the maximum number of branches allowed under your current plan.",
+                resourceLabel = "Branches",
+                usedCount = branchLimitResult.used,
+                maxLimit = branchLimitResult.limit,
                 onDismiss = { showPlanLimitDialog = false },
-                onUpgrade = { }
+                onUpgradePlan = {
+                    showPlanLimitDialog = false
+                    onUpgradePlan()
+                }
             )
         }
     }
@@ -429,32 +454,57 @@ fun AddBranchPage(
     onBack: () -> Unit,
     onSubmit: (
         name: String,
+        flatNo: String,
         street: String,
+        areaZone: String,
         city: String,
-        postalCode: String,
+        subdivisionName: String,
+        pincode: String,
+        countryName: String,
         contactEmail: String,
         contactMobile: String,
-        selectedStaff: String,
-        isMainBranch: Boolean
+        selectedStaff: String
     ) -> Unit
 ) {
+    val tokens = LocalAppTokens.current
     val isEditMode = branch != null
 
-    var branchName by remember(branch) { mutableStateOf(branch?.name ?: "") }
-    var street by remember(branch) { mutableStateOf(branch?.address?.street ?: "") }
-    var city by remember(branch) { mutableStateOf(branch?.address?.city ?: "") }
-    var postalCode by remember(branch) { mutableStateOf(branch?.address?.postalCode ?: "") }
-    var contactEmail by remember(branch) { mutableStateOf(branch?.contactEmail ?: "") }
-    var contactMobile by remember(branch) { mutableStateOf(branch?.contactMobile ?: "") }
-    var selectedStaff by remember(branch) { mutableStateOf(branch?.branchHead?.id ?: "") }
+    // Form state matching BranchModal.jsx fields
+    var branchName by remember(branch) { mutableStateOf(branch?.name.orEmpty()) }
+    var flatNo by remember(branch) { mutableStateOf(branch?.address?.flatNo.orEmpty()) }
+    var street by remember(branch) { mutableStateOf(branch?.address?.street.orEmpty()) }
+    var areaZone by remember(branch) { mutableStateOf(branch?.address?.areaZone.orEmpty()) }
+    var city by remember(branch) { mutableStateOf(branch?.address?.city.orEmpty()) }
+    var subdivisionName by remember(branch) {
+        mutableStateOf(branch?.address?.subdivisionName ?: branch?.address?.state.orEmpty())
+    }
+    var pincode by remember(branch) {
+        mutableStateOf(branch?.address?.pincode ?: branch?.address?.postalCode.orEmpty())
+    }
+    var countryName by remember(branch) {
+        mutableStateOf(branch?.address?.countryName ?: branch?.address?.country.orEmpty())
+    }
+    var contactEmail by remember(branch) { mutableStateOf(branch?.contactEmail.orEmpty()) }
+    var contactMobile by remember(branch) { mutableStateOf(branch?.contactMobile.orEmpty()) }
+    var selectedStaff by remember(branch) { mutableStateOf(branch?.branchHead?.id.orEmpty()) }
     var staffExpanded by remember { mutableStateOf(false) }
-    var isMainBranch by remember { mutableStateOf(false) }
 
+    // Inline validation error flags for required fields
     var nameError by remember { mutableStateOf(false) }
-    var staffError by remember { mutableStateOf(false) }
+    var streetError by remember { mutableStateOf(false) }
+    var cityError by remember { mutableStateOf(false) }
+    var pincodeError by remember { mutableStateOf(false) }
+    var emailError by remember { mutableStateOf(false) }
+    var mobileError by remember { mutableStateOf(false) }
 
-    val staffDisplayList = staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
-    val staffIdMap = staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
+    // Include an explicit optional reset entry so Branch Head remains optional
+    val optionalStaffPlaceholder = "Select Branch Head (Optional)"
+    val staffDisplayList = remember(staffList) {
+        listOf(optionalStaffPlaceholder) + staffList.map { "${it.firstName} ${it.lastName} - ${it.memberId}" }
+    }
+    val staffIdMap = remember(staffList) {
+        staffList.associate { "${it.firstName} ${it.lastName} - ${it.memberId}" to it.id }
+    }
     val selectedStaffLabel = staffIdMap.entries.firstOrNull { it.value == selectedStaff }?.key ?: ""
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -464,7 +514,10 @@ fun AddBranchPage(
                 .background(Color.Transparent)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                TitleBar(title = if (isEditMode) "Edit Branch" else "Add New Branch", onClose = onBack)
+                TitleBar(
+                    title = if (isEditMode) "Edit Branch" else "Add New Branch",
+                    onClose = onBack
+                )
                 HorizontalDivider(color = title_border)
             }
 
@@ -472,10 +525,11 @@ fun AddBranchPage(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 20.dp)
+                    .padding(horizontal = tokens.screenPadding, vertical = tokens.screenPadding)
                     .padding(bottom = 90.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(tokens.extraPadding)
             ) {
+                // 1. Branch Name (Required)
                 Column {
                     FormLabel("Branch Name", isRequired = true)
                     FormTextField(
@@ -484,92 +538,160 @@ fun AddBranchPage(
                             branchName = it
                             nameError = false
                         },
-                        placeholder = "Enter branch name",
+                        placeholder = "e.g. Chennai Main Branch",
                         isError = nameError,
                         errorMessage = if (nameError) "Branch name is required" else null
                     )
                 }
 
+                // 2. Flat / Building No
                 Column {
-                    FormLabel("Address / Location")
+                    FormLabel("Flat / Building No")
+                    FormTextField(
+                        value = flatNo,
+                        onValueChange = { flatNo = it },
+                        placeholder = "e.g. Suite 402, Tower B"
+                    )
+                }
+
+                // 3. Street Address (Required)
+                Column {
+                    FormLabel("Street Address", isRequired = true)
                     FormTextField(
                         value = street,
-                        onValueChange = { street = it },
-                        placeholder = "Enter address or location"
+                        onValueChange = {
+                            street = it
+                            streetError = false
+                        },
+                        placeholder = "e.g. 12 Anna Salai, Guindy",
+                        isError = streetError,
+                        errorMessage = if (streetError) "Street address is required" else null
                     )
                 }
 
+                // 4. Area / Landmark
                 Column {
-                    FormLabel("City")
+                    FormLabel("Area / Landmark")
                     FormTextField(
-                        value = city,
-                        onValueChange = { city = it },
-                        placeholder = "Enter city"
+                        value = areaZone,
+                        onValueChange = { areaZone = it },
+                        placeholder = "e.g. Near Metro Station"
                     )
                 }
 
+                // 5. City (Required) & State / Province
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        FormLabel("City", isRequired = true)
+                        FormTextField(
+                            value = city,
+                            onValueChange = {
+                                city = it
+                                cityError = false
+                            },
+                            placeholder = "e.g. Chennai",
+                            isError = cityError,
+                            errorMessage = if (cityError) "City is required" else null
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        FormLabel("State / Province")
+                        FormTextField(
+                            value = subdivisionName,
+                            onValueChange = { subdivisionName = it },
+                            placeholder = "e.g. Tamil Nadu"
+                        )
+                    }
+                }
+
+                // 6. Pincode (Required) & Country
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(tokens.extraPadding)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        FormLabel("Pincode", isRequired = true)
+                        FormTextField(
+                            value = pincode,
+                            onValueChange = { input ->
+                                // Strip spaces and cap at 10 characters (matches BranchModal.jsx)
+                                pincode = input.filter { !it.isWhitespace() }.take(10)
+                                pincodeError = false
+                            },
+                            placeholder = "e.g. 600032",
+                            keyboardType = KeyboardType.Text,
+                            isError = pincodeError,
+                            errorMessage = if (pincodeError) "Pincode is required" else null
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        FormLabel("Country")
+                        FormTextField(
+                            value = countryName,
+                            onValueChange = { countryName = it },
+                            placeholder = "e.g. India"
+                        )
+                    }
+                }
+
+                // 7. Contact Email (Required)
                 Column {
-                    FormLabel("Contact Email")
+                    FormLabel("Contact Email", isRequired = true)
                     FormTextField(
                         value = contactEmail,
-                        onValueChange = { contactEmail = it },
-                        placeholder = "Enter contact email",
-                        keyboardType = KeyboardType.Email
+                        onValueChange = {
+                            contactEmail = it
+                            emailError = false
+                        },
+                        placeholder = "branch@company.com",
+                        keyboardType = KeyboardType.Email,
+                        isError = emailError,
+                        errorMessage = if (emailError) "Valid contact email is required" else null
                     )
                 }
 
-//                Column {
-//                    FormLabel("Contact Mobile")
-//                    FormTextField(
-//                        value = contactMobile,
-//                        onValueChange = { contactMobile = it },
-//                        placeholder = "Enter contact mobile",
-//                        keyboardType = KeyboardType.Phone
-//                    )
-//                }
-
+                // 8. Contact Mobile (Required)
                 Column {
-                    FormLabel("Branch Manager", isRequired = true)
+                    FormLabel("Contact Mobile", isRequired = true)
+                    FormTextField(
+                        value = contactMobile,
+                        onValueChange = { input ->
+                            // Allow digits only and cap at 10 digits (matches BranchModal.jsx)
+                            contactMobile = input.filter { it.isDigit() }.take(10)
+                            mobileError = false
+                        },
+                        placeholder = "10-digit mobile number",
+                        keyboardType = KeyboardType.Phone,
+                        isError = mobileError,
+                        errorMessage = if (mobileError) "10-digit mobile number is required" else null
+                    )
+                }
+
+                // 9. Branch Head (Optional)
+                Column {
+                    FormLabel("Branch Head")
                     FormDropdown(
-                        value = selectedStaffLabel,
+                        value = selectedStaffLabel.ifBlank { optionalStaffPlaceholder },
                         expanded = staffExpanded,
                         onExpandChange = { expanded ->
                             if (staffList.isNotEmpty() || !expanded) staffExpanded = expanded
                         },
                         options = staffDisplayList,
                         onOptionSelected = { label ->
-                            selectedStaff = staffIdMap[label] ?: ""
-                            staffError = false
+                            selectedStaff = if (label == optionalStaffPlaceholder) {
+                                ""
+                            } else {
+                                staffIdMap[label].orEmpty()
+                            }
                         },
-                        isRequired = true,
-                        isError = staffError,
-                        errorMessage = if (staffError) "Please select a branch head" else null
+                        isRequired = false
                     )
                 }
-
-//                Row(
-//                    verticalAlignment = Alignment.CenterVertically,
-//                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-//                    modifier = Modifier.padding(top = 4.dp)
-//                ) {
-//                    MiniSwitch(
-//                        checked = isMainBranch,
-//                        onCheckedChange = { isMainBranch = it }
-//                    )
-//                    Column {
-//                        Text(
-//                            text = "Set as Main Branch",
-//                            fontSize = 14.sp,
-//                            fontWeight = FontWeight.Medium,
-//                            color = Color(0xFF374151)
-//                        )
-//                        Text(
-//                            text = "The main branch will be the primary location",
-//                            fontSize = 12.sp,
-//                            color = Color(0xFF9CA3AF)
-//                        )
-//                    }
-//                }
             }
         }
 
@@ -581,25 +703,38 @@ fun AddBranchPage(
             showTrailingArrow = false,
             trailingAction = TrailingFabAction.Update(
                 isLoading = isLoading,
-                label = if (isEditMode) "Update Branch" else "Add Branch",
+                label = if (isEditMode) "Update Branch" else "Create Branch",
                 onClick = {
-                    if (branchName.isBlank()) {
-                        nameError = true
+                    val isNameMissing = branchName.isBlank()
+                    val isStreetMissing = street.isBlank()
+                    val isCityMissing = city.isBlank()
+                    val isPincodeMissing = pincode.isBlank()
+                    val isEmailInvalid = contactEmail.isBlank() || !contactEmail.contains("@")
+                    val isMobileInvalid = contactMobile.length < 10
+
+                    nameError = isNameMissing
+                    streetError = isStreetMissing
+                    cityError = isCityMissing
+                    pincodeError = isPincodeMissing
+                    emailError = isEmailInvalid
+                    mobileError = isMobileInvalid
+
+                    if (isNameMissing || isStreetMissing || isCityMissing || isPincodeMissing || isEmailInvalid || isMobileInvalid) {
                         return@Update
                     }
-                    if (selectedStaff.isEmpty()) {
-                        staffError = true
-                        return@Update
-                    }
+
                     onSubmit(
-                        branchName,
-                        street,
-                        city,
-                        postalCode,
-                        contactEmail,
-                        contactMobile,
-                        selectedStaff,
-                        isMainBranch
+                        branchName.trim(),
+                        flatNo.trim(),
+                        street.trim(),
+                        areaZone.trim(),
+                        city.trim(),
+                        subdivisionName.trim(),
+                        pincode.trim(),
+                        countryName.trim(),
+                        contactEmail.trim(),
+                        contactMobile.trim(),
+                        selectedStaff
                     )
                 }
             )
@@ -608,16 +743,18 @@ fun AddBranchPage(
 }
 
 private fun locationOf(branch: BranchItem): String =
-    listOf(branch.address.city ?: "", branch.address.state ?: "", branch.address.street ?: "")
-        .filter { it.isNotBlank() }.joinToString(", ").ifEmpty { "—" }
+    listOfNotNull(
+        branch.address.flatNo,
+        branch.address.street,
+        branch.address.areaZone,
+        branch.address.city,
+        branch.address.subdivisionName ?: branch.address.state,
+        branch.address.countryName ?: branch.address.country,
+        branch.address.pincode ?: branch.address.postalCode
+    )
+        .filter { it.isNotBlank() }
+        .joinToString(", ")
+        .ifEmpty { "—" }
 
 private fun branchHeadNameOf(branch: BranchItem): String =
     branch.branchHead?.let { "${it.firstName} ${it.lastName}" } ?: "-"
-
-data class PlanLimits(
-    val branchLimit: Int,
-    val departmentLimit: Int,
-    val employeeLimit: Int,
-    val orderLimit: Int,
-    val categoryLimit: Int
-)

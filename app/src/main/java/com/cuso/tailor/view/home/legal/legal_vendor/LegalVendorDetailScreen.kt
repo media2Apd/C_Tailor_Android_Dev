@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -753,26 +752,26 @@ private fun VendorDocumentsTab(vendor: LegalVendorItem) {
                 color = title_color
             )
 
-            Button(
-                onClick = {},
-                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                shape = RoundedCornerShape(tokens.cardCornerRadius),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Upload,
-                    contentDescription = null,
-                    tint = whiteBg,
-                    modifier = Modifier.size(tokens.iconSize * 0.8f)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Upload",
-                    fontSize = tokens.caption,
-                    fontWeight = FontWeight.Medium,
-                    color = whiteBg
-                )
-            }
+//            Button(
+//                onClick = {},
+//                colors = ButtonDefaults.buttonColors(containerColor = Primary),
+//                shape = RoundedCornerShape(tokens.cardCornerRadius),
+//                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+//            ) {
+//                Icon(
+//                    imageVector = Icons.Default.Upload,
+//                    contentDescription = null,
+//                    tint = whiteBg,
+//                    modifier = Modifier.size(tokens.iconSize * 0.8f)
+//                )
+//                Spacer(modifier = Modifier.width(4.dp))
+//                Text(
+//                    text = "Upload",
+//                    fontSize = tokens.caption,
+//                    fontWeight = FontWeight.Medium,
+//                    color = whiteBg
+//                )
+//            }
         }
 
         DetailCard {

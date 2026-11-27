@@ -64,31 +64,6 @@ fun SettingsOverviewScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 20.dp)
         ) {
-            StatusBadge(
-                text = "System Administration",
-                variant = StatusBadgeVariant.PRIMARY,
-                cornerRadius = 6.dp,
-                horizontalPadding = 10.dp,
-                verticalPadding = 4.dp,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            Spacer(Modifier.height(10.dp))
-
-            Text(
-                text = "Settings Overview",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextDark
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "Choose the area you want to configure.",
-                fontSize = 13.sp,
-                color = TextMuted
-            )
-
-            Spacer(Modifier.height(20.dp))
 
             // Card 1: Organization Settings
             SettingsOverviewCard(
